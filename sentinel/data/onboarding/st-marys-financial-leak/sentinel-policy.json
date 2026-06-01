@@ -1,0 +1,18 @@
+{
+  "templateId": "next-school-standard-v1",
+  "institutionId": "st-marys-demo",
+  "vertical": "k12",
+  "thresholds": {
+    "cashFlow": "expenses > revenue",
+    "enrollment": "activeStudents < capacityThreshold",
+    "inventoryRiskScoreWarn": 0.7,
+    "energyCostIncreaseWarnPercent": 20
+  },
+  "humanApprovalRequiredForFinancialActions": true,
+  "localOnly": true,
+  "approvedRepairActions": [
+    "notify_only",
+    "restart_container",
+    "rollback_snapshot"
+  ]
+}

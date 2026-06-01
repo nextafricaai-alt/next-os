@@ -1,0 +1,46 @@
+{
+  "institutionId": "grace-chapel-demo",
+  "name": "Grace Chapel Demo",
+  "templateType": "church",
+  "country": "Uganda",
+  "district": "Kampala",
+  "currency": "UGX",
+  "operatingYear": "2026",
+  "capacityThreshold": 350,
+  "activeParticipants": 420,
+  "openingCashBalance": 12000000,
+  "revenueStreams": [
+    {
+      "name": "Tithes and Offerings",
+      "amount": 18000000,
+      "cadence": "month"
+    },
+    {
+      "name": "Ministry Donations",
+      "amount": 3500000,
+      "cadence": "month"
+    }
+  ],
+  "expenseStreams": [
+    {
+      "name": "Facility and Utilities",
+      "amount": 6000000,
+      "cadence": "month"
+    },
+    {
+      "name": "Ministry Programs",
+      "amount": 7500000,
+      "cadence": "month"
+    }
+  ],
+  "governanceContacts": [
+    {
+      "role": "pastor",
+      "name": "Lead Pastor"
+    },
+    {
+      "role": "finance",
+      "name": "Church Treasurer"
+    }
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "templateId": "next-church-standard-v1",
+  "institutionId": "grace-chapel-demo",
+  "vertical": "church",
+  "thresholds": {
+    "cashFlow": "expenses > revenue",
+    "participation": "activeParticipants < capacityThreshold",
+    "ministryCommitmentWarn": "committed_ministry_costs > unrestricted_income",
+    "inventoryRiskScoreWarn": 0.7
+  },
+  "modules": [
+    "giving_tracking",
+    "attendance_tracking",
+    "ministry_budgeting",
+    "facility_management",
+    "leadership_advisory_reporting"
+  ],
+  "labels": {
+    "participantName": "members and attendees",
+    "revenueName": "tithes, offerings, and ministry income",
+    "governanceBody": "church leadership"
+  },
+  "humanApprovalRequiredForFinancialActions": true,
+  "localOnly": true,
+  "approvedRepairActions": [
+    "notify_only",
+    "restart_container",
+    "rollback_snapshot"
+  ]
+}

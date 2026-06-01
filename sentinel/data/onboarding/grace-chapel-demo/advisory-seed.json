@@ -1,0 +1,15 @@
+{
+  "institutionId": "grace-chapel-demo",
+  "greetingContext": "Grace Chapel Demo in Kampala, Uganda",
+  "preferredQuestion": "Would you like me to prepare a gentle giving, attendance, and ministry commitments note for leadership review?",
+  "governanceContacts": [
+    {
+      "role": "pastor",
+      "name": "Lead Pastor"
+    },
+    {
+      "role": "finance",
+      "name": "Church Treasurer"
+    }
+  ]
+}

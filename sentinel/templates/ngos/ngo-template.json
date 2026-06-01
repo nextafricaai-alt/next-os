@@ -1,0 +1,33 @@
+{
+  "templateId": "next-ngo-standard-v1",
+  "vertical": "ngo",
+  "description": "Reusable NEXT Sentinel onboarding template for NGOs and nonprofit programs.",
+  "kpiDefaults": {
+    "energyCost": 0,
+    "inventoryRiskScore": 0.35,
+    "resourceUtilization": 0.6
+  },
+  "labels": {
+    "participantName": "beneficiaries",
+    "revenueName": "grants, donations, and program income",
+    "governanceBody": "board and program leadership"
+  },
+  "thresholds": {
+    "cashFlow": "expenses > revenue",
+    "beneficiaryReach": "activeParticipants < capacityThreshold",
+    "restrictedFundsWarn": "restricted_funds < committed_program_costs",
+    "inventoryRiskScoreWarn": 0.7
+  },
+  "advisoryTone": {
+    "style": "professional, empathetic, donor-aware, and program-grounded",
+    "decisionModel": "human-in-the-loop",
+    "example": "Would you like me to prepare a beneficiary reach, donor funds, and budget constraints note for leadership review?"
+  },
+  "modules": [
+    "donor_management",
+    "program_delivery",
+    "grant_budget_tracking",
+    "beneficiary_reach",
+    "board_advisory_reporting"
+  ]
+}

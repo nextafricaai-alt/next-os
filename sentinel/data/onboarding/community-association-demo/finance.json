@@ -1,0 +1,36 @@
+[
+  {
+    "institutionId": "community-association-demo",
+    "vertical": "organisation",
+    "finance": {
+      "revenue": 20000000,
+      "expenses": 14500000,
+      "currency": "UGX",
+      "openingCashBalance": 15000000,
+      "revenueStreams": [
+        {
+          "name": "Membership Contributions",
+          "amount": 12000000,
+          "cadence": "quarter"
+        },
+        {
+          "name": "Service Fees",
+          "amount": 8000000,
+          "cadence": "quarter"
+        }
+      ],
+      "expenseStreams": [
+        {
+          "name": "Community Programs",
+          "amount": 9000000,
+          "cadence": "quarter"
+        },
+        {
+          "name": "Administration",
+          "amount": 5500000,
+          "cadence": "quarter"
+        }
+      ]
+    }
+  }
+]

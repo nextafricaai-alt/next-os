@@ -1,0 +1,38 @@
+{
+  "templateId": "next-school-standard-v1",
+  "vertical": "k12",
+  "description": "Reusable NEXT Sentinel onboarding template for K-12 schools.",
+  "requiredProfileFields": [
+    "institutionId",
+    "name",
+    "country",
+    "currency",
+    "academicYear",
+    "capacityThreshold",
+    "expectedEnrollment",
+    "feeCategories"
+  ],
+  "kpiDefaults": {
+    "energyCost": 0,
+    "inventoryRiskScore": 0.25,
+    "resourceUtilization": 0.5
+  },
+  "thresholds": {
+    "cashFlow": "expenses > revenue",
+    "enrollment": "activeStudents < capacityThreshold",
+    "inventoryRiskScoreWarn": 0.7,
+    "energyCostIncreaseWarnPercent": 20
+  },
+  "advisoryTone": {
+    "style": "professional, empathetic, culturally grounded",
+    "decisionModel": "human-in-the-loop",
+    "example": "Would you like me to generate a report on pending school fees?"
+  },
+  "modules": [
+    "fee_collection",
+    "enrollment_tracking",
+    "resource_management",
+    "energy_cost_monitoring",
+    "board_advisory_reporting"
+  ]
+}

@@ -1,0 +1,36 @@
+[
+  {
+    "institutionId": "grace-chapel-demo",
+    "vertical": "church",
+    "finance": {
+      "revenue": 21500000,
+      "expenses": 13500000,
+      "currency": "UGX",
+      "openingCashBalance": 12000000,
+      "revenueStreams": [
+        {
+          "name": "Tithes and Offerings",
+          "amount": 18000000,
+          "cadence": "month"
+        },
+        {
+          "name": "Ministry Donations",
+          "amount": 3500000,
+          "cadence": "month"
+        }
+      ],
+      "expenseStreams": [
+        {
+          "name": "Facility and Utilities",
+          "amount": 6000000,
+          "cadence": "month"
+        },
+        {
+          "name": "Ministry Programs",
+          "amount": 7500000,
+          "cadence": "month"
+        }
+      ]
+    }
+  }
+]

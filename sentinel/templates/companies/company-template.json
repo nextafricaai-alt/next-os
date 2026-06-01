@@ -1,0 +1,33 @@
+{
+  "templateId": "next-company-standard-v1",
+  "vertical": "company",
+  "description": "Reusable NEXT Sentinel onboarding template for companies and operating businesses.",
+  "kpiDefaults": {
+    "energyCost": 0,
+    "inventoryRiskScore": 0.3,
+    "resourceUtilization": 0.65
+  },
+  "labels": {
+    "participantName": "active customers or staff",
+    "revenueName": "sales and service revenue",
+    "governanceBody": "management team"
+  },
+  "thresholds": {
+    "cashFlow": "expenses > revenue",
+    "utilization": "activeParticipants < capacityThreshold",
+    "marginWarn": "gross_margin < target_margin",
+    "inventoryRiskScoreWarn": 0.7
+  },
+  "advisoryTone": {
+    "style": "professional, concise, operational, and human-in-the-loop",
+    "decisionModel": "human-in-the-loop",
+    "example": "Would you like me to prepare a management summary on revenue, cost drivers, and operational utilization?"
+  },
+  "modules": [
+    "revenue_tracking",
+    "expense_tracking",
+    "customer_or_staff_utilization",
+    "inventory_monitoring",
+    "management_advisory_reporting"
+  ]
+}

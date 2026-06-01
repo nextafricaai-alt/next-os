@@ -1,0 +1,33 @@
+{
+  "templateId": "next-church-standard-v1",
+  "vertical": "church",
+  "description": "Reusable NEXT Sentinel onboarding template for churches and faith communities.",
+  "kpiDefaults": {
+    "energyCost": 0,
+    "inventoryRiskScore": 0.2,
+    "resourceUtilization": 0.55
+  },
+  "labels": {
+    "participantName": "members and attendees",
+    "revenueName": "tithes, offerings, and ministry income",
+    "governanceBody": "church leadership"
+  },
+  "thresholds": {
+    "cashFlow": "expenses > revenue",
+    "participation": "activeParticipants < capacityThreshold",
+    "ministryCommitmentWarn": "committed_ministry_costs > unrestricted_income",
+    "inventoryRiskScoreWarn": 0.7
+  },
+  "advisoryTone": {
+    "style": "pastoral, professional, empathetic, and stewardship-focused",
+    "decisionModel": "human-in-the-loop",
+    "example": "Would you like me to prepare a gentle giving, attendance, and ministry commitments note for leadership review?"
+  },
+  "modules": [
+    "giving_tracking",
+    "attendance_tracking",
+    "ministry_budgeting",
+    "facility_management",
+    "leadership_advisory_reporting"
+  ]
+}

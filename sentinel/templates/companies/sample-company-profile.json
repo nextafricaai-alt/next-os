@@ -1,0 +1,24 @@
+{
+  "institutionId": "next-services-demo",
+  "name": "NEXT Services Demo Ltd",
+  "templateType": "company",
+  "country": "Uganda",
+  "district": "Kampala",
+  "currency": "UGX",
+  "operatingYear": "2026",
+  "capacityThreshold": 120,
+  "activeParticipants": 96,
+  "openingCashBalance": 45000000,
+  "revenueStreams": [
+    { "name": "Service Contracts", "amount": 120000000, "cadence": "quarter" },
+    { "name": "Retainers", "amount": 30000000, "cadence": "month" }
+  ],
+  "expenseStreams": [
+    { "name": "Payroll", "amount": 42000000, "cadence": "month" },
+    { "name": "Operations", "amount": 12500000, "cadence": "month" }
+  ],
+  "governanceContacts": [
+    { "role": "manager", "name": "General Manager" },
+    { "role": "finance", "name": "Finance Manager" }
+  ]
+}

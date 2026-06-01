@@ -1,0 +1,39 @@
+services:
+  sentinel-daemon:
+    build:
+      context: ../../sentinel-daemon
+    environment:
+      NEXT_SENTINEL_DB: /var/lib/next-sentinel/sentinel.db
+    volumes:
+      - sentinel-data:/var/lib/next-sentinel
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+
+  context-aggregator:
+    build:
+      context: ../..
+      dockerfile: deploy/docker/node.Dockerfile
+    command: ["node", "dist/context-aggregator/src/index.js"]
+    volumes:
+      - sentinel-data:/app/data
+    security_opt:
+      - no-new-privileges:true
+
+  ws-bridge:
+    build:
+      context: ../..
+      dockerfile: deploy/docker/node.Dockerfile
+    command: ["node", "dist/ws-bridge/src/index.js"]
+    ports:
+      - "127.0.0.1:8787:8787"
+    volumes:
+      - sentinel-data:/app/data
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  sentinel-data:
+

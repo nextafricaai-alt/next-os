@@ -1,0 +1,43 @@
+# ─── NEXT OS .gitignore ────────────────────────────────────────────────
+# What NOT to push to GitHub
+
+# Node / npm
+node_modules/
+package-lock.json.bak
+npm-debug.log*
+
+# Cloudflare Wrangler local caches + local secrets
+.wrangler/
+.dev.vars
+.dev.vars.*
+wrangler.toml.bak
+
+# Environment files (NEVER commit these — they contain secrets)
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+id_rsa
+id_rsa.*
+
+# OS junk
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+*~
+
+# Editor / IDE
+.vscode/
+.idea/
+*.sublime-*
+
+# Build outputs / caches (none currently, future-proof)
+dist/
+build/
+.cache/
+
+# Personal scratch / experiments
+scratch/
+*.tmp

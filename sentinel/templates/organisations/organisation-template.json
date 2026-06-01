@@ -1,0 +1,33 @@
+{
+  "templateId": "next-organisation-standard-v1",
+  "vertical": "organisation",
+  "description": "Reusable NEXT Sentinel onboarding template for associations, institutions, and general organisations.",
+  "kpiDefaults": {
+    "energyCost": 0,
+    "inventoryRiskScore": 0.3,
+    "resourceUtilization": 0.6
+  },
+  "labels": {
+    "participantName": "members or participants",
+    "revenueName": "membership, service, and operating income",
+    "governanceBody": "leadership team"
+  },
+  "thresholds": {
+    "cashFlow": "expenses > revenue",
+    "participation": "activeParticipants < capacityThreshold",
+    "resourceUtilizationWarn": "resource_utilization < target_utilization",
+    "inventoryRiskScoreWarn": 0.7
+  },
+  "advisoryTone": {
+    "style": "professional, empathetic, governance-aware, and practical",
+    "decisionModel": "human-in-the-loop",
+    "example": "Would you like me to prepare a leadership note on participation, finances, and resource use?"
+  },
+  "modules": [
+    "membership_tracking",
+    "financial_monitoring",
+    "resource_management",
+    "service_delivery",
+    "leadership_advisory_reporting"
+  ]
+}

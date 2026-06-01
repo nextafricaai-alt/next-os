@@ -1,0 +1,13 @@
+[
+  {
+    "institutionId": "st-marys-demo",
+    "vertical": "k12",
+    "finance": {
+      "revenue": 1584000000,
+      "expenses": 0,
+      "feePayments": 1584000000,
+      "currency": "UGX",
+      "openingCashBalance": 25000000
+    }
+  }
+]

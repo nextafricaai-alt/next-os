@@ -1,0 +1,25 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "strict": true,
+    "outDir": "dist",
+    "rootDir": ".",
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true
+  },
+  "include": [
+    "shared/src/**/*.ts",
+    "context-aggregator/src/**/*.ts",
+    "template-engine/src/**/*.ts",
+    "advisor-prompt-engine/src/**/*.ts",
+    "repair-engine/src/**/*.ts",
+    "ws-bridge/src/**/*.ts",
+    "whatsapp-bridge/src/**/*.ts",
+    "adapters/**/*.ts",
+    "agent/**/*.ts",
+    "tests/**/*.ts"
+  ]
+}

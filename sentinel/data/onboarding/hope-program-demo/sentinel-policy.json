@@ -1,0 +1,30 @@
+{
+  "templateId": "next-ngo-standard-v1",
+  "institutionId": "hope-program-demo",
+  "vertical": "ngo",
+  "thresholds": {
+    "cashFlow": "expenses > revenue",
+    "beneficiaryReach": "activeParticipants < capacityThreshold",
+    "restrictedFundsWarn": "restricted_funds < committed_program_costs",
+    "inventoryRiskScoreWarn": 0.7
+  },
+  "modules": [
+    "donor_management",
+    "program_delivery",
+    "grant_budget_tracking",
+    "beneficiary_reach",
+    "board_advisory_reporting"
+  ],
+  "labels": {
+    "participantName": "beneficiaries",
+    "revenueName": "grants, donations, and program income",
+    "governanceBody": "board and program leadership"
+  },
+  "humanApprovalRequiredForFinancialActions": true,
+  "localOnly": true,
+  "approvedRepairActions": [
+    "notify_only",
+    "restart_container",
+    "rollback_snapshot"
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "institutionId": "community-association-demo",
+  "greetingContext": "Community Association Demo in Jinja, Uganda",
+  "preferredQuestion": "Would you like me to prepare a leadership note on participation, finances, and resource use?",
+  "governanceContacts": [
+    {
+      "role": "board",
+      "name": "Chairperson"
+    },
+    {
+      "role": "administrator",
+      "name": "Secretary"
+    }
+  ]
+}

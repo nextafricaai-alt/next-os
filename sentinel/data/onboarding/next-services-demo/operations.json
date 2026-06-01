@@ -1,0 +1,13 @@
+[
+  {
+    "institutionId": "next-services-demo",
+    "ops": {
+      "activeStudents": 96,
+      "capacityThreshold": 120,
+      "energyCost": 0,
+      "inventoryRiskScore": 0.3,
+      "resourceUtilization": 0.65,
+      "participantName": "active customers or staff"
+    }
+  }
+]

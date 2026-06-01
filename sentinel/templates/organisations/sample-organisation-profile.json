@@ -1,0 +1,24 @@
+{
+  "institutionId": "community-association-demo",
+  "name": "Community Association Demo",
+  "templateType": "organisation",
+  "country": "Uganda",
+  "district": "Jinja",
+  "currency": "UGX",
+  "operatingYear": "2026",
+  "capacityThreshold": 500,
+  "activeParticipants": 430,
+  "openingCashBalance": 15000000,
+  "revenueStreams": [
+    { "name": "Membership Contributions", "amount": 12000000, "cadence": "quarter" },
+    { "name": "Service Fees", "amount": 8000000, "cadence": "quarter" }
+  ],
+  "expenseStreams": [
+    { "name": "Community Programs", "amount": 9000000, "cadence": "quarter" },
+    { "name": "Administration", "amount": 5500000, "cadence": "quarter" }
+  ],
+  "governanceContacts": [
+    { "role": "board", "name": "Chairperson" },
+    { "role": "administrator", "name": "Secretary" }
+  ]
+}

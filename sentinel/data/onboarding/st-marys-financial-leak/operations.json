@@ -1,0 +1,12 @@
+[
+  {
+    "institutionId": "st-marys-demo",
+    "ops": {
+      "activeStudents": 720,
+      "capacityThreshold": 600,
+      "energyCost": 0,
+      "inventoryRiskScore": 0.25,
+      "resourceUtilization": 0.5
+    }
+  }
+]

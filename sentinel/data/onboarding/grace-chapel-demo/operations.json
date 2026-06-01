@@ -1,0 +1,13 @@
+[
+  {
+    "institutionId": "grace-chapel-demo",
+    "ops": {
+      "activeStudents": 420,
+      "capacityThreshold": 350,
+      "energyCost": 0,
+      "inventoryRiskScore": 0.2,
+      "resourceUtilization": 0.55,
+      "participantName": "members and attendees"
+    }
+  }
+]

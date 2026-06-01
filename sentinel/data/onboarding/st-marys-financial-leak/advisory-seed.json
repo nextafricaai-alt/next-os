@@ -1,0 +1,19 @@
+{
+  "institutionId": "st-marys-demo",
+  "greetingContext": "St. Mary's Demo School in Kampala, Uganda",
+  "preferredQuestion": "Would you like me to generate a report on pending school fees?",
+  "governanceContacts": [
+    {
+      "role": "board",
+      "name": "Board Chair"
+    },
+    {
+      "role": "finance",
+      "name": "Bursar"
+    },
+    {
+      "role": "administrator",
+      "name": "Head Teacher"
+    }
+  ]
+}

@@ -1,0 +1,47 @@
+{
+  "institutionId": "st-marys-demo",
+  "name": "St. Mary's Demo School",
+  "country": "Uganda",
+  "district": "Kampala",
+  "currency": "UGX",
+  "academicYear": "2026",
+  "capacityThreshold": 600,
+  "expectedEnrollment": 720,
+  "openingCashBalance": 25000000,
+  "feeCategories": [
+    {
+      "name": "Tuition",
+      "amount": 850000,
+      "cadence": "term"
+    },
+    {
+      "name": "Boarding",
+      "amount": 1200000,
+      "cadence": "term"
+    },
+    {
+      "name": "Development Fund",
+      "amount": 150000,
+      "cadence": "term"
+    }
+  ],
+  "integrations": {
+    "financeSource": "local-finance-ledger",
+    "enrollmentSource": "local-student-registry",
+    "inventorySource": "local-inventory-register"
+  },
+  "governanceContacts": [
+    {
+      "role": "board",
+      "name": "Board Chair"
+    },
+    {
+      "role": "finance",
+      "name": "Bursar"
+    },
+    {
+      "role": "administrator",
+      "name": "Head Teacher"
+    }
+  ]
+}

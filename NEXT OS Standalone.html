@@ -1,0 +1,3073 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NEXT Digital OS</title>
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="uploads/NEXT Favicon Transperent Logo@3x.png">
+  <link rel="apple-touch-icon" href="uploads/NEXT Favicon Transperent Logo@3x.png">
+
+  <!-- Resource dependencies for standalone bundling -->
+  <meta name="ext-resource-dependency" content="uploads/NEXT Favicon Transperent Logo@3x.png" data-resource-id="faviconLogo" />
+  <meta name="ext-resource-dependency" content="uploads/NEXT Landscape White Logo@3x.png" data-resource-id="whiteLogo" />
+
+  <template id="__bundler_thumbnail" data-bg-color="#0A001A">
+    <svg viewBox="0 0 400 300" xmlns="http://www.w3.org/2000/svg">
+      <rect width="400" height="300" fill="#0A001A"/>
+      <!-- Sidebar hint -->
+      <rect x="0" y="0" width="60" height="300" fill="#1A0042" opacity="0.8"/>
+      <rect x="60" y="0" width="1" height="300" fill="rgba(255,255,255,0.06)"/>
+      <!-- N logo mark -->
+      <g transform="translate(200,120) scale(1.2)" opacity="0.9">
+        <path d="M-25 30 L-25 0 L0 -25 L0 5 L25 30 L25 0" fill="none" stroke="#00FC8F" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+      </g>
+      <!-- NEXT text -->
+      <text x="200" y="185" text-anchor="middle" fill="white" font-family="sans-serif" font-weight="800" font-size="20" letter-spacing="4">NEXT</text>
+      <text x="200" y="202" text-anchor="middle" fill="rgba(255,255,255,0.4)" font-family="monospace" font-size="8" letter-spacing="2">DIGITAL OS</text>
+      <!-- Glow effect -->
+      <circle cx="200" cy="130" r="60" fill="#00FC8F" opacity="0.04"/>
+    </svg>
+  </template>
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@400;600;700;800&family=DM+Mono:wght@400;500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      /* Backgrounds */
+      --bg-deepest: #060012;
+      --bg-deep: #0A001A;
+      --bg-primary: #140035;
+      --bg-elevated: #1A0042;
+      --bg-surface: #220055;
+      --bg-hover: #2A0068;
+
+      /* Borders */
+      --border-subtle: rgba(255,255,255,0.06);
+      --border-default: rgba(255,255,255,0.1);
+      --border-active: rgba(0,252,143,0.3);
+
+      /* Text */
+      --text-primary: #FFFFFF;
+      --text-secondary: rgba(255,255,255,0.65);
+      --text-tertiary: rgba(255,255,255,0.4);
+      --text-inverse: #140035;
+
+      /* Brand */
+      --mint: #00FC8F;
+      --mint-dim: #00C96F;
+      --mint-glow: rgba(0,252,143,0.1);
+      --mint-glow-strong: rgba(0,252,143,0.2);
+      --emerald: #1B9B6F;
+      --emerald-dim: #158759;
+      --gold: #FFB400;
+      --gold-dim: #CC9000;
+      --gold-glow: rgba(255,180,0,0.1);
+
+      /* Semantic */
+      --danger: #FF4757;
+      --warning: #FFA502;
+      --info: #3B82F6;
+
+      /* Typography */
+      --font-display: 'Big Shoulders Display', sans-serif;
+      --font-body: 'Inter', sans-serif;
+      --font-mono: 'DM Mono', monospace;
+
+      /* Spacing & Sizing */
+      --radius-sm: 6px;
+      --radius-md: 10px;
+      --radius-lg: 16px;
+    }
+
+    html { font-family: var(--font-body); background: var(--bg-deep); color: var(--text-primary); }
+    body { min-height: 100vh; overflow-x: hidden; }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+
+    /* Interactive states */
+    .nav-item:hover { background: var(--bg-hover) !important; color: var(--text-primary) !important; }
+    .kpi-card:hover { border-color: var(--border-default) !important; transform: translateY(-1px); }
+    .quick-action-btn:hover { border-color: var(--mint) !important; color: var(--mint) !important; background: var(--mint-glow) !important; }
+    .member-row:hover { background: var(--bg-surface); }
+    .project-card:hover { border-color: var(--border-default) !important; background: var(--bg-surface) !important; }
+    .tier-select-card:hover { border-color: var(--border-default) !important; }
+
+    /* Membership card hover - glow intensity controlled by data attr */
+    .membership-card { transition: transform 0.3s ease, box-shadow 0.3s ease !important; }
+    .membership-card:hover { transform: translateY(-4px) scale(1.01) !important; }
+    
+    /* Glow levels */
+    [data-glow="subtle"] .catalyst-card:hover { box-shadow: 0 4px 20px rgba(0,0,0,0.4), 0 0 20px rgba(0,252,143,0.05) !important; }
+    [data-glow="subtle"] .builder-card:hover { box-shadow: 0 4px 20px rgba(0,0,0,0.4), 0 0 20px rgba(27,155,111,0.06) !important; }
+    [data-glow="subtle"] .architect-card:hover { box-shadow: 0 4px 20px rgba(0,0,0,0.4), 0 0 20px rgba(255,180,0,0.06) !important; }
+    
+    .catalyst-card:hover { box-shadow: 0 8px 40px rgba(0,0,0,0.5), 0 0 60px rgba(0,252,143,0.1) !important; }
+    .builder-card:hover { box-shadow: 0 8px 40px rgba(0,0,0,0.5), 0 0 60px rgba(27,155,111,0.12) !important; }
+    .architect-card:hover { box-shadow: 0 8px 40px rgba(0,0,0,0.5), 0 0 60px rgba(255,180,0,0.12) !important; }
+    
+    [data-glow="intense"] .catalyst-card:hover { box-shadow: 0 8px 40px rgba(0,0,0,0.5), 0 0 80px rgba(0,252,143,0.2) !important; }
+    [data-glow="intense"] .builder-card:hover { box-shadow: 0 8px 40px rgba(0,0,0,0.5), 0 0 80px rgba(27,155,111,0.2) !important; }
+    [data-glow="intense"] .architect-card:hover { box-shadow: 0 8px 40px rgba(0,0,0,0.5), 0 0 80px rgba(255,180,0,0.2) !important; }
+    
+    /* Shine toggle */
+    [data-shine="off"] .card-shine-architect::after,
+    [data-shine="off"] .card-shine-builder::after { animation: none !important; opacity: 0 !important; }
+
+    /* Architect card animated shine */
+    .card-shine-architect {
+      position: absolute; inset: 0; z-index: 1; overflow: hidden; pointer-events: none; border-radius: 16px;
+    }
+    .card-shine-architect::after {
+      content: ''; position: absolute; top: -100%; left: -100%;
+      width: 60%; height: 300%;
+      background: linear-gradient(
+        100deg,
+        transparent 0%, transparent 40%,
+        rgba(255,180,0,0.04) 45%, rgba(255,255,255,0.06) 50%,
+        rgba(255,180,0,0.04) 55%, transparent 60%, transparent 100%
+      );
+      animation: shineGold 5s ease-in-out infinite;
+    }
+    @keyframes shineGold {
+      0% { transform: translateX(-30%) rotate(20deg); }
+      50% { transform: translateX(200%) rotate(20deg); }
+      100% { transform: translateX(200%) rotate(20deg); }
+    }
+
+    /* Builder card subtle shine */
+    .card-shine-builder {
+      position: absolute; inset: 0; z-index: 1; overflow: hidden; pointer-events: none; border-radius: 16px;
+    }
+    .card-shine-builder::after {
+      content: ''; position: absolute; top: -100%; left: -100%;
+      width: 60%; height: 300%;
+      background: linear-gradient(
+        100deg,
+        transparent 0%, transparent 40%,
+        rgba(27,155,111,0.03) 45%, rgba(255,255,255,0.04) 50%,
+        rgba(27,155,111,0.03) 55%, transparent 60%, transparent 100%
+      );
+      animation: shineEmerald 7s ease-in-out infinite;
+    }
+    @keyframes shineEmerald {
+      0% { transform: translateX(-30%) rotate(20deg); }
+      50% { transform: translateX(200%) rotate(20deg); }
+      100% { transform: translateX(200%) rotate(20deg); }
+    }
+
+    /* Input focus */
+    input:focus { border-color: var(--border-active) !important; }
+    input::placeholder { color: var(--text-tertiary); }
+
+    /* Transitions */
+    button { transition: all 0.15s ease; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <!-- React -->
+  <script src="vendor/react.development.js"></script>
+  <script src="vendor/react-dom.development.js"></script>
+  <script src="vendor/babel.min.js"></script>
+
+  <!-- Components -->
+  <script type="text/babel">
+
+// tweaks-panel.jsx
+// Reusable Tweaks shell + form-control helpers.
+//
+// Owns the host protocol (listens for __activate_edit_mode / __deactivate_edit_mode,
+// posts __edit_mode_available / __edit_mode_set_keys / __edit_mode_dismissed) so
+// individual prototypes don't re-roll it. Ships a consistent set of controls so you
+// don't hand-draw <input type="range">, segmented radios, steppers, etc.
+//
+// Usage (in an HTML file that loads React + Babel):
+//
+//   const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+//     "primaryColor": "#D97757",
+//     "palette": ["#D97757", "#29261b", "#f6f4ef"],
+//     "fontSize": 16,
+//     "density": "regular",
+//     "dark": false
+//   }/*EDITMODE-END*/;
+//
+//   function App() {
+//     const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
+//     return (
+//       <div style={{ fontSize: t.fontSize, color: t.primaryColor }}>
+//         Hello
+//         <TweaksPanel>
+//           <TweakSection label="Typography" />
+//           <TweakSlider label="Font size" value={t.fontSize} min={10} max={32} unit="px"
+//                        onChange={(v) => setTweak('fontSize', v)} />
+//           <TweakRadio  label="Density" value={t.density}
+//                        options={['compact', 'regular', 'comfy']}
+//                        onChange={(v) => setTweak('density', v)} />
+//           <TweakSection label="Theme" />
+//           <TweakColor  label="Primary" value={t.primaryColor}
+//                        options={['#D97757', '#2A6FDB', '#1F8A5B', '#7A5AE0']}
+//                        onChange={(v) => setTweak('primaryColor', v)} />
+//           <TweakColor  label="Palette" value={t.palette}
+//                        options={[['#D97757', '#29261b', '#f6f4ef'],
+//                                  ['#475569', '#0f172a', '#f1f5f9']]}
+//                        onChange={(v) => setTweak('palette', v)} />
+//           <TweakToggle label="Dark mode" value={t.dark}
+//                        onChange={(v) => setTweak('dark', v)} />
+//         </TweaksPanel>
+//       </div>
+//     );
+//   }
+//
+// -----------------------------------------------------------------------------
+
+const __TWEAKS_STYLE = `
+  .twk-panel{position:fixed;right:16px;bottom:16px;z-index:2147483646;width:280px;
+    max-height:calc(100vh - 32px);display:flex;flex-direction:column;
+    transform:scale(var(--dc-inv-zoom,1));transform-origin:bottom right;
+    background:rgba(250,249,247,.78);color:#29261b;
+    -webkit-backdrop-filter:blur(24px) saturate(160%);backdrop-filter:blur(24px) saturate(160%);
+    border:.5px solid rgba(255,255,255,.6);border-radius:14px;
+    box-shadow:0 1px 0 rgba(255,255,255,.5) inset,0 12px 40px rgba(0,0,0,.18);
+    font:11.5px/1.4 ui-sans-serif,system-ui,-apple-system,sans-serif;overflow:hidden}
+  .twk-hd{display:flex;align-items:center;justify-content:space-between;
+    padding:10px 8px 10px 14px;cursor:move;user-select:none}
+  .twk-hd b{font-size:12px;font-weight:600;letter-spacing:.01em}
+  .twk-x{appearance:none;border:0;background:transparent;color:rgba(41,38,27,.55);
+    width:22px;height:22px;border-radius:6px;cursor:default;font-size:13px;line-height:1}
+  .twk-x:hover{background:rgba(0,0,0,.06);color:#29261b}
+  .twk-body{padding:2px 14px 14px;display:flex;flex-direction:column;gap:10px;
+    overflow-y:auto;overflow-x:hidden;min-height:0;
+    scrollbar-width:thin;scrollbar-color:rgba(0,0,0,.15) transparent}
+  .twk-body::-webkit-scrollbar{width:8px}
+  .twk-body::-webkit-scrollbar-track{background:transparent;margin:2px}
+  .twk-body::-webkit-scrollbar-thumb{background:rgba(0,0,0,.15);border-radius:4px;
+    border:2px solid transparent;background-clip:content-box}
+  .twk-body::-webkit-scrollbar-thumb:hover{background:rgba(0,0,0,.25);
+    border:2px solid transparent;background-clip:content-box}
+  .twk-row{display:flex;flex-direction:column;gap:5px}
+  .twk-row-h{flex-direction:row;align-items:center;justify-content:space-between;gap:10px}
+  .twk-lbl{display:flex;justify-content:space-between;align-items:baseline;
+    color:rgba(41,38,27,.72)}
+  .twk-lbl>span:first-child{font-weight:500}
+  .twk-val{color:rgba(41,38,27,.5);font-variant-numeric:tabular-nums}
+
+  .twk-sect{font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;
+    color:rgba(41,38,27,.45);padding:10px 0 0}
+  .twk-sect:first-child{padding-top:0}
+
+  .twk-field{appearance:none;box-sizing:border-box;width:100%;min-width:0;height:26px;padding:0 8px;
+    border:.5px solid rgba(0,0,0,.1);border-radius:7px;
+    background:rgba(255,255,255,.6);color:inherit;font:inherit;outline:none}
+  .twk-field:focus{border-color:rgba(0,0,0,.25);background:rgba(255,255,255,.85)}
+  select.twk-field{padding-right:22px;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path fill='rgba(0,0,0,.5)' d='M0 0h10L5 6z'/></svg>");
+    background-repeat:no-repeat;background-position:right 8px center}
+
+  .twk-slider{appearance:none;-webkit-appearance:none;width:100%;height:4px;margin:6px 0;
+    border-radius:999px;background:rgba(0,0,0,.12);outline:none}
+  .twk-slider::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;
+    width:14px;height:14px;border-radius:50%;background:#fff;
+    border:.5px solid rgba(0,0,0,.12);box-shadow:0 1px 3px rgba(0,0,0,.2);cursor:default}
+  .twk-slider::-moz-range-thumb{width:14px;height:14px;border-radius:50%;
+    background:#fff;border:.5px solid rgba(0,0,0,.12);box-shadow:0 1px 3px rgba(0,0,0,.2);cursor:default}
+
+  .twk-seg{position:relative;display:flex;padding:2px;border-radius:8px;
+    background:rgba(0,0,0,.06);user-select:none}
+  .twk-seg-thumb{position:absolute;top:2px;bottom:2px;border-radius:6px;
+    background:rgba(255,255,255,.9);box-shadow:0 1px 2px rgba(0,0,0,.12);
+    transition:left .15s cubic-bezier(.3,.7,.4,1),width .15s}
+  .twk-seg.dragging .twk-seg-thumb{transition:none}
+  .twk-seg button{appearance:none;position:relative;z-index:1;flex:1;border:0;
+    background:transparent;color:inherit;font:inherit;font-weight:500;min-height:22px;
+    border-radius:6px;cursor:default;padding:4px 6px;line-height:1.2;
+    overflow-wrap:anywhere}
+
+  .twk-toggle{position:relative;width:32px;height:18px;border:0;border-radius:999px;
+    background:rgba(0,0,0,.15);transition:background .15s;cursor:default;padding:0}
+  .twk-toggle[data-on="1"]{background:#34c759}
+  .twk-toggle i{position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;
+    background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.25);transition:transform .15s}
+  .twk-toggle[data-on="1"] i{transform:translateX(14px)}
+
+  .twk-num{display:flex;align-items:center;box-sizing:border-box;min-width:0;height:26px;padding:0 0 0 8px;
+    border:.5px solid rgba(0,0,0,.1);border-radius:7px;background:rgba(255,255,255,.6)}
+  .twk-num-lbl{font-weight:500;color:rgba(41,38,27,.6);cursor:ew-resize;
+    user-select:none;padding-right:8px}
+  .twk-num input{flex:1;min-width:0;height:100%;border:0;background:transparent;
+    font:inherit;font-variant-numeric:tabular-nums;text-align:right;padding:0 8px 0 0;
+    outline:none;color:inherit;-moz-appearance:textfield}
+  .twk-num input::-webkit-inner-spin-button,.twk-num input::-webkit-outer-spin-button{
+    -webkit-appearance:none;margin:0}
+  .twk-num-unit{padding-right:8px;color:rgba(41,38,27,.45)}
+
+  .twk-btn{appearance:none;height:26px;padding:0 12px;border:0;border-radius:7px;
+    background:rgba(0,0,0,.78);color:#fff;font:inherit;font-weight:500;cursor:default}
+  .twk-btn:hover{background:rgba(0,0,0,.88)}
+  .twk-btn.secondary{background:rgba(0,0,0,.06);color:inherit}
+  .twk-btn.secondary:hover{background:rgba(0,0,0,.1)}
+
+  .twk-swatch{appearance:none;-webkit-appearance:none;width:56px;height:22px;
+    border:.5px solid rgba(0,0,0,.1);border-radius:6px;padding:0;cursor:default;
+    background:transparent;flex-shrink:0}
+  .twk-swatch::-webkit-color-swatch-wrapper{padding:0}
+  .twk-swatch::-webkit-color-swatch{border:0;border-radius:5.5px}
+  .twk-swatch::-moz-color-swatch{border:0;border-radius:5.5px}
+
+  .twk-chips{display:flex;gap:6px}
+  .twk-chip{position:relative;appearance:none;flex:1;min-width:0;height:46px;
+    padding:0;border:0;border-radius:6px;overflow:hidden;cursor:default;
+    box-shadow:0 0 0 .5px rgba(0,0,0,.12),0 1px 2px rgba(0,0,0,.06);
+    transition:transform .12s cubic-bezier(.3,.7,.4,1),box-shadow .12s}
+  .twk-chip:hover{transform:translateY(-1px);
+    box-shadow:0 0 0 .5px rgba(0,0,0,.18),0 4px 10px rgba(0,0,0,.12)}
+  .twk-chip[data-on="1"]{box-shadow:0 0 0 1.5px rgba(0,0,0,.85),
+    0 2px 6px rgba(0,0,0,.15)}
+  .twk-chip>span{position:absolute;top:0;bottom:0;right:0;width:34%;
+    display:flex;flex-direction:column;box-shadow:-1px 0 0 rgba(0,0,0,.1)}
+  .twk-chip>span>i{flex:1;box-shadow:0 -1px 0 rgba(0,0,0,.1)}
+  .twk-chip>span>i:first-child{box-shadow:none}
+  .twk-chip svg{position:absolute;top:6px;left:6px;width:13px;height:13px;
+    filter:drop-shadow(0 1px 1px rgba(0,0,0,.3))}
+`;
+
+// -- useTweaks ---------------------------------------------------------------
+// Single source of truth for tweak values. setTweak persists via the host
+// (__edit_mode_set_keys -> host rewrites the EDITMODE block on disk).
+function useTweaks(defaults) {
+  const [values, setValues] = React.useState(defaults);
+  // Accepts either setTweak('key', value) or setTweak({ key: value, ... }) so a
+  // useState-style call doesn't write a "[object Object]" key into the persisted
+  // JSON block.
+  const setTweak = React.useCallback((keyOrEdits, val) => {
+    const edits = typeof keyOrEdits === 'object' && keyOrEdits !== null
+      ? keyOrEdits : { [keyOrEdits]: val };
+    setValues((prev) => ({ ...prev, ...edits }));
+    window.parent.postMessage({ type: '__edit_mode_set_keys', edits }, '*');
+    // Same-window signal so in-page listeners (deck-stage rail thumbnails)
+    // can react - the parent message only reaches the host, not peers.
+    window.dispatchEvent(new CustomEvent('tweakchange', { detail: edits }));
+  }, []);
+  return [values, setTweak];
+}
+
+// -- TweaksPanel -------------------------------------------------------------
+// Floating shell. Registers the protocol listener BEFORE announcing
+// availability - if the announce ran first, the host's activate could land
+// before our handler exists and the toolbar toggle would silently no-op.
+// The close button posts __edit_mode_dismissed so the host's toolbar toggle
+// flips off in lockstep; the host echoes __deactivate_edit_mode back which
+// is what actually hides the panel.
+function TweaksPanel({ title = 'Tweaks', noDeckControls = false, children }) {
+  const [open, setOpen] = React.useState(false);
+  const dragRef = React.useRef(null);
+  // Auto-inject a rail toggle when a <deck-stage> is on the page. The
+  // toggle drives the deck's per-viewer _railVisible via window message;
+  // state is mirrored from the same localStorage key the deck reads so
+  // the control reflects reality across reloads. The mechanism is the
+  // message - authors who want custom placement can post it directly
+  // and pass noDeckControls to suppress this one.
+  const hasDeckStage = React.useMemo(
+    () => typeof document !== 'undefined' && !!document.querySelector('deck-stage'),
+    [],
+  );
+  // deck-stage enables its rail in connectedCallback, but this panel can
+  // mount before that element has upgraded. The initial read catches the
+  // common case; the listener covers mounting first. (Older deck-stage.js
+  // copies still wait for the host's __omelette_rail_enabled postMessage -
+  // same listener handles those.)
+  const [railEnabled, setRailEnabled] = React.useState(
+    () => hasDeckStage && !!document.querySelector('deck-stage')?._railEnabled,
+  );
+  React.useEffect(() => {
+    if (!hasDeckStage || railEnabled) return undefined;
+    const onMsg = (e) => {
+      if (e.data && e.data.type === '__omelette_rail_enabled') setRailEnabled(true);
+    };
+    window.addEventListener('message', onMsg);
+    return () => window.removeEventListener('message', onMsg);
+  }, [hasDeckStage, railEnabled]);
+  const [railVisible, setRailVisible] = React.useState(() => {
+    try { return localStorage.getItem('deck-stage.railVisible') !== '0'; } catch (e) { return true; }
+  });
+  const toggleRail = (on) => {
+    setRailVisible(on);
+    window.postMessage({ type: '__deck_rail_visible', on }, '*');
+  };
+  const offsetRef = React.useRef({ x: 16, y: 16 });
+  const PAD = 16;
+
+  const clampToViewport = React.useCallback(() => {
+    const panel = dragRef.current;
+    if (!panel) return;
+    const w = panel.offsetWidth, h = panel.offsetHeight;
+    const maxRight = Math.max(PAD, window.innerWidth - w - PAD);
+    const maxBottom = Math.max(PAD, window.innerHeight - h - PAD);
+    offsetRef.current = {
+      x: Math.min(maxRight, Math.max(PAD, offsetRef.current.x)),
+      y: Math.min(maxBottom, Math.max(PAD, offsetRef.current.y)),
+    };
+    panel.style.right = offsetRef.current.x + 'px';
+    panel.style.bottom = offsetRef.current.y + 'px';
+  }, []);
+
+  React.useEffect(() => {
+    if (!open) return;
+    clampToViewport();
+    if (typeof ResizeObserver === 'undefined') {
+      window.addEventListener('resize', clampToViewport);
+      return () => window.removeEventListener('resize', clampToViewport);
+    }
+    const ro = new ResizeObserver(clampToViewport);
+    ro.observe(document.documentElement);
+    return () => ro.disconnect();
+  }, [open, clampToViewport]);
+
+  React.useEffect(() => {
+    const onMsg = (e) => {
+      const t = e?.data?.type;
+      if (t === '__activate_edit_mode') setOpen(true);
+      else if (t === '__deactivate_edit_mode') setOpen(false);
+    };
+    window.addEventListener('message', onMsg);
+    window.parent.postMessage({ type: '__edit_mode_available' }, '*');
+    return () => window.removeEventListener('message', onMsg);
+  }, []);
+
+  const dismiss = () => {
+    setOpen(false);
+    window.parent.postMessage({ type: '__edit_mode_dismissed' }, '*');
+  };
+
+  const onDragStart = (e) => {
+    const panel = dragRef.current;
+    if (!panel) return;
+    const r = panel.getBoundingClientRect();
+    const sx = e.clientX, sy = e.clientY;
+    const startRight = window.innerWidth - r.right;
+    const startBottom = window.innerHeight - r.bottom;
+    const move = (ev) => {
+      offsetRef.current = {
+        x: startRight - (ev.clientX - sx),
+        y: startBottom - (ev.clientY - sy),
+      };
+      clampToViewport();
+    };
+    const up = () => {
+      window.removeEventListener('mousemove', move);
+      window.removeEventListener('mouseup', up);
+    };
+    window.addEventListener('mousemove', move);
+    window.addEventListener('mouseup', up);
+  };
+
+  if (!open) return null;
+  return (
+    <>
+      <style>{__TWEAKS_STYLE}</style>
+      <div ref={dragRef} className="twk-panel" data-noncommentable=""
+           style={{ right: offsetRef.current.x, bottom: offsetRef.current.y }}>
+        <div className="twk-hd" onMouseDown={onDragStart}>
+          <b>{title}</b>
+          <button className="twk-x" aria-label="Close tweaks"
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onClick={dismiss}>x</button>
+        </div>
+        <div className="twk-body">
+          {children}
+          {hasDeckStage && railEnabled && !noDeckControls && (
+            <TweakSection label="Deck">
+              <TweakToggle label="Thumbnail rail" value={railVisible} onChange={toggleRail} />
+            </TweakSection>
+          )}
+        </div>
+      </div>
+    </>
+  );
+}
+
+// -- Layout helpers ----------------------------------------------------------
+
+function TweakSection({ label, children }) {
+  return (
+    <>
+      <div className="twk-sect">{label}</div>
+      {children}
+    </>
+  );
+}
+
+function TweakRow({ label, value, children, inline = false }) {
+  return (
+    <div className={inline ? 'twk-row twk-row-h' : 'twk-row'}>
+      <div className="twk-lbl">
+        <span>{label}</span>
+        {value != null && <span className="twk-val">{value}</span>}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+// -- Controls ----------------------------------------------------------------
+
+function TweakSlider({ label, value, min = 0, max = 100, step = 1, unit = '', onChange }) {
+  return (
+    <TweakRow label={label} value={`${value}${unit}`}>
+      <input type="range" className="twk-slider" min={min} max={max} step={step}
+             value={value} onChange={(e) => onChange(Number(e.target.value))} />
+    </TweakRow>
+  );
+}
+
+function TweakToggle({ label, value, onChange }) {
+  return (
+    <div className="twk-row twk-row-h">
+      <div className="twk-lbl"><span>{label}</span></div>
+      <button type="button" className="twk-toggle" data-on={value ? '1' : '0'}
+              role="switch" aria-checked={!!value}
+              onClick={() => onChange(!value)}><i /></button>
+    </div>
+  );
+}
+
+function TweakRadio({ label, value, options, onChange }) {
+  const trackRef = React.useRef(null);
+  const [dragging, setDragging] = React.useState(false);
+  // The active value is read by pointer-move handlers attached for the lifetime
+  // of a drag - ref it so a stale closure doesn't fire onChange for every move.
+  const valueRef = React.useRef(value);
+  valueRef.current = value;
+
+  // Segments wrap mid-word once per-segment width runs out. The track is
+  // ~248px (280 panel - 28 body pad - 4 seg pad), each button loses 12px
+  // to its own padding, and 11.5px system-ui averages ~6.3px/char - so 2
+  // options fit ~16 chars each, 3 fit ~10. Past that (or >3 options), fall
+  // back to a dropdown rather than wrap.
+  const labelLen = (o) => String(typeof o === 'object' ? o.label : o).length;
+  const maxLen = options.reduce((m, o) => Math.max(m, labelLen(o)), 0);
+  const fitsAsSegments = maxLen <= ({ 2: 16, 3: 10 }[options.length] ?? 0);
+  if (!fitsAsSegments) {
+    // <select> emits strings - map back to the original option value so the
+    // fallback stays type-preserving (numbers, booleans) like the segment path.
+    const resolve = (s) => {
+      const m = options.find((o) => String(typeof o === 'object' ? o.value : o) === s);
+      return m === undefined ? s : typeof m === 'object' ? m.value : m;
+    };
+    return <TweakSelect label={label} value={value} options={options}
+                        onChange={(s) => onChange(resolve(s))} />;
+  }
+  const opts = options.map((o) => (typeof o === 'object' ? o : { value: o, label: o }));
+  const idx = Math.max(0, opts.findIndex((o) => o.value === value));
+  const n = opts.length;
+
+  const segAt = (clientX) => {
+    const r = trackRef.current.getBoundingClientRect();
+    const inner = r.width - 4;
+    const i = Math.floor(((clientX - r.left - 2) / inner) * n);
+    return opts[Math.max(0, Math.min(n - 1, i))].value;
+  };
+
+  const onPointerDown = (e) => {
+    setDragging(true);
+    const v0 = segAt(e.clientX);
+    if (v0 !== valueRef.current) onChange(v0);
+    const move = (ev) => {
+      if (!trackRef.current) return;
+      const v = segAt(ev.clientX);
+      if (v !== valueRef.current) onChange(v);
+    };
+    const up = () => {
+      setDragging(false);
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  };
+
+  return (
+    <TweakRow label={label}>
+      <div ref={trackRef} role="radiogroup" onPointerDown={onPointerDown}
+           className={dragging ? 'twk-seg dragging' : 'twk-seg'}>
+        <div className="twk-seg-thumb"
+             style={{ left: `calc(2px + ${idx} * (100% - 4px) / ${n})`,
+                      width: `calc((100% - 4px) / ${n})` }} />
+        {opts.map((o) => (
+          <button key={o.value} type="button" role="radio" aria-checked={o.value === value}>
+            {o.label}
+          </button>
+        ))}
+      </div>
+    </TweakRow>
+  );
+}
+
+function TweakSelect({ label, value, options, onChange }) {
+  return (
+    <TweakRow label={label}>
+      <select className="twk-field" value={value} onChange={(e) => onChange(e.target.value)}>
+        {options.map((o) => {
+          const v = typeof o === 'object' ? o.value : o;
+          const l = typeof o === 'object' ? o.label : o;
+          return <option key={v} value={v}>{l}</option>;
+        })}
+      </select>
+    </TweakRow>
+  );
+}
+
+function TweakText({ label, value, placeholder, onChange }) {
+  return (
+    <TweakRow label={label}>
+      <input className="twk-field" type="text" value={value} placeholder={placeholder}
+             onChange={(e) => onChange(e.target.value)} />
+    </TweakRow>
+  );
+}
+
+function TweakNumber({ label, value, min, max, step = 1, unit = '', onChange }) {
+  const clamp = (n) => {
+    if (min != null && n < min) return min;
+    if (max != null && n > max) return max;
+    return n;
+  };
+  const startRef = React.useRef({ x: 0, val: 0 });
+  const onScrubStart = (e) => {
+    e.preventDefault();
+    startRef.current = { x: e.clientX, val: value };
+    const decimals = (String(step).split('.')[1] || '').length;
+    const move = (ev) => {
+      const dx = ev.clientX - startRef.current.x;
+      const raw = startRef.current.val + dx * step;
+      const snapped = Math.round(raw / step) * step;
+      onChange(clamp(Number(snapped.toFixed(decimals))));
+    };
+    const up = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  };
+  return (
+    <div className="twk-num">
+      <span className="twk-num-lbl" onPointerDown={onScrubStart}>{label}</span>
+      <input type="number" value={value} min={min} max={max} step={step}
+             onChange={(e) => onChange(clamp(Number(e.target.value)))} />
+      {unit && <span className="twk-num-unit">{unit}</span>}
+    </div>
+  );
+}
+
+// Relative-luminance contrast pick - checkmarks drawn over a swatch need to
+// read on both #111 and #fafafa without per-option configuration. Hex input
+// only (#rgb / #rrggbb); named or rgb()/hsl() colors fall through to "light".
+function __twkIsLight(hex) {
+  const h = String(hex).replace('#', '');
+  const x = h.length === 3 ? h.replace(/./g, (c) => c + c) : h.padEnd(6, '0');
+  const n = parseInt(x.slice(0, 6), 16);
+  if (Number.isNaN(n)) return true;
+  const r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
+  return r * 299 + g * 587 + b * 114 > 148000;
+}
+
+const __TwkCheck = ({ light }) => (
+  <svg viewBox="0 0 14 14" aria-hidden="true">
+    <path d="M3 7.2 5.8 10 11 4.2" fill="none" strokeWidth="2.2"
+          strokeLinecap="round" strokeLinejoin="round"
+          stroke={light ? 'rgba(0,0,0,.78)' : '#fff'} />
+  </svg>
+);
+
+// TweakColor - curated color/palette picker. Each option is either a single
+// hex string or an array of 1-5 hex strings; the card adapts - a lone color
+// renders solid, a palette renders colors[0] as the hero (left ~2/3) with the
+// rest stacked in a sharp column on the right. onChange emits the
+// option in the shape it was passed (string stays string, array stays array).
+// Without options it falls back to the native color input for back-compat.
+function TweakColor({ label, value, options, onChange }) {
+  if (!options || !options.length) {
+    return (
+      <div className="twk-row twk-row-h">
+        <div className="twk-lbl"><span>{label}</span></div>
+        <input type="color" className="twk-swatch" value={value}
+               onChange={(e) => onChange(e.target.value)} />
+      </div>
+    );
+  }
+  // Native <input type=color> emits lowercase hex per the HTML spec, so
+  // compare case-insensitively. String() guards JSON.stringify(undefined),
+  // which returns the primitive undefined (no .toLowerCase).
+  const key = (o) => String(JSON.stringify(o)).toLowerCase();
+  const cur = key(value);
+  return (
+    <TweakRow label={label}>
+      <div className="twk-chips" role="radiogroup">
+        {options.map((o, i) => {
+          const colors = Array.isArray(o) ? o : [o];
+          const [hero, ...rest] = colors;
+          const sup = rest.slice(0, 4);
+          const on = key(o) === cur;
+          return (
+            <button key={i} type="button" className="twk-chip" role="radio"
+                    aria-checked={on} data-on={on ? '1' : '0'}
+                    aria-label={colors.join(', ')} title={colors.join(' - ')}
+                    style={{ background: hero }}
+                    onClick={() => onChange(o)}>
+              {sup.length > 0 && (
+                <span>
+                  {sup.map((c, j) => <i key={j} style={{ background: c }} />)}
+                </span>
+              )}
+              {on && <__TwkCheck light={__twkIsLight(hero)} />}
+            </button>
+          );
+        })}
+      </div>
+    </TweakRow>
+  );
+}
+
+function TweakButton({ label, onClick, secondary = false }) {
+  return (
+    <button type="button" className={secondary ? 'twk-btn secondary' : 'twk-btn'}
+            onClick={onClick}>{label}</button>
+  );
+}
+
+Object.assign(window, {
+  useTweaks, TweaksPanel, TweakSection, TweakRow,
+  TweakSlider, TweakToggle, TweakRadio, TweakSelect,
+  TweakText, TweakNumber, TweakColor, TweakButton,
+});
+
+</script>
+  <script type="text/babel">
+/* os-dashboard.jsx - NEXT OS Command Center Dashboard */
+
+const DashboardKPI = ({ label, value, change, positive, icon, accentColor }) => {
+  const kpiStyles = {
+    card: {
+      background: 'var(--bg-elevated)',
+      borderRadius: 'var(--radius-md)',
+      padding: '20px 24px',
+      border: '1px solid var(--border-subtle)',
+      display: 'flex', flexDirection: 'column', gap: 12,
+      position: 'relative', overflow: 'hidden',
+      transition: 'border-color 0.2s, box-shadow 0.2s',
+    },
+    iconWrap: {
+      width: 36, height: 36, borderRadius: 8,
+      background: accentColor ? `${accentColor}15` : 'var(--mint-glow)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      color: accentColor || 'var(--mint)',
+    },
+    value: {
+      fontFamily: 'var(--font-display)', fontSize: 32, fontWeight: 700,
+      color: 'var(--text-primary)', letterSpacing: '0.02em', lineHeight: 1,
+    },
+    label: {
+      fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text-tertiary)',
+      fontWeight: 500, letterSpacing: '0.02em', textTransform: 'uppercase',
+    },
+    change: {
+      fontFamily: 'var(--font-mono)', fontSize: 12,
+      color: positive ? 'var(--mint)' : 'var(--danger)',
+      display: 'flex', alignItems: 'center', gap: 4,
+    },
+    glow: {
+      position: 'absolute', top: -30, right: -30, width: 80, height: 80,
+      borderRadius: '50%', filter: 'blur(30px)', opacity: 0.08,
+      background: accentColor || 'var(--mint)',
+      pointerEvents: 'none',
+    }
+  };
+
+  return (
+    <div style={kpiStyles.card} className="kpi-card">
+      <div style={kpiStyles.glow}></div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <div style={kpiStyles.iconWrap}>{icon}</div>
+        <div style={kpiStyles.change}>
+          <span>{positive ? '' : ''}</span> {change}
+        </div>
+      </div>
+      <div>
+        <div style={kpiStyles.value}>{value}</div>
+        <div style={{ height: 4 }}></div>
+        <div style={kpiStyles.label}>{label}</div>
+      </div>
+    </div>
+  );
+};
+
+const ActivityItem = ({ text, time, type }) => {
+  const dotColors = {
+    member: 'var(--mint)', project: 'var(--info)', training: 'var(--gold)', card: 'var(--emerald)',
+  };
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'flex-start', gap: 12, padding: '12px 0',
+      borderBottom: '1px solid var(--border-subtle)',
+    }}>
+      <div style={{
+        width: 8, height: 8, borderRadius: '50%', marginTop: 6, flexShrink: 0,
+        background: dotColors[type] || 'var(--mint)',
+        boxShadow: `0 0 6px ${dotColors[type] || 'var(--mint)'}`,
+      }}></div>
+      <div style={{ flex: 1 }}>
+        <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5 }}>{text}</div>
+        <div style={{ fontSize: 11, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', marginTop: 3 }}>{time}</div>
+      </div>
+    </div>
+  );
+};
+
+const QuickAction = ({ label, icon, onClick }) => (
+  <button onClick={onClick} style={{
+    background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)',
+    borderRadius: 'var(--radius-sm)', padding: '12px 16px',
+    color: 'var(--text-secondary)', fontSize: 13, fontFamily: 'var(--font-body)',
+    cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8,
+    transition: 'all 0.2s', width: '100%',
+  }} className="quick-action-btn">
+    <span style={{ color: 'var(--mint)', fontSize: 16 }}>{icon}</span>
+    {label}
+  </button>
+);
+
+const ProjectRow = ({ client, project, status, progress }) => {
+  const statusColors = { Active: 'var(--mint)', Review: 'var(--gold)', Paused: 'var(--text-tertiary)' };
+  return (
+    <div style={{
+      display: 'grid', gridTemplateColumns: '1.5fr 1.5fr 80px 120px',
+      padding: '12px 0', borderBottom: '1px solid var(--border-subtle)',
+      fontSize: 13, alignItems: 'center',
+    }}>
+      <span style={{ color: 'var(--text-primary)', fontWeight: 500 }}>{client}</span>
+      <span style={{ color: 'var(--text-secondary)' }}>{project}</span>
+      <span style={{
+        color: statusColors[status], fontFamily: 'var(--font-mono)', fontSize: 11,
+        background: `${statusColors[status]}12`, padding: '3px 8px', borderRadius: 4,
+        textAlign: 'center', fontWeight: 600,
+      }}>{status}</span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div style={{
+          flex: 1, height: 4, background: 'var(--bg-deep)', borderRadius: 2, overflow: 'hidden',
+        }}>
+          <div style={{
+            width: `${progress}%`, height: '100%', borderRadius: 2,
+            background: progress > 75 ? 'var(--mint)' : progress > 40 ? 'var(--emerald)' : 'var(--info)',
+            transition: 'width 1s ease',
+          }}></div>
+        </div>
+        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-tertiary)', minWidth: 28, textAlign: 'right' }}>{progress}%</span>
+      </div>
+    </div>
+  );
+};
+
+const MiniChart = ({ data, color = 'var(--mint)', height = 40, width = 120 }) => {
+  const max = Math.max(...data);
+  const min = Math.min(...data);
+  const range = max - min || 1;
+  const points = data.map((v, i) => {
+    const x = (i / (data.length - 1)) * width;
+    const y = height - ((v - min) / range) * (height * 0.8) - height * 0.1;
+    return `${x},${y}`;
+  }).join(' ');
+  const areaPoints = `0,${height} ${points} ${width},${height}`;
+  return (
+    <svg width={width} height={height} style={{ display: 'block' }}>
+      <defs>
+        <linearGradient id={`grad-${color.replace(/[^a-z]/gi,'')}`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={color} stopOpacity="0.2" />
+          <stop offset="100%" stopColor={color} stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <polygon points={areaPoints} fill={`url(#grad-${color.replace(/[^a-z]/gi,'')})`} />
+      <polyline points={points} fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+};
+
+const DashboardPage = ({ onNavigate }) => {
+  const [mounted, setMounted] = React.useState(false);
+  React.useEffect(() => { setTimeout(() => setMounted(true), 50); }, []);
+
+  const greeting = (() => {
+    const h = new Date().getHours();
+    if (h < 12) return 'Good morning';
+    if (h < 17) return 'Good afternoon';
+    return 'Good evening';
+  })();
+
+  const today = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
+  const sectionStyle = {
+    background: 'var(--bg-elevated)', borderRadius: 'var(--radius-md)',
+    border: '1px solid var(--border-subtle)', padding: 24,
+  };
+  const sectionTitle = {
+    fontSize: 14, fontWeight: 600, color: 'var(--text-primary)',
+    fontFamily: 'var(--font-body)', letterSpacing: '0.01em', marginBottom: 16,
+    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+  };
+
+  return (
+    <div style={{ opacity: mounted ? 1 : 0, transform: mounted ? 'none' : 'translateY(8px)', transition: 'all 0.4s ease' }}>
+      {/* Header */}
+      <div style={{ marginBottom: 28 }}>
+        <div style={{ fontSize: 13, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', marginBottom: 6 }}>{today}</div>
+        <h1 style={{
+          fontFamily: 'var(--font-display)', fontSize: 28, fontWeight: 700,
+          color: 'var(--text-primary)', margin: 0, letterSpacing: '0.02em',
+        }}>
+          {greeting}, <span style={{ color: 'var(--mint)' }}>Hudson</span>
+        </h1>
+        <p style={{ fontSize: 14, color: 'var(--text-secondary)', margin: '6px 0 0', lineHeight: 1.5 }}>
+          Here's your command center overview for NEXT operations.
+        </p>
+      </div>
+
+      {/* KPI Row */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, marginBottom: 24 }}>
+        <DashboardKPI
+          label="Active Projects" value="12" change="+3 this month" positive
+          icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>}
+        />
+        <DashboardKPI
+          label="Total Members" value="847" change="+24 this month" positive
+          accentColor="var(--emerald)"
+          icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4-4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>}
+        />
+        <DashboardKPI
+          label="Monthly Revenue" value="$284K" change="+12% MoM" positive
+          accentColor="var(--gold)"
+          icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>}
+        />
+        <DashboardKPI
+          label="AI Operations" value="1.2K" change="+180 running" positive
+          accentColor="var(--info)"
+          icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>}
+        />
+      </div>
+
+      {/* Main Grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 16 }}>
+        {/* Left column */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {/* Recent Projects */}
+          <div style={sectionStyle}>
+            <div style={sectionTitle}>
+              <span>Active Projects</span>
+              <button onClick={() => onNavigate && onNavigate('projects')} style={{
+                background: 'none', border: 'none', color: 'var(--mint)', fontSize: 12,
+                cursor: 'pointer', fontFamily: 'var(--font-mono)', padding: 0,
+              }}>VIEW ALL -></button>
+            </div>
+            <div>
+              <div style={{
+                display: 'grid', gridTemplateColumns: '1.5fr 1.5fr 80px 120px',
+                padding: '0 0 8px', fontSize: 11, color: 'var(--text-tertiary)',
+                fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.08em',
+                borderBottom: '1px solid var(--border-default)',
+              }}>
+                <span>Client</span><span>Project</span><span>Status</span><span>Progress</span>
+              </div>
+              <ProjectRow client="Ministry of ICT" project="Digital Services Platform" status="Active" progress={67} />
+              <ProjectRow client="UBA Group" project="AI Operations Suite" status="Active" progress={42} />
+              <ProjectRow client="University of Lagos" project="Smart Campus" status="Review" progress={89} />
+              <ProjectRow client="Safaricom" project="Process Automation" status="Active" progress={31} />
+              <ProjectRow client="KCCA Kampala" project="Citizen Portal" status="Active" progress={55} />
+            </div>
+          </div>
+
+          {/* Tier Distribution */}
+          <div style={sectionStyle}>
+            <div style={sectionTitle}>
+              <span>Membership Distribution</span>
+              <button onClick={() => onNavigate && onNavigate('members')} style={{
+                background: 'none', border: 'none', color: 'var(--mint)', fontSize: 12,
+                cursor: 'pointer', fontFamily: 'var(--font-mono)', padding: 0,
+              }}>MANAGE -></button>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+              {[
+                { name: 'Catalyst', count: 623, color: 'var(--mint)', data: [10,14,18,22,20,25,30,28,35,38] },
+                { name: 'Builder', count: 187, color: 'var(--emerald)', data: [5,8,7,10,12,14,16,15,18,20] },
+                { name: 'Architect', count: 37, color: 'var(--gold)', data: [2,3,3,4,5,4,6,7,6,8] },
+              ].map(tier => (
+                <div key={tier.name} style={{
+                  background: 'var(--bg-deep)', borderRadius: 'var(--radius-sm)',
+                  padding: 16, border: `1px solid ${tier.color}15`,
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                    <span style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: tier.color, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                      {tier.name}
+                    </span>
+                    <span style={{ fontSize: 20, fontFamily: 'var(--font-display)', color: 'var(--text-primary)', fontWeight: 700 }}>
+                      {tier.count}
+                    </span>
+                  </div>
+                  <MiniChart data={tier.data} color={tier.color} width={160} height={32} />
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Right column */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {/* Activity Feed */}
+          <div style={sectionStyle}>
+            <div style={sectionTitle}><span>Activity Feed</span></div>
+            <div>
+              <ActivityItem type="member" text="New Architect member: Kenya Ministry of Digital Economy" time="2 hours ago" />
+              <ActivityItem type="project" text="Project milestone: Kampala Smart City - Phase 2 complete" time="4 hours ago" />
+              <ActivityItem type="training" text="Training completed: Executive AI Briefing - UBA Group" time="1 day ago" />
+              <ActivityItem type="member" text="New Builder member: Nairobi Innovation Hub" time="1 day ago" />
+              <ActivityItem type="card" text="Card issued: NXT-2026-0389 - Catalyst tier" time="2 days ago" />
+              <ActivityItem type="project" text="New project kickoff: Safaricom Process Automation" time="3 days ago" />
+            </div>
+          </div>
+
+          {/* Quick Actions */}
+          <div style={sectionStyle}>
+            <div style={sectionTitle}><span>Quick Actions</span></div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <QuickAction label="Issue Member Card" icon="" onClick={() => onNavigate && onNavigate('members')} />
+              <QuickAction label="Create New Project" icon="+" onClick={() => onNavigate && onNavigate('projects')} />
+              <QuickAction label="Schedule Training" icon="" />
+              <QuickAction label="Generate Report" icon="" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+Object.assign(window, { DashboardPage });
+
+</script>
+  <script type="text/babel">
+/* os-cards.jsx - NEXT Membership Cards & Member Management */
+
+const TIER_CONFIG = {
+  catalyst: {
+    name: 'Catalyst', price: '$149', period: '/month',
+    color: 'var(--mint)', colorHex: '#00FC8F', colorRaw: '0,252,143',
+    tagline: 'Ignite your digital journey',
+    benefits: ['NEXT Community Platform access', 'Monthly AI briefing webinar', '2 hours consulting support', 'Basic analytics dashboard', 'Digital membership credential'],
+    gradient: 'linear-gradient(135deg, #0d0028 0%, #140035 40%, #0a1a2a 100%)',
+    borderGlow: 'rgba(0,252,143,0.25)',
+  },
+  builder: {
+    name: 'Builder', price: '$749', period: '/month',
+    color: 'var(--emerald)', colorHex: '#1B9B6F', colorRaw: '27,155,111',
+    tagline: 'Build intelligent infrastructure',
+    benefits: ['Full AI tools & analytics suite', '10 hours dedicated consulting', 'Quarterly training workshops', 'Priority support channel', 'Partner network access', 'Enhanced NFC credential'],
+    gradient: 'linear-gradient(135deg, #051a14 0%, #0a2a20 40%, #140035 100%)',
+    borderGlow: 'rgba(27,155,111,0.3)',
+  },
+  architect: {
+    name: 'Architect', price: '$2,999', period: '/month',
+    color: 'var(--gold)', colorHex: '#FFB400', colorRaw: '255,180,0',
+    tagline: 'Shape Africa\'s digital future',
+    benefits: ['Dedicated NEXT transformation team', 'Unlimited consulting hours', 'Custom AI solution development', 'Executive briefings & strategy', 'VIP event access', 'Premium credential with monthly refresh'],
+    gradient: 'linear-gradient(135deg, #1a0a00 0%, #140035 40%, #1a0f05 100%)',
+    borderGlow: 'rgba(255,180,0,0.3)',
+  },
+};
+
+const NLogoWatermark = ({ color = '#00FC8F', opacity = 0.07, size = 140 }) => (
+  <svg width={size} height={size} viewBox="0 0 100 100" style={{ opacity, position: 'absolute' }}>
+    <path d="M25 80 L25 45 L50 20 L50 55 L75 80 L75 45" 
+          fill="none" stroke={color} strokeWidth="10" strokeLinecap="round" strokeLinejoin="round"/>
+  </svg>
+);
+
+const QRPlaceholder = ({ size = 48, color = 'rgba(255,255,255,0.4)' }) => (
+  <svg width={size} height={size} viewBox="0 0 48 48">
+    <rect x="2" y="2" width="14" height="14" rx="2" fill="none" stroke={color} strokeWidth="1.5"/>
+    <rect x="5" y="5" width="8" height="8" rx="1" fill={color}/>
+    <rect x="32" y="2" width="14" height="14" rx="2" fill="none" stroke={color} strokeWidth="1.5"/>
+    <rect x="35" y="5" width="8" height="8" rx="1" fill={color}/>
+    <rect x="2" y="32" width="14" height="14" rx="2" fill="none" stroke={color} strokeWidth="1.5"/>
+    <rect x="5" y="35" width="8" height="8" rx="1" fill={color}/>
+    <rect x="20" y="2" width="4" height="4" fill={color}/>
+    <rect x="20" y="10" width="4" height="4" fill={color}/>
+    <rect x="20" y="20" width="4" height="8" fill={color}/>
+    <rect x="28" y="20" width="4" height="4" fill={color}/>
+    <rect x="36" y="20" width="4" height="4" fill={color}/>
+    <rect x="20" y="32" width="8" height="4" fill={color}/>
+    <rect x="32" y="32" width="4" height="8" fill={color}/>
+    <rect x="40" y="36" width="4" height="8" fill={color}/>
+    <rect x="20" y="40" width="4" height="4" fill={color}/>
+    <rect x="28" y="40" width="4" height="4" fill={color}/>
+  </svg>
+);
+
+/* -- Individual Membership Card -- */
+const MembershipCard = ({ tierKey, member, large, onClick, flipped, onFlip }) => {
+  const tier = TIER_CONFIG[tierKey];
+  const isArchitect = tierKey === 'architect';
+  const isBuilder = tierKey === 'builder';
+  const scale = large ? 1.4 : 1;
+  const w = 380; const h = 240;
+
+  const cardBase = {
+    width: w, height: h, borderRadius: 16, position: 'relative', overflow: 'hidden',
+    background: tier.gradient, cursor: onClick ? 'pointer' : 'default',
+    border: `1px solid ${tier.borderGlow}`,
+    boxShadow: `0 4px 24px rgba(0,0,0,0.4), 0 0 40px rgba(${tier.colorRaw},0.06)`,
+    fontFamily: 'var(--font-body)', transform: `scale(${scale})`,
+    transition: 'transform 0.3s ease, box-shadow 0.3s ease',
+    transformOrigin: 'center center',
+    perspective: 800,
+  };
+
+  const front = (
+    <div style={cardBase} onClick={onClick} className={`membership-card ${tierKey}-card`}>
+      {/* Animated shine for Architect */}
+      {isArchitect && <div className="card-shine-architect"></div>}
+      {isBuilder && <div className="card-shine-builder"></div>}
+      
+      {/* Background pattern */}
+      <div style={{
+        position: 'absolute', inset: 0, opacity: 0.03,
+        backgroundImage: `radial-gradient(circle at 2px 2px, ${tier.colorHex} 1px, transparent 0)`,
+        backgroundSize: '24px 24px',
+      }}></div>
+
+      {/* N Watermark */}
+      <div style={{ position: 'absolute', right: -10, top: '50%', transform: 'translateY(-50%)' }}>
+        <NLogoWatermark color={tier.colorHex} opacity={isArchitect ? 0.08 : 0.05} size={180} />
+      </div>
+
+      {/* Content */}
+      <div style={{ position: 'relative', zIndex: 2, padding: '22px 26px', height: '100%', display: 'flex', flexDirection: 'column' }}>
+        {/* Top row: Logo + Tier */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <img src={window.__resources?.whiteLogo || "uploads/NEXT Landscape White Logo@3x.png"} alt="NEXT" style={{ height: 22, opacity: 0.9 }} />
+          <div style={{
+            fontFamily: 'var(--font-display)', fontSize: 13, fontWeight: 700,
+            color: tier.colorHex, letterSpacing: '0.15em', textTransform: 'uppercase',
+          }}>
+            {tier.name}
+          </div>
+        </div>
+
+        {/* Spacer */}
+        <div style={{ flex: 1 }}></div>
+
+        {/* Member Info */}
+        <div>
+          <div style={{
+            fontSize: 17, fontWeight: 600, color: '#fff', letterSpacing: '0.02em',
+            marginBottom: 2,
+          }}>
+            {member?.name || 'HUDSON TIMOTHY TUMUSIIME'}
+          </div>
+          <div style={{
+            fontSize: 11, color: 'rgba(255,255,255,0.45)', fontFamily: 'var(--font-mono)',
+            letterSpacing: '0.06em', marginBottom: 14,
+          }}>
+            {member?.role || 'Founder & CEO'}
+          </div>
+          
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+            <div>
+              <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 3 }}>
+                Member ID
+              </div>
+              <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', fontFamily: 'var(--font-mono)', letterSpacing: '0.06em' }}>
+                {member?.id || 'NXT-2026-0001'}
+              </div>
+            </div>
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 3 }}>
+                Valid Through
+              </div>
+              <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', fontFamily: 'var(--font-mono)' }}>
+                {member?.expiry || '12 / 2026'}
+              </div>
+            </div>
+            <QRPlaceholder size={40} color={`rgba(${tier.colorRaw},0.35)`} />
+          </div>
+        </div>
+      </div>
+
+      {/* Top accent line */}
+      <div style={{
+        position: 'absolute', top: 0, left: 0, right: 0, height: 2,
+        background: `linear-gradient(90deg, transparent, ${tier.colorHex}, transparent)`,
+        opacity: 0.6,
+      }}></div>
+    </div>
+  );
+
+  return front;
+};
+
+/* -- Tier Comparison Card -- */
+const TierCard = ({ tierKey, isSelected, onSelect }) => {
+  const tier = TIER_CONFIG[tierKey];
+  return (
+    <div
+      onClick={onSelect}
+      style={{
+        background: isSelected ? `rgba(${tier.colorRaw},0.08)` : 'var(--bg-deep)',
+        border: `1px solid ${isSelected ? tier.borderGlow : 'var(--border-subtle)'}`,
+        borderRadius: 'var(--radius-md)', padding: 20, cursor: 'pointer',
+        transition: 'all 0.2s',
+      }}
+      className="tier-select-card"
+    >
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+        <span style={{
+          fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 700,
+          color: tier.colorHex, letterSpacing: '0.05em',
+        }}>{tier.name}</span>
+        <span style={{ fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 700, color: 'var(--text-primary)' }}>
+          {tier.price}<span style={{ fontSize: 12, color: 'var(--text-tertiary)', fontWeight: 400 }}>{tier.period}</span>
+        </span>
+      </div>
+      <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: '0 0 14px', lineHeight: 1.4, fontStyle: 'italic' }}>{tier.tagline}</p>
+      <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
+        {tier.benefits.map((b, i) => (
+          <li key={i} style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ color: tier.colorHex, fontSize: 10 }}></span> {b}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+};
+
+/* -- Card Issuance Modal -- */
+const CardIssueModal = ({ tierKey, onClose }) => {
+  const tier = TIER_CONFIG[tierKey];
+  const [step, setStep] = React.useState(0);
+  const [formData, setFormData] = React.useState({ name: '', email: '', org: '', country: 'Uganda' });
+  const [issuing, setIssuing] = React.useState(false);
+  const [issued, setIssued] = React.useState(false);
+
+  const handleIssue = () => {
+    setIssuing(true);
+    setTimeout(() => { setIssuing(false); setIssued(true); }, 2000);
+  };
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
+    }} onClick={onClose}>
+      <div onClick={e => e.stopPropagation()} style={{
+        background: 'var(--bg-elevated)', borderRadius: 'var(--radius-lg)',
+        border: '1px solid var(--border-subtle)', padding: 32, width: 480,
+        maxHeight: '80vh', overflow: 'auto',
+      }}>
+        {!issued ? (
+          <>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+              <div>
+                <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 22, color: 'var(--text-primary)', margin: 0, fontWeight: 700 }}>
+                  Issue <span style={{ color: tier.colorHex }}>{tier.name}</span> Card
+                </h3>
+                <p style={{ fontSize: 12, color: 'var(--text-tertiary)', margin: '4px 0 0', fontFamily: 'var(--font-mono)' }}>
+                  {tier.price}{tier.period}
+                </p>
+              </div>
+              <button onClick={onClose} style={{
+                background: 'none', border: 'none', color: 'var(--text-tertiary)',
+                fontSize: 20, cursor: 'pointer', padding: 4,
+              }}>x</button>
+            </div>
+
+            {[
+              { label: 'Full Name', key: 'name', placeholder: 'Hudson Timothy Tumusiime' },
+              { label: 'Email Address', key: 'email', placeholder: 'hudson@nextafrica.ai' },
+              { label: 'Organisation', key: 'org', placeholder: 'NEXT Africa' },
+              { label: 'Country', key: 'country', placeholder: 'Uganda' },
+            ].map(field => (
+              <div key={field.key} style={{ marginBottom: 16 }}>
+                <label style={{ fontSize: 11, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.08em', display: 'block', marginBottom: 6 }}>
+                  {field.label}
+                </label>
+                <input
+                  value={formData[field.key]}
+                  onChange={e => setFormData({ ...formData, [field.key]: e.target.value })}
+                  placeholder={field.placeholder}
+                  style={{
+                    width: '100%', padding: '10px 14px', background: 'var(--bg-deep)',
+                    border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-sm)',
+                    color: 'var(--text-primary)', fontSize: 14, fontFamily: 'var(--font-body)',
+                    outline: 'none', boxSizing: 'border-box',
+                  }}
+                />
+              </div>
+            ))}
+
+            <button onClick={handleIssue} disabled={issuing} style={{
+              width: '100%', padding: '12px 20px', marginTop: 8,
+              background: issuing ? 'var(--bg-surface)' : tier.colorHex,
+              color: issuing ? 'var(--text-secondary)' : '#140035',
+              border: 'none', borderRadius: 'var(--radius-sm)',
+              fontSize: 14, fontWeight: 700, fontFamily: 'var(--font-body)',
+              cursor: issuing ? 'wait' : 'pointer', textTransform: 'uppercase',
+              letterSpacing: '0.05em', transition: 'all 0.2s',
+            }}>
+              {issuing ? 'Generating Credential...' : 'Issue Card'}
+            </button>
+          </>
+        ) : (
+          <div style={{ textAlign: 'center', padding: '20px 0' }}>
+            <div style={{ fontSize: 48, marginBottom: 16 }}>OK</div>
+            <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 22, color: tier.colorHex, margin: '0 0 8px', fontWeight: 700 }}>
+              Card Issued Successfully
+            </h3>
+            <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: '0 0 8px' }}>
+              {tier.name} membership credential generated for
+            </p>
+            <p style={{ fontSize: 15, color: 'var(--text-primary)', fontWeight: 600, margin: '0 0 20px' }}>
+              {formData.name || 'New Member'}
+            </p>
+            <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)', marginBottom: 24 }}>
+              ID: NXT-2026-{String(Math.floor(Math.random()*9000)+1000)}
+            </div>
+            <button onClick={onClose} style={{
+              padding: '10px 24px', background: 'var(--bg-surface)', color: 'var(--text-primary)',
+              border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-sm)',
+              fontSize: 13, cursor: 'pointer', fontFamily: 'var(--font-body)',
+            }}>Close</button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+/* -- Members Page -- */
+const MembersPage = ({ onNavigate }) => {
+  const [mounted, setMounted] = React.useState(false);
+  const [activeTab, setActiveTab] = React.useState('cards');
+  const [selectedTier, setSelectedTier] = React.useState('catalyst');
+  const [issueModal, setIssueModal] = React.useState(null);
+  const [cardView, setCardView] = React.useState('grid'); // grid | detail
+
+  React.useEffect(() => { setTimeout(() => setMounted(true), 50); }, []);
+
+  const tabs = [
+    { id: 'overview', label: 'Overview' },
+    { id: 'members', label: 'Members' },
+    { id: 'cards', label: 'Card System' },
+  ];
+
+  const sectionStyle = {
+    background: 'var(--bg-elevated)', borderRadius: 'var(--radius-md)',
+    border: '1px solid var(--border-subtle)', padding: 24,
+  };
+
+  const sampleMembers = [
+    { name: 'Hudson Timothy Tumusiime', org: 'NEXT Africa', tier: 'architect', id: 'NXT-2026-0001', status: 'Active' },
+    { name: 'Amina Okafor', org: 'Kenya Ministry of Digital', tier: 'architect', id: 'NXT-2026-0023', status: 'Active' },
+    { name: 'David Mwangi', org: 'Nairobi Innovation Hub', tier: 'builder', id: 'NXT-2026-0089', status: 'Active' },
+    { name: 'Grace Nakamya', org: 'Makerere University', tier: 'builder', id: 'NXT-2026-0112', status: 'Active' },
+    { name: 'Emmanuel Asante', org: 'Accra Digital Labs', tier: 'catalyst', id: 'NXT-2026-0201', status: 'Active' },
+    { name: 'Fatima Ibrahim', org: 'Lagos Tech Collective', tier: 'catalyst', id: 'NXT-2026-0245', status: 'Pending' },
+    { name: 'Jean-Pierre Habimana', org: 'Rwanda ICT Chamber', tier: 'builder', id: 'NXT-2026-0156', status: 'Active' },
+    { name: 'Wanjiku Kamau', org: 'Safaricom', tier: 'catalyst', id: 'NXT-2026-0310', status: 'Active' },
+  ];
+
+  return (
+    <div style={{ opacity: mounted ? 1 : 0, transform: mounted ? 'none' : 'translateY(8px)', transition: 'all 0.4s ease' }}>
+      {/* Header */}
+      <div style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <div>
+          <h1 style={{
+            fontFamily: 'var(--font-display)', fontSize: 28, fontWeight: 700,
+            color: 'var(--text-primary)', margin: 0, letterSpacing: '0.02em',
+          }}>
+            Membership & <span style={{ color: 'var(--mint)' }}>Cards</span>
+          </h1>
+          <p style={{ fontSize: 14, color: 'var(--text-secondary)', margin: '6px 0 0' }}>
+            Manage member credentials and card issuance across all tiers.
+          </p>
+        </div>
+        <button onClick={() => setIssueModal(selectedTier)} style={{
+          padding: '10px 20px', background: 'var(--mint)', color: '#140035',
+          border: 'none', borderRadius: 'var(--radius-sm)', fontWeight: 700,
+          fontSize: 13, cursor: 'pointer', fontFamily: 'var(--font-body)',
+          textTransform: 'uppercase', letterSpacing: '0.05em',
+        }}>
+          + Issue New Card
+        </button>
+      </div>
+
+      {/* Tabs */}
+      <div style={{ display: 'flex', gap: 2, marginBottom: 24, background: 'var(--bg-deep)', borderRadius: 'var(--radius-sm)', padding: 3 }}>
+        {tabs.map(tab => (
+          <button key={tab.id} onClick={() => setActiveTab(tab.id)} style={{
+            flex: 1, padding: '10px 16px', border: 'none', borderRadius: 'var(--radius-sm)',
+            background: activeTab === tab.id ? 'var(--bg-elevated)' : 'transparent',
+            color: activeTab === tab.id ? 'var(--text-primary)' : 'var(--text-tertiary)',
+            fontSize: 13, fontWeight: 500, cursor: 'pointer', fontFamily: 'var(--font-body)',
+            transition: 'all 0.2s',
+          }}>
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Card System Tab */}
+      {activeTab === 'cards' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+          {/* Card Designs - All 3 tiers */}
+          <div style={sectionStyle}>
+            <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 8 }}>Card Designs</div>
+            <p style={{ fontSize: 12, color: 'var(--text-tertiary)', margin: '0 0 20px' }}>
+              Three tiers of membership credentials. Click to select for card issuance.
+            </p>
+            <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap', justifyContent: 'center' }}>
+              {Object.keys(TIER_CONFIG).map(key => (
+                <div key={key} onClick={() => setSelectedTier(key)} style={{
+                  padding: 4, borderRadius: 20, cursor: 'pointer',
+                  border: selectedTier === key ? `2px solid ${TIER_CONFIG[key].colorHex}` : '2px solid transparent',
+                  transition: 'all 0.3s', transform: selectedTier === key ? 'scale(1.02)' : 'scale(1)',
+                }}>
+                  <MembershipCard tierKey={key} />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Tier Comparison */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16 }}>
+            {Object.keys(TIER_CONFIG).map(key => (
+              <TierCard key={key} tierKey={key} isSelected={selectedTier === key} onSelect={() => setSelectedTier(key)} />
+            ))}
+          </div>
+
+          {/* Card Model Recommendation */}
+          <div style={sectionStyle}>
+            <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 16 }}>
+              Card Generation Model - <span style={{ color: 'var(--mint)' }}>Hybrid Recommended</span>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16 }}>
+              {[
+                { tier: 'Catalyst', model: 'Static', desc: 'Issued once at signup. Valid for subscription duration. Simple, cost-effective. Card refreshes only on renewal.', color: 'var(--mint)' },
+                { tier: 'Builder', model: 'Dynamic', desc: 'Monthly credential refresh. Updated usage stats and access tokens. Signals active engagement to partners.', color: 'var(--emerald)' },
+                { tier: 'Architect', model: 'Dynamic+', desc: 'Monthly refresh with personalized elements. Unique monthly visual accent. Signals exclusive, evolving membership.', color: 'var(--gold)' },
+              ].map(item => (
+                <div key={item.tier} style={{
+                  background: 'var(--bg-deep)', borderRadius: 'var(--radius-sm)',
+                  padding: 16, borderLeft: `3px solid ${item.color}`,
+                }}>
+                  <div style={{ fontFamily: 'var(--font-display)', fontSize: 15, fontWeight: 700, color: item.color, marginBottom: 4 }}>{item.tier}</div>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-primary)', marginBottom: 8, fontWeight: 600 }}>{item.model}</div>
+                  <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5 }}>{item.desc}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Overview Tab */}
+      {activeTab === 'overview' && (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16 }}>
+          {[
+            { label: 'Total Members', value: '847', sub: '+24 this month', color: 'var(--mint)' },
+            { label: 'Cards Issued', value: '812', sub: '96% issuance rate', color: 'var(--emerald)' },
+            { label: 'Monthly Revenue', value: '$284K', sub: '+12% MoM', color: 'var(--gold)' },
+          ].map(stat => (
+            <div key={stat.label} style={{ ...sectionStyle, borderLeft: `3px solid ${stat.color}` }}>
+              <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 8 }}>{stat.label}</div>
+              <div style={{ fontFamily: 'var(--font-display)', fontSize: 32, fontWeight: 700, color: 'var(--text-primary)' }}>{stat.value}</div>
+              <div style={{ fontSize: 12, color: stat.color, marginTop: 4 }}>{stat.sub}</div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Members Tab */}
+      {activeTab === 'members' && (
+        <div style={sectionStyle}>
+          <div style={{
+            display: 'grid', gridTemplateColumns: '2fr 1.5fr 1fr 1fr 80px',
+            padding: '0 0 10px', fontSize: 11, color: 'var(--text-tertiary)',
+            fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.08em',
+            borderBottom: '1px solid var(--border-default)',
+          }}>
+            <span>Name</span><span>Organisation</span><span>Tier</span><span>ID</span><span>Status</span>
+          </div>
+          {sampleMembers.map(m => (
+            <div key={m.id} style={{
+              display: 'grid', gridTemplateColumns: '2fr 1.5fr 1fr 1fr 80px',
+              padding: '14px 0', borderBottom: '1px solid var(--border-subtle)',
+              fontSize: 13, alignItems: 'center',
+            }} className="member-row">
+              <span style={{ color: 'var(--text-primary)', fontWeight: 500 }}>{m.name}</span>
+              <span style={{ color: 'var(--text-secondary)' }}>{m.org}</span>
+              <span style={{
+                color: TIER_CONFIG[m.tier].colorHex, fontFamily: 'var(--font-mono)', fontSize: 11,
+                fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em',
+              }}>{TIER_CONFIG[m.tier].name}</span>
+              <span style={{ color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', fontSize: 11 }}>{m.id}</span>
+              <span style={{
+                fontSize: 11, fontWeight: 600, padding: '3px 8px', borderRadius: 4, textAlign: 'center',
+                color: m.status === 'Active' ? 'var(--mint)' : 'var(--gold)',
+                background: m.status === 'Active' ? 'var(--mint-glow)' : 'var(--gold-glow)',
+              }}>{m.status}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Issue Modal */}
+      {issueModal && <CardIssueModal tierKey={issueModal} onClose={() => setIssueModal(null)} />}
+    </div>
+  );
+};
+
+Object.assign(window, { MembersPage, MembershipCard, TIER_CONFIG });
+
+</script>
+  <script type="text/babel">
+/* os-projects.jsx - Projects Dashboard: Status Monitoring, Credential Vault, System Health */
+
+const PROJECT_DATA = [
+  {
+    id: 'proj-001', name: 'Digital Services Platform', client: 'Ministry of ICT, Uganda',
+    status: 'active', health: 'healthy', progress: 67, priority: 'high',
+    platform: 'Supabase + Next.js', domain: 'services.gov.ug',
+    team: ['HT', 'AO', 'DM'], startDate: '2026-01-15', deadline: '2026-07-30',
+    credentials: { supabaseUrl: 'https://xyzabc.supabase.co', supabaseKey: 'eyJhbG...redacted', adminEmail: 'admin@ict.gov.ug' },
+    uptime: 99.7, lastDeploy: '2 days ago', errors24h: 0, warnings24h: 1,
+    alerts: [{ type: 'warning', msg: 'SSL certificate expires in 14 days', time: '6h ago' }],
+    milestones: [
+      { name: 'Phase 1 - Auth & Portal', done: true },
+      { name: 'Phase 2 - Service Registry', done: true },
+      { name: 'Phase 3 - Payment Integration', done: false },
+      { name: 'Phase 4 - Public Launch', done: false },
+    ],
+  },
+  {
+    id: 'proj-002', name: 'AI Operations Suite', client: 'UBA Group',
+    status: 'active', health: 'warning', progress: 42, priority: 'high',
+    platform: 'Supabase + React', domain: 'ai.ubagroup.com',
+    team: ['HT', 'GN'], startDate: '2026-03-01', deadline: '2026-09-15',
+    credentials: { supabaseUrl: 'https://ubaabc.supabase.co', supabaseKey: 'eyJhbG...redacted', adminEmail: 'tech@ubagroup.com' },
+    uptime: 98.2, lastDeploy: '5 hours ago', errors24h: 3, warnings24h: 7,
+    alerts: [
+      { type: 'error', msg: 'API rate limit exceeded - AI inference endpoint', time: '2h ago' },
+      { type: 'warning', msg: 'Database connection pool at 85% capacity', time: '3h ago' },
+      { type: 'warning', msg: 'Slow query detected: analytics_aggregate (2.4s)', time: '5h ago' },
+    ],
+    milestones: [
+      { name: 'Phase 1 - Data Pipeline', done: true },
+      { name: 'Phase 2 - AI Model Integration', done: false },
+      { name: 'Phase 3 - Dashboard & Reporting', done: false },
+    ],
+  },
+  {
+    id: 'proj-003', name: 'Smart Campus', client: 'University of Lagos',
+    status: 'review', health: 'healthy', progress: 89, priority: 'medium',
+    platform: 'Supabase + Vue.js', domain: 'smart.unilag.edu.ng',
+    team: ['DM', 'EA'], startDate: '2025-11-01', deadline: '2026-06-01',
+    credentials: { supabaseUrl: 'https://unilag.supabase.co', supabaseKey: 'eyJhbG...redacted', adminEmail: 'ict@unilag.edu.ng' },
+    uptime: 99.9, lastDeploy: '1 week ago', errors24h: 0, warnings24h: 0,
+    alerts: [],
+    milestones: [
+      { name: 'Phase 1 - Student Portal', done: true },
+      { name: 'Phase 2 - Faculty Systems', done: true },
+      { name: 'Phase 3 - Analytics Dashboard', done: true },
+      { name: 'Phase 4 - QA & Handoff', done: false },
+    ],
+  },
+  {
+    id: 'proj-004', name: 'Process Automation', client: 'Safaricom',
+    status: 'active', health: 'critical', progress: 31, priority: 'critical',
+    platform: 'Supabase + Next.js', domain: 'auto.safaricom.internal',
+    team: ['HT', 'WK', 'JP'], startDate: '2026-04-10', deadline: '2026-10-30',
+    credentials: { supabaseUrl: 'https://safcom.supabase.co', supabaseKey: 'eyJhbG...redacted', adminEmail: 'devops@safaricom.co.ke' },
+    uptime: 94.1, lastDeploy: '12 hours ago', errors24h: 12, warnings24h: 18,
+    alerts: [
+      { type: 'critical', msg: 'Production server unresponsive - auto-restart triggered', time: '45m ago' },
+      { type: 'error', msg: 'Workflow engine crash: null pointer in queue processor', time: '1h ago' },
+      { type: 'error', msg: 'Failed deployment rollback on staging', time: '3h ago' },
+      { type: 'warning', msg: 'Memory usage at 92% on primary node', time: '4h ago' },
+    ],
+    milestones: [
+      { name: 'Phase 1 - Workflow Engine', done: true },
+      { name: 'Phase 2 - Integration Layer', done: false },
+      { name: 'Phase 3 - Auto-scaling', done: false },
+      { name: 'Phase 4 - Production Deploy', done: false },
+    ],
+  },
+  {
+    id: 'proj-005', name: 'Citizen Portal', client: 'KCCA Kampala',
+    status: 'active', health: 'healthy', progress: 55, priority: 'medium',
+    platform: 'Supabase + React', domain: 'portal.kcca.go.ug',
+    team: ['GN', 'JP'], startDate: '2026-02-20', deadline: '2026-08-15',
+    credentials: { supabaseUrl: 'https://kcca.supabase.co', supabaseKey: 'eyJhbG...redacted', adminEmail: 'digital@kcca.go.ug' },
+    uptime: 99.4, lastDeploy: '3 days ago', errors24h: 0, warnings24h: 2,
+    alerts: [{ type: 'warning', msg: 'CDN cache hit ratio dropped to 74%', time: '1d ago' }],
+    milestones: [
+      { name: 'Phase 1 - Citizen Registration', done: true },
+      { name: 'Phase 2 - Service Requests', done: true },
+      { name: 'Phase 3 - Payments & Receipts', done: false },
+      { name: 'Phase 4 - Mobile App', done: false },
+    ],
+  },
+  {
+    id: 'proj-006', name: 'Digital Membership OS', client: 'NEXT Africa (Internal)',
+    status: 'active', health: 'healthy', progress: 72, priority: 'high',
+    platform: 'Supabase + React', domain: 'os.nextafrica.ai',
+    team: ['HT'], startDate: '2026-04-01', deadline: '2026-06-30',
+    credentials: { supabaseUrl: 'https://nextos.supabase.co', supabaseKey: 'eyJhbG...redacted', adminEmail: 'hudson@nextafrica.ai' },
+    uptime: 99.9, lastDeploy: '1 hour ago', errors24h: 0, warnings24h: 0,
+    alerts: [],
+    milestones: [
+      { name: 'Phase 1 - Dashboard & Shell', done: true },
+      { name: 'Phase 2 - Card System', done: true },
+      { name: 'Phase 3 - Full Module Build', done: false },
+      { name: 'Phase 4 - Production Deploy', done: false },
+    ],
+  },
+];
+
+const HEALTH_CONFIG = {
+  healthy: { color: 'var(--mint)', label: 'Healthy', icon: '' },
+  warning: { color: 'var(--gold)', label: 'Warning', icon: '' },
+  critical: { color: 'var(--danger)', label: 'Critical', icon: '' },
+};
+
+const ALERT_COLORS = { critical: '#FF4757', error: '#FF6B6B', warning: '#FFB400', info: '#3B82F6' };
+
+/* -- Health Badge -- */
+const HealthBadge = ({ health }) => {
+  const cfg = HEALTH_CONFIG[health];
+  return (
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11,
+      fontFamily: 'var(--font-mono)', fontWeight: 600, color: cfg.color,
+      background: `${cfg.color}15`, padding: '3px 10px', borderRadius: 4,
+      textTransform: 'uppercase', letterSpacing: '0.06em',
+    }}>
+      <span style={{ fontSize: 8 }}>{cfg.icon}</span> {cfg.label}
+    </span>
+  );
+};
+
+/* -- Credential Vault Row -- */
+const CredentialRow = ({ label, value, hidden }) => {
+  const [shown, setShown] = React.useState(false);
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--border-subtle)' }}>
+      <span style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.08em', minWidth: 100 }}>{label}</span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, justifyContent: 'flex-end' }}>
+        <span style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)', maxWidth: 240, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {hidden && !shown ? '******************' : value}
+        </span>
+        {hidden && (
+          <button onClick={() => setShown(!shown)} style={{
+            background: 'none', border: '1px solid var(--border-subtle)', borderRadius: 4,
+            color: 'var(--text-tertiary)', fontSize: 10, padding: '2px 8px', cursor: 'pointer',
+            fontFamily: 'var(--font-mono)',
+          }}>{shown ? 'HIDE' : 'SHOW'}</button>
+        )}
+        <button onClick={() => navigator.clipboard?.writeText(value)} style={{
+          background: 'none', border: '1px solid var(--border-subtle)', borderRadius: 4,
+          color: 'var(--text-tertiary)', fontSize: 10, padding: '2px 8px', cursor: 'pointer',
+          fontFamily: 'var(--font-mono)',
+        }}>COPY</button>
+      </div>
+    </div>
+  );
+};
+
+/* -- Project Detail Panel -- */
+const ProjectDetail = ({ project, onBack }) => {
+  const [tab, setTab] = React.useState('overview');
+  const p = project;
+  const hCfg = HEALTH_CONFIG[p.health];
+
+  const sectionStyle = {
+    background: 'var(--bg-elevated)', borderRadius: 'var(--radius-md)',
+    border: '1px solid var(--border-subtle)', padding: 20,
+  };
+
+  return (
+    <div>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
+        <button onClick={onBack} style={{
+          background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)',
+          borderRadius: 'var(--radius-sm)', color: 'var(--text-secondary)',
+          padding: '6px 12px', cursor: 'pointer', fontSize: 13,
+        }}>{'<- Back'}</button>
+        <div style={{ flex: 1 }}>
+          <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 24, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+            {p.name}
+          </h1>
+          <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 2 }}>{p.client}</div>
+        </div>
+        <HealthBadge health={p.health} />
+      </div>
+
+      {/* Tabs */}
+      <div style={{ display: 'flex', gap: 2, marginBottom: 20, background: 'var(--bg-deep)', borderRadius: 'var(--radius-sm)', padding: 3 }}>
+        {['overview', 'alerts', 'credentials', 'milestones'].map(t => (
+          <button key={t} onClick={() => setTab(t)} style={{
+            flex: 1, padding: '9px 14px', border: 'none', borderRadius: 'var(--radius-sm)',
+            background: tab === t ? 'var(--bg-elevated)' : 'transparent',
+            color: tab === t ? 'var(--text-primary)' : 'var(--text-tertiary)',
+            fontSize: 12, fontWeight: 500, cursor: 'pointer', fontFamily: 'var(--font-body)',
+            textTransform: 'capitalize', transition: 'all 0.2s',
+          }}>{t === 'alerts' ? `Alerts (${p.alerts.length})` : t}</button>
+        ))}
+      </div>
+
+      {/* Overview Tab */}
+      {tab === 'overview' && (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+          <div style={sectionStyle}>
+            <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 16 }}>System Status</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+              {[
+                { label: 'Uptime', value: `${p.uptime}%`, color: p.uptime > 99 ? 'var(--mint)' : p.uptime > 97 ? 'var(--gold)' : 'var(--danger)' },
+                { label: 'Last Deploy', value: p.lastDeploy, color: 'var(--text-primary)' },
+                { label: 'Errors (24h)', value: p.errors24h, color: p.errors24h > 0 ? 'var(--danger)' : 'var(--mint)' },
+                { label: 'Warnings (24h)', value: p.warnings24h, color: p.warnings24h > 5 ? 'var(--gold)' : 'var(--text-primary)' },
+              ].map(s => (
+                <div key={s.label}>
+                  <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>{s.label}</div>
+                  <div style={{ fontSize: 20, fontFamily: 'var(--font-display)', fontWeight: 700, color: s.color }}>{s.value}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div style={sectionStyle}>
+            <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 16 }}>Project Info</div>
+            {[
+              { label: 'Platform', value: p.platform },
+              { label: 'Domain', value: p.domain },
+              { label: 'Priority', value: p.priority.toUpperCase() },
+              { label: 'Progress', value: `${p.progress}%` },
+              { label: 'Deadline', value: p.deadline },
+            ].map(r => (
+              <div key={r.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid var(--border-subtle)' }}>
+                <span style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>{r.label}</span>
+                <span style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-primary)', fontWeight: 500 }}>{r.value}</span>
+              </div>
+            ))}
+            {/* Progress bar */}
+            <div style={{ marginTop: 12, height: 6, background: 'var(--bg-deep)', borderRadius: 3, overflow: 'hidden' }}>
+              <div style={{ width: `${p.progress}%`, height: '100%', borderRadius: 3, background: p.progress > 75 ? 'var(--mint)' : p.progress > 40 ? 'var(--emerald)' : 'var(--info)', transition: 'width 1s' }}></div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Alerts Tab */}
+      {tab === 'alerts' && (
+        <div style={sectionStyle}>
+          {p.alerts.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-tertiary)' }}>
+              <div style={{ fontSize: 32, marginBottom: 8, opacity: 0.3 }}>OK</div>
+              <div style={{ fontSize: 14 }}>No active alerts. All systems operational.</div>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {p.alerts.map((a, i) => (
+                <div key={i} style={{
+                  display: 'flex', alignItems: 'flex-start', gap: 12, padding: 14,
+                  background: 'var(--bg-deep)', borderRadius: 'var(--radius-sm)',
+                  borderLeft: `3px solid ${ALERT_COLORS[a.type]}`,
+                }}>
+                  <span style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: ALERT_COLORS[a.type], fontWeight: 700, textTransform: 'uppercase', minWidth: 60 }}>{a.type}</span>
+                  <span style={{ fontSize: 13, color: 'var(--text-primary)', flex: 1, lineHeight: 1.4 }}>{a.msg}</span>
+                  <span style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)', whiteSpace: 'nowrap' }}>{a.time}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Credentials Tab */}
+      {tab === 'credentials' && (
+        <div style={sectionStyle}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Credential Vault</div>
+            <div style={{ fontSize: 10, color: 'var(--mint)', fontFamily: 'var(--font-mono)', display: 'flex', alignItems: 'center', gap: 4 }}>
+              <span style={{ fontSize: 8 }}></span> ENCRYPTED
+            </div>
+          </div>
+          <CredentialRow label="Supabase URL" value={p.credentials.supabaseUrl} />
+          <CredentialRow label="API Key" value={p.credentials.supabaseKey} hidden />
+          <CredentialRow label="Admin Email" value={p.credentials.adminEmail} />
+          <div style={{ marginTop: 16, padding: 12, background: 'var(--bg-deep)', borderRadius: 'var(--radius-sm)', fontSize: 11, color: 'var(--text-tertiary)', lineHeight: 1.6, fontFamily: 'var(--font-mono)' }}>
+            Credentials are AES-256 encrypted at rest. Access is logged and restricted to admin roles.
+          </div>
+        </div>
+      )}
+
+      {/* Milestones Tab */}
+      {tab === 'milestones' && (
+        <div style={sectionStyle}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {p.milestones.map((m, i) => (
+              <div key={i} style={{
+                display: 'flex', alignItems: 'center', gap: 14, padding: 14,
+                background: 'var(--bg-deep)', borderRadius: 'var(--radius-sm)',
+                opacity: m.done ? 0.7 : 1,
+              }}>
+                <div style={{
+                  width: 24, height: 24, borderRadius: '50%', flexShrink: 0,
+                  background: m.done ? 'var(--mint)' : 'var(--bg-surface)',
+                  border: m.done ? 'none' : '2px solid var(--border-default)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  color: '#140035', fontSize: 12, fontWeight: 700,
+                }}>
+                  {m.done ? 'OK' : i + 1}
+                </div>
+                <span style={{
+                  fontSize: 13, color: 'var(--text-primary)', fontWeight: 500,
+                  textDecoration: m.done ? 'line-through' : 'none',
+                  textDecorationColor: 'var(--text-tertiary)',
+                }}>{m.name}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+/* -- Projects Page -- */
+const ProjectsPage = ({ onNavigate }) => {
+  const [mounted, setMounted] = React.useState(false);
+  const [selectedProject, setSelectedProject] = React.useState(null);
+  const [filter, setFilter] = React.useState('all');
+  React.useEffect(() => { setTimeout(() => setMounted(true), 50); }, []);
+
+  if (selectedProject) {
+    return <ProjectDetail project={selectedProject} onBack={() => setSelectedProject(null)} />;
+  }
+
+  const totalAlerts = PROJECT_DATA.reduce((s, p) => s + p.alerts.length, 0);
+  const criticalCount = PROJECT_DATA.filter(p => p.health === 'critical').length;
+  const warningCount = PROJECT_DATA.filter(p => p.health === 'warning').length;
+
+  const filtered = filter === 'all' ? PROJECT_DATA : PROJECT_DATA.filter(p => p.health === filter);
+
+  return (
+    <div style={{ opacity: mounted ? 1 : 0, transform: mounted ? 'none' : 'translateY(8px)', transition: 'all 0.4s ease' }}>
+      <div style={{ marginBottom: 24 }}>
+        <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 28, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+          Projects <span style={{ color: 'var(--mint)' }}>Command</span>
+        </h1>
+        <p style={{ fontSize: 14, color: 'var(--text-secondary)', margin: '6px 0 0' }}>
+          Monitor all deployed operating systems. {totalAlerts > 0 && <span style={{ color: 'var(--gold)' }}>{totalAlerts} active alert{totalAlerts > 1 ? 's' : ''} across projects.</span>}
+        </p>
+      </div>
+
+      {/* Health Summary Bar */}
+      {(criticalCount > 0 || warningCount > 0) && (
+        <div style={{
+          display: 'flex', gap: 12, marginBottom: 20, padding: 16,
+          background: criticalCount > 0 ? 'rgba(255,71,87,0.08)' : 'rgba(255,180,0,0.06)',
+          border: `1px solid ${criticalCount > 0 ? 'rgba(255,71,87,0.2)' : 'rgba(255,180,0,0.15)'}`,
+          borderRadius: 'var(--radius-md)', alignItems: 'center',
+        }}>
+          <span style={{ fontSize: 18 }}>{criticalCount > 0 ? '!' : ''}</span>
+          <div style={{ flex: 1 }}>
+            <span style={{ fontSize: 13, fontWeight: 600, color: criticalCount > 0 ? 'var(--danger)' : 'var(--gold)' }}>
+              {criticalCount > 0 ? `${criticalCount} system${criticalCount > 1 ? 's' : ''} critical` : `${warningCount} system${warningCount > 1 ? 's' : ''} with warnings`}
+            </span>
+            <span style={{ fontSize: 12, color: 'var(--text-tertiary)', marginLeft: 8 }}>- Immediate attention required</span>
+          </div>
+        </div>
+      )}
+
+      {/* Filter */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
+        {[
+          { id: 'all', label: `All (${PROJECT_DATA.length})` },
+          { id: 'critical', label: `Critical (${criticalCount})` },
+          { id: 'warning', label: `Warning (${warningCount})` },
+          { id: 'healthy', label: `Healthy (${PROJECT_DATA.filter(p => p.health === 'healthy').length})` },
+        ].map(f => (
+          <button key={f.id} onClick={() => setFilter(f.id)} style={{
+            padding: '6px 14px', borderRadius: 'var(--radius-sm)', fontSize: 12,
+            fontFamily: 'var(--font-body)', cursor: 'pointer', fontWeight: 500,
+            background: filter === f.id ? 'var(--bg-elevated)' : 'transparent',
+            border: `1px solid ${filter === f.id ? 'var(--border-active)' : 'var(--border-subtle)'}`,
+            color: filter === f.id ? 'var(--mint)' : 'var(--text-tertiary)',
+            transition: 'all 0.15s',
+          }}>{f.label}</button>
+        ))}
+      </div>
+
+      {/* Project Cards */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {filtered.map(p => (
+          <div key={p.id} onClick={() => setSelectedProject(p)} style={{
+            background: 'var(--bg-elevated)', borderRadius: 'var(--radius-md)',
+            border: `1px solid ${p.health === 'critical' ? 'rgba(255,71,87,0.2)' : p.health === 'warning' ? 'rgba(255,180,0,0.12)' : 'var(--border-subtle)'}`,
+            padding: 20, cursor: 'pointer', transition: 'all 0.2s',
+            display: 'grid', gridTemplateColumns: '1fr auto',
+          }} className="project-card">
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)' }}>{p.name}</span>
+                <HealthBadge health={p.health} />
+                {p.alerts.length > 0 && (
+                  <span style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: ALERT_COLORS[p.alerts[0].type], background: `${ALERT_COLORS[p.alerts[0].type]}12`, padding: '2px 8px', borderRadius: 3 }}>
+                    {p.alerts.length} alert{p.alerts.length > 1 ? 's' : ''}
+                  </span>
+                )}
+              </div>
+              <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 10 }}>{p.client}</div>
+              <div style={{ display: 'flex', gap: 20, fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)' }}>
+                <span>Uptime: <span style={{ color: p.uptime > 99 ? 'var(--mint)' : p.uptime > 97 ? 'var(--gold)' : 'var(--danger)' }}>{p.uptime}%</span></span>
+                <span>Platform: {p.platform.split(' + ')[0]}</span>
+                <span>Deploy: {p.lastDeploy}</span>
+              </div>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'center', gap: 6 }}>
+              <div style={{ fontSize: 22, fontFamily: 'var(--font-display)', fontWeight: 700, color: 'var(--text-primary)' }}>{p.progress}%</div>
+              <div style={{ width: 80, height: 4, background: 'var(--bg-deep)', borderRadius: 2, overflow: 'hidden' }}>
+                <div style={{ width: `${p.progress}%`, height: '100%', borderRadius: 2, background: p.progress > 75 ? 'var(--mint)' : p.progress > 40 ? 'var(--emerald)' : 'var(--info)' }}></div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+Object.assign(window, { ProjectsPage, PROJECT_DATA });
+
+</script>
+  <script type="text/babel">
+/* os-finance.jsx - Admin Financial Panel: Income, Expenses, Cash Flow */
+
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
+const REVENUE_DATA = [186, 210, 245, 262, 284, 310];
+const EXPENSE_DATA = [92, 105, 118, 124, 131, 142];
+const NET_DATA = REVENUE_DATA.map((r, i) => r - EXPENSE_DATA[i]);
+
+const TRANSACTIONS = [
+  { id: 'TXN-001', date: '20 May 2026', desc: 'Architect Membership - Kenya Ministry of Digital', type: 'income', amount: 2999, category: 'Membership', status: 'completed' },
+  { id: 'TXN-002', date: '19 May 2026', desc: 'Safaricom - Process Automation Phase 2 Invoice', type: 'income', amount: 45000, category: 'Project', status: 'completed' },
+  { id: 'TXN-003', date: '19 May 2026', desc: 'AWS Infrastructure - May billing', type: 'expense', amount: 8420, category: 'Infrastructure', status: 'completed' },
+  { id: 'TXN-004', date: '18 May 2026', desc: 'Builder Membership x 4 - Monthly renewals', type: 'income', amount: 2996, category: 'Membership', status: 'completed' },
+  { id: 'TXN-005', date: '17 May 2026', desc: 'Supabase Pro Plan - 6 project instances', type: 'expense', amount: 1500, category: 'Infrastructure', status: 'completed' },
+  { id: 'TXN-006', date: '17 May 2026', desc: 'University of Lagos - Smart Campus milestone payment', type: 'income', amount: 32000, category: 'Project', status: 'pending' },
+  { id: 'TXN-007', date: '16 May 2026', desc: 'Team payroll - May cycle', type: 'expense', amount: 42000, category: 'Payroll', status: 'completed' },
+  { id: 'TXN-008', date: '15 May 2026', desc: 'Catalyst Membership x 12 - Monthly renewals', type: 'income', amount: 1788, category: 'Membership', status: 'completed' },
+  { id: 'TXN-009', date: '15 May 2026', desc: 'Office lease - Kampala co-working space', type: 'expense', amount: 3200, category: 'Operations', status: 'completed' },
+  { id: 'TXN-010', date: '14 May 2026', desc: 'KCCA Kampala - Citizen Portal retainer', type: 'income', amount: 15000, category: 'Project', status: 'completed' },
+  { id: 'TXN-011', date: '13 May 2026', desc: 'Envato Elements - Annual subscription', type: 'expense', amount: 198, category: 'Tools', status: 'completed' },
+  { id: 'TXN-012', date: '12 May 2026', desc: 'UBA Group - AI Operations consulting hours', type: 'income', amount: 8500, category: 'Consulting', status: 'completed' },
+];
+
+/* -- Bar Chart (SVG) -- */
+const BarChart = ({ data1, data2, labels, color1 = 'var(--mint)', color2 = 'var(--danger)', height = 180, width = '100%' }) => {
+  const max = Math.max(...data1, ...data2);
+  const barW = 28; const gap = 6;
+  const totalW = labels.length * (barW * 2 + gap * 3);
+
+  return (
+    <div style={{ width, overflowX: 'auto' }}>
+      <svg width={totalW + 40} height={height + 30} style={{ display: 'block' }}>
+        {labels.map((label, i) => {
+          const x = 20 + i * (barW * 2 + gap * 3);
+          const h1 = (data1[i] / max) * height * 0.85;
+          const h2 = (data2[i] / max) * height * 0.85;
+          return (
+            <g key={i}>
+              <rect x={x} y={height - h1} width={barW} height={h1} rx={4} fill={color1} opacity={0.8} />
+              <rect x={x + barW + gap} y={height - h2} width={barW} height={h2} rx={4} fill={color2} opacity={0.6} />
+              <text x={x + barW + gap / 2} y={height + 18} textAnchor="middle" fill="rgba(255,255,255,0.4)" fontSize="10" fontFamily="var(--font-mono)">{label}</text>
+            </g>
+          );
+        })}
+      </svg>
+    </div>
+  );
+};
+
+/* -- Sparkline (inline) -- */
+const Sparkline = ({ data, color = 'var(--mint)', w = 80, h = 24 }) => {
+  const max = Math.max(...data); const min = Math.min(...data); const range = max - min || 1;
+  const pts = data.map((v, i) => `${(i / (data.length - 1)) * w},${h - ((v - min) / range) * h * 0.8 - h * 0.1}`).join(' ');
+  return (
+    <svg width={w} height={h} style={{ display: 'block' }}>
+      <polyline points={pts} fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  );
+};
+
+/* -- Finance Page -- */
+const FinancePage = ({ onNavigate }) => {
+  const [mounted, setMounted] = React.useState(false);
+  const [txFilter, setTxFilter] = React.useState('all');
+  const [period, setPeriod] = React.useState('6m');
+  React.useEffect(() => { setTimeout(() => setMounted(true), 50); }, []);
+
+  const totalIncome = TRANSACTIONS.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
+  const totalExpense = TRANSACTIONS.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
+  const netCashFlow = totalIncome - totalExpense;
+
+  const membershipRev = TRANSACTIONS.filter(t => t.category === 'Membership').reduce((s, t) => s + t.amount, 0);
+  const projectRev = TRANSACTIONS.filter(t => t.category === 'Project' || t.category === 'Consulting').reduce((s, t) => s + t.amount, 0);
+
+  const filtered = txFilter === 'all' ? TRANSACTIONS : TRANSACTIONS.filter(t => t.type === txFilter);
+
+  const sectionStyle = {
+    background: 'var(--bg-elevated)', borderRadius: 'var(--radius-md)',
+    border: '1px solid var(--border-subtle)', padding: 22,
+  };
+  const metricLabel = { fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 6 };
+  const metricValue = { fontFamily: 'var(--font-display)', fontSize: 28, fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1 };
+
+  return (
+    <div style={{ opacity: mounted ? 1 : 0, transform: mounted ? 'none' : 'translateY(8px)', transition: 'all 0.4s ease' }}>
+      <div style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <div>
+          <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 28, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+            Financial <span style={{ color: 'var(--mint)' }}>Overview</span>
+          </h1>
+          <p style={{ fontSize: 14, color: 'var(--text-secondary)', margin: '6px 0 0' }}>
+            Track all income and expenses across NEXT operations.
+          </p>
+        </div>
+        <div style={{ display: 'flex', gap: 4, background: 'var(--bg-deep)', borderRadius: 'var(--radius-sm)', padding: 3 }}>
+          {['1m', '3m', '6m', '1y'].map(p => (
+            <button key={p} onClick={() => setPeriod(p)} style={{
+              padding: '6px 12px', borderRadius: 4, border: 'none', fontSize: 11,
+              fontFamily: 'var(--font-mono)', cursor: 'pointer',
+              background: period === p ? 'var(--bg-elevated)' : 'transparent',
+              color: period === p ? 'var(--text-primary)' : 'var(--text-tertiary)',
+            }}>{p.toUpperCase()}</button>
+          ))}
+        </div>
+      </div>
+
+      {/* KPI Row */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 20 }}>
+        {[
+          { label: 'Total Revenue', value: `$${(totalIncome / 1000).toFixed(0)}K`, change: '+12%', positive: true, color: 'var(--mint)', data: REVENUE_DATA },
+          { label: 'Total Expenses', value: `$${(totalExpense / 1000).toFixed(0)}K`, change: '+8%', positive: false, color: 'var(--danger)', data: EXPENSE_DATA },
+          { label: 'Net Cash Flow', value: `$${(netCashFlow / 1000).toFixed(0)}K`, change: '+18%', positive: true, color: 'var(--gold)', data: NET_DATA },
+          { label: 'Membership MRR', value: `$${(membershipRev / 1000).toFixed(1)}K`, change: '+24', positive: true, color: 'var(--emerald)', data: [4,5,5.5,6.2,7,7.8] },
+        ].map(kpi => (
+          <div key={kpi.label} style={sectionStyle}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
+              <div style={metricLabel}>{kpi.label}</div>
+              <Sparkline data={kpi.data} color={kpi.color} />
+            </div>
+            <div style={metricValue}>{kpi.value}</div>
+            <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: kpi.positive ? 'var(--mint)' : 'var(--danger)', marginTop: 4 }}>
+              {kpi.change} vs last period
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Chart + Revenue Breakdown */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 16, marginBottom: 20 }}>
+        <div style={sectionStyle}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
+            <span>Revenue vs Expenses</span>
+            <div style={{ display: 'flex', gap: 16, fontSize: 11 }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><span style={{ width: 8, height: 8, borderRadius: 2, background: 'var(--mint)', display: 'inline-block' }}></span> Revenue</span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><span style={{ width: 8, height: 8, borderRadius: 2, background: 'var(--danger)', opacity: 0.6, display: 'inline-block' }}></span> Expenses</span>
+            </div>
+          </div>
+          <BarChart data1={REVENUE_DATA} data2={EXPENSE_DATA} labels={MONTHS} />
+        </div>
+
+        <div style={sectionStyle}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 16 }}>Revenue Streams</div>
+          {[
+            { label: 'Project Contracts', value: projectRev, pct: 65, color: 'var(--mint)' },
+            { label: 'Memberships', value: membershipRev, pct: 22, color: 'var(--emerald)' },
+            { label: 'Consulting', value: 8500, pct: 8, color: 'var(--gold)' },
+            { label: 'Training', value: 4200, pct: 5, color: 'var(--info)' },
+          ].map(stream => (
+            <div key={stream.label} style={{ marginBottom: 14 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4 }}>
+                <span style={{ color: 'var(--text-secondary)' }}>{stream.label}</span>
+                <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-primary)', fontWeight: 500 }}>
+                  ${(stream.value / 1000).toFixed(1)}K <span style={{ color: 'var(--text-tertiary)', fontSize: 10 }}>({stream.pct}%)</span>
+                </span>
+              </div>
+              <div style={{ height: 4, background: 'var(--bg-deep)', borderRadius: 2, overflow: 'hidden' }}>
+                <div style={{ width: `${stream.pct}%`, height: '100%', borderRadius: 2, background: stream.color, transition: 'width 1s' }}></div>
+              </div>
+            </div>
+          ))}
+          <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid var(--border-subtle)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+              <span style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>Expense Breakdown</span>
+            </div>
+            {[
+              { label: 'Payroll', value: '$42K', pct: 60 },
+              { label: 'Infrastructure', value: '$9.9K', pct: 14 },
+              { label: 'Operations', value: '$3.2K', pct: 5 },
+              { label: 'Tools & Subs', value: '$0.2K', pct: 1 },
+            ].map(exp => (
+              <div key={exp.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: 11 }}>
+                <span style={{ color: 'var(--text-tertiary)' }}>{exp.label}</span>
+                <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }}>{exp.value}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Transactions */}
+      <div style={sectionStyle}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>Recent Transactions</span>
+          <div style={{ display: 'flex', gap: 6 }}>
+            {['all', 'income', 'expense'].map(f => (
+              <button key={f} onClick={() => setTxFilter(f)} style={{
+                padding: '4px 12px', borderRadius: 4, border: 'none', fontSize: 11,
+                cursor: 'pointer', fontFamily: 'var(--font-body)', textTransform: 'capitalize',
+                background: txFilter === f ? 'var(--bg-surface)' : 'transparent',
+                color: txFilter === f ? 'var(--text-primary)' : 'var(--text-tertiary)',
+              }}>{f}</button>
+            ))}
+          </div>
+        </div>
+        <div>
+          <div style={{
+            display: 'grid', gridTemplateColumns: '90px 1fr 100px 100px 80px',
+            padding: '0 0 8px', fontSize: 10, color: 'var(--text-tertiary)',
+            fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.08em',
+            borderBottom: '1px solid var(--border-default)',
+          }}>
+            <span>Date</span><span>Description</span><span>Category</span><span style={{ textAlign: 'right' }}>Amount</span><span style={{ textAlign: 'right' }}>Status</span>
+          </div>
+          {filtered.map(tx => (
+            <div key={tx.id} style={{
+              display: 'grid', gridTemplateColumns: '90px 1fr 100px 100px 80px',
+              padding: '12px 0', borderBottom: '1px solid var(--border-subtle)',
+              fontSize: 12, alignItems: 'center',
+            }} className="member-row">
+              <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)', fontSize: 11 }}>{tx.date}</span>
+              <span style={{ color: 'var(--text-primary)', paddingRight: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{tx.desc}</span>
+              <span style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)' }}>{tx.category}</span>
+              <span style={{
+                textAlign: 'right', fontFamily: 'var(--font-mono)', fontWeight: 600,
+                color: tx.type === 'income' ? 'var(--mint)' : 'var(--danger)',
+              }}>
+                {tx.type === 'income' ? '+' : '-'}${tx.amount.toLocaleString()}
+              </span>
+              <span style={{
+                textAlign: 'right', fontSize: 10, fontFamily: 'var(--font-mono)', fontWeight: 600,
+                color: tx.status === 'completed' ? 'var(--mint)' : 'var(--gold)',
+              }}>{tx.status === 'completed' ? 'Done' : 'Pending'}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+Object.assign(window, { FinancePage });
+
+</script>
+  <script type="text/babel">
+/* os-ai-tools.jsx - NEXT AI Command Center: Tools, Automation, Analytics */
+
+const AI_TOOLS = [
+  {
+    id: 'doc-ai', name: 'NEXT Docs', desc: 'Extract, classify, and process documents automatically using AI.',
+    status: 'active', usage: 847, icon: 'N', color: 'var(--mint)',
+    stats: { processed: '12.4K', accuracy: '96.2%', avgTime: '1.8s' },
+  },
+  {
+    id: 'chat-ai', name: 'NEXT Assistant', desc: 'AI-powered chat assistant for internal queries, client support, and knowledge base.',
+    status: 'active', usage: 2340, icon: 'N', color: 'var(--mint)',
+    stats: { conversations: '2.3K', resolved: '89%', avgResponse: '0.4s' },
+  },
+  {
+    id: 'analytics-ai', name: 'NEXT Insights', desc: 'Forecast trends, detect anomalies, and generate insights from project data.',
+    status: 'active', usage: 412, icon: 'N', color: 'var(--emerald)',
+    stats: { predictions: '1.8K', accuracy: '91.5%', datasets: '24' },
+  },
+  {
+    id: 'auto-ai', name: 'NEXT Flow', desc: 'Design and deploy automated workflows across client operating systems.',
+    status: 'active', usage: 1560, icon: 'N', color: 'var(--gold)',
+    stats: { workflows: '67', executions: '14.2K', successRate: '98.7%' },
+  },
+  {
+    id: 'code-ai', name: 'NEXT Code', desc: 'AI-assisted code generation, review, and deployment for NEXT projects.',
+    status: 'beta', usage: 234, icon: 'N', color: 'var(--info)',
+    stats: { generated: '4.2K lines', reviewed: '890 PRs', saved: '~120h' },
+  },
+  {
+    id: 'report-ai', name: 'NEXT Reports', desc: 'Auto-generate client reports, financial summaries, and project status updates.',
+    status: 'active', usage: 156, icon: 'N', color: 'var(--emerald)',
+    stats: { reports: '342', templates: '18', clients: '12' },
+  },
+];
+
+const RECENT_OPS = [
+  { tool: 'NEXT Docs', action: 'Processed 48 invoices for KCCA Kampala', time: '15m ago', status: 'success' },
+  { tool: 'NEXT Assistant', action: 'Resolved: "How to access Builder dashboard?" for Nairobi Hub', time: '32m ago', status: 'success' },
+  { tool: 'NEXT Flow', action: 'Executed: Monthly membership renewal pipeline', time: '1h ago', status: 'success' },
+  { tool: 'NEXT Insights', action: 'Generated Q3 revenue forecast for board review', time: '2h ago', status: 'success' },
+  { tool: 'NEXT Code', action: 'PR #247: Auto-fix Safaricom queue processor null pointer', time: '3h ago', status: 'review' },
+  { tool: 'NEXT Reports', action: 'Weekly status report - 6 active projects', time: '5h ago', status: 'success' },
+  { tool: 'NEXT Flow', action: 'Alert: Safaricom auto-restart workflow triggered', time: '6h ago', status: 'warning' },
+  { tool: 'NEXT Docs', action: 'Classified 120 training certificates for UBA Group', time: '1d ago', status: 'success' },
+];
+
+/* -- AI Command Terminal -- */
+const AITerminal = () => {
+  const [input, setInput] = React.useState('');
+  const [history, setHistory] = React.useState([
+    { type: 'system', text: 'NEXT AI Command Center v2.1 - Connected to 6 active operating systems' },
+    { type: 'system', text: 'Type a command or ask a question. Try: "status all", "alert summary", "generate report"' },
+  ]);
+  const scrollRef = React.useRef(null);
+
+  React.useEffect(() => {
+    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+  }, [history]);
+
+  const handleCommand = (cmd) => {
+    if (!cmd.trim()) return;
+    const newHistory = [...history, { type: 'user', text: cmd }];
+
+    const lower = cmd.toLowerCase().trim();
+    let response;
+
+    if (lower.includes('status') && lower.includes('all')) {
+      response = {
+        type: 'response', text:
+`System Status Report - ${new Date().toLocaleString()}
+----------------------------------------
+ Digital Services Platform  [HEALTHY]  Uptime: 99.7%  Progress: 67%
+ AI Operations Suite        [WARNING]  Uptime: 98.2%  Progress: 42%
+ Smart Campus               [HEALTHY]  Uptime: 99.9%  Progress: 89%
+ Process Automation          [CRITICAL] Uptime: 94.1%  Progress: 31%
+ Citizen Portal              [HEALTHY]  Uptime: 99.4%  Progress: 55%
+ Digital Membership OS       [HEALTHY]  Uptime: 99.9%  Progress: 72%
+----------------------------------------
+4 Healthy | 1 Warning | 1 Critical - 15 active alerts total` };
+    } else if (lower.includes('alert')) {
+      response = {
+        type: 'response', text:
+`Active Alert Summary
+---------------------
+ CRITICAL: Safaricom - Production server unresponsive (45m ago)
+ ERROR:    Safaricom - Workflow engine crash: null pointer (1h ago)
+ ERROR:    Safaricom - Failed deployment rollback on staging (3h ago)
+ ERROR:    UBA - API rate limit exceeded on AI endpoint (2h ago)
+ WARNING:  UBA - DB connection pool at 85% capacity (3h ago)
+ WARNING:  Uganda ICT - SSL cert expires in 14 days (6h ago)
+---------------------
+Recommendation: Priority 1 - Safaricom needs immediate attention.`};
+    } else if (lower.includes('member') || lower.includes('card')) {
+      response = {
+        type: 'response', text:
+`Membership Overview
+-------------------
+Catalyst:  623 members  | $92,877/mo | Static cards
+Builder:   187 members  | $139,963/mo | Dynamic refresh
+Architect:  37 members  | $110,963/mo | Dynamic+ premium
+-------------------
+Total: 847 members | $343,803 MRR | +24 new this month`};
+    } else if (lower.includes('generate') && lower.includes('report')) {
+      response = { type: 'response', text: `Generating weekly status report...\nOK Project data compiled (6 projects)\nOK Financial summary attached ($284K revenue)\nOK Alert digest included (15 alerts)\nOK Membership metrics added (847 members)\n\nReport generated -> Sent to hudson@nextafrica.ai` };
+    } else if (lower.includes('help') || lower === '?') {
+      response = { type: 'response', text: `Available Commands:\n-------------------\nstatus all      - View all project health\nalert summary   - View active alerts\nmembers         - Membership overview\ngenerate report - Create weekly status report\nrevenue         - Financial summary\npredict [topic] - Run predictive analysis\ndeploy [project]- Trigger deployment\nhelp            - Show this menu` };
+    } else if (lower.includes('revenue') || lower.includes('financ')) {
+      response = { type: 'response', text: `Financial Summary - May 2026\n-------------------\nRevenue:  $310K (+9.2% MoM)\nExpenses: $142K (+8.4% MoM)\nNet:      $168K (+10.1% MoM)\n-------------------\nTop source: Project contracts (65%)\nGrowing:   Membership MRR (+24 members)` };
+    } else {
+      response = { type: 'response', text: `Processing: "${cmd}"\n\nI understand your request. In a production environment, NEXT AI would route this to the appropriate module.\n\nTry: "status all", "alert summary", "members", "generate report", or "help"` };
+    }
+
+    setHistory([...newHistory, response]);
+    setInput('');
+  };
+
+  return (
+    <div style={{
+      background: '#0a0a14', borderRadius: 'var(--radius-md)',
+      border: '1px solid var(--border-subtle)', overflow: 'hidden',
+    }}>
+      <div style={{
+        padding: '10px 16px', background: '#0e0e1a',
+        borderBottom: '1px solid var(--border-subtle)',
+        display: 'flex', alignItems: 'center', gap: 8,
+      }}>
+        <div style={{ display: 'flex', gap: 6 }}>
+          <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#FF5F57' }}></span>
+          <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#FEBC2E' }}></span>
+          <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#28C840' }}></span>
+        </div>
+        <span style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)', marginLeft: 8 }}>
+          next-ai - command center
+        </span>
+        <span style={{ marginLeft: 'auto', fontSize: 9, fontFamily: 'var(--font-mono)', color: 'var(--mint)', background: 'rgba(0,252,143,0.1)', padding: '2px 8px', borderRadius: 3 }}>CONNECTED</span>
+      </div>
+      <div ref={scrollRef} style={{ padding: 16, height: 260, overflowY: 'auto', fontFamily: 'var(--font-mono)', fontSize: 12, lineHeight: 1.7 }}>
+        {history.map((entry, i) => (
+          <div key={i} style={{ marginBottom: 8 }}>
+            {entry.type === 'system' && <span style={{ color: 'var(--text-tertiary)' }}>{'>'} {entry.text}</span>}
+            {entry.type === 'user' && <span style={{ color: 'var(--mint)' }}>next@ai ~ $ {entry.text}</span>}
+            {entry.type === 'response' && <pre style={{ color: 'var(--text-secondary)', whiteSpace: 'pre-wrap', margin: 0, fontFamily: 'var(--font-mono)', fontSize: 12 }}>{entry.text}</pre>}
+          </div>
+        ))}
+      </div>
+      <div style={{
+        padding: '10px 16px', borderTop: '1px solid var(--border-subtle)',
+        display: 'flex', alignItems: 'center', gap: 8,
+      }}>
+        <span style={{ color: 'var(--mint)', fontFamily: 'var(--font-mono)', fontSize: 12 }}>next@ai ~ $</span>
+        <input
+          value={input}
+          onChange={e => setInput(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && handleCommand(input)}
+          placeholder="Type a command..."
+          style={{
+            flex: 1, background: 'none', border: 'none', outline: 'none',
+            color: 'var(--text-primary)', fontFamily: 'var(--font-mono)', fontSize: 12,
+          }}
+        />
+      </div>
+    </div>
+  );
+};
+
+/* -- AI Tools Page -- */
+const AIToolsPage = ({ onNavigate }) => {
+  const [mounted, setMounted] = React.useState(false);
+  const [selectedTool, setSelectedTool] = React.useState(null);
+  React.useEffect(() => { setTimeout(() => setMounted(true), 50); }, []);
+
+  const totalOps = AI_TOOLS.reduce((s, t) => s + t.usage, 0);
+
+  const sectionStyle = {
+    background: 'var(--bg-elevated)', borderRadius: 'var(--radius-md)',
+    border: '1px solid var(--border-subtle)', padding: 22,
+  };
+
+  return (
+    <div style={{ opacity: mounted ? 1 : 0, transform: mounted ? 'none' : 'translateY(8px)', transition: 'all 0.4s ease' }}>
+      <div style={{ marginBottom: 24 }}>
+        <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 28, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+          AI <span style={{ color: 'var(--mint)' }}>Command Center</span>
+        </h1>
+        <p style={{ fontSize: 14, color: 'var(--text-secondary)', margin: '6px 0 0' }}>
+          {totalOps.toLocaleString()} AI operations this month across {AI_TOOLS.length} active modules.
+        </p>
+      </div>
+
+      {/* Terminal */}
+      <div style={{ marginBottom: 20 }}>
+        <AITerminal />
+      </div>
+
+      {/* Tools Grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 20 }}>
+        {AI_TOOLS.map(tool => (
+          <div key={tool.id} onClick={() => setSelectedTool(selectedTool === tool.id ? null : tool.id)} style={{
+            ...sectionStyle, cursor: 'pointer', transition: 'all 0.2s',
+            border: selectedTool === tool.id ? `1px solid ${tool.color}40` : '1px solid var(--border-subtle)',
+          }} className="project-card">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ fontSize: 20, color: tool.color }}>{tool.icon}</span>
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>{tool.name}</div>
+                  <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: tool.status === 'beta' ? 'var(--gold)' : 'var(--mint)', textTransform: 'uppercase', marginTop: 2 }}>
+                    {tool.status === 'beta' ? ' BETA' : ' ACTIVE'}
+                  </div>
+                </div>
+              </div>
+              <span style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)' }}>
+                {tool.usage.toLocaleString()} ops
+              </span>
+            </div>
+            <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: '0 0 12px', lineHeight: 1.5 }}>{tool.desc}</p>
+
+            {/* Expanded Stats */}
+            {selectedTool === tool.id && (
+              <div style={{
+                display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, paddingTop: 12,
+                borderTop: '1px solid var(--border-subtle)', marginTop: 4,
+              }}>
+                {Object.entries(tool.stats).map(([key, val]) => (
+                  <div key={key}>
+                    <div style={{ fontSize: 9, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 3 }}>
+                      {key.replace(/([A-Z])/g, ' $1').trim()}
+                    </div>
+                    <div style={{ fontSize: 15, fontFamily: 'var(--font-display)', fontWeight: 700, color: tool.color }}>{val}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Recent AI Operations */}
+      <div style={sectionStyle}>
+        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 16 }}>Recent AI Operations</div>
+        {RECENT_OPS.map((op, i) => (
+          <div key={i} style={{
+            display: 'flex', alignItems: 'flex-start', gap: 12, padding: '10px 0',
+            borderBottom: i < RECENT_OPS.length - 1 ? '1px solid var(--border-subtle)' : 'none',
+          }}>
+            <span style={{
+              fontSize: 8, marginTop: 5,
+              color: op.status === 'success' ? 'var(--mint)' : op.status === 'warning' ? 'var(--gold)' : 'var(--info)',
+            }}></span>
+            <div style={{ flex: 1 }}>
+              <span style={{ fontSize: 12, color: 'var(--text-primary)' }}>{op.action}</span>
+              <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)', marginTop: 2 }}>
+                {op.tool} - {op.time}
+              </div>
+            </div>
+            <span style={{
+              fontSize: 10, fontFamily: 'var(--font-mono)', fontWeight: 600,
+              color: op.status === 'success' ? 'var(--mint)' : op.status === 'warning' ? 'var(--gold)' : 'var(--info)',
+              background: op.status === 'success' ? 'var(--mint-glow)' : op.status === 'warning' ? 'var(--gold-glow)' : 'rgba(59,130,246,0.1)',
+              padding: '2px 8px', borderRadius: 3, textTransform: 'uppercase',
+            }}>{op.status}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+Object.assign(window, { AIToolsPage });
+
+</script>
+  <script type="text/babel">
+/* sentinel-ui.jsx - local NEXT Sentinel advisory bridge */
+
+const SentinelPanel = () => {
+  const [status, setStatus] = React.useState('connecting');
+  const [advisories, setAdvisories] = React.useState([]);
+
+  React.useEffect(() => {
+    // Sentinel WebSocket only attempts connection on local development.
+    // In production (Hostinger), the backend ws-bridge is not reachable from a
+    // static host, so we stay offline and show the fallback copy.
+    // Override with ?sentinel=<host>:<port> if running a remote bridge.
+    const params = new URLSearchParams(window.location.search);
+    const override = params.get('sentinel');
+    const isLocal = ['127.0.0.1', 'localhost', ''].includes(window.location.hostname);
+    if (!isLocal && !override) {
+      setStatus('offline');
+      return;
+    }
+    const target = override
+      ? (override.startsWith('ws') ? override : `ws://${override}`)
+      : 'ws://127.0.0.1:8787';
+    let ws;
+    try {
+      ws = new WebSocket(target);
+      ws.onopen = () => setStatus('connected');
+      ws.onclose = () => setStatus('offline');
+      ws.onerror = () => setStatus('offline');
+      ws.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        if (data.type === 'sentinel.advisory') {
+          setAdvisories((items) => [data.advisory, ...items].slice(0, 6));
+        }
+      };
+    } catch (error) {
+      setStatus('offline');
+    }
+    return () => ws && ws.close();
+  }, []);
+
+  const latest = advisories[0];
+  return (
+    <div style={{
+      background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)',
+      borderRadius: 'var(--radius-md)', padding: 18, marginBottom: 20
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>NEXT Sentinel</div>
+        <span style={{
+          fontFamily: 'var(--font-mono)', fontSize: 10,
+          color: status === 'connected' ? 'var(--mint)' : 'var(--gold)',
+          textTransform: 'uppercase'
+        }}>{status}</span>
+      </div>
+      {latest ? (
+        <div>
+          <div style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 600, marginBottom: 6 }}>{latest.title}</div>
+          <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5 }}>{latest.message}</div>
+        </div>
+      ) : (
+        <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+          Monitoring local health, financial signals, and operational thresholds from inside NEXT OS.
+        </div>
+      )}
+    </div>
+  );
+};
+
+const TEMPLATE_CARDS = [
+  { title: 'Schools', type: 'K-12', profile: 'templates/schools/sample-school-profile.json', target: 'data/onboarding/st-marys-demo' },
+  { title: 'Churches', type: 'Church', profile: 'templates/churches/sample-church-profile.json', target: 'data/onboarding/grace-chapel-demo' },
+  { title: 'NGOs', type: 'Nonprofit', profile: 'templates/ngos/sample-ngo-profile.json', target: 'data/onboarding/hope-program-demo' },
+  { title: 'Companies', type: 'Business', profile: 'templates/companies/sample-company-profile.json', target: 'data/onboarding/next-services-demo' },
+  { title: 'Organisations', type: 'General', profile: 'templates/organisations/sample-organisation-profile.json', target: 'data/onboarding/community-association-demo' },
+];
+
+const SentinelButton = ({ children, onClick }) => (
+  <button onClick={onClick} style={{
+    background: 'var(--mint)', color: '#140035', border: 'none',
+    borderRadius: 'var(--radius-sm)', padding: '9px 14px',
+    fontSize: 12, fontWeight: 700, cursor: 'pointer'
+  }}>
+    {children}
+  </button>
+);
+
+const SentinelPage = ({ onNavigate }) => {
+  const [mounted, setMounted] = React.useState(false);
+  React.useEffect(() => { setTimeout(() => setMounted(true), 50); }, []);
+
+  const sectionStyle = {
+    background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)',
+    borderRadius: 'var(--radius-md)', padding: 22
+  };
+  const itemStyle = {
+    padding: '12px 0', borderBottom: '1px solid var(--border-subtle)',
+    color: 'var(--text-secondary)', fontSize: 13, lineHeight: 1.5
+  };
+
+  return (
+    <div style={{ opacity: mounted ? 1 : 0, transform: mounted ? 'none' : 'translateY(8px)', transition: 'all 0.4s ease' }}>
+      <div style={{ marginBottom: 24 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16 }}>
+          <div>
+            <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 28, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+              NEXT <span style={{ color: 'var(--mint)' }}>Sentinel</span>
+            </h1>
+            <p style={{ fontSize: 14, color: 'var(--text-secondary)', margin: '6px 0 0', lineHeight: 1.5 }}>
+              Embedded local supervisory agent for system health, financial intelligence, and board-ready advisories.
+            </p>
+          </div>
+          <SentinelButton onClick={() => onNavigate && onNavigate('onboarding')}>Open Onboarding</SentinelButton>
+        </div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 16 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div style={sectionStyle}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 10 }}>Runtime Loops</div>
+            {[
+              'Observability Loop: Rust daemon writes signed CPU, memory, storage, and database integrity logs.',
+              'Reasoning Loop: local LLM prompt engine turns raw state into empathetic institutional advisories.',
+              'Action Loop: sandboxed repair engine runs approved recovery actions after preflight checks.'
+            ].map(text => <div key={text} style={itemStyle}>{text}</div>)}
+          </div>
+          <div style={sectionStyle}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 10 }}>Governance</div>
+            {[
+              'All data remains local to NEXT OS.',
+              'Financial recommendations require human board approval.',
+              'Recovery actions are least-privilege and restricted to approved targets.',
+              'Every failure, recovery action, and advisory is recorded in the local SQLite audit log.'
+            ].map(text => <div key={text} style={itemStyle}>{text}</div>)}
+          </div>
+        </div>
+        <div>
+          <SentinelPanel />
+          <div style={sectionStyle}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 10 }}>Supported Verticals</div>
+            {['K-12 schools', 'Higher education institutions', 'Churches', 'NGOs and nonprofits', 'Companies', 'Organisations'].map(text => (
+              <div key={text} style={{ ...itemStyle, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--mint)', display: 'inline-block' }}></span>
+                {text}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const OnboardingPage = () => {
+  const [mounted, setMounted] = React.useState(false);
+  React.useEffect(() => { setTimeout(() => setMounted(true), 50); }, []);
+
+  const sectionStyle = {
+    background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)',
+    borderRadius: 'var(--radius-md)', padding: 22
+  };
+
+  return (
+    <div style={{ opacity: mounted ? 1 : 0, transform: mounted ? 'none' : 'translateY(8px)', transition: 'all 0.4s ease' }}>
+      <div style={{ marginBottom: 24 }}>
+        <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 28, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+          Client <span style={{ color: 'var(--mint)' }}>Onboarding</span>
+        </h1>
+        <p style={{ fontSize: 14, color: 'var(--text-secondary)', margin: '6px 0 0', lineHeight: 1.5 }}>
+          Start from a template, change the client profile, then generate a local Sentinel bundle.
+        </p>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14, marginBottom: 18 }}>
+        {TEMPLATE_CARDS.map(card => (
+          <div key={card.title} style={sectionStyle}>
+            <div style={{ fontSize: 11, color: 'var(--mint)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', marginBottom: 8 }}>{card.type}</div>
+            <div style={{ fontSize: 17, color: 'var(--text-primary)', fontWeight: 700, marginBottom: 10 }}>{card.title}</div>
+            <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: 14 }}>
+              Profile: <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-primary)' }}>{card.profile}</span>
+            </div>
+            <div style={{ fontSize: 11, color: 'var(--text-tertiary)', lineHeight: 1.6 }}>
+              Output: <span style={{ fontFamily: 'var(--font-mono)' }}>{card.target}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div style={sectionStyle}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 12 }}>Onboarding Command</div>
+        <pre style={{
+          margin: 0, padding: 14, background: 'var(--bg-deep)', borderRadius: 'var(--radius-sm)',
+          color: 'var(--text-secondary)', whiteSpace: 'pre-wrap', fontSize: 12, lineHeight: 1.7,
+          fontFamily: 'var(--font-mono)'
+        }}>{`npm.cmd run onboard -- templates/schools/sample-school-profile.json
+npm.cmd run aggregator -- data/onboarding/st-marys-demo`}</pre>
+      </div>
+    </div>
+  );
+};
+
+Object.assign(window, { SentinelPanel, SentinelPage, OnboardingPage });
+
+</script>
+  <script type="text/babel">
+/* os-shell.jsx - NEXT OS App Shell: Sidebar, Topbar, Routing */
+
+/* -- SVG Icons -- */
+const OSIcon = ({ name, size = 20 }) => {
+  const paths = {
+    dashboard: <><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></>,
+    projects: <><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></>,
+    ai: <><path d="M12 2L3 7l9 5 9-5-9-5z"/><path d="M3 17l9 5 9-5"/><path d="M3 12l9 5 9-5"/></>,
+    training: <><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></>,
+    members: <><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4-4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></>,
+    comms: <><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></>,
+    billing: <><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></>,
+    sentinel: <><path d="M12 2l7 3v6c0 5-3.4 9.4-7 11-3.6-1.6-7-6-7-11V5l7-3z"/><path d="M9 12l2 2 4-5"/></>,
+    onboarding: <><path d="M12 5v14"/><path d="M5 12h14"/><rect x="4" y="4" width="16" height="16" rx="3"/></>,
+    settings: <><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></>,
+    search: <><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></>,
+    bell: <><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></>,
+    chevronDown: <><polyline points="6 9 12 15 18 9"/></>,
+    logout: <><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></>,
+  };
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      {paths[name]}
+    </svg>
+  );
+};
+
+/* -- Navigation Config -- */
+const NAV_SECTIONS = [
+  { id: 'main', label: 'Main', items: [
+    { id: 'dashboard', label: 'Dashboard', icon: 'dashboard' },
+    { id: 'projects', label: 'Projects', icon: 'projects', badge: 12 },
+    { id: 'ai-tools', label: 'AI Tools', icon: 'ai' },
+  ]},
+  { id: 'manage', label: 'Manage', items: [
+    { id: 'training', label: 'Training', icon: 'training' },
+    { id: 'members', label: 'Members', icon: 'members', badge: 3 },
+    { id: 'comms', label: 'Communications', icon: 'comms' },
+  ]},
+  { id: 'system', label: 'System', items: [
+    { id: 'billing', label: 'Billing', icon: 'billing' },
+    { id: 'sentinel', label: 'Sentinel', icon: 'sentinel' },
+    { id: 'onboarding', label: 'Onboarding', icon: 'onboarding' },
+    { id: 'settings', label: 'Settings', icon: 'settings' },
+  ]},
+];
+
+/* -- Sidebar -- */
+const Sidebar = ({ activeTab, onTabChange, collapsed, onToggle }) => {
+  const sidebarStyles = {
+    root: {
+      width: collapsed ? 64 : 240, height: '100vh', position: 'fixed',
+      left: 0, top: 0, zIndex: 100,
+      background: 'var(--bg-elevated)', borderRight: '1px solid var(--border-subtle)',
+      display: 'flex', flexDirection: 'column',
+      transition: 'width 0.25s ease', overflow: 'hidden',
+    },
+    logo: {
+      padding: collapsed ? '20px 12px' : '20px 20px',
+      borderBottom: '1px solid var(--border-subtle)',
+      display: 'flex', alignItems: 'center', gap: 12, height: 64,
+      cursor: 'pointer',
+    },
+    section: {
+      padding: collapsed ? '12px 8px 4px' : '12px 12px 4px',
+    },
+    sectionLabel: {
+      fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)',
+      textTransform: 'uppercase', letterSpacing: '0.12em', padding: '4px 8px',
+      marginBottom: 4, opacity: collapsed ? 0 : 1, transition: 'opacity 0.2s',
+      whiteSpace: 'nowrap',
+    },
+    navItem: (isActive) => ({
+      display: 'flex', alignItems: 'center', gap: 12,
+      padding: collapsed ? '10px 0' : '10px 12px',
+      justifyContent: collapsed ? 'center' : 'flex-start',
+      borderRadius: 'var(--radius-sm)', cursor: 'pointer',
+      color: isActive ? 'var(--mint)' : 'var(--text-secondary)',
+      background: isActive ? 'var(--mint-glow)' : 'transparent',
+      transition: 'all 0.15s', fontSize: 13, fontWeight: isActive ? 600 : 400,
+      fontFamily: 'var(--font-body)', whiteSpace: 'nowrap', position: 'relative',
+      border: 'none', width: '100%', textAlign: 'left',
+    }),
+    badge: {
+      marginLeft: 'auto', fontSize: 10, fontWeight: 700,
+      background: 'var(--mint)', color: '#140035',
+      borderRadius: 10, padding: '1px 6px', fontFamily: 'var(--font-mono)',
+    },
+  };
+
+  return (
+    <nav style={sidebarStyles.root}>
+      {/* Logo */}
+      <div style={sidebarStyles.logo} onClick={onToggle}>
+        <img 
+          src={window.__resources?.faviconLogo || "uploads/NEXT Favicon Transperent Logo@3x.png"} 
+          alt="N" style={{ width: 28, height: 28, flexShrink: 0 }} 
+        />
+        {!collapsed && (
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <span style={{ fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '0.08em' }}>NEXT</span>
+            <span style={{ fontSize: 9, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', letterSpacing: '0.06em' }}>DIGITAL OS</span>
+          </div>
+        )}
+      </div>
+
+      {/* Nav Sections */}
+      <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' }}>
+        {NAV_SECTIONS.map(section => (
+          <div key={section.id} style={sidebarStyles.section}>
+            <div style={sidebarStyles.sectionLabel}>{section.label}</div>
+            {section.items.map(item => (
+              <button
+                key={item.id}
+                onClick={() => onTabChange(item.id)}
+                style={sidebarStyles.navItem(activeTab === item.id)}
+                className="nav-item"
+              >
+                <OSIcon name={item.icon} size={18} />
+                {!collapsed && <span>{item.label}</span>}
+                {!collapsed && item.badge && <span style={sidebarStyles.badge}>{item.badge}</span>}
+              </button>
+            ))}
+          </div>
+        ))}
+      </div>
+
+      {/* User */}
+      <div style={{
+        padding: collapsed ? '16px 8px' : '16px', borderTop: '1px solid var(--border-subtle)',
+        display: 'flex', alignItems: 'center', gap: 10,
+        justifyContent: collapsed ? 'center' : 'flex-start',
+      }}>
+        <div style={{
+          width: 32, height: 32, borderRadius: '50%', flexShrink: 0,
+          background: 'linear-gradient(135deg, var(--mint), var(--emerald))',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: 13, fontWeight: 700, color: '#140035',
+        }}>HT</div>
+        {!collapsed && (
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Hudson T.</div>
+            <div style={{ fontSize: 10, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)' }}>Admin</div>
+          </div>
+        )}
+      </div>
+    </nav>
+  );
+};
+
+/* -- Topbar -- */
+const Topbar = ({ pageTitle, sidebarWidth }) => {
+  const [searchFocused, setSearchFocused] = React.useState(false);
+
+  return (
+    <header style={{
+      height: 64, position: 'fixed', top: 0, right: 0,
+      left: sidebarWidth, zIndex: 90,
+      background: 'rgba(10,0,26,0.8)', backdropFilter: 'blur(12px)',
+      borderBottom: '1px solid var(--border-subtle)',
+      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+      padding: '0 28px', transition: 'left 0.25s ease',
+    }}>
+      {/* Page Title */}
+      <h2 style={{
+        fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 700,
+        color: 'var(--text-primary)', letterSpacing: '0.03em', margin: 0,
+      }}>{pageTitle}</h2>
+
+      {/* Right side */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+        {/* Search */}
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 8,
+          background: searchFocused ? 'var(--bg-surface)' : 'var(--bg-elevated)',
+          border: `1px solid ${searchFocused ? 'var(--border-active)' : 'var(--border-subtle)'}`,
+          borderRadius: 'var(--radius-sm)', padding: '6px 12px',
+          transition: 'all 0.2s', width: searchFocused ? 280 : 200,
+        }}>
+          <OSIcon name="search" size={14} />
+          <input
+            placeholder="Search..."
+            onFocus={() => setSearchFocused(true)}
+            onBlur={() => setSearchFocused(false)}
+            style={{
+              background: 'none', border: 'none', outline: 'none',
+              color: 'var(--text-primary)', fontSize: 13,
+              fontFamily: 'var(--font-body)', width: '100%',
+            }}
+          />
+          <span style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)', background: 'var(--bg-deep)', padding: '2px 6px', borderRadius: 3 }}>Ctrl+K</span>
+        </div>
+
+        {/* Notifications */}
+        <button style={{
+          background: 'none', border: 'none', color: 'var(--text-secondary)',
+          cursor: 'pointer', position: 'relative', padding: 4,
+        }}>
+          <OSIcon name="bell" size={18} />
+          <div style={{
+            position: 'absolute', top: 2, right: 2, width: 6, height: 6,
+            borderRadius: '50%', background: 'var(--mint)',
+            boxShadow: '0 0 4px var(--mint)',
+          }}></div>
+        </button>
+
+        {/* Time */}
+        <div style={{
+          fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)',
+        }}>
+          {new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+        </div>
+      </div>
+    </header>
+  );
+};
+
+/* -- Placeholder Pages -- */
+const PlaceholderPage = ({ title, description, icon }) => {
+  const [mounted, setMounted] = React.useState(false);
+  React.useEffect(() => { setTimeout(() => setMounted(true), 50); }, []);
+  return (
+    <div style={{
+      opacity: mounted ? 1 : 0, transform: mounted ? 'none' : 'translateY(8px)',
+      transition: 'all 0.4s ease', display: 'flex', alignItems: 'center',
+      justifyContent: 'center', minHeight: 'calc(100vh - 160px)',
+    }}>
+      <div style={{ textAlign: 'center', maxWidth: 400 }}>
+        <div style={{ fontSize: 48, marginBottom: 16, opacity: 0.3 }}>{icon}</div>
+        <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 24, color: 'var(--text-primary)', margin: '0 0 8px', fontWeight: 700 }}>{title}</h2>
+        <p style={{ fontSize: 14, color: 'var(--text-tertiary)', lineHeight: 1.6 }}>{description}</p>
+      </div>
+    </div>
+  );
+};
+
+/* -- Page Titles Map -- */
+const PAGE_TITLES = {
+  dashboard: 'Command Center',
+  projects: 'Projects Command',
+  'ai-tools': 'AI Command Center',
+  training: 'Training',
+  members: 'Members & Cards',
+  comms: 'Communications',
+  billing: 'Financial Overview',
+  sentinel: 'NEXT Sentinel',
+  onboarding: 'Onboarding',
+  settings: 'Settings',
+};
+
+/* -- Apply Tweaks to CSS Vars -- */
+const applyTweaks = (t) => {
+  const root = document.documentElement;
+  if (t.accentColor) {
+    root.style.setProperty('--mint', t.accentColor);
+    // Compute glow
+    const hex = t.accentColor.replace('#','');
+    const r = parseInt(hex.substr(0,2),16), g = parseInt(hex.substr(2,2),16), b = parseInt(hex.substr(4,2),16);
+    root.style.setProperty('--mint-glow', `rgba(${r},${g},${b},0.1)`);
+    root.style.setProperty('--mint-glow-strong', `rgba(${r},${g},${b},0.2)`);
+  }
+  if (t.bgDepth === 'deeper') {
+    root.style.setProperty('--bg-deep', '#050010');
+    root.style.setProperty('--bg-elevated', '#140035');
+    root.style.setProperty('--bg-surface', '#1A0042');
+  } else if (t.bgDepth === 'lighter') {
+    root.style.setProperty('--bg-deep', '#120030');
+    root.style.setProperty('--bg-elevated', '#220058');
+    root.style.setProperty('--bg-surface', '#2A0068');
+  } else {
+    root.style.setProperty('--bg-deep', '#0A001A');
+    root.style.setProperty('--bg-elevated', '#1A0042');
+    root.style.setProperty('--bg-surface', '#220055');
+  }
+  if (t.fontScale) {
+    root.style.setProperty('font-size', `${t.fontScale}%`);
+  }
+};
+
+/* -- Main App Shell -- */
+const AppShell = () => {
+  const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
+  const [activeTab, setActiveTab] = React.useState('dashboard');
+  const sidebarCollapsed = t.sidebarCollapsed;
+  const sidebarWidth = sidebarCollapsed ? 64 : 240;
+
+  React.useEffect(() => { applyTweaks(t); }, [t.accentColor, t.bgDepth, t.fontScale]);
+
+  const renderPage = () => {
+    switch (activeTab) {
+      case 'dashboard':
+        return <DashboardPage onNavigate={setActiveTab} />;
+      case 'members':
+        return <MembersPage onNavigate={setActiveTab} />;
+      case 'projects':
+        return <ProjectsPage onNavigate={setActiveTab} />;
+      case 'ai-tools':
+        return <AIToolsPage onNavigate={setActiveTab} />;
+      case 'billing':
+        return <FinancePage onNavigate={setActiveTab} />;
+      case 'sentinel':
+        return window.SentinelPage ? React.createElement(window.SentinelPage, { onNavigate: setActiveTab }) : <PlaceholderPage title="NEXT Sentinel" description="The embedded supervisory agent bridge is loading." icon="" />;
+      case 'onboarding':
+        return window.OnboardingPage ? React.createElement(window.OnboardingPage, { onNavigate: setActiveTab }) : <PlaceholderPage title="Onboarding" description="Template onboarding is loading." icon="" />;
+      case 'training':
+        return <PlaceholderPage title="Training Programs" description="Manage AI capacity building programs, certifications, and workshop schedules across client organisations." icon="" />;
+      case 'comms':
+        return <PlaceholderPage title="Communications Hub" description="Reporting, client communications, and digital strategy coordination centre." icon="" />;
+      case 'settings':
+        return <PlaceholderPage title="Settings" description="System configuration, user management, and platform preferences." icon="Settings" />;
+      default:
+        return <DashboardPage onNavigate={setActiveTab} />;
+    }
+  };
+
+  const density = t.density || 'regular';
+  const padding = density === 'compact' ? '20px 24px' : density === 'comfortable' ? '36px 40px' : '28px 32px';
+
+  return (
+    <div style={{ minHeight: '100vh', background: 'var(--bg-deep)' }} data-glow={t.cardGlow || 'medium'} data-shine={t.cardShine === false ? 'off' : 'on'}>
+      <Sidebar 
+        activeTab={activeTab} 
+        onTabChange={setActiveTab} 
+        collapsed={sidebarCollapsed}
+        onToggle={() => setTweak('sidebarCollapsed', !sidebarCollapsed)}
+      />
+      <Topbar pageTitle={PAGE_TITLES[activeTab] || 'Dashboard'} sidebarWidth={sidebarWidth} />
+      <main style={{
+        marginLeft: sidebarWidth, paddingTop: 64,
+        transition: 'margin-left 0.25s ease',
+      }}>
+        <div style={{ padding, maxWidth: 1200, margin: '0 auto', transition: 'padding 0.25s ease' }}>
+          {renderPage()}
+        </div>
+      </main>
+
+      {/* Dev TweaksPanel: only visible with ?tweaks=1 query param or on localhost.
+          Prevents it from leaking into the production deployment. */}
+      {(typeof window !== 'undefined' && (
+        window.location.search.includes('tweaks=1') ||
+        ['127.0.0.1', 'localhost', ''].includes(window.location.hostname)
+      )) && (
+      <TweaksPanel>
+        <TweakSection label="Theme" />
+        <TweakColor label="Accent" value={t.accentColor}
+          options={['#00FC8F', '#1B9B6F', '#3B82F6', '#A855F7', '#FFB400']}
+          onChange={v => setTweak('accentColor', v)} />
+        <TweakRadio label="Background" value={t.bgDepth}
+          options={['deeper', 'standard', 'lighter']}
+          onChange={v => setTweak('bgDepth', v)} />
+        <TweakSection label="Layout" />
+        <TweakToggle label="Collapse sidebar" value={t.sidebarCollapsed}
+          onChange={v => setTweak('sidebarCollapsed', v)} />
+        <TweakRadio label="Density" value={t.density}
+          options={['compact', 'regular', 'comfortable']}
+          onChange={v => setTweak('density', v)} />
+        <TweakSlider label="Font scale" value={t.fontScale} min={80} max={120} step={5} unit="%"
+          onChange={v => setTweak('fontScale', v)} />
+        <TweakSection label="Cards" />
+        <TweakRadio label="Card glow" value={t.cardGlow}
+          options={['subtle', 'medium', 'intense']}
+          onChange={v => setTweak('cardGlow', v)} />
+        <TweakToggle label="Card shine animation" value={t.cardShine}
+          onChange={v => setTweak('cardShine', v)} />
+      </TweaksPanel>
+      )}
+    </div>
+  );
+};
+
+Object.assign(window, { AppShell, Sidebar, Topbar, OSIcon, PlaceholderPage });
+
+</script>
+
+  <!-- Mount App -->
+  <script type="text/babel">
+    const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+      "accentColor": "#00FC8F",
+      "bgDepth": "standard",
+      "sidebarCollapsed": true,
+      "density": "regular",
+      "fontScale": 100,
+      "cardGlow": "medium",
+      "cardShine": true
+    }/*EDITMODE-END*/;
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<AppShell />);
+  </script>
+</body>
+</html>
+
+
+

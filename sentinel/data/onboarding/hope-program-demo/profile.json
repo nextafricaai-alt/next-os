@@ -1,0 +1,46 @@
+{
+  "institutionId": "hope-program-demo",
+  "name": "Hope Program Demo",
+  "templateType": "ngo",
+  "country": "Uganda",
+  "district": "Gulu",
+  "currency": "UGX",
+  "operatingYear": "2026",
+  "capacityThreshold": 2000,
+  "activeParticipants": 1850,
+  "openingCashBalance": 30000000,
+  "revenueStreams": [
+    {
+      "name": "Donor Grant",
+      "amount": 85000000,
+      "cadence": "project"
+    },
+    {
+      "name": "Local Donations",
+      "amount": 7000000,
+      "cadence": "quarter"
+    }
+  ],
+  "expenseStreams": [
+    {
+      "name": "Program Delivery",
+      "amount": 62000000,
+      "cadence": "project"
+    },
+    {
+      "name": "Field Operations",
+      "amount": 18000000,
+      "cadence": "project"
+    }
+  ],
+  "governanceContacts": [
+    {
+      "role": "director",
+      "name": "Executive Director"
+    },
+    {
+      "role": "finance",
+      "name": "Finance Lead"
+    }
+  ]
+}

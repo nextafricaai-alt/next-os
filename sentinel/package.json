@@ -1,0 +1,30 @@
+{
+  "name": "@next-os/sentinel",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Embedded offline-first supervisory agent for NEXT Digital OS",
+  "type": "module",
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "scripts": {
+    "build": "tsc -b tsconfig.json",
+    "test": "node --test \"dist/**/*.test.js\"",
+    "test:e2e": "npm run build && node --test dist/tests/e2e/*.test.js",
+    "aggregator": "node dist/context-aggregator/src/index.js",
+    "advisor": "node dist/advisor-prompt-engine/src/index.js",
+    "repair": "node dist/repair-engine/src/index.js",
+    "ws": "node dist/ws-bridge/src/index.js",
+    "whatsapp": "node dist/whatsapp-bridge/src/index.js",
+    "onboard": "node dist/template-engine/src/index.js",
+    "onboard:school": "node dist/template-engine/src/index.js"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@types/ws": "^8.5.13",
+    "typescript": "^5.7.3"
+  }
+}

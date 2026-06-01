@@ -1,0 +1,13 @@
+[
+  {
+    "institutionId": "community-association-demo",
+    "ops": {
+      "activeStudents": 430,
+      "capacityThreshold": 500,
+      "energyCost": 0,
+      "inventoryRiskScore": 0.3,
+      "resourceUtilization": 0.6,
+      "participantName": "members or participants"
+    }
+  }
+]

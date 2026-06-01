@@ -1,0 +1,15 @@
+{
+  "institutionId": "hope-program-demo",
+  "greetingContext": "Hope Program Demo in Gulu, Uganda",
+  "preferredQuestion": "Would you like me to prepare a beneficiary reach, donor funds, and budget constraints note for leadership review?",
+  "governanceContacts": [
+    {
+      "role": "director",
+      "name": "Executive Director"
+    },
+    {
+      "role": "finance",
+      "name": "Finance Lead"
+    }
+  ]
+}

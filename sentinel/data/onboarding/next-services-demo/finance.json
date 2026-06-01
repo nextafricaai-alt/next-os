@@ -1,0 +1,36 @@
+[
+  {
+    "institutionId": "next-services-demo",
+    "vertical": "company",
+    "finance": {
+      "revenue": 150000000,
+      "expenses": 54500000,
+      "currency": "UGX",
+      "openingCashBalance": 45000000,
+      "revenueStreams": [
+        {
+          "name": "Service Contracts",
+          "amount": 120000000,
+          "cadence": "quarter"
+        },
+        {
+          "name": "Retainers",
+          "amount": 30000000,
+          "cadence": "month"
+        }
+      ],
+      "expenseStreams": [
+        {
+          "name": "Payroll",
+          "amount": 42000000,
+          "cadence": "month"
+        },
+        {
+          "name": "Operations",
+          "amount": 12500000,
+          "cadence": "month"
+        }
+      ]
+    }
+  }
+]

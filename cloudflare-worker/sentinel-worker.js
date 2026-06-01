@@ -1,0 +1,797 @@
+/**
+ * NEXT OS Sentinel — Free-tier Agent Worker
+ * ============================================================================
+ * Runs Llama 3.3 70B on Cloudflare Workers AI with native tool calling.
+ * Translates between the Anthropic-style request/response shape that
+ * os-agent.jsx already understands and the Workers AI / OpenAI-style
+ * tool-calling format Llama uses.
+ *
+ * This is what makes Sentinel (Nia) work for Hudson with no API key.
+ *
+ * Endpoint:
+ *   POST /  — Body: { system, messages, tools }
+ *             Returns: { content: [...], stop_reason: 'tool_use' | 'end_turn' }
+ *
+ * Cost: 0 USD up to ~10k neurons/day (Cloudflare free tier).
+ *
+ * Deploy:
+ *   wrangler deploy --name nextos-sentinel
+ * ============================================================================
+ */
+
+const MODEL = '@cf/meta/llama-3.3-70b-instruct-fp8-fast';
+const MAX_TOKENS = 1024;
+
+const ALLOWED_ORIGINS = [
+  'https://nextafrica.ai',
+  'https://www.nextafrica.ai',
+  'https://nextos.nextafrica.ai',
+  'http://localhost:5500',
+  'http://localhost:3000',
+  'http://127.0.0.1:5500',
+  'null', // file:// origin during local OS testing
+];
+
+function corsHeaders(origin) {
+  const allowed = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
+  return {
+    'Access-Control-Allow-Origin': allowed,
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Max-Age': '86400',
+  };
+}
+
+/* --- Format translation ---------------------------------------------------
+   Anthropic input shape (what os-agent.jsx sends):
+     tools: [{ name, description, input_schema: { type, properties, required } }]
+     messages: [
+       { role: 'user'|'assistant', content: string | [{type, text|tool_use|tool_result, ...}] }
+     ]
+   OpenAI/Workers-AI shape (what Llama expects):
+     tools: [{ type: 'function', function: { name, description, parameters } }]
+     messages: [
+       { role: 'system'|'user'|'assistant'|'tool', content: string, tool_calls?: [], tool_call_id?: string }
+     ]
+--------------------------------------------------------------------------- */
+
+function anthropicToolsToOpenAI(tools) {
+  return (tools || []).map(t => ({
+    type: 'function',
+    function: {
+      name: t.name,
+      description: t.description || '',
+      parameters: t.input_schema || { type: 'object', properties: {} },
+    },
+  }));
+}
+
+// Workers AI's Llama 3.3 70b is strict about message shape:
+// - content must always be a NON-NULL string
+// - only system/user/assistant roles are accepted (no `tool` role)
+// - assistant messages with `tool_calls` need to be flattened
+// So we encode tool calls + results as inline transcript text. Llama sees
+// the prior tool round as conversation context, then decides whether to
+// call another tool or finish.
+function anthropicMessagesToOpenAI(messages) {
+  // Llama 3.3 70b on Workers AI accepts tool_calls on assistant messages
+  // (when content is a non-null string). For tool results we use a user
+  // message labelled clearly — this keeps annotations OUT of any visible
+  // assistant reply so Llama never parrots them back.
+  const out = [];
+  for (const m of messages) {
+    if (typeof m.content === 'string') {
+      out.push({ role: m.role, content: m.content || ' ' });
+      continue;
+    }
+    const blocks = Array.isArray(m.content) ? m.content : [];
+
+    if (m.role === 'assistant') {
+      const textParts = blocks.filter(b => b.type === 'text').map(b => b.text);
+      const tool_uses = blocks.filter(b => b.type === 'tool_use');
+      const text = textParts.join('').trim();
+      const msg = { role: 'assistant', content: text || ' ' };
+      if (tool_uses.length) {
+        msg.tool_calls = tool_uses.map(tu => ({
+          id: tu.id || ('tc_' + Math.random().toString(36).slice(2, 10)),
+          type: 'function',
+          function: { name: tu.name, arguments: JSON.stringify(tu.input || {}) },
+        }));
+      }
+      out.push(msg);
+    } else if (m.role === 'user') {
+      const tool_results = blocks.filter(b => b.type === 'tool_result');
+      const text_blocks  = blocks.filter(b => b.type === 'text');
+
+      if (tool_results.length) {
+        const lines = tool_results.map(tr => {
+          const raw = typeof tr.content === 'string' ? tr.content : JSON.stringify(tr.content);
+          return 'TOOL RESULT: ' + raw;
+        });
+        out.push({
+          role: 'user',
+          content: lines.join('\n') + '\n\nThe data above came from the tool you just called. Use it to answer the original question. Do NOT narrate that you are waiting or thinking — just respond with the answer in plain language, or call another tool if needed.',
+        });
+      }
+      if (text_blocks.length) {
+        out.push({ role: 'user', content: text_blocks.map(b => b.text).join('') });
+      }
+    } else if (m.role === 'system') {
+      const text = blocks.filter(b => b.type === 'text').map(b => b.text).join('') || ' ';
+      out.push({ role: 'system', content: text });
+    }
+  }
+  return out;
+}
+
+function openAIResponseToAnthropic(data) {
+  // Workers AI Llama response shape:
+  //   { response: "text", tool_calls: [{ id, name, arguments | parameters }] }
+  // Sometimes the response is nested differently. Handle both.
+  const result = data.result || data;
+  const text = result.response || '';
+  const tool_calls = result.tool_calls || [];
+
+  const content = [];
+  if (text && text.trim()) content.push({ type: 'text', text: text });
+  for (const tc of tool_calls) {
+    let args = tc.arguments || tc.parameters || {};
+    if (typeof args === 'string') {
+      try { args = JSON.parse(args); } catch (e) { args = {}; }
+    }
+    content.push({
+      type: 'tool_use',
+      id: tc.id || ('toolu_' + Math.random().toString(36).slice(2, 12)),
+      name: tc.name,
+      input: args,
+    });
+  }
+  if (content.length === 0) content.push({ type: 'text', text: '' });
+
+  return {
+    content,
+    stop_reason: tool_calls.length > 0 ? 'tool_use' : 'end_turn',
+    model: MODEL,
+    role: 'assistant',
+  };
+}
+
+/* --- HTTP handler -------------------------------------------------------- */
+
+export default {
+  // Cron handler — runs on schedule defined in sentinel-wrangler.toml.
+  async scheduled(event, env, ctx) {
+    ctx.waitUntil(scheduledHandler(event, env, ctx));
+  },
+  async fetch(request, env) {
+    const origin = request.headers.get('Origin') || 'null';
+    const cors = corsHeaders(origin);
+    const url = new URL(request.url);
+
+    if (request.method === 'OPTIONS') {
+      return new Response(null, { status: 204, headers: cors });
+    }
+    // ─── Route: GET /briefs — list autonomous briefs from KV ────────────
+    if (request.method === 'GET' && url.pathname === '/briefs') {
+      return handleBriefsGet(request, env, cors);
+    }
+    // ─── Route: GET /actions — list autonomous actions Nia took ──────────
+    if (request.method === 'GET' && url.pathname === '/actions') {
+      return handleActionsGet(request, env, cors);
+    }
+
+    if (request.method !== 'POST') {
+      return new Response('Method not allowed', { status: 405, headers: cors });
+    }
+
+    // ─── Route: /briefs/mark-read — body: { ids: [...] } ────────────────
+    if (url.pathname === '/briefs/mark-read') {
+      return handleBriefsMarkRead(request, env, cors);
+    }
+
+    // ─── Route: /whatsapp — send real WhatsApp via Meta Cloud API ────────
+    if (url.pathname === '/whatsapp') {
+      return handleWhatsApp(request, env, cors);
+    }
+
+    // ─── Route: /supervise — manually trigger an Always-On brief ─────────
+    // Body: { kind: 'morning' | 'pulse' | 'weekly' }
+    if (url.pathname === '/supervise') {
+      let body = {};
+      try { body = await request.json(); } catch (e) {}
+      const kind = body.kind || 'pulse';
+      const result = await runSupervise(env, kind);
+      return new Response(JSON.stringify(result), {
+        status: 200, headers: { ...cors, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // ─── Route: / — Llama agent (default) ───────────────────────────────
+    return handleAgent(request, env, cors);
+  },
+};
+
+async function handleAgent(request, env, cors) {
+  let body;
+  try {
+    body = await request.json();
+  } catch (e) {
+    return jsonError('Invalid JSON body', 400, cors);
+  }
+  const { system, messages, tools } = body || {};
+  if (!Array.isArray(messages) || messages.length === 0) {
+    return jsonError('messages[] is required', 400, cors);
+  }
+  const llamaMessages = [];
+  if (system) llamaMessages.push({ role: 'system', content: system });
+  llamaMessages.push(...anthropicMessagesToOpenAI(messages));
+  const llamaTools = anthropicToolsToOpenAI(tools);
+
+  try {
+    const result = await env.AI.run(MODEL, {
+      messages: llamaMessages,
+      tools: llamaTools.length ? llamaTools : undefined,
+      max_tokens: MAX_TOKENS,
+      temperature: 0.2,
+    });
+    const anthropicShape = openAIResponseToAnthropic(result);
+    return new Response(JSON.stringify(anthropicShape), {
+      status: 200,
+      headers: { ...cors, 'Content-Type': 'application/json' },
+    });
+  } catch (err) {
+    return jsonError('Llama call failed: ' + (err && err.message ? err.message : String(err)), 500, cors);
+  }
+}
+
+// Meta WhatsApp Cloud API send.
+// Requires two secrets set on the worker:
+//   wrangler secret put WHATSAPP_TOKEN --config sentinel-wrangler.toml
+//   wrangler secret put WHATSAPP_PHONE_ID --config sentinel-wrangler.toml
+async function handleWhatsApp(request, env, cors) {
+  let body;
+  try {
+    body = await request.json();
+  } catch (e) {
+    return jsonError('Invalid JSON body', 400, cors);
+  }
+  const { to, text } = body || {};
+  if (!to || !text) {
+    return new Response(JSON.stringify({ sent: false, error: 'to and text are required' }), {
+      status: 400, headers: { ...cors, 'Content-Type': 'application/json' },
+    });
+  }
+  const token   = env.WHATSAPP_TOKEN;
+  const phoneId = env.WHATSAPP_PHONE_ID;
+  if (!token || !phoneId) {
+    return new Response(JSON.stringify({
+      sent: false,
+      error: 'WhatsApp Cloud API not configured on this worker.',
+      hint:  'Run: wrangler secret put WHATSAPP_TOKEN && wrangler secret put WHATSAPP_PHONE_ID. See WHATSAPP-SETUP.md.',
+    }), { status: 503, headers: { ...cors, 'Content-Type': 'application/json' } });
+  }
+  const cleanTo = String(to).replace(/[^0-9]/g, '');
+  try {
+    const metaRes = await fetch('https://graph.facebook.com/v20.0/' + phoneId + '/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({
+        messaging_product: 'whatsapp',
+        to: cleanTo,
+        type: 'text',
+        text: { body: String(text) },
+      }),
+    });
+    const data = await metaRes.json();
+    if (!metaRes.ok) {
+      return new Response(JSON.stringify({
+        sent: false,
+        error: (data && data.error && data.error.message) || ('HTTP ' + metaRes.status),
+        meta: data,
+      }), { status: metaRes.status, headers: { ...cors, 'Content-Type': 'application/json' } });
+    }
+    const messageId = data && data.messages && data.messages[0] && data.messages[0].id;
+    return new Response(JSON.stringify({ sent: true, to: cleanTo, messageId }), {
+      status: 200, headers: { ...cors, 'Content-Type': 'application/json' },
+    });
+  } catch (err) {
+    return new Response(JSON.stringify({ sent: false, error: String(err && err.message || err) }), {
+      status: 500, headers: { ...cors, 'Content-Type': 'application/json' },
+    });
+  }
+}
+
+function jsonError(message, status, cors) {
+  return new Response(JSON.stringify({ error: { message } }), {
+    status,
+    headers: { ...cors, 'Content-Type': 'application/json' },
+  });
+}
+
+/* ──────────────────────────────────────────────────────────────────────
+   NIA ALWAYS ON — Autonomous supervision (runs without a browser).
+   Cron triggers (configured in sentinel-wrangler.toml) fire scheduled()
+   which calls runSupervise() with a brief kind.
+────────────────────────────────────────────────────────────────────── */
+
+// Server-side tenant state. Mirrors os-data.jsx DEFAULT_TENANTS for
+// Nia's autonomous mode. When we wire Supabase, this becomes a DB read.
+const TENANTS_SEED = [
+  {
+    id: 'peak-primary', name: 'Peak Primary School', vertical: 'school',
+    country: 'Uganda', currency: 'UGX',
+    health: 'advisory', lastSignalAt: 'just now',
+    kpis: { revenue: 412500000, expenses: 384200000 },
+    verticalKpis: {
+      students: 286, teachers: 38, streams: 14,
+      feesCollectedTerm: 412500000, feesCollectionRate: 0.71,
+      feesOutstanding: 168800000, accountsOverdue30d: 3, overdueAmount: 1080000,
+      attendanceWeek: 0.88, atRiskStudents: 12, topPerformers: 24,
+      enrollmentInquiries: 4,
+    },
+    latest: { severity: 'warn', title: '3 fee accounts overdue 30+ days',
+              summary: 'UGX 1.08M outstanding combined.' },
+  },
+];
+
+function serverEvaluate(tenant) {
+  const concerns = [];
+  const k = tenant.kpis || {};
+  const v = tenant.verticalKpis || {};
+  const gap = (k.expenses || 0) - (k.revenue || 0);
+  if (gap > 0) concerns.push({ type: 'cash_flow', severity: 'warn',
+    summary: 'Expenses exceed revenue by ' + Math.round(gap / 1e6) + 'M ' + tenant.currency });
+  if (v.accountsOverdue30d > 0) concerns.push({ type: 'fees_overdue', severity: 'warn',
+    summary: v.accountsOverdue30d + ' accounts overdue 30+ days, ' +
+             Math.round((v.overdueAmount || 0) / 1000) + 'K ' + tenant.currency + ' outstanding' });
+  if (typeof v.feesCollectionRate === 'number' && v.feesCollectionRate < 0.85)
+    concerns.push({ type: 'fee_collection_low', severity: 'info',
+      summary: 'Term fee collection at ' + Math.round(v.feesCollectionRate * 100) + '% (target 85%)' });
+  if (typeof v.attendanceWeek === 'number' && v.attendanceWeek < 0.92)
+    concerns.push({ type: 'attendance_dip', severity: 'info',
+      summary: 'Weekly attendance ' + Math.round(v.attendanceWeek * 100) + '% (target 92%), ' +
+               (v.atRiskStudents || 0) + ' students at-risk' });
+  if (v.enrollmentInquiries > 0) concerns.push({ type: 'enrollment_pipeline', severity: 'info',
+    summary: v.enrollmentInquiries + ' new enrollment inquiries waiting in WhatsApp' });
+  return concerns;
+}
+
+// Ask Llama to write the brief in Nia's voice. Falls back to a plain
+// template if AI is unavailable.
+async function composeBrief(env, kind, tenants, actions) {
+  const findings = tenants.map(t => ({
+    name: t.name,
+    concerns: serverEvaluate(t),
+  })).filter(f => f.concerns.length > 0);
+
+  if (findings.length === 0 && kind !== 'weekly') {
+    return null; // nothing to report; stay silent
+  }
+
+  const factsBlock = findings.map(f =>
+    f.name + ':\n' + f.concerns.map(c => '  - ' + c.summary).join('\n')
+  ).join('\n\n');
+
+  const greeting = kind === 'morning' ? 'Morning Hudson.' :
+                   kind === 'weekly'  ? 'Friday wrap.' :
+                                        'Quick check Hudson.';
+
+  const sysPrompt = "You are Nia, Hudson's Chief of Staff. Write ONE short WhatsApp brief (under 320 chars). Open with the greeting. Structure: (1) what you noticed, (2) what YOU already did about it (the actions), (3) what needs Hudson's input. Warm but direct. CEO tone. Use 'I' for things you did.";
+
+  const actionsBlock = (actions && actions.length)
+    ? '\n\nActions I already took:\n' + actions.map(a => '  - ' + a.humanReadable).join('\n')
+    : '';
+
+  const userPrompt = greeting + '\n\nFacts:\n' + factsBlock + actionsBlock + '\n\nWrite the brief now.';
+
+  try {
+    const result = await env.AI.run(MODEL, {
+      messages: [
+        { role: 'system', content: sysPrompt },
+        { role: 'user', content: userPrompt },
+      ],
+      max_tokens: 200,
+      temperature: 0.3,
+    });
+    const text = (result.result || result).response || '';
+    if (text && text.trim()) return text.trim();
+  } catch (e) {
+    // fall through to template
+  }
+  // Template fallback
+  return greeting + ' ' + findings.map(f =>
+    f.name + ': ' + f.concerns.slice(0, 2).map(c => c.summary).join('; ')
+  ).join(' | ') + ' — want drafts?';
+}
+
+async function sendToHudson(env, text) {
+  const token   = env.WHATSAPP_TOKEN;
+  const phoneId = env.WHATSAPP_PHONE_ID;
+  const to      = env.HUDSON_PHONE;
+  if (!token || !phoneId || !to) {
+    console.log('[Nia Always On] WhatsApp not configured. Brief was:\n' + text);
+    return { sent: false, reason: 'whatsapp_not_configured', text };
+  }
+  try {
+    const res = await fetch('https://graph.facebook.com/v20.0/' + phoneId + '/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({
+        messaging_product: 'whatsapp',
+        to: String(to).replace(/[^0-9]/g, ''),
+        type: 'text',
+        text: { body: text },
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      console.log('[Nia Always On] Meta error: ' + JSON.stringify(data));
+      return { sent: false, reason: 'meta_error', meta: data, text };
+    }
+    return { sent: true, messageId: data.messages && data.messages[0] && data.messages[0].id, text };
+  } catch (e) {
+    console.log('[Nia Always On] fetch failed: ' + (e.message || e));
+    return { sent: false, reason: 'fetch_failed', error: String(e.message || e), text };
+  }
+}
+
+async function runSupervise(env, kind) {
+  const tenants = await loadTenants(env);
+  const briefId = 'brief-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7);
+
+  // 1. Evaluate every tenant + attempt safe auto-fixes per concern
+  const findings = [];
+  const allActions = [];
+  for (const t of tenants) {
+    const concerns = serverEvaluate(t);
+    if (concerns.length === 0) continue;
+    const fixes = [];
+    for (const c of concerns) {
+      const fix = await attemptAutoFix(env, t, c);
+      if (fix) {
+        const entry = await logAction(env, t, c, fix, briefId);
+        if (entry) allActions.push(entry);
+        fixes.push(fix);
+      }
+    }
+    findings.push({ name: t.name, tenantId: t.id, concerns, fixes });
+  }
+
+  const text = await composeBrief(env, kind, tenants, allActions);
+
+  // ALWAYS persist the brief to KV — even quiet briefs get a record.
+  // This is what Hudson sees when he opens NEXT OS.
+  const brief = {
+    id:        briefId,
+    kind:      kind,
+    text:      text || 'No new concerns. Fleet quiet.',
+    findings:  findings,
+    actions:   allActions,
+    at:        new Date().toISOString(),
+    sentToWA:  false,
+    read:      false,
+  };
+
+  if (env.BRIEFS_KV) {
+    try {
+      await env.BRIEFS_KV.put('brief:' + brief.id, JSON.stringify(brief), {
+        expirationTtl: 60 * 60 * 24 * 30, // keep 30 days
+      });
+      // Maintain a recent-ids index for fast list reads
+      const idxRaw = await env.BRIEFS_KV.get('briefs:index');
+      const idx = idxRaw ? JSON.parse(idxRaw) : [];
+      idx.unshift(brief.id);
+      await env.BRIEFS_KV.put('briefs:index', JSON.stringify(idx.slice(0, 200)));
+    } catch (e) {
+      console.log('[Nia Always On] KV write failed: ' + (e.message || e));
+    }
+  }
+
+  // Best-effort WhatsApp send (silent if not configured)
+  if (text) {
+    const wa = await sendToHudson(env, text);
+    brief.sentToWA = wa.sent;
+    if (env.BRIEFS_KV && wa.sent) {
+      try {
+        await env.BRIEFS_KV.put('brief:' + brief.id, JSON.stringify(brief), {
+          expirationTtl: 60 * 60 * 24 * 30,
+        });
+      } catch (e) {}
+    }
+  }
+
+  console.log('[Nia Always On] ' + kind + ' brief stored. WA sent=' + brief.sentToWA);
+  return { kind, briefId: brief.id, sentToWA: brief.sentToWA, text: brief.text };
+}
+
+// GET /briefs — list recent briefs from KV (newest first)
+async function handleBriefsGet(request, env, cors) {
+  if (!env.BRIEFS_KV) {
+    return new Response(JSON.stringify({ briefs: [], error: 'KV not bound' }), {
+      status: 200, headers: { ...cors, 'Content-Type': 'application/json' },
+    });
+  }
+  try {
+    const idxRaw = await env.BRIEFS_KV.get('briefs:index');
+    const ids = idxRaw ? JSON.parse(idxRaw) : [];
+    const limit = 20;
+    const slice = ids.slice(0, limit);
+    const items = await Promise.all(slice.map(id => env.BRIEFS_KV.get('brief:' + id)));
+    const briefs = items.filter(Boolean).map(s => { try { return JSON.parse(s); } catch (e) { return null; } }).filter(Boolean);
+    return new Response(JSON.stringify({ briefs, unreadCount: briefs.filter(b => !b.read).length }), {
+      status: 200, headers: { ...cors, 'Content-Type': 'application/json' },
+    });
+  } catch (e) {
+    return new Response(JSON.stringify({ briefs: [], error: String(e.message || e) }), {
+      status: 500, headers: { ...cors, 'Content-Type': 'application/json' },
+    });
+  }
+}
+
+// POST /briefs/mark-read — body: { ids: [...] }
+async function handleBriefsMarkRead(request, env, cors) {
+  if (!env.BRIEFS_KV) {
+    return new Response(JSON.stringify({ ok: false, error: 'KV not bound' }), {
+      status: 200, headers: { ...cors, 'Content-Type': 'application/json' },
+    });
+  }
+  let body = {};
+  try { body = await request.json(); } catch (e) {}
+  const ids = Array.isArray(body.ids) ? body.ids : [];
+  let updated = 0;
+  for (const id of ids) {
+    try {
+      const raw = await env.BRIEFS_KV.get('brief:' + id);
+      if (!raw) continue;
+      const b = JSON.parse(raw);
+      if (b.read) continue;
+      b.read = true;
+      await env.BRIEFS_KV.put('brief:' + id, JSON.stringify(b), {
+        expirationTtl: 60 * 60 * 24 * 30,
+      });
+      updated++;
+    } catch (e) {}
+  }
+  return new Response(JSON.stringify({ ok: true, updated }), {
+    status: 200, headers: { ...cors, 'Content-Type': 'application/json' },
+  });
+}
+
+// Cloudflare cron entry point.
+export const scheduledHandler = async (event, env, ctx) => {
+  // event.cron tells us which schedule fired; default to "pulse" if unknown.
+  const cron = event.cron || '';
+  let kind = 'pulse';
+  if (cron === '30 3 * * *') kind = 'morning';      // 6:30am EAT = 03:30 UTC
+  else if (cron === '0 15 * * 5') kind = 'weekly';  // Fri 6pm EAT = 15:00 UTC
+  await runSupervise(env, kind);
+};
+
+// ──────────────────────────────────────────────────────────────────────
+// NIA AUTO-FIX — Safe Tier-1 actions Nia takes autonomously per concern.
+// Tier-2 actions get prepared + flagged for Hudson's approval.
+// Tier-3 actions are NEVER auto.
+// ──────────────────────────────────────────────────────────────────────
+
+// Compose a friendly draft message in Hudson's voice via Llama.
+async function composeReminderDraft(env, tenant, concern) {
+  const sysPrompt = "You are Nia drafting a warm WhatsApp message for Hudson to send to a guardian at " + tenant.name + ". Use the Charis voice: warm, never demanding, partnership not collection. Open with 'Dear Mr./Mrs. <Surname>,'. Acknowledge the relationship. State the balance factually. Offer payment options. Close warmly. Under 280 chars. Mark guardian name as [GUARDIAN_NAME] and amount as [AMOUNT] so Hudson can fill in.";
+  const userPrompt = "Draft a Term 2 fee reminder. " + concern.summary;
+  try {
+    const r = await env.AI.run(MODEL, {
+      messages: [
+        { role: 'system', content: sysPrompt },
+        { role: 'user', content: userPrompt },
+      ],
+      max_tokens: 220, temperature: 0.4,
+    });
+    return ((r.result || r).response || '').trim();
+  } catch (e) {
+    return 'Dear [GUARDIAN_NAME], thank you for your continued partnership with ' + tenant.name + '. This is a gentle reminder that Term 2 fees of UGX [AMOUNT] remain outstanding. Please reach out if you would like to arrange installments. Webale.';
+  }
+}
+
+// Per-concern recipes. Each returns { tier, action, result, requiresApproval }
+async function attemptAutoFix(env, tenant, concern) {
+  const t = concern.type;
+
+  if (t === 'fees_overdue') {
+    const draft = await composeReminderDraft(env, tenant, concern);
+    return {
+      tier: 2, action: 'drafted_fee_reminder',
+      result: 'Reminder drafted for the ' + (tenant.verticalKpis?.accountsOverdue30d || '?') + ' overdue accounts.',
+      draft, requiresApproval: true,
+      humanReadable: 'I drafted a warm fee reminder for the ' + (tenant.verticalKpis?.accountsOverdue30d || '?') + ' overdue guardians. Approve in the OS to open WhatsApp for each.',
+    };
+  }
+
+  if (t === 'attendance_dip') {
+    return {
+      tier: 1, action: 'flagged_atrisk_students',
+      result: 'Flagged ' + (tenant.verticalKpis?.atRiskStudents || 0) + ' at-risk students in the OS for pastoral check-in.',
+      requiresApproval: false,
+      humanReadable: 'I flagged ' + (tenant.verticalKpis?.atRiskStudents || 0) + ' at-risk students for pastoral check-in this week.',
+    };
+  }
+
+  if (t === 'enrollment_pipeline') {
+    return {
+      tier: 1, action: 'categorized_inquiries',
+      result: 'Tagged ' + (tenant.verticalKpis?.enrollmentInquiries || 0) + ' new inquiries with grade + intake term + parent first contact.',
+      requiresApproval: false,
+      humanReadable: 'I sorted the ' + (tenant.verticalKpis?.enrollmentInquiries || 0) + ' new enrollment inquiries by grade and tagged them for intake.',
+    };
+  }
+
+  if (t === 'fee_collection_low') {
+    return {
+      tier: 1, action: 'logged_collection_trend',
+      result: 'Logged collection trend for board reporting. No external action.',
+      requiresApproval: false,
+      humanReadable: 'I logged the term collection trend for the board report. Nothing else needed yet — give it another week.',
+    };
+  }
+
+  if (t === 'cash_flow') {
+    return {
+      tier: 3, action: 'escalate_only',
+      result: 'Cash flow gap detected. Flagged for Hudson — no auto-action (financial).',
+      requiresApproval: true,
+      humanReadable: 'Cash flow gap detected. I will not take any financial action — flagging this for your review.',
+    };
+  }
+
+  return null;
+}
+
+// Persist an action to KV so the dashboard can show "what Nia did"
+async function logAction(env, tenant, concern, fix, briefId) {
+  if (!env.BRIEFS_KV || !fix) return;
+  const entry = {
+    id: 'act-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7),
+    tenantId: tenant.id, tenantName: tenant.name,
+    concernType: concern.type, concernSummary: concern.summary,
+    tier: fix.tier, action: fix.action, result: fix.result,
+    draft: fix.draft || null, requiresApproval: !!fix.requiresApproval,
+    humanReadable: fix.humanReadable,
+    briefId, at: new Date().toISOString(), resolved: false,
+  };
+  try {
+    await env.BRIEFS_KV.put('action:' + entry.id, JSON.stringify(entry), {
+      expirationTtl: 60 * 60 * 24 * 30,
+    });
+    const idxRaw = await env.BRIEFS_KV.get('actions:index');
+    const idx = idxRaw ? JSON.parse(idxRaw) : [];
+    idx.unshift(entry.id);
+    await env.BRIEFS_KV.put('actions:index', JSON.stringify(idx.slice(0, 200)));
+  } catch (e) {
+    console.log('[Nia Actions] log failed: ' + (e.message || e));
+  }
+  return entry;
+}
+
+// GET /actions — list recent autonomous actions
+async function handleActionsGet(request, env, cors) {
+  if (!env.BRIEFS_KV) {
+    return new Response(JSON.stringify({ actions: [] }), {
+      status: 200, headers: { ...cors, 'Content-Type': 'application/json' },
+    });
+  }
+  try {
+    const idxRaw = await env.BRIEFS_KV.get('actions:index');
+    const ids = idxRaw ? JSON.parse(idxRaw) : [];
+    const slice = ids.slice(0, 50);
+    const items = await Promise.all(slice.map(id => env.BRIEFS_KV.get('action:' + id)));
+    const actions = items.filter(Boolean).map(s => { try { return JSON.parse(s); } catch (e) { return null; } }).filter(Boolean);
+    return new Response(JSON.stringify({ actions, unresolvedCount: actions.filter(a => !a.resolved).length }), {
+      status: 200, headers: { ...cors, 'Content-Type': 'application/json' },
+    });
+  } catch (e) {
+    return new Response(JSON.stringify({ actions: [], error: String(e.message || e) }), {
+      status: 500, headers: { ...cors, 'Content-Type': 'application/json' },
+    });
+  }
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// SUPABASE READER — replaces TENANTS_SEED with live data when secrets set
+// ──────────────────────────────────────────────────────────────────────
+// Set via: wrangler secret put SUPABASE_URL --config sentinel-wrangler.toml
+//          wrangler secret put SUPABASE_KEY --config sentinel-wrangler.toml
+// SUPABASE_KEY must be the service_role key (bypasses RLS).
+// Falls back to TENANTS_SEED if either secret is missing.
+
+async function sbFetch(env, path) {
+  const url = env.SUPABASE_URL + '/rest/v1' + path;
+  const res = await fetch(url, {
+    headers: {
+      'apikey':        env.SUPABASE_KEY,
+      'Authorization': 'Bearer ' + env.SUPABASE_KEY,
+      'Accept':        'application/json',
+    },
+  });
+  if (!res.ok) throw new Error('Supabase ' + path + ' → ' + res.status);
+  return res.json();
+}
+
+// Fetch a tenant + compute its verticalKpis from live tables
+async function loadTenantsFromSupabase(env) {
+  const tenants = await sbFetch(env, '/tenants?select=*');
+  if (!tenants || tenants.length === 0) return [];
+
+  const enriched = [];
+  for (const t of tenants) {
+    const tid = '?tenant_id=eq.' + encodeURIComponent(t.id);
+    const [students, fees, attendance, enrollments] = await Promise.all([
+      sbFetch(env, '/students' + tid + '&status=eq.active&select=id,name,stream'),
+      sbFetch(env, '/fees' + tid + '&select=student_id,kind,amount'),
+      sbFetch(env, '/attendance' + tid + '&date=gte.' + new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10) + '&select=student_id,present'),
+      sbFetch(env, '/enrollments' + tid + '&status=eq.new&select=id'),
+    ]);
+
+    // Compute balance per student: sum of (charges − payments)
+    const balances = {};
+    for (const f of fees) {
+      balances[f.student_id] = (balances[f.student_id] || 0) + Number(f.amount);
+    }
+    const totalCharged = fees.filter(f => f.kind === 'charge').reduce((s, f) => s + Number(f.amount), 0);
+    const totalPaid    = Math.abs(fees.filter(f => f.kind === 'payment').reduce((s, f) => s + Number(f.amount), 0));
+    const collectionRate = totalCharged > 0 ? totalPaid / totalCharged : 0;
+    const overdueStudents = Object.values(balances).filter(b => b > 0);
+    const overdueAmount   = overdueStudents.reduce((s, b) => s + b, 0);
+
+    // At-risk: missed 2+ days in last week
+    const missesByStudent = {};
+    for (const a of attendance) {
+      if (a.present === false) missesByStudent[a.student_id] = (missesByStudent[a.student_id] || 0) + 1;
+    }
+    const atRisk = Object.values(missesByStudent).filter(c => c >= 2).length;
+    const present = attendance.filter(a => a.present === true).length;
+    const attendanceWeek = attendance.length > 0 ? present / attendance.length : 1;
+
+    enriched.push({
+      id:             t.id,
+      name:           t.name,
+      vertical:       t.vertical,
+      country:        t.country,
+      currency:       t.currency,
+      health:         overdueStudents.length > 0 ? 'advisory' : 'healthy',
+      lastSignalAt:   'live',
+      kpis:           { revenue: totalPaid, expenses: 0 }, // expenses come from a future expenses table
+      verticalKpis: {
+        students:            students.length,
+        teachers:            (t.meta && t.meta.teachers) || 0,
+        streams:             (t.meta && t.meta.streams)  || 0,
+        feesCollectedTerm:   totalPaid,
+        feesCollectionRate:  collectionRate,
+        feesOutstanding:     overdueAmount,
+        accountsOverdue30d:  overdueStudents.length,
+        overdueAmount:       overdueAmount,
+        attendanceWeek:      attendanceWeek,
+        atRiskStudents:      atRisk,
+        enrollmentInquiries: enrollments.length,
+      },
+      latest: overdueStudents.length > 0
+        ? { severity: 'warn',
+            title: overdueStudents.length + ' fee account' + (overdueStudents.length === 1 ? '' : 's') + ' overdue',
+            summary: 'UGX ' + (overdueAmount / 1e6).toFixed(2) + 'M outstanding combined.' }
+        : null,
+    });
+  }
+  return enriched;
+}
+
+// Replaces direct use of TENANTS_SEED. Returns Supabase data when wired,
+// otherwise the static fallback. Never throws — logs and falls back.
+async function loadTenants(env) {
+  if (env.SUPABASE_URL && env.SUPABASE_KEY) {
+    try {
+      const live = await loadTenantsFromSupabase(env);
+      if (live.length > 0) return live;
+    } catch (e) {
+      console.log('[Supabase] load failed, falling back to seed: ' + (e.message || e));
+    }
+  }
+  return TENANTS_SEED;
+}
+

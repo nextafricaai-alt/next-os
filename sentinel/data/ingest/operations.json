@@ -1,0 +1,32 @@
+[
+  {
+    "institutionId": "demo-k12",
+    "ops": {
+      "activeStudents": 420,
+      "capacityThreshold": 500,
+      "energyCost": 8200,
+      "inventoryRiskScore": 0.42,
+      "resourceUtilization": 0.78
+    }
+  },
+  {
+    "institutionId": "demo-higher-ed",
+    "ops": {
+      "activeStudents": 4200,
+      "capacityThreshold": 3900,
+      "energyCost": 54000,
+      "inventoryRiskScore": 0.31,
+      "resourceUtilization": 0.83
+    }
+  },
+  {
+    "institutionId": "demo-ngo",
+    "ops": {
+      "activeStudents": 1850,
+      "capacityThreshold": 2000,
+      "energyCost": 4300,
+      "inventoryRiskScore": 0.7,
+      "resourceUtilization": 0.62
+    }
+  }
+]

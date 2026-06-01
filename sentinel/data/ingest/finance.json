@@ -1,0 +1,27 @@
+[
+  {
+    "institutionId": "demo-k12",
+    "vertical": "k12",
+    "finance": {
+      "revenue": 120000,
+      "expenses": 128500,
+      "feePayments": 120000
+    }
+  },
+  {
+    "institutionId": "demo-higher-ed",
+    "vertical": "higher_ed",
+    "finance": {
+      "revenue": 420000,
+      "expenses": 390000
+    }
+  },
+  {
+    "institutionId": "demo-ngo",
+    "vertical": "ngo",
+    "finance": {
+      "donorIncome": 85000,
+      "expenses": 92000
+    }
+  }
+]

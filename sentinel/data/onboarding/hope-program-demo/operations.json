@@ -1,0 +1,13 @@
+[
+  {
+    "institutionId": "hope-program-demo",
+    "ops": {
+      "activeStudents": 1850,
+      "capacityThreshold": 2000,
+      "energyCost": 0,
+      "inventoryRiskScore": 0.35,
+      "resourceUtilization": 0.6,
+      "participantName": "beneficiaries"
+    }
+  }
+]

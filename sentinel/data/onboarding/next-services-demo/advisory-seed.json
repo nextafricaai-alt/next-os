@@ -1,0 +1,15 @@
+{
+  "institutionId": "next-services-demo",
+  "greetingContext": "NEXT Services Demo Ltd in Kampala, Uganda",
+  "preferredQuestion": "Would you like me to prepare a management summary on revenue, cost drivers, and operational utilization?",
+  "governanceContacts": [
+    {
+      "role": "manager",
+      "name": "General Manager"
+    },
+    {
+      "role": "finance",
+      "name": "Finance Manager"
+    }
+  ]
+}

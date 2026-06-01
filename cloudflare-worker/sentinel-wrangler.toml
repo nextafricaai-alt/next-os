@@ -1,0 +1,20 @@
+name = "nextos-sentinel"
+main = "sentinel-worker.js"
+compatibility_date = "2025-01-01"
+
+[ai]
+binding = "AI"
+
+[triggers]
+# Times are UTC. Uganda is UTC+3, so subtract 3 hours from the local time.
+crons = [
+  "30 3 * * *",     # Morning brief: 6:30 AM EAT (Mon-Sun)
+  "0 6,9,12 * * 1-5",  # Pulse checks: 9am, noon, 3pm EAT, Mon-Fri
+  "0 15 * * 5",     # Weekly wrap: Friday 6pm EAT
+]
+
+[[kv_namespaces]]
+binding = "BRIEFS_KV"
+# Run: wrangler kv namespace create BRIEFS_KV --config sentinel-wrangler.toml
+# Then paste the returned id below:
+id = "268488c90a1c4aabaf8e37b1d8922b73"

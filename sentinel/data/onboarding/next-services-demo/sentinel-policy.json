@@ -1,0 +1,30 @@
+{
+  "templateId": "next-company-standard-v1",
+  "institutionId": "next-services-demo",
+  "vertical": "company",
+  "thresholds": {
+    "cashFlow": "expenses > revenue",
+    "utilization": "activeParticipants < capacityThreshold",
+    "marginWarn": "gross_margin < target_margin",
+    "inventoryRiskScoreWarn": 0.7
+  },
+  "modules": [
+    "revenue_tracking",
+    "expense_tracking",
+    "customer_or_staff_utilization",
+    "inventory_monitoring",
+    "management_advisory_reporting"
+  ],
+  "labels": {
+    "participantName": "active customers or staff",
+    "revenueName": "sales and service revenue",
+    "governanceBody": "management team"
+  },
+  "humanApprovalRequiredForFinancialActions": true,
+  "localOnly": true,
+  "approvedRepairActions": [
+    "notify_only",
+    "restart_container",
+    "rollback_snapshot"
+  ]
+}

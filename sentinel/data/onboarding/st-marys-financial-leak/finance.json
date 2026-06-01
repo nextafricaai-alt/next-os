@@ -1,0 +1,14 @@
+[
+  {
+    "institutionId": "st-marys-demo",
+    "vertical": "k12",
+    "finance": {
+      "revenue": 1584000000,
+      "expenses": 1880000000,
+      "feePayments": 1584000000,
+      "currency": "UGX",
+      "openingCashBalance": 25000000,
+      "scenarioNotes": "Term 2 cash-flow scenario for a 720-student Ugandan boarding school. Revenue 1.584B UGX. Expenses 1.88B UGX (salaries 208M + feeding 288M + utilities 30M + unexpected boiler 210M + maintenance 80M + books 40M + transport 50M + regulatory 25M + capex 150M + loan repayments 80M + deferred Term 1 bills 719M). Leak = 296M UGX."
+    }
+  }
+]

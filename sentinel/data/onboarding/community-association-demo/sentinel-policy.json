@@ -1,0 +1,30 @@
+{
+  "templateId": "next-organisation-standard-v1",
+  "institutionId": "community-association-demo",
+  "vertical": "organisation",
+  "thresholds": {
+    "cashFlow": "expenses > revenue",
+    "participation": "activeParticipants < capacityThreshold",
+    "resourceUtilizationWarn": "resource_utilization < target_utilization",
+    "inventoryRiskScoreWarn": 0.7
+  },
+  "modules": [
+    "membership_tracking",
+    "financial_monitoring",
+    "resource_management",
+    "service_delivery",
+    "leadership_advisory_reporting"
+  ],
+  "labels": {
+    "participantName": "members or participants",
+    "revenueName": "membership, service, and operating income",
+    "governanceBody": "leadership team"
+  },
+  "humanApprovalRequiredForFinancialActions": true,
+  "localOnly": true,
+  "approvedRepairActions": [
+    "notify_only",
+    "restart_container",
+    "rollback_snapshot"
+  ]
+}

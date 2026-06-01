@@ -1,0 +1,21 @@
+[Unit]
+Description=NEXT Sentinel Observability Daemon
+After=network.target
+
+[Service]
+Type=simple
+Environment=NEXT_SENTINEL_DB=/var/lib/next-sentinel/sentinel.db
+Environment=NEXT_SENTINEL_INTERVAL_MS=5000
+ExecStart=/opt/next-os/sentinel/bin/sentinel-daemon
+Restart=always
+RestartSec=5
+User=next-sentinel
+Group=next-sentinel
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/var/lib/next-sentinel
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
+
