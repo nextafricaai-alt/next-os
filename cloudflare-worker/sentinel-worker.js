@@ -192,6 +192,16 @@ export default {
       }
     }
 
+    // ─── Route: GET /icon?s=slug — per-school app icon (SVG) ─────────────
+    if (request.method === 'GET' && url.pathname === '/icon') {
+      const slug = url.searchParams.get('s') || '';
+      let nm = 'NEXT', col = '#00FC8F';
+      try { const rows = await sbFetch(env, '/tenants?id=eq.' + encodeURIComponent(slug) + '&select=name,primary_color'); if (rows && rows[0]) { nm = rows[0].name || nm; col = rows[0].primary_color || col; } } catch (e) {}
+      const init = (String(nm).match(/[A-Za-z0-9]/g) || ['N']).slice(0, 2).join('').toUpperCase();
+      const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512"><rect width="512" height="512" rx="110" fill="' + col + '"/><text x="50%" y="52%" font-family="Arial,Helvetica,sans-serif" font-size="230" font-weight="700" fill="#0a1029" text-anchor="middle" dominant-baseline="central">' + init + '</text></svg>';
+      return new Response(svg, { headers: { ...cors, 'Content-Type': 'image/svg+xml', 'Cache-Control': 'public, max-age=300' } });
+    }
+
     // ─── Route: GET /fleet — live tenant fleet for the OS + Nia chat ──────
     if (request.method === 'GET' && url.pathname === '/fleet') {
       try {
