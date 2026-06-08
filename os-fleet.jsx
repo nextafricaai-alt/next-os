@@ -355,6 +355,12 @@ const FleetPage = ({ onNavigate }) => {
   tenants.forEach(t => { verticalCounts[t.vertical] = (verticalCounts[t.vertical] || 0) + 1; });
 
   const handleOpen = (tenant) => {
+    // Schools open their own branded Schools OS (one template, branded per tenant).
+    if (tenant.vertical === 'school') {
+      var _b = 'prototypes/schools/peak-primary/login.html?t=' + encodeURIComponent(tenant.id) + '&n=' + encodeURIComponent(tenant.name || '') + (tenant.primaryColor ? '&c=' + encodeURIComponent(tenant.primaryColor) : '') + (tenant.logoUrl ? '&l=' + encodeURIComponent(tenant.logoUrl) : '');
+      window.open(_b, '_blank', 'noopener,noreferrer');
+      return;
+    }
     // If the tenant has a wired prototype, open it in a new tab.
     if (tenant.prototypeUrl) {
       window.open(tenant.prototypeUrl, '_blank', 'noopener,noreferrer');
