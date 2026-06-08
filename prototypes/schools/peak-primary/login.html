@@ -201,6 +201,14 @@
           .single();
         if (rowErr) throw new Error('Your account exists but is not linked to a school. Ask your administrator.');
 
+        // SECURITY: this login page belongs to ONE school. If your account is for a
+        // different school, you cannot sign in here — you must use your own school's link.
+        var _link = new URLSearchParams(location.search).get('t');
+        if (_link && userRow.tenant_id !== _link) {
+          await sb.auth.signOut();
+          throw new Error('This sign-in is for a different school. Your account belongs to another school — please use your own school\'s link.');
+        }
+
         // 3. Persist a tiny profile for the dashboard to use
         localStorage.setItem('nextos.profile', JSON.stringify({
           email:     authData.user.email,
@@ -209,8 +217,10 @@
           tenantId:  userRow.tenant_id,
         }));
 
-        // 4. Remember this school's brand for the dashboard, then go
-        try { var _p=new URLSearchParams(location.search); localStorage.setItem('nextos.brand', JSON.stringify({ name: _p.get('n'), color: _p.get('c') })); } catch(e){}
+        // 4. Brand from the user's OWN tenant (authoritative), not the link params
+        var _brand = { name: userRow.full_name, color: null };
+        try { const { data: _t } = await sb.from('tenants').select('name, primary_color').eq('id', userRow.tenant_id).single(); if (_t) _brand = { name: _t.name, color: _t.primary_color }; } catch(e){}
+        try { localStorage.setItem('nextos.brand', JSON.stringify(_brand)); } catch(e){}
         window.location.href = 'index.html';
       } catch (err) {
         showError(err.message || 'Sign-in failed. Check your email and password.');
