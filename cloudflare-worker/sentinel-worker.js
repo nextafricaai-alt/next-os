@@ -180,6 +180,21 @@ export default {
       return handleActionsGet(request, env, cors);
     }
 
+    // ─── Route: GET /fleet — live tenant fleet for the OS + Nia chat ──────
+    if (request.method === 'GET' && url.pathname === '/fleet') {
+      try {
+        const tenants = await loadTenants(env);
+        return new Response(JSON.stringify({
+          tenants,
+          source: (env.SUPABASE_URL && env.SUPABASE_KEY) ? 'live' : 'seed',
+          at: new Date().toISOString(),
+        }), { status: 200, headers: { ...cors, 'Content-Type': 'application/json' } });
+      } catch (e) {
+        return new Response(JSON.stringify({ tenants: [], error: String(e && e.message || e) }),
+          { status: 200, headers: { ...cors, 'Content-Type': 'application/json' } });
+      }
+    }
+
     if (request.method !== 'POST') {
       return new Response('Method not allowed', { status: 405, headers: cors });
     }
@@ -755,6 +770,11 @@ async function loadTenantsFromSupabase(env) {
       vertical:       t.vertical,
       country:        t.country,
       currency:       t.currency,
+      tier:           t.tier,
+      subdomain:      t.subdomain,
+      primaryColor:   t.primary_color || null,
+      logoUrl:        t.logo_url || null,
+      motto:          t.motto || null,
       health:         overdueStudents.length > 0 ? 'advisory' : 'healthy',
       lastSignalAt:   'live',
       kpis:           { revenue: totalPaid, expenses: 0 }, // expenses come from a future expenses table

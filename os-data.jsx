@@ -232,3 +232,23 @@
     getTransactions: getTransactions, addTransaction, removeTransaction,
   };
 })();
+
+/* os-fleet-live — pull the real fleet from Nia's worker; fall back to demo seed. Additive. */
+(function(){
+  if (!window.OS_DATA) return;
+  var NIA = (window.NEXT_OS_SENTINEL_ENDPOINT) || 'https://nextos-sentinel.nextafricaai.workers.dev';
+  var _orig = window.OS_DATA.getTenants;
+  var _live = null;
+  window.OS_DATA.getTenants = function(){ return (_live && _live.length) ? _live : _orig(); };
+  window.OS_DATA.fleetSource = function(){ return _live ? 'live' : 'seed'; };
+  window.OS_DATA.refreshFleet = function(){
+    return fetch(NIA + '/fleet').then(function(r){ return r.ok ? r.json() : null; }).then(function(d){
+      if (d && Array.isArray(d.tenants) && d.tenants.length){
+        _live = d.tenants;
+        try { window.dispatchEvent(new CustomEvent('osdata:fleet', { detail: { count: _live.length, source: d.source } })); } catch(e){}
+      }
+      return _live;
+    }).catch(function(){});
+  };
+  window.OS_DATA.refreshFleet();
+})();
