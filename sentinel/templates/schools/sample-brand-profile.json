@@ -1,0 +1,16 @@
+{
+  "institutionId": "bright-future-academy",
+  "name": "Bright Future Academy",
+  "country": "Uganda",
+  "district": "Wakiso",
+  "currency": "UGX",
+  "brand": {
+    "displayName": "Bright Future Academy",
+    "slug": "bright-future",
+    "accent": "#3B82F6",
+    "motto": "Learning today, leading tomorrow"
+  },
+  "feeCategories": [
+    { "name": "Tuition", "amount": 700000, "cadence": "term" }
+  ]
+}
