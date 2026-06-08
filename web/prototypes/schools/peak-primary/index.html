@@ -7025,6 +7025,22 @@ window.PEAK_FORMS = (function () {
 
   </script>
   <script>
+  /* Broken school-logo fallback -> branded initials icon (handles missing assets/peak-logo.png) */
+  (function(){
+    function brandIcon(){
+      var nm=(window.__BRAND_NAME)||'NEXT'; var col=(window.__ACCENT)||'#00FC8F';
+      var init=((''+nm).match(/[A-Za-z0-9]/g)||['N']).slice(0,2).join('').toUpperCase();
+      var svg='<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><rect width="64" height="64" rx="14" fill="'+col+'"/><text x="50%" y="55%" font-family="Arial,Helvetica,sans-serif" font-size="30" font-weight="700" fill="#0a1029" text-anchor="middle" dominant-baseline="central">'+init+'</text></svg>';
+      return 'data:image/svg+xml;utf8,'+encodeURIComponent(svg);
+    }
+    window.addEventListener('error', function(e){
+      var t=e.target;
+      if(t && t.tagName==='IMG' && /peak-logo/.test(t.getAttribute('src')||'') && !t.dataset.nxFallback){
+        t.dataset.nxFallback='1'; t.src=brandIcon();
+      }
+    }, true);
+  })();
+
   /* Dashboard colour control — change the school's accent; saves to the tenant + reloads */
   (function(){
     function init(){
@@ -7034,15 +7050,23 @@ window.PEAK_FORMS = (function () {
       if(!prof || !prof.tenantId){ return setTimeout(init,500); }
       if(document.getElementById('nx-theme-ctrl')) return;
       var cur=(window.__ACCENT)||'#00FC8F';
+      var mob = window.matchMedia('(max-width:640px)').matches;
       var wrap=document.createElement('div'); wrap.id='nx-theme-ctrl';
-      wrap.style.cssText='position:fixed;right:16px;bottom:16px;z-index:99999;display:flex;align-items:center;gap:8px;background:#141e3c;border:1px solid #212d56;border-radius:30px;padding:8px 12px;font-family:Inter,system-ui,sans-serif;font-size:12px;color:#aab2d5;box-shadow:0 8px 24px rgba(0,0,0,.45)';
+      wrap.style.cssText='position:fixed;right:14px;z-index:99999;bottom:'+(mob?86:16)+'px;display:flex;flex-direction:column;align-items:flex-end;gap:8px;font-family:Inter,system-ui,sans-serif';
+      var panel=document.createElement('div');
+      panel.style.cssText='display:none;align-items:center;gap:8px;background:#141e3c;border:1px solid #212d56;border-radius:30px;padding:8px 12px;font-size:12px;color:#aab2d5;box-shadow:0 8px 24px rgba(0,0,0,.45)';
       var lbl=document.createElement('span'); lbl.textContent='Dashboard colour';
       var inp=document.createElement('input'); inp.type='color'; inp.value=cur;
       inp.style.cssText='width:30px;height:30px;border:none;background:none;cursor:pointer;padding:0;border-radius:6px';
       var sv=document.createElement('button'); sv.textContent='Apply'; sv.disabled=true;
       sv.style.cssText='background:'+cur+';color:#04210f;border:none;border-radius:20px;padding:7px 14px;font-weight:700;cursor:pointer;font-size:12px;opacity:.5';
+      panel.appendChild(lbl); panel.appendChild(inp); panel.appendChild(sv);
+      var tog=document.createElement('button'); tog.type='button'; tog.setAttribute('aria-label','Dashboard colour');
+      tog.style.cssText='width:44px;height:44px;border-radius:50%;border:2px solid rgba(255,255,255,.85);background:'+cur+';cursor:pointer;box-shadow:0 8px 24px rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;font-size:18px;line-height:1';
+      tog.textContent='🎨';
+      tog.addEventListener('click',function(){ panel.style.display=(panel.style.display==='flex')?'none':'flex'; });
       var chosen=cur;
-      inp.addEventListener('input',function(){ chosen=inp.value; sv.disabled=false; sv.style.opacity='1'; sv.style.background=chosen; });
+      inp.addEventListener('input',function(){ chosen=inp.value; sv.disabled=false; sv.style.opacity='1'; sv.style.background=chosen; tog.style.background=chosen; });
       sv.addEventListener('click',async function(){
         if(sv.disabled) return; sv.textContent='Saving…'; sv.disabled=true;
         try{
@@ -7053,7 +7077,7 @@ window.PEAK_FORMS = (function () {
         }catch(e){}
         location.reload();
       });
-      wrap.appendChild(lbl); wrap.appendChild(inp); wrap.appendChild(sv);
+      wrap.appendChild(panel); wrap.appendChild(tog);
       document.body.appendChild(wrap);
     }
     if(document.readyState!=='loading') init(); else document.addEventListener('DOMContentLoaded', init);
