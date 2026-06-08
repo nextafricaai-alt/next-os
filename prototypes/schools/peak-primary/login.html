@@ -204,7 +204,8 @@
           tenantId:  userRow.tenant_id,
         }));
 
-        // 4. Go to dashboard
+        // 4. Remember this school's brand for the dashboard, then go
+        try { var _p=new URLSearchParams(location.search); localStorage.setItem('nextos.brand', JSON.stringify({ name: _p.get('n'), color: _p.get('c') })); } catch(e){}
         window.location.href = 'index.html';
       } catch (err) {
         showError(err.message || 'Sign-in failed. Check your email and password.');
