@@ -38,6 +38,10 @@
     if(b && b.color){ var c=String(b.color); if(c[0]!=='#') c='#'+c;
       if(/^#[0-9a-fA-F]{6}$/.test(c)){ window.__ACCENT=c;
         window.__ACCENT_DARK=(function(h){h=h.replace('#','');function d(x){return Math.max(0,Math.round(parseInt(x,16)*0.55)).toString(16).padStart(2,'0');}return '#'+d(h.slice(0,2))+d(h.slice(2,4))+d(h.slice(4,6));})(c);
+        var _mix=function(hex,base,amt){var hh=hex.replace('#',''),bs=base.replace('#','');function cc(i){var x=parseInt(hh.substr(i,2),16),d=parseInt(bs.substr(i,2),16);return Math.round(d+(x-d)*amt);}function hx(v){return Math.max(0,Math.min(255,v)).toString(16).padStart(2,'0');}return '#'+hx(cc(0))+hx(cc(2))+hx(cc(4));};
+        window.__BG=_mix(c,'#0a0a12',0.10); window.__SURFACE=_mix(c,'#0a0a12',0.18); window.__SURFACE2=_mix(c,'#0a0a12',0.24); window.__SURFACE3=_mix(c,'#0a0a12',0.34);
+        try{ document.documentElement.style.background=window.__BG; }catch(e){}
+        window.addEventListener('DOMContentLoaded',function(){ try{ document.body.style.background=window.__BG; }catch(e){} });
       }
     }
     if(b && b.name){ window.__BRAND_NAME=b.name;
@@ -175,10 +179,10 @@
   const { useState, useEffect, useMemo, useCallback } = React;
 
   const T = {
-    bg:       '#0a1029',
-    surface:  '#141e3c',
-    surface2: '#1a2548',
-    surface3: '#212d56',
+    bg:       (typeof window!=='undefined'&&window.__BG)||'#0a1029',
+    surface:  (typeof window!=='undefined'&&window.__SURFACE)||'#141e3c',
+    surface2: (typeof window!=='undefined'&&window.__SURFACE2)||'#1a2548',
+    surface3: (typeof window!=='undefined'&&window.__SURFACE3)||'#212d56',
     border:   'rgba(255,255,255,0.06)',
     borderStr:'rgba(255,255,255,0.10)',
     ink:      '#f5f6fa',
@@ -1548,10 +1552,10 @@
   const { useState, useEffect, useMemo, useCallback } = React;
 
   const T = {
-    bg:       '#0a1029',
-    surface:  '#141e3c',
-    surface2: '#1a2548',
-    surface3: '#212d56',
+    bg:       (typeof window!=='undefined'&&window.__BG)||'#0a1029',
+    surface:  (typeof window!=='undefined'&&window.__SURFACE)||'#141e3c',
+    surface2: (typeof window!=='undefined'&&window.__SURFACE2)||'#1a2548',
+    surface3: (typeof window!=='undefined'&&window.__SURFACE3)||'#212d56',
     border:   'rgba(255,255,255,0.06)',
     borderStr:'rgba(255,255,255,0.10)',
     ink:      '#f5f6fa',
@@ -1884,10 +1888,10 @@
   const { useState, useEffect, useMemo, useCallback } = React;
 
   const T = {
-    bg:       '#0a1029',
-    surface:  '#141e3c',
-    surface2: '#1a2548',
-    surface3: '#212d56',
+    bg:       (typeof window!=='undefined'&&window.__BG)||'#0a1029',
+    surface:  (typeof window!=='undefined'&&window.__SURFACE)||'#141e3c',
+    surface2: (typeof window!=='undefined'&&window.__SURFACE2)||'#1a2548',
+    surface3: (typeof window!=='undefined'&&window.__SURFACE3)||'#212d56',
     border:   'rgba(255,255,255,0.06)',
     borderStr:'rgba(255,255,255,0.10)',
     ink:      '#f5f6fa',
