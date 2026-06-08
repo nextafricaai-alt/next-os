@@ -40,7 +40,10 @@
         window.__ACCENT_DARK=(function(h){h=h.replace('#','');function d(x){return Math.max(0,Math.round(parseInt(x,16)*0.55)).toString(16).padStart(2,'0');}return '#'+d(h.slice(0,2))+d(h.slice(2,4))+d(h.slice(4,6));})(c);
       }
     }
-    if(b && b.name){ window.__BRAND_NAME=b.name; }
+    if(b && b.name){ window.__BRAND_NAME=b.name;
+      try{ document.title = b.name + ' \u00b7 NEXT School OS'; }catch(e){}
+      try{ var _ld=document.querySelector('#root div'); if(_ld) _ld.textContent='LOADING '+String(b.name).toUpperCase()+' \u00b7 NEXT SCHOOL OS'; }catch(e){}
+    }
   })();
   </script>
 
