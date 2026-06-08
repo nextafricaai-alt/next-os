@@ -136,11 +136,15 @@
   <script>
   (function(){
     var p=new URLSearchParams(location.search);
-    var name=p.get('n'), color=p.get('c'), logo=p.get('l');
-    function darken(h,fct){ h=h.replace('#',''); var r=parseInt(h.slice(0,2),16),g=parseInt(h.slice(2,4),16),b=parseInt(h.slice(4,6),16); function d(v){return Math.max(0,Math.round(v*(1-fct)));} return '#'+[d(r),d(g),d(b)].map(function(v){return v.toString(16).padStart(2,'0');}).join(''); }
-    if(color){ if(color[0]!=='#') color='#'+color; if(/^#[0-9a-fA-F]{6}$/.test(color)){ var root=document.documentElement; root.style.setProperty('--accent',color); root.style.setProperty('--accent-dark',darken(color,0.4)); } }
-    if(name){ var nm=decodeURIComponent(name); var bn=document.querySelector('.brand-name'); if(bn) bn.textContent=nm.toUpperCase(); var bl=document.querySelector('.brand-logo'); if(bl) bl.textContent=(nm.trim()[0]||'N').toUpperCase(); document.title=nm+' \u00b7 NEXT School OS \u2014 Sign in'; }
-    if(logo){ var bl2=document.querySelector('.brand-logo'); if(bl2){ bl2.textContent=''; bl2.style.background='#fff'; var img=document.createElement('img'); img.src=decodeURIComponent(logo); img.style.cssText='width:100%;height:100%;object-fit:cover;border-radius:8px;'; bl2.appendChild(img); } }
+    function darken(h,fct){ h=String(h).replace('#',''); var r=parseInt(h.slice(0,2),16),g=parseInt(h.slice(2,4),16),b=parseInt(h.slice(4,6),16); function d(v){return Math.max(0,Math.round(v*(1-fct)));} return '#'+[d(r),d(g),d(b)].map(function(v){return v.toString(16).padStart(2,'0');}).join(''); }
+    function applyBrand(name,color,logo){
+      if(color){ color=String(color); if(color[0]!=='#') color='#'+color; if(/^#[0-9a-fA-F]{6}$/.test(color)){ var root=document.documentElement; root.style.setProperty('--accent',color); root.style.setProperty('--accent-dark',darken(color,0.4)); } }
+      if(name){ var nm=decodeURIComponent(name); var bn=document.querySelector('.brand-name'); if(bn) bn.textContent=nm.toUpperCase(); var bl=document.querySelector('.brand-logo'); if(bl && !logo) bl.textContent=(nm.trim()[0]||'N').toUpperCase(); document.title=nm+' \u00b7 NEXT School OS \u2014 Sign in'; }
+      if(logo){ var bl2=document.querySelector('.brand-logo'); if(bl2){ bl2.textContent=''; bl2.style.background='#fff'; var img=document.createElement('img'); img.src=decodeURIComponent(logo); img.style.cssText='width:100%;height:100%;object-fit:cover;border-radius:8px;'; bl2.appendChild(img); } }
+    }
+    var n=p.get('n'), c=p.get('c'), l=p.get('l'), sslug=p.get('s');
+    if(n||c){ applyBrand(n,c,l); }
+    else if(sslug){ fetch('https://nextos-sentinel.nextafricaai.workers.dev/brand?s='+encodeURIComponent(sslug)).then(function(r){return r.ok?r.json():null;}).then(function(b){ if(b) applyBrand(b.name, b.primary_color, b.logo_url); }).catch(function(){}); }
   })();
   </script>
 
@@ -158,7 +162,7 @@
     (async () => {
       const { data: { session } } = await sb.auth.getSession();
       if (!session) return; // no session -> show the login form (the normal client flow)
-      var want = new URLSearchParams(location.search).get('t');
+      var want = new URLSearchParams(location.search).get('t') || new URLSearchParams(location.search).get('s');
       var prof = null; try { prof = JSON.parse(localStorage.getItem('nextos.profile')||'null'); } catch(e){}
       if (!want || (prof && prof.tenantId === want)) { window.location.href = 'index.html'; return; }
       try { await sb.auth.signOut(); localStorage.removeItem('nextos.profile'); } catch(e){}
@@ -203,7 +207,7 @@
 
         // SECURITY: this login page belongs to ONE school. If your account is for a
         // different school, you cannot sign in here — you must use your own school's link.
-        var _link = new URLSearchParams(location.search).get('t');
+        var _link = new URLSearchParams(location.search).get('t') || new URLSearchParams(location.search).get('s');
         if (_link && userRow.tenant_id !== _link) {
           await sb.auth.signOut();
           throw new Error('This sign-in is for a different school. Your account belongs to another school — please use your own school\'s link.');

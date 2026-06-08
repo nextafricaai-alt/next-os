@@ -180,6 +180,18 @@ export default {
       return handleActionsGet(request, env, cors);
     }
 
+    // ─── Route: GET /brand?s=slug — public branding for a school's login ──
+    if (request.method === 'GET' && url.pathname === '/brand') {
+      const slug = url.searchParams.get('s') || '';
+      try {
+        const rows = await sbFetch(env, '/tenants?id=eq.' + encodeURIComponent(slug) + '&select=name,primary_color,logo_url,motto');
+        const b = (rows && rows[0]) || {};
+        return new Response(JSON.stringify(b), { headers: { ...cors, 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=120' } });
+      } catch (e) {
+        return new Response('{}', { headers: { ...cors, 'Content-Type': 'application/json' } });
+      }
+    }
+
     // ─── Route: GET /fleet — live tenant fleet for the OS + Nia chat ──────
     if (request.method === 'GET' && url.pathname === '/fleet') {
       try {
@@ -792,10 +804,7 @@ async function handleProvisionSchool(request, env, cors) {
 
     // 4. Branded, shareable login link for the client
     const site = env.SITE_URL || 'https://nextos.nextafrica.ai';
-    const loginUrl = site + '/prototypes/schools/peak-primary/login.html?t=' + encodeURIComponent(id) +
-      '&n=' + encodeURIComponent(name) +
-      (primaryColor ? '&c=' + encodeURIComponent(primaryColor) : '') +
-      (logoUrl ? '&l=' + encodeURIComponent(logoUrl) : '');
+    const loginUrl = site + '/s/' + encodeURIComponent(id);
 
     return reply({
       ok: true, tenantId: id, name, loginUrl, adminEmail,
