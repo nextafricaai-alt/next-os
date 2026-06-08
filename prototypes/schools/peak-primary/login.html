@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Peak Primary · NEXT School OS — Sign in</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Instrument+Serif&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body {
+      margin: 0; padding: 0;
+      background: #0a1029; color: #f5f6fa;
+      font-family: 'Inter', -apple-system, system-ui, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      min-height: 100vh;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .bg-glow {
+      position: fixed; inset: 0; z-index: 0; pointer-events: none;
+      background:
+        radial-gradient(circle at 20% 30%, rgba(0,252,143,0.12), transparent 50%),
+        radial-gradient(circle at 80% 70%, rgba(59,130,246,0.10), transparent 50%);
+    }
+    .card {
+      position: relative; z-index: 1;
+      width: 100%; max-width: 420px; margin: 24px;
+      background: rgba(20, 30, 60, 0.85);
+      backdrop-filter: blur(20px);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 16px;
+      padding: 36px 32px;
+      box-shadow: 0 30px 80px rgba(0,0,0,0.4);
+    }
+    .brand {
+      display: flex; align-items: center; gap: 10px; margin-bottom: 28px;
+    }
+    .brand-logo {
+      width: 36px; height: 36px; border-radius: 8px;
+      background: linear-gradient(135deg, #00FC8F, #1B9B6F);
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Instrument Serif', serif; font-size: 20px; font-weight: 700;
+      color: #0a1029;
+    }
+    .brand-text { display: flex; flex-direction: column; line-height: 1.2; }
+    .brand-name { font-weight: 700; font-size: 14px; letter-spacing: 0.06em; }
+    .brand-sub  { font-size: 10px; color: rgba(255,255,255,0.5); font-family: 'JetBrains Mono', ui-monospace, monospace; letter-spacing: 0.1em; }
+    h1 {
+      font-family: 'Instrument Serif', serif;
+      font-size: 30px; font-weight: 400; margin: 0 0 6px;
+      letter-spacing: -0.01em;
+    }
+    .sub {
+      font-size: 13px; color: rgba(255,255,255,0.6); margin-bottom: 26px;
+    }
+    label {
+      display: block; font-size: 11px; font-family: 'JetBrains Mono', monospace;
+      letter-spacing: 0.1em; color: rgba(255,255,255,0.55);
+      margin: 14px 0 6px;
+    }
+    input {
+      width: 100%;
+      background: rgba(10,16,41,0.6);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 8px;
+      padding: 11px 14px;
+      color: #f5f6fa; font-family: inherit; font-size: 14px;
+      outline: none; transition: border-color 0.15s;
+    }
+    input:focus { border-color: #00FC8F; }
+    button {
+      width: 100%; margin-top: 22px;
+      background: #00FC8F; color: #0a1029;
+      border: none; border-radius: 8px;
+      padding: 12px; font-size: 14px; font-weight: 600;
+      cursor: pointer; transition: opacity 0.15s;
+      font-family: inherit;
+    }
+    button:hover { opacity: 0.92; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    .error {
+      margin-top: 16px; padding: 10px 14px;
+      background: rgba(255,71,87,0.1);
+      border: 1px solid rgba(255,71,87,0.3);
+      border-radius: 8px; color: #FF8a92;
+      font-size: 13px; line-height: 1.45;
+    }
+    .footer {
+      margin-top: 26px; padding-top: 22px;
+      border-top: 1px solid rgba(255,255,255,0.06);
+      font-size: 11px; color: rgba(255,255,255,0.4); line-height: 1.6;
+      font-family: 'JetBrains Mono', monospace; letter-spacing: 0.05em;
+    }
+    .hint {
+      margin-top: 6px; font-size: 11px; color: rgba(255,255,255,0.4);
+    }
+  </style>
+</head>
+<body>
+  <div class="bg-glow"></div>
+
+  <div class="card">
+    <div class="brand">
+      <div class="brand-logo">P</div>
+      <div class="brand-text">
+        <span class="brand-name">PEAK PRIMARY</span>
+        <span class="brand-sub">NEXT SCHOOL OS</span>
+      </div>
+    </div>
+
+    <h1>Welcome back</h1>
+    <p class="sub">Sign in to your school dashboard.</p>
+
+    <form id="login-form" autocomplete="on">
+      <label for="email">EMAIL</label>
+      <input id="email" type="email" required autocomplete="username"
+             placeholder="head@peakprimary.test" />
+
+      <label for="password">PASSWORD</label>
+      <input id="password" type="password" required autocomplete="current-password"
+             placeholder="••••••••" />
+
+      <button id="submit" type="submit">Sign in</button>
+      <div class="hint">Forgot password? Contact your school administrator.</div>
+
+      <div id="error" class="error" style="display:none;"></div>
+    </form>
+
+    <div class="footer">
+      Powered by NEXT OS · Nia is watching while you work
+    </div>
+  </div>
+
+  <!-- Supabase JS SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script>
+    // ─── Supabase client ─────────────────────────────────────────────
+    const SUPABASE_URL = 'https://llxhvqkkgftqwefmrofn.supabase.co';
+    // Publishable (anon) key — safe to use in browser; RLS enforces tenant isolation
+    const SUPABASE_ANON_KEY = 'sb_publishable_wrzbFpPrkhoN4w2KXdUAdw_gnqEQVs9';
+    const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    // If already signed in, skip the form and go to the dashboard
+    (async () => {
+      const { data: { session } } = await sb.auth.getSession();
+      if (session) window.location.href = 'index.html';
+    })();
+
+    // ─── Form handler ────────────────────────────────────────────────
+    const form    = document.getElementById('login-form');
+    const errEl   = document.getElementById('error');
+    const btn     = document.getElementById('submit');
+
+    function showError(msg) {
+      errEl.textContent = msg;
+      errEl.style.display = 'block';
+    }
+    function clearError() {
+      errEl.textContent = '';
+      errEl.style.display = 'none';
+    }
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      clearError();
+      btn.disabled = true; btn.textContent = 'Signing in...';
+
+      const email    = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+
+      try {
+        // 1. Sign in with Supabase Auth
+        const { data: authData, error: authErr } = await sb.auth.signInWithPassword({
+          email, password,
+        });
+        if (authErr) throw authErr;
+
+        // 2. Look up the user's tenant + role in the users table
+        const { data: userRow, error: rowErr } = await sb
+          .from('users')
+          .select('tenant_id, role, full_name')
+          .eq('auth_id', authData.user.id)
+          .single();
+        if (rowErr) throw new Error('Your account exists but is not linked to a school. Ask your administrator.');
+
+        // 3. Persist a tiny profile for the dashboard to use
+        localStorage.setItem('nextos.profile', JSON.stringify({
+          email:     authData.user.email,
+          fullName:  userRow.full_name,
+          role:      userRow.role,
+          tenantId:  userRow.tenant_id,
+        }));
+
+        // 4. Go to dashboard
+        window.location.href = 'index.html';
+      } catch (err) {
+        showError(err.message || 'Sign-in failed. Check your email and password.');
+        btn.disabled = false; btn.textContent = 'Sign in';
+      }
+    });
+  </script>
+</body>
+</html>
