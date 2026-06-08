@@ -747,7 +747,8 @@ async function sbWrite(env, path, body, method, prefer) {
     body: JSON.stringify(body),
   });
   if (!res.ok) { const t = await res.text(); throw new Error('Supabase write ' + path + ' → ' + res.status + ' ' + t.slice(0, 240)); }
-  return res.status === 204 ? null : res.json();
+  const txt = await res.text();
+  return txt ? JSON.parse(txt) : null;   // empty body (return=minimal / 201) → null, no crash
 }
 
 // Provision a new school: tenant row + admin auth user + users link + branded link.
