@@ -19,6 +19,28 @@
     *::-webkit-scrollbar-track { background: transparent; }
     *::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 999px; }
     *::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.16); }
+
+    /* ===== Responsive: full dashboard reflows on tablets & phones ===== */
+    @media (max-width: 820px) {
+      [style*="height: 900px"] { width: 100% !important; height: auto !important; min-height: 100% !important; overflow: visible !important; }
+      [style*="grid-template-columns: 1fr 380px"],
+      [style*="grid-template-columns: 1fr 420px"],
+      [style*="grid-template-columns: 1fr 460px"],
+      [style*="grid-template-columns: 1.4fr 1fr"],
+      [style*="grid-template-columns: 1.2fr 1fr"],
+      [style*="grid-template-columns: 1.1fr 1fr 1fr"],
+      [style*="grid-template-columns: 70px 1fr"] { grid-template-columns: 1fr !important; }
+      [style*="grid-template-columns: repeat(5, 1fr)"],
+      [style*="grid-template-columns: repeat(4, 1fr)"],
+      [style*="grid-template-columns: repeat(3, 1fr)"] { grid-template-columns: repeat(2, 1fr) !important; }
+      main { padding: 16px 14px 28px !important; }
+    }
+    @media (max-width: 540px) {
+      [style*="grid-template-columns: repeat(5, 1fr)"],
+      [style*="grid-template-columns: repeat(4, 1fr)"],
+      [style*="grid-template-columns: repeat(3, 1fr)"],
+      [style*="grid-template-columns: repeat(2, 1fr)"] { grid-template-columns: 1fr !important; }
+    }
   </style>
 </head>
 <body>
@@ -6941,6 +6963,13 @@ window.PEAK_FORMS = (function () {
   // ─── Desktop shell · sidebar + routed screen ──────────────────────────────
   function DesktopShell() {
     useStoreVersion();
+    const [narrow, setNarrow] = useState(typeof window !== 'undefined' && window.innerWidth < 820);
+    const [navOpen, setNavOpen] = useState(false);
+    useEffect(() => {
+      const onR = () => setNarrow(window.innerWidth < 820);
+      window.addEventListener('resize', onR);
+      return () => window.removeEventListener('resize', onR);
+    }, []);
     const initialRoute = (window.PEAK_ROLE && window.PEAK_ROLE.defaultRouteForRole()) || 'spec';
     const [route, setRoute] = useState(initialRoute);
     const [profileStudentId, setProfileStudentId] = useState(4);
@@ -6981,23 +7010,33 @@ window.PEAK_FORMS = (function () {
 
     return (
       <div style={{ display: 'flex', height: '100vh', background: T.bg, color: T.ink, fontFamily: T.font, overflow: 'hidden' }}>
-        <Sidebar route={route} onNav={navigate} />
-        <div style={{ flex: 1, minWidth: 0, overflow: 'auto' }}>{Screen}</div>
+        {!narrow && <Sidebar route={route} onNav={navigate} />}
+        {narrow && navOpen && (
+          <React.Fragment>
+            <div onClick={() => setNavOpen(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 290 }} />
+            <div style={{ position: 'fixed', left: 0, top: 0, bottom: 0, zIndex: 300, boxShadow: '0 0 50px rgba(0,0,0,0.6)' }}>
+              <Sidebar route={route} onNav={(k) => { navigate(k); setNavOpen(false); }} />
+            </div>
+          </React.Fragment>
+        )}
+        <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          {narrow && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 14px', borderBottom: '1px solid ' + T.border, background: T.bg, flexShrink: 0 }}>
+              <button onClick={() => setNavOpen(true)} aria-label="Menu" style={{ background: 'transparent', border: '1px solid ' + T.border, borderRadius: 9, color: T.ink, width: 40, height: 40, fontSize: 19, lineHeight: 1, cursor: 'pointer', flexShrink: 0 }}>{'\u2630'}</button>
+              <div style={{ fontSize: 15, fontWeight: 700, color: T.ink, letterSpacing: '-0.01em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{(typeof window !== 'undefined' && window.__BRAND_NAME) || 'Peak Primary'}</div>
+            </div>
+          )}
+          <div style={{ flex: 1, minWidth: 0, overflow: 'auto' }}>{Screen}</div>
+        </div>
       </div>
     );
   }
 
   // ─── Root · responsive + role-aware ───────────────────────────────────────
   function App() {
-    const [isMobile, setIsMobile] = useState(window.innerWidth < 900);
-    useEffect(() => {
-      const onResize = () => setIsMobile(window.innerWidth < 900);
-      window.addEventListener('resize', onResize);
-      return () => window.removeEventListener('resize', onResize);
-    }, []);
-
-    // Role gate — teachers get their own shell. Bursar + Head/Admin share
-    // the standard shell but with role-filtered nav.
+    // Role gate. Teachers get their own shell; parents get the dedicated phone
+    // app; Head / Admin / Bursar get the full dashboard, now fully responsive
+    // (collapsing sidebar drawer + reflowing grids) down to phone width.
     const role = (window.PEAK_ROLE && window.PEAK_ROLE.getRole()) || 'head';
 
     if (role === 'teacher' && typeof window.TeacherShell === 'function') {
@@ -7011,9 +7050,10 @@ window.PEAK_FORMS = (function () {
       );
     }
 
+    const Shell = role === 'parent' ? MobileShell : DesktopShell;
     return (
       <>
-        {isMobile ? <MobileShell /> : <DesktopShell />}
+        <Shell />
         <ToastStack />
         <ModalLayer />
       </>
