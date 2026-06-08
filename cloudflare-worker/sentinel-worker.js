@@ -221,6 +221,11 @@ export default {
       });
     }
 
+    // ─── Route: /provision-school — create a school tenant + admin login ──
+    if (url.pathname === '/provision-school') {
+      return handleProvisionSchool(request, env, cors);
+    }
+
     // ─── Route: / — Llama agent (default) ───────────────────────────────
     return handleAgent(request, env, cors);
   },
@@ -727,6 +732,79 @@ async function sbFetch(env, path) {
   });
   if (!res.ok) throw new Error('Supabase ' + path + ' → ' + res.status);
   return res.json();
+}
+
+// Write to Supabase via PostgREST (service_role bypasses RLS).
+async function sbWrite(env, path, body, method, prefer) {
+  const res = await fetch(env.SUPABASE_URL + '/rest/v1' + path, {
+    method: method || 'POST',
+    headers: {
+      'apikey': env.SUPABASE_KEY,
+      'Authorization': 'Bearer ' + env.SUPABASE_KEY,
+      'Content-Type': 'application/json',
+      'Prefer': prefer || 'return=representation',
+    },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) { const t = await res.text(); throw new Error('Supabase write ' + path + ' → ' + res.status + ' ' + t.slice(0, 240)); }
+  return res.status === 204 ? null : res.json();
+}
+
+// Provision a new school: tenant row + admin auth user + users link + branded link.
+async function handleProvisionSchool(request, env, cors) {
+  const reply = (o, st) => new Response(JSON.stringify(o), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
+  let body;
+  try { body = await request.json(); } catch (e) { return reply({ ok: false, error: 'Invalid JSON body' }, 400); }
+  const { pin, name, slug, primaryColor, logoUrl, motto, adminEmail, adminName, tier } = body || {};
+  const ADMIN_PIN = env.GATE_PIN || '1379';
+  if (pin !== ADMIN_PIN) return reply({ ok: false, error: 'Invalid admin PIN' }, 401);
+  if (!name || !adminEmail) return reply({ ok: false, error: 'name and adminEmail are required' }, 400);
+  if (!env.SUPABASE_URL || !env.SUPABASE_KEY) return reply({ ok: false, error: 'Supabase not configured on the worker' }, 503);
+
+  const id = String(slug || name).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  try {
+    // 1. Upsert the tenant (idempotent on id)
+    await sbWrite(env, '/tenants?on_conflict=id', {
+      id, name, vertical: 'school', country: 'Uganda', currency: 'UGX',
+      subdomain: id, tier: tier || 'catalyst', status: 'active',
+      primary_color: primaryColor || null, logo_url: logoUrl || null, motto: motto || null,
+      head_email: adminEmail, provisioned_at: new Date().toISOString(),
+    }, 'POST', 'resolution=merge-duplicates,return=minimal');
+
+    // 2. Create the admin auth user (temp password)
+    const tempPassword = 'Next-' + Math.random().toString(36).slice(2, 8) + '-' + Math.floor(Math.random()*90+10);
+    let authId = null, userNote = '';
+    const au = await fetch(env.SUPABASE_URL + '/auth/v1/admin/users', {
+      method: 'POST',
+      headers: { 'apikey': env.SUPABASE_KEY, 'Authorization': 'Bearer ' + env.SUPABASE_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: adminEmail, password: tempPassword, email_confirm: true }),
+    });
+    const auj = await au.json().catch(() => ({}));
+    if (au.ok && auj && auj.id) { authId = auj.id; }
+    else { userNote = (auj && (auj.msg || auj.error_description || auj.error)) || ('auth status ' + au.status); }
+
+    // 3. Link the admin to the tenant (only if we created them fresh)
+    if (authId) {
+      try { await sbWrite(env, '/users', { auth_id: authId, tenant_id: id, email: adminEmail, full_name: adminName || 'Head Teacher', role: 'head' }, 'POST', 'return=minimal'); }
+      catch (e) { userNote = 'tenant + auth user created, but users-link failed: ' + (e.message || e); }
+    }
+
+    // 4. Branded, shareable login link for the client
+    const site = env.SITE_URL || 'https://nextos.nextafrica.ai';
+    const loginUrl = site + '/prototypes/schools/peak-primary/login.html?t=' + encodeURIComponent(id) +
+      '&n=' + encodeURIComponent(name) +
+      (primaryColor ? '&c=' + encodeURIComponent(primaryColor) : '') +
+      (logoUrl ? '&l=' + encodeURIComponent(logoUrl) : '');
+
+    return reply({
+      ok: true, tenantId: id, name, loginUrl, adminEmail,
+      tempPassword: authId ? tempPassword : null,
+      note: authId ? 'School created. Share the link + temp password with the head teacher.'
+                   : 'School created/updated. Admin login not set automatically (' + userNote + ') — set the password in Supabase.',
+    });
+  } catch (e) {
+    return reply({ ok: false, error: String(e && e.message || e) }, 500);
+  }
 }
 
 // Fetch a tenant + compute its verticalKpis from live tables
