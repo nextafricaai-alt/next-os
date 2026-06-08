@@ -7020,5 +7020,40 @@ window.PEAK_FORMS = (function () {
 })();
 
   </script>
+  <script>
+  /* Dashboard colour control — change the school's accent; saves to the tenant + reloads */
+  (function(){
+    function init(){
+      var sess = window.NextSession || null;
+      var prof = (window.PEAK_ROLE && window.PEAK_ROLE.getProfile && window.PEAK_ROLE.getProfile()) || (sess && sess.profile) || null;
+      if(!document.body){ return setTimeout(init,300); }
+      if(!prof || !prof.tenantId){ return setTimeout(init,500); }
+      if(document.getElementById('nx-theme-ctrl')) return;
+      var cur=(window.__ACCENT)||'#00FC8F';
+      var wrap=document.createElement('div'); wrap.id='nx-theme-ctrl';
+      wrap.style.cssText='position:fixed;right:16px;bottom:16px;z-index:99999;display:flex;align-items:center;gap:8px;background:#141e3c;border:1px solid #212d56;border-radius:30px;padding:8px 12px;font-family:Inter,system-ui,sans-serif;font-size:12px;color:#aab2d5;box-shadow:0 8px 24px rgba(0,0,0,.45)';
+      var lbl=document.createElement('span'); lbl.textContent='Dashboard colour';
+      var inp=document.createElement('input'); inp.type='color'; inp.value=cur;
+      inp.style.cssText='width:30px;height:30px;border:none;background:none;cursor:pointer;padding:0;border-radius:6px';
+      var sv=document.createElement('button'); sv.textContent='Apply'; sv.disabled=true;
+      sv.style.cssText='background:'+cur+';color:#04210f;border:none;border-radius:20px;padding:7px 14px;font-weight:700;cursor:pointer;font-size:12px;opacity:.5';
+      var chosen=cur;
+      inp.addEventListener('input',function(){ chosen=inp.value; sv.disabled=false; sv.style.opacity='1'; sv.style.background=chosen; });
+      sv.addEventListener('click',async function(){
+        if(sv.disabled) return; sv.textContent='Saving…'; sv.disabled=true;
+        try{
+          var b={}; try{ b=JSON.parse(localStorage.getItem('nextos.brand')||'{}'); }catch(e){}
+          b.color=chosen; if(!b.name && window.__BRAND_NAME) b.name=window.__BRAND_NAME;
+          localStorage.setItem('nextos.brand', JSON.stringify(b));
+          if(sess && sess.sb && prof.tenantId){ await sess.sb.from('tenants').update({ primary_color: chosen }).eq('id', prof.tenantId); }
+        }catch(e){}
+        location.reload();
+      });
+      wrap.appendChild(lbl); wrap.appendChild(inp); wrap.appendChild(sv);
+      document.body.appendChild(wrap);
+    }
+    if(document.readyState!=='loading') init(); else document.addEventListener('DOMContentLoaded', init);
+  })();
+  </script>
 </body>
 </html>
