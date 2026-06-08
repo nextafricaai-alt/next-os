@@ -137,7 +137,9 @@ async function generate(){
     lastBuild = { brand, out };
     // live preview of the branded login
     $('previewEmpty').style.display='none';
-    const fr=$('preview'); fr.style.display='block'; fr.srcdoc=out.login;
+    // Preview only: strip the login's auto-redirect so the frame shows the branded login, not the parent OS.
+    const previewLogin = out.login.split("window.location.href = 'index.html';").join('/* preview: no redirect */ void 0;');
+    const fr=$('preview'); fr.style.display='block'; fr.srcdoc=previewLogin;
     $('download').style.display='block';
     msg('Done — '+brand.displayName+' is branded. Preview on the right.','ok');
     saveFleet(brand);
