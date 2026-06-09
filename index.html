@@ -2049,6 +2049,18 @@ const ProjectDetail = ({ project, onBack }) => {
     } catch (e) { setCheck({ error: String((e && e.message) || e) }); }
     setChecking(false);
   };
+  const [seo, setSeo] = React.useState(meta.lastSeo || null);
+  const [seoLoading, setSeoLoading] = React.useState(false);
+  const runSeo = async () => {
+    setSeoLoading(true);
+    try {
+      const base = (window.NEXT_OS_SENTINEL_ENDPOINT) || 'https://nextos-sentinel.nextafricaai.workers.dev';
+      const r = await fetch(base + '/seo-audit?url=' + encodeURIComponent(pm.url || ''));
+      const d = await r.json(); setSeo(d);
+      const nm = Object.assign({}, meta, { lastSeo: d }); try { localStorage.setItem(META_KEY, JSON.stringify(nm)); } catch (e) {} setMeta(nm);
+    } catch (e) { setSeo({ error: String((e && e.message) || e) }); }
+    setSeoLoading(false);
+  };
 
   const sectionStyle = {
     background: 'var(--bg-elevated)', borderRadius: 'var(--radius-md)',
@@ -2075,14 +2087,14 @@ const ProjectDetail = ({ project, onBack }) => {
 
       {/* Tabs */}
       <div style={{ display: 'flex', gap: 2, marginBottom: 20, background: 'var(--bg-deep)', borderRadius: 'var(--radius-sm)', padding: 3 }}>
-        {['overview', 'alerts', 'credentials', 'milestones'].map(t => (
+        {['overview', 'seo', 'alerts', 'credentials', 'milestones'].map(t => (
           <button key={t} onClick={() => setTab(t)} style={{
             flex: 1, padding: '9px 14px', border: 'none', borderRadius: 'var(--radius-sm)',
             background: tab === t ? 'var(--bg-elevated)' : 'transparent',
             color: tab === t ? 'var(--text-primary)' : 'var(--text-tertiary)',
             fontSize: 12, fontWeight: 500, cursor: 'pointer', fontFamily: 'var(--font-body)',
             textTransform: 'capitalize', transition: 'all 0.2s',
-          }}>{t === 'alerts' ? `Alerts (${p.alerts.length})` : t}</button>
+          }}>{t === 'alerts' ? `Alerts (${p.alerts.length})` : t === 'seo' ? 'SEO' : t}</button>
         ))}
       </div>
 
@@ -2165,6 +2177,37 @@ const ProjectDetail = ({ project, onBack }) => {
               </div>
             )}
           </div>
+        </div>
+      )}
+
+      {tab === 'seo' && (
+        <div style={sectionStyle}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>SEO & Performance</div>
+            <button onClick={runSeo} disabled={seoLoading || !pm.url} style={{ background: 'var(--mint)', color: 'var(--text-inverse)', border: 'none', borderRadius: 'var(--radius-sm)', padding: '6px 12px', fontSize: 12, fontWeight: 600, cursor: (seoLoading || !pm.url) ? 'not-allowed' : 'pointer', opacity: pm.url ? 1 : 0.5 }}>{seoLoading ? 'Auditing...' : 'Run SEO audit'}</button>
+          </div>
+          {!seo && <div style={{ color: 'var(--text-tertiary)', fontSize: 13 }}>{pm.url ? 'Click "Run SEO audit" to score this page and get concrete fix tips.' : 'Add a Live URL in the Overview tab first.'}</div>}
+          {seo && seo.error && <div style={{ color: 'var(--danger)', fontSize: 13 }}>Audit failed: {seo.error}</div>}
+          {seo && !seo.error && (
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 16 }}>
+                <div style={{ fontSize: 40, fontFamily: 'var(--font-display)', fontWeight: 700, color: seo.score >= 80 ? 'var(--mint)' : seo.score >= 55 ? 'var(--gold)' : 'var(--danger)' }}>{seo.score}<span style={{ fontSize: 16, color: 'var(--text-tertiary)' }}>/100</span></div>
+                <div style={{ fontSize: 12, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', lineHeight: 1.6 }}>
+                  Title {seo.titleLen}c · Desc {seo.metaDescLen}c · H1s {seo.h1s}<br/>{seo.words} words · {seo.https ? 'HTTPS' : 'no HTTPS'} · {seo.viewport ? 'mobile-ready' : 'NOT mobile-ready'} · {seo.ms}ms
+                </div>
+              </div>
+              {seo.issues.length === 0 ? <div style={{ color: 'var(--mint)', fontSize: 13 }}>No major SEO issues. Nicely done.</div> : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {seo.issues.map((it, i) => (
+                    <div key={i} style={{ padding: 12, background: 'var(--bg-deep)', borderRadius: 'var(--radius-sm)', borderLeft: '3px solid ' + (it.sev === 'high' ? 'var(--danger)' : it.sev === 'med' ? 'var(--gold)' : 'var(--border-default)') }}>
+                      <div style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 600 }}><span style={{ fontSize: 9, fontFamily: 'var(--font-mono)', color: it.sev === 'high' ? 'var(--danger)' : it.sev === 'med' ? 'var(--gold)' : 'var(--text-tertiary)', marginRight: 8 }}>{it.sev.toUpperCase()}</span>{it.msg}</div>
+                      <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 4 }}>{it.tip}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
@@ -3659,7 +3702,7 @@ DEFAULTS
 - "Draft / write a WhatsApp" → draft_message first → THEN write the draft in a code block. Stop. Ask Hudson if he wants you to open WhatsApp.
 - "Send a WhatsApp to <number>" → open_whatsapp(phone, message) (Path A). If Hudson says "actually send" or "use Cloud API", call send_whatsapp.
 - "Notify me about X" → notify(severity, title, body).
-- "Is <project> up? / watch <site> / check the domain" → read_projects (get the url/domain) → check_project(url, domain) → report up/down + days to domain expiry. If down or expiring, state it and DRAFT the fix for Hudson to approve; never claim you fixed it yourself.\n- "Record a payment / issue a receipt for <school>" → issue_receipt(tenant_id, amount, student_name, guardian_phone?). Then tell Hudson the receipt number; if a guardian phone was given, offer to open WhatsApp to send it. The receipt is stored and downloadable as a branded PDF in that school Fees then Receipts.
+- "Improve SEO / how do I rank better / audit <site>" -> read_projects (get url) -> seo_audit(url) -> give the score + top 3 fixes with the exact change.\n- "Is <project> up? / watch <site> / check the domain" → read_projects (get the url/domain) → check_project(url, domain) → report up/down + days to domain expiry. If down or expiring, state it and DRAFT the fix for Hudson to approve; never claim you fixed it yourself.\n- "Record a payment / issue a receipt for <school>" → issue_receipt(tenant_id, amount, student_name, guardian_phone?). Then tell Hudson the receipt number; if a guardian phone was given, offer to open WhatsApp to send it. The receipt is stored and downloadable as a branded PDF in that school Fees then Receipts.
 
 WHATSAPP TOOLS
 - open_whatsapp(phone, message): opens WhatsApp on Hudson's device, message pre-filled. Free. DEFAULT.
@@ -3743,6 +3786,8 @@ You: "'We help you get more done with less stress.' Nine plain words beat the ja
         url:    { type: 'string', description: 'Full URL to ping, e.g. https://nextos.nextafrica.ai' },
         domain: { type: 'string', description: 'Bare domain for expiry check, e.g. nextafrica.ai (optional; derived from url if omitted)' }
       }, required: [] } },
+    { name: 'seo_audit', description: 'Audit a web page for SEO + performance: title, meta description, headings, mobile viewport, HTTPS, Open Graph, load speed, word count. Returns a score and concrete fix tips. Use when asked to improve SEO/ranking or review a site. Get the url from read_projects.',
+      input_schema: { type: 'object', properties: { url: { type: 'string', description: 'Full page URL to audit, e.g. https://puritymukisa.com' } }, required: ['url'] } },
   ];
 
 
@@ -3922,6 +3967,16 @@ You: "'We help you get more done with less stress.' Nine plain words beat the ja
             const data = await res.json();
             if (data && data.alerts && data.alerts.length && window.NEXT_OS && typeof window.NEXT_OS.notify === 'function') { const top = data.alerts[0]; window.NEXT_OS.notify({ severity: top.type === 'critical' ? 'critical' : 'warning', title: (data.domain || u) + ' needs attention', body: top.msg, source: 'Sentinel \u00b7 Nia' }); }
             return JSON.stringify(Object.assign({ instruction: 'Report up/down and domain expiry plainly. If there is a critical or warning alert, state it and draft the concrete fix (e.g. renew the domain, redeploy, contact host) for Hudson to approve. Do NOT claim you fixed it yourself.' }, data));
+          } catch (e) { return JSON.stringify({ error: String(e.message || e) }); }
+        }
+        case 'seo_audit': {
+          const u = String(input.url || '').trim();
+          if (!u) return JSON.stringify({ error: 'Provide a url. Use read_projects to find the project URL.' });
+          const endpoint = (typeof window !== 'undefined' && window.NEXT_OS_SENTINEL_ENDPOINT) || NIA_FREE_ENDPOINT;
+          try {
+            const res = await fetch(endpoint + '/seo-audit?url=' + encodeURIComponent(u));
+            const data = await res.json();
+            return JSON.stringify(Object.assign({ instruction: 'Give Hudson the score, then the top 3 highest-impact fixes in plain language with the exact change to make. Lead with the point, no jargon.' }, data));
           } catch (e) { return JSON.stringify({ error: String(e.message || e) }); }
         }
         default: return JSON.stringify({ error: 'Unknown tool: ' + name });
