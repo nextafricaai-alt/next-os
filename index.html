@@ -4048,11 +4048,41 @@ You: "'We help you get more done with less stress.' Nine plain words beat the ja
 
   const ChatInput = ({ onSend, pending, placeholder }) => {
     const [text, setText] = React.useState('');
+    const [listening, setListening] = React.useState(false);
+    const recRef = React.useRef(null);
+    const baseRef = React.useRef('');
+    const SR = (typeof window !== 'undefined') && (window.SpeechRecognition || window.webkitSpeechRecognition);
     const submit = () => { if (!pending && text.trim()) { onSend(text); setText(''); } };
+    const stopMic = () => { try { recRef.current && recRef.current.stop(); } catch (e) {} setListening(false); };
+    const startMic = () => {
+      if (!SR) return;
+      let rec;
+      try { rec = new SR(); } catch (e) { return; }
+      rec.lang = 'en-US'; rec.interimResults = true; rec.continuous = false; rec.maxAlternatives = 1;
+      let finalText = '';
+      baseRef.current = text ? text.trim() + ' ' : '';
+      rec.onresult = (e) => {
+        let interim = '';
+        for (let i = e.resultIndex; i < e.results.length; i++) {
+          const tr = e.results[i][0].transcript;
+          if (e.results[i].isFinal) finalText += tr; else interim += tr;
+        }
+        setText((baseRef.current + (finalText || interim)).replace(/\s+/g, ' ').trimStart());
+      };
+      rec.onerror = () => setListening(false);
+      rec.onend = () => { setListening(false); recRef.current = null; };
+      recRef.current = rec;
+      setListening(true);
+      try { rec.start(); } catch (e) { setListening(false); }
+    };
+    const toggleMic = () => { if (listening) stopMic(); else startMic(); };
     return (
-      <div style={{ display: 'flex', gap: 8 }}>
-        <textarea value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submit(); } }} placeholder={placeholder || 'Ask Nia anything...'} rows={2} style={Object.assign({}, inputStyle, { minHeight: 44, maxHeight: 120 })} />
-        <button onClick={submit} disabled={pending || !text.trim()} style={{ background: pending || !text.trim() ? 'var(--bg-elevated)' : 'var(--mint)', color: pending || !text.trim() ? 'var(--text-tertiary)' : 'var(--text-inverse)', border: 'none', borderRadius: 'var(--radius-sm)', padding: '0 18px', fontSize: 13, fontWeight: 600, cursor: pending || !text.trim() ? 'not-allowed' : 'pointer' }}>{pending ? '...' : 'Send'}</button>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
+        <textarea value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submit(); } }} placeholder={listening ? 'Listening\u2026 speak your command' : (placeholder || 'Ask Nia anything...')} rows={2} style={Object.assign({}, inputStyle, { minHeight: 44, maxHeight: 120 })} />
+        {SR && (
+          <button onClick={toggleMic} title={listening ? 'Stop listening' : 'Speak to Nia'} aria-label="Voice input" style={{ flexShrink: 0, width: 44, height: 44, borderRadius: '50%', border: listening ? 'none' : '1px solid var(--border-subtle)', background: listening ? '#e23a52' : 'var(--bg-elevated)', color: listening ? '#fff' : 'var(--text-secondary)', fontSize: 18, lineHeight: 1, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: listening ? '0 0 0 4px rgba(226,58,82,0.25)' : 'none' }}>{listening ? '\u25A0' : '🎤'}</button>
+        )}
+        <button onClick={submit} disabled={pending || !text.trim()} style={{ flexShrink: 0, background: pending || !text.trim() ? 'var(--bg-elevated)' : 'var(--mint)', color: pending || !text.trim() ? 'var(--text-tertiary)' : 'var(--text-inverse)', border: 'none', borderRadius: 'var(--radius-sm)', padding: '0 18px', height: 44, fontSize: 13, fontWeight: 600, cursor: pending || !text.trim() ? 'not-allowed' : 'pointer' }}>{pending ? '...' : 'Send'}</button>
       </div>
     );
   };
