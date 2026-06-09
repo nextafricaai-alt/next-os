@@ -70,6 +70,78 @@
   <!-- Session guard — must run BEFORE React so unauthenticated users get bounced -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script src="session-guard.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script>
+  /* NextReceipts — real receipts: save to Supabase, branded PDF, WhatsApp send (free click-to-send). */
+  window.NextReceipts = (function(){
+    function digits(p){ return String(p||'').replace(/[^0-9]/g,''); }
+    function brandName(){ return (window.__BRAND_NAME) || 'School'; }
+    function prefix(){ var n=brandName(); return (n.match(/[A-Za-z0-9]/g)||['N']).slice(0,2).join('').toUpperCase(); }
+    function fmt(n){ try{ return 'UGX ' + Number(n||0).toLocaleString('en-UG'); }catch(e){ return 'UGX ' + (n||0); } }
+    function methodLabel(m){ return ({mtn:'MTN Mobile Money',airtel:'Airtel Money',momo:'Mobile Money',mpesa:'M-Pesa',stanbic:'Bank deposit',bank:'Bank deposit',cash:'Cash',cheque:'Cheque'}[m]) || m || '-'; }
+    function hexRgb(h){ h=String(h||'#00FC8F').replace('#',''); if(h.length===3){ h=h.split('').map(function(c){return c+c;}).join(''); } return [parseInt(h.slice(0,2),16)||0,parseInt(h.slice(2,4),16)||200,parseInt(h.slice(4,6),16)||140]; }
+    async function nextNo(sb, tenantId){
+      var year=new Date().getFullYear(), seq=1;
+      try{ var r=await sb.from('receipts').select('id',{count:'exact',head:true}).eq('tenant_id',tenantId); seq=(r.count||0)+1; }catch(e){}
+      return prefix()+'-'+year+'-'+String(seq).padStart(5,'0');
+    }
+    async function issue(opts){
+      var sess=window.NextSession||{}; var sb=sess.sb; var prof=sess.profile||{};
+      var tenantId=prof.tenantId;
+      if(!sb||!tenantId) throw new Error('Not signed in');
+      var amount=Number(opts.amount||0);
+      var no=await nextNo(sb, tenantId);
+      var rec={ tenant_id:tenantId, receipt_no:no, student_id:(opts.studentId||null), student_name:(opts.studentName||null),
+        guardian_name:(opts.guardianName||null), guardian_phone:(digits(opts.guardianPhone)||null), amount:amount, currency:'UGX',
+        kind:'fees', method:(opts.method||null), reference:(opts.reference||null),
+        balance_after:(opts.balanceAfter!=null?Number(opts.balanceAfter):null), term:(opts.term||null),
+        issued_by:(prof.fullName||prof.email||null) };
+      var res=await sb.from('receipts').insert(rec).select().single();
+      if(res.error) throw res.error;
+      return res.data;
+    }
+    function buildPdf(rec){
+      var ctor=(window.jspdf&&window.jspdf.jsPDF)||window.jsPDF; if(!ctor) throw new Error('PDF engine not loaded');
+      var doc=new ctor({unit:'pt',format:'a4'}); var W=doc.internal.pageSize.getWidth();
+      var c=hexRgb(window.__ACCENT);
+      doc.setFillColor(c[0],c[1],c[2]); doc.rect(0,0,W,72,'F');
+      doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(20); doc.text(brandName(),40,44);
+      doc.setFont('helvetica','normal'); doc.setFontSize(11); doc.text('PAYMENT RECEIPT',W-40,44,{align:'right'});
+      var y=116;
+      function row(label,val,big){
+        doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(130,130,130); doc.text(String(label).toUpperCase(),40,y);
+        doc.setFont('helvetica',big?'bold':'normal'); doc.setFontSize(big?20:13); doc.setTextColor(25,25,25); doc.text(String(val==null||val===''?'-':val),40,y+18);
+        y += big?54:42;
+      }
+      row('Receipt no.', rec.receipt_no);
+      row('Date', new Date(rec.issued_at||Date.now()).toLocaleString());
+      row('Student', rec.student_name);
+      if(rec.guardian_name) row('Guardian', rec.guardian_name);
+      row('Amount received', fmt(rec.amount), true);
+      row('Method', methodLabel(rec.method));
+      if(rec.reference) row('Reference', rec.reference);
+      if(rec.balance_after!=null) row('Balance after', fmt(rec.balance_after));
+      row('Issued by', rec.issued_by);
+      doc.setDrawColor(220,220,220); doc.line(40,y+4,W-40,y+4);
+      doc.setFontSize(9); doc.setTextColor(150,150,150);
+      doc.text('Powered by NEXT OS', 40, y+26);
+      doc.text(rec.receipt_no, W-40, y+26, {align:'right'});
+      return doc;
+    }
+    function download(rec){ try{ buildPdf(rec).save('Receipt-'+rec.receipt_no+'.pdf'); }catch(e){ if(window.peakToast) window.peakToast('Could not build PDF','error',String(e.message||e)); } }
+    function whatsappUrl(rec){
+      var msg='Dear '+(rec.guardian_name||'Parent')+', we confirm receipt of '+fmt(rec.amount)+' for '+(rec.student_name||'your child')+' at '+brandName()+'. Receipt '+rec.receipt_no+' ('+new Date(rec.issued_at||Date.now()).toLocaleDateString()+').'+(rec.balance_after!=null?(' Balance: '+fmt(rec.balance_after)+'.'):'')+' Thank you.';
+      return 'https://wa.me/'+digits(rec.guardian_phone)+'?text='+encodeURIComponent(msg);
+    }
+    async function list(){
+      var sess=window.NextSession||{}; var sb=sess.sb; var t=(sess.profile||{}).tenantId;
+      if(!sb||!t) return [];
+      var r=await sb.from('receipts').select('*').eq('tenant_id',t).order('issued_at',{ascending:false}).limit(100);
+      return r.data||[];
+    }
+    return { issue:issue, download:download, whatsappUrl:whatsappUrl, list:list, fmt:fmt };
+  })();
+  </script>
   <script>
   (function(){
     var b=null; try{ b=JSON.parse(localStorage.getItem('nextos.brand')||'null'); }catch(e){}
@@ -4270,6 +4342,7 @@ const PD_Fees = (function () {
                 </div>
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
+                <button onClick={() => window.peakModal && window.peakModal.open(React.createElement(window.PEAK_FORMS.Receipts))} style={{ border: '1px solid ' + T.borderStr, background: 'transparent', color: T.ink2, padding: '8px 14px', borderRadius: 9, fontSize: 12.5, cursor: 'pointer' }}>Receipts</button>
                 <button onClick={() => window.peakToast && window.peakToast('Ledger exported', 'success', 'Excel · 67 outstanding accounts · sent to bursar email.')} style={{ border: '1px solid ' + T.borderStr, background: 'transparent', color: T.ink2, padding: '8px 14px', borderRadius: 9, fontSize: 12.5, cursor: 'pointer' }}>Export ledger</button>
                 <button onClick={() => window.peakToast && window.peakToast('Fees settings — coming in Phase 2', 'info')} style={{ border: '1px solid ' + T.borderStr, background: 'transparent', color: T.ink, padding: '8px 14px', borderRadius: 9, fontSize: 12.5, cursor: 'pointer' }}>Settings</button>
                 <button onClick={() => onRecordPayment ? onRecordPayment() : (window.peakModal && window.peakModal.open(window.PEAK_FORMS.RecordPayment({})))} style={{ border: 'none', background: T.red, color: '#fff', padding: '9px 16px', borderRadius: 9, fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }}>+ Record cash payment</button>
@@ -6168,19 +6241,29 @@ window.PEAK_FORMS = (function () {
     const [amount, setAmount] = useState('');
     const [method, setMethod] = useState('mtn');
     const [ref, setRef] = useState('');
+    const [phone, setPhone] = useState('');
     const student = D.students.find(s => s.id === Number(studentId));
     const balance = student ? student.balance : 0;
 
-    const submit = () => {
+    const submit = async () => {
       const amt = Number(amount.replace(/[^0-9]/g, ''));
-      if (!amt || amt <= 0) {
-        window.peakToast('Enter a payment amount', 'error');
-        return;
-      }
+      if (!amt || amt <= 0) { window.peakToast('Enter a payment amount', 'error'); return; }
       store.recordPayment({ studentId: Number(studentId), amount: amt, method, ref });
       const newBal = Math.max(0, balance - amt);
-      window.peakToast(D.fmtUGXshort(amt) + ' recorded for ' + student.name, 'success', newBal === 0 ? 'Account now fully paid. Receipt sent to guardian.' : 'New balance: ' + D.fmtUGXshort(newBal));
-      window.peakModal.close();
+      try {
+        const rec = await window.NextReceipts.issue({
+          studentName: student ? student.name : null,
+          guardianName: student ? student.guardian : null,
+          guardianPhone: phone,
+          amount: amt, method, reference: ref,
+          balanceAfter: newBal, term: 'Term 2 2026',
+        });
+        window.peakModal.close();
+        window.peakModal.open(React.createElement(ReceiptResult, { rec }));
+      } catch (e) {
+        window.peakModal.close();
+        window.peakToast('Payment recorded — receipt not saved', 'warn', String((e && e.message) || e) + ' (run the receipts SQL?)');
+      }
     };
 
     return (
@@ -6223,6 +6306,9 @@ window.PEAK_FORMS = (function () {
           <Field label="Reference / receipt no." hint="optional" span={2}>
             <TextInput value={ref} onChange={setRef} placeholder="MTN TX 4F8K22A · or leave blank" />
           </Field>
+          <Field label="Guardian WhatsApp" hint="for receipt · optional" span={2}>
+            <TextInput value={phone} onChange={setPhone} placeholder="256772123456" />
+          </Field>
         </div>
         <ModalFooter>
           <SecondaryButton onClick={() => window.peakModal.close()}>Cancel</SecondaryButton>
@@ -6245,7 +6331,45 @@ window.PEAK_FORMS = (function () {
     );
   }
 
-  return { AddStudent, AddTeacher, RecordPayment, Confirm };
+  function ReceiptResult({ rec }) {
+    return (
+      <div style={{ width: '100%' }}>
+        <ModalHeader eyebrow={'Receipt ' + rec.receipt_no} title="Receipt issued ✓" subtitle={(window.NextReceipts ? window.NextReceipts.fmt(rec.amount) : rec.amount) + ' received' + (rec.student_name ? ' · ' + rec.student_name : '')} />
+        <div style={{ padding: '6px 26px 0', display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <PrimaryButton onClick={() => window.NextReceipts && window.NextReceipts.download(rec)}>⤓ Download PDF receipt</PrimaryButton>
+          <SecondaryButton onClick={() => { if (rec.guardian_phone) { window.open(window.NextReceipts.whatsappUrl(rec), '_blank'); } else { window.peakToast('No guardian WhatsApp number on file', 'warn', 'Add one on the payment form to send.'); } }}>Send receipt on WhatsApp</SecondaryButton>
+        </div>
+        <ModalFooter><PrimaryButton onClick={() => window.peakModal.close()}>Done</PrimaryButton></ModalFooter>
+      </div>
+    );
+  }
+
+  function Receipts() {
+    const [rows, setRows] = React.useState(null);
+    React.useEffect(() => { (async () => { try { setRows(await window.NextReceipts.list()); } catch (e) { setRows([]); } })(); }, []);
+    return (
+      <div style={{ width: '100%' }}>
+        <ModalHeader eyebrow="Bursar" title="Receipts" subtitle="Payment receipts issued for your school." />
+        <div style={{ padding: '8px 22px', maxHeight: 440, overflow: 'auto' }}>
+          {rows === null && <div style={{ color: '#9aa3c0', fontSize: 13, padding: '12px 0' }}>Loading…</div>}
+          {rows && rows.length === 0 && <div style={{ color: '#9aa3c0', fontSize: 13, padding: '12px 0' }}>No receipts yet. Record a payment to issue one.</div>}
+          {rows && rows.map(r => (
+            <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 0', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13, color: '#f5f6fa', fontWeight: 600 }}>{r.student_name || '—'} <span style={{ color: '#8b93b5', fontWeight: 400, fontFamily: 'monospace', fontSize: 11 }}>· {r.receipt_no}</span></div>
+                <div style={{ fontSize: 11, color: '#9aa3c0' }}>{window.NextReceipts.fmt(r.amount)} · {new Date(r.issued_at).toLocaleDateString()}</div>
+              </div>
+              <button onClick={() => window.NextReceipts.download(r)} style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.2)', color: '#f5f6fa', borderRadius: 8, padding: '6px 11px', fontSize: 12, cursor: 'pointer' }}>PDF</button>
+              {r.guardian_phone && <button onClick={() => window.open(window.NextReceipts.whatsappUrl(r), '_blank')} style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.2)', color: '#f5f6fa', borderRadius: 8, padding: '6px 11px', fontSize: 12, cursor: 'pointer' }}>WhatsApp</button>}
+            </div>
+          ))}
+        </div>
+        <ModalFooter><PrimaryButton onClick={() => window.peakModal.close()}>Close</PrimaryButton></ModalFooter>
+      </div>
+    );
+  }
+
+  return { AddStudent, AddTeacher, RecordPayment, Confirm, ReceiptResult, Receipts };
 })();
 
   </script>
