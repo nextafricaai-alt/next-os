@@ -263,6 +263,19 @@ export default {
       return handleSeoAudit(url.searchParams.get('url') || '', cors);
     }
 
+    // ─── Route: /px.js — first-party analytics tracker (served to the sites) ──
+    if (url.pathname === '/px.js') {
+      return new Response(PX_JS, { headers: { ...cors, 'Content-Type': 'application/javascript; charset=utf-8', 'Cache-Control': 'public, max-age=600' } });
+    }
+    // ─── Route: /collect — receive a site analytics event (no keys on the site) ──
+    if (url.pathname === '/collect') {
+      return handleCollect(request, env, cors);
+    }
+    // ─── Route: /analytics — aggregate events for a site ──
+    if (url.pathname === '/analytics') {
+      return handleAnalytics(url.searchParams.get('site') || '', Number(url.searchParams.get('days') || 7), env, cors);
+    }
+
     // ─── Route: / — Llama agent (default) ───────────────────────────────
     return handleAgent(request, env, cors);
   },
@@ -786,6 +799,71 @@ async function sbWrite(env, path, body, method, prefer) {
   if (!res.ok) { const t = await res.text(); throw new Error('Supabase write ' + path + ' → ' + res.status + ' ' + t.slice(0, 240)); }
   const txt = await res.text();
   return txt ? JSON.parse(txt) : null;   // empty body (return=minimal / 201) → null, no crash
+}
+
+// First-party analytics tracker served at /px.js. Install on a site with:
+//   <script defer src="https://nextos-sentinel.nextafricaai.workers.dev/px.js?s=YOURDOMAIN.com"></script>
+// Then call window.nxTrack('signin'|'conversion', 'label', value) on key actions.
+const PX_JS = "(function(){try{var el=document.currentScript||document.querySelector('script[src*=\"/px.js\"]');var site=null;if(el){try{site=new URL(el.src,location.href).searchParams.get('s');}catch(e){}}site=site||location.hostname.replace(/^www\\./,'');var EP='https://nextos-sentinel.nextafricaai.workers.dev/collect';function sid(){try{var k='nx_sid',v=sessionStorage.getItem(k);if(!v){v=Date.now().toString(36)+Math.random().toString(36).slice(2,8);sessionStorage.setItem(k,v);}return v;}catch(e){return 'na';}}function send(type,label,value){try{var body=JSON.stringify({site:site,type:type,path:location.pathname,ref:document.referrer||'',session:sid(),label:label||null,value:(value!=null?value:null)});if(navigator.sendBeacon){var ok=navigator.sendBeacon(EP,body);if(ok)return;}fetch(EP,{method:'POST',headers:{'Content-Type':'application/json'},body:body,keepalive:true}).catch(function(){});}catch(e){}}window.nxTrack=function(type,label,value){send(type||'event',label,value);};send('pageview');}catch(e){}})();";
+
+// Receive one analytics event from a site. Inserts via service_role (browser sends no keys).
+async function handleCollect(request, env, cors) {
+  if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors });
+  try {
+    const raw = await request.text();
+    const b = raw ? JSON.parse(raw) : {};
+    if (!b.site) return new Response('{}', { status: 400, headers: { ...cors, 'Content-Type': 'application/json' } });
+    const row = {
+      site: String(b.site).slice(0, 120),
+      type: String(b.type || 'pageview').slice(0, 24),
+      path: (b.path || '').slice(0, 300),
+      referrer: (b.ref || b.referrer || '').slice(0, 300),
+      session: (b.session || '').slice(0, 60),
+      label: b.label ? String(b.label).slice(0, 80) : null,
+      value: (b.value != null && !isNaN(Number(b.value))) ? Number(b.value) : null,
+      country: (request.cf && request.cf.country) || null,
+      ua: (request.headers.get('user-agent') || '').slice(0, 200),
+    };
+    await sbWrite(env, '/site_events', row, 'POST', 'return=minimal');
+    return new Response(null, { status: 204, headers: cors });
+  } catch (e) {
+    return new Response(JSON.stringify({ ok: false, error: String((e && e.message) || e) }), { status: 200, headers: { ...cors, 'Content-Type': 'application/json' } });
+  }
+}
+
+// Aggregate events for one site over N days.
+async function handleAnalytics(site, days, env, cors) {
+  const J = (o, st) => new Response(JSON.stringify(o), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
+  if (!site) return J({ error: 'site required' }, 400);
+  days = Math.min(90, Math.max(1, days || 7));
+  const since = new Date(Date.now() - days * 86400000).toISOString();
+  let rows = [];
+  try {
+    rows = (await sbFetch(env, '/site_events?site=eq.' + encodeURIComponent(site) + '&ts=gte.' + encodeURIComponent(since) + '&select=type,path,referrer,session,label,value,ts&order=ts.desc&limit=20000')) || [];
+  } catch (e) { return J({ error: String((e && e.message) || e), site, days }); }
+  const pv = rows.filter(r => r.type === 'pageview');
+  const sessions = new Set(pv.map(r => r.session).filter(Boolean));
+  const byType = {}; rows.forEach(r => { byType[r.type] = (byType[r.type] || 0) + 1; });
+  const tally = (arr, key, norm) => { const m = {}; arr.forEach(r => { let k = (r[key] || '').trim(); if (norm) k = norm(k); if (!k) k = '(none)'; m[k] = (m[k] || 0) + 1; }); return Object.entries(m).sort((a, b) => b[1] - a[1]).slice(0, 8).map(e => ({ name: e[0], count: e[1] })); };
+  const refHost = (u) => { if (!u) return '(direct)'; try { return new URL(u).hostname.replace(/^www\./, ''); } catch (e) { return u.slice(0, 40); } };
+  const daily = {}; for (let i = days - 1; i >= 0; i--) { const d = new Date(Date.now() - i * 86400000).toISOString().slice(0, 10); daily[d] = 0; }
+  pv.forEach(r => { const d = (r.ts || '').slice(0, 10); if (d in daily) daily[d]++; });
+  const conversions = rows.filter(r => r.type === 'conversion' || r.type === 'purchase');
+  const revenue = conversions.reduce((s, r) => s + (Number(r.value) || 0), 0);
+  return J({
+    site, days, since,
+    pageviews: pv.length,
+    visitors: sessions.size,
+    signins: (byType.signin || 0) + (byType.login || 0),
+    signups: byType.signup || 0,
+    conversions: conversions.length,
+    revenue: revenue,
+    byType,
+    topPages: tally(pv, 'path'),
+    topReferrers: tally(pv, 'referrer', refHost),
+    daily: Object.entries(daily).map(e => ({ date: e[0], pv: e[1] })),
+    checkedAt: new Date().toISOString(),
+  });
 }
 
 // SEO + performance audit: fetch the page HTML and grade on-page basics.
