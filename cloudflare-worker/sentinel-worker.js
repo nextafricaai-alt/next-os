@@ -258,6 +258,11 @@ export default {
       return handleCheckProject(url.searchParams.get('url') || '', url.searchParams.get('domain') || '', cors);
     }
 
+    // ─── Route: /seo-audit — fetch a page and score its SEO ──
+    if (url.pathname === '/seo-audit') {
+      return handleSeoAudit(url.searchParams.get('url') || '', cors);
+    }
+
     // ─── Route: / — Llama agent (default) ───────────────────────────────
     return handleAgent(request, env, cors);
   },
@@ -781,6 +786,55 @@ async function sbWrite(env, path, body, method, prefer) {
   if (!res.ok) { const t = await res.text(); throw new Error('Supabase write ' + path + ' → ' + res.status + ' ' + t.slice(0, 240)); }
   const txt = await res.text();
   return txt ? JSON.parse(txt) : null;   // empty body (return=minimal / 201) → null, no crash
+}
+
+// SEO + performance audit: fetch the page HTML and grade on-page basics.
+async function handleSeoAudit(target, cors) {
+  const J = (o, st) => new Response(JSON.stringify(o), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
+  if (!target) return J({ error: 'url required' }, 400);
+  let html = '', status = null, ms = null, finalUrl = target;
+  try {
+    const t0 = Date.now();
+    const res = await fetch(target, { redirect: 'follow', headers: { 'User-Agent': 'NextOS-SEO-Bot/1.0' } });
+    ms = Date.now() - t0; status = res.status; finalUrl = res.url || target;
+    html = await res.text();
+  } catch (e) { return J({ error: 'Could not fetch: ' + String((e && e.message) || e).slice(0, 100) }); }
+  const pick = (re) => { const m = html.match(re); return m ? m[1].trim() : ''; };
+  const title = pick(/<title[^>]*>([\s\S]*?)<\/title>/i);
+  let metaDesc = pick(/<meta[^>]+name=["']description["'][^>]*content=["']([^"']*)["']/i);
+  if (!metaDesc) metaDesc = pick(/<meta[^>]+content=["']([^"']*)["'][^>]+name=["']description["']/i);
+  const h1s = (html.match(/<h1[\s>]/gi) || []).length;
+  const canonical = !!pick(/<link[^>]+rel=["']canonical["'][^>]*href=["']([^"']*)["']/i);
+  const viewport = /<meta[^>]+name=["']viewport["']/i.test(html);
+  const ogTitle = /<meta[^>]+property=["']og:title["']/i.test(html);
+  const ogImage = /<meta[^>]+property=["']og:image["']/i.test(html);
+  const noindex = /<meta[^>]+name=["']robots["'][^>]*content=["'][^"']*noindex/i.test(html);
+  const lang = pick(/<html[^>]+lang=["']([^"']+)["']/i);
+  const imgs = (html.match(/<img\b[^>]*>/gi) || []);
+  const imgsNoAlt = imgs.filter(t => !/\balt=/i.test(t)).length;
+  const text = html.replace(/<script[\s\S]*?<\/script>/gi, ' ').replace(/<style[\s\S]*?<\/style>/gi, ' ').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  const words = text ? text.split(' ').length : 0;
+  const https = /^https:/i.test(finalUrl);
+  const issues = [];
+  const add = (sev, msg, tip) => issues.push({ sev, msg, tip });
+  if (!title) add('high', 'No <title> tag', 'Add a unique 50-60 character title with your main keyword.');
+  else if (title.length < 15) add('med', 'Title very short (' + title.length + ' chars)', 'Aim for 50-60 chars describing the page + a keyword.');
+  else if (title.length > 65) add('low', 'Title long (' + title.length + ' chars)', 'Trim to ~60 chars so Google does not cut it off.');
+  if (!metaDesc) add('high', 'No meta description', 'Add a 140-160 char description - it is your ad copy in search results.');
+  else if (metaDesc.length < 70) add('low', 'Meta description short', 'Expand to 140-160 chars with a clear value + call to action.');
+  if (h1s === 0) add('high', 'No <h1> heading', 'Add exactly one <h1> stating the page main topic.');
+  else if (h1s > 1) add('med', h1s + ' <h1> tags', 'Use only one <h1>; make the rest <h2>/<h3>.');
+  if (!viewport) add('high', 'No mobile viewport tag', 'Add <meta name="viewport" content="width=device-width, initial-scale=1"> - Google is mobile-first.');
+  if (noindex) add('high', 'Page set to noindex', 'Remove the noindex robots tag or Google will not list this page.');
+  if (!https) add('high', 'Not served over HTTPS', 'Enable SSL (free on Hostinger) - required for ranking + trust.');
+  if (!canonical) add('low', 'No canonical link', 'Add <link rel="canonical"> to avoid duplicate-content confusion.');
+  if (!ogTitle || !ogImage) add('med', 'Missing Open Graph tags', 'Add og:title, og:description, og:image so shared links look good on WhatsApp/Facebook.');
+  if (!lang) add('low', 'No <html lang>', 'Add lang="en" to <html> for accessibility + locale signal.');
+  if (imgsNoAlt > 0) add('low', imgsNoAlt + ' image(s) missing alt text', 'Add descriptive alt="" to images - helps SEO + accessibility.');
+  if (words < 150) add('med', 'Thin content (' + words + ' words)', 'Add more useful copy - aim for 300+ words of real content.');
+  if (ms != null && ms > 3000) add('med', 'Slow load (' + ms + 'ms)', 'Compress images, enable Hostinger LiteSpeed cache; speed affects ranking.');
+  const score = Math.max(0, 100 - issues.reduce((a, i) => a + (i.sev === 'high' ? 18 : i.sev === 'med' ? 9 : 4), 0));
+  return J({ url: finalUrl, status, ms, score, title, titleLen: title.length, metaDesc, metaDescLen: metaDesc.length, h1s, viewport, canonical, og: (ogTitle && ogImage), https, lang, words, imgsNoAlt, issues, checkedAt: new Date().toISOString() });
 }
 
 // Live project watch: uptime (real fetch) + domain expiry (public RDAP). No keys needed.
