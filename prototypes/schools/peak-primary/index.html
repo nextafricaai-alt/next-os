@@ -2651,10 +2651,10 @@ const V4 = (function () {
 
         {/* user */}
         <div style={{ padding: 12, borderTop: '1px solid ' + T.border, display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ width: 30, height: 30, borderRadius: 999, background: T.gold, color: T.bg, display: 'grid', placeItems: 'center', fontSize: 11, fontWeight: 700 }}>SM</div>
+          <div style={{ width: 30, height: 30, borderRadius: 999, background: T.gold, color: T.bg, display: 'grid', placeItems: 'center', fontSize: 11, fontWeight: 700 }}>{(window.PEAK_ROLE&&window.PEAK_ROLE.initials&&window.PEAK_ROLE.initials())||'SM'}</div>
           <div style={{ lineHeight: 1.2, flex: 1, minWidth: 0 }}>
-            <div style={{ color: T.ink, fontWeight: 600, fontSize: 12.5 }}>Sarah Muyingo</div>
-            <div style={{ fontSize: 10.5, color: T.ink3 }}>Director</div>
+            <div style={{ color: T.ink, fontWeight: 600, fontSize: 12.5 }}>{(window.PEAK_ROLE&&window.PEAK_ROLE.getProfile&&window.PEAK_ROLE.getProfile().fullName)||'Director'}</div>
+            <div style={{ fontSize: 10.5, color: T.ink3 }}>{(window.PEAK_ROLE&&window.PEAK_ROLE.roleLabel&&window.PEAK_ROLE.roleLabel())||'Director'}</div>
           </div>
           <span style={{ color: T.ink3, fontSize: 14 }}>⚙</span>
         </div>
@@ -3041,7 +3041,7 @@ const V4 = (function () {
                   Thursday · 14 May 2026 · Term 2 · Week 6
                 </div>
                 <div style={{ fontSize: 30, fontWeight: 700, color: T.ink, letterSpacing: '-0.025em', lineHeight: 1.05 }}>
-                  Good morning, Sarah.
+                  {(function(){var p=(window.PEAK_ROLE&&window.PEAK_ROLE.getProfile&&window.PEAK_ROLE.getProfile())||{};var n=((p.fullName||'').trim().split(' ')[0])||'there';var h=new Date().getHours();var g=h<12?'Good morning':h<17?'Good afternoon':'Good evening';return g+', '+n+'.';})()}
                 </div>
                 <div style={{ fontSize: 14, color: T.ink2, marginTop: 8, maxWidth: 620 }}>
                   {D.kpis.presentToday} of {D.kpis.students} children on campus. Fees at {D.kpis.feesTargetTerm ? Math.round(100*D.kpis.feesCollectedTerm/D.kpis.feesTargetTerm) : 0}%. {D.hasData ? 'Here is what needs your attention today.' : 'No roster imported yet — add students to bring this dashboard to life.'}
@@ -3385,7 +3385,7 @@ const PD_Today = (function () {
                 background: 'rgba(58,79,156,0.16)', borderRadius: 12, padding: 14, border: '1px solid ' + T.borderStr,
                 fontSize: 13, color: T.ink, lineHeight: 1.55,
               }}>
-                Good morning Sarah. The school is calm. Three things worth knowing before you start:
+                {'Good morning ' + (function(){var p=(window.PEAK_ROLE&&window.PEAK_ROLE.getProfile&&window.PEAK_ROLE.getProfile())||{};return ((p.fullName||'').trim().split(' ')[0])||'there';})() + '. The school is calm. Three things worth knowing before you start:'}
               </div>
             </div>
 
