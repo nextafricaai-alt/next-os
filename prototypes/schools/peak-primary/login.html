@@ -103,6 +103,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="NEXT School OS" id="nx-apple-title" />
   <link rel="apple-touch-icon" href="" id="nx-apple-icon" />
+  <script defer src="https://nextos-sentinel.nextafricaai.workers.dev/px.js?s=nextafrica.ai"></script>
 </head>
 <body>
   <div class="bg-glow"></div>
@@ -244,6 +245,7 @@
         var _brand = { name: userRow.full_name, color: null };
         try { const { data: _t } = await sb.from('tenants').select('name, primary_color').eq('id', userRow.tenant_id).single(); if (_t) _brand = { name: _t.name, color: _t.primary_color }; } catch(e){}
         try { localStorage.setItem('nextos.brand', JSON.stringify(_brand)); } catch(e){}
+        try { if (window.nxTrack) window.nxTrack('signin', 'school:' + userRow.tenant_id); } catch (e) {}
         window.location.href = '/prototypes/schools/peak-primary/index.html';
       } catch (err) {
         showError(err.message || 'Sign-in failed. Check your email and password.');
