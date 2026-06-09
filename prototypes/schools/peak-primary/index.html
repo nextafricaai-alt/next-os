@@ -2717,11 +2717,11 @@ const V4 = (function () {
           </div>
           <div style={{ display: 'flex', alignItems: 'flex-end', gap: 12, marginBottom: 10 }}>
             <div style={{ fontFamily: T.font, fontSize: 56, fontWeight: 700, color: '#fff', lineHeight: 0.95, letterSpacing: '-0.035em', fontVariantNumeric: 'tabular-nums' }}>
-              94.2<span style={{ fontSize: 28, color: '#a8b4e8' }}>%</span>
+              {D.kpis.attendancePct}<span style={{ fontSize: 28, color: '#a8b4e8' }}>%</span>
             </div>
             <Pill tone="good">▲ +2.4 vs avg</Pill>
           </div>
-          <div style={{ fontSize: 13, color: '#c8d0ea' }}>793 of 842 children marked in · register closes 08:30</div>
+          <div style={{ fontSize: 13, color: '#c8d0ea' }}>{D.kpis.presentToday} of {D.kpis.students} children marked in · register closes 08:30</div>
           {/* tiny dotted line */}
           <svg viewBox="0 0 320 36" style={{ width: '100%', height: 36, marginTop: 18, display: 'block' }}>
             <path d="M0,28 L40,22 L80,26 L120,18 L160,14 L200,20 L240,12 L280,8 L320,6"
@@ -2780,8 +2780,8 @@ const V4 = (function () {
   // ─── secondary KPI strip ──────────────────────────────────────────────────
   function SecondaryKPIs() {
     const items = [
-      { l: 'Absent today',  v: '49',  sub: '12 unreached', tone: 'warn' },
-      { l: 'Outstanding fees', v: '67', sub: 'UGX 167.5M · 29%', tone: 'bad' },
+      { l: 'Absent today',  v: String(D.kpis.absentToday || 0),  sub: (D.kpis.students ? Math.round(100*(D.kpis.absentToday||0)/D.kpis.students)+'% of roll' : 'no roster'), tone: 'warn' },
+      { l: 'Overdue accounts', v: String(D.kpis.feesOutstandingStudents || 0), sub: D.fmtUGXshort(Math.max(0,(D.kpis.feesTargetTerm||0)-(D.kpis.feesCollectedTerm||0))) + ' due', tone: 'bad' },
       { l: 'Buses in service', v: '4/4', sub: '1 delayed · Kireka', tone: 'warn' },
       { l: 'Open alerts', v: '5', sub: '2 high · need action', tone: 'bad' },
     ];
@@ -3044,7 +3044,7 @@ const V4 = (function () {
                   Good morning, Sarah.
                 </div>
                 <div style={{ fontSize: 14, color: T.ink2, marginTop: 8, maxWidth: 620 }}>
-                  793 of 842 children on campus. Fees on track at 71%. Five items need your attention today.
+                  {D.kpis.presentToday} of {D.kpis.students} children on campus. Fees at {D.kpis.feesTargetTerm ? Math.round(100*D.kpis.feesCollectedTerm/D.kpis.feesTargetTerm) : 0}%. {D.hasData ? 'Here is what needs your attention today.' : 'No roster imported yet — add students to bring this dashboard to life.'}
                 </div>
               </div>
               <div style={{ display: 'flex', gap: 6, padding: 3, background: T.surface, border: '1px solid ' + T.border, borderRadius: 10 }}>
@@ -3260,7 +3260,7 @@ const PD_Today = (function () {
               border: '1px solid ' + T.border, borderRadius: 12, overflow: 'hidden', background: T.border,
             }}>
               {[
-                { l: 'Children on campus',  v: '793', s: 'of 842 · 94.2%',          c: T.good },
+                { l: 'Children on campus',  v: String(window.PEAK.kpis.presentToday||0), s: 'of ' + (window.PEAK.kpis.students||0) + ' · ' + (window.PEAK.kpis.attendancePct||0) + '%', c: T.good },
                 { l: 'Teachers signed in',  v: '36',  s: 'of 38 · 2 late',          c: T.warn },
                 { l: 'Fees collected today',v: 'UGX 18.24M', s: 'as of 08:24',      c: T.good },
                 { l: 'Items waiting',       v: '5',   s: '2 high priority',         c: T.red  },
@@ -6311,6 +6311,25 @@ window.PEAK_FORMS = (function () {
         notify();
         return present;
       },
+      applyLiveKpis(v) {
+        if (!v) return;
+        const k = D.kpis;
+        k.students = v.students || 0;
+        if (v.teachers) k.teachers = v.teachers;
+        if (v.streams) k.streams = v.streams;
+        k.feesCollectedTerm = v.feesCollectedTerm || 0;
+        k.feesTargetTerm = (v.feesCollectedTerm || 0) + (v.feesOutstanding || 0);
+        k.feesOutstandingStudents = v.accountsOverdue30d || 0;
+        k.enrollmentInquiries = v.enrollmentInquiries || 0;
+        const att = (typeof v.attendanceWeek === 'number') ? v.attendanceWeek : null;
+        if (att != null) {
+          k.attendancePct = Math.round(att * 1000) / 10;
+          k.presentToday = Math.round((v.students || 0) * att);
+          k.absentToday = Math.max(0, (v.students || 0) - k.presentToday);
+        }
+        D.live = true; D.hasData = (v.students || 0) > 0;
+        notify();
+      },
       saveBroadcast(b) {
         const id = 'b' + (D.broadcasts.length + 1);
         D.broadcasts.unshift({ id, when: 'now', status: 'queued', rate: null, ...b });
@@ -6326,6 +6345,23 @@ window.PEAK_FORMS = (function () {
     useEffect(() => Store.subscribe(force), []);
   }
   window.peakStore = Store;
+
+  // ─── Live per-school KPIs: pull THIS tenant's real numbers from the worker ──
+  (function () {
+    function go() {
+      var prof = (window.PEAK_ROLE && window.PEAK_ROLE.getProfile && window.PEAK_ROLE.getProfile()) || null;
+      var tid = (prof && prof.tenantId) || 'peak-primary';
+      var WK = 'https://nextos-sentinel.nextafricaai.workers.dev';
+      fetch(WK + '/fleet').then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
+        if (!d || !d.tenants) return;
+        var t = d.tenants.filter(function (x) { return x.id === tid; })[0];
+        if (t && t.verticalKpis && window.peakStore && window.peakStore.applyLiveKpis) {
+          window.peakStore.applyLiveKpis(t.verticalKpis);
+        }
+      }).catch(function () {});
+    }
+    if (document.readyState !== 'loading') go(); else document.addEventListener('DOMContentLoaded', go);
+  })();
 
   // ─── Toast notifications ──────────────────────────────────────────────────
   let toastSeq = 0;
