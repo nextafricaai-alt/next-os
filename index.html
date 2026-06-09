@@ -2061,6 +2061,22 @@ const ProjectDetail = ({ project, onBack }) => {
     } catch (e) { setSeo({ error: String((e && e.message) || e) }); }
     setSeoLoading(false);
   };
+  const siteKey = pm.domain || (function () { try { return new URL(pm.url).hostname.replace(/^www\./, ''); } catch (e) { return ''; } })();
+  const pxSnippet = '<script defer src="https://nextos-sentinel.nextafricaai.workers.dev/px.js?s=' + (siteKey || 'YOURDOMAIN.com') + '"><\/script>';
+  const [an, setAn] = React.useState(meta.lastAnalytics || null);
+  const [anLoading, setAnLoading] = React.useState(false);
+  const runAnalytics = async () => {
+    if (!siteKey) return;
+    setAnLoading(true);
+    try {
+      const base = (window.NEXT_OS_SENTINEL_ENDPOINT) || 'https://nextos-sentinel.nextafricaai.workers.dev';
+      const r = await fetch(base + '/analytics?site=' + encodeURIComponent(siteKey) + '&days=7');
+      const d = await r.json(); setAn(d);
+      const nm = Object.assign({}, meta, { lastAnalytics: d }); try { localStorage.setItem(META_KEY, JSON.stringify(nm)); } catch (e) {} setMeta(nm);
+    } catch (e) { setAn({ error: String((e && e.message) || e) }); }
+    setAnLoading(false);
+  };
+  React.useEffect(() => { if (tab === 'analytics' && !an && siteKey) runAnalytics(); }, [tab]);
 
   const sectionStyle = {
     background: 'var(--bg-elevated)', borderRadius: 'var(--radius-md)',
@@ -2087,7 +2103,7 @@ const ProjectDetail = ({ project, onBack }) => {
 
       {/* Tabs */}
       <div style={{ display: 'flex', gap: 2, marginBottom: 20, background: 'var(--bg-deep)', borderRadius: 'var(--radius-sm)', padding: 3 }}>
-        {['overview', 'seo', 'alerts', 'credentials', 'milestones'].map(t => (
+        {['overview', 'analytics', 'seo', 'alerts', 'credentials', 'milestones'].map(t => (
           <button key={t} onClick={() => setTab(t)} style={{
             flex: 1, padding: '9px 14px', border: 'none', borderRadius: 'var(--radius-sm)',
             background: tab === t ? 'var(--bg-elevated)' : 'transparent',
@@ -2177,6 +2193,56 @@ const ProjectDetail = ({ project, onBack }) => {
               </div>
             )}
           </div>
+        </div>
+      )}
+
+      {tab === 'analytics' && (
+        <div style={sectionStyle}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Analytics · last 7 days</div>
+            <button onClick={runAnalytics} disabled={anLoading || !siteKey} style={{ background: 'var(--bg-deep)', color: 'var(--text-primary)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-sm)', padding: '6px 12px', fontSize: 12, cursor: (anLoading || !siteKey) ? 'not-allowed' : 'pointer' }}>{anLoading ? 'Loading...' : 'Refresh'}</button>
+          </div>
+          {(!an || (an && !an.error && an.pageviews === 0)) && (
+            <div style={{ padding: 14, background: 'var(--bg-deep)', borderRadius: 'var(--radius-sm)', marginBottom: 16 }}>
+              <div style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 600, marginBottom: 6 }}>No data yet — add the tracker to this site</div>
+              <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 8 }}>Paste this one line just before &lt;/body&gt; on every page (Hostinger File Manager), then traffic shows up here automatically:</div>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--mint)', background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: 6, padding: 10, wordBreak: 'break-all' }}>{pxSnippet}</div>
+              <button onClick={() => { try { navigator.clipboard.writeText(pxSnippet); window.NEXT_OS && window.NEXT_OS.notify && window.NEXT_OS.notify({ severity: 'success', title: 'Tracker copied', body: 'Paste before </body> on ' + (siteKey || 'the site'), source: 'NEXT OS' }); } catch (e) {} }} style={{ marginTop: 8, background: 'transparent', color: 'var(--mint)', border: '1px solid var(--border-subtle)', borderRadius: 6, padding: '6px 10px', fontSize: 12, cursor: 'pointer' }}>Copy snippet</button>
+              <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginTop: 8 }}>For sign-ins/sales, call <span style={{ fontFamily: 'var(--font-mono)' }}>nxTrack('signin')</span> or <span style={{ fontFamily: 'var(--font-mono)' }}>nxTrack('conversion','ticket',value)</span> in your code.</div>
+            </div>
+          )}
+          {an && an.error && <div style={{ color: 'var(--danger)', fontSize: 13 }}>Could not load: {an.error}</div>}
+          {an && !an.error && (
+            <div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 1, background: 'var(--border-subtle)', borderRadius: 'var(--radius-sm)', overflow: 'hidden', marginBottom: 16 }}>
+                {[['Visitors', an.visitors], ['Pageviews', an.pageviews], ['Sign-ins', an.signins], ['Conversions', an.conversions], ['Revenue', an.revenue ? an.revenue.toLocaleString() : 0]].map((k, i) => (
+                  <div key={i} style={{ background: 'var(--bg-surface)', padding: 14 }}>
+                    <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{k[0]}</div>
+                    <div style={{ fontSize: 22, fontFamily: 'var(--font-display)', fontWeight: 700, color: 'var(--text-primary)', marginTop: 4 }}>{k[1]}</div>
+                  </div>
+                ))}
+              </div>
+              <div style={{ display: 'flex', gap: 4, alignItems: 'flex-end', height: 60, marginBottom: 16 }}>
+                {(an.daily || []).map((d, i) => { const max = Math.max(1, ...(an.daily || []).map(x => x.pv)); return (
+                  <div key={i} title={d.date + ': ' + d.pv} style={{ flex: 1, background: 'var(--mint)', opacity: 0.7, height: Math.max(2, Math.round(d.pv / max * 56)) + 'px', borderRadius: 2 }} />
+                ); })}
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                <div>
+                  <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)', textTransform: 'uppercase', marginBottom: 8 }}>Top pages</div>
+                  {(an.topPages || []).length === 0 ? <div style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>—</div> : (an.topPages || []).map((p, i) => (
+                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, padding: '4px 0', borderBottom: '1px solid var(--border-subtle)' }}><span style={{ color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '78%' }}>{p.name}</span><span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-primary)' }}>{p.count}</span></div>
+                  ))}
+                </div>
+                <div>
+                  <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)', textTransform: 'uppercase', marginBottom: 8 }}>Top referrers</div>
+                  {(an.topReferrers || []).length === 0 ? <div style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>—</div> : (an.topReferrers || []).map((p, i) => (
+                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, padding: '4px 0', borderBottom: '1px solid var(--border-subtle)' }}><span style={{ color: 'var(--text-secondary)' }}>{p.name}</span><span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-primary)' }}>{p.count}</span></div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -3702,7 +3768,7 @@ DEFAULTS
 - "Draft / write a WhatsApp" → draft_message first → THEN write the draft in a code block. Stop. Ask Hudson if he wants you to open WhatsApp.
 - "Send a WhatsApp to <number>" → open_whatsapp(phone, message) (Path A). If Hudson says "actually send" or "use Cloud API", call send_whatsapp.
 - "Notify me about X" → notify(severity, title, body).
-- "Improve SEO / how do I rank better / audit <site>" -> read_projects (get url) -> seo_audit(url) -> give the score + top 3 fixes with the exact change.\n- "Is <project> up? / watch <site> / check the domain" → read_projects (get the url/domain) → check_project(url, domain) → report up/down + days to domain expiry. If down or expiring, state it and DRAFT the fix for Hudson to approve; never claim you fixed it yourself.\n- "Record a payment / issue a receipt for <school>" → issue_receipt(tenant_id, amount, student_name, guardian_phone?). Then tell Hudson the receipt number; if a guardian phone was given, offer to open WhatsApp to send it. The receipt is stored and downloadable as a branded PDF in that school Fees then Receipts.
+- "How is <site> performing / traffic / visitors this week" -> read_projects (get domain) -> read_analytics(site) -> summarize + 1-2 growth tips.\n- "Improve SEO / how do I rank better / audit <site>" -> read_projects (get url) -> seo_audit(url) -> give the score + top 3 fixes with the exact change.\n- "Is <project> up? / watch <site> / check the domain" → read_projects (get the url/domain) → check_project(url, domain) → report up/down + days to domain expiry. If down or expiring, state it and DRAFT the fix for Hudson to approve; never claim you fixed it yourself.\n- "Record a payment / issue a receipt for <school>" → issue_receipt(tenant_id, amount, student_name, guardian_phone?). Then tell Hudson the receipt number; if a guardian phone was given, offer to open WhatsApp to send it. The receipt is stored and downloadable as a branded PDF in that school Fees then Receipts.
 
 WHATSAPP TOOLS
 - open_whatsapp(phone, message): opens WhatsApp on Hudson's device, message pre-filled. Free. DEFAULT.
@@ -3788,6 +3854,8 @@ You: "'We help you get more done with less stress.' Nine plain words beat the ja
       }, required: [] } },
     { name: 'seo_audit', description: 'Audit a web page for SEO + performance: title, meta description, headings, mobile viewport, HTTPS, Open Graph, load speed, word count. Returns a score and concrete fix tips. Use when asked to improve SEO/ranking or review a site. Get the url from read_projects.',
       input_schema: { type: 'object', properties: { url: { type: 'string', description: 'Full page URL to audit, e.g. https://puritymukisa.com' } }, required: ['url'] } },
+    { name: 'read_analytics', description: 'Traffic + events for a site over the last N days: visitors, pageviews, sign-ins, conversions, revenue, top pages, referrers. Use when asked how a site is performing. Get the site domain from read_projects.',
+      input_schema: { type: 'object', properties: { site: { type: 'string', description: 'Site domain key, e.g. puritymukisa.com' }, days: { type: 'number', description: 'Days back (default 7)' } }, required: ['site'] } },
   ];
 
 
@@ -3977,6 +4045,16 @@ You: "'We help you get more done with less stress.' Nine plain words beat the ja
             const res = await fetch(endpoint + '/seo-audit?url=' + encodeURIComponent(u));
             const data = await res.json();
             return JSON.stringify(Object.assign({ instruction: 'Give Hudson the score, then the top 3 highest-impact fixes in plain language with the exact change to make. Lead with the point, no jargon.' }, data));
+          } catch (e) { return JSON.stringify({ error: String(e.message || e) }); }
+        }
+        case 'read_analytics': {
+          const site = String(input.site || '').trim();
+          if (!site) return JSON.stringify({ error: 'Provide a site domain. Use read_projects to find it.' });
+          const endpoint = (typeof window !== 'undefined' && window.NEXT_OS_SENTINEL_ENDPOINT) || NIA_FREE_ENDPOINT;
+          try {
+            const res = await fetch(endpoint + '/analytics?site=' + encodeURIComponent(site) + '&days=' + (Number(input.days) || 7));
+            const data = await res.json();
+            return JSON.stringify(Object.assign({ instruction: 'Summarize traffic plainly (visitors, pageviews, trend, top page, where visitors come from, any sign-ins/conversions). If pageviews is 0, tell Hudson the tracker snippet is not installed on that site yet. Then give 1-2 concrete growth tips.' }, data));
           } catch (e) { return JSON.stringify({ error: String(e.message || e) }); }
         }
         default: return JSON.stringify({ error: 'Unknown tool: ' + name });
