@@ -3641,6 +3641,7 @@ DEFAULTS
 - "Draft / write a WhatsApp" → draft_message first → THEN write the draft in a code block. Stop. Ask Hudson if he wants you to open WhatsApp.
 - "Send a WhatsApp to <number>" → open_whatsapp(phone, message) (Path A). If Hudson says "actually send" or "use Cloud API", call send_whatsapp.
 - "Notify me about X" → notify(severity, title, body).
+- "Record a payment / issue a receipt for <school>" → issue_receipt(tenant_id, amount, student_name, guardian_phone?). Then tell Hudson the receipt number; if a guardian phone was given, offer to open WhatsApp to send it. The receipt is stored and downloadable as a branded PDF in that school Fees then Receipts.
 
 WHATSAPP TOOLS
 - open_whatsapp(phone, message): opens WhatsApp on Hudson's device, message pre-filled. Free. DEFAULT.
@@ -3709,6 +3710,16 @@ You: "'We help you get more done with less stress.' Nine plain words beat the ja
         phone:   { type: 'string', description: 'International format, digits only, no + (e.g. 256772123456)' },
         message: { type: 'string', description: 'The message text to send' }
       }, required: ['phone', 'message'] } },
+    { name: 'issue_receipt', description: 'Create a REAL, numbered fee-payment receipt for a school (tenant) and store it in the database. Returns the receipt number and, if a guardian phone is provided, a WhatsApp link. Use when recording/confirming a payment or when asked to issue a receipt for a school.',
+      input_schema: { type: 'object', properties: {
+        tenant_id:      { type: 'string', description: 'Tenant slug, e.g. peak-primary or bare-foot' },
+        amount:         { type: 'number', description: 'Amount received, positive number' },
+        student_name:   { type: 'string', description: 'Student the payment is for' },
+        guardian_name:  { type: 'string', description: 'Guardian name (optional)' },
+        guardian_phone: { type: 'string', description: 'Guardian WhatsApp, digits only e.g. 256772123456 (optional; enables WhatsApp send)' },
+        method:         { type: 'string', description: 'cash | momo | mtn | airtel | mpesa | bank | cheque' },
+        reference:      { type: 'string', description: 'Payment reference / txn id (optional)' }
+      }, required: ['tenant_id', 'amount'] } },
   ];
 
 
@@ -3854,6 +3865,23 @@ You: "'We help you get more done with less stress.' Nine plain words beat the ja
           } catch (e) {
             return JSON.stringify({ sent: false, error: String(e.message || e), hint: 'Likely WhatsApp Cloud API not configured. Fall back to open_whatsapp.' });
           }
+        }
+        case 'issue_receipt': {
+          const tenant = String(input.tenant_id || '').trim();
+          if (!tenant) return JSON.stringify({ ok: false, error: 'tenant_id required (e.g. peak-primary, bare-foot)' });
+          const amount = Number(input.amount || 0);
+          if (!amount || amount <= 0) return JSON.stringify({ ok: false, error: 'A positive amount is required.' });
+          const endpoint = (typeof window !== 'undefined' && window.NEXT_OS_SENTINEL_ENDPOINT) || NIA_FREE_ENDPOINT;
+          try {
+            const res = await fetch(endpoint + '/issue-receipt', {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ tenant_id: tenant, amount, student_name: input.student_name || null, guardian_name: input.guardian_name || null, guardian_phone: input.guardian_phone || null, method: input.method || null, reference: input.reference || null, issued_by: 'Nia' }),
+            });
+            const data = await res.json();
+            if (!res.ok || data.ok === false) return JSON.stringify({ ok: false, error: (data && data.error) || ('HTTP ' + res.status), hint: 'If the receipts table is missing, run cloudflare-worker/supabase-schema-receipts.sql in Supabase.' });
+            if (window.NEXT_OS && typeof window.NEXT_OS.notify === 'function') { window.NEXT_OS.notify({ severity: 'success', title: 'Receipt ' + data.receipt_no + ' issued', body: 'Stored for ' + tenant, source: 'Sentinel · Nia' }); }
+            return JSON.stringify({ ok: true, receipt_no: data.receipt_no, receipt: data.receipt, whatsappUrl: data.whatsappUrl, instruction: 'The receipt is created and stored. Tell Hudson the receipt number. If whatsappUrl is present, offer to open WhatsApp to send it to the guardian (call open_whatsapp with the guardian phone). If no guardian phone was given, say the receipt is saved and downloadable as a PDF from that school Fees then Receipts.' });
+          } catch (e) { return JSON.stringify({ ok: false, error: String(e.message || e) }); }
         }
         default: return JSON.stringify({ error: 'Unknown tool: ' + name });
       }

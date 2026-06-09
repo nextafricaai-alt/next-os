@@ -248,6 +248,11 @@ export default {
       return handleProvisionSchool(request, env, cors);
     }
 
+    // ─── Route: /issue-receipt — Nia issues a real receipt for a tenant ──
+    if (url.pathname === '/issue-receipt') {
+      return handleIssueReceipt(request, env, cors);
+    }
+
     // ─── Route: / — Llama agent (default) ───────────────────────────────
     return handleAgent(request, env, cors);
   },
@@ -771,6 +776,44 @@ async function sbWrite(env, path, body, method, prefer) {
   if (!res.ok) { const t = await res.text(); throw new Error('Supabase write ' + path + ' → ' + res.status + ' ' + t.slice(0, 240)); }
   const txt = await res.text();
   return txt ? JSON.parse(txt) : null;   // empty body (return=minimal / 201) → null, no crash
+}
+
+// Issue a real receipt for a tenant (service_role insert; bypasses RLS).
+async function handleIssueReceipt(request, env, cors) {
+  const J = (o, st) => new Response(JSON.stringify(o), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
+  try {
+    if (request.method !== 'POST') return J({ ok: false, error: 'POST only' }, 405);
+    const body = await request.json().catch(() => ({}));
+    const tenantId = String(body.tenant_id || '').trim();
+    if (!tenantId) return J({ ok: false, error: 'tenant_id required' }, 400);
+    const amount = Number(body.amount || 0);
+    if (!amount || amount <= 0) return J({ ok: false, error: 'positive amount required' }, 400);
+    const trows = await sbFetch(env, '/tenants?id=eq.' + encodeURIComponent(tenantId) + '&select=name,currency');
+    if (!trows || !trows[0]) return J({ ok: false, error: 'unknown tenant: ' + tenantId }, 404);
+    const tname = trows[0].name || tenantId;
+    const currency = trows[0].currency || 'UGX';
+    const existing = (await sbFetch(env, '/receipts?tenant_id=eq.' + encodeURIComponent(tenantId) + '&select=id')) || [];
+    const prefix = (String(tname).match(/[A-Za-z0-9]/g) || ['N']).slice(0, 2).join('').toUpperCase();
+    const no = prefix + '-' + new Date().getFullYear() + '-' + String(existing.length + 1).padStart(5, '0');
+    const phone = String(body.guardian_phone || '').replace(/[^0-9]/g, '') || null;
+    const rec = {
+      tenant_id: tenantId, receipt_no: no,
+      student_name: body.student_name || null, guardian_name: body.guardian_name || null, guardian_phone: phone,
+      amount: amount, currency: currency, kind: 'fees', method: body.method || null, reference: body.reference || null,
+      balance_after: (body.balance_after != null ? Number(body.balance_after) : null), term: body.term || null,
+      issued_by: body.issued_by || 'Nia',
+    };
+    const inserted = await sbWrite(env, '/receipts', rec, 'POST', 'return=representation');
+    const saved = Array.isArray(inserted) ? inserted[0] : (inserted || rec);
+    let wa = null;
+    if (phone) {
+      const msg = 'Dear ' + (rec.guardian_name || 'Parent') + ', we confirm receipt of ' + currency + ' ' + amount.toLocaleString() + ' for ' + (rec.student_name || 'your child') + ' at ' + tname + '. Receipt ' + no + '. Thank you.';
+      wa = 'https://wa.me/' + phone + '?text=' + encodeURIComponent(msg);
+    }
+    return J({ ok: true, receipt: saved, receipt_no: no, whatsappUrl: wa });
+  } catch (e) {
+    return J({ ok: false, error: String((e && e.message) || e) }, 500);
+  }
 }
 
 // Provision a new school: tenant row + admin auth user + users link + branded link.
