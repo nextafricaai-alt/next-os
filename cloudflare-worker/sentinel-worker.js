@@ -253,6 +253,11 @@ export default {
       return handleIssueReceipt(request, env, cors);
     }
 
+    // ─── Route: /check-project — uptime + domain-expiry watch for a project ──
+    if (url.pathname === '/check-project') {
+      return handleCheckProject(url.searchParams.get('url') || '', url.searchParams.get('domain') || '', cors);
+    }
+
     // ─── Route: / — Llama agent (default) ───────────────────────────────
     return handleAgent(request, env, cors);
   },
@@ -776,6 +781,43 @@ async function sbWrite(env, path, body, method, prefer) {
   if (!res.ok) { const t = await res.text(); throw new Error('Supabase write ' + path + ' → ' + res.status + ' ' + t.slice(0, 240)); }
   const txt = await res.text();
   return txt ? JSON.parse(txt) : null;   // empty body (return=minimal / 201) → null, no crash
+}
+
+// Live project watch: uptime (real fetch) + domain expiry (public RDAP). No keys needed.
+async function handleCheckProject(target, domain, cors) {
+  const J = (o, st) => new Response(JSON.stringify(o), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
+  const out = { checkedAt: new Date().toISOString(), url: target || null, domain: domain || null, up: null, status: null, ms: null, https: null, domainExpiry: null, daysToExpiry: null, alerts: [] };
+  if (target) {
+    try {
+      const t0 = Date.now();
+      const res = await fetch(target, { method: 'GET', redirect: 'follow' });
+      out.ms = Date.now() - t0; out.status = res.status; out.up = res.status < 500; out.https = /^https:/i.test(target);
+      if (res.status >= 500) out.alerts.push({ type: 'critical', msg: 'Site returning ' + res.status + ' server error' });
+      else if (res.status >= 400) out.alerts.push({ type: 'warning', msg: 'Site returning HTTP ' + res.status });
+      else if (out.ms > 4000) out.alerts.push({ type: 'warning', msg: 'Slow response (' + out.ms + 'ms)' });
+    } catch (e) { out.up = false; out.alerts.push({ type: 'critical', msg: 'Site unreachable: ' + String((e && e.message) || e).slice(0, 90) }); }
+  }
+  let dom = domain;
+  if (!dom && target) { try { dom = new URL(target).hostname.replace(/^www\./, ''); } catch (e) {} }
+  if (dom) {
+    out.domain = dom;
+    try {
+      const r = await fetch('https://rdap.org/domain/' + encodeURIComponent(dom), { headers: { 'Accept': 'application/rdap+json' } });
+      if (r.ok) {
+        const j = await r.json();
+        const ev = (j.events || []).find(e => /expir/i.test(e.eventAction || ''));
+        if (ev && ev.eventDate) {
+          out.domainExpiry = ev.eventDate;
+          const days = Math.round((new Date(ev.eventDate).getTime() - Date.now()) / 86400000);
+          out.daysToExpiry = days;
+          if (days < 0) out.alerts.push({ type: 'critical', msg: 'Domain ' + dom + ' EXPIRED ' + Math.abs(days) + ' days ago' });
+          else if (days <= 30) out.alerts.push({ type: 'warning', msg: 'Domain ' + dom + ' expires in ' + days + ' days — renew soon' });
+        }
+      }
+    } catch (e) {}
+  }
+  out.health = out.alerts.some(a => a.type === 'critical') ? 'critical' : (out.alerts.length ? 'warning' : 'healthy');
+  return J(out);
 }
 
 // Issue a real receipt for a tenant (service_role insert; bypasses RLS).

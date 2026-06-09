@@ -1918,110 +1918,60 @@ Object.assign(window, { MembersPage, MembershipCard, TIER_CONFIG });
 
 const PROJECT_DATA = [
   {
-    id: 'proj-001', name: 'Digital Services Platform', client: 'Ministry of ICT, Uganda',
-    status: 'active', health: 'healthy', progress: 67, priority: 'high',
-    platform: 'Supabase + Next.js', domain: 'services.gov.ug',
-    team: ['HT', 'AO', 'DM'], startDate: '2026-01-15', deadline: '2026-07-30',
-    credentials: { supabaseUrl: 'https://xyzabc.supabase.co', supabaseKey: 'eyJhbG...redacted', adminEmail: 'admin@ict.gov.ug' },
-    uptime: 99.7, lastDeploy: '2 days ago', errors24h: 0, warnings24h: 1,
-    alerts: [{ type: 'warning', msg: 'SSL certificate expires in 14 days', time: '6h ago' }],
-    milestones: [
-      { name: 'Phase 1 - Auth & Portal', done: true },
-      { name: 'Phase 2 - Service Registry', done: true },
-      { name: 'Phase 3 - Payment Integration', done: false },
-      { name: 'Phase 4 - Public Launch', done: false },
-    ],
-  },
-  {
-    id: 'proj-002', name: 'AI Operations Suite', client: 'UBA Group',
-    status: 'active', health: 'warning', progress: 42, priority: 'high',
-    platform: 'Supabase + React', domain: 'ai.ubagroup.com',
-    team: ['HT', 'GN'], startDate: '2026-03-01', deadline: '2026-09-15',
-    credentials: { supabaseUrl: 'https://ubaabc.supabase.co', supabaseKey: 'eyJhbG...redacted', adminEmail: 'tech@ubagroup.com' },
-    uptime: 98.2, lastDeploy: '5 hours ago', errors24h: 3, warnings24h: 7,
-    alerts: [
-      { type: 'error', msg: 'API rate limit exceeded - AI inference endpoint', time: '2h ago' },
-      { type: 'warning', msg: 'Database connection pool at 85% capacity', time: '3h ago' },
-      { type: 'warning', msg: 'Slow query detected: analytics_aggregate (2.4s)', time: '5h ago' },
-    ],
-    milestones: [
-      { name: 'Phase 1 - Data Pipeline', done: true },
-      { name: 'Phase 2 - AI Model Integration', done: false },
-      { name: 'Phase 3 - Dashboard & Reporting', done: false },
-    ],
-  },
-  {
-    id: 'proj-003', name: 'Smart Campus', client: 'University of Lagos',
-    status: 'review', health: 'healthy', progress: 89, priority: 'medium',
-    platform: 'Supabase + Vue.js', domain: 'smart.unilag.edu.ng',
-    team: ['DM', 'EA'], startDate: '2025-11-01', deadline: '2026-06-01',
-    credentials: { supabaseUrl: 'https://unilag.supabase.co', supabaseKey: 'eyJhbG...redacted', adminEmail: 'ict@unilag.edu.ng' },
-    uptime: 99.9, lastDeploy: '1 week ago', errors24h: 0, warnings24h: 0,
+    id: 'next-os', name: 'NEXT OS + Schools OS', client: 'NEXT (internal) · multi-tenant operating system', kind: 'os',
+    status: 'active', health: 'healthy', progress: 80, priority: 'high',
+    platform: 'Cloudflare Worker + Supabase + Hostinger', domain: 'nextafrica.ai', url: 'https://nextos.nextafrica.ai',
+    builtDate: '2026-05', hosting: 'Hostinger (site) · Cloudflare (Nia worker)', registrar: '',
+    team: ['HT'], startDate: '2026-05-01', deadline: '',
+    uptime: 100, lastDeploy: 'auto (GitHub → Hostinger)', errors24h: 0, warnings24h: 0,
     alerts: [],
     milestones: [
-      { name: 'Phase 1 - Student Portal', done: true },
-      { name: 'Phase 2 - Faculty Systems', done: true },
-      { name: 'Phase 3 - Analytics Dashboard', done: true },
-      { name: 'Phase 4 - QA & Handoff', done: false },
+      { name: 'Onboarding engine (new schools)', done: true },
+      { name: 'Live per-school data + branding', done: true },
+      { name: 'Receipts (PDF + WhatsApp)', done: true },
+      { name: 'Roster import (real students)', done: false },
     ],
+    credentials: { supabaseUrl: 'https://llxhvqkkgftqwefmrofn.supabase.co', supabaseKey: 'service key — stored as Cloudflare secret', adminEmail: 'nextafrica.ai@gmail.com' },
   },
   {
-    id: 'proj-004', name: 'Process Automation', client: 'Safaricom',
-    status: 'active', health: 'critical', progress: 31, priority: 'critical',
-    platform: 'Supabase + Next.js', domain: 'auto.safaricom.internal',
-    team: ['HT', 'WK', 'JP'], startDate: '2026-04-10', deadline: '2026-10-30',
-    credentials: { supabaseUrl: 'https://safcom.supabase.co', supabaseKey: 'eyJhbG...redacted', adminEmail: 'devops@safaricom.co.ke' },
-    uptime: 94.1, lastDeploy: '12 hours ago', errors24h: 12, warnings24h: 18,
-    alerts: [
-      { type: 'critical', msg: 'Production server unresponsive - auto-restart triggered', time: '45m ago' },
-      { type: 'error', msg: 'Workflow engine crash: null pointer in queue processor', time: '1h ago' },
-      { type: 'error', msg: 'Failed deployment rollback on staging', time: '3h ago' },
-      { type: 'warning', msg: 'Memory usage at 92% on primary node', time: '4h ago' },
-    ],
-    milestones: [
-      { name: 'Phase 1 - Workflow Engine', done: true },
-      { name: 'Phase 2 - Integration Layer', done: false },
-      { name: 'Phase 3 - Auto-scaling', done: false },
-      { name: 'Phase 4 - Production Deploy', done: false },
-    ],
-  },
-  {
-    id: 'proj-005', name: 'Citizen Portal', client: 'KCCA Kampala',
-    status: 'active', health: 'healthy', progress: 55, priority: 'medium',
-    platform: 'Supabase + React', domain: 'portal.kcca.go.ug',
-    team: ['GN', 'JP'], startDate: '2026-02-20', deadline: '2026-08-15',
-    credentials: { supabaseUrl: 'https://kcca.supabase.co', supabaseKey: 'eyJhbG...redacted', adminEmail: 'digital@kcca.go.ug' },
-    uptime: 99.4, lastDeploy: '3 days ago', errors24h: 0, warnings24h: 2,
-    alerts: [{ type: 'warning', msg: 'CDN cache hit ratio dropped to 74%', time: '1d ago' }],
-    milestones: [
-      { name: 'Phase 1 - Citizen Registration', done: true },
-      { name: 'Phase 2 - Service Requests', done: true },
-      { name: 'Phase 3 - Payments & Receipts', done: false },
-      { name: 'Phase 4 - Mobile App', done: false },
-    ],
-  },
-  {
-    id: 'proj-006', name: 'Digital Membership OS', client: 'NEXT Africa (Internal)',
-    status: 'active', health: 'healthy', progress: 72, priority: 'high',
-    platform: 'Supabase + React', domain: 'os.nextafrica.ai',
-    team: ['HT'], startDate: '2026-04-01', deadline: '2026-06-30',
-    credentials: { supabaseUrl: 'https://nextos.supabase.co', supabaseKey: 'eyJhbG...redacted', adminEmail: 'hudson@nextafrica.ai' },
-    uptime: 99.9, lastDeploy: '1 hour ago', errors24h: 0, warnings24h: 0,
+    id: 'purity-mukisa', name: 'Purity Mukisa website', client: 'Purity Mukisa · gospel artist & PCB charity', kind: 'website',
+    status: 'active', health: 'healthy', progress: 95, priority: 'high',
+    platform: 'Static site + Supabase (tickets)', domain: '', url: '',
+    builtDate: '2026', hosting: '', registrar: '',
+    team: ['HT'], startDate: '2026', deadline: '',
+    uptime: 100, lastDeploy: 'live', errors24h: 0, warnings24h: 0,
     alerts: [],
     milestones: [
-      { name: 'Phase 1 - Dashboard & Shell', done: true },
-      { name: 'Phase 2 - Card System', done: true },
-      { name: 'Phase 3 - Full Module Build', done: false },
-      { name: 'Phase 4 - Production Deploy', done: false },
+      { name: 'Website + cart', done: true },
+      { name: 'Downloadable songs + player', done: true },
+      { name: 'Ticket system (QR + gate scanner)', done: true },
+      { name: 'Payments go-live (Flutterwave + Resend)', done: false },
     ],
+    credentials: { supabaseUrl: '', supabaseKey: '', adminEmail: '' },
+  },
+  {
+    id: 'charis-creations', name: 'Charis Creations', client: 'Charis Creations · media production & storytelling', kind: 'website',
+    status: 'active', health: 'healthy', progress: 60, priority: 'medium',
+    platform: 'Website', domain: '', url: '',
+    builtDate: '', hosting: '', registrar: '',
+    team: ['HT'], startDate: '', deadline: '',
+    uptime: 100, lastDeploy: '—', errors24h: 0, warnings24h: 0,
+    alerts: [],
+    milestones: [],
+    credentials: { supabaseUrl: '', supabaseKey: '', adminEmail: '' },
+  },
+  {
+    id: 'fathers-arise', name: 'Fathers Arise', client: 'The Remnant Generation · fatherhood initiative', kind: 'website',
+    status: 'active', health: 'healthy', progress: 50, priority: 'medium',
+    platform: 'Website', domain: '', url: '',
+    builtDate: '', hosting: '', registrar: '',
+    team: ['HT'], startDate: '', deadline: '',
+    uptime: 100, lastDeploy: '—', errors24h: 0, warnings24h: 0,
+    alerts: [],
+    milestones: [],
+    credentials: { supabaseUrl: '', supabaseKey: '', adminEmail: '' },
   },
 ];
-
-const HEALTH_CONFIG = {
-  healthy: { color: 'var(--mint)', label: 'Healthy', icon: '' },
-  warning: { color: 'var(--gold)', label: 'Warning', icon: '' },
-  critical: { color: 'var(--danger)', label: 'Critical', icon: '' },
-};
 
 const ALERT_COLORS = { critical: '#FF4757', error: '#FF6B6B', warning: '#FFB400', info: '#3B82F6' };
 
@@ -2072,6 +2022,28 @@ const ProjectDetail = ({ project, onBack }) => {
   const [tab, setTab] = React.useState('overview');
   const p = project;
   const hCfg = HEALTH_CONFIG[p.health];
+  const META_KEY = 'nextos.projectmeta.' + p.id;
+  const loadMeta = () => { try { return JSON.parse(localStorage.getItem(META_KEY) || '{}'); } catch (e) { return {}; } };
+  const [meta, setMeta] = React.useState(loadMeta);
+  const pm = Object.assign({}, p, meta);
+  const [editing, setEditing] = React.useState(false);
+  const [form, setForm] = React.useState({ url: pm.url || '', domain: pm.domain || '', builtDate: pm.builtDate || '', hosting: pm.hosting || '', registrar: pm.registrar || '' });
+  const [checking, setChecking] = React.useState(false);
+  const [check, setCheck] = React.useState(meta.lastCheck || null);
+  const saveMeta = () => { const next = Object.assign({}, meta, form); try { localStorage.setItem(META_KEY, JSON.stringify(next)); } catch (e) {} setMeta(next); setEditing(false); };
+  const runCheck = async () => {
+    setChecking(true);
+    try {
+      const base = (window.NEXT_OS_SENTINEL_ENDPOINT) || 'https://nextos-sentinel.nextafricaai.workers.dev';
+      const r = await fetch(base + '/check-project?url=' + encodeURIComponent(pm.url || '') + '&domain=' + encodeURIComponent(pm.domain || ''));
+      const d = await r.json();
+      setCheck(d);
+      const nm = Object.assign({}, meta, { lastCheck: d });
+      try { localStorage.setItem(META_KEY, JSON.stringify(nm)); } catch (e) {}
+      setMeta(nm);
+    } catch (e) { setCheck({ error: String((e && e.message) || e) }); }
+    setChecking(false);
+  };
 
   const sectionStyle = {
     background: 'var(--bg-elevated)', borderRadius: 'var(--radius-md)',
@@ -2111,6 +2083,7 @@ const ProjectDetail = ({ project, onBack }) => {
 
       {/* Overview Tab */}
       {tab === 'overview' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
           <div style={sectionStyle}>
             <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 16 }}>System Status</div>
@@ -2146,6 +2119,46 @@ const ProjectDetail = ({ project, onBack }) => {
             <div style={{ marginTop: 12, height: 6, background: 'var(--bg-deep)', borderRadius: 3, overflow: 'hidden' }}>
               <div style={{ width: `${p.progress}%`, height: '100%', borderRadius: 3, background: p.progress > 75 ? 'var(--mint)' : p.progress > 40 ? 'var(--emerald)' : 'var(--info)', transition: 'width 1s' }}></div>
             </div>
+          </div>
+        </div>
+          <div style={sectionStyle}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+              <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Lifecycle & Domains</div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button onClick={runCheck} disabled={checking || !(pm.url || pm.domain)} style={{ background: 'var(--mint)', color: 'var(--text-inverse)', border: 'none', borderRadius: 'var(--radius-sm)', padding: '6px 12px', fontSize: 12, fontWeight: 600, cursor: (checking || !(pm.url || pm.domain)) ? 'not-allowed' : 'pointer', opacity: (pm.url || pm.domain) ? 1 : 0.5 }}>{checking ? 'Checking...' : 'Run live check'}</button>
+                <button onClick={() => setEditing(!editing)} style={{ background: 'transparent', color: 'var(--text-secondary)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-sm)', padding: '6px 12px', fontSize: 12, cursor: 'pointer' }}>{editing ? 'Cancel' : 'Edit'}</button>
+              </div>
+            </div>
+            {editing ? (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                {[['url', 'Live URL', 'https://...'], ['domain', 'Domain', 'example.com'], ['builtDate', 'Built', '2026-05'], ['hosting', 'Hosting', 'Hostinger'], ['registrar', 'Registrar', 'Namecheap / Hostinger']].map(fld => (
+                  <label key={fld[0]} style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>{fld[1]}
+                    <input value={form[fld[0]]} onChange={e => setForm(Object.assign({}, form, { [fld[0]]: e.target.value }))} placeholder={fld[2]} style={{ width: '100%', marginTop: 4, background: 'var(--bg-deep)', border: '1px solid var(--border-subtle)', borderRadius: 6, color: 'var(--text-primary)', padding: '8px 10px', fontSize: 12, boxSizing: 'border-box' }} />
+                  </label>
+                ))}
+                <button onClick={saveMeta} style={{ gridColumn: 'span 2', background: 'var(--mint)', color: 'var(--text-inverse)', border: 'none', borderRadius: 'var(--radius-sm)', padding: '9px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Save</button>
+              </div>
+            ) : (
+              [['Live URL', pm.url || ''], ['Domain', pm.domain || ''], ['Built', pm.builtDate || ''], ['Hosting', pm.hosting || ''], ['Registrar', pm.registrar || '']].map((r, i) => (
+                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid var(--border-subtle)' }}>
+                  <span style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>{r[0]}</span>
+                  {r[0] === 'Live URL' && r[1] ? <a href={r[1]} target="_blank" rel="noreferrer" style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--mint)', textAlign: 'right', maxWidth: '62%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r[1]}</a> : <span style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: r[1] ? 'var(--text-primary)' : 'var(--text-tertiary)', fontWeight: 500, textAlign: 'right' }}>{r[1] || 'click Edit to add'}</span>}
+                </div>
+              ))
+            )}
+            {check && (
+              <div style={{ marginTop: 14, padding: 12, background: 'var(--bg-deep)', borderRadius: 'var(--radius-sm)' }}>
+                {check.error ? <div style={{ fontSize: 12, color: 'var(--danger)' }}>Check failed: {check.error}</div> : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 12, fontFamily: 'var(--font-mono)' }}>
+                    <div>Status: <span style={{ color: check.up ? 'var(--mint)' : 'var(--danger)' }}>{check.up ? ('UP · HTTP ' + check.status + ' · ' + check.ms + 'ms') : 'DOWN / unreachable'}</span></div>
+                    {check.daysToExpiry != null && <div>Domain: <span style={{ color: check.daysToExpiry < 30 ? 'var(--gold)' : 'var(--text-primary)' }}>{check.domainExpiry ? new Date(check.domainExpiry).toLocaleDateString() : '-'} ({check.daysToExpiry} days left)</span></div>}
+                    {(check.alerts || []).map((a, i) => <div key={i} style={{ color: a.type === 'critical' ? 'var(--danger)' : 'var(--gold)' }}>! {a.msg}</div>)}
+                    {(!check.alerts || check.alerts.length === 0) && !check.error && <div style={{ color: 'var(--mint)' }}>No issues detected.</div>}
+                    <div style={{ color: 'var(--text-tertiary)' }}>Checked {check.checkedAt ? new Date(check.checkedAt).toLocaleTimeString() : 'now'}</div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -3641,7 +3654,7 @@ DEFAULTS
 - "Draft / write a WhatsApp" → draft_message first → THEN write the draft in a code block. Stop. Ask Hudson if he wants you to open WhatsApp.
 - "Send a WhatsApp to <number>" → open_whatsapp(phone, message) (Path A). If Hudson says "actually send" or "use Cloud API", call send_whatsapp.
 - "Notify me about X" → notify(severity, title, body).
-- "Record a payment / issue a receipt for <school>" → issue_receipt(tenant_id, amount, student_name, guardian_phone?). Then tell Hudson the receipt number; if a guardian phone was given, offer to open WhatsApp to send it. The receipt is stored and downloadable as a branded PDF in that school Fees then Receipts.
+- "Is <project> up? / watch <site> / check the domain" → read_projects (get the url/domain) → check_project(url, domain) → report up/down + days to domain expiry. If down or expiring, state it and DRAFT the fix for Hudson to approve; never claim you fixed it yourself.\n- "Record a payment / issue a receipt for <school>" → issue_receipt(tenant_id, amount, student_name, guardian_phone?). Then tell Hudson the receipt number; if a guardian phone was given, offer to open WhatsApp to send it. The receipt is stored and downloadable as a branded PDF in that school Fees then Receipts.
 
 WHATSAPP TOOLS
 - open_whatsapp(phone, message): opens WhatsApp on Hudson's device, message pre-filled. Free. DEFAULT.
@@ -3683,7 +3696,7 @@ You: "'We help you get more done with less stress.' Nine plain words beat the ja
       input_schema: { type: 'object', properties: { tenant_id: { type: 'string', description: 'Tenant slug, e.g. st-marys-demo' } }, required: ['tenant_id'] } },
     { name: 'read_finance', description: "NEXT's own finance: revenue/expense series + recent transactions.",
       input_schema: { type: 'object', properties: {}, required: [] } },
-    { name: 'read_projects', description: 'Active client projects: name, client, status, progress, deadline.',
+    { name: 'read_projects', description: 'The portfolio of projects/websites/OS (NEXT OS, Schools OS, Purity Mukisa, Charis, Fathers Arise...) with name, kind, status, url, domain, builtDate. Use this to find a project URL/domain before check_project.',
       input_schema: { type: 'object', properties: {}, required: [] } },
     { name: 'evaluate_health', description: 'Threshold checks for one tenant — returns concerns array.',
       input_schema: { type: 'object', properties: { tenant_id: { type: 'string' } }, required: ['tenant_id'] } },
@@ -3720,6 +3733,11 @@ You: "'We help you get more done with less stress.' Nine plain words beat the ja
         method:         { type: 'string', description: 'cash | momo | mtn | airtel | mpesa | bank | cheque' },
         reference:      { type: 'string', description: 'Payment reference / txn id (optional)' }
       }, required: ['tenant_id', 'amount'] } },
+    { name: 'check_project', description: 'Live-watch a project: pings its URL (up/down, HTTP status, speed) and checks domain expiry via public WHOIS/RDAP. Returns health + alerts. Use to supervise a website or OS, or when asked if something is up or about to expire. Get the url/domain from read_projects first.',
+      input_schema: { type: 'object', properties: {
+        url:    { type: 'string', description: 'Full URL to ping, e.g. https://nextos.nextafrica.ai' },
+        domain: { type: 'string', description: 'Bare domain for expiry check, e.g. nextafrica.ai (optional; derived from url if omitted)' }
+      }, required: [] } },
   ];
 
 
@@ -3772,7 +3790,13 @@ You: "'We help you get more done with less stress.' Nine plain words beat the ja
           return JSON.stringify({ currency: f.currency, unit: f.unit, months: f.months, revenueSeries: f.revenueSeries, expenseSeries: f.expenseSeries, recentTransactions: f.transactions.slice(0, 10), totalIncome: f.transactions.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0), totalExpense: f.transactions.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0) });
         }
         case 'read_projects': {
-          return JSON.stringify({ count: D.getProjects().length, projects: D.getProjects().map(p => ({ id: p.id, name: p.name, client: p.client, status: p.status, health: p.health, progress: p.progress, deadline: p.deadline })) });
+          const seed = (window.PROJECT_DATA || []);
+          const userP = (D.getProjects ? D.getProjects().filter(p => p.addedByUser) : []);
+          const all = seed.concat(userP).map(p => {
+            let meta = {}; try { meta = JSON.parse(localStorage.getItem('nextos.projectmeta.' + p.id) || '{}'); } catch (e) {}
+            return { id: p.id, name: p.name, client: p.client, kind: p.kind || 'project', status: p.status, health: p.health, progress: p.progress, url: meta.url || p.url || '', domain: meta.domain || p.domain || '', builtDate: meta.builtDate || p.builtDate || '', registrar: meta.registrar || p.registrar || '', lastCheck: meta.lastCheck || null };
+          });
+          return JSON.stringify({ count: all.length, projects: all });
         }
         case 'evaluate_health': {
           const correctedId = fuzzyTenantId(input.tenant_id);
@@ -3882,6 +3906,18 @@ You: "'We help you get more done with less stress.' Nine plain words beat the ja
             if (window.NEXT_OS && typeof window.NEXT_OS.notify === 'function') { window.NEXT_OS.notify({ severity: 'success', title: 'Receipt ' + data.receipt_no + ' issued', body: 'Stored for ' + tenant, source: 'Sentinel · Nia' }); }
             return JSON.stringify({ ok: true, receipt_no: data.receipt_no, receipt: data.receipt, whatsappUrl: data.whatsappUrl, instruction: 'The receipt is created and stored. Tell Hudson the receipt number. If whatsappUrl is present, offer to open WhatsApp to send it to the guardian (call open_whatsapp with the guardian phone). If no guardian phone was given, say the receipt is saved and downloadable as a PDF from that school Fees then Receipts.' });
           } catch (e) { return JSON.stringify({ ok: false, error: String(e.message || e) }); }
+        }
+        case 'check_project': {
+          const u = String(input.url || '').trim();
+          const dom = String(input.domain || '').trim();
+          if (!u && !dom) return JSON.stringify({ error: 'Provide a url or domain. Call read_projects to find one; if a project has none on file, ask Hudson to add it in Projects.' });
+          const endpoint = (typeof window !== 'undefined' && window.NEXT_OS_SENTINEL_ENDPOINT) || NIA_FREE_ENDPOINT;
+          try {
+            const res = await fetch(endpoint + '/check-project?url=' + encodeURIComponent(u) + '&domain=' + encodeURIComponent(dom));
+            const data = await res.json();
+            if (data && data.alerts && data.alerts.length && window.NEXT_OS && typeof window.NEXT_OS.notify === 'function') { const top = data.alerts[0]; window.NEXT_OS.notify({ severity: top.type === 'critical' ? 'critical' : 'warning', title: (data.domain || u) + ' needs attention', body: top.msg, source: 'Sentinel \u00b7 Nia' }); }
+            return JSON.stringify(Object.assign({ instruction: 'Report up/down and domain expiry plainly. If there is a critical or warning alert, state it and draft the concrete fix (e.g. renew the domain, redeploy, contact host) for Hudson to approve. Do NOT claim you fixed it yourself.' }, data));
+          } catch (e) { return JSON.stringify({ error: String(e.message || e) }); }
         }
         default: return JSON.stringify({ error: 'Unknown tool: ' + name });
       }
