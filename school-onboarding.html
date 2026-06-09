@@ -104,7 +104,12 @@ $('go').addEventListener('click', async ()=>{
   btn.disabled=false; btn.textContent='Create school →';
 });
 
+function cleanLink(id){
+  var origin = (location.origin && /^https?:/.test(location.origin)) ? location.origin : 'https://nextos.nextafrica.ai';
+  return origin + '/s/' + encodeURIComponent(id);
+}
 function showResult(d){
+  d.loginUrl = cleanLink(d.tenantId);
   $('empty').style.display='none';
   const res=$('result'); res.className='result show';
   res.innerHTML=
@@ -133,14 +138,14 @@ function showResult(d){
 }
 function saveFleet(d,color){
   let f=[]; try{f=JSON.parse(localStorage.getItem('nextos.onboarded')||'[]');}catch(e){}
-  f=f.filter(x=>x.id!==d.tenantId); f.unshift({id:d.tenantId,name:d.name,color:color,link:d.loginUrl});
+  f=f.filter(x=>x.id!==d.tenantId); f.unshift({id:d.tenantId,name:d.name,color:color,link:cleanLink(d.tenantId)});
   localStorage.setItem('nextos.onboarded',JSON.stringify(f)); renderFleet();
 }
 function renderFleet(){
   let f=[]; try{f=JSON.parse(localStorage.getItem('nextos.onboarded')||'[]');}catch(e){}
   if(!f.length){$('fleetBox').style.display='none';return;}
   $('fleetBox').style.display='block';
-  $('fleet').innerHTML=f.map(x=>'<div class="fleet-item"><span class="dot" style="background:'+(x.color||'#3B82F6')+'"></span><b>'+esc(x.name)+'</b><span style="color:var(--ink3);margin-left:auto"><a href="'+esc(x.link)+'" target="_blank" style="color:var(--ink3)">open ↗</a></span></div>').join('');
+  $('fleet').innerHTML=f.map(x=>'<div class="fleet-item"><span class="dot" style="background:'+(x.color||'#3B82F6')+'"></span><b>'+esc(x.name)+'</b><span style="color:var(--ink3);margin-left:auto"><a href="'+esc(cleanLink(x.id))+'" target="_blank" style="color:var(--ink3)">open ↗</a></span></div>').join('');
 }
 renderFleet();
 </script>
