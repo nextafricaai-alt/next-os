@@ -27,7 +27,7 @@ $icon  = $logo !== '' ? $logo : ('https://nextos-sentinel.nextafricaai.workers.d
 $itype = $logo !== '' ? 'image/png' : 'image/svg+xml';
 $start = 'https://nextos.nextafrica.ai/s/' . $s;
 
-$short = mb_substr($name, 0, 12);
+$short = (function($n){ return (function_exists('mb_substr') ? mb_substr($n,0,12) : substr($n,0,12)); })($name);
 
 echo json_encode([
   'name'             => $name,
