@@ -6040,9 +6040,10 @@ const AppShell = () => {
   React.useEffect(() => {
     if (typeof window !== 'undefined') window.NEXT_OS_NAVIGATE = (tab) => setActiveTab(tab);
   }, []);
-  const [tutorial, setTutorial] = React.useState(() => { try { return localStorage.getItem('nextos.tutorial') === '1'; } catch (e) { return false; } });
+  const [tutorial, setTutorial] = React.useState(() => { try { return localStorage.getItem('nextos.tutorial') !== '0'; } catch (e) { return true; } });
   const [tour, setTour] = React.useState(false);
   const toggleTutorial = () => setTutorial(v => { const n = !v; try { localStorage.setItem('nextos.tutorial', n ? '1' : '0'); } catch (e) {} if (n) setTour(true); return n; });
+  React.useEffect(() => { try { if (tutorial && localStorage.getItem('nextos.tutorial.seen') !== '1') { setTour(true); localStorage.setItem('nextos.tutorial.seen', '1'); } } catch (e) {} }, []);
   const sidebarCollapsed = t.sidebarCollapsed;
   const sidebarWidth = sidebarCollapsed ? 64 : 240;
 
