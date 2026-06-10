@@ -5867,13 +5867,13 @@ const AuthGate = ({ children }) => {
     try {
       const r = await fetch(WK + '/auth/send-otp', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: e, redirectTo: location.origin + location.pathname }) });
       const d = await r.json();
-      if (d.error) { setErr(d.error); } else { setStep('code'); setNote('Sent to ' + e + '. Enter the 6-digit code, or just tap the link in the email — it signs you in automatically.'); }
+      if (d.error) { setErr(d.error); } else { setStep('code'); setNote('Sent to ' + e + '. Enter the code, or just tap the link in the email — it signs you in automatically.'); }
     } catch (x) { setErr('Could not reach the server. Try again.'); }
     setBusy(false);
   };
   const verify = async () => {
     const e = email.trim().toLowerCase(); const c = code.trim();
-    if (c.length < 6) { setErr('Enter the 6-digit code.'); return; }
+    if (c.length < 6) { setErr('Enter the full code from your email.'); return; }
     setBusy(true); setErr('');
     try {
       const r = await fetch(WK + '/auth/verify-otp', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: e, code: c }) });
@@ -5904,8 +5904,8 @@ const AuthGate = ({ children }) => {
           </div>
         ) : (
           <div>
-            <input style={{ ...input, letterSpacing: 8, fontSize: 22, textAlign: 'center', fontFamily: 'ui-monospace, monospace' }} inputMode="numeric" maxLength={6} placeholder="000000" value={code} autoFocus
-              onChange={e => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))} onKeyDown={e => { if (e.key === 'Enter') verify(); }} />
+            <input style={{ ...input, letterSpacing: 6, fontSize: 20, textAlign: 'center', fontFamily: 'ui-monospace, monospace' }} inputMode="numeric" maxLength={10} placeholder="Code from email" value={code} autoFocus
+              onChange={e => setCode(e.target.value.replace(/\D/g, '').slice(0, 10))} onKeyDown={e => { if (e.key === 'Enter') verify(); }} />
             <button style={btn(!busy)} disabled={busy} onClick={verify}>{busy ? 'Verifying…' : 'Verify & sign in'}</button>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 14, fontSize: 12 }}>
               <span onClick={() => { setStep('email'); setCode(''); setErr(''); setNote(''); }} style={{ color: '#7e88b0', cursor: 'pointer' }}>{'←'} Change email</span>
