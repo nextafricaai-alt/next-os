@@ -193,6 +193,7 @@
   function exportHtml(){ var d=doc(); if(!d){ alert('Load a page first.'); return; } var blob=new Blob([currentHtml()],{type:'text/html'}); var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=(siteName?siteName.replace(/[^a-z0-9]+/gi,'-').toLowerCase():'page')+'-edited.html'; a.click(); }
 
   function guessPath(u){ try{ var p=new URL(u).pathname; if(p==='/'||p==='') return 'index.html'; p=p.replace(/^\//,''); if(p.endsWith('/')) return p+'index.html'; if(/\.html?$/i.test(p)) return p; return p+'/index.html'; }catch(e){ return 'index.html'; } }
+  function normRepo(r){ return String(r||'').trim().replace(/^https?:\/\/github\.com\//i,'').replace(/^github\.com\//i,'').replace(/\.git$/i,'').replace(/^\/+|\/+$/g,''); }
   function pmKey(){ return 'nextos.projectmeta.'+pid; }
   function projMeta(){ if(!pid) return null; try{ return JSON.parse(localStorage.getItem(pmKey())||'null'); }catch(e){ return null; } }
   function saveProj(m){ if(!pid) return; try{ localStorage.setItem(pmKey(), JSON.stringify(m)); }catch(e){} }
@@ -202,7 +203,7 @@
     var d=doc(); if(!d){ alert('Load a page first.'); return; }
     var cfg=getRepoCfg();
     if(!cfg||!cfg.repo){
-      var repo=window.prompt('GitHub repo for this site (owner/name):'); if(!repo) return;
+      var repo=window.prompt('GitHub repo (owner/name OR full URL):'); if(!repo) return; repo=normRepo(repo);
       var branch=window.prompt('Branch:','main')||'main';
       cfg={repo:repo.trim(),branch:branch.trim(),pathMap:{}};
       if(pid){ var m=projMeta()||{}; m.repo=cfg.repo; m.branch=cfg.branch; m.pathMap=m.pathMap||{}; saveProj(m); }
@@ -214,7 +215,7 @@
       if(pid){ var mm=projMeta()||{}; mm.repo=cfg.repo; mm.branch=cfg.branch; mm.pathMap=mm.pathMap||{}; mm.pathMap[pn]=path; saveProj(mm); }
       else { var cc=getRepoCfg()||cfg; cc.pathMap=cc.pathMap||{}; cc.pathMap[pn]=path; try{ localStorage.setItem(repoKey(),JSON.stringify(cc)); }catch(e){} }
     }
-    addMsg('Publishing '+path+' to '+cfg.repo+' ('+cfg.branch+')…','nia');
+    cfg.repo=normRepo(cfg.repo); addMsg('Publishing '+path+' to '+cfg.repo+' ('+cfg.branch+')…','nia');
     fetch(WK+'/publish',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({repo:cfg.repo,branch:cfg.branch,path:path,html:currentHtml(),message:'Edit via NEXT Studio'})})
       .then(function(r){return r.json();}).then(function(res){ if(res.ok){ addMsg('✓ Published to '+res.repo+' / '+res.path+'. Live in under a minute once the deploy runs.','nia'); } else { addMsg('Publish failed: '+(res.error||'unknown'),'nia'); if(/404|not found|repo/i.test(res.error||'')){ if(pid){ var z=projMeta()||{}; delete z.repo; saveProj(z); } else { try{ localStorage.removeItem(repoKey()); }catch(e){} } } } })
       .catch(function(e){ addMsg('Publish error: '+e.message,'nia'); }); }
