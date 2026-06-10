@@ -2114,7 +2114,7 @@ const ProjectDetail = ({ project, onBack }) => {
   const [meta, setMeta] = React.useState(loadMeta);
   const pm = Object.assign({}, p, meta);
   const [editing, setEditing] = React.useState(false);
-  const [form, setForm] = React.useState({ url: pm.url || '', domain: pm.domain || '', builtDate: pm.builtDate || '', hosting: pm.hosting || '', registrar: pm.registrar || '' });
+  const [form, setForm] = React.useState({ url: pm.url || '', domain: pm.domain || '', builtDate: pm.builtDate || '', hosting: pm.hosting || '', registrar: pm.registrar || '', repo: meta.repo || '', branch: meta.branch || 'main', supabaseUrl: meta.supabaseUrl || (p.credentials && p.credentials.supabaseUrl) || '', adminEmail: meta.adminEmail || (p.credentials && p.credentials.adminEmail) || '', vaultNotes: meta.vaultNotes || '' });
   const [checking, setChecking] = React.useState(false);
   const [check, setCheck] = React.useState(meta.lastCheck || null);
   const saveMeta = () => { const next = Object.assign({}, meta, form); try { localStorage.setItem(META_KEY, JSON.stringify(next)); } catch (e) {} setMeta(next); setEditing(false); };
@@ -2260,15 +2260,19 @@ const ProjectDetail = ({ project, onBack }) => {
             </div>
             {editing ? (
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                {[['url', 'Live URL', 'https://...'], ['domain', 'Domain', 'example.com'], ['builtDate', 'Built', '2026-05'], ['hosting', 'Hosting', 'Hostinger'], ['registrar', 'Registrar', 'Namecheap / Hostinger']].map(fld => (
+                {[['url', 'Live URL', 'https://...'], ['domain', 'Domain', 'example.com'], ['builtDate', 'Built', '2026-05'], ['hosting', 'Hosting', 'Hostinger'], ['registrar', 'Registrar', 'Namecheap / Hostinger'], ['repo', 'GitHub repo (owner/name)', 'nextafricaai-alt/site'], ['branch', 'Branch', 'main'], ['supabaseUrl', 'Supabase URL', 'https://xxx.supabase.co'], ['adminEmail', 'Admin email', '']].map(fld => (
                   <label key={fld[0]} style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>{fld[1]}
                     <input value={form[fld[0]]} onChange={e => setForm(Object.assign({}, form, { [fld[0]]: e.target.value }))} placeholder={fld[2]} style={{ width: '100%', marginTop: 4, background: 'var(--bg-deep)', border: '1px solid var(--border-subtle)', borderRadius: 6, color: 'var(--text-primary)', padding: '8px 10px', fontSize: 12, boxSizing: 'border-box' }} />
                   </label>
                 ))}
+                <label style={{ gridColumn: 'span 2', fontSize: 11, color: 'var(--text-tertiary)' }}>Vault notes (refs, doc links — stored in your browser)
+                  <textarea value={form.vaultNotes} onChange={e => setForm(Object.assign({}, form, { vaultNotes: e.target.value }))} placeholder="e.g. Supabase project ref, registrar login, API key names (not the secret values)…" rows={3} style={{ width: '100%', marginTop: 4, background: 'var(--bg-deep)', border: '1px solid var(--border-subtle)', borderRadius: 6, color: 'var(--text-primary)', padding: '8px 10px', fontSize: 12, fontFamily: 'var(--font-mono)', boxSizing: 'border-box', resize: 'vertical' }} />
+                </label>
+                <div style={{ gridColumn: 'span 2', fontSize: 10.5, color: 'var(--text-tertiary)', lineHeight: 1.5 }}>🔒 Security: store config + references here. Real secrets the system uses (GitHub token, payment keys) belong in Cloudflare worker secrets, not the browser. Nia publishes using the worker's GITHUB_TOKEN + the repo/branch/path above.</div>
                 <button onClick={saveMeta} style={{ gridColumn: 'span 2', background: 'var(--mint)', color: 'var(--text-inverse)', border: 'none', borderRadius: 'var(--radius-sm)', padding: '9px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Save</button>
               </div>
             ) : (
-              [['Live URL', pm.url || ''], ['Domain', pm.domain || ''], ['Built', pm.builtDate || ''], ['Hosting', pm.hosting || ''], ['Registrar', pm.registrar || '']].map((r, i) => (
+              [['Live URL', pm.url || ''], ['Domain', pm.domain || ''], ['Built', pm.builtDate || ''], ['Hosting', pm.hosting || ''], ['Registrar', pm.registrar || ''], ['GitHub repo', meta.repo || ''], ['Branch', meta.branch || ''], ['Supabase', meta.supabaseUrl || (p.credentials && p.credentials.supabaseUrl) || ''], ['Vault notes', meta.vaultNotes || '']].map((r, i) => (
                 <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid var(--border-subtle)' }}>
                   <span style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>{r[0]}</span>
                   {r[0] === 'Live URL' && r[1] ? <a href={r[1]} target="_blank" rel="noreferrer" style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--mint)', textAlign: 'right', maxWidth: '62%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r[1]}</a> : <span style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: r[1] ? 'var(--text-primary)' : 'var(--text-tertiary)', fontWeight: 500, textAlign: 'right' }}>{r[1] || 'click Edit to add'}</span>}
@@ -2594,7 +2598,7 @@ const ProjectsPage = ({ onNavigate }) => {
         </div>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'center', gap: 6 }}>
-        {p.url && <button onClick={(e) => { e.stopPropagation(); window.open('/studio.html?url=' + encodeURIComponent(p.url) + '&name=' + encodeURIComponent(p.name), '_blank'); }} style={{ background: 'transparent', border: '1px solid var(--mint)', color: 'var(--mint)', borderRadius: 'var(--radius-sm)', padding: '4px 10px', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>✎ Studio</button>}
+        {p.url && <button onClick={(e) => { e.stopPropagation(); window.open('/studio.html?url=' + encodeURIComponent(p.url) + '&name=' + encodeURIComponent(p.name) + '&pid=' + encodeURIComponent(p.id), '_blank'); }} style={{ background: 'transparent', border: '1px solid var(--mint)', color: 'var(--mint)', borderRadius: 'var(--radius-sm)', padding: '4px 10px', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>✎ Studio</button>}
         <div style={{ fontSize: 22, fontFamily: 'var(--font-display)', fontWeight: 700, color: 'var(--text-primary)' }}>{p.progress}%</div>
         <div style={{ width: 80, height: 4, background: 'var(--bg-deep)', borderRadius: 2, overflow: 'hidden' }}>
           <div style={{ width: `${p.progress}%`, height: '100%', borderRadius: 2, background: p.progress > 75 ? 'var(--mint)' : p.progress > 40 ? 'var(--emerald)' : 'var(--info)' }}></div>
@@ -4062,7 +4066,7 @@ You: "'We help you get more done with less stress.' Nine plain words beat the ja
           const userP = (D.getProjects ? D.getProjects().filter(p => p.addedByUser) : []);
           const all = seed.concat(userP).map(p => {
             let meta = {}; try { meta = JSON.parse(localStorage.getItem('nextos.projectmeta.' + p.id) || '{}'); } catch (e) {}
-            return { id: p.id, name: p.name, client: p.client, kind: p.kind || 'project', planned: !!p.planned, os: p.os || null, website: p.website || null, runs: p.runs || null, status: p.status, health: p.health, progress: p.progress, url: meta.url || p.url || '', domain: meta.domain || p.domain || '', builtDate: meta.builtDate || p.builtDate || '', registrar: meta.registrar || p.registrar || '', lastCheck: meta.lastCheck || null };
+            return { id: p.id, name: p.name, client: p.client, kind: p.kind || 'project', planned: !!p.planned, os: p.os || null, website: p.website || null, runs: p.runs || null, status: p.status, health: p.health, progress: p.progress, url: meta.url || p.url || '', domain: meta.domain || p.domain || '', builtDate: meta.builtDate || p.builtDate || '', registrar: meta.registrar || p.registrar || '', repo: meta.repo || '', branch: meta.branch || '', supabaseUrl: meta.supabaseUrl || (p.credentials && p.credentials.supabaseUrl) || '', lastCheck: meta.lastCheck || null };
           });
           return JSON.stringify({ count: all.length, projects: all });
         }
