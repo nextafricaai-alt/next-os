@@ -3914,6 +3914,13 @@ HARD RULES — VIOLATE NONE
 VOICE
 Short. Direct. Warm. Money first, judgment second. African business context (UGX, M-Pesa, WhatsApp dominant). No "as an AI" disclaimers, no excessive caveats.
 
+CONVERSATION — not everything needs a tool
+- Greetings, opinions, strategy, brainstorming, advice, explanations, "what do you think" — just answer directly and intelligently in Hudson's voice. Do NOT force a tool call or dump OS data when he is only talking.
+- Call a tool ONLY when the request needs live OS data (fleet, a specific tenant, analytics, SEO, a project's status) or an action (draft/send a message, issue a receipt, check a site). When unsure, give a sharp short answer first and offer to pull the numbers.
+- Write cleanly every time: complete sentences, correct grammar, no typos, no half-finished thoughts. Quality over length — lead with the answer, then one or two supporting lines.
+- If you are not sure of a fact, say so plainly instead of guessing. Never pad with filler.
+- Be a real chief of staff: warm, decisive, proactive. Think like someone who runs the business with Hudson, not a chatbot.
+
 DEFAULTS
 - "How's the fleet?" → read_fleet → 3-line summary, names + flags only.
 - "What's at Peak Primary?" → read_tenant("peak-primary") → THEN evaluate_health("peak-primary") → reply with the verticalKpis (286 students, 71% collection, 3 overdue, 12 at-risk).
@@ -4468,8 +4475,31 @@ You: "'We help you get more done with less stress.' Nine plain words beat the ja
     );
   };
 
+  function niaSpeak(text) {
+    try {
+      if (!window.speechSynthesis || !text) return;
+      const clean = String(text).replace(/```[\s\S]*?```/g, ' (code) ').replace(/[*_#>`~]/g, '').replace(/\[(.*?)\]\(.*?\)/g, '$1').replace(/\s+/g, ' ').trim();
+      if (!clean) return;
+      window.speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(clean.slice(0, 700));
+      u.rate = 1.03; u.pitch = 1.0; u.lang = 'en-US';
+      const vs = window.speechSynthesis.getVoices() || [];
+      const pick = vs.find(v => /female|samantha|aria|jenny|google uk english female|zira/i.test(v.name)) || vs.find(v => /^en/i.test(v.lang));
+      if (pick) u.voice = pick;
+      window.speechSynthesis.speak(u);
+    } catch (e) {}
+  }
+
   const TalkToSentinelPage = () => {
     const convo = useConversation();
+    const [voiceOn, setVoiceOn] = React.useState(() => { try { return localStorage.getItem('nextos.nia.voiceout') === '1'; } catch (e) { return false; } });
+    const lastSpoke = React.useRef(-1);
+    React.useEffect(() => {
+      if (!voiceOn) return;
+      const ms = convo.messages;
+      for (let i = ms.length - 1; i >= 0; i--) { if (ms[i].role === 'assistant' && ms[i].content) { if (i > lastSpoke.current) { lastSpoke.current = i; niaSpeak(ms[i].content); } break; } }
+    }, [convo.messages, voiceOn]);
+    const toggleVoice = () => setVoiceOn(v => { const n = !v; try { localStorage.setItem('nextos.nia.voiceout', n ? '1' : '0'); } catch (e) {} if (!n) { try { window.speechSynthesis && window.speechSynthesis.cancel(); } catch (e) {} } else { lastSpoke.current = convo.messages.length - 1; } return n; });
     const isFree = convo.provider === 'nia-free';
     const ready = isFree || !!convo.apiKey;
     const [showKey, setShowKey] = React.useState(!ready);
@@ -4487,6 +4517,7 @@ You: "'We help you get more done with less stress.' Nine plain words beat the ja
             </div>
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
+            <button onClick={toggleVoice} title={voiceOn ? 'Nia voice: on (reads replies aloud)' : 'Nia voice: off'} style={{ background: voiceOn ? 'var(--mint)' : 'transparent', border: '1px solid ' + (voiceOn ? 'var(--mint)' : 'var(--border-default)'), color: voiceOn ? 'var(--text-inverse)' : 'var(--text-secondary)', padding: '8px 12px', borderRadius: 'var(--radius-sm)', fontSize: 12, fontFamily: 'var(--font-mono)', letterSpacing: 1, cursor: 'pointer' }}>{voiceOn ? '\u{1F50A} VOICE ON' : '\u{1F507} VOICE'}</button>
             <button onClick={() => setShowKey(s => !s)} style={{ background: 'transparent', border: '1px solid var(--border-default)', color: 'var(--text-secondary)', padding: '8px 14px', borderRadius: 'var(--radius-sm)', fontSize: 12, fontFamily: 'var(--font-mono)', letterSpacing: 1, cursor: 'pointer' }}>{ready ? 'SWITCH AGENT' : 'CONNECT'}</button>
             <button onClick={convo.clearConvo} style={{ background: 'transparent', border: '1px solid var(--border-subtle)', color: 'var(--text-tertiary)', padding: '8px 14px', borderRadius: 'var(--radius-sm)', fontSize: 12, fontFamily: 'var(--font-mono)', letterSpacing: 1, cursor: 'pointer' }}>CLEAR</button>
           </div>
