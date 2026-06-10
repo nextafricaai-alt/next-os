@@ -124,6 +124,40 @@
     return null;
   }
   function siteKeyOf(){ try{ return new URL(profile.url).hostname.replace(/^www\./,''); }catch(e){ return (profile&&profile.url)||''; } }
+  function parseCollections(text){
+    if(!text) return null;
+    var cands=[];
+    var m=text.match(/```(?:json)?\s*([\s\S]*?)```/i); if(m) cands.push(m[1]);
+    cands.push(text);
+    for(var i=0;i<cands.length;i++){
+      var c=cands[i].trim();
+      var a=c.indexOf('['), b=c.lastIndexOf(']');
+      if(a>=0 && b>a){ try{ var j=JSON.parse(c.slice(a,b+1)); if(Array.isArray(j)&&j.length) return j; }catch(e){} }
+      try{ var j2=JSON.parse(c); if(Array.isArray(j2)) return j2; if(j2&&j2.collections) return j2.collections; }catch(e){}
+    }
+    return null;
+  }
+  async function buildOS(btn){
+    if(!profile){ return; }
+    var sk=siteKeyOf();
+    btn.textContent='Nia is designing the collections\u2026'; btn.disabled=true;
+    var prompt='From this website profile, output ONLY a JSON array of CMS collections, nothing else. Each item: {"name":"lowercase_snake","label":"Title","icon":"<one emoji>","fields":[{"name":"lowercase_snake","label":"Label","type":"text|textarea|number|image|date|boolean"}]}. 5-9 fields max per collection. Profile:\n'+JSON.stringify(profile);
+    var cols=null;
+    try{
+      var r=await fetch(WK+'/',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({system:'You output ONLY valid JSON. No markdown fences, no prose.',messages:[{role:'user',content:prompt}]})});
+      var data=await r.json();
+      var txt=(data&&data.content&&data.content.length)?data.content.filter(function(c){return c.type==='text';}).map(function(c){return c.text;}).join(''):'';
+      cols=parseCollections(txt);
+    }catch(e){}
+    if(!cols||!cols.length){ btn.textContent='Could not read collections \u2014 retry'; btn.disabled=false; addMsg('I could not produce a clean collection list that time. Click Build again, or tell me the collections you want and I will use those.','nia'); return; }
+    btn.textContent='Building the OS ('+cols.length+' collections)\u2026';
+    try{
+      var r2=await fetch(WK+'/cms/blueprint',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({site:sk,collections:cols})});
+      var d2=await r2.json();
+      if(d2.ok){ var openOS=function(){ window.open('/cms-os.html?site='+encodeURIComponent(sk),'_blank'); }; btn.textContent='\u2713 OS built \u2014 Open it \u2197'; btn.disabled=false; btn.onclick=openOS; openOS(); addMsg('Built '+sk+' OS with '+d2.collections+' collections \u2014 it is open and ready. Add content, then tell me what to refine.','nia'); }
+      else { btn.textContent='Build failed \u2014 retry'; btn.disabled=false; addMsg('Build failed: '+(d2.error||'unknown')+(/(cms tables|insert failed|relation|does not exist|404)/i.test(d2.error||'')?'  \u2192 run supabase-schema-cms.sql once and redeploy the worker, then retry.':''),'nia'); }
+    }catch(e){ btn.textContent='Build failed \u2014 retry'; btn.disabled=false; addMsg('Build error: '+e.message,'nia'); }
+  }
   async function study(){
     var url=$('url').value.trim(); if(!url) return;
     $('report').innerHTML='<div class="empty">Nia is studying '+url+' …<br/>fetching pages, reading structure, detecting content types…</div>';
@@ -136,28 +170,13 @@
       var data=await res.json();
       var txt=(data&&data.content&&data.content.length)?data.content.filter(function(c){return c.type==='text';}).map(function(c){return c.text;}).join(''):(data&&data.error?('Error: '+data.error):'(no reply)');
       thinking.remove(); $('report').appendChild(renderBlueprint(txt));
-      var cols=extractCollections(txt);
       var sc=document.createElement('div'); sc.className='scaffold';
-      if(cols && cols.length){
-        sc.innerHTML='🛠️ <b>Auto-build:</b> Nia mapped <b>'+cols.length+' collections</b>. Click below and Nia builds the working OS — sets up the data and the admin screens. Then refine it.';
-        var bb=document.createElement('button');
-        bb.textContent='Build this OS ('+cols.length+' collections) →';
-        bb.style.cssText='margin-top:12px;background:var(--mint);color:#062b18;border:none;border-radius:10px;padding:12px 18px;font-weight:700;font-size:14px;cursor:pointer';
-        var sk=siteKeyOf();
-        var openOS=function(){ window.open('/cms-os.html?site='+encodeURIComponent(sk),'_blank'); };
-        bb.onclick=async function(){
-          bb.textContent='Nia is building the OS…'; bb.disabled=true;
-          try{
-            var r=await fetch(WK+'/cms/blueprint',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({site:sk, collections:cols})});
-            var d=await r.json();
-            if(d.ok){ bb.textContent='✓ OS built for '+sk+' — Open it ↗'; bb.disabled=false; bb.onclick=openOS; openOS(); addMsg('Built the OS for '+sk+' with '+d.collections+' collections. It is open and ready — start adding content, and tell me what to refine.','nia'); }
-            else { bb.textContent='Build failed — retry'; bb.disabled=false; addMsg('Build failed: '+(d.error||'unknown')+(/(cms tables|insert failed)/i.test(d.error||'')?'  → run supabase-schema-cms.sql once in Supabase, then retry.':''),'nia'); }
-          }catch(e){ bb.textContent='Build failed — retry'; bb.disabled=false; addMsg('Build error: '+e.message,'nia'); }
-        };
-        sc.appendChild(document.createElement('br')); sc.appendChild(bb);
-      } else {
-        sc.innerHTML='🛠️ <b>Auto-scaffold:</b> copy the SQL above into Supabase to create the data layer. (Nia did not emit a machine collections list this run — ask her to "output the collections as JSON" and a Build button will appear.)';
-      }
+      sc.innerHTML='\ud83d\udee0\ufe0f <b>Build it:</b> Nia turns this blueprint into a live, editable OS \u2014 sets up the data and the admin screens, ready to fill.';
+      var bb=document.createElement('button');
+      bb.textContent='Build this OS \u2192';
+      bb.style.cssText='display:block;margin-top:12px;background:var(--mint);color:#062b18;border:none;border-radius:10px;padding:12px 20px;font-weight:700;font-size:14px;cursor:pointer';
+      bb.onclick=function(){ buildOS(bb); };
+      sc.appendChild(bb);
       $('report').appendChild(sc);
       history.push({role:'assistant', content:txt});
       addMsg('Blueprint ready for '+(profile.title||profile.url)+'. Ask me to refine a collection, add a field, or plan the admin screens.','nia');
