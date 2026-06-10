@@ -217,7 +217,9 @@ export default {
       }
     }
 
-    if (request.method !== 'POST') {
+    // GET-allowed routes (read-only endpoints live below this gate)
+    const GET_OK = ['/check-project', '/seo-audit', '/px.js', '/analytics', '/gsc', '/ga4', '/fetch-page', '/site-pages'];
+    if (request.method !== 'POST' && !GET_OK.includes(url.pathname)) {
       return new Response('Method not allowed', { status: 405, headers: cors });
     }
 
