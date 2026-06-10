@@ -64,7 +64,7 @@
   if(params.get('url')) $('url').value=params.get('url');
   var profile=null, history=[];
 
-  var SYS="You are Nia, NEXT's principal solutions architect. You are given a structured PROFILE of a website from automated analysis. Design the CMS and Operating System to power it, in NEXT's stack: Supabase (Postgres) for data, a NEXT OS admin module for the owner, and the public site reading content from it. Reply in these exact titled sections, each starting with '## ':\n## WHAT THIS SITE IS\n## CONTENT COLLECTIONS  (for each: name, purpose, key fields)\n## OS ADMIN MODULES  (the screens the owner uses)\n## WEBSITE <-> OS COORDINATION  (where content lives, how the public site reads it, the sync model)\n## SUPABASE SCHEMA  (ready-to-run SQL: one ```sql code block with CREATE TABLE per collection, include a site_id text column + created_at, and a one-line RLS note)\n## BUILD PLAN  (numbered phases)\nBe concrete, practical, mobile-first African context (WhatsApp, mobile money, UGX where relevant), no corporate jargon. Choose collections from the detected signals (cart, donate, tickets, events, blog, gallery, etc.).";
+  var SYS="You are Nia, NEXT's principal solutions architect. You are given a structured PROFILE of a website from automated analysis. Design the CMS and Operating System to power it, in NEXT's stack: Supabase (Postgres) for data, a NEXT OS admin module for the owner, and the public site reading content from it. Reply in these exact titled sections, each starting with '## ':\n## WHAT THIS SITE IS\n## CONTENT COLLECTIONS  (for each: name, purpose, key fields)\n## OS ADMIN MODULES  (the screens the owner uses)\n## WEBSITE <-> OS COORDINATION  (where content lives, how the public site reads it, the sync model)\n## SUPABASE SCHEMA  (ready-to-run SQL: one ```sql code block with CREATE TABLE per collection, include a site_id text column + created_at, and a one-line RLS note)\n## BUILD PLAN  (numbered phases)\n## COLLECTIONS_JSON  (a fenced ```json block: an array of collections, each {\"name\",\"label\",\"icon\",\"fields\":[{\"name\",\"label\",\"type\"}]} where type is one of text, textarea, number, image, date, boolean. Names lowercase_snake. This is parsed to auto-build the OS.)\nBe concrete, practical, mobile-first African context (WhatsApp, mobile money, UGX where relevant), no corporate jargon. Choose collections from the detected signals (cart, donate, tickets, events, blog, gallery, etc.).";
 
   function addMsg(t,c){ var d=document.createElement('div'); d.className='msg '+c; d.textContent=t; $('chat').appendChild(d); $('chat').scrollTop=$('chat').scrollHeight; return d; }
 
@@ -118,6 +118,12 @@
     return wrap;
   }
 
+  function extractCollections(text){
+    var m=text.match(/```json\s*([\s\S]*?)```/i); if(!m) return null;
+    try{ var j=JSON.parse(m[1].trim()); if(Array.isArray(j)) return j; if(j && j.collections) return j.collections; }catch(e){}
+    return null;
+  }
+  function siteKeyOf(){ try{ return new URL(profile.url).hostname.replace(/^www\./,''); }catch(e){ return (profile&&profile.url)||''; } }
   async function study(){
     var url=$('url').value.trim(); if(!url) return;
     $('report').innerHTML='<div class="empty">Nia is studying '+url+' …<br/>fetching pages, reading structure, detecting content types…</div>';
@@ -130,7 +136,29 @@
       var data=await res.json();
       var txt=(data&&data.content&&data.content.length)?data.content.filter(function(c){return c.type==='text';}).map(function(c){return c.text;}).join(''):(data&&data.error?('Error: '+data.error):'(no reply)');
       thinking.remove(); $('report').appendChild(renderBlueprint(txt));
-      var sc=document.createElement('div'); sc.className='scaffold'; sc.innerHTML='🛠️ <b>Auto-scaffold:</b> copy the SQL above into your Supabase SQL editor to create this site\'s data layer. The matching admin module (CRUD screens) is the next build — ask Nia "scaffold the admin for X".'; $('report').appendChild(sc);
+      var cols=extractCollections(txt);
+      var sc=document.createElement('div'); sc.className='scaffold';
+      if(cols && cols.length){
+        sc.innerHTML='🛠️ <b>Auto-build:</b> Nia mapped <b>'+cols.length+' collections</b>. Click below and Nia builds the working OS — sets up the data and the admin screens. Then refine it.';
+        var bb=document.createElement('button');
+        bb.textContent='Build this OS ('+cols.length+' collections) →';
+        bb.style.cssText='margin-top:12px;background:var(--mint);color:#062b18;border:none;border-radius:10px;padding:12px 18px;font-weight:700;font-size:14px;cursor:pointer';
+        var sk=siteKeyOf();
+        var openOS=function(){ window.open('/cms-os.html?site='+encodeURIComponent(sk),'_blank'); };
+        bb.onclick=async function(){
+          bb.textContent='Nia is building the OS…'; bb.disabled=true;
+          try{
+            var r=await fetch(WK+'/cms/blueprint',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({site:sk, collections:cols})});
+            var d=await r.json();
+            if(d.ok){ bb.textContent='✓ OS built for '+sk+' — Open it ↗'; bb.disabled=false; bb.onclick=openOS; openOS(); addMsg('Built the OS for '+sk+' with '+d.collections+' collections. It is open and ready — start adding content, and tell me what to refine.','nia'); }
+            else { bb.textContent='Build failed — retry'; bb.disabled=false; addMsg('Build failed: '+(d.error||'unknown')+(/(cms tables|insert failed)/i.test(d.error||'')?'  → run supabase-schema-cms.sql once in Supabase, then retry.':''),'nia'); }
+          }catch(e){ bb.textContent='Build failed — retry'; bb.disabled=false; addMsg('Build error: '+e.message,'nia'); }
+        };
+        sc.appendChild(document.createElement('br')); sc.appendChild(bb);
+      } else {
+        sc.innerHTML='🛠️ <b>Auto-scaffold:</b> copy the SQL above into Supabase to create the data layer. (Nia did not emit a machine collections list this run — ask her to "output the collections as JSON" and a Build button will appear.)';
+      }
+      $('report').appendChild(sc);
       history.push({role:'assistant', content:txt});
       addMsg('Blueprint ready for '+(profile.title||profile.url)+'. Ask me to refine a collection, add a field, or plan the admin screens.','nia');
     }catch(e){ thinking.textContent='Could not reach Nia: '+e.message; }

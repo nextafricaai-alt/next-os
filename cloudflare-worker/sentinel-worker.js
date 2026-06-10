@@ -218,7 +218,7 @@ export default {
     }
 
     // GET-allowed routes (read-only endpoints live below this gate)
-    const GET_OK = ['/check-project', '/seo-audit', '/px.js', '/analytics', '/gsc', '/ga4', '/fetch-page', '/site-pages'];
+    const GET_OK = ['/check-project', '/seo-audit', '/px.js', '/analytics', '/gsc', '/ga4', '/fetch-page', '/site-pages', '/cms/collections', '/cms/items'];
     if (request.method !== 'POST' && !GET_OK.includes(url.pathname)) {
       return new Response('Method not allowed', { status: 405, headers: cors });
     }
@@ -300,6 +300,13 @@ export default {
     if (url.pathname === '/publish') {
       return handlePublish(request, env, cors);
     }
+
+    // ─── CMS engine (schema-driven OS built by Nia) ──
+    if (url.pathname === '/cms/blueprint')   return handleCmsBlueprint(request, env, cors);
+    if (url.pathname === '/cms/collections') return handleCmsCollections(url.searchParams.get('site') || '', env, cors);
+    if (url.pathname === '/cms/items')       return handleCmsItems(url.searchParams.get('site') || '', url.searchParams.get('collection') || '', env, cors);
+    if (url.pathname === '/cms/item')        return handleCmsItemSave(request, env, cors);
+    if (url.pathname === '/cms/item-delete') return handleCmsItemDelete(request, env, cors);
 
     // ─── Route: / — Llama agent (default) ───────────────────────────────
     return handleAgent(request, env, cors);
@@ -849,6 +856,60 @@ async function handleSitePages(target, cors) {
   pages = Array.from(new Set([origin + '/'].concat(pages))).slice(0, 60);
   const items = pages.map(u => { let p = ''; try { p = new URL(u).pathname; } catch (e) { p = u; } const name = p === '/' ? 'Home' : (p.replace(/\/$/, '').split('/').pop() || p).replace(/[-_]/g, ' ').replace(/\.html?$/i, ''); return { url: u, path: p, name: name }; });
   return J({ origin, count: items.length, pages: items });
+}
+
+// ── CMS engine: generic, schema-driven content store (one table set, all sites) ──
+function sbHeaders(env, prefer) { return { 'apikey': env.SUPABASE_KEY, 'Authorization': 'Bearer ' + env.SUPABASE_KEY, 'Content-Type': 'application/json', 'Prefer': prefer || 'return=representation' }; }
+function cmsJ(o, st, cors) { return new Response(JSON.stringify(o), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } }); }
+
+// Nia saves a blueprint: replace this site's collections with the given list.
+async function handleCmsBlueprint(request, env, cors) {
+  if (request.method !== 'POST') return cmsJ({ ok: false, error: 'POST only' }, 405, cors);
+  try {
+    const b = await request.json();
+    const site = String(b.site || '').trim();
+    const collections = Array.isArray(b.collections) ? b.collections : [];
+    if (!site || !collections.length) return cmsJ({ ok: false, error: 'site and collections required' }, 400, cors);
+    // wipe + insert
+    await fetch(env.SUPABASE_URL + '/rest/v1/cms_collections?site=eq.' + encodeURIComponent(site), { method: 'DELETE', headers: sbHeaders(env, 'return=minimal') });
+    const rows = collections.map((c, i) => ({ site: site, name: String(c.name || ('col' + i)).toLowerCase().replace(/[^a-z0-9_]+/g, '_'), label: c.label || c.name || ('Collection ' + i), icon: c.icon || '', fields: c.fields || [], sort: i }));
+    const res = await fetch(env.SUPABASE_URL + '/rest/v1/cms_collections', { method: 'POST', headers: sbHeaders(env, 'return=minimal'), body: JSON.stringify(rows) });
+    if (!res.ok) { const t = await res.text(); return cmsJ({ ok: false, error: 'insert failed: ' + t.slice(0, 200), hint: 'If the cms tables are missing, run supabase-schema-cms.sql.' }, 200, cors); }
+    return cmsJ({ ok: true, site: site, collections: rows.length });
+  } catch (e) { return cmsJ({ ok: false, error: String((e && e.message) || e) }, 500, cors); }
+}
+async function handleCmsCollections(site, env, cors) {
+  if (!site) return cmsJ({ error: 'site required' }, 400, cors);
+  try { const rows = await sbFetch(env, '/cms_collections?site=eq.' + encodeURIComponent(site) + '&order=sort.asc&select=name,label,icon,fields,sort'); return cmsJ({ site: site, collections: rows || [] }, 200, cors); }
+  catch (e) { return cmsJ({ error: String((e && e.message) || e) }, 200, cors); }
+}
+async function handleCmsItems(site, collection, env, cors) {
+  if (!site || !collection) return cmsJ({ error: 'site and collection required' }, 400, cors);
+  try { const rows = await sbFetch(env, '/cms_items?site=eq.' + encodeURIComponent(site) + '&collection=eq.' + encodeURIComponent(collection) + '&order=created_at.desc&select=id,data,status,created_at,updated_at'); return cmsJ({ site: site, collection: collection, items: rows || [] }, 200, cors); }
+  catch (e) { return cmsJ({ error: String((e && e.message) || e) }, 200, cors); }
+}
+async function handleCmsItemSave(request, env, cors) {
+  if (request.method !== 'POST') return cmsJ({ ok: false, error: 'POST only' }, 405, cors);
+  try {
+    const b = await request.json();
+    const site = String(b.site || '').trim(); const collection = String(b.collection || '').trim();
+    if (!site || !collection) return cmsJ({ ok: false, error: 'site and collection required' }, 400, cors);
+    const data = b.data || {};
+    if (b.id) {
+      const res = await fetch(env.SUPABASE_URL + '/rest/v1/cms_items?id=eq.' + encodeURIComponent(b.id), { method: 'PATCH', headers: sbHeaders(env, 'return=representation'), body: JSON.stringify({ data: data, status: b.status || 'published', updated_at: new Date().toISOString() }) });
+      const j = await res.json(); return cmsJ({ ok: res.ok, item: Array.isArray(j) ? j[0] : j }, 200, cors);
+    } else {
+      const res = await fetch(env.SUPABASE_URL + '/rest/v1/cms_items', { method: 'POST', headers: sbHeaders(env, 'return=representation'), body: JSON.stringify({ site: site, collection: collection, data: data, status: b.status || 'published' }) });
+      const j = await res.json(); return cmsJ({ ok: res.ok, item: Array.isArray(j) ? j[0] : j }, 200, cors);
+    }
+  } catch (e) { return cmsJ({ ok: false, error: String((e && e.message) || e) }, 500, cors); }
+}
+async function handleCmsItemDelete(request, env, cors) {
+  if (request.method !== 'POST') return cmsJ({ ok: false, error: 'POST only' }, 405, cors);
+  try { const b = await request.json(); if (!b.id) return cmsJ({ ok: false, error: 'id required' }, 400, cors);
+    await fetch(env.SUPABASE_URL + '/rest/v1/cms_items?id=eq.' + encodeURIComponent(b.id), { method: 'DELETE', headers: sbHeaders(env, 'return=minimal') });
+    return cmsJ({ ok: true }, 200, cors);
+  } catch (e) { return cmsJ({ ok: false, error: String((e && e.message) || e) }, 500, cors); }
 }
 
 // Commit an edited page to a GitHub repo (real deploy via the site's GitHub->Hostinger/Cloudflare pipeline).
