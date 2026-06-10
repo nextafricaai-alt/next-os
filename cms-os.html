@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>NEXT OS · CMS</title>
+<style>
+  :root{ --bg:#0a0f24; --panel:#111a36; --panel2:#0d1430; --line:#26315a; --ink:#eef1fb; --ink2:#aab2d5; --ink3:#7e88b0; --mint:#00fc8f; --accent:#3b82f6; --danger:#ff4757; }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:Inter,-apple-system,system-ui,sans-serif}
+  #top{display:flex;align-items:center;gap:10px;padding:12px 18px;border-bottom:1px solid var(--line);background:var(--panel2)}
+  #top b{font-size:15px}
+  .muted{color:var(--ink3);font-size:12px}
+  #main{display:flex;height:calc(100% - 56px)}
+  #side{width:220px;flex-shrink:0;border-right:1px solid var(--line);background:var(--panel2);overflow:auto;padding:10px 0}
+  #side .ph{padding:10px 16px 6px;font-size:10px;font-family:ui-monospace,monospace;color:var(--ink3);text-transform:uppercase;letter-spacing:.1em}
+  #side a{display:flex;align-items:center;gap:9px;padding:10px 16px;font-size:13.5px;color:var(--ink2);cursor:pointer;border-left:3px solid transparent}
+  #side a:hover{background:rgba(255,255,255,.03);color:var(--ink)}
+  #side a.active{background:rgba(0,252,143,.08);color:var(--mint);border-left-color:var(--mint)}
+  #content{flex:1;overflow:auto;padding:24px 28px}
+  .head{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}
+  .head h1{margin:0;font-size:22px}
+  .btn{background:var(--mint);color:#062b18;border:none;border-radius:9px;padding:9px 16px;font-weight:700;font-size:13px;cursor:pointer}
+  .btn.ghost{background:transparent;border:1px solid var(--line);color:var(--ink2);font-weight:500}
+  .btn.del{border:1px solid rgba(255,71,87,.5);color:#ff8a96;background:transparent}
+  table{width:100%;border-collapse:collapse;font-size:13.5px}
+  th{text-align:left;color:var(--ink3);font-size:11px;text-transform:uppercase;letter-spacing:.05em;padding:8px 10px;border-bottom:1px solid var(--line)}
+  td{padding:10px;border-bottom:1px solid var(--line);color:var(--ink);vertical-align:top}
+  tr:hover td{background:rgba(255,255,255,.02)}
+  .empty{color:var(--ink3);text-align:center;margin-top:60px;font-size:14px;line-height:1.7}
+  .modal{position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;z-index:50}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;width:540px;max-width:94vw;max-height:88vh;overflow:auto;padding:22px 24px}
+  .card h2{margin:0 0 14px;font-size:18px}
+  .fld{margin-bottom:12px;display:flex;flex-direction:column;gap:5px}
+  .fld label{font-size:12px;color:var(--ink2)}
+  .fld input,.fld textarea,.fld select{background:var(--bg);border:1px solid var(--line);border-radius:8px;color:var(--ink);padding:9px 11px;font-size:13.5px;font-family:inherit;width:100%}
+  .fld textarea{min-height:80px;resize:vertical}
+  .actions{display:flex;justify-content:flex-end;gap:8px;margin-top:8px}
+  img.thumb{height:34px;border-radius:5px;vertical-align:middle}
+</style>
+</head>
+<body>
+  <div id="top"><b id="siteName">NEXT OS · CMS</b><span class="muted" id="siteSub"></span><span style="flex:1"></span><span class="muted">powered by NEXT OS</span></div>
+  <div id="main">
+    <div id="side"><div class="ph">Collections</div><div id="cols"></div></div>
+    <div id="content"><div class="empty">Loading…</div></div>
+  </div>
+<script>
+(function(){
+  var WK='https://nextos-sentinel.nextafricaai.workers.dev';
+  var $=function(id){return document.getElementById(id);};
+  var params=new URLSearchParams(location.search);
+  var site=params.get('site')||'';
+  var collections=[], current=null;
+  $('siteName').textContent = (site||'NEXT OS') + ' · CMS';
+
+  async function load(){
+    if(!site){ $('content').innerHTML='<div class="empty">No site specified.</div>'; return; }
+    try{
+      var r=await fetch(WK+'/cms/collections?site='+encodeURIComponent(site));
+      var d=await r.json(); collections=d.collections||[];
+    }catch(e){ collections=[]; }
+    var nav=$('cols'); nav.innerHTML='';
+    if(!collections.length){ $('content').innerHTML='<div class="empty">No collections yet for '+site+'.<br/>Run Nia Intelligence and click "Build this OS" first.</div>'; return; }
+    collections.forEach(function(c,i){ var a=document.createElement('a'); a.innerHTML='<span>'+(c.icon||'▦')+'</span><span>'+(c.label||c.name)+'</span>'; a.onclick=function(){ openCollection(c); }; a.dataset.name=c.name; nav.appendChild(a); });
+    openCollection(collections[0]);
+  }
+
+  function setActive(name){ Array.prototype.forEach.call($('cols').children, function(a){ a.classList.toggle('active', a.dataset && a.dataset.name===name); }); }
+
+  async function openCollection(c){
+    current=c; setActive(c.name);
+    $('content').innerHTML='<div class="empty">Loading '+(c.label||c.name)+'…</div>';
+    var items=[]; try{ var r=await fetch(WK+'/cms/items?site='+encodeURIComponent(site)+'&collection='+encodeURIComponent(c.name)); var d=await r.json(); items=d.items||[]; }catch(e){}
+    var fields=c.fields||[];
+    var html='<div class="head"><h1>'+(c.icon||'')+' '+(c.label||c.name)+'</h1><button class="btn" id="addBtn">+ Add '+(c.label||c.name).replace(/s$/,'')+'</button></div>';
+    if(!items.length){ html+='<div class="empty">No '+(c.label||c.name).toLowerCase()+' yet. Click "+ Add" to create the first one.</div>'; }
+    else {
+      html+='<table><thead><tr>'+fields.slice(0,4).map(function(f){return '<th>'+(f.label||f.name)+'</th>';}).join('')+'<th></th></tr></thead><tbody>';
+      items.forEach(function(it){
+        html+='<tr>'+fields.slice(0,4).map(function(f){ var v=(it.data||{})[f.name]; if(f.type==='image'&&v){ v='<img class="thumb" src="'+v+'"/>'; } else if(typeof v==='boolean'){ v=v?'✓':''; } else { v=(v==null?'':String(v)); if(v.length>60) v=v.slice(0,60)+'…'; } return '<td>'+v+'</td>'; }).join('')+'<td style="text-align:right;white-space:nowrap"><button class="btn ghost" data-edit="'+it.id+'">Edit</button> <button class="btn del" data-del="'+it.id+'">Delete</button></td></tr>';
+      });
+      html+='</tbody></table>';
+    }
+    $('content').innerHTML=html;
+    $('addBtn').onclick=function(){ openForm(null); };
+    Array.prototype.forEach.call(document.querySelectorAll('[data-edit]'),function(b){ b.onclick=function(){ var it=items.filter(function(x){return String(x.id)===b.getAttribute('data-edit');})[0]; openForm(it); }; });
+    Array.prototype.forEach.call(document.querySelectorAll('[data-del]'),function(b){ b.onclick=async function(){ if(!confirm('Delete this item?')) return; await fetch(WK+'/cms/item-delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:b.getAttribute('data-del')})}); openCollection(c); }; });
+  }
+
+  function fieldInput(f, val){
+    var t=f.type||'text'; var name='f_'+f.name; val=(val==null?'':val);
+    if(t==='textarea'||t==='richtext') return '<textarea id="'+name+'">'+String(val).replace(/</g,'&lt;')+'</textarea>';
+    if(t==='boolean') return '<input type="checkbox" id="'+name+'" '+(val?'checked':'')+' style="width:auto" />';
+    if(t==='number') return '<input type="number" id="'+name+'" value="'+val+'" />';
+    if(t==='date') return '<input type="date" id="'+name+'" value="'+val+'" />';
+    if(t==='image'||t==='url') return '<input type="text" id="'+name+'" value="'+String(val).replace(/"/g,'&quot;')+'" placeholder="https://…" />';
+    return '<input type="text" id="'+name+'" value="'+String(val).replace(/"/g,'&quot;')+'" />';
+  }
+  function openForm(item){
+    var fields=current.fields||[]; var data=(item&&item.data)||{};
+    var body='<div class="card"><h2>'+(item?'Edit':'New')+' '+(current.label||current.name).replace(/s$/,'')+'</h2>';
+    fields.forEach(function(f){ body+='<div class="fld"><label>'+(f.label||f.name)+(f.type?' · '+f.type:'')+'</label>'+fieldInput(f, data[f.name])+'</div>'; });
+    body+='<div class="actions"><button class="btn ghost" id="cancelB">Cancel</button><button class="btn" id="saveB">Save</button></div></div>';
+    var m=document.createElement('div'); m.className='modal'; m.innerHTML=body; document.body.appendChild(m);
+    m.querySelector('#cancelB').onclick=function(){ m.remove(); };
+    m.addEventListener('click',function(e){ if(e.target===m) m.remove(); });
+    m.querySelector('#saveB').onclick=async function(){
+      var out={}; fields.forEach(function(f){ var el=document.getElementById('f_'+f.name); if(!el) return; out[f.name]=(f.type==='boolean')?el.checked:(f.type==='number'?(el.value===''?null:Number(el.value)):el.value); });
+      var btn=m.querySelector('#saveB'); btn.textContent='Saving…'; btn.disabled=true;
+      try{ await fetch(WK+'/cms/item',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({site:site,collection:current.name,id:item?item.id:null,data:out})}); m.remove(); openCollection(current); }
+      catch(e){ btn.textContent='Save'; btn.disabled=false; alert('Save failed: '+e.message); }
+    };
+  }
+
+  load();
+})();
+</script>
+</body>
+</html>
