@@ -109,10 +109,12 @@
   function setEdit(on){
     var d=doc(); if(!d) return; editing=on;
     $('edit').textContent='Edit: '+(on?'on':'off'); $('edit').classList.toggle('on',on);
-    try{ d.body.contentEditable = on?'true':'false'; d.designMode = on?'on':'off'; }catch(e){}
+    try{ d.designMode = on?'on':'off'; }catch(e){}
+    try{ d.body.contentEditable = on?'true':'false'; }catch(e){}
     var id='nx-edit-style', ex=d.getElementById(id);
-    if(on && !ex){ var st=d.createElement('style'); st.id=id; st.textContent='*[contenteditable] :hover{outline:1px dashed rgba(0,252,143,.6)!important} img{cursor:pointer!important}'; (d.head||d.body).appendChild(st); }
+    if(on && !ex){ var st=d.createElement('style'); st.id=id; st.textContent='*{ -webkit-user-select:text !important; user-select:text !important } body{caret-color:#00b56a} *:hover{outline:1px dashed rgba(0,252,143,.4)} img:hover{outline:2px solid rgba(0,252,143,.95) !important; cursor:pointer !important}'; (d.head||d.documentElement).appendChild(st); }
     else if(!on && ex){ ex.remove(); }
+    try{ $('canvasWrap').style.boxShadow = on ? 'inset 0 0 0 3px var(--mint)' : 'none'; }catch(e){}
   }
   function swapImage(img){
     var url=window.prompt('New image URL (Cancel to upload from your computer):', img.src||'');
@@ -125,6 +127,8 @@
     var d=doc(); if(!d) return;
     d.addEventListener('click', function(ev){ if(!editing) return; var t=ev.target; if(t&&t.tagName==='IMG'){ ev.preventDefault(); ev.stopPropagation(); swapImage(t); } }, true);
     d.addEventListener('click', function(ev){ if(editing){ var a=ev.target.closest&&ev.target.closest('a'); if(a) ev.preventDefault(); } }, true);
+    // editable by default once a page loads
+    setTimeout(function(){ setEdit(true); }, 60);
   });
 
   function currentHtml(){ var d=doc(); if(!d) return ''; var h='<!doctype html>\n'+d.documentElement.outerHTML; return h.replace(/<base[^>]*>/i,''); }
@@ -168,7 +172,7 @@
   $('msg').addEventListener('keydown',function(e){ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); $('send').click(); } });
   Array.prototype.forEach.call(document.querySelectorAll('#quick button'),function(b){ b.onclick=function(){ ask(b.getAttribute('data-q')); }; });
 
-  addMsg('Hi Hudson — load a page, pick a page on the left, then turn Edit on to click-edit text and swap images. Ask me for a design review anytime. Publish live deploys straight to the site’s GitHub.','nia');
+  addMsg('Hi Hudson — load a page (it opens editable). Click any text to type, click any image to swap it. Ask me for a design review anytime. Export saves a file; Publish live deploys to the site’s GitHub.','nia');
   if($('url').value){ var u=$('url').value.trim(); loadedUrl=u; loadPage(u); loadPages(u); }
 })();
 </script>
