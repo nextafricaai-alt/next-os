@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Nia Graphics — NEXT Studio</title>
+<style>
+  :root{ --bg:#0b0d12; --panel:#11141b; --panel2:#171b24; --line:#232838; --ink:#eef1f7; --ink2:#aeb6c6; --ink3:#6b748a; --accent:#2563eb; --mint:#34d399; --grad:linear-gradient(135deg,#7c3aed,#2563eb); }
+  *{box-sizing:border-box} html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:Inter,-apple-system,Segoe UI,Roboto,sans-serif}
+  #top{display:flex;align-items:center;gap:8px;padding:8px 14px;background:var(--panel);border-bottom:1px solid var(--line);flex-wrap:wrap}
+  #brand{font-weight:800;letter-spacing:-.02em}#brand b{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+  #top select,#top button{background:var(--panel2);border:1px solid var(--line);color:var(--ink2);border-radius:8px;padding:7px 11px;font-size:13px;cursor:pointer}
+  #top button:hover{color:var(--ink)}
+  #top .pri{background:var(--grad);color:#fff;border:0;font-weight:600}
+  #top .sz{color:var(--ink3);font-size:12px;margin-left:auto}
+  #main{display:flex;height:calc(100vh - 51px)}
+  #stage{flex:1;display:flex;align-items:center;justify-content:center;overflow:auto;background:radial-gradient(circle at 50% 30%,#141826,#0b0d12);padding:30px}
+  #board{background:#fff;box-shadow:0 20px 60px rgba(0,0,0,.5);max-width:100%;max-height:100%}
+  #board svg{display:block;max-width:100%;height:auto}
+  #empty{color:var(--ink3);text-align:center;max-width:340px;line-height:1.5}
+  #empty h2{color:var(--ink);font-size:19px;margin:0 0 8px}
+  #side{width:360px;min-width:320px;display:flex;flex-direction:column;background:var(--panel);border-left:1px solid var(--line)}
+  #sh{display:flex;align-items:center;gap:8px;padding:12px 14px;border-bottom:1px solid var(--line)}
+  #dot{width:9px;height:9px;border-radius:50%;background:var(--mint);box-shadow:0 0 8px var(--mint)}
+  #chat{flex:1;overflow:auto;padding:14px;display:flex;flex-direction:column;gap:10px}
+  .msg{padding:10px 12px;border-radius:12px;font-size:13px;line-height:1.5;max-width:92%;white-space:pre-wrap;word-wrap:break-word}
+  .msg.me{align-self:flex-end;background:var(--accent);color:#fff;border-bottom-right-radius:4px}
+  .msg.nia{align-self:flex-start;background:var(--panel2);border:1px solid var(--line);color:var(--ink);border-bottom-left-radius:4px}
+  #quick{display:flex;flex-wrap:wrap;gap:6px;padding:0 14px 8px}
+  #quick button{font-size:11px;background:var(--panel2);border:1px solid var(--line);color:var(--ink2);border-radius:999px;padding:5px 10px;cursor:pointer}
+  #quick button:hover{color:var(--ink)}
+  #composer{display:flex;gap:8px;padding:10px 14px;border-top:1px solid var(--line)}
+  #msg{flex:1;background:var(--panel2);border:1px solid var(--line);color:var(--ink);border-radius:10px;padding:9px 11px;font-size:13px;resize:none;height:46px;font-family:inherit}
+  #send{background:var(--grad);color:#fff;border:0;border-radius:10px;padding:0 16px;font-weight:600;cursor:pointer}
+  .hist{display:flex;gap:6px;align-items:center}
+</style>
+</head>
+<body>
+  <div id="top">
+    <span id="brand">Nia <b>Graphics</b></span>
+    <select id="preset" title="Artboard size">
+      <option value="1080x1080">Instagram post · 1080x1080</option>
+      <option value="1080x1350">Instagram portrait · 1080x1350</option>
+      <option value="1080x1920">Story / Reel · 1080x1920</option>
+      <option value="1200x630">Facebook / OG · 1200x630</option>
+      <option value="1600x900">Twitter/X · 1600x900</option>
+      <option value="1240x1754">Poster A4 · 1240x1754</option>
+      <option value="1500x500">Banner · 1500x500</option>
+      <option value="512x512">Logo / Icon · 512x512</option>
+    </select>
+    <span class="hist"><button id="undo" title="Previous version">&#8624;</button><button id="redo" title="Next version">&#8625;</button></span>
+    <button id="dlsvg">Download SVG</button>
+    <button id="dlpng" class="pri">Download PNG</button>
+    <span id="sz" class="sz"></span>
+  </div>
+  <div id="main">
+    <div id="stage">
+      <div id="board"><div id="empty"><h2>Let's design something.</h2>Tell Nia your idea &mdash; &ldquo;a bold poster for the Fathers Arise conference, navy and gold&rdquo; &mdash; and she'll draw it here. Then refine it together: &ldquo;bigger title&rdquo;, &ldquo;warmer palette&rdquo;, &ldquo;add a date strip&rdquo;.</div></div>
+    </div>
+    <div id="side">
+      <div id="sh"><span id="dot"></span><b>Nia</b> <span style="color:var(--ink3);font-size:12px">&middot; graphic designer</span></div>
+      <div id="chat"></div>
+      <div id="quick">
+        <button data-q="Design a poster for an event. Ask me 2 quick questions if you need details, otherwise propose a concept and draw a first version.">Poster</button>
+        <button data-q="Design a clean, memorable logo concept. Propose a direction, then draw it.">Logo</button>
+        <button data-q="Design an Instagram post graphic with a strong headline and brand colours.">Social post</button>
+        <button data-q="Make the title much bigger and bolder, and improve the hierarchy.">Bigger title</button>
+        <button data-q="Try a bolder, more striking colour palette while keeping it tasteful.">Bolder palette</button>
+      </div>
+      <div id="composer"><textarea id="msg" placeholder="Describe your idea, or a change..."></textarea><button id="send">Send</button></div>
+    </div>
+  </div>
+<script>
+  var WK='https://nextos-sentinel.nextafricaai.workers.dev';
+  var $=function(id){return document.getElementById(id);};
+  var W=1080,H=1080, history=[], svgHist=[], hi=-1;
+  function dims(){ var p=$('preset').value.split('x'); W=parseInt(p[0]); H=parseInt(p[1]); $('sz').textContent=W+' x '+H+' px'; }
+  dims();
+  $('preset').onchange=function(){ dims(); if(svgHist.length) ask('Redesign / adapt the current concept to fit the new artboard size '+W+'x'+H+'. Keep the same idea and brand.'); };
+
+  function SYS(){ return "You are Nia, NEXT's master graphic designer. You create original graphics FROM SCRATCH as clean, self-contained SVG - posters, logos, social posts, banners, icons. You are excellent at composition, visual hierarchy, type, colour theory and balance, at the level of award-winning design.\n\nHARD RULES for every graphic you draw:\n- Output exactly ONE fenced code block labelled svg containing a COMPLETE, valid <svg> element and nothing else inside the block.\n- The svg MUST start with: <svg xmlns=\"http://www.w3.org/2000/svg\" width=\""+W+"\" height=\""+H+"\" viewBox=\"0 0 "+W+" "+H+"\">  (use exactly these dimensions: "+W+"x"+H+").\n- Use ONLY vector content: rect, circle, ellipse, path, polygon, line, linearGradient/radialGradient, and <text>. NO external images, NO <image> with URLs, NO external fonts or @import (so it exports to PNG cleanly).\n- For type use bold, safe font stacks via font-family on <text>, e.g. font-family=\"Georgia, serif\" or font-family=\"Arial, Helvetica, sans-serif\" or \"Impact, sans-serif\". Set font-size in px, font-weight, letter-spacing, and text-anchor for alignment. Keep all text inside the artboard with comfortable margins.\n- Make it genuinely beautiful: a clear focal point, strong hierarchy, an intentional colour palette with real depth (gradients, accents), generous spacing.\n\nHOW YOU WORK: When the idea is clear, design immediately and draw the full SVG. When the user asks for a change (\"bigger title\", \"warmer\", \"add a date\"), REDRAW the complete updated SVG (always a full svg block, never a fragment). Before or after the code block, write ONE short line describing the concept or what you changed - keep prose minimal. Ask a question only if you truly cannot proceed."; }
+
+  function addMsg(t,c){ var d=document.createElement('div'); d.className='msg '+c; d.textContent=t; $('chat').appendChild(d); $('chat').scrollTop=$('chat').scrollHeight; return d; }
+  function extractSvg(txt){ var m=txt.match(/```(?:svg|xml|html)?\s*([\s\S]*?)```/i); var body=m?m[1]:txt; var s=body.match(/<svg[\s\S]*<\/svg>/i); return s?s[0]:null; }
+  function render(svg){ if(!svg) return; $('board').innerHTML=svg; var el=$('board').querySelector('svg'); if(el){ el.removeAttribute('width'); el.removeAttribute('height'); el.style.maxWidth='min(100%,'+W+'px)'; var vb=el.getAttribute('viewBox'); if(vb){ var r=vb.split(/\s+/); el.style.aspectRatio=r[2]+' / '+r[3]; } } }
+  function pushHist(svg){ svgHist=svgHist.slice(0,hi+1); svgHist.push(svg); if(svgHist.length>40) svgHist.shift(); hi=svgHist.length-1; }
+  $('undo').onclick=function(){ if(hi>0){ hi--; render(svgHist[hi]); } };
+  $('redo').onclick=function(){ if(hi<svgHist.length-1){ hi++; render(svgHist[hi]); } };
+
+  function ask(text){ if(!text) return; addMsg(text,'me'); history.push({role:'user',content:text}); var th=addMsg('designing...','nia');
+    fetch(WK+'/',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({system:SYS(),messages:history})})
+    .then(function(r){return r.json();}).then(function(data){ var txt='';
+      if(data&&data.content&&data.content.length){ txt=data.content.filter(function(c){return c.type==='text';}).map(function(c){return c.text;}).join(''); }
+      else if(data&&data.error){ txt='Error: '+data.error; } else { txt=typeof data==='string'?data:JSON.stringify(data).slice(0,300); }
+      var svg=extractSvg(txt); var disp=txt.replace(/```[\s\S]*?```/g,'').replace(/\n{3,}/g,'\n\n').trim();
+      th.textContent=disp||(svg?'Here you go - refine it however you like.':txt)||'(no reply)';
+      history.push({role:'assistant',content:txt});
+      if(svg){ render(svg); pushHist(svg); }
+    }).catch(function(e){ th.textContent='Could not reach Nia: '+e.message; }); }
+
+  $('send').onclick=function(){ var v=$('msg').value.trim(); if(v){ ask(v); $('msg').value=''; } };
+  $('msg').addEventListener('keydown',function(e){ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); $('send').click(); } });
+  Array.prototype.forEach.call(document.querySelectorAll('#quick button'),function(b){ b.onclick=function(){ ask(b.getAttribute('data-q')); }; });
+
+  function currentSvg(){ var el=$('board').querySelector('svg'); if(!el) return null; var c=el.cloneNode(true); c.setAttribute('width',W); c.setAttribute('height',H); c.removeAttribute('style'); return '<?xml version="1.0" encoding="UTF-8"?>\n'+c.outerHTML; }
+  function dl(name,blob){ var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; a.click(); setTimeout(function(){URL.revokeObjectURL(a.href);},2000); }
+  $('dlsvg').onclick=function(){ var s=currentSvg(); if(!s){ alert('Design something first.'); return; } dl('nia-graphic.svg', new Blob([s],{type:'image/svg+xml'})); };
+  $('dlpng').onclick=function(){ var s=currentSvg(); if(!s){ alert('Design something first.'); return; }
+    var img=new Image(); img.onload=function(){ var sc=2; var cv=document.createElement('canvas'); cv.width=W*sc; cv.height=H*sc; var ctx=cv.getContext('2d'); ctx.fillStyle='#fff'; ctx.fillRect(0,0,cv.width,cv.height); ctx.drawImage(img,0,0,cv.width,cv.height); try{ cv.toBlob(function(b){ dl('nia-graphic.png',b); },'image/png'); }catch(e){ alert('PNG export failed: '+e.message); } };
+    img.onerror=function(){ alert('Could not render SVG to PNG.'); };
+    img.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(s); };
+</script>
+</body>
+</html>

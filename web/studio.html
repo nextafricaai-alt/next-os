@@ -55,6 +55,7 @@
     <button id="undo" title="Undo">↶</button>
     <button id="redo" title="Redo">↷</button>
     <span id="device" style="display:flex;gap:4px"><button data-w="0" class="on">🖥</button><button data-w="900">▭</button><button data-w="430">▯</button></span>
+    <button id="graphics" title="Create graphics from scratch with Nia">🎨 Graphics</button>
     <button id="export">Export</button>
     <button id="publish" class="publish">Publish live</button>
   </div>
@@ -236,6 +237,7 @@
   $('url').addEventListener('keydown',function(e){ if(e.key==='Enter') $('load').click(); });
   $('edit').onclick=function(){ setEdit(!editing); };
   $('export').onclick=exportHtml; $('publish').onclick=publish;
+  var gb=$('graphics'); if(gb) gb.onclick=function(){ window.open('/graphics.html','_blank'); };
   $('send').onclick=function(){ var v=$('msg').value.trim(); if(v){ ask(v); $('msg').value=''; } };
   $('msg').addEventListener('keydown',function(e){ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); $('send').click(); } });
   Array.prototype.forEach.call(document.querySelectorAll('#quick button'),function(b){ b.onclick=function(){ ask(b.getAttribute('data-q')); }; });
