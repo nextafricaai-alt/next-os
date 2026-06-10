@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>NEXT Studio</title>
+<title>Nia Studio</title>
 <style>
   :root{ --bg:#0a0f24; --panel:#111a36; --panel2:#0d1430; --line:#26315a; --ink:#eef1fb; --ink2:#aab2d5; --ink3:#7e88b0; --mint:#00fc8f; --accent:#3b82f6; --gold:#ffb400; --danger:#ff4757; }
   *{box-sizing:border-box}
@@ -71,7 +71,7 @@
   </div>
   <div id="modeFrames"><iframe id="gfxFrame" data-src="/graphics.html"></iframe><iframe id="intelFrame" data-src="/nia-intel.html"></iframe></div>
   <div id="top">
-    <span id="brand">NEXT Studio</span>
+    <span id="brand">Nia Studio</span>
     <input class="web-only" id="url" placeholder="https://nextafrica.ai" />
     <button class="web-only" id="load">Load</button>
     <button class="web-only" id="edit" class="on">Edit: on</button>
@@ -242,7 +242,7 @@
       else { var cc=getRepoCfg()||cfg; cc.pathMap=cc.pathMap||{}; cc.pathMap[pn]=path; try{ localStorage.setItem(repoKey(),JSON.stringify(cc)); }catch(e){} }
     }
     cfg.repo=normRepo(cfg.repo); addMsg('Publishing '+path+' to '+cfg.repo+' ('+cfg.branch+')…','nia');
-    fetch(WK+'/publish',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({repo:cfg.repo,branch:cfg.branch,path:path,html:currentHtml(),message:'Edit via NEXT Studio'})})
+    fetch(WK+'/publish',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({repo:cfg.repo,branch:cfg.branch,path:path,html:currentHtml(),message:'Edit via Nia Studio'})})
       .then(function(r){return r.json();}).then(function(res){ if(res.ok){ addMsg('✓ Published to '+res.repo+' / '+res.path+'. Live in under a minute once the deploy runs.','nia'); } else { addMsg('Publish failed: '+(res.error||'unknown'),'nia'); if(/404|not found|repo/i.test(res.error||'')){ if(pid){ var z=projMeta()||{}; delete z.repo; saveProj(z); } else { try{ localStorage.removeItem(repoKey()); }catch(e){} } } } })
       .catch(function(e){ addMsg('Publish error: '+e.message,'nia'); }); }
 
