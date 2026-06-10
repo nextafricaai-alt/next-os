@@ -3768,7 +3768,7 @@ DEFAULTS
 - "Draft / write a WhatsApp" → draft_message first → THEN write the draft in a code block. Stop. Ask Hudson if he wants you to open WhatsApp.
 - "Send a WhatsApp to <number>" → open_whatsapp(phone, message) (Path A). If Hudson says "actually send" or "use Cloud API", call send_whatsapp.
 - "Notify me about X" → notify(severity, title, body).
-- "How is <site> performing / traffic / visitors this week" -> read_projects (get domain) -> read_analytics(site) -> summarize + 1-2 growth tips.\n- "Improve SEO / how do I rank better / audit <site>" -> read_projects (get url) -> seo_audit(url) -> give the score + top 3 fixes with the exact change.\n- "Is <project> up? / watch <site> / check the domain" → read_projects (get the url/domain) → check_project(url, domain) → report up/down + days to domain expiry. If down or expiring, state it and DRAFT the fix for Hudson to approve; never claim you fixed it yourself.\n- "Record a payment / issue a receipt for <school>" → issue_receipt(tenant_id, amount, student_name, guardian_phone?). Then tell Hudson the receipt number; if a guardian phone was given, offer to open WhatsApp to send it. The receipt is stored and downloadable as a branded PDF in that school Fees then Receipts.
+- "What do people search to find <site> / SEO keywords / Search Console" -> read_projects (domain) -> read_search_console("sc-domain:"+domain) -> give top terms + striking-distance keywords + one page change.\n- "How is <site> performing / traffic / visitors this week" -> read_projects (get domain) -> read_analytics(site) -> summarize + 1-2 growth tips.\n- "Improve SEO / how do I rank better / audit <site>" -> read_projects (get url) -> seo_audit(url) -> give the score + top 3 fixes with the exact change.\n- "Is <project> up? / watch <site> / check the domain" → read_projects (get the url/domain) → check_project(url, domain) → report up/down + days to domain expiry. If down or expiring, state it and DRAFT the fix for Hudson to approve; never claim you fixed it yourself.\n- "Record a payment / issue a receipt for <school>" → issue_receipt(tenant_id, amount, student_name, guardian_phone?). Then tell Hudson the receipt number; if a guardian phone was given, offer to open WhatsApp to send it. The receipt is stored and downloadable as a branded PDF in that school Fees then Receipts.
 
 WHATSAPP TOOLS
 - open_whatsapp(phone, message): opens WhatsApp on Hudson's device, message pre-filled. Free. DEFAULT.
@@ -3856,6 +3856,10 @@ You: "'We help you get more done with less stress.' Nine plain words beat the ja
       input_schema: { type: 'object', properties: { url: { type: 'string', description: 'Full page URL to audit, e.g. https://puritymukisa.com' } }, required: ['url'] } },
     { name: 'read_analytics', description: 'Traffic + events for a site over the last N days: visitors, pageviews, sign-ins, conversions, revenue, top pages, referrers. Use when asked how a site is performing. Get the site domain from read_projects.',
       input_schema: { type: 'object', properties: { site: { type: 'string', description: 'Site domain key, e.g. puritymukisa.com' }, days: { type: 'number', description: 'Days back (default 7)' } }, required: ['site'] } },
+    { name: 'read_search_console', description: 'Google Search Console for a site: the real search terms people use to find it on Google, with clicks, impressions, CTR, average position, and the striking-distance keywords (positions 5-15) worth optimizing. Use for SEO/search questions. site is the GSC property, e.g. sc-domain:fathersarize.org',
+      input_schema: { type: 'object', properties: { site: { type: 'string', description: 'GSC property, e.g. sc-domain:fathersarize.org (use sc-domain: + the bare domain)' }, days: { type: 'number', description: 'Days back (default 28)' } }, required: ['site'] } },
+    { name: 'read_ga4', description: 'Google Analytics 4 for a site: users, sessions, pageviews, conversions broken down by channel (organic, direct, social, referral). Use for deeper traffic questions. property is the numeric GA4 property id.',
+      input_schema: { type: 'object', properties: { property: { type: 'string', description: 'Numeric GA4 property id, e.g. 480123456' }, days: { type: 'number', description: 'Days back (default 28)' } }, required: ['property'] } },
   ];
 
 
@@ -4055,6 +4059,27 @@ You: "'We help you get more done with less stress.' Nine plain words beat the ja
             const res = await fetch(endpoint + '/analytics?site=' + encodeURIComponent(site) + '&days=' + (Number(input.days) || 7));
             const data = await res.json();
             return JSON.stringify(Object.assign({ instruction: 'Summarize traffic plainly (visitors, pageviews, trend, top page, where visitors come from, any sign-ins/conversions). If pageviews is 0, tell Hudson the tracker snippet is not installed on that site yet. Then give 1-2 concrete growth tips.' }, data));
+          } catch (e) { return JSON.stringify({ error: String(e.message || e) }); }
+        }
+        case 'read_search_console': {
+          const site = String(input.site || '').trim();
+          if (!site) return JSON.stringify({ error: 'Provide a GSC property like sc-domain:fathersarize.org. Get the domain from read_projects and prefix sc-domain:.' });
+          const endpoint = (typeof window !== 'undefined' && window.NEXT_OS_SENTINEL_ENDPOINT) || NIA_FREE_ENDPOINT;
+          try {
+            const res = await fetch(endpoint + '/gsc?site=' + encodeURIComponent(site) + '&days=' + (Number(input.days) || 28));
+            const data = await res.json();
+            if (data.error && /not configured/i.test(data.error)) return JSON.stringify({ error: data.error, hint: 'Google service account is not set up yet. Tell Hudson to finish the Search Console setup (service account + Cloudflare secrets).' });
+            return JSON.stringify(Object.assign({ instruction: 'Summarize: total clicks/impressions, the top terms people search to find the site, then the striking-distance keywords (position 5-15) and ONE concrete page change to climb them. No jargon.' }, data));
+          } catch (e) { return JSON.stringify({ error: String(e.message || e) }); }
+        }
+        case 'read_ga4': {
+          const prop = String(input.property || '').trim();
+          if (!prop) return JSON.stringify({ error: 'Provide the numeric GA4 property id.' });
+          const endpoint = (typeof window !== 'undefined' && window.NEXT_OS_SENTINEL_ENDPOINT) || NIA_FREE_ENDPOINT;
+          try {
+            const res = await fetch(endpoint + '/ga4?property=' + encodeURIComponent(prop) + '&days=' + (Number(input.days) || 28));
+            const data = await res.json();
+            return JSON.stringify(Object.assign({ instruction: 'Summarize users/sessions/pageviews/conversions and which channel drives the most. Give 1 growth tip.' }, data));
           } catch (e) { return JSON.stringify({ error: String(e.message || e) }); }
         }
         default: return JSON.stringify({ error: 'Unknown tool: ' + name });

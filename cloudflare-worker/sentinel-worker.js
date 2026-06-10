@@ -276,6 +276,15 @@ export default {
       return handleAnalytics(url.searchParams.get('site') || '', Number(url.searchParams.get('days') || 7), env, cors);
     }
 
+    // ─── Route: /gsc — Google Search Console (free, direct via service account) ──
+    if (url.pathname === '/gsc') {
+      return handleGsc(url.searchParams.get('site') || '', Number(url.searchParams.get('days') || 28), env, cors);
+    }
+    // ─── Route: /ga4 — Google Analytics 4 (free, direct via service account) ──
+    if (url.pathname === '/ga4') {
+      return handleGa4(url.searchParams.get('property') || '', Number(url.searchParams.get('days') || 28), env, cors);
+    }
+
     // ─── Route: / — Llama agent (default) ───────────────────────────────
     return handleAgent(request, env, cors);
   },
@@ -799,6 +808,74 @@ async function sbWrite(env, path, body, method, prefer) {
   if (!res.ok) { const t = await res.text(); throw new Error('Supabase write ' + path + ' → ' + res.status + ' ' + t.slice(0, 240)); }
   const txt = await res.text();
   return txt ? JSON.parse(txt) : null;   // empty body (return=minimal / 201) → null, no crash
+}
+
+// ── Google service-account auth: sign a JWT (RS256) and exchange for an access token ──
+let _gTok = { token: null, exp: 0, scope: '' };
+function b64url(bytes) { let s = btoa(String.fromCharCode.apply(null, bytes)); return s.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
+async function importPkcs8(pem) {
+  const body = pem.replace(/-----BEGIN PRIVATE KEY-----/, '').replace(/-----END PRIVATE KEY-----/, '').replace(/\s+/g, '');
+  const der = Uint8Array.from(atob(body), c => c.charCodeAt(0));
+  return crypto.subtle.importKey('pkcs8', der.buffer, { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['sign']);
+}
+async function getGoogleToken(env, scope) {
+  const now = Math.floor(Date.now() / 1000);
+  if (_gTok.token && _gTok.scope === scope && _gTok.exp - 60 > now) return _gTok.token;
+  const email = env.GOOGLE_SA_EMAIL;
+  let pem = env.GOOGLE_SA_KEY || '';
+  if (!email || !pem) throw new Error('Google not configured: set GOOGLE_SA_EMAIL and GOOGLE_SA_KEY as Cloudflare secrets.');
+  pem = pem.replace(/\\n/g, '\n');
+  const enc = (o) => b64url(new TextEncoder().encode(JSON.stringify(o)));
+  const unsigned = enc({ alg: 'RS256', typ: 'JWT' }) + '.' + enc({ iss: email, scope: scope, aud: 'https://oauth2.googleapis.com/token', iat: now, exp: now + 3600 });
+  const key = await importPkcs8(pem);
+  const sig = await crypto.subtle.sign({ name: 'RSASSA-PKCS1-v1_5' }, key, new TextEncoder().encode(unsigned));
+  const jwt = unsigned + '.' + b64url(new Uint8Array(sig));
+  const res = await fetch('https://oauth2.googleapis.com/token', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: 'grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion=' + jwt });
+  const data = await res.json();
+  if (!data.access_token) throw new Error('Google token error: ' + JSON.stringify(data).slice(0, 200));
+  _gTok = { token: data.access_token, exp: now + (data.expires_in || 3600), scope };
+  return data.access_token;
+}
+
+// Google Search Console: top queries + striking-distance keywords for a site.
+async function handleGsc(site, days, env, cors) {
+  const J = (o, st) => new Response(JSON.stringify(o), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
+  if (!site) return J({ error: 'site required (e.g. sc-domain:fathersarize.org)' }, 400);
+  days = Math.min(180, Math.max(1, days || 28));
+  const end = new Date(Date.now() - 2 * 86400000).toISOString().slice(0, 10);
+  const start = new Date(Date.now() - (days + 2) * 86400000).toISOString().slice(0, 10);
+  try {
+    const tok = await getGoogleToken(env, 'https://www.googleapis.com/auth/webmasters.readonly');
+    const r = await fetch('https://searchconsole.googleapis.com/webmasters/v3/sites/' + encodeURIComponent(site) + '/searchAnalytics/query', {
+      method: 'POST', headers: { 'Authorization': 'Bearer ' + tok, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ startDate: start, endDate: end, dimensions: ['query'], rowLimit: 50 }),
+    });
+    const d = await r.json();
+    if (d.error) return J({ error: (d.error.message || 'GSC error'), site });
+    const rows = (d.rows || []).map(x => ({ query: x.keys[0], clicks: x.clicks, impressions: x.impressions, ctr: +(x.ctr * 100).toFixed(1), position: +x.position.toFixed(1) }));
+    const totals = { clicks: rows.reduce((s, r) => s + r.clicks, 0), impressions: rows.reduce((s, r) => s + r.impressions, 0) };
+    const striking = rows.filter(r => r.position >= 5 && r.position <= 15).sort((a, b) => b.impressions - a.impressions).slice(0, 8);
+    return J({ site, start, end, totals, top: rows.slice(0, 20), striking, checkedAt: new Date().toISOString() });
+  } catch (e) { return J({ error: String((e && e.message) || e), site }); }
+}
+
+// Google Analytics 4: users / sessions / pageviews / conversions by channel.
+async function handleGa4(property, days, env, cors) {
+  const J = (o, st) => new Response(JSON.stringify(o), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
+  if (!property) return J({ error: 'property id required (numeric GA4 property id)' }, 400);
+  days = Math.min(365, Math.max(1, days || 28));
+  try {
+    const tok = await getGoogleToken(env, 'https://www.googleapis.com/auth/analytics.readonly');
+    const r = await fetch('https://analyticsdata.googleapis.com/v1beta/properties/' + encodeURIComponent(property) + ':runReport', {
+      method: 'POST', headers: { 'Authorization': 'Bearer ' + tok, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ dateRanges: [{ startDate: days + 'daysAgo', endDate: 'today' }], dimensions: [{ name: 'sessionDefaultChannelGroup' }], metrics: [{ name: 'activeUsers' }, { name: 'sessions' }, { name: 'screenPageViews' }, { name: 'conversions' }], limit: 10 }),
+    });
+    const d = await r.json();
+    if (d.error) return J({ error: (d.error.message || 'GA4 error'), property });
+    const channels = (d.rows || []).map(row => ({ channel: row.dimensionValues[0].value, users: +row.metricValues[0].value, sessions: +row.metricValues[1].value, pageviews: +row.metricValues[2].value, conversions: +row.metricValues[3].value }));
+    const tot = channels.reduce((a, c) => ({ users: a.users + c.users, sessions: a.sessions + c.sessions, pageviews: a.pageviews + c.pageviews, conversions: a.conversions + c.conversions }), { users: 0, sessions: 0, pageviews: 0, conversions: 0 });
+    return J({ property, days, totals: tot, channels, checkedAt: new Date().toISOString() });
+  } catch (e) { return J({ error: String((e && e.message) || e), property }); }
 }
 
 // First-party analytics tracker served at /px.js. Install on a site with:
