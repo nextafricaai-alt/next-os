@@ -118,7 +118,7 @@
   var frame=$('frame'), editing=true, loadedUrl='', siteName='', currentEl=null;
   var params=new URLSearchParams(location.search);
   if(params.get('url')) $('url').value=params.get('url');
-  siteName=params.get('name')||'';
+  siteName=params.get('name')||''; var pid=params.get('pid')||'';
   var FONTS=['(default)','Inter','Poppins','Montserrat','Roboto','Open Sans','Lato','Raleway','Oswald','Playfair Display','Lora','Merriweather','Nunito','Work Sans','DM Sans'];
 
   function originOf(u){ try{return new URL(u).origin;}catch(e){return '';} }
@@ -193,9 +193,31 @@
   function exportHtml(){ var d=doc(); if(!d){ alert('Load a page first.'); return; } var blob=new Blob([currentHtml()],{type:'text/html'}); var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=(siteName?siteName.replace(/[^a-z0-9]+/gi,'-').toLowerCase():'page')+'-edited.html'; a.click(); }
 
   function guessPath(u){ try{ var p=new URL(u).pathname; if(p==='/'||p==='') return 'index.html'; p=p.replace(/^\//,''); if(p.endsWith('/')) return p+'index.html'; if(/\.html?$/i.test(p)) return p; return p+'/index.html'; }catch(e){ return 'index.html'; } }
+  function pmKey(){ return 'nextos.projectmeta.'+pid; }
+  function projMeta(){ if(!pid) return null; try{ return JSON.parse(localStorage.getItem(pmKey())||'null'); }catch(e){ return null; } }
+  function saveProj(m){ if(!pid) return; try{ localStorage.setItem(pmKey(), JSON.stringify(m)); }catch(e){} }
   function repoKey(){ return 'nxstudio.repo.'+originOf(loadedUrl); }
-  function getRepoCfg(){ try{ return JSON.parse(localStorage.getItem(repoKey())||'null'); }catch(e){ return null; } }
-  function publish(){ var d=doc(); if(!d){ alert('Load a page first.'); return; } var cfg=getRepoCfg(); if(!cfg){ var repo=window.prompt('GitHub repo for this site (owner/name):'); if(!repo) return; var branch=window.prompt('Branch:','main')||'main'; cfg={repo:repo.trim(),branch:branch.trim()}; try{ localStorage.setItem(repoKey(),JSON.stringify(cfg)); }catch(e){} } var path=window.prompt('File path in the repo for THIS page:', guessPath(loadedUrl)); if(!path) return; addMsg('Publishing '+path+' to '+cfg.repo+' ('+cfg.branch+')…','nia'); fetch(WK+'/publish',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({repo:cfg.repo,branch:cfg.branch,path:path,html:currentHtml(),message:'Edit via NEXT Studio'})}).then(function(r){return r.json();}).then(function(res){ if(res.ok){ addMsg('✓ Published to '+res.repo+' / '+res.path+'. Live in under a minute once the deploy runs.','nia'); } else { addMsg('Publish failed: '+(res.error||'unknown'),'nia'); if(/404|not found|repo/i.test(res.error||'')){ try{ localStorage.removeItem(repoKey()); }catch(e){} } } }).catch(function(e){ addMsg('Publish error: '+e.message,'nia'); }); }
+  function getRepoCfg(){ var m=projMeta(); if(m&&m.repo) return {repo:m.repo,branch:m.branch||'main',pathMap:m.pathMap||{}}; try{ var c=JSON.parse(localStorage.getItem(repoKey())||'null'); if(c){ c.pathMap=c.pathMap||{}; } return c; }catch(e){ return null; } }
+  function publish(){
+    var d=doc(); if(!d){ alert('Load a page first.'); return; }
+    var cfg=getRepoCfg();
+    if(!cfg||!cfg.repo){
+      var repo=window.prompt('GitHub repo for this site (owner/name):'); if(!repo) return;
+      var branch=window.prompt('Branch:','main')||'main';
+      cfg={repo:repo.trim(),branch:branch.trim(),pathMap:{}};
+      if(pid){ var m=projMeta()||{}; m.repo=cfg.repo; m.branch=cfg.branch; m.pathMap=m.pathMap||{}; saveProj(m); }
+      else { try{ localStorage.setItem(repoKey(),JSON.stringify(cfg)); }catch(e){} }
+    }
+    var pn=''; try{ pn=new URL(loadedUrl).pathname; }catch(e){ pn=loadedUrl; }
+    var path=(cfg.pathMap&&cfg.pathMap[pn])||null;
+    if(!path){ path=window.prompt('File path in the repo for THIS page (remembered after this):', guessPath(loadedUrl)); if(!path) return;
+      if(pid){ var mm=projMeta()||{}; mm.repo=cfg.repo; mm.branch=cfg.branch; mm.pathMap=mm.pathMap||{}; mm.pathMap[pn]=path; saveProj(mm); }
+      else { var cc=getRepoCfg()||cfg; cc.pathMap=cc.pathMap||{}; cc.pathMap[pn]=path; try{ localStorage.setItem(repoKey(),JSON.stringify(cc)); }catch(e){} }
+    }
+    addMsg('Publishing '+path+' to '+cfg.repo+' ('+cfg.branch+')…','nia');
+    fetch(WK+'/publish',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({repo:cfg.repo,branch:cfg.branch,path:path,html:currentHtml(),message:'Edit via NEXT Studio'})})
+      .then(function(r){return r.json();}).then(function(res){ if(res.ok){ addMsg('✓ Published to '+res.repo+' / '+res.path+'. Live in under a minute once the deploy runs.','nia'); } else { addMsg('Publish failed: '+(res.error||'unknown'),'nia'); if(/404|not found|repo/i.test(res.error||'')){ if(pid){ var z=projMeta()||{}; delete z.repo; saveProj(z); } else { try{ localStorage.removeItem(repoKey()); }catch(e){} } } } })
+      .catch(function(e){ addMsg('Publish error: '+e.message,'nia'); }); }
 
   var history=[]; var SYS="You are Nia, NEXT's senior brand and web designer helping Hudson edit a website live. Give specific, practical design guidance: hierarchy, contrast/readability, type pairing and sizing, spacing, colour and brand consistency, imagery, and one clear call to action. When Hudson describes a change or you spot a mismatch, say exactly what to change and why, plain and simple. Encouraging but honest, short and actionable. Offer copy when useful. NEXT voice: direct, warm, no jargon.";
   function addMsg(t,c){ var d=document.createElement('div'); d.className='msg '+c; d.textContent=t; $('chat').appendChild(d); $('chat').scrollTop=$('chat').scrollHeight; return d; }
