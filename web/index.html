@@ -5256,6 +5256,7 @@ const OSIcon = ({ name, size = 20 }) => {
     fleet: <><circle cx="12" cy="12" r="3"/><circle cx="4" cy="6" r="1.5"/><circle cx="20" cy="6" r="1.5"/><circle cx="4" cy="18" r="1.5"/><circle cx="20" cy="18" r="1.5"/><path d="M12 9L5.5 6.5"/><path d="M12 9L18.5 6.5"/><path d="M12 15L5.5 17.5"/><path d="M12 15L18.5 17.5"/></>,
     talk: <><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/></>,
     projects: <><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></>,
+    studio: <><path d="M15 4l5 5L9 20H4v-5z"/><path d="M12.5 6.5l5 5"/><path d="M20 3l1 1"/><path d="M4.5 13.5l1 1"/></>,
     ai: <><path d="M12 2L3 7l9 5 9-5-9-5z"/><path d="M3 17l9 5 9-5"/><path d="M3 12l9 5 9-5"/></>,
     training: <><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></>,
     members: <><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4-4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></>,
@@ -5283,6 +5284,7 @@ const NAV_SECTIONS = [
     { id: 'talk', label: 'Talk to Nia', icon: 'talk' },
     { id: 'fleet', label: 'Fleet', icon: 'fleet', badge: 5 },
     { id: 'projects', label: 'Projects', icon: 'projects', badge: 12 },
+    { id: 'studio', label: 'Nia Studio', icon: 'studio', external: '/studio.html' },
     { id: 'ai-tools', label: 'AI Tools', icon: 'ai' },
   ]},
   { id: 'manage', label: 'Manage', items: [
@@ -5365,7 +5367,7 @@ const Sidebar = ({ activeTab, onTabChange, collapsed, onToggle }) => {
             {section.items.map(item => (
               <button
                 key={item.id}
-                onClick={() => onTabChange(item.id)}
+                onClick={() => item.external ? window.open(item.external, '_blank') : onTabChange(item.id)}
                 style={sidebarStyles.navItem(activeTab === item.id)}
                 className="nav-item"
               >
