@@ -5,27 +5,32 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>NEXT Studio</title>
 <style>
-  :root{ --bg:#0a0f24; --panel:#111a36; --panel2:#0d1430; --line:#26315a; --ink:#eef1fb; --ink2:#aab2d5; --ink3:#7e88b0; --mint:#00fc8f; --accent:#3b82f6; }
+  :root{ --bg:#0a0f24; --panel:#111a36; --panel2:#0d1430; --line:#26315a; --ink:#eef1fb; --ink2:#aab2d5; --ink3:#7e88b0; --mint:#00fc8f; --accent:#3b82f6; --gold:#ffb400; --danger:#ff4757; }
   *{box-sizing:border-box}
   html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:Inter,-apple-system,system-ui,sans-serif}
   #top{display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--line);background:var(--panel2)}
   #top input{flex:1;min-width:120px;background:var(--bg);border:1px solid var(--line);border-radius:8px;color:var(--ink);padding:9px 12px;font-size:13px}
   #top button{background:var(--panel);border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:9px 12px;font-size:13px;cursor:pointer;white-space:nowrap}
   #top button.primary{background:var(--mint);color:#062b18;border:none;font-weight:700}
+  #top button.publish{background:var(--gold);color:#3a2a00;border:none;font-weight:700}
   #top button.on{background:var(--accent);color:#fff;border:none}
   #brand{font-weight:800;letter-spacing:.04em;color:var(--mint);margin-right:6px}
   #main{display:flex;height:calc(100% - 56px)}
+  #pages{width:208px;flex-shrink:0;border-right:1px solid var(--line);background:var(--panel2);overflow:auto}
+  #pages .ph{padding:12px 14px 8px;font-size:11px;font-family:ui-monospace,monospace;color:var(--ink3);text-transform:uppercase;letter-spacing:.1em}
+  #pages a{display:block;padding:9px 14px;font-size:13px;color:var(--ink2);cursor:pointer;border-left:3px solid transparent;text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #pages a:hover{background:rgba(255,255,255,.03);color:var(--ink)}
+  #pages a.active{background:rgba(0,252,143,.08);color:var(--mint);border-left-color:var(--mint)}
   #canvasWrap{flex:1;position:relative;background:#fff}
   #frame{width:100%;height:100%;border:0;background:#fff}
-  #drop{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--ink3);font-size:14px;background:var(--bg)}
-  #side{width:360px;flex-shrink:0;border-left:1px solid var(--line);background:var(--panel);display:flex;flex-direction:column}
+  #drop{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--ink3);font-size:14px;background:var(--bg);text-align:center;padding:20px}
+  #side{width:340px;flex-shrink:0;border-left:1px solid var(--line);background:var(--panel);display:flex;flex-direction:column}
   #sideHead{padding:12px 14px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px}
   #dot{width:9px;height:9px;border-radius:50%;background:var(--mint);box-shadow:0 0 8px var(--mint)}
   #chat{flex:1;overflow:auto;padding:14px;display:flex;flex-direction:column;gap:12px}
   .msg{font-size:13px;line-height:1.5;border-radius:12px;padding:10px 12px;max-width:92%;white-space:pre-wrap;word-wrap:break-word}
   .me{align-self:flex-end;background:var(--accent);color:#fff}
   .nia{align-self:flex-start;background:var(--panel2);border:1px solid var(--line);color:var(--ink)}
-  .sys{align-self:center;color:var(--ink3);font-size:12px;text-align:center}
   #quick{display:flex;flex-wrap:wrap;gap:6px;padding:0 14px 8px}
   #quick button{font-size:11px;background:var(--panel2);border:1px solid var(--line);color:var(--ink2);border-radius:999px;padding:5px 10px;cursor:pointer}
   #composer{display:flex;gap:8px;padding:12px;border-top:1px solid var(--line)}
@@ -40,12 +45,14 @@
     <input id="url" placeholder="https://nextafrica.ai" />
     <button id="load">Load</button>
     <button id="edit">Edit: off</button>
-    <button id="export" class="primary">Export HTML</button>
+    <button id="export">Export</button>
+    <button id="publish" class="publish">Publish live</button>
   </div>
   <div id="main">
+    <div id="pages"><div class="ph">Pages</div><div id="pageList"></div></div>
     <div id="canvasWrap">
       <iframe id="frame" title="Editor canvas"></iframe>
-      <div id="drop">Enter a URL above and press Load to start editing.</div>
+      <div id="drop">Enter a URL above and press Load. The site's pages appear on the left.</div>
     </div>
     <div id="side">
       <div id="sideHead"><span id="dot"></span><b>Nia</b> <span style="color:var(--ink3);font-size:12px">· design coach</span></div>
@@ -56,11 +63,8 @@
         <button data-q="Check colour & contrast for readability and brand fit.">Colour/contrast</button>
         <button data-q="Rewrite the main headline to be punchier (3 options).">Punch up headline</button>
       </div>
-      <div id="composer">
-        <textarea id="msg" placeholder="Ask Nia, or describe a change…"></textarea>
-        <button id="send">Ask</button>
-      </div>
-      <div class="hint">Edit mode: click any text to type, click any image to swap it. Export saves the edited file.</div>
+      <div id="composer"><textarea id="msg" placeholder="Ask Nia, or describe a change…"></textarea><button id="send">Ask</button></div>
+      <div class="hint">Edit on: click text to type, click an image to swap it. Export saves a file · Publish live deploys to the site's GitHub.</div>
     </div>
   </div>
 
@@ -70,113 +74,102 @@
   var $ = function(id){ return document.getElementById(id); };
   var frame = $('frame'), editing = false, loadedUrl = '', siteName = '';
   var params = new URLSearchParams(location.search);
-  if (params.get('url')) { $('url').value = params.get('url'); }
+  if (params.get('url')) $('url').value = params.get('url');
   siteName = params.get('name') || '';
+
+  function originOf(u){ try { return new URL(u).origin; } catch(e){ return ''; } }
+  function doc(){ try { return frame.contentDocument || frame.contentWindow.document; } catch(e){ return null; } }
 
   function loadPage(u){
     if(!u) return;
-    loadedUrl = u; $('drop').textContent = 'Loading ' + u + ' …'; $('drop').style.display='flex';
-    fetch(WK + '/fetch-page?url=' + encodeURIComponent(u))
-      .then(function(r){ return r.text(); })
-      .then(function(html){
-        $('drop').style.display='none';
-        frame.srcdoc = html;
-        editing = false; $('edit').textContent='Edit: off'; $('edit').classList.remove('on');
-      })
-      .catch(function(e){ $('drop').textContent = 'Could not load: ' + e.message; });
+    loadedUrl = u; $('url').value = u; $('drop').textContent = 'Loading ' + u + ' …'; $('drop').style.display='flex';
+    fetch(WK + '/fetch-page?url=' + encodeURIComponent(u)).then(function(r){return r.text();}).then(function(html){
+      $('drop').style.display='none'; frame.srcdoc = html;
+      editing=false; $('edit').textContent='Edit: off'; $('edit').classList.remove('on');
+      highlightActive(u);
+    }).catch(function(e){ $('drop').textContent='Could not load: '+e.message; });
   }
 
-  function doc(){ try { return frame.contentDocument || frame.contentWindow.document; } catch(e){ return null; } }
+  function loadPages(u){
+    var o = originOf(u); if(!o) return;
+    fetch(WK + '/site-pages?url=' + encodeURIComponent(u)).then(function(r){return r.json();}).then(function(d){
+      var wrap = $('pageList'); wrap.innerHTML='';
+      (d.pages||[]).forEach(function(p){
+        var a=document.createElement('a'); a.textContent=p.name||p.path; a.title=p.url; a.dataset.url=p.url;
+        a.onclick=function(){ loadPage(p.url); };
+        wrap.appendChild(a);
+      });
+      highlightActive(loadedUrl);
+    }).catch(function(){});
+  }
+  function highlightActive(u){
+    Array.prototype.forEach.call(document.querySelectorAll('#pageList a'), function(a){ a.classList.toggle('active', a.dataset.url===u); });
+  }
 
   function setEdit(on){
-    var d = doc(); if(!d) return;
-    editing = on;
-    $('edit').textContent = 'Edit: ' + (on ? 'on' : 'off');
-    $('edit').classList.toggle('on', on);
-    try { d.body.contentEditable = on ? 'true' : 'false'; d.designMode = on ? 'on' : 'off'; } catch(e){}
-    // outline on hover + image click-to-swap
-    var styleId='nx-edit-style';
-    var ex = d.getElementById(styleId);
-    if(on && !ex){
-      var st = d.createElement('style'); st.id = styleId;
-      st.textContent = '*[contenteditable] :hover{outline:1px dashed rgba(0,252,143,.6)!important} img{cursor:pointer!important}';
-      (d.head||d.body).appendChild(st);
-    } else if(!on && ex){ ex.remove(); }
+    var d=doc(); if(!d) return; editing=on;
+    $('edit').textContent='Edit: '+(on?'on':'off'); $('edit').classList.toggle('on',on);
+    try{ d.body.contentEditable = on?'true':'false'; d.designMode = on?'on':'off'; }catch(e){}
+    var id='nx-edit-style', ex=d.getElementById(id);
+    if(on && !ex){ var st=d.createElement('style'); st.id=id; st.textContent='*[contenteditable] :hover{outline:1px dashed rgba(0,252,143,.6)!important} img{cursor:pointer!important}'; (d.head||d.body).appendChild(st); }
+    else if(!on && ex){ ex.remove(); }
   }
-
   function swapImage(img){
-    var url = window.prompt('New image URL (Cancel to upload from your computer):', img.src||'');
-    if(url){ img.src = url; return; }
-    // upload path
-    var inp = doc().createElement('input'); inp.type='file'; inp.accept='image/*';
-    inp.onchange = function(){ var f=inp.files[0]; if(!f) return; var rd=new FileReader(); rd.onload=function(){ img.src = rd.result; }; rd.readAsDataURL(f); };
+    var url=window.prompt('New image URL (Cancel to upload from your computer):', img.src||'');
+    if(url){ img.src=url; return; }
+    var inp=doc().createElement('input'); inp.type='file'; inp.accept='image/*';
+    inp.onchange=function(){ var f=inp.files[0]; if(!f) return; var rd=new FileReader(); rd.onload=function(){ img.src=rd.result; }; rd.readAsDataURL(f); };
     inp.click();
   }
-
   frame.addEventListener('load', function(){
-    var d = doc(); if(!d) return;
-    d.addEventListener('click', function(ev){
-      if(!editing) return;
-      var t = ev.target;
-      if(t && t.tagName === 'IMG'){ ev.preventDefault(); ev.stopPropagation(); swapImage(t); }
-    }, true);
-    // stop links navigating away while editing
-    d.addEventListener('click', function(ev){ if(editing){ var a=ev.target.closest && ev.target.closest('a'); if(a){ ev.preventDefault(); } } }, true);
+    var d=doc(); if(!d) return;
+    d.addEventListener('click', function(ev){ if(!editing) return; var t=ev.target; if(t&&t.tagName==='IMG'){ ev.preventDefault(); ev.stopPropagation(); swapImage(t); } }, true);
+    d.addEventListener('click', function(ev){ if(editing){ var a=ev.target.closest&&ev.target.closest('a'); if(a) ev.preventDefault(); } }, true);
   });
 
-  function pageContext(){
-    var d = doc(); if(!d) return '';
-    var t = (d.title||'') ;
-    var heads = Array.prototype.slice.call(d.querySelectorAll('h1,h2,h3')).slice(0,12).map(function(h){return h.tagName+': '+h.textContent.trim();}).join('\n');
-    var body = (d.body ? d.body.innerText : '').replace(/\s+/g,' ').trim().slice(0,2500);
-    return ('URL: '+loadedUrl+'\nTitle: '+t+'\nHeadings:\n'+heads+'\n\nVisible text (excerpt):\n'+body).slice(0,3500);
-  }
+  function currentHtml(){ var d=doc(); if(!d) return ''; var h='<!doctype html>\n'+d.documentElement.outerHTML; return h.replace(/<base[^>]*>/i,''); }
+  function exportHtml(){ var d=doc(); if(!d){ alert('Load a page first.'); return; } var blob=new Blob([currentHtml()],{type:'text/html'}); var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=(siteName?siteName.replace(/[^a-z0-9]+/gi,'-').toLowerCase():'page')+'-edited.html'; a.click(); }
 
-  function exportHtml(){
-    var d = doc(); if(!d){ alert('Load a page first.'); return; }
-    var html = '<!doctype html>\n' + d.documentElement.outerHTML;
-    html = html.replace(/<base[^>]*>/i, ''); // strip the editor base tag
-    var blob = new Blob([html], {type:'text/html'});
-    var a = document.createElement('a'); a.href = URL.createObjectURL(blob);
-    a.download = (siteName ? siteName.replace(/[^a-z0-9]+/gi,'-').toLowerCase() : 'page') + '-edited.html';
-    a.click();
+  function guessPath(u){ try{ var p=new URL(u).pathname; if(p==='/'||p==='') return 'index.html'; p=p.replace(/^\//,''); if(p.endsWith('/')) return p+'index.html'; if(/\.html?$/i.test(p)) return p; return p+'/index.html'; }catch(e){ return 'index.html'; } }
+  function repoKey(){ return 'nxstudio.repo.'+originOf(loadedUrl); }
+  function getRepoCfg(){ try{ return JSON.parse(localStorage.getItem(repoKey())||'null'); }catch(e){ return null; } }
+
+  function publish(){
+    var d=doc(); if(!d){ alert('Load a page first.'); return; }
+    var cfg=getRepoCfg();
+    if(!cfg){
+      var repo=window.prompt('GitHub repo for this site (owner/name), e.g. nextafricaai-alt/nextafrica-site:'); if(!repo) return;
+      var branch=window.prompt('Branch to publish to:', 'main')||'main';
+      cfg={repo:repo.trim(), branch:branch.trim()};
+      try{ localStorage.setItem(repoKey(), JSON.stringify(cfg)); }catch(e){}
+    }
+    var path=window.prompt('File path in the repo for THIS page:', guessPath(loadedUrl)); if(!path) return;
+    addMsg('Publishing '+path+' to '+cfg.repo+' ('+cfg.branch+')…','nia');
+    fetch(WK+'/publish',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({repo:cfg.repo,branch:cfg.branch,path:path,html:currentHtml(),message:'Edit via NEXT Studio'})})
+      .then(function(r){return r.json();}).then(function(res){
+        if(res.ok){ addMsg('✓ Published to '+res.repo+' / '+res.path+'. It will go live once the GitHub→Hostinger deploy runs (usually under a minute).','nia'); }
+        else { addMsg('Publish failed: '+(res.error||'unknown')+(/(not configured)/i.test(res.error||'')?'  (Set GITHUB_TOKEN as a Cloudflare secret first.)':''),'nia'); if(/repo|not found|404/i.test(res.error||'')){ try{ localStorage.removeItem(repoKey()); }catch(e){} } }
+      }).catch(function(e){ addMsg('Publish error: '+e.message,'nia'); });
   }
 
   // ── Nia design chat ──
-  var history = [];
-  var SYS = "You are Nia, NEXT's senior brand and web designer, helping Hudson edit a website live. Give specific, practical design guidance: visual hierarchy, contrast and readability, type pairing and sizing, spacing and whitespace, colour and brand consistency, imagery quality, and conversion (one clear call to action). When Hudson describes a change or you spot a mismatch (clashing colours, weak hierarchy, cramped spacing, inconsistent fonts), say exactly what to change and why, in plain, simple language. Be encouraging but honest. Keep replies short and actionable, and offer copy suggestions when useful. NEXT's voice: direct, warm, no corporate jargon.";
+  var history=[];
+  var SYS="You are Nia, NEXT's senior brand and web designer, helping Hudson edit a website live. Give specific, practical design guidance: visual hierarchy, contrast and readability, type pairing and sizing, spacing and whitespace, colour and brand consistency, imagery quality, and conversion (one clear call to action). When Hudson describes a change or you spot a mismatch (clashing colours, weak hierarchy, cramped spacing, inconsistent fonts), say exactly what to change and why, in plain simple language. Be encouraging but honest. Keep replies short and actionable, and offer copy suggestions when useful. NEXT's voice: direct, warm, no corporate jargon.";
+  function addMsg(t,c){ var d=document.createElement('div'); d.className='msg '+c; d.textContent=t; $('chat').appendChild(d); $('chat').scrollTop=$('chat').scrollHeight; return d; }
+  function pageContext(){ var d=doc(); if(!d) return ''; var t=d.title||''; var heads=Array.prototype.slice.call(d.querySelectorAll('h1,h2,h3')).slice(0,12).map(function(h){return h.tagName+': '+h.textContent.trim();}).join('\n'); var body=(d.body?d.body.innerText:'').replace(/\s+/g,' ').trim().slice(0,2500); return ('URL: '+loadedUrl+'\nTitle: '+t+'\nHeadings:\n'+heads+'\n\nVisible text (excerpt):\n'+body).slice(0,3500); }
+  function ask(text){ if(!text) return; addMsg(text,'me'); history.push({role:'user',content:text}); var th=addMsg('thinking…','nia'); var sys=SYS+'\n\nCURRENT PAGE CONTEXT:\n'+pageContext(); fetch(WK+'/',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({system:sys,messages:history})}).then(function(r){return r.json();}).then(function(data){ var txt=''; if(data&&data.content&&data.content.length){ txt=data.content.filter(function(c){return c.type==='text';}).map(function(c){return c.text;}).join(''); } else if(data&&data.error){ txt='Error: '+data.error; } else { txt=typeof data==='string'?data:JSON.stringify(data).slice(0,300); } th.textContent=txt||'(no reply)'; history.push({role:'assistant',content:txt}); }).catch(function(e){ th.textContent='Could not reach Nia: '+e.message; }); }
 
-  function addMsg(text, cls){ var d=document.createElement('div'); d.className='msg '+cls; d.textContent=text; $('chat').appendChild(d); $('chat').scrollTop=$('chat').scrollHeight; return d; }
+  $('load').onclick=function(){ var u=$('url').value.trim(); loadedUrl=u; loadPage(u); loadPages(u); };
+  $('url').addEventListener('keydown',function(e){ if(e.key==='Enter') $('load').click(); });
+  $('edit').onclick=function(){ setEdit(!editing); };
+  $('export').onclick=exportHtml;
+  $('publish').onclick=publish;
+  $('send').onclick=function(){ var v=$('msg').value.trim(); if(v){ ask(v); $('msg').value=''; } };
+  $('msg').addEventListener('keydown',function(e){ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); $('send').click(); } });
+  Array.prototype.forEach.call(document.querySelectorAll('#quick button'),function(b){ b.onclick=function(){ ask(b.getAttribute('data-q')); }; });
 
-  function ask(text){
-    if(!text) return;
-    addMsg(text,'me');
-    history.push({role:'user', content: text});
-    var thinking = addMsg('thinking…','nia');
-    var sys = SYS + '\n\nCURRENT PAGE CONTEXT:\n' + pageContext();
-    fetch(WK + '/', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ system: sys, messages: history }) })
-      .then(function(r){ return r.json(); })
-      .then(function(data){
-        var txt = '';
-        if(data && data.content && data.content.length){ txt = data.content.filter(function(c){return c.type==='text';}).map(function(c){return c.text;}).join(''); }
-        else if(data && data.error){ txt = 'Error: '+data.error; }
-        else { txt = typeof data==='string'?data:JSON.stringify(data).slice(0,300); }
-        thinking.textContent = txt || '(no reply)';
-        history.push({role:'assistant', content: txt});
-      })
-      .catch(function(e){ thinking.textContent = 'Could not reach Nia: '+e.message; });
-  }
-
-  $('load').onclick = function(){ loadPage($('url').value.trim()); };
-  $('url').addEventListener('keydown', function(e){ if(e.key==='Enter') loadPage($('url').value.trim()); });
-  $('edit').onclick = function(){ setEdit(!editing); };
-  $('export').onclick = exportHtml;
-  $('send').onclick = function(){ var v=$('msg').value.trim(); if(v){ ask(v); $('msg').value=''; } };
-  $('msg').addEventListener('keydown', function(e){ if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); $('send').click(); } });
-  Array.prototype.forEach.call(document.querySelectorAll('#quick button'), function(b){ b.onclick=function(){ ask(b.getAttribute('data-q')); }; });
-
-  addMsg('Hi Hudson — load a page, then ask me anything. I can review the design, flag mismatches, tighten the layout, or rewrite copy. Tip: turn Edit on to click-edit text and swap images, then Export.','nia');
-  if($('url').value){ loadPage($('url').value.trim()); }
+  addMsg('Hi Hudson — load a page, pick a page on the left, then turn Edit on to click-edit text and swap images. Ask me for a design review anytime. Publish live deploys straight to the site’s GitHub.','nia');
+  if($('url').value){ var u=$('url').value.trim(); loadedUrl=u; loadPage(u); loadPages(u); }
 })();
 </script>
 </body>

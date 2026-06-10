@@ -290,6 +290,15 @@ export default {
       return handleFetchPage(url.searchParams.get('url') || '', cors);
     }
 
+    // ─── Route: /site-pages — discover a website's pages (sitemap or links) ──
+    if (url.pathname === '/site-pages') {
+      return handleSitePages(url.searchParams.get('url') || '', cors);
+    }
+    // ─── Route: /publish — commit an edited page to its GitHub repo (real deploy) ──
+    if (url.pathname === '/publish') {
+      return handlePublish(request, env, cors);
+    }
+
     // ─── Route: / — Llama agent (default) ───────────────────────────────
     return handleAgent(request, env, cors);
   },
@@ -813,6 +822,57 @@ async function sbWrite(env, path, body, method, prefer) {
   if (!res.ok) { const t = await res.text(); throw new Error('Supabase write ' + path + ' → ' + res.status + ' ' + t.slice(0, 240)); }
   const txt = await res.text();
   return txt ? JSON.parse(txt) : null;   // empty body (return=minimal / 201) → null, no crash
+}
+
+// Discover a website's pages from sitemap.xml, falling back to internal links.
+async function handleSitePages(target, cors) {
+  const J = (o, st) => new Response(JSON.stringify(o), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
+  if (!target) return J({ error: 'url required' }, 400);
+  let origin = ''; try { origin = new URL(target).origin; } catch (e) { return J({ error: 'bad url' }, 400); }
+  let pages = [];
+  try {
+    const sm = await fetch(origin + '/sitemap.xml', { headers: { 'User-Agent': 'NextOS-Studio/1.0' } });
+    if (sm.ok) { const xml = await sm.text(); pages = (xml.match(/<loc>([^<]+)<\/loc>/gi) || []).map(t => t.replace(/<\/?loc>/gi, '').trim()).filter(u => u.indexOf(origin) === 0); }
+  } catch (e) {}
+  if (pages.length === 0) {
+    try {
+      const res = await fetch(target, { redirect: 'follow', headers: { 'User-Agent': 'NextOS-Studio/1.0' } });
+      const html = await res.text();
+      const hrefs = (html.match(/<a\b[^>]*href=["']([^"'#]+)["']/gi) || []).map(t => (t.match(/href=["']([^"'#]+)["']/i) || [])[1]).filter(Boolean);
+      const set = new Set();
+      hrefs.forEach(h => { try { const u = new URL(h, origin); if (u.origin === origin && !/\.(png|jpg|jpeg|gif|svg|pdf|zip|mp3|mp4|css|js)$/i.test(u.pathname)) set.add(u.origin + u.pathname.replace(/\/index\.html?$/i, '/')); } catch (e) {} });
+      pages = Array.from(set);
+    } catch (e) {}
+  }
+  pages = Array.from(new Set([origin + '/'].concat(pages))).slice(0, 60);
+  const items = pages.map(u => { let p = ''; try { p = new URL(u).pathname; } catch (e) { p = u; } const name = p === '/' ? 'Home' : (p.replace(/\/$/, '').split('/').pop() || p).replace(/[-_]/g, ' ').replace(/\.html?$/i, ''); return { url: u, path: p, name: name }; });
+  return J({ origin, count: items.length, pages: items });
+}
+
+// Commit an edited page to a GitHub repo (real deploy via the site's GitHub->Hostinger pipeline).
+async function handlePublish(request, env, cors) {
+  const J = (o, st) => new Response(JSON.stringify(o), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
+  if (request.method !== 'POST') return J({ ok: false, error: 'POST only' }, 405);
+  const tok = env.GITHUB_TOKEN;
+  if (!tok) return J({ ok: false, error: 'GitHub not configured: set GITHUB_TOKEN as a Cloudflare secret (a Personal Access Token with repo write access).' });
+  try {
+    const b = await request.json();
+    const repo = String(b.repo || '').trim();
+    const branch = String(b.branch || 'main').trim();
+    const path = String(b.path || '').replace(/^\//, '').trim();
+    const html = b.html || '';
+    if (!repo || !path) return J({ ok: false, error: 'repo (owner/name) and path are required' }, 400);
+    const api = 'https://api.github.com/repos/' + repo + '/contents/' + path.split('/').map(encodeURIComponent).join('/');
+    const hdr = { 'Authorization': 'Bearer ' + tok, 'Accept': 'application/vnd.github+json', 'User-Agent': 'NextOS-Studio', 'Content-Type': 'application/json' };
+    let sha;
+    const cur = await fetch(api + '?ref=' + encodeURIComponent(branch), { headers: hdr });
+    if (cur.ok) { const j = await cur.json(); sha = j.sha; }
+    const content = btoa(unescape(encodeURIComponent(html)));
+    const put = await fetch(api, { method: 'PUT', headers: hdr, body: JSON.stringify({ message: b.message || 'Edit via NEXT Studio', content: content, branch: branch, sha: sha }) });
+    const pj = await put.json();
+    if (!put.ok) return J({ ok: false, error: (pj.message || ('HTTP ' + put.status)) });
+    return J({ ok: true, commit: (pj.commit && pj.commit.sha) || null, repo: repo, path: path, branch: branch });
+  } catch (e) { return J({ ok: false, error: String((e && e.message) || e) }, 500); }
 }
 
 // Fetch a page's HTML for the Studio editor. Injects <base> so relative assets/links resolve.
