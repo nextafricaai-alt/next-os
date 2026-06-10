@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Nia Intelligence</title>
+<style>
+  :root{ --bg:#0a0f24; --panel:#111a36; --panel2:#0d1430; --line:#26315a; --ink:#eef1fb; --ink2:#aab2d5; --ink3:#7e88b0; --mint:#00fc8f; --accent:#3b82f6; --gold:#ffb400; }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:Inter,-apple-system,system-ui,sans-serif}
+  #top{display:flex;align-items:center;gap:8px;padding:11px 16px;border-bottom:1px solid var(--line);background:var(--panel2)}
+  #brand{font-weight:800;letter-spacing:.03em;color:var(--mint);font-size:15px;display:flex;align-items:center;gap:7px}
+  #top input{flex:1;min-width:140px;background:var(--bg);border:1px solid var(--line);border-radius:9px;color:var(--ink);padding:10px 13px;font-size:13.5px}
+  #top button{background:var(--mint);color:#062b18;border:none;border-radius:9px;padding:10px 18px;font-weight:700;font-size:13.5px;cursor:pointer}
+  #main{display:flex;height:calc(100% - 58px)}
+  #report{flex:1;overflow:auto;padding:22px 26px}
+  #side{width:340px;flex-shrink:0;border-left:1px solid var(--line);background:var(--panel);display:flex;flex-direction:column}
+  #sideHead{padding:13px 15px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px}
+  #dot{width:9px;height:9px;border-radius:50%;background:var(--mint);box-shadow:0 0 8px var(--mint)}
+  #chat{flex:1;overflow:auto;padding:14px;display:flex;flex-direction:column;gap:12px}
+  .msg{font-size:13px;line-height:1.5;border-radius:12px;padding:10px 12px;max-width:94%;white-space:pre-wrap;word-wrap:break-word}
+  .me{align-self:flex-end;background:var(--accent);color:#fff}
+  .nia{align-self:flex-start;background:var(--panel2);border:1px solid var(--line)}
+  #composer{display:flex;gap:8px;padding:12px;border-top:1px solid var(--line)}
+  #composer textarea{flex:1;resize:none;height:42px;background:var(--bg);border:1px solid var(--line);border-radius:10px;color:var(--ink);padding:10px;font-size:13px;font-family:inherit}
+  #composer button{background:var(--mint);color:#062b18;border:none;border-radius:10px;padding:0 16px;font-weight:700;cursor:pointer}
+  .empty{color:var(--ink3);font-size:14px;text-align:center;margin-top:60px;line-height:1.7}
+  .profile{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 18px;margin-bottom:20px}
+  .profile h3{margin:0 0 10px;font-size:12px;font-family:ui-monospace,monospace;color:var(--ink3);text-transform:uppercase;letter-spacing:.1em}
+  .chips{display:flex;flex-wrap:wrap;gap:6px}
+  .chip{font-size:11px;background:var(--panel2);border:1px solid var(--line);color:var(--ink2);border-radius:999px;padding:4px 10px}
+  .chip.on{border-color:var(--mint);color:var(--mint)}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-top:8px}
+  .stat{background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:9px 11px}
+  .stat .k{font-size:10px;color:var(--ink3);font-family:ui-monospace,monospace;text-transform:uppercase}
+  .stat .v{font-size:18px;font-weight:700;margin-top:3px}
+  .bp{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px 20px;line-height:1.6;font-size:14px;white-space:pre-wrap;word-wrap:break-word}
+  .bp h2{font-size:15px;color:var(--mint);margin:18px 0 6px}
+  pre.code{background:#060b1e;border:1px solid var(--line);border-radius:10px;padding:14px;overflow:auto;font-family:ui-monospace,monospace;font-size:12px;color:#cfe;position:relative;white-space:pre}
+  .copy{position:absolute;top:8px;right:8px;background:var(--mint);color:#062b18;border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer}
+  .scaffold{margin-top:16px;padding:12px 14px;background:rgba(0,252,143,0.06);border:1px solid rgba(0,252,143,0.2);border-radius:10px;font-size:13px}
+</style>
+</head>
+<body>
+  <div id="top">
+    <span id="brand">🧠 Nia Intelligence</span>
+    <input id="url" placeholder="Import a website URL, e.g. https://puritymukisa.com" />
+    <button id="go">Study site</button>
+  </div>
+  <div id="main">
+    <div id="report"><div class="empty">Import a website and Nia will study it —<br/>then architect the CMS + Operating System to power it,<br/>with a ready-to-run database schema and a build plan.</div></div>
+    <div id="side">
+      <div id="sideHead"><span id="dot"></span><b>Nia</b> <span style="color:var(--ink3);font-size:12px">· solutions architect</span></div>
+      <div id="chat"></div>
+      <div id="composer"><textarea id="msg" placeholder="Ask Nia about the blueprint…"></textarea><button id="send">Ask</button></div>
+    </div>
+  </div>
+
+<script>
+(function(){
+  var WK='https://nextos-sentinel.nextafricaai.workers.dev';
+  var $=function(id){return document.getElementById(id);};
+  var params=new URLSearchParams(location.search);
+  if(params.get('url')) $('url').value=params.get('url');
+  var profile=null, history=[];
+
+  var SYS="You are Nia, NEXT's principal solutions architect. You are given a structured PROFILE of a website from automated analysis. Design the CMS and Operating System to power it, in NEXT's stack: Supabase (Postgres) for data, a NEXT OS admin module for the owner, and the public site reading content from it. Reply in these exact titled sections, each starting with '## ':\n## WHAT THIS SITE IS\n## CONTENT COLLECTIONS  (for each: name, purpose, key fields)\n## OS ADMIN MODULES  (the screens the owner uses)\n## WEBSITE <-> OS COORDINATION  (where content lives, how the public site reads it, the sync model)\n## SUPABASE SCHEMA  (ready-to-run SQL: one ```sql code block with CREATE TABLE per collection, include a site_id text column + created_at, and a one-line RLS note)\n## BUILD PLAN  (numbered phases)\nBe concrete, practical, mobile-first African context (WhatsApp, mobile money, UGX where relevant), no corporate jargon. Choose collections from the detected signals (cart, donate, tickets, events, blog, gallery, etc.).";
+
+  function addMsg(t,c){ var d=document.createElement('div'); d.className='msg '+c; d.textContent=t; $('chat').appendChild(d); $('chat').scrollTop=$('chat').scrollHeight; return d; }
+
+  async function analyzeSite(url){
+    var pages=[]; try{ var r=await fetch(WK+'/site-pages?url='+encodeURIComponent(url)); var d=await r.json(); pages=(d.pages||[]).map(function(p){return p.path;}); }catch(e){}
+    var html=''; try{ var r2=await fetch(WK+'/fetch-page?url='+encodeURIComponent(url)); html=await r2.text(); }catch(e){}
+    var doc=new DOMParser().parseFromString(html,'text/html');
+    var txt=(doc.body?doc.body.innerText:'')||'';
+    var lc=(html+' '+txt).toLowerCase();
+    var tech=[]; [['React','react'],['Three.js','three.min.js'],['Babel','@babel/standalone'],['Supabase','supabase'],['WordPress','wp-content'],['Shopify','cdn.shopify'],['GA4','gtag/js'],['Tailwind','tailwind']].forEach(function(t){ if(lc.indexOf(t[1])>=0) tech.push(t[0]); });
+    var H=function(w){ return lc.indexOf(w)>=0; };
+    var signals={ cart:H('cart')||H('checkout'), login:H('sign in')||H('login')||H('log in'), donate:H('donate')||H('donation')||H('charity'), tickets:H('ticket'), events:H('event'), blog:H('blog')||H('article'), gallery:H('gallery'), shop:H('shop')||H('product'), booking:H('book a')||H('appointment'), music:H('song')||H('album')||H('listen'), newsletter:H('subscribe')||H('newsletter') };
+    var nav=Array.prototype.slice.call(doc.querySelectorAll('nav a, header a')).map(function(a){return a.textContent.trim();}).filter(Boolean).slice(0,18);
+    var headings=Array.prototype.slice.call(doc.querySelectorAll('h1,h2,h3')).map(function(h){return h.tagName+': '+h.textContent.trim().slice(0,70);}).slice(0,22);
+    var forms=Array.prototype.slice.call(doc.querySelectorAll('form')).map(function(f){ return Array.prototype.slice.call(f.querySelectorAll('input,select,textarea')).map(function(i){return (i.getAttribute('name')||i.getAttribute('type')||i.tagName.toLowerCase());}).slice(0,12); });
+    var desc=(doc.querySelector('meta[name="description"]')||{}).content||'';
+    return { url:url, title:doc.title||'', description:desc, pages:pages, nav:nav, headings:headings, forms:forms, tech:tech, signals:signals, words:txt.split(/\s+/).filter(Boolean).length };
+  }
+
+  function renderProfile(p){
+    var sig=Object.keys(p.signals).filter(function(k){return p.signals[k];});
+    var el=document.createElement('div'); el.className='profile';
+    el.innerHTML='<h3>What Nia detected</h3>'+
+      '<div style="font-size:15px;font-weight:600;margin-bottom:4px">'+(p.title||p.url)+'</div>'+
+      '<div style="font-size:12px;color:var(--ink2);margin-bottom:12px">'+(p.description||'')+'</div>'+
+      '<div class="grid">'+
+        '<div class="stat"><div class="k">Pages</div><div class="v">'+p.pages.length+'</div></div>'+
+        '<div class="stat"><div class="k">Forms</div><div class="v">'+p.forms.length+'</div></div>'+
+        '<div class="stat"><div class="k">Sections</div><div class="v">'+p.headings.length+'</div></div>'+
+        '<div class="stat"><div class="k">Words</div><div class="v">'+p.words+'</div></div>'+
+      '</div>'+
+      '<h3 style="margin-top:14px">Tech</h3><div class="chips">'+(p.tech.length?p.tech.map(function(t){return '<span class="chip on">'+t+'</span>';}).join(''):'<span class="chip">static</span>')+'</div>'+
+      '<h3 style="margin-top:14px">Signals</h3><div class="chips">'+(sig.length?sig.map(function(s){return '<span class="chip on">'+s+'</span>';}).join(''):'<span class="chip">informational</span>')+'</div>';
+    return el;
+  }
+
+  function renderBlueprint(text){
+    var wrap=document.createElement('div'); wrap.className='bp';
+    var parts=text.split(/```/);
+    parts.forEach(function(seg,i){
+      if(i%2===1){
+        var lang=(seg.match(/^[a-z]+\n/)||[''])[0]; var code=seg.replace(/^[a-z]+\n/,'');
+        var pre=document.createElement('pre'); pre.className='code'; pre.textContent=code.trim();
+        var btn=document.createElement('button'); btn.className='copy'; btn.textContent='Copy'; btn.onclick=function(){ navigator.clipboard.writeText(code.trim()); btn.textContent='Copied!'; setTimeout(function(){btn.textContent='Copy';},1200); };
+        pre.appendChild(btn); wrap.appendChild(pre);
+      } else {
+        var html=seg.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/##\s*([^\n]+)/g,'<h2>$1</h2>');
+        var div=document.createElement('div'); div.innerHTML=html; wrap.appendChild(div);
+      }
+    });
+    return wrap;
+  }
+
+  async function study(){
+    var url=$('url').value.trim(); if(!url) return;
+    $('report').innerHTML='<div class="empty">Nia is studying '+url+' …<br/>fetching pages, reading structure, detecting content types…</div>';
+    try{ profile=await analyzeSite(url); }catch(e){ $('report').innerHTML='<div class="empty">Could not load that site: '+e.message+'</div>'; return; }
+    $('report').innerHTML=''; $('report').appendChild(renderProfile(profile));
+    var thinking=document.createElement('div'); thinking.className='bp'; thinking.textContent='Nia is architecting the CMS + OS…'; $('report').appendChild(thinking);
+    history=[{role:'user', content:'Here is the analysed PROFILE of the website to architect. Design its CMS + OS.\n\n'+JSON.stringify(profile,null,2)}];
+    try{
+      var res=await fetch(WK+'/',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({system:SYS,messages:history})});
+      var data=await res.json();
+      var txt=(data&&data.content&&data.content.length)?data.content.filter(function(c){return c.type==='text';}).map(function(c){return c.text;}).join(''):(data&&data.error?('Error: '+data.error):'(no reply)');
+      thinking.remove(); $('report').appendChild(renderBlueprint(txt));
+      var sc=document.createElement('div'); sc.className='scaffold'; sc.innerHTML='🛠️ <b>Auto-scaffold:</b> copy the SQL above into your Supabase SQL editor to create this site\'s data layer. The matching admin module (CRUD screens) is the next build — ask Nia "scaffold the admin for X".'; $('report').appendChild(sc);
+      history.push({role:'assistant', content:txt});
+      addMsg('Blueprint ready for '+(profile.title||profile.url)+'. Ask me to refine a collection, add a field, or plan the admin screens.','nia');
+    }catch(e){ thinking.textContent='Could not reach Nia: '+e.message; }
+  }
+
+  function ask(t){ if(!t) return; addMsg(t,'me'); history.push({role:'user',content:t}); var th=addMsg('thinking…','nia'); fetch(WK+'/',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({system:SYS,messages:history})}).then(function(r){return r.json();}).then(function(data){ var txt=(data&&data.content&&data.content.length)?data.content.filter(function(c){return c.type==='text';}).map(function(c){return c.text;}).join(''):'(no reply)'; th.textContent=txt; history.push({role:'assistant',content:txt}); }).catch(function(e){ th.textContent='Could not reach Nia: '+e.message; }); }
+
+  $('go').onclick=study;
+  $('url').addEventListener('keydown',function(e){ if(e.key==='Enter') study(); });
+  $('send').onclick=function(){ var v=$('msg').value.trim(); if(v){ ask(v); $('msg').value=''; } };
+  $('msg').addEventListener('keydown',function(e){ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); $('send').click(); } });
+  addMsg('Hi Hudson — import a website and I\'ll study it, then design the CMS and Operating System to run it: the content collections, the admin modules, how the site and OS share data, ready-to-run database SQL, and a build plan.','nia');
+  if($('url').value) study();
+})();
+</script>
+</body>
+</html>
