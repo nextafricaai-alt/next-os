@@ -3899,13 +3899,18 @@ Object.assign(window, { FleetPage, TenantCard, AddTenantModal, VERTICAL_LABELS }
   // Override at runtime: window.NEXT_OS_SENTINEL_ENDPOINT = 'https://...';
   const NIA_FREE_ENDPOINT = 'https://nextos-sentinel.nextafricaai.workers.dev';
 
-  const SYSTEM_PROMPT = `You are Sentinel (Nia), Chief of Staff for Hudson Tumusiime — founder of NEXT (Uganda). You live inside NEXT OS.
+  const SYSTEM_PROMPT = `You are Nia, Chief of Staff for Hudson Tumusiime — founder of NEXT (Uganda). You live inside NEXT OS.
+
+FIRST, ON EVERY MESSAGE, DECIDE: does this actually need live OS data or an action?
+- NO — greetings ("hi", "hello", "how are you"), small talk, thanks, opinions, advice, brainstorming, explanations, general questions → just reply naturally and warmly in 1-3 sentences. Call NO tool. NEVER call read_fleet or read_tenant for a greeting or a chat.
+- YES — he asks about the fleet, a specific school, money/fees, analytics, SEO, a project's status, OR wants something drafted/sent/recorded → silently call the right tool(s), then answer.
+Default to conversation. Reach for a tool only when the request truly needs data you don't have or an action only a tool can perform.
 
 PERSON
 Hudson: visionary, not a developer. Talks in CEO terms. Wants direct answers, not consulting jargon. Runs Charis Creations alongside NEXT.
 
 HARD RULES — VIOLATE NONE
-1. Tools first, words second. Never claim a tenant fact you didn't read via read_tenant or read_fleet.
+1. Never claim a tenant/fleet/money fact you didn't read from a tool. But do NOT call a tool for conversation — only when the request needs live data or an action (see FIRST decision above).
 2. Tenant IDs are EXACT slugs. The only valid IDs are: peak-primary, st-marys-demo, grace-chapel-demo, hope-program-demo, next-services-demo, community-association-demo. Never invent or misspell ("pick-school" / "peakprimary" / "peak primary" are all WRONG — always use peak-primary).
 3. NEVER use the word "sent" unless a tool returned {"sent": true}. After draft_message → say "Draft ready." After open_whatsapp → say "WhatsApp opened — tap Send to deliver." After send_whatsapp returning {sent:true} → only then say "Sent."
 4. You cannot move money, sign contracts, or send anything outside the OS without a tool. No fictional actions.
@@ -4326,10 +4331,12 @@ You: "'We help you get more done with less stress.' Nine plain words beat the ja
         if (_p.language && _p.language !== 'English') prefNote += '\n- Language: reply in ' + _p.language + ' when natural for the recipient.';
       } catch (e) {}
       const augmentedSystem = SYSTEM_PROMPT + brainSnippet + (prefNote ? ('\n\nUSER PREFERENCES (set in Nia HQ):' + prefNote) : '');
+      const _t = trimmed.toLowerCase().replace(/[!.,?'\u2019]/g, '').trim();
+      const convoOnly = _t.length <= 40 && /^(hi+|hey+|hello+|yo|sup|hiya|howdy|wassup|whats up|good\s*(morning|afternoon|evening|day|night)|how\s*(are|is|s)?\s*(you|u|it going|things|yourself)?|nice to meet you|thanks?|thank you|cheers|much appreciated|ok|okay|kk|cool|nice|great|awesome|lovely|perfect|lol+|haha+|hmm+|bye|goodbye|see you|gn|gm|test|testing|you there|are you there|who are you|what can you do|introduce yourself)$/.test(_t);
       try {
         let apiMessages = convo.map(m => ({ role: m.role, content: m.apiContent !== undefined ? m.apiContent : m.content }));
         for (let loop = 0; loop < TOOL_LOOP_MAX; loop++) {
-          const resp = await callLLM({ provider, apiKey, system: augmentedSystem, messages: apiMessages, tools: TOOLS });
+          const resp = await callLLM({ provider, apiKey, system: augmentedSystem, messages: apiMessages, tools: convoOnly ? [] : TOOLS });
           const textParts = (resp.content || []).filter(c => c.type === 'text').map(c => c.text).join('');
           const toolUses = (resp.content || []).filter(c => c.type === 'tool_use');
           const assistantMsg = { role: 'assistant', content: textParts, apiContent: resp.content, toolCalls: toolUses.map(t => ({ id: t.id, name: t.name, input: t.input })), ts: Date.now() };
@@ -5775,7 +5782,7 @@ const PlaceholderPage = ({ title, description, icon }) => {
 /* -- Page Titles Map -- */
 const PAGE_TITLES = {
   dashboard: 'Command Center',
-  talk: 'Talk to Sentinel',
+  talk: 'Talk to Nia',
   fleet: 'Mothership Bridge',
   projects: 'Projects Command',
   'ai-tools': 'AI Command Center',
