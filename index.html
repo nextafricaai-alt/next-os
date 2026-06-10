@@ -1923,7 +1923,7 @@ const PROJECT_DATA = [
     status: 'active', health: 'healthy', progress: 82, priority: 'high', planned: false,
     platform: 'Cloudflare Worker + Supabase + Hostinger', domain: 'nextafrica.ai', url: 'https://nextos.nextafrica.ai',
     builtDate: '2026-05', hosting: 'Hostinger (site) · Cloudflare (Nia worker)', registrar: '',
-    team: ['HT'], startDate: '2026-05-01', deadline: '', runs: 'the whole fleet',
+    team: ['HT'], startDate: '2026-05-01', deadline: '', runs: 'the whole fleet', website: 'nextafrica',
     uptime: 100, lastDeploy: 'auto (GitHub → Hostinger)', errors24h: 0, warnings24h: 0,
     alerts: [],
     milestones: [
@@ -1985,6 +1985,17 @@ const PROJECT_DATA = [
   },
 
   // ── WEBSITES (the public storefront, each paired to an OS) ──
+  {
+    id: 'nextafrica', name: 'NEXT Africa', client: 'NEXT \u00b7 the company building Africa\'s intelligent future', kind: 'website', os: 'next-os',
+    status: 'active', health: 'healthy', progress: 70, priority: 'high',
+    platform: 'Company website', domain: 'nextafrica.ai', url: 'https://nextafrica.ai',
+    builtDate: '2026', hosting: 'Hostinger', registrar: '',
+    team: ['HT'], startDate: '2026', deadline: '',
+    uptime: 100, lastDeploy: 'live', errors24h: 0, warnings24h: 0,
+    alerts: [],
+    milestones: [],
+    credentials: { supabaseUrl: '', supabaseKey: '', adminEmail: '' },
+  },
   {
     id: 'purity-mukisa', name: 'Purity Mukisa website', client: 'Purity Mukisa · gospel artist & PCB charity', kind: 'website', os: 'purity-os',
     status: 'active', health: 'healthy', progress: 95, priority: 'high',
