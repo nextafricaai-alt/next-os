@@ -1984,6 +1984,27 @@ const PROJECT_DATA = [
     credentials: { supabaseUrl: '', supabaseKey: '', adminEmail: '' },
   },
 
+  {
+    id: 'gear-os', name: 'Gear Plug OS', client: 'Manages: Gear Plug', kind: 'os',
+    status: 'planned', health: 'healthy', progress: 5, priority: 'low', planned: true, website: 'gear-plug',
+    platform: 'NEXT OS vertical (planned)', domain: '', url: '',
+    builtDate: '', hosting: '', registrar: '',
+    team: ['HT'], startDate: '', deadline: '', runs: 'inventory, orders, suppliers, sales',
+    uptime: 100, lastDeploy: '\u2014', errors24h: 0, warnings24h: 0,
+    alerts: [], milestones: [{ name: 'Define modules (stock, orders)', done: false }, { name: 'Build OS', done: false }],
+    credentials: { supabaseUrl: '', supabaseKey: '', adminEmail: '' },
+  },
+  {
+    id: 'human-address-os', name: 'Human Address OS', client: 'Manages: Human Address', kind: 'os',
+    status: 'planned', health: 'healthy', progress: 2, priority: 'medium', planned: true, website: 'human-address',
+    platform: 'NEXT OS vertical (planned)', domain: '', url: '',
+    builtDate: '', hosting: '', registrar: '',
+    team: ['HT'], startDate: '', deadline: '', runs: 'to be defined',
+    uptime: 100, lastDeploy: '\u2014', errors24h: 0, warnings24h: 0,
+    alerts: [], milestones: [{ name: 'Define what Human Address is', done: false }],
+    credentials: { supabaseUrl: '', supabaseKey: '', adminEmail: '' },
+  },
+
   // ── WEBSITES (the public storefront, each paired to an OS) ──
   {
     id: 'nextafrica', name: 'NEXT Africa', client: 'NEXT \u00b7 the company building Africa\'s intelligent future', kind: 'website', os: 'next-os',
@@ -2032,6 +2053,26 @@ const PROJECT_DATA = [
     uptime: 100, lastDeploy: '—', errors24h: 0, warnings24h: 0,
     alerts: [],
     milestones: [],
+    credentials: { supabaseUrl: '', supabaseKey: '', adminEmail: '' },
+  },
+  {
+    id: 'gear-plug', name: 'Gear Plug', client: 'Gear Plug \u00b7 tech gear & equipment', kind: 'website', os: 'gear-os',
+    status: 'active', health: 'healthy', progress: 45, priority: 'medium',
+    platform: 'Business / store', domain: '', url: '',
+    builtDate: '', hosting: '', registrar: '',
+    team: ['HT'], startDate: '', deadline: '',
+    uptime: 100, lastDeploy: '\u2014', errors24h: 0, warnings24h: 0,
+    alerts: [], milestones: [],
+    credentials: { supabaseUrl: '', supabaseKey: '', adminEmail: '' },
+  },
+  {
+    id: 'human-address', name: 'Human Address', client: 'New \u00b7 incoming project', kind: 'website', os: 'human-address-os',
+    status: 'building', health: 'healthy', progress: 8, priority: 'medium', planned: true,
+    platform: 'Incoming', domain: '', url: '',
+    builtDate: '', hosting: '', registrar: '',
+    team: ['HT'], startDate: '2026', deadline: '',
+    uptime: 100, lastDeploy: '\u2014', errors24h: 0, warnings24h: 0,
+    alerts: [], milestones: [{ name: 'Scope + brief', done: false }],
     credentials: { supabaseUrl: '', supabaseKey: '', adminEmail: '' },
   },
 ];
