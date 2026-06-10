@@ -44,20 +44,42 @@
   #composer{display:flex;gap:8px;padding:12px;border-top:1px solid var(--line)}
   #composer textarea{flex:1;resize:none;height:42px;background:var(--bg);border:1px solid var(--line);border-radius:10px;color:var(--ink);padding:10px;font-size:13px;font-family:inherit}
   #composer button{background:var(--mint);color:#062b18;border:none;border-radius:10px;padding:0 16px;font-weight:700;cursor:pointer}
+
+  #rail{position:fixed;left:0;top:0;bottom:0;width:62px;background:#0a1024;border-right:1px solid var(--line);display:flex;flex-direction:column;align-items:center;gap:6px;padding:10px 0;z-index:50}
+  #rail .rlogo{font-weight:900;color:var(--mint);font-size:18px;margin-bottom:8px}
+  #rail button{width:48px;height:48px;border-radius:12px;background:transparent;border:1px solid transparent;color:var(--ink2);font-size:19px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;line-height:1}
+  #rail button span{font-size:8px;letter-spacing:.02em;text-transform:uppercase}
+  #rail button:hover{color:var(--ink);background:var(--panel)}
+  #rail button.on{background:linear-gradient(135deg,#7c3aed,#2563eb);color:#fff;border-color:transparent}
+  #top, #main{margin-left:62px}
+  #modeFrames{position:fixed;left:62px;right:0;top:0;bottom:0;z-index:30;display:none}
+  #modeFrames.show{display:block}
+  #modeFrames iframe{position:absolute;inset:0;width:100%;height:100%;border:0;background:var(--bg);display:none}
+  #modeFrames iframe.show{display:block}
+  body.mode-website #modeFrames{display:none}
+  body.mode-website #top, body.mode-website #main{display:flex}
+  body:not(.mode-website) #top .web-only{display:none !important}
+
 </style>
 </head>
-<body>
+<body class="mode-website">
+  <div id="rail">
+    <div class="rlogo">N</div>
+    <button id="m-website" class="on" title="Website editor">&#127760;<span>Site</span></button>
+    <button id="m-graphics" title="Create graphics from scratch">&#127912;<span>Graphics</span></button>
+    <button id="m-intel" title="Nia Intelligence — analyze a site, build a CMS/OS">&#129504;<span>Intel</span></button>
+  </div>
+  <div id="modeFrames"><iframe id="gfxFrame" data-src="/graphics.html"></iframe><iframe id="intelFrame" data-src="/nia-intel.html"></iframe></div>
   <div id="top">
     <span id="brand">NEXT Studio</span>
-    <input id="url" placeholder="https://nextafrica.ai" />
-    <button id="load">Load</button>
-    <button id="edit" class="on">Edit: on</button>
-    <button id="undo" title="Undo">↶</button>
-    <button id="redo" title="Redo">↷</button>
-    <span id="device" style="display:flex;gap:4px"><button data-w="0" class="on">🖥</button><button data-w="900">▭</button><button data-w="430">▯</button></span>
-    <button id="graphics" title="Create graphics from scratch with Nia">🎨 Graphics</button>
-    <button id="export">Export</button>
-    <button id="publish" class="publish">Publish live</button>
+    <input class="web-only" id="url" placeholder="https://nextafrica.ai" />
+    <button class="web-only" id="load">Load</button>
+    <button class="web-only" id="edit" class="on">Edit: on</button>
+    <button class="web-only" id="undo" title="Undo">↶</button>
+    <button class="web-only" id="redo" title="Redo">↷</button>
+    <span class="web-only" id="device" style="display:flex;gap:4px"><button data-w="0" class="on">🖥</button><button data-w="900">▭</button><button data-w="430">▯</button></span>
+    <button class="web-only" id="export">Export</button>
+    <button class="web-only" id="publish" class="publish">Publish live</button>
   </div>
   <div id="main">
     <div id="tools">
@@ -237,7 +259,11 @@
   $('url').addEventListener('keydown',function(e){ if(e.key==='Enter') $('load').click(); });
   $('edit').onclick=function(){ setEdit(!editing); };
   $('export').onclick=exportHtml; $('publish').onclick=publish;
-  var gb=$('graphics'); if(gb) gb.onclick=function(){ window.open('/graphics.html','_blank'); };
+  function setMode(m){ document.body.className='mode-'+m; var mf=$('modeFrames'); ['website','graphics','intel'].forEach(function(x){ var b=$('m-'+x); if(b) b.classList.toggle('on', x===m); }); if(m==='website'){ mf.classList.remove('show'); } else { mf.classList.add('show'); var fr = m==='graphics'?$('gfxFrame'):$('intelFrame'); if(fr && !fr.src){ fr.src=fr.getAttribute('data-src'); } $('gfxFrame').classList.toggle('show', m==='graphics'); $('intelFrame').classList.toggle('show', m==='intel'); } }
+  $('m-website').onclick=function(){ setMode('website'); };
+  $('m-graphics').onclick=function(){ setMode('graphics'); };
+  $('m-intel').onclick=function(){ setMode('intel'); };
+  (function(){ var qp=new URLSearchParams(location.search); var im=qp.get('mode'); if(im==='graphics'||im==='intel'){ setMode(im); } })();
   $('send').onclick=function(){ var v=$('msg').value.trim(); if(v){ ask(v); $('msg').value=''; } };
   $('msg').addEventListener('keydown',function(e){ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); $('send').click(); } });
   Array.prototype.forEach.call(document.querySelectorAll('#quick button'),function(b){ b.onclick=function(){ ask(b.getAttribute('data-q')); }; });
