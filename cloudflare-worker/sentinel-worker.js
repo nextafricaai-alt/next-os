@@ -851,28 +851,42 @@ async function handleSitePages(target, cors) {
   return J({ origin, count: items.length, pages: items });
 }
 
-// Commit an edited page to a GitHub repo (real deploy via the site's GitHub->Hostinger pipeline).
+// Commit an edited page to a GitHub repo (real deploy via the site's GitHub->Hostinger/Cloudflare pipeline).
 async function handlePublish(request, env, cors) {
   const J = (o, st) => new Response(JSON.stringify(o), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
   if (request.method !== 'POST') return J({ ok: false, error: 'POST only' }, 405);
   const tok = env.GITHUB_TOKEN;
-  if (!tok) return J({ ok: false, error: 'GitHub not configured: set GITHUB_TOKEN as a Cloudflare secret (a Personal Access Token with repo write access).' });
+  if (!tok) return J({ ok: false, error: 'GitHub not configured: set GITHUB_TOKEN as a Cloudflare secret (a token with repo Contents write).' });
   try {
     const b = await request.json();
     const repo = String(b.repo || '').trim();
-    const branch = String(b.branch || 'main').trim();
+    let branch = String(b.branch || '').trim();
     const path = String(b.path || '').replace(/^\//, '').trim();
     const html = b.html || '';
     if (!repo || !path) return J({ ok: false, error: 'repo (owner/name) and path are required' }, 400);
-    const api = 'https://api.github.com/repos/' + repo + '/contents/' + path.split('/').map(encodeURIComponent).join('/');
     const hdr = { 'Authorization': 'Bearer ' + tok, 'Accept': 'application/vnd.github+json', 'User-Agent': 'NextOS-Studio', 'Content-Type': 'application/json' };
+    // Step 1 — repo access + default branch
+    const rr = await fetch('https://api.github.com/repos/' + repo, { headers: hdr });
+    if (!rr.ok) {
+      const t = await rr.text();
+      const msg = rr.status === 404
+        ? ('Repo not reachable (404). Either the name "' + repo + '" is off, or the token cannot access it. The token must belong to / be scoped to "' + repo.split('/')[0] + '" with Contents: read & write.')
+        : (rr.status === 401 ? 'Token rejected (401) — it is invalid or expired. Regenerate and update the Cloudflare GITHUB_TOKEN secret.'
+        : ('GitHub ' + rr.status + ': ' + t.slice(0, 160)));
+      return J({ ok: false, step: 'repo-access', status: rr.status, error: msg });
+    }
+    const rj = await rr.json();
+    if (!branch) branch = rj.default_branch || 'main';
+    // Step 2 — current file sha (if it exists)
+    const api = 'https://api.github.com/repos/' + repo + '/contents/' + path.split('/').map(encodeURIComponent).join('/');
     let sha;
     const cur = await fetch(api + '?ref=' + encodeURIComponent(branch), { headers: hdr });
     if (cur.ok) { const j = await cur.json(); sha = j.sha; }
+    // Step 3 — commit
     const content = btoa(unescape(encodeURIComponent(html)));
     const put = await fetch(api, { method: 'PUT', headers: hdr, body: JSON.stringify({ message: b.message || 'Edit via NEXT Studio', content: content, branch: branch, sha: sha }) });
     const pj = await put.json();
-    if (!put.ok) return J({ ok: false, error: (pj.message || ('HTTP ' + put.status)) });
+    if (!put.ok) return J({ ok: false, step: 'commit', status: put.status, branch: branch, error: (pj.message || ('HTTP ' + put.status)) + ' (branch: ' + branch + ', path: ' + path + ')' });
     return J({ ok: true, commit: (pj.commit && pj.commit.sha) || null, repo: repo, path: path, branch: branch });
   } catch (e) { return J({ ok: false, error: String((e && e.message) || e) }, 500); }
 }
