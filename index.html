@@ -1917,27 +1917,79 @@ Object.assign(window, { MembersPage, MembershipCard, TIER_CONFIG });
 /* os-projects.jsx - Projects Dashboard: Status Monitoring, Credential Vault, System Health */
 
 const PROJECT_DATA = [
+  // ── OPERATING SYSTEMS (the engine room behind each website) ──
   {
-    id: 'next-os', name: 'NEXT OS + Schools OS', client: 'NEXT (internal) · multi-tenant operating system', kind: 'os',
-    status: 'active', health: 'healthy', progress: 80, priority: 'high',
+    id: 'next-os', name: 'NEXT OS', client: 'NEXT · master operating system', kind: 'os',
+    status: 'active', health: 'healthy', progress: 82, priority: 'high', planned: false,
     platform: 'Cloudflare Worker + Supabase + Hostinger', domain: 'nextafrica.ai', url: 'https://nextos.nextafrica.ai',
     builtDate: '2026-05', hosting: 'Hostinger (site) · Cloudflare (Nia worker)', registrar: '',
-    team: ['HT'], startDate: '2026-05-01', deadline: '',
+    team: ['HT'], startDate: '2026-05-01', deadline: '', runs: 'the whole fleet',
     uptime: 100, lastDeploy: 'auto (GitHub → Hostinger)', errors24h: 0, warnings24h: 0,
     alerts: [],
     milestones: [
-      { name: 'Onboarding engine (new schools)', done: true },
-      { name: 'Live per-school data + branding', done: true },
-      { name: 'Receipts (PDF + WhatsApp)', done: true },
+      { name: 'Nia agent + portfolio monitoring', done: true },
+      { name: 'Projects: websites + operating systems', done: true },
+      { name: 'Analytics + SEO + Search Console', done: true },
       { name: 'Roster import (real students)', done: false },
     ],
-    credentials: { supabaseUrl: 'https://llxhvqkkgftqwefmrofn.supabase.co', supabaseKey: 'service key — stored as Cloudflare secret', adminEmail: 'nextafrica.ai@gmail.com' },
+    credentials: { supabaseUrl: 'https://llxhvqkkgftqwefmrofn.supabase.co', supabaseKey: 'service key — Cloudflare secret', adminEmail: 'nextafrica.ai@gmail.com' },
   },
   {
-    id: 'purity-mukisa', name: 'Purity Mukisa website', client: 'Purity Mukisa · gospel artist & PCB charity', kind: 'website',
+    id: 'schools-os', name: 'Schools OS', client: 'NEXT · schools vertical', kind: 'os',
+    status: 'active', health: 'healthy', progress: 75, priority: 'high', planned: false,
+    platform: 'NEXT OS tenant engine', domain: 'nextafrica.ai', url: 'https://nextos.nextafrica.ai/s/bare-foot',
+    builtDate: '2026-05', hosting: 'Hostinger · Cloudflare', registrar: '',
+    team: ['HT'], startDate: '2026-05', deadline: '', runs: 'Peak Primary, bare foot, Good Foundation + new schools',
+    uptime: 100, lastDeploy: 'live', errors24h: 0, warnings24h: 0,
+    alerts: [],
+    milestones: [
+      { name: 'Onboarding engine + branding', done: true },
+      { name: 'Live per-school data', done: true },
+      { name: 'Receipts (PDF + WhatsApp)', done: true },
+      { name: 'Roster import', done: false },
+    ],
+    credentials: { supabaseUrl: 'https://llxhvqkkgftqwefmrofn.supabase.co', supabaseKey: 'service key — Cloudflare secret', adminEmail: '' },
+  },
+  {
+    id: 'purity-os', name: 'Purity OS', client: 'Manages: Purity Mukisa website', kind: 'os',
+    status: 'planned', health: 'healthy', progress: 10, priority: 'medium', planned: true, website: 'purity-mukisa',
+    platform: 'NEXT OS vertical (planned)', domain: '', url: '',
+    builtDate: '', hosting: '', registrar: '',
+    team: ['HT'], startDate: '', deadline: '', runs: 'music releases, PCB charity, tickets & events',
+    uptime: 100, lastDeploy: '—', errors24h: 0, warnings24h: 0,
+    alerts: [],
+    milestones: [{ name: 'Define modules (releases, charity, events)', done: false }, { name: 'Build OS', done: false }],
+    credentials: { supabaseUrl: '', supabaseKey: '', adminEmail: '' },
+  },
+  {
+    id: 'charis-os', name: 'Charis OS', client: 'Manages: Charis Creations website', kind: 'os',
+    status: 'planned', health: 'healthy', progress: 5, priority: 'medium', planned: true, website: 'charis-creations',
+    platform: 'NEXT OS vertical (planned)', domain: '', url: '',
+    builtDate: '', hosting: '', registrar: '',
+    team: ['HT'], startDate: '', deadline: '', runs: 'clients, bookings, projects, gear (Gear Plug)',
+    uptime: 100, lastDeploy: '—', errors24h: 0, warnings24h: 0,
+    alerts: [],
+    milestones: [{ name: 'Define modules (CRM, bookings, projects)', done: false }, { name: 'Build OS', done: false }],
+    credentials: { supabaseUrl: '', supabaseKey: '', adminEmail: '' },
+  },
+  {
+    id: 'fathers-os', name: 'Fathers Arise OS', client: 'Manages: Fathers Arise website', kind: 'os',
+    status: 'planned', health: 'healthy', progress: 5, priority: 'medium', planned: true, website: 'fathers-arise',
+    platform: 'NEXT OS vertical (planned)', domain: '', url: '',
+    builtDate: '', hosting: '', registrar: '',
+    team: ['HT'], startDate: '', deadline: '', runs: 'community, content, events, mentorship',
+    uptime: 100, lastDeploy: '—', errors24h: 0, warnings24h: 0,
+    alerts: [],
+    milestones: [{ name: 'Define modules (community, content, events)', done: false }, { name: 'Build OS', done: false }],
+    credentials: { supabaseUrl: '', supabaseKey: '', adminEmail: '' },
+  },
+
+  // ── WEBSITES (the public storefront, each paired to an OS) ──
+  {
+    id: 'purity-mukisa', name: 'Purity Mukisa website', client: 'Purity Mukisa · gospel artist & PCB charity', kind: 'website', os: 'purity-os',
     status: 'active', health: 'healthy', progress: 95, priority: 'high',
     platform: 'Static site + Supabase (tickets)', domain: 'puritymukisa.com', url: 'https://puritymukisa.com',
-    builtDate: '2026', hosting: '', registrar: '',
+    builtDate: '2026', hosting: 'Hostinger', registrar: '',
     team: ['HT'], startDate: '2026', deadline: '',
     uptime: 100, lastDeploy: 'live', errors24h: 0, warnings24h: 0,
     alerts: [],
@@ -1950,10 +2002,10 @@ const PROJECT_DATA = [
     credentials: { supabaseUrl: '', supabaseKey: '', adminEmail: '' },
   },
   {
-    id: 'charis-creations', name: 'Charis Creations', client: 'Charis Creations · media production & storytelling', kind: 'website',
+    id: 'charis-creations', name: 'Charis Creations', client: 'Charis Creations · media production & storytelling', kind: 'website', os: 'charis-os',
     status: 'active', health: 'healthy', progress: 60, priority: 'medium',
     platform: 'Website', domain: 'chariscreationsltd.com', url: 'https://chariscreationsltd.com',
-    builtDate: '', hosting: '', registrar: '',
+    builtDate: '', hosting: 'Hostinger', registrar: '',
     team: ['HT'], startDate: '', deadline: '',
     uptime: 100, lastDeploy: '—', errors24h: 0, warnings24h: 0,
     alerts: [],
@@ -1961,10 +2013,10 @@ const PROJECT_DATA = [
     credentials: { supabaseUrl: '', supabaseKey: '', adminEmail: '' },
   },
   {
-    id: 'fathers-arise', name: 'Fathers Arise', client: 'The Remnant Generation · fatherhood initiative', kind: 'website',
+    id: 'fathers-arise', name: 'Fathers Arise', client: 'The Remnant Generation · fatherhood initiative', kind: 'website', os: 'fathers-os',
     status: 'active', health: 'healthy', progress: 50, priority: 'medium',
     platform: 'Website', domain: 'fathersarize.org', url: 'https://fathersarize.org',
-    builtDate: '', hosting: '', registrar: '',
+    builtDate: '', hosting: 'Hostinger', registrar: '',
     team: ['HT'], startDate: '', deadline: '',
     uptime: 100, lastDeploy: '—', errors24h: 0, warnings24h: 0,
     alerts: [],
@@ -1972,12 +2024,6 @@ const PROJECT_DATA = [
     credentials: { supabaseUrl: '', supabaseKey: '', adminEmail: '' },
   },
 ];
-
-const HEALTH_CONFIG = {
-  healthy:  { color: 'var(--mint)',   label: 'Healthy' },
-  warning:  { color: 'var(--gold)',   label: 'Warning' },
-  critical: { color: 'var(--danger)', label: 'Critical' },
-};
 const ALERT_COLORS = { critical: '#FF4757', error: '#FF6B6B', warning: '#FFB400', info: '#3B82F6' };
 
 /* -- Health Badge -- */
@@ -2149,13 +2195,14 @@ const ProjectDetail = ({ project, onBack }) => {
           </div>
           <div style={sectionStyle}>
             <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 16 }}>Project Info</div>
-            {[
+            {([
+              { label: 'Kind', value: p.kind === 'os' ? (p.planned ? 'Operating System · planned' : 'Operating System') : 'Website' },
+              (p.kind === 'website' && p.os && window.PROJECT_DATA) ? { label: 'Operating System', value: ((window.PROJECT_DATA.find(x => x.id === p.os) || {}).name) || p.os } : null,
+              (p.kind === 'os' && p.runs) ? { label: 'Runs', value: p.runs } : null,
               { label: 'Platform', value: p.platform },
               { label: 'Domain', value: p.domain },
-              { label: 'Priority', value: p.priority.toUpperCase() },
               { label: 'Progress', value: `${p.progress}%` },
-              { label: 'Deadline', value: p.deadline },
-            ].map(r => (
+            ].filter(Boolean)).map(r => (
               <div key={r.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid var(--border-subtle)' }}>
                 <span style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>{r.label}</span>
                 <span style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-primary)', fontWeight: 500 }}>{r.value}</span>
@@ -2484,6 +2531,41 @@ const ProjectsPage = ({ onNavigate }) => {
     setShowAddModal(false);
   };
 
+  const byId = {}; projects.forEach(p => { byId[p.id] = p; });
+  const renderCard = (p) => (
+    <div key={p.id} onClick={() => setSelectedProject(p)} style={{
+      background: 'var(--bg-elevated)', borderRadius: 'var(--radius-md)',
+      border: `1px solid ${p.health === 'critical' ? 'rgba(255,71,87,0.2)' : p.health === 'warning' ? 'rgba(255,180,0,0.12)' : 'var(--border-subtle)'}`,
+      padding: 20, cursor: 'pointer', transition: 'all 0.2s', opacity: p.planned ? 0.72 : 1,
+      display: 'grid', gridTemplateColumns: '1fr auto',
+    }} className="project-card">
+      <div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8, flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)' }}>{p.name}</span>
+          {p.planned ? <span style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)', background: 'var(--bg-deep)', padding: '2px 8px', borderRadius: 3, letterSpacing: '0.06em' }}>PLANNED</span> : <HealthBadge health={p.health} />}
+          {p.alerts && p.alerts.length > 0 && (
+            <span style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: ALERT_COLORS[p.alerts[0].type], background: `${ALERT_COLORS[p.alerts[0].type]}12`, padding: '2px 8px', borderRadius: 3 }}>
+              {p.alerts.length} alert{p.alerts.length > 1 ? 's' : ''}
+            </span>
+          )}
+        </div>
+        <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 10 }}>{p.client}</div>
+        <div style={{ display: 'flex', gap: 16, fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)', flexWrap: 'wrap' }}>
+          {p.kind === 'website' && p.os && byId[p.os] && <span style={{ color: 'var(--mint)' }}>⚙ {byId[p.os].name}</span>}
+          {p.kind === 'os' && p.runs && <span>Runs: {p.runs}</span>}
+          {!p.planned && <span>Uptime: <span style={{ color: p.uptime > 99 ? 'var(--mint)' : p.uptime > 97 ? 'var(--gold)' : 'var(--danger)' }}>{p.uptime}%</span></span>}
+          {p.domain && <span>{p.domain}</span>}
+        </div>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'center', gap: 6 }}>
+        <div style={{ fontSize: 22, fontFamily: 'var(--font-display)', fontWeight: 700, color: 'var(--text-primary)' }}>{p.progress}%</div>
+        <div style={{ width: 80, height: 4, background: 'var(--bg-deep)', borderRadius: 2, overflow: 'hidden' }}>
+          <div style={{ width: `${p.progress}%`, height: '100%', borderRadius: 2, background: p.progress > 75 ? 'var(--mint)' : p.progress > 40 ? 'var(--emerald)' : 'var(--info)' }}></div>
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <div style={{ opacity: mounted ? 1 : 0, transform: mounted ? 'none' : 'translateY(8px)', transition: 'all 0.4s ease' }}>
       <div style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap' }}>
@@ -2538,41 +2620,21 @@ const ProjectsPage = ({ onNavigate }) => {
         ))}
       </div>
 
-      {/* Project Cards */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        {filtered.map(p => (
-          <div key={p.id} onClick={() => setSelectedProject(p)} style={{
-            background: 'var(--bg-elevated)', borderRadius: 'var(--radius-md)',
-            border: `1px solid ${p.health === 'critical' ? 'rgba(255,71,87,0.2)' : p.health === 'warning' ? 'rgba(255,180,0,0.12)' : 'var(--border-subtle)'}`,
-            padding: 20, cursor: 'pointer', transition: 'all 0.2s',
-            display: 'grid', gridTemplateColumns: '1fr auto',
-          }} className="project-card">
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-                <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)' }}>{p.name}</span>
-                <HealthBadge health={p.health} />
-                {p.alerts.length > 0 && (
-                  <span style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: ALERT_COLORS[p.alerts[0].type], background: `${ALERT_COLORS[p.alerts[0].type]}12`, padding: '2px 8px', borderRadius: 3 }}>
-                    {p.alerts.length} alert{p.alerts.length > 1 ? 's' : ''}
-                  </span>
-                )}
-              </div>
-              <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 10 }}>{p.client}</div>
-              <div style={{ display: 'flex', gap: 20, fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)' }}>
-                <span>Uptime: <span style={{ color: p.uptime > 99 ? 'var(--mint)' : p.uptime > 97 ? 'var(--gold)' : 'var(--danger)' }}>{p.uptime}%</span></span>
-                <span>Platform: {p.platform.split(' + ')[0]}</span>
-                <span>Deploy: {p.lastDeploy}</span>
-              </div>
+      {/* Grouped: Operating Systems + Websites */}
+      {[{ k: 'os', label: 'Operating Systems' }, { k: 'website', label: 'Websites' }].map(g => {
+        const list = filtered.filter(p => (p.kind || 'website') === g.k);
+        if (!list.length) return null;
+        return (
+          <div key={g.k} style={{ marginBottom: 26 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '4px 0 12px' }}>
+              <span style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.12em', fontWeight: 700 }}>{g.label}</span>
+              <span style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>({list.length})</span>
+              <div style={{ flex: 1, height: 1, background: 'var(--border-subtle)' }} />
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'center', gap: 6 }}>
-              <div style={{ fontSize: 22, fontFamily: 'var(--font-display)', fontWeight: 700, color: 'var(--text-primary)' }}>{p.progress}%</div>
-              <div style={{ width: 80, height: 4, background: 'var(--bg-deep)', borderRadius: 2, overflow: 'hidden' }}>
-                <div style={{ width: `${p.progress}%`, height: '100%', borderRadius: 2, background: p.progress > 75 ? 'var(--mint)' : p.progress > 40 ? 'var(--emerald)' : 'var(--info)' }}></div>
-              </div>
-            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>{list.map(renderCard)}</div>
           </div>
-        ))}
-      </div>
+        );
+      })}
     </div>
   );
 };
@@ -3963,7 +4025,7 @@ You: "'We help you get more done with less stress.' Nine plain words beat the ja
           const userP = (D.getProjects ? D.getProjects().filter(p => p.addedByUser) : []);
           const all = seed.concat(userP).map(p => {
             let meta = {}; try { meta = JSON.parse(localStorage.getItem('nextos.projectmeta.' + p.id) || '{}'); } catch (e) {}
-            return { id: p.id, name: p.name, client: p.client, kind: p.kind || 'project', status: p.status, health: p.health, progress: p.progress, url: meta.url || p.url || '', domain: meta.domain || p.domain || '', builtDate: meta.builtDate || p.builtDate || '', registrar: meta.registrar || p.registrar || '', lastCheck: meta.lastCheck || null };
+            return { id: p.id, name: p.name, client: p.client, kind: p.kind || 'project', planned: !!p.planned, os: p.os || null, website: p.website || null, runs: p.runs || null, status: p.status, health: p.health, progress: p.progress, url: meta.url || p.url || '', domain: meta.domain || p.domain || '', builtDate: meta.builtDate || p.builtDate || '', registrar: meta.registrar || p.registrar || '', lastCheck: meta.lastCheck || null };
           });
           return JSON.stringify({ count: all.length, projects: all });
         }
