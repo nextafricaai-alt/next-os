@@ -5708,6 +5708,9 @@ const Topbar = ({ pageTitle, sidebarWidth }) => {
         {/* Notifications */}
         <BellButton />
 
+        {/* Sign out */}
+        <button onClick={() => window.NEXT_OS_SIGNOUT && window.NEXT_OS_SIGNOUT()} title="Sign out" style={{ background: 'transparent', border: '1px solid var(--border-subtle)', color: 'var(--text-tertiary)', borderRadius: 'var(--radius-sm)', padding: '6px 10px', fontSize: 11, fontFamily: 'var(--font-mono)', letterSpacing: 1, cursor: 'pointer' }}>SIGN OUT</button>
+
         {/* Time */}
         <div style={{
           fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)',
@@ -5785,6 +5788,87 @@ const applyTweaks = (t) => {
 };
 
 /* -- Main App Shell -- */
+const NEXT_AUTH_KEY = 'nextos.session.v1';
+const NEXT_AUTH_DAYS = 7;
+function nextAuthValid() {
+  try { const j = JSON.parse(localStorage.getItem(NEXT_AUTH_KEY) || 'null'); return !!(j && j.email && j.exp && j.exp > Date.now()); } catch (e) { return false; }
+}
+if (typeof window !== 'undefined') {
+  window.NEXT_OS_SIGNOUT = () => { try { localStorage.removeItem(NEXT_AUTH_KEY); } catch (e) {} location.reload(); };
+  window.NEXT_OS_USER = () => { try { return (JSON.parse(localStorage.getItem(NEXT_AUTH_KEY) || 'null') || {}).email || ''; } catch (e) { return ''; } };
+}
+
+const AuthGate = ({ children }) => {
+  const WK = (typeof window !== 'undefined' && window.NEXT_OS_SENTINEL_ENDPOINT) || 'https://nextos-sentinel.nextafricaai.workers.dev';
+  const [authed, setAuthed] = React.useState(nextAuthValid());
+  const [step, setStep] = React.useState('email');
+  const [email, setEmail] = React.useState('');
+  const [code, setCode] = React.useState('');
+  const [busy, setBusy] = React.useState(false);
+  const [err, setErr] = React.useState('');
+  const [note, setNote] = React.useState('');
+  if (authed) return children;
+
+  const sendCode = async () => {
+    const e = email.trim().toLowerCase();
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e)) { setErr('Enter a valid email address.'); return; }
+    setBusy(true); setErr(''); setNote('');
+    try {
+      const r = await fetch(WK + '/auth/send-otp', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: e }) });
+      const d = await r.json();
+      if (d.error) { setErr(d.error); } else { setStep('code'); setNote('We sent a 6-digit code to ' + e + '. Check your inbox (and spam).'); }
+    } catch (x) { setErr('Could not reach the server. Try again.'); }
+    setBusy(false);
+  };
+  const verify = async () => {
+    const e = email.trim().toLowerCase(); const c = code.trim();
+    if (c.length < 6) { setErr('Enter the 6-digit code.'); return; }
+    setBusy(true); setErr('');
+    try {
+      const r = await fetch(WK + '/auth/verify-otp', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: e, code: c }) });
+      const d = await r.json();
+      if (d.error || !d.ok) { setErr(d.error || 'Invalid or expired code.'); }
+      else { try { localStorage.setItem(NEXT_AUTH_KEY, JSON.stringify({ email: d.email || e, exp: Date.now() + NEXT_AUTH_DAYS * 86400000 })); } catch (x) {} setAuthed(true); }
+    } catch (x) { setErr('Could not reach the server. Try again.'); }
+    setBusy(false);
+  };
+
+  const wrap = { position: 'fixed', inset: 0, background: 'radial-gradient(circle at 50% 20%, #0f1a30, #070b16)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, fontFamily: 'Inter, -apple-system, system-ui, sans-serif', padding: 20 };
+  const card = { width: '100%', maxWidth: 380, background: 'rgba(17,26,54,0.7)', border: '1px solid #26315a', borderRadius: 18, padding: 30, boxShadow: '0 30px 80px rgba(0,0,0,0.5)', backdropFilter: 'blur(8px)' };
+  const input = { width: '100%', background: '#0a0f24', border: '1px solid #26315a', borderRadius: 10, color: '#eef1fb', padding: '13px 14px', fontSize: 15, outline: 'none' };
+  const btn = (on) => ({ width: '100%', marginTop: 12, background: on ? '#00fc8f' : '#1a2342', color: on ? '#062b18' : '#7e88b0', border: 'none', borderRadius: 10, padding: '13px', fontSize: 14, fontWeight: 700, cursor: on ? 'pointer' : 'not-allowed' });
+
+  return (
+    <div style={wrap}>
+      <div style={card}>
+        <div style={{ fontSize: 13, fontFamily: 'ui-monospace, monospace', letterSpacing: 3, color: '#00fc8f', marginBottom: 6 }}>NEXT OS</div>
+        <div style={{ fontSize: 22, fontWeight: 800, color: '#eef1fb', marginBottom: 4 }}>{step === 'email' ? 'Sign in' : 'Enter your code'}</div>
+        <div style={{ fontSize: 13, color: '#aab2d5', marginBottom: 20, lineHeight: 1.5 }}>{step === 'email' ? 'Secure email sign-in. We’ll send a one-time code to verify it’s you.' : note}</div>
+
+        {step === 'email' ? (
+          <div>
+            <input style={input} type="email" placeholder="you@example.com" value={email} autoFocus
+              onChange={e => setEmail(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') sendCode(); }} />
+            <button style={btn(!busy)} disabled={busy} onClick={sendCode}>{busy ? 'Sending…' : 'Send code'}</button>
+          </div>
+        ) : (
+          <div>
+            <input style={{ ...input, letterSpacing: 8, fontSize: 22, textAlign: 'center', fontFamily: 'ui-monospace, monospace' }} inputMode="numeric" maxLength={6} placeholder="000000" value={code} autoFocus
+              onChange={e => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))} onKeyDown={e => { if (e.key === 'Enter') verify(); }} />
+            <button style={btn(!busy)} disabled={busy} onClick={verify}>{busy ? 'Verifying…' : 'Verify & sign in'}</button>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 14, fontSize: 12 }}>
+              <span onClick={() => { setStep('email'); setCode(''); setErr(''); setNote(''); }} style={{ color: '#7e88b0', cursor: 'pointer' }}>{'←'} Change email</span>
+              <span onClick={sendCode} style={{ color: '#00fc8f', cursor: 'pointer' }}>Resend code</span>
+            </div>
+          </div>
+        )}
+        {err && <div style={{ marginTop: 14, fontSize: 13, color: '#ff8a96' }}>{err}</div>}
+        <div style={{ marginTop: 22, paddingTop: 16, borderTop: '1px solid #26315a', fontSize: 11, color: '#6b748a', lineHeight: 1.5 }}>Protected by one-time email verification. Your session stays active for {NEXT_AUTH_DAYS} days on this device.</div>
+      </div>
+    </div>
+  );
+};
+
 const AppShell = () => {
   const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
   const [activeTab, setActiveTab] = React.useState('dashboard');
@@ -5908,7 +5992,7 @@ Object.assign(window, { AppShell, Sidebar, Topbar, OSIcon, PlaceholderPage });
     }/*EDITMODE-END*/;
 
     const root = ReactDOM.createRoot(document.getElementById('root'));
-    root.render(<AppShell />);
+    root.render(<AuthGate><AppShell /></AuthGate>);
   </script>
 </body>
 </html>
