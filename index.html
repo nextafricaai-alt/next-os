@@ -5366,6 +5366,7 @@ const OSIcon = ({ name, size = 20 }) => {
     talk: <><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/></>,
     projects: <><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></>,
     studio: <><path d="M15 4l5 5L9 20H4v-5z"/><path d="M12.5 6.5l5 5"/><path d="M20 3l1 1"/><path d="M4.5 13.5l1 1"/></>,
+    analyticsNav: <><path d="M3 3v18h18"/><path d="M7 15l3-4 3 2 4-6"/></>,
     graphics: <><circle cx="13.5" cy="6.5" r="1.5"/><circle cx="17.5" cy="10.5" r="1.5"/><circle cx="8.5" cy="7.5" r="1.5"/><circle cx="6.5" cy="12.5" r="1.5"/><path d="M12 2a10 10 0 100 20 1.4 1.4 0 001-2.4 1.4 1.4 0 011-2.4h1.6A4.4 4.4 0 0022 13c0-5-4.5-11-10-11z"/></>,
     ai: <><path d="M12 2L3 7l9 5 9-5-9-5z"/><path d="M3 17l9 5 9-5"/><path d="M3 12l9 5 9-5"/></>,
     training: <><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></>,
@@ -5388,6 +5389,121 @@ const OSIcon = ({ name, size = 20 }) => {
 };
 
 /* -- Navigation Config -- */
+const AnalyticsPage = ({ onNavigate }) => {
+  const WK = (typeof window !== 'undefined' && window.NEXT_OS_SENTINEL_ENDPOINT) || 'https://nextos-sentinel.nextafricaai.workers.dev';
+  const sites = React.useMemo(() => {
+    const seen = {}, out = [];
+    (window.PROJECT_DATA || []).forEach(p => {
+      const d = (p.domain || '').trim().replace(/^www\./, '');
+      if (d && !seen[d]) { seen[d] = 1; out.push({ domain: d, name: p.name }); }
+    });
+    return out;
+  }, []);
+  const [days, setDays] = React.useState(7);
+  const [rows, setRows] = React.useState({});
+  const [loading, setLoading] = React.useState(false);
+  const [mounted, setMounted] = React.useState(false);
+  React.useEffect(() => { setTimeout(() => setMounted(true), 40); }, []);
+  const load = React.useCallback(() => {
+    setLoading(true);
+    Promise.all(sites.map(s =>
+      fetch(WK + '/analytics?site=' + encodeURIComponent(s.domain) + '&days=' + days)
+        .then(r => r.json()).then(d => ({ s, d })).catch(e => ({ s, d: { error: String(e) } }))
+    )).then(res => {
+      const map = {}; res.forEach(x => { map[x.s.domain] = x.d; }); setRows(map); setLoading(false);
+    });
+  }, [sites, days, WK]);
+  React.useEffect(() => { load(); }, [load]);
+
+  const valid = sites.map(s => ({ s, d: rows[s.domain] })).filter(x => x.d && !x.d.error);
+  const sum = (k) => valid.reduce((a, x) => a + (Number(x.d[k]) || 0), 0);
+  const totals = { visitors: sum('visitors'), pageviews: sum('pageviews'), signins: sum('signins'), conversions: sum('conversions'), revenue: sum('revenue') };
+  // merged daily trend
+  const trend = {};
+  valid.forEach(x => (x.d.daily || []).forEach(dd => { trend[dd.date] = (trend[dd.date] || 0) + (dd.pv || 0); }));
+  const trendArr = Object.keys(trend).sort().map(date => ({ date, pv: trend[date] }));
+  const maxPv = Math.max(1, ...trendArr.map(t => t.pv));
+  // merged top pages
+  const pageMap = {};
+  valid.forEach(x => (x.d.topPages || []).forEach(pg => { pageMap[pg.name] = (pageMap[pg.name] || 0) + (pg.count || 0); }));
+  const topPages = Object.keys(pageMap).map(name => ({ name, count: pageMap[name] })).sort((a, b) => b.count - a.count).slice(0, 10);
+
+  const card = { background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: 20 };
+  const mono = { fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.1em' };
+
+  return (
+    <div style={{ opacity: mounted ? 1 : 0, transition: 'opacity .35s' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: 12, marginBottom: 22 }}>
+        <div>
+          <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', letterSpacing: 2, color: 'var(--text-tertiary)', marginBottom: 6 }}>FLEET ANALYTICS</div>
+          <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 30, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>Analytics</h1>
+          <p style={{ fontSize: 14, color: 'var(--text-secondary)', margin: '6px 0 0' }}>Real first-party traffic across every site you track. No cookies, no third parties.</p>
+        </div>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          {[[7, '7d'], [30, '30d']].map(o => (
+            <button key={o[0]} onClick={() => setDays(o[0])} style={{ background: days === o[0] ? 'var(--mint)' : 'var(--bg-elevated)', color: days === o[0] ? '#062b18' : 'var(--text-secondary)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-sm)', padding: '7px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>{o[1]}</button>
+          ))}
+          <button onClick={load} disabled={loading} style={{ background: 'var(--bg-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-sm)', padding: '7px 12px', fontSize: 12, cursor: loading ? 'not-allowed' : 'pointer' }}>{loading ? 'Loading…' : 'Refresh'}</button>
+        </div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 1, background: 'var(--border-subtle)', borderRadius: 'var(--radius-md)', overflow: 'hidden', marginBottom: 16 }} className="niahq-cols">
+        {[['Visitors', totals.visitors], ['Pageviews', totals.pageviews], ['Sign-ins', totals.signins], ['Conversions', totals.conversions], ['Revenue', totals.revenue ? totals.revenue.toLocaleString() : 0]].map((k, i) => (
+          <div key={i} style={{ background: 'var(--bg-elevated)', padding: 18 }}>
+            <div style={mono}>{k[0]}</div>
+            <div style={{ fontSize: 26, fontFamily: 'var(--font-display)', fontWeight: 700, color: 'var(--text-primary)', marginTop: 4 }}>{k[1]}</div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ ...card, marginBottom: 16 }}>
+        <div style={{ ...mono, marginBottom: 12 }}>Pageviews · last {days} days (all sites)</div>
+        {trendArr.length === 0 ? <div style={{ fontSize: 13, color: 'var(--text-tertiary)' }}>No data yet — install the tracker on your sites (see below).</div> : (
+          <div style={{ display: 'flex', gap: 4, alignItems: 'flex-end', height: 90 }}>
+            {trendArr.map((t, i) => (
+              <div key={i} title={t.date + ': ' + t.pv} style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', height: '100%' }}>
+                <div style={{ background: 'var(--mint)', opacity: 0.75, height: Math.max(2, Math.round(t.pv / maxPv * 84)) + 'px', borderRadius: 3 }} />
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1.3fr 1fr', gap: 16 }} className="niahq-cols">
+        <div style={card}>
+          <div style={{ ...mono, marginBottom: 12 }}>By site</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr auto auto auto', gap: 8, fontSize: 11, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', paddingBottom: 8, borderBottom: '1px solid var(--border-subtle)' }}>
+            <span>Site</span><span>Visitors</span><span>Views</span><span>Conv.</span>
+          </div>
+          {sites.map(s => { const d = rows[s.domain]; const err = d && d.error; const empty = d && !err && d.pageviews === 0; return (
+            <div key={s.domain} onClick={() => onNavigate && onNavigate('projects')} style={{ display: 'grid', gridTemplateColumns: '1fr auto auto auto', gap: 8, fontSize: 12.5, padding: '10px 0', borderBottom: '1px solid var(--border-subtle)', cursor: 'pointer' }}>
+              <span style={{ color: 'var(--text-primary)' }}>{s.domain}{empty ? <span style={{ color: 'var(--gold)', fontSize: 10, marginLeft: 8, fontFamily: 'var(--font-mono)' }}>no tracker</span> : null}{err ? <span style={{ color: 'var(--danger)', fontSize: 10, marginLeft: 8 }}>error</span> : null}</span>
+              <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }}>{d && !err ? d.visitors : '—'}</span>
+              <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }}>{d && !err ? d.pageviews : '—'}</span>
+              <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }}>{d && !err ? d.conversions : '—'}</span>
+            </div>
+          ); })}
+          {sites.length === 0 && <div style={{ fontSize: 13, color: 'var(--text-tertiary)', paddingTop: 10 }}>Add a domain to a project to track it.</div>}
+        </div>
+        <div style={card}>
+          <div style={{ ...mono, marginBottom: 12 }}>Top pages (all sites)</div>
+          {topPages.length === 0 ? <div style={{ fontSize: 13, color: 'var(--text-tertiary)' }}>—</div> : topPages.map((p, i) => (
+            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', gap: 10, fontSize: 12, padding: '6px 0', borderBottom: '1px solid var(--border-subtle)' }}>
+              <span style={{ color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '80%' }}>{p.name}</span>
+              <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-primary)' }}>{p.count}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ ...card, marginTop: 16 }}>
+        <div style={{ ...mono, marginBottom: 8 }}>Not seeing a site?</div>
+        <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6 }}>Open that project in <span onClick={() => onNavigate && onNavigate('projects')} style={{ color: 'var(--mint)', cursor: 'pointer' }}>Projects → Analytics</span> and copy the one-line tracker snippet onto every page (just before &lt;/body&gt;). Traffic shows up here automatically within a minute.</div>
+      </div>
+    </div>
+  );
+};
+
 const NAV_SECTIONS = [
   { id: 'main', label: 'Main', items: [
     { id: 'dashboard', label: 'Dashboard', icon: 'dashboard' },
@@ -5395,6 +5511,7 @@ const NAV_SECTIONS = [
     { id: 'fleet', label: 'Fleet', icon: 'fleet', badge: 5 },
     { id: 'projects', label: 'Projects', icon: 'projects', badge: 12 },
     { id: 'studio', label: 'Nia Studio', icon: 'studio', external: '/studio.html' },
+    { id: 'analytics', label: 'Analytics', icon: 'analyticsNav' },
     { id: 'ai-tools', label: 'AI Tools', icon: 'ai' },
   ]},
   { id: 'manage', label: 'Manage', items: [
@@ -5633,6 +5750,7 @@ const PAGE_TITLES = {
   comms: 'Communications',
   billing: 'Financial Overview',
   sentinel: 'Nia HQ',
+  analytics: 'Fleet Analytics',
   onboarding: 'Onboarding',
   settings: 'Settings',
 };
@@ -5693,6 +5811,8 @@ const AppShell = () => {
         return <MembersPage onNavigate={setActiveTab} />;
       case 'projects':
         return <ProjectsPage onNavigate={setActiveTab} />;
+      case 'analytics':
+        return <AnalyticsPage onNavigate={setActiveTab} />;
       case 'ai-tools':
         return <AIToolsPage onNavigate={setActiveTab} />;
       case 'billing':
