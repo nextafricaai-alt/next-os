@@ -5566,7 +5566,57 @@ const NAV_SECTIONS = [
 ];
 
 /* -- Sidebar -- */
-const Sidebar = ({ activeTab, onTabChange, collapsed, onToggle }) => {
+const TUTORIAL_TIPS = {
+  dashboard: "Your command center. Fleet health, finances and what needs your attention today — the one screen Nia wants you to start your morning on.",
+  talk: "Talk to Nia, your AI chief of staff. Ask about any school, draft and send WhatsApps, issue receipts, check sites, pull analytics — she has 9 tools wired and can speak her answers aloud.",
+  fleet: "The mothership view — every client OS Nia supervises (schools, churches, NGOs), each with a live health signal so you see trouble before it lands.",
+  studio: "Nia Studio. Edit any website live with Nia as your design director, design graphics from scratch, or point her at a site and she'll blueprint its CMS/OS. Opens in its own tab.",
+  analytics: "Fleet-wide traffic across all your sites — visitors, pageviews, top pages and trends. First-party and free: no cookies, no Google needed.",
+  'ai-tools': "Your AI toolkit — document processing, assistants, automation and insights you can point at real work.",
+  projects: "Your portfolio. Every website and the operating system behind it, with uptime, domain-expiry, SEO score and analytics — and Nia watching them for you.",
+  members: "The people across your organisations — roles, access and who does what.",
+  comms: "The communications hub — reporting and client messaging, unified.",
+  billing: "Money in one place — revenue, invoices and the financial picture across NEXT.",
+  sentinel: "Nia HQ — the control center for every Nia product plus how she talks (tone, language) and her live status.",
+  onboarding: "Spin up a brand-new client OS. Nia clones the template, rebrands it, and hands you a clean live link.",
+  training: "Capacity building — programs, certifications and workshops so client teams can run their OS themselves.",
+  settings: "System configuration, preferences and platform controls.",
+};
+
+const NiaTour = ({ onClose, onNavigate }) => {
+  const cards = [
+    { icon: '\u{1F4AC}', t: 'Talk to Nia', d: 'Your chief of staff. Ask anything, or give a command — she has hands.', go: 'talk' },
+    { icon: '\u{1F310}', t: 'Nia Studio', d: 'Edit sites live, design graphics, or blueprint an OS — with Nia as designer.', go: 'studio' },
+    { icon: '\u{1F4C1}', t: 'Projects', d: 'Every site + its OS, watched for uptime, domains, SEO and traffic.', go: 'projects' },
+    { icon: '\u{1F4CA}', t: 'Analytics', d: 'Real first-party traffic across all your sites, free.', go: 'analytics' },
+    { icon: '\u{1F6E1}', t: 'Nia HQ', d: 'Control every Nia product and how she communicates.', go: 'sentinel' },
+  ];
+  return (
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 9998, background: 'rgba(6,10,20,0.72)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+      <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 720, background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 18, padding: 26, boxShadow: '0 30px 80px rgba(0,0,0,0.5)' }}>
+        <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', letterSpacing: 2, color: 'var(--mint)', marginBottom: 6 }}>NIA · QUICK TOUR</div>
+        <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 4 }}>Welcome — here's the lay of the land</div>
+        <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 18 }}>Tutorial mode is on. Hover any icon in the left sidebar and I'll tell you what it does. Here are the big five:</div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12 }}>
+          {cards.map(c => (
+            <div key={c.t} onClick={() => { onNavigate && onNavigate(c.go); onClose(); }} style={{ background: 'var(--bg-base)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: 14, cursor: 'pointer' }}>
+              <div style={{ fontSize: 22, marginBottom: 8 }}>{c.icon}</div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>{c.t}</div>
+              <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5, marginTop: 4 }}>{c.d}</div>
+            </div>
+          ))}
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 20 }}>
+          <span style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>Toggle Tutorial off anytime in the top bar.</span>
+          <button onClick={onClose} style={{ background: 'var(--mint)', color: 'var(--text-inverse)', border: 'none', borderRadius: 'var(--radius-sm)', padding: '10px 18px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>Got it</button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const Sidebar = ({ activeTab, onTabChange, collapsed, onToggle, tutorial }) => {
+  const [tip, setTip] = React.useState(null);
   const sidebarStyles = {
     root: {
       width: collapsed ? 64 : 240, height: '100vh', position: 'fixed',
@@ -5609,6 +5659,7 @@ const Sidebar = ({ activeTab, onTabChange, collapsed, onToggle }) => {
   };
 
   return (
+    <React.Fragment>
     <nav style={sidebarStyles.root}>
       {/* Logo */}
       <div style={sidebarStyles.logo} onClick={onToggle}>
@@ -5633,6 +5684,8 @@ const Sidebar = ({ activeTab, onTabChange, collapsed, onToggle }) => {
               <button
                 key={item.id}
                 onClick={() => item.external ? window.open(item.external, '_blank') : onTabChange(item.id)}
+                onMouseEnter={(e) => { if (tutorial) { const r = e.currentTarget.getBoundingClientRect(); setTip({ id: item.id, top: Math.min(r.top, window.innerHeight - 150), left: r.right + 12 }); } }}
+                onMouseLeave={() => setTip(null)}
                 style={sidebarStyles.navItem(activeTab === item.id)}
                 className="nav-item"
               >
@@ -5665,6 +5718,13 @@ const Sidebar = ({ activeTab, onTabChange, collapsed, onToggle }) => {
         )}
       </div>
     </nav>
+    {tutorial && tip && TUTORIAL_TIPS[tip.id] && (
+      <div style={{ position: 'fixed', left: tip.left, top: tip.top, zIndex: 200, maxWidth: 260, background: 'var(--bg-elevated)', border: '1px solid var(--mint)', borderRadius: 10, padding: '10px 12px', boxShadow: '0 12px 34px rgba(0,0,0,0.5)' }}>
+        <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', letterSpacing: 1.5, color: 'var(--mint)', marginBottom: 5 }}>NIA · TIP</div>
+        <div style={{ fontSize: 12.5, color: 'var(--text-secondary)', lineHeight: 1.55 }}>{TUTORIAL_TIPS[tip.id]}</div>
+      </div>
+    )}
+    </React.Fragment>
   );
 };
 
@@ -5701,7 +5761,7 @@ const BellButton = () => {
 };
 
 /* -- Topbar -- */
-const Topbar = ({ pageTitle, sidebarWidth }) => {
+const Topbar = ({ pageTitle, sidebarWidth, tutorial, onToggleTutorial }) => {
   const [searchFocused, setSearchFocused] = React.useState(false);
 
   return (
@@ -5744,6 +5804,8 @@ const Topbar = ({ pageTitle, sidebarWidth }) => {
         </div>
 
         {/* Notifications */}
+        <button onClick={() => onToggleTutorial && onToggleTutorial()} title={tutorial ? 'Tutorial mode: on — hover sidebar icons for tips' : 'Turn on tutorial mode'} style={{ background: tutorial ? 'var(--mint)' : 'transparent', border: '1px solid ' + (tutorial ? 'var(--mint)' : 'var(--border-default)'), color: tutorial ? 'var(--text-inverse)' : 'var(--text-secondary)', borderRadius: 'var(--radius-sm)', padding: '6px 10px', fontSize: 11, fontFamily: 'var(--font-mono)', letterSpacing: 1, cursor: 'pointer' }}>{tutorial ? '\u{1F393} TUTORIAL ON' : '\u{1F393} TUTORIAL'}</button>
+
         <BellButton />
 
         {/* Sign out */}
@@ -5978,6 +6040,9 @@ const AppShell = () => {
   React.useEffect(() => {
     if (typeof window !== 'undefined') window.NEXT_OS_NAVIGATE = (tab) => setActiveTab(tab);
   }, []);
+  const [tutorial, setTutorial] = React.useState(() => { try { return localStorage.getItem('nextos.tutorial') === '1'; } catch (e) { return false; } });
+  const [tour, setTour] = React.useState(false);
+  const toggleTutorial = () => setTutorial(v => { const n = !v; try { localStorage.setItem('nextos.tutorial', n ? '1' : '0'); } catch (e) {} if (n) setTour(true); return n; });
   const sidebarCollapsed = t.sidebarCollapsed;
   const sidebarWidth = sidebarCollapsed ? 64 : 240;
 
@@ -6028,8 +6093,10 @@ const AppShell = () => {
         onTabChange={setActiveTab} 
         collapsed={sidebarCollapsed}
         onToggle={() => setTweak('sidebarCollapsed', !sidebarCollapsed)}
+        tutorial={tutorial}
       />
-      <Topbar pageTitle={PAGE_TITLES[activeTab] || 'Dashboard'} sidebarWidth={sidebarWidth} />
+      <Topbar pageTitle={PAGE_TITLES[activeTab] || 'Dashboard'} sidebarWidth={sidebarWidth} tutorial={tutorial} onToggleTutorial={toggleTutorial} />
+      {tour && <NiaTour onClose={() => setTour(false)} onNavigate={setActiveTab} />}
       <main style={{
         marginLeft: sidebarWidth, paddingTop: 64,
         transition: 'margin-left 0.25s ease',
