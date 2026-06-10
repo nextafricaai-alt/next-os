@@ -5790,33 +5790,84 @@ const applyTweaks = (t) => {
 /* -- Main App Shell -- */
 const NEXT_AUTH_KEY = 'nextos.session.v1';
 const NEXT_AUTH_DAYS = 7;
+const NEXT_KNOWN = { 'hudson.tim.uk@gmail.com': 'Hudson', 'nextafrica.ai@gmail.com': 'Hudson' };
 function nextAuthValid() {
   try { const j = JSON.parse(localStorage.getItem(NEXT_AUTH_KEY) || 'null'); return !!(j && j.email && j.exp && j.exp > Date.now()); } catch (e) { return false; }
+}
+function nextJwtEmail(t) {
+  try { const p = JSON.parse(atob(t.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))); return p.email || ''; } catch (e) { return ''; }
+}
+function nextConsumeHash() {
+  try {
+    if (location.hash && location.hash.indexOf('access_token=') >= 0) {
+      const h = new URLSearchParams(location.hash.slice(1)); const at = h.get('access_token');
+      if (at) { localStorage.setItem(NEXT_AUTH_KEY, JSON.stringify({ email: nextJwtEmail(at), exp: Date.now() + NEXT_AUTH_DAYS * 86400000 })); return true; }
+    }
+  } catch (e) {}
+  return false;
+}
+function nextGreet(email) {
+  email = (email || '').toLowerCase();
+  if (NEXT_KNOWN[email]) return { name: NEXT_KNOWN[email], back: true };
+  let lp = (email.split('@')[0] || '').replace(/[._\-]+/g, ' ').trim().split(' ')[0];
+  if (!lp) return { name: '', back: false };
+  return { name: lp.charAt(0).toUpperCase() + lp.slice(1), back: false };
 }
 if (typeof window !== 'undefined') {
   window.NEXT_OS_SIGNOUT = () => { try { localStorage.removeItem(NEXT_AUTH_KEY); } catch (e) {} location.reload(); };
   window.NEXT_OS_USER = () => { try { return (JSON.parse(localStorage.getItem(NEXT_AUTH_KEY) || 'null') || {}).email || ''; } catch (e) { return ''; } };
 }
 
+const WelcomeSplash = ({ email, onDone }) => {
+  const [show, setShow] = React.useState(false);
+  const g = nextGreet(email);
+  React.useEffect(() => {
+    const t0 = setTimeout(() => setShow(true), 30);
+    const t1 = setTimeout(() => setShow(false), 2200);
+    const t2 = setTimeout(() => onDone && onDone(), 2900);
+    return () => { clearTimeout(t0); clearTimeout(t1); clearTimeout(t2); };
+  }, []);
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 10000, background: 'radial-gradient(circle at 50% 35%, #0f1f3a, #060a14)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: 24, opacity: show ? 1 : 0, transition: 'opacity .6s ease' }}>
+      <div style={{ fontSize: 12, fontFamily: 'ui-monospace, monospace', letterSpacing: 4, color: '#00fc8f', marginBottom: 18, transform: show ? 'none' : 'translateY(8px)', transition: 'all .7s ease' }}>NEXT OS</div>
+      <div style={{ fontSize: 34, fontWeight: 800, color: '#eef1fb', lineHeight: 1.2, transform: show ? 'none' : 'translateY(14px)', transition: 'all .7s ease .05s', maxWidth: 560 }}>
+        {g.name ? ('Hello ' + g.name + ',') : 'Welcome,'}
+      </div>
+      <div style={{ fontSize: 19, color: '#aab2d5', marginTop: 8, transform: show ? 'none' : 'translateY(14px)', transition: 'all .7s ease .12s' }}>
+        {g.back ? 'welcome back to NEXT OS' : 'welcome to NEXT OS'}
+      </div>
+      <div style={{ marginTop: 22, fontSize: 14, fontFamily: 'ui-monospace, monospace', letterSpacing: 2, color: '#00fc8f', opacity: show ? 0.9 : 0, transition: 'all .7s ease .2s' }}>
+        AFRICA&rsquo;S INTELLIGENT FUTURE
+      </div>
+      <div style={{ marginTop: 30, width: 160, height: 3, borderRadius: 3, background: '#1a2342', overflow: 'hidden' }}>
+        <div style={{ height: '100%', background: '#00fc8f', width: show ? '100%' : '0%', transition: 'width 2.1s linear' }} />
+      </div>
+    </div>
+  );
+};
+
 const AuthGate = ({ children }) => {
   const WK = (typeof window !== 'undefined' && window.NEXT_OS_SENTINEL_ENDPOINT) || 'https://nextos-sentinel.nextafricaai.workers.dev';
-  const [authed, setAuthed] = React.useState(nextAuthValid());
+  const [authed, setAuthed] = React.useState(() => nextAuthValid() || nextConsumeHash());
+  const [welcome, setWelcome] = React.useState(() => authed);
   const [step, setStep] = React.useState('email');
   const [email, setEmail] = React.useState('');
   const [code, setCode] = React.useState('');
   const [busy, setBusy] = React.useState(false);
   const [err, setErr] = React.useState('');
   const [note, setNote] = React.useState('');
-  if (authed) return children;
+  React.useEffect(() => { if (location.hash && location.hash.indexOf('access_token=') >= 0) { try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {} } }, []);
+
+  if (authed) return (<React.Fragment>{children}{welcome && <WelcomeSplash email={window.NEXT_OS_USER ? window.NEXT_OS_USER() : email} onDone={() => setWelcome(false)} />}</React.Fragment>);
 
   const sendCode = async () => {
     const e = email.trim().toLowerCase();
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e)) { setErr('Enter a valid email address.'); return; }
     setBusy(true); setErr(''); setNote('');
     try {
-      const r = await fetch(WK + '/auth/send-otp', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: e }) });
+      const r = await fetch(WK + '/auth/send-otp', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: e, redirectTo: location.origin + location.pathname }) });
       const d = await r.json();
-      if (d.error) { setErr(d.error); } else { setStep('code'); setNote('We sent a 6-digit code to ' + e + '. Check your inbox (and spam).'); }
+      if (d.error) { setErr(d.error); } else { setStep('code'); setNote('Sent to ' + e + '. Enter the 6-digit code, or just tap the link in the email — it signs you in automatically.'); }
     } catch (x) { setErr('Could not reach the server. Try again.'); }
     setBusy(false);
   };
@@ -5828,7 +5879,7 @@ const AuthGate = ({ children }) => {
       const r = await fetch(WK + '/auth/verify-otp', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: e, code: c }) });
       const d = await r.json();
       if (d.error || !d.ok) { setErr(d.error || 'Invalid or expired code.'); }
-      else { try { localStorage.setItem(NEXT_AUTH_KEY, JSON.stringify({ email: d.email || e, exp: Date.now() + NEXT_AUTH_DAYS * 86400000 })); } catch (x) {} setAuthed(true); }
+      else { try { localStorage.setItem(NEXT_AUTH_KEY, JSON.stringify({ email: d.email || e, exp: Date.now() + NEXT_AUTH_DAYS * 86400000 })); } catch (x) {} setWelcome(true); setAuthed(true); }
     } catch (x) { setErr('Could not reach the server. Try again.'); }
     setBusy(false);
   };
@@ -5843,7 +5894,7 @@ const AuthGate = ({ children }) => {
       <div style={card}>
         <div style={{ fontSize: 13, fontFamily: 'ui-monospace, monospace', letterSpacing: 3, color: '#00fc8f', marginBottom: 6 }}>NEXT OS</div>
         <div style={{ fontSize: 22, fontWeight: 800, color: '#eef1fb', marginBottom: 4 }}>{step === 'email' ? 'Sign in' : 'Enter your code'}</div>
-        <div style={{ fontSize: 13, color: '#aab2d5', marginBottom: 20, lineHeight: 1.5 }}>{step === 'email' ? 'Secure email sign-in. We’ll send a one-time code to verify it’s you.' : note}</div>
+        <div style={{ fontSize: 13, color: '#aab2d5', marginBottom: 20, lineHeight: 1.5 }}>{step === 'email' ? 'Secure email sign-in. We’ll send a one-time code — or a one-tap link — to verify it’s you.' : note}</div>
 
         {step === 'email' ? (
           <div>

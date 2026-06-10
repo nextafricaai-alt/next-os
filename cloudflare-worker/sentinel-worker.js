@@ -988,8 +988,11 @@ async function handleSendOtp(request, env, cors) {
   let b; try { b = await request.json(); } catch (e) { return J({ error: 'bad request body' }, 400); }
   const email = (b.email || '').trim().toLowerCase();
   if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return J({ error: 'A valid email is required.' }, 400);
+  const redirectTo = (b.redirectTo || '').trim();
+  let otpUrl = env.SUPABASE_URL + '/auth/v1/otp';
+  if (/^https?:\/\//.test(redirectTo)) otpUrl += '?redirect_to=' + encodeURIComponent(redirectTo);
   try {
-    const r = await fetch(env.SUPABASE_URL + '/auth/v1/otp', {
+    const r = await fetch(otpUrl, {
       method: 'POST',
       headers: { 'apikey': env.SUPABASE_KEY, 'Authorization': 'Bearer ' + env.SUPABASE_KEY, 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: email, create_user: true }),
