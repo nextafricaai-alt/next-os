@@ -126,36 +126,41 @@
   function siteKeyOf(){ try{ return new URL(profile.url).hostname.replace(/^www\./,''); }catch(e){ return (profile&&profile.url)||''; } }
   function parseCollections(text){
     if(!text) return null;
-    var cands=[];
-    var m=text.match(/```(?:json)?\s*([\s\S]*?)```/i); if(m) cands.push(m[1]);
-    cands.push(text);
-    for(var i=0;i<cands.length;i++){
-      var c=cands[i].trim();
-      var a=c.indexOf('['), b=c.lastIndexOf(']');
-      if(a>=0 && b>a){ try{ var j=JSON.parse(c.slice(a,b+1)); if(Array.isArray(j)&&j.length) return j; }catch(e){} }
-      try{ var j2=JSON.parse(c); if(Array.isArray(j2)) return j2; if(j2&&j2.collections) return j2.collections; }catch(e){}
+    var re=/```(?:json)?\s*([\s\S]*?)```/gi, m;
+    while((m=re.exec(text))){
+      var c=m[1].trim(); var a=c.indexOf('['), b=c.lastIndexOf(']');
+      if(a>=0 && b>a){ try{ var j=JSON.parse(c.slice(a,b+1)); if(Array.isArray(j)&&j.length&&j[0]&&j[0].name) return j; }catch(e){} }
     }
+    var idx=text.indexOf('COLLECTIONS_JSON'); var tail=idx>=0?text.slice(idx):text;
+    var a2=tail.indexOf('['), b2=tail.lastIndexOf(']');
+    if(a2>=0 && b2>a2){ try{ var j2=JSON.parse(tail.slice(a2,b2+1)); if(Array.isArray(j2)&&j2.length) return j2; }catch(e){} }
     return null;
   }
   async function buildOS(btn){
     if(!profile){ return; }
     var sk=siteKeyOf();
-    btn.textContent='Nia is designing the collections\u2026'; btn.disabled=true;
-    var prompt='From this website profile, output ONLY a JSON array of CMS collections, nothing else. Each item: {"name":"lowercase_snake","label":"Title","icon":"<one emoji>","fields":[{"name":"lowercase_snake","label":"Label","type":"text|textarea|number|image|date|boolean"}]}. 5-9 fields max per collection. Profile:\n'+JSON.stringify(profile);
-    var cols=null;
-    try{
-      var r=await fetch(WK+'/',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({system:'You output ONLY valid JSON. No markdown fences, no prose.',messages:[{role:'user',content:prompt}]})});
-      var data=await r.json();
-      var txt=(data&&data.content&&data.content.length)?data.content.filter(function(c){return c.type==='text';}).map(function(c){return c.text;}).join(''):'';
-      cols=parseCollections(txt);
-    }catch(e){}
-    if(!cols||!cols.length){ btn.textContent='Could not read collections \u2014 retry'; btn.disabled=false; addMsg('I could not produce a clean collection list that time. Click Build again, or tell me the collections you want and I will use those.','nia'); return; }
+    btn.textContent='Reading the blueprint\u2026'; btn.disabled=true;
+    // 1) use the collections already in the blueprint
+    var lastA=''; for(var i=history.length-1;i>=0;i--){ if(history[i].role==='assistant'){ lastA=history[i].content; break; } }
+    var cols=parseCollections(lastA);
+    // 2) fallback: a focused JSON-only pass
+    if(!cols||!cols.length){
+      btn.textContent='Nia is designing the collections\u2026';
+      var prompt='From this website profile, output ONLY a compact JSON array of CMS collections, nothing else (no markdown, no prose). Max 7 collections, max 6 fields each. Each item: {"name":"lowercase_snake","label":"Title","icon":"music","fields":[{"name":"lowercase_snake","label":"Label","type":"text|textarea|number|image|date|boolean"}]}. Profile:\n'+JSON.stringify(profile);
+      try{
+        var r=await fetch(WK+'/',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({system:'You output ONLY valid JSON. No markdown fences, no prose.',messages:[{role:'user',content:prompt}]})});
+        var data=await r.json();
+        var txt=(data&&data.content&&data.content.length)?data.content.filter(function(c){return c.type==='text';}).map(function(c){return c.text;}).join(''):'';
+        cols=parseCollections(txt);
+      }catch(e){}
+    }
+    if(!cols||!cols.length){ btn.textContent='Could not read collections \u2014 retry'; btn.disabled=false; addMsg('I could not extract a clean collection list. Click Build again, or paste the collections you want.','nia'); return; }
     btn.textContent='Building the OS ('+cols.length+' collections)\u2026';
     try{
       var r2=await fetch(WK+'/cms/blueprint',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({site:sk,collections:cols})});
       var d2=await r2.json();
-      if(d2.ok){ var openOS=function(){ window.open('/cms-os.html?site='+encodeURIComponent(sk),'_blank'); }; btn.textContent='\u2713 OS built \u2014 Open it \u2197'; btn.disabled=false; btn.onclick=openOS; openOS(); addMsg('Built '+sk+' OS with '+d2.collections+' collections \u2014 it is open and ready. Add content, then tell me what to refine.','nia'); }
-      else { btn.textContent='Build failed \u2014 retry'; btn.disabled=false; addMsg('Build failed: '+(d2.error||'unknown')+(/(cms tables|insert failed|relation|does not exist|404)/i.test(d2.error||'')?'  \u2192 run supabase-schema-cms.sql once and redeploy the worker, then retry.':''),'nia'); }
+      if(d2.ok){ var openOS=function(){ window.open('/cms-os.html?site='+encodeURIComponent(sk),'_blank'); }; btn.textContent='\u2713 OS built \u2014 Open it \u2197'; btn.disabled=false; btn.onclick=openOS; openOS(); addMsg('Built '+sk+' OS with '+d2.collections+' collections \u2014 open and ready. Add content, then tell me what to refine.','nia'); }
+      else { btn.textContent='Build failed \u2014 retry'; btn.disabled=false; addMsg('Build failed: '+(d2.error||'unknown')+(/(cms tables|insert failed|relation|does not exist|404|method not allowed)/i.test(d2.error||'')?'  \u2192 run supabase-schema-cms.sql once AND redeploy the worker, then retry.':''),'nia'); }
     }catch(e){ btn.textContent='Build failed \u2014 retry'; btn.disabled=false; addMsg('Build error: '+e.message,'nia'); }
   }
   async function study(){
