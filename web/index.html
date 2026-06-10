@@ -2077,6 +2077,19 @@ const ProjectDetail = ({ project, onBack }) => {
     setAnLoading(false);
   };
   React.useEffect(() => { if (tab === 'analytics' && !an && siteKey) runAnalytics(); }, [tab]);
+  const [gsc, setGsc] = React.useState(meta.lastGsc || null);
+  const [gscLoading, setGscLoading] = React.useState(false);
+  const runGsc = async () => {
+    if (!pm.domain) return;
+    setGscLoading(true);
+    try {
+      const base = (window.NEXT_OS_SENTINEL_ENDPOINT) || 'https://nextos-sentinel.nextafricaai.workers.dev';
+      const r = await fetch(base + '/gsc?site=' + encodeURIComponent('sc-domain:' + pm.domain) + '&days=28');
+      const d = await r.json(); setGsc(d);
+      const nm = Object.assign({}, meta, { lastGsc: d }); try { localStorage.setItem(META_KEY, JSON.stringify(nm)); } catch (e) {} setMeta(nm);
+    } catch (e) { setGsc({ error: String((e && e.message) || e) }); }
+    setGscLoading(false);
+  };
 
   const sectionStyle = {
     background: 'var(--bg-elevated)', borderRadius: 'var(--radius-md)',
@@ -2274,6 +2287,40 @@ const ProjectDetail = ({ project, onBack }) => {
               )}
             </div>
           )}
+          <div style={{ marginTop: 18, paddingTop: 16, borderTop: '1px solid var(--border-subtle)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Search Console · what people Google to find you</div>
+              <button onClick={runGsc} disabled={gscLoading || !pm.domain} style={{ background: 'var(--bg-deep)', color: 'var(--text-primary)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-sm)', padding: '6px 12px', fontSize: 12, cursor: (gscLoading || !pm.domain) ? 'not-allowed' : 'pointer' }}>{gscLoading ? 'Loading...' : 'Load search terms'}</button>
+            </div>
+            {!gsc && <div style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>Click to pull the real Google search terms (needs the Google service account connected).</div>}
+            {gsc && gsc.error && <div style={{ fontSize: 12, color: 'var(--gold)' }}>{/not configured/i.test(gsc.error) ? 'Google not connected yet — finish the service-account setup, then this fills in.' : gsc.error}</div>}
+            {gsc && !gsc.error && (
+              <div>
+                <div style={{ fontSize: 12, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', marginBottom: 10 }}>{(gsc.totals ? gsc.totals.clicks : 0)} clicks · {(gsc.totals ? gsc.totals.impressions : 0)} impressions · {gsc.start} to {gsc.end}</div>
+                {(gsc.top || []).length === 0 ? <div style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>No search data yet (new sites take a few weeks to show in Google).</div> : (
+                  <div>
+                    <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginBottom: 4 }}>Top terms</div>
+                    {(gsc.top || []).slice(0, 8).map((q, i) => (
+                      <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr auto auto auto', gap: 10, fontSize: 12, padding: '4px 0', borderBottom: '1px solid var(--border-subtle)' }}>
+                        <span style={{ color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{q.query}</span>
+                        <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--mint)' }}>{q.clicks}c</span>
+                        <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)' }}>{q.impressions}i</span>
+                        <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)' }}>#{q.position}</span>
+                      </div>
+                    ))}
+                    {(gsc.striking || []).length > 0 && (
+                      <div style={{ marginTop: 12, padding: 12, background: 'rgba(255,180,0,0.06)', border: '1px solid rgba(255,180,0,0.15)', borderRadius: 'var(--radius-sm)' }}>
+                        <div style={{ fontSize: 11, color: 'var(--gold)', fontWeight: 600, marginBottom: 6 }}>Striking distance (positions 5-15) — small tweaks, big wins</div>
+                        {(gsc.striking || []).slice(0, 5).map((q, i) => (
+                          <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, padding: '3px 0' }}><span style={{ color: 'var(--text-secondary)' }}>{q.query}</span><span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)' }}>#{q.position} · {q.impressions}i</span></div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       )}
 
