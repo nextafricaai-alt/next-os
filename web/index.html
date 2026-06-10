@@ -150,7 +150,8 @@
 
     /* Transitions */
     button { transition: all 0.15s ease; }
-  </style>
+  @media (max-width:760px){ .niahq-cols{grid-template-columns:1fr !important;} }
+</style>
 <script>
 // On-page error catcher — turns a blank-screen crash into a visible banner.
 // Removed by setting window.__SUPPRESS_ERROR_BANNER = true before any error fires.
@@ -4310,7 +4311,14 @@ You: "'We help you get more done with less stress.' Nine plain words beat the ja
       const brainSnippet = (window.NIA_BRAIN && typeof window.NIA_BRAIN.systemPrompt === 'function')
         ? window.NIA_BRAIN.systemPrompt(trimmed, 2)
         : '';
-      const augmentedSystem = SYSTEM_PROMPT + brainSnippet;
+      let prefNote = '';
+      try {
+        const _p = JSON.parse(localStorage.getItem('nextos.nia.prefs') || '{}');
+        if (_p.tone) prefNote += '\n- Tone: ' + _p.tone + '.';
+        if (_p.length) prefNote += '\n- Length: keep replies ' + _p.length + '.';
+        if (_p.language && _p.language !== 'English') prefNote += '\n- Language: reply in ' + _p.language + ' when natural for the recipient.';
+      } catch (e) {}
+      const augmentedSystem = SYSTEM_PROMPT + brainSnippet + (prefNote ? ('\n\nUSER PREFERENCES (set in Nia HQ):' + prefNote) : '');
       try {
         let apiMessages = convo.map(m => ({ role: m.role, content: m.apiContent !== undefined ? m.apiContent : m.content }));
         for (let loop = 0; loop < TOOL_LOOP_MAX; loop++) {
@@ -4496,10 +4504,111 @@ You: "'We help you get more done with less stress.' Nine plain words beat the ja
     );
   };
 
+  const NiaHQPage = ({ onNavigate }) => {
+    const [mounted, setMounted] = React.useState(false);
+    const [online, setOnline] = React.useState(null);
+    const [prefs, setPrefs] = React.useState(() => { try { return Object.assign({ tone: 'Advisory', length: 'balanced', language: 'English', monitoring: true }, JSON.parse(localStorage.getItem('nextos.nia.prefs') || '{}')); } catch (e) { return { tone: 'Advisory', length: 'balanced', language: 'English', monitoring: true }; } });
+    const [saved, setSaved] = React.useState(false);
+    React.useEffect(() => { setTimeout(() => setMounted(true), 50); }, []);
+    React.useEffect(() => { let ok = true; fetch(NIA_FREE_ENDPOINT + '/', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ system: 'ping', messages: [{ role: 'user', content: 'ping' }] }) }).then(r => { if (ok) setOnline(r.ok); }).catch(() => { if (ok) setOnline(false); }); return () => { ok = false; }; }, []);
+    const savePrefs = (next) => { const merged = Object.assign({}, prefs, next); setPrefs(merged); try { localStorage.setItem('nextos.nia.prefs', JSON.stringify(merged)); } catch (e) {} setSaved(true); setTimeout(() => setSaved(false), 1500); };
+
+    const card = { background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: 20 };
+    const products = [
+      { icon: '\u{1F4AC}', name: 'Talk to Nia', tag: 'Chief of Staff', desc: 'Your wired assistant — 9 tools: receipts, WhatsApp, project checks, SEO, analytics.', go: () => onNavigate && onNavigate('talk') },
+      { icon: '\u{1F310}', name: 'Nia Studio', tag: 'Website editor', desc: 'Edit any site live with Nia as design director — she takes over the canvas.', go: () => window.open('/studio.html', '_blank') },
+      { icon: '\u{1F3A8}', name: 'Nia Graphics', tag: 'Design from scratch', desc: 'Posters, logos, social posts as editable vector graphics. Export PNG/SVG.', go: () => window.open('/studio.html?mode=graphics', '_blank') },
+      { icon: '\u{1F9E0}', name: 'Nia Intelligence', tag: 'Analyze & build', desc: 'Study a website, blueprint its CMS/OS, and auto-scaffold the admin.', go: () => window.open('/studio.html?mode=intel', '_blank') },
+      { icon: '\u{1F6E1}', name: 'Nia Sentinel', tag: 'Monitoring', desc: 'Watches your projects — uptime, domain expiry, SEO — and flags issues.', go: () => onNavigate && onNavigate('projects') },
+      { icon: '\u{1F9FE}', name: 'Receipts & Comms', tag: 'Communications', desc: 'Issue receipts (PDF + WhatsApp) and run the messaging layer.', go: () => onNavigate && onNavigate('comms') },
+    ];
+    const sel = { background: 'var(--bg-base)', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-sm)', color: 'var(--text-primary)', padding: '8px 10px', fontSize: 13, width: '100%' };
+    const lbl = { fontSize: 11, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 6, display: 'block' };
+
+    return (
+      <div style={{ opacity: mounted ? 1 : 0, transform: mounted ? 'none' : 'translateY(8px)', transition: 'all 0.4s ease' }}>
+        <div style={{ marginBottom: 22 }}>
+          <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', letterSpacing: 2, color: 'var(--text-tertiary)', marginBottom: 6 }}>CONTROL CENTER</div>
+          <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 30, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>Nia <span style={{ color: 'var(--mint)' }}>HQ</span></h1>
+          <p style={{ fontSize: 14, color: 'var(--text-secondary)', margin: '6px 0 0' }}>Every Nia product, and the settings behind them — in one place.</p>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 14, marginBottom: 26 }}>
+          {products.map(p => (
+            <div key={p.name} onClick={p.go} style={{ ...card, cursor: 'pointer', transition: 'border-color .2s, transform .2s' }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--mint)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-subtle)'; e.currentTarget.style.transform = 'none'; }}>
+              <div style={{ fontSize: 26, marginBottom: 10 }}>{p.icon}</div>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
+                <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)' }}>{p.name}</div>
+                <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', letterSpacing: 1, color: 'var(--mint)', textTransform: 'uppercase' }}>{p.tag}</div>
+              </div>
+              <div style={{ fontSize: 12.5, color: 'var(--text-secondary)', lineHeight: 1.5, margin: '8px 0 12px' }}>{p.desc}</div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--mint)' }}>Open {'→'}</div>
+            </div>
+          ))}
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }} className="niahq-cols">
+          <div style={card}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 14 }}>How Nia communicates</div>
+            <div style={{ marginBottom: 14 }}>
+              <span style={lbl}>Tone</span>
+              <select style={sel} value={prefs.tone} onChange={e => savePrefs({ tone: e.target.value })}>
+                {['Advisory', 'Direct', 'Warm', 'Concise', 'Visionary'].map(o => <option key={o} value={o}>{o}</option>)}
+              </select>
+            </div>
+            <div style={{ marginBottom: 14 }}>
+              <span style={lbl}>Reply length</span>
+              <select style={sel} value={prefs.length} onChange={e => savePrefs({ length: e.target.value })}>
+                {[['brief', 'Brief'], ['balanced', 'Balanced'], ['detailed', 'Detailed']].map(o => <option key={o[0]} value={o[0]}>{o[1]}</option>)}
+              </select>
+            </div>
+            <div>
+              <span style={lbl}>Language</span>
+              <select style={sel} value={prefs.language} onChange={e => savePrefs({ language: e.target.value })}>
+                {['English', 'Luganda', 'Swahili', 'Kinyarwanda'].map(o => <option key={o} value={o}>{o}</option>)}
+              </select>
+            </div>
+            <div style={{ marginTop: 14, fontSize: 11, color: saved ? 'var(--mint)' : 'var(--text-tertiary)' }}>{saved ? '✓ Saved — applies to your next message to Nia.' : 'Changes apply instantly to Talk to Nia.'}</div>
+          </div>
+
+          <div style={card}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 14 }}>Status & connection</div>
+            {[
+              ['Engine', 'Nia Free · Llama 3.3 70B'],
+              ['Endpoint', NIA_FREE_ENDPOINT.replace('https://', '')],
+              ['Tools wired', '9 (receipts, WhatsApp, checks, SEO, analytics…)'],
+            ].map(r => (
+              <div key={r[0]} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '9px 0', borderBottom: '1px solid var(--border-subtle)', fontSize: 12.5 }}>
+                <span style={{ color: 'var(--text-tertiary)' }}>{r[0]}</span>
+                <span style={{ color: 'var(--text-secondary)', textAlign: 'right' }}>{r[1]}</span>
+              </div>
+            ))}
+            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '9px 0', fontSize: 12.5 }}>
+              <span style={{ color: 'var(--text-tertiary)' }}>Worker</span>
+              <span style={{ color: online === false ? 'var(--gold)' : 'var(--mint)' }}>{online === null ? 'checking…' : online ? '● online' : '● unreachable'}</span>
+            </div>
+            <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '12px', background: 'var(--bg-base)', borderRadius: 'var(--radius-sm)' }}>
+              <div>
+                <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--text-primary)' }}>Project monitoring</div>
+                <div style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>Nia watches uptime, domains & SEO.</div>
+              </div>
+              <button onClick={() => savePrefs({ monitoring: !prefs.monitoring })} style={{ width: 46, height: 26, borderRadius: 13, border: 'none', cursor: 'pointer', background: prefs.monitoring ? 'var(--mint)' : 'var(--border-default)', position: 'relative', transition: 'background .2s' }}>
+                <span style={{ position: 'absolute', top: 3, left: prefs.monitoring ? 23 : 3, width: 20, height: 20, borderRadius: '50%', background: '#fff', transition: 'left .2s' }}></span>
+              </button>
+            </div>
+            <button onClick={() => onNavigate && onNavigate('talk')} style={{ marginTop: 14, width: '100%', background: 'var(--mint)', color: '#062b18', border: 'none', borderRadius: 'var(--radius-sm)', padding: '11px', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>Talk to Nia {'→'}</button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   // Sentinel page (System nav) reuses the same conversation chrome for now.
   const SentinelPage = TalkToSentinelPage;
 
-  Object.assign(window, { TalkToSentinelPage, SentinelPage });
+  Object.assign(window, { TalkToSentinelPage, SentinelPage, NiaHQPage });
 })();
 
   </script>
@@ -5523,7 +5632,7 @@ const PAGE_TITLES = {
   members: 'Members & Cards',
   comms: 'Communications',
   billing: 'Financial Overview',
-  sentinel: 'NEXT Sentinel',
+  sentinel: 'Nia HQ',
   onboarding: 'Onboarding',
   settings: 'Settings',
 };
@@ -5589,7 +5698,7 @@ const AppShell = () => {
       case 'billing':
         return <FinancePage onNavigate={setActiveTab} />;
       case 'sentinel':
-        return window.SentinelPage ? React.createElement(window.SentinelPage, { onNavigate: setActiveTab }) : <PlaceholderPage title="NEXT Nia" description="The embedded supervisory agent bridge is loading." icon="" />;
+        return window.NiaHQPage ? React.createElement(window.NiaHQPage, { onNavigate: setActiveTab }) : <PlaceholderPage title="Nia HQ" description="Loading." icon="" />;
       case 'onboarding':
         return window.OnboardingPage ? React.createElement(window.OnboardingPage, { onNavigate: setActiveTab }) : <PlaceholderPage title="Onboarding" description="Template onboarding is loading." icon="" />;
       case 'training':
