@@ -308,6 +308,10 @@ export default {
     if (url.pathname === '/cms/item')        return handleCmsItemSave(request, env, cors);
     if (url.pathname === '/cms/item-delete') return handleCmsItemDelete(request, env, cors);
 
+    // ─── Auth: email OTP sign-in (Supabase GoTrue via service key) ──
+    if (url.pathname === '/auth/send-otp')   return handleSendOtp(request, env, cors);
+    if (url.pathname === '/auth/verify-otp') return handleVerifyOtp(request, env, cors);
+
     // ─── Route: / — Llama agent (default) ───────────────────────────────
     return handleAgent(request, env, cors);
   },
@@ -978,6 +982,43 @@ async function importPkcs8(pem) {
   const der = Uint8Array.from(atob(body), c => c.charCodeAt(0));
   return crypto.subtle.importKey('pkcs8', der.buffer, { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['sign']);
 }
+async function handleSendOtp(request, env, cors) {
+  const J = (oo, st) => new Response(JSON.stringify(oo), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
+  if (!env.SUPABASE_URL || !env.SUPABASE_KEY) return J({ error: 'Supabase not configured on the worker.' }, 500);
+  let b; try { b = await request.json(); } catch (e) { return J({ error: 'bad request body' }, 400); }
+  const email = (b.email || '').trim().toLowerCase();
+  if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return J({ error: 'A valid email is required.' }, 400);
+  try {
+    const r = await fetch(env.SUPABASE_URL + '/auth/v1/otp', {
+      method: 'POST',
+      headers: { 'apikey': env.SUPABASE_KEY, 'Authorization': 'Bearer ' + env.SUPABASE_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: email, create_user: true }),
+    });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) return J({ error: (d.msg || d.error_description || d.error || ('Could not send code (' + r.status + ')')) }, 200);
+    return J({ ok: true, email: email });
+  } catch (e) { return J({ error: String((e && e.message) || e) }, 200); }
+}
+
+async function handleVerifyOtp(request, env, cors) {
+  const J = (oo, st) => new Response(JSON.stringify(oo), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
+  if (!env.SUPABASE_URL || !env.SUPABASE_KEY) return J({ error: 'Supabase not configured on the worker.' }, 500);
+  let b; try { b = await request.json(); } catch (e) { return J({ error: 'bad request body' }, 400); }
+  const email = (b.email || '').trim().toLowerCase();
+  const token = String(b.token || b.code || '').trim();
+  if (!email || !token) return J({ error: 'Email and code are required.' }, 400);
+  try {
+    const r = await fetch(env.SUPABASE_URL + '/auth/v1/verify', {
+      method: 'POST',
+      headers: { 'apikey': env.SUPABASE_KEY, 'Authorization': 'Bearer ' + env.SUPABASE_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: email, token: token, type: 'email' }),
+    });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok || !d.access_token) return J({ error: (d.msg || d.error_description || 'Invalid or expired code.') }, 200);
+    return J({ ok: true, email: (d.user && d.user.email) || email, access_token: d.access_token, expires_at: d.expires_at || null, user_id: (d.user && d.user.id) || null });
+  } catch (e) { return J({ error: String((e && e.message) || e) }, 200); }
+}
+
 async function getGoogleToken(env, scope) {
   const now = Math.floor(Date.now() / 1000);
   if (_gTok.token && _gTok.scope === scope && _gTok.exp - 60 > now) return _gTok.token;
