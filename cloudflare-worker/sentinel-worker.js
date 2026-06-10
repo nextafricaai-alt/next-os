@@ -285,6 +285,11 @@ export default {
       return handleGa4(url.searchParams.get('property') || '', Number(url.searchParams.get('days') || 28), env, cors);
     }
 
+    // ─── Route: /fetch-page — fetch a page's HTML for the Studio editor (CORS) ──
+    if (url.pathname === '/fetch-page') {
+      return handleFetchPage(url.searchParams.get('url') || '', cors);
+    }
+
     // ─── Route: / — Llama agent (default) ───────────────────────────────
     return handleAgent(request, env, cors);
   },
@@ -808,6 +813,24 @@ async function sbWrite(env, path, body, method, prefer) {
   if (!res.ok) { const t = await res.text(); throw new Error('Supabase write ' + path + ' → ' + res.status + ' ' + t.slice(0, 240)); }
   const txt = await res.text();
   return txt ? JSON.parse(txt) : null;   // empty body (return=minimal / 201) → null, no crash
+}
+
+// Fetch a page's HTML for the Studio editor. Injects <base> so relative assets/links resolve.
+async function handleFetchPage(target, cors) {
+  if (!target) return new Response('url required', { status: 400, headers: cors });
+  try {
+    const res = await fetch(target, { redirect: 'follow', headers: { 'User-Agent': 'NextOS-Studio/1.0 (+https://nextafrica.ai)' } });
+    let html = await res.text();
+    const origin = (function () { try { return new URL(res.url || target).origin; } catch (e) { return ''; } })();
+    if (origin) {
+      const baseTag = '<base href="' + origin + '/">';
+      if (/<head[^>]*>/i.test(html)) html = html.replace(/<head([^>]*)>/i, '<head$1>' + baseTag);
+      else html = baseTag + html;
+    }
+    return new Response(html, { headers: { ...cors, 'Content-Type': 'text/html; charset=utf-8' } });
+  } catch (e) {
+    return new Response('Could not fetch: ' + String((e && e.message) || e), { status: 200, headers: cors });
+  }
 }
 
 // ── Google service-account auth: sign a JWT (RS256) and exchange for an access token ──
