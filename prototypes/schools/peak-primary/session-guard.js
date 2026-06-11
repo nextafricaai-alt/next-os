@@ -36,6 +36,7 @@
   // Load cached profile (set by login.html on successful sign-in)
   let profile = null;
   try { profile = JSON.parse(localStorage.getItem('nextos.profile') || 'null'); } catch (e) {}
+  try { if (profile && profile.tenantId) localStorage.setItem('nextos.lastTenant', profile.tenantId); } catch (e) {}
 
   // Public API on window
   window.NextSession = {
@@ -69,8 +70,9 @@
     const { data: { session } } = await sb.auth.getSession();
     if (!session) {
       // No session at all — log out and bounce to login
+      var url0 = loginUrl();
       localStorage.removeItem('nextos.profile');
-      window.location.href = loginUrl();
+      window.location.href = url0;
       return;
     }
 
@@ -82,8 +84,9 @@
     // Listen for session changes (e.g. token expires) and bounce to login
     sb.auth.onAuthStateChange((event, newSession) => {
       if (event === 'SIGNED_OUT' || !newSession) {
+        var url = loginUrl();
         localStorage.removeItem('nextos.profile');
-        window.location.href = loginUrl();
+        window.location.href = url;
       }
     });
   })();
