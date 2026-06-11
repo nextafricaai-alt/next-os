@@ -3771,7 +3771,7 @@ const PD_Students = (function () {
                 <div style={{ fontSize: 13, color: T.ink3, marginTop: 4 }}>14 streams · 38 teachers · Term 2, Week 6</div>
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
-                <button onClick={() => window.peakToast && window.peakToast('CSV import — coming in Phase 2', 'info', 'Bulk upload from old register · with column mapping wizard.')} style={{ border: '1px solid ' + T.borderStr, background: 'transparent', color: T.ink2, padding: '8px 14px', borderRadius: 9, fontSize: 12.5, cursor: 'pointer' }}>Import CSV</button>
+                <button onClick={() => window.peakModal && window.peakModal.open(React.createElement(window.PEAK_FORMS.ImportStudents))} style={{ border: '1px solid ' + T.borderStr, background: 'transparent', color: T.ink2, padding: '8px 14px', borderRadius: 9, fontSize: 12.5, cursor: 'pointer' }}>Import CSV</button>
                 <button onClick={() => onAddStudent ? onAddStudent() : (window.peakNewStudent && window.peakNewStudent())} style={{ border: 'none', background: T.red, color: '#fff', padding: '9px 16px', borderRadius: 9, fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }}>+ New student</button>
               </div>
             </div>
@@ -6369,7 +6369,126 @@ window.PEAK_FORMS = (function () {
     );
   }
 
-  return { AddStudent, AddTeacher, RecordPayment, Confirm, ReceiptResult, Receipts };
+  function ImportStudents() {
+    const prof = (window.PEAK_ROLE && window.PEAK_ROLE.getProfile) ? window.PEAK_ROLE.getProfile() : { tenantId: 'peak-primary' };
+    const tenantId = prof.tenantId || 'peak-primary';
+    const [raw, setRaw] = useState('');
+    const [parsed, setParsed] = useState(null); // { headers, rows }
+    const [map, setMap] = useState({ name: -1, stream: -1, guardian: -1, phone: -1 });
+    const [busy, setBusy] = useState(false);
+    const [result, setResult] = useState(null);
+
+    function splitLine(line, delim) {
+      const out = []; let cur = '', q = false;
+      for (let i = 0; i < line.length; i++) { const c = line[i];
+        if (c === '"') { if (q && line[i + 1] === '"') { cur += '"'; i++; } else q = !q; }
+        else if (c === delim && !q) { out.push(cur); cur = ''; }
+        else cur += c;
+      }
+      out.push(cur); return out.map(x => x.trim());
+    }
+    function guess(headers, keys) {
+      for (let i = 0; i < headers.length; i++) { const h = (headers[i] || '').toLowerCase(); for (let k = 0; k < keys.length; k++) if (h.indexOf(keys[k]) >= 0) return i; }
+      return -1;
+    }
+    function doParse(text) {
+      const lines = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n').filter(l => l.trim() !== '');
+      if (!lines.length) { setParsed(null); return; }
+      const delim = (lines[0].split('\t').length > lines[0].split(',').length) ? '\t' : ',';
+      const all = lines.map(l => splitLine(l, delim));
+      const headers = all[0], rows = all.slice(1);
+      setParsed({ headers, rows });
+      setMap({
+        name: guess(headers, ['name', 'student', 'pupil', 'learner', 'full']),
+        stream: guess(headers, ['stream', 'class', 'grade', 'level', 'form']),
+        guardian: guess(headers, ['guardian', 'parent', 'mother', 'father', 'next of kin', 'contact name']),
+        phone: guess(headers, ['phone', 'tel', 'mobile', 'whatsapp', 'msisdn', 'number', 'contact']),
+      });
+      setResult(null);
+    }
+    function onFile(e) { const fl = e.target.files && e.target.files[0]; if (!fl) return; const rd = new FileReader(); rd.onload = () => { setRaw(rd.result || ''); doParse(rd.result || ''); }; rd.readAsText(fl); }
+
+    const students = parsed ? parsed.rows.map(r => ({
+      name: map.name >= 0 ? (r[map.name] || '') : '',
+      stream: map.stream >= 0 ? (r[map.stream] || '') : '',
+      guardian_name: map.guardian >= 0 ? (r[map.guardian] || '') : '',
+      guardian_phone: map.phone >= 0 ? (r[map.phone] || '') : '',
+    })).filter(x => (x.name || '').trim()) : [];
+
+    const colOpts = parsed ? [{ value: '-1', label: '— none —' }].concat(parsed.headers.map((h, i) => ({ value: String(i), label: h || ('Column ' + (i + 1)) }))) : [];
+    const setCol = (k, v) => setMap(m => Object.assign({}, m, { [k]: parseInt(v, 10) }));
+
+    const doImport = () => {
+      if (!students.length) return;
+      setBusy(true); setResult(null);
+      const WK = 'https://nextos-sentinel.nextafricaai.workers.dev';
+      fetch(WK + '/students/import', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tenant_id: tenantId, students }) })
+        .then(r => r.json()).then(res => {
+          setBusy(false);
+          if (res.error) { setResult({ err: res.error }); return; }
+          if (window.peakStore && window.peakStore.loadStudents) window.peakStore.loadStudents(tenantId);
+          window.peakToast((res.imported || 0) + ' students imported', 'success', (res.skipped ? res.skipped + ' duplicates skipped. ' : '') + 'They are live in the roster now.');
+          window.peakModal.close();
+        }).catch(e => { setBusy(false); setResult({ err: String((e && e.message) || e) }); });
+    };
+
+    return (
+      <div style={{ width: '100%' }}>
+        <ModalHeader eyebrow="Bulk import · students" title="Import students from a file" subtitle="Upload a CSV (in Excel: File → Save As → CSV) or paste rows. Nia maps the columns — you confirm." />
+        <div style={{ padding: 24 }}>
+          {!parsed && (
+            <div>
+              <div style={{ border: '1px dashed ' + T.borderStr, borderRadius: 12, padding: 22, textAlign: 'center', marginBottom: 14 }}>
+                <input type="file" accept=".csv,.tsv,.txt" onChange={onFile} style={{ fontSize: 13, color: T.ink2 }} />
+                <div style={{ fontSize: 12, color: T.ink3, marginTop: 8 }}>CSV or tab-separated. First row should be the column headers.</div>
+              </div>
+              <div style={{ fontSize: 11, color: T.ink3, fontFamily: T.mono, margin: '6px 0' }}>OR PASTE ROWS</div>
+              <textarea value={raw} onChange={e => { setRaw(e.target.value); doParse(e.target.value); }} placeholder={'Name, Class, Guardian, Phone\nMirembe Nakato, P4V, Mrs. Sarah Nakato, +256772000111'} rows={6} style={{ width: '100%', background: T.bg, border: '1px solid ' + T.border, borderRadius: 9, padding: 12, fontSize: 12.5, color: T.ink, fontFamily: T.mono, outline: 'none' }} />
+            </div>
+          )}
+          {parsed && (
+            <div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
+                <Field label="Name column"><Select value={String(map.name)} onChange={v => setCol('name', v)} options={colOpts} /></Field>
+                <Field label="Class / stream column"><Select value={String(map.stream)} onChange={v => setCol('stream', v)} options={colOpts} /></Field>
+                <Field label="Guardian column"><Select value={String(map.guardian)} onChange={v => setCol('guardian', v)} options={colOpts} /></Field>
+                <Field label="Phone column"><Select value={String(map.phone)} onChange={v => setCol('phone', v)} options={colOpts} /></Field>
+              </div>
+              <div style={{ fontSize: 11, color: T.ink3, fontFamily: T.mono, marginBottom: 6 }}>PREVIEW · {students.length} students ready</div>
+              <div style={{ border: '1px solid ' + T.border, borderRadius: 10, overflow: 'hidden', maxHeight: 240, overflowY: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5 }}>
+                  <thead><tr style={{ background: T.surface }}>{['Name', 'Stream', 'Guardian', 'Phone'].map(h => <th key={h} style={{ textAlign: 'left', padding: '8px 10px', color: T.ink3, fontFamily: T.mono, fontSize: 10.5, textTransform: 'uppercase' }}>{h}</th>)}</tr></thead>
+                  <tbody>
+                    {students.slice(0, 10).map((s, i) => (
+                      <tr key={i} style={{ borderTop: '1px solid ' + T.border }}>
+                        <td style={{ padding: '7px 10px', color: T.ink }}>{s.name || <span style={{ color: T.redInk }}>—</span>}</td>
+                        <td style={{ padding: '7px 10px', color: T.ink2 }}>{s.stream || '—'}</td>
+                        <td style={{ padding: '7px 10px', color: T.ink2 }}>{s.guardian_name || '—'}</td>
+                        <td style={{ padding: '7px 10px', color: T.ink2 }}>{s.guardian_phone || '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {students.length > 10 && <div style={{ fontSize: 11, color: T.ink3, marginTop: 6 }}>…and {students.length - 10} more.</div>}
+              <div style={{ marginTop: 8 }}><span onClick={() => { setParsed(null); setRaw(''); }} style={{ fontSize: 12, color: T.ink3, cursor: 'pointer', textDecoration: 'underline' }}>Start over / use a different file</span></div>
+            </div>
+          )}
+          {result && result.err && <div style={{ marginTop: 12, fontSize: 12.5, color: T.redInk }}>Import failed: {result.err}</div>}
+        </div>
+        <div style={{ padding: '0 24px 14px', display: 'flex', alignItems: 'center', gap: 10, fontSize: 12, color: T.ink3 }}>
+          <span style={{ width: 22, height: 22, borderRadius: 6, background: T.redSft, color: T.redInk, display: 'grid', placeItems: 'center', fontFamily: T.mono, fontSize: 11, fontWeight: 700 }}>AI</span>
+          <span>Duplicates (same name + stream) are skipped automatically. Students go straight into this school's roster.</span>
+        </div>
+        <ModalFooter>
+          <SecondaryButton onClick={() => window.peakModal.close()}>Cancel</SecondaryButton>
+          <PrimaryButton onClick={doImport} disabled={busy || !students.length}>{busy ? 'Importing…' : (students.length ? ('Import ' + students.length + ' students →') : 'Import students →')}</PrimaryButton>
+        </ModalFooter>
+      </div>
+    );
+  }
+
+  return { AddStudent, AddTeacher, RecordPayment, Confirm, ReceiptResult, Receipts, ImportStudents };
 })();
 
   </script>
@@ -6454,6 +6573,19 @@ window.PEAK_FORMS = (function () {
         D.live = true; D.hasData = (v.students || 0) > 0;
         notify();
       },
+      loadStudents(tenantId) {
+        try {
+          var WK = 'https://nextos-sentinel.nextafricaai.workers.dev';
+          fetch(WK + '/students?tenant=' + encodeURIComponent(tenantId)).then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
+            if (d && Array.isArray(d.students) && d.students.length) {
+              D.students = d.students.map(function (s) { return { id: s.id, name: s.name, stream: s.stream || '', guardian: s.guardian_name || '', guardianPhone: s.guardian_phone || '', fees: 'paid', balance: 0, attendanceWk: 100, lastSeen: '\u2014', flag: null }; });
+              D.kpis.students = d.students.length;
+              D.studentsLive = true;
+              notify();
+            }
+          }).catch(function () {});
+        } catch (e) {}
+      },
       saveBroadcast(b) {
         const id = 'b' + (D.broadcasts.length + 1);
         D.broadcasts.unshift({ id, when: 'now', status: 'queued', rate: null, ...b });
@@ -6483,6 +6615,7 @@ window.PEAK_FORMS = (function () {
           window.peakStore.applyLiveKpis(t.verticalKpis);
         }
       }).catch(function () {});
+      if (window.peakStore && window.peakStore.loadStudents) window.peakStore.loadStudents(tid);
     }
     if (document.readyState !== 'loading') go(); else document.addEventListener('DOMContentLoaded', go);
   })();
