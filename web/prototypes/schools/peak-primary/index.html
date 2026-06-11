@@ -6792,6 +6792,12 @@ window.PEAK_ASKNEXT = (function () {
   function tenant() { const p = (window.PEAK_ROLE && window.PEAK_ROLE.getProfile) ? window.PEAK_ROLE.getProfile() : null; return (p && p.tenantId) || 'peak-primary'; }
   function whoami() { const p = (window.PEAK_ROLE && window.PEAK_ROLE.getProfile) ? window.PEAK_ROLE.getProfile() : null; return (p && (p.fullName || p.role)) || 'Head Teacher'; }
   function memKey() { return 'nextos.asknext.' + tenant(); }
+  let LIVE_STAFF = [], LIVE_HEALTH = [], LIVE_LOADED = false;
+  function refreshLive() {
+    const t = tenant();
+    fetch(WK + '/staff-status?tenant=' + encodeURIComponent(t)).then(r => r.json()).then(d => { if (d && Array.isArray(d.staff)) { LIVE_STAFF = d.staff; LIVE_LOADED = true; } }).catch(() => {});
+    fetch(WK + '/student-health?tenant=' + encodeURIComponent(t)).then(r => r.json()).then(d => { if (d && Array.isArray(d.health)) { LIVE_HEALTH = d.health; LIVE_LOADED = true; } }).catch(() => {});
+  }
 
   function logQuestion(q) { try { const a = JSON.parse(localStorage.getItem(memKey()) || '[]'); a.unshift({ q: q, t: Date.now() }); localStorage.setItem(memKey(), JSON.stringify(a.slice(0, 200))); } catch (e) {} }
   function frequentTopics() {
@@ -6822,6 +6828,9 @@ window.PEAK_ASKNEXT = (function () {
     teach.slice(0, 80).forEach(t => {
       lines.push('• ' + t.name + ' | ' + (t.role || 'Teacher') + ' | ' + ((t.subjects || []).join('/') || '—') + ' | ' + ((t.streams || []).join(',') || '—') + ' | ' + (t.phone || 'no phone') + ' | since ' + (t.joined || '?') + ' | ' + (t.tone === 'top' ? 'strong performer' : (t.tone === 'risk' ? 'needs support' : 'ok')));
     });
+    if (LIVE_STAFF.length) { lines.push(''); lines.push("STAFF TODAY — live check-ins (who is in, late, or absent right now):"); LIVE_STAFF.slice(0, 80).forEach(t => lines.push('• ' + t.name + ' — ' + t.status)); }
+    if (LIVE_HEALTH.length) { lines.push(''); lines.push('HEALTH WATCH — students with an active (unresolved) health record = currently unwell / sick / needing follow-up:'); LIVE_HEALTH.slice(0, 60).forEach(h => lines.push('• ' + h.name + ' (' + (h.stream || '?') + ') — ' + (h.category || 'health note') + (h.severity ? (' · ' + h.severity) : '') + (h.description ? (': ' + h.description) : '') + (h.follow_up ? ' · follow-up needed' : ''))); }
+    else if (LIVE_LOADED) { lines.push(''); lines.push('HEALTH WATCH: no active health records logged right now.'); }
     return lines.join('\n');
   }
   function systemPrompt() {
@@ -6829,7 +6838,7 @@ window.PEAK_ASKNEXT = (function () {
     const mem = topics.length ? ('\n\nHEAD TEACHER MEMORY: this head teacher frequently asks about: ' + topics.join(', ') + '. Anticipate those needs.') : '';
     return 'You are Nia, the intelligence inside ' + ((window.__BRAND_NAME) || 'this school') + "'s NEXT School OS, talking to " + whoami() + '. You KNOW every student and staff member personally from the live data below — their stream, guardian, phone, fees, attendance and standing. You understand how the whole OS works.\n\n'
       + 'HOW YOU ANSWER:\n'
-      + '- Answer DIRECTLY from the data. If asked who is at-risk / away / absent / needs follow-up, LIST the specific students by name with the reason (status AT-RISK, low attendance, or not recently seen). If asked about fees, name who owes and how much. If asked about a teacher being late/absent or how staff are doing, use their standing and role.\n'
+      + '- Answer DIRECTLY from the data. If asked who is at-risk / away / absent / needs follow-up, LIST the specific students by name with the reason (status AT-RISK, low attendance, or not recently seen). If asked about fees, name who owes and how much. If asked who is SICK / unwell, list the students in HEALTH WATCH with their condition. If asked which teachers are late or absent, use STAFF TODAY (live check-ins).\n'
       + '- If asked about ONE person, give their full profile: a student\u2019s stream, guardian, phone, fees/balance, attendance and standing; a staff member\u2019s role, subjects, streams, phone, years of service and standing.\n'
       + '- Do NOT navigate or say \"go to the X page\" for a who/what/which/how question \u2014 just answer it with real names and numbers. Never invent a fact; if a detail genuinely is not in the data (e.g. a specific logged illness), say what you DO have (attendance/standing) and offer to open that person\u2019s profile.\n'
       + '- Be warm, brief, decisive. Ugandan school context (UGX, WhatsApp, streams like P4V).\n\n'
@@ -6927,7 +6936,7 @@ window.PEAK_ASKNEXT = (function () {
     );
   }
 
-  function open(prefill) { window.peakModal && window.peakModal.open(React.createElement(AskNextChat, { prefill: prefill || '', width: 600 })); }
+  function open(prefill) { try { refreshLive(); } catch (e) {} window.peakModal && window.peakModal.open(React.createElement(AskNextChat, { prefill: prefill || '', width: 600 })); }
   try { document.addEventListener('keydown', function (e) { if ((e.metaKey || e.ctrlKey) && (e.key === 'k' || e.key === 'K')) { e.preventDefault(); open(); } }); } catch (e) {}
   return { open };
 })();

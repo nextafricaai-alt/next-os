@@ -218,7 +218,7 @@ export default {
     }
 
     // GET-allowed routes (read-only endpoints live below this gate)
-    const GET_OK = ['/check-project', '/seo-audit', '/px.js', '/analytics', '/gsc', '/ga4', '/fetch-page', '/site-pages', '/cms/collections', '/cms/items', '/students', '/exams', '/exam-results', '/fees-balances'];
+    const GET_OK = ['/check-project', '/seo-audit', '/px.js', '/analytics', '/gsc', '/ga4', '/fetch-page', '/site-pages', '/cms/collections', '/cms/items', '/students', '/exams', '/exam-results', '/fees-balances', '/staff-status', '/student-health'];
     if (request.method !== 'POST' && !GET_OK.includes(url.pathname)) {
       return new Response('Method not allowed', { status: 405, headers: cors });
     }
@@ -322,6 +322,8 @@ export default {
     if (url.pathname === '/exam-results')       return handleResultsList(url.searchParams.get('tenant') || '', url.searchParams.get('exam') || '', env, cors);
     if (url.pathname === '/exam-results/save')  return handleResultsSave(request, env, cors);
     if (url.pathname === '/fees-balances')      return handleFeesBalances(url.searchParams.get('tenant') || '', env, cors);
+    if (url.pathname === '/staff-status')       return handleStaffStatus(url.searchParams.get('tenant') || '', env, cors);
+    if (url.pathname === '/student-health')     return handleStudentHealth(url.searchParams.get('tenant') || '', env, cors);
 
     // ─── Route: / — Llama agent (default) ───────────────────────────────
     return handleAgent(request, env, cors);
@@ -1078,6 +1080,43 @@ async function handleStudentsImport(request, env, cors) {
     }
     return J({ ok: true, imported, skipped });
   } catch (e) { return J({ error: String((e && e.message) || e) }, 200); }
+}
+
+async function handleStaffStatus(tenant, env, cors) {
+  const J = (oo, st) => new Response(JSON.stringify(oo), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
+  if (!tenant) return J({ error: 'tenant required' }, 400);
+  if (!env.SUPABASE_URL || !env.SUPABASE_KEY) return J({ error: 'Supabase not configured.' }, 500);
+  try {
+    const teachers = await sbFetch(env, '/teachers?tenant_id=eq.' + encodeURIComponent(tenant) + '&select=id,full_name,subjects,status&order=full_name.asc&limit=300');
+    const today = new Date(Date.now() + 3 * 3600000).toISOString().slice(0, 10); // EAT day
+    const checkins = await sbFetch(env, '/teacher_checkins?tenant_id=eq.' + encodeURIComponent(tenant) + '&checked_in_at=gte.' + today + 'T00:00:00&select=teacher_id,checked_in_at,checked_out_at&order=checked_in_at.desc&limit=800');
+    const latest = {}; (checkins || []).forEach(c => { if (!latest[c.teacher_id]) latest[c.teacher_id] = c; });
+    const staff = (teachers || []).map(t => {
+      const c = latest[t.id]; let status = 'absent — not checked in today';
+      if (c) { const eat = new Date(new Date(c.checked_in_at).getTime() + 3 * 3600000); const hm = eat.toISOString().slice(11, 16); status = (hm > '07:30') ? ('LATE — in at ' + hm) : ('on time — in at ' + hm); if (c.checked_out_at) status += ' (checked out)'; }
+      return { name: t.full_name, subjects: t.subjects, status };
+    });
+    return J({ tenant, today, staff });
+  } catch (e) { return J({ error: String((e && e.message) || e), tenant }, 200); }
+}
+async function handleStudentHealth(tenant, env, cors) {
+  const J = (oo, st) => new Response(JSON.stringify(oo), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
+  if (!tenant) return J({ error: 'tenant required' }, 400);
+  if (!env.SUPABASE_URL || !env.SUPABASE_KEY) return J({ error: 'Supabase not configured.' }, 500);
+  try {
+    const studs = await sbFetch(env, '/students?tenant_id=eq.' + encodeURIComponent(tenant) + '&select=id,name,stream&limit=3000');
+    if (!studs || !studs.length) return J({ tenant, health: [] });
+    const byId = {}; studs.forEach(s => byId[s.id] = s);
+    const ids = studs.map(s => s.id);
+    let recs = [];
+    for (let i = 0; i < ids.length; i += 200) {
+      const chunk = ids.slice(i, i + 200);
+      const r = await sbFetch(env, '/student_health_records?student_id=in.(' + chunk.join(',') + ')&resolved_at=is.null&select=student_id,category,severity,description,recorded_at,follow_up_needed&order=recorded_at.desc&limit=200');
+      recs = recs.concat(r || []);
+    }
+    const health = recs.slice(0, 80).map(h => { const s = byId[h.student_id] || {}; return { name: s.name, stream: s.stream, category: h.category, severity: h.severity, description: h.description, recorded_at: h.recorded_at, follow_up: h.follow_up_needed }; });
+    return J({ tenant, health });
+  } catch (e) { return J({ error: String((e && e.message) || e), tenant }, 200); }
 }
 
 async function handleFeesBalances(tenant, env, cors) {
