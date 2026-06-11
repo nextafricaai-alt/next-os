@@ -235,7 +235,7 @@
   const ROLE_NAV_WHITELIST = {
     admin:   null, // null = show all
     head:    null,
-    bursar:  new Set(['dash', 'fees', 'rep', 'exam']),
+    bursar:  new Set(['dash', 'fees', 'rep', 'exam', 'finance']),
     teacher: new Set(), // teacher uses its own shell, sidebar not rendered
   };
 
@@ -7083,6 +7083,198 @@ window.PEAK_ASKNEXT = (function () {
 })();
   </script>
 
+  <script type="text/babel">
+/* PEAK_FINANCE — full school finance: inflow/outflow, expenses, surplus, assets (head + bursar only) */
+window.PEAK_FINANCE = (function () {
+  const { useState, useEffect } = React;
+  const T = window.V4.T;
+  const WK = 'https://nextos-sentinel.nextafricaai.workers.dev';
+  function tenant() { const p = (window.PEAK_ROLE && window.PEAK_ROLE.getProfile && window.PEAK_ROLE.getProfile()); return (p && p.tenantId) || 'peak-primary'; }
+  function me() { const p = (window.PEAK_ROLE && window.PEAK_ROLE.getProfile && window.PEAK_ROLE.getProfile()); return (p && (p.fullName || p.email)) || ''; }
+  const fmt = n => 'UGX ' + (Number(n) || 0).toLocaleString();
+  const EXP_CATS = ['salaries', 'food', 'maintenance', 'utilities', 'supplies', 'transport', 'events', 'other'];
+  const INC_CATS = ['donation', 'grant', 'events', 'other'];
+  const ASSET_CATS = ['building', 'vehicle', 'equipment', 'furniture', 'land', 'it', 'other'];
+  const CAT_LABEL = { salaries: 'Salaries & wages', food: 'Food & meals', maintenance: 'Maintenance & repairs', utilities: 'Utilities (water/power)', supplies: 'Supplies & materials', transport: 'Transport & fuel', events: 'Events facilitation', donation: 'Donation', grant: 'Grant', other: 'Other' };
+
+  function FModal({ title, onClose, children }) {
+    return (
+      <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 800, background: 'rgba(5,8,22,0.7)', backdropFilter: 'blur(6px)', display: 'grid', placeItems: 'center', padding: 20 }}>
+        <div onClick={e => e.stopPropagation()} style={{ background: T.surface, border: '1px solid ' + T.borderStr, borderRadius: 16, width: '100%', maxWidth: 460, maxHeight: '92vh', overflow: 'auto' }}>
+          <div style={{ padding: '18px 22px', borderBottom: '1px solid ' + T.border, fontSize: 15, fontWeight: 700, color: T.ink }}>{title}</div>
+          {children}
+        </div>
+      </div>
+    );
+  }
+  function Finance() {
+    const [txns, setTxns] = useState([]);
+    const [assets, setAssets] = useState([]);
+    const [tab, setTab] = useState('flow');
+    const [form, setForm] = useState(null); // {kind} or {asset:true}
+    const [busy, setBusy] = useState(false);
+    const reload = () => {
+      fetch(WK + '/finance?tenant=' + encodeURIComponent(tenant())).then(r => r.json()).then(d => { if (d && d.transactions) setTxns(d.transactions); }).catch(() => {});
+      fetch(WK + '/assets?tenant=' + encodeURIComponent(tenant())).then(r => r.json()).then(d => { if (d && d.assets) setAssets(d.assets); }).catch(() => {});
+    };
+    useEffect(reload, []);
+
+    const feesCollected = (window.PEAK && window.PEAK.kpis && window.PEAK.kpis.feesCollectedTerm) || 0;
+    const otherIncome = txns.filter(t => t.kind === 'income').reduce((a, t) => a + Number(t.amount || 0), 0);
+    const totalIn = feesCollected + otherIncome;
+    const totalOut = txns.filter(t => t.kind === 'expense').reduce((a, t) => a + Number(t.amount || 0), 0);
+    const net = totalIn - totalOut;
+    const assetsValue = assets.reduce((a, x) => a + Number(x.value || 0), 0);
+    const byCat = {}; txns.filter(t => t.kind === 'expense').forEach(t => { byCat[t.category || 'other'] = (byCat[t.category || 'other'] || 0) + Number(t.amount || 0); });
+    const catRows = Object.keys(byCat).map(k => ({ k, v: byCat[k] })).sort((a, b) => b.v - a.v);
+    const maxCat = Math.max(1, ...catRows.map(c => c.v));
+
+    const card = { background: T.surface, border: '1px solid ' + T.border, borderRadius: 12, padding: 18 };
+    const btn = (p) => ({ border: p ? 'none' : '1px solid ' + T.borderStr, background: p ? T.red : 'transparent', color: p ? '#fff' : T.ink2, padding: '8px 14px', borderRadius: 9, fontSize: 12.5, fontWeight: 600, cursor: 'pointer' });
+    const inp = { background: T.bg, border: '1px solid ' + T.border, borderRadius: 8, padding: '9px 11px', fontSize: 13, color: T.ink, fontFamily: T.font, outline: 'none', width: '100%' };
+
+    const saveTxn = (f) => {
+      const amt = Number(String(f.amount).replace(/[^0-9]/g, '')); if (!amt) { window.peakToast && window.peakToast('Enter an amount', 'info'); return; }
+      setBusy(true);
+      fetch(WK + '/finance/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tenant_id: tenant(), txn: { kind: f.kind, category: f.category, description: f.description, amount: amt, method: f.method, occurred_at: f.date, created_by: me() } }) })
+        .then(r => r.json()).then(res => { setBusy(false); if (res.error) { window.peakToast && window.peakToast('Could not save', 'info', res.error); return; } setForm(null); reload(); window.peakToast && window.peakToast((f.kind === 'income' ? 'Income' : 'Expense') + ' recorded', 'success', fmt(amt) + ' · ' + (CAT_LABEL[f.category] || f.category)); }).catch(() => setBusy(false));
+    };
+    const saveAsset = (f) => {
+      if (!f.name) { window.peakToast && window.peakToast('Enter a name', 'info'); return; } setBusy(true);
+      fetch(WK + '/assets/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tenant_id: tenant(), asset: { name: f.name, category: f.category, value: Number(String(f.value).replace(/[^0-9]/g, '')) || 0, condition: f.condition, acquired: f.acquired, notes: f.notes } }) })
+        .then(r => r.json()).then(res => { setBusy(false); if (res.error) { window.peakToast && window.peakToast('Could not save', 'info', res.error); return; } setForm(null); reload(); window.peakToast && window.peakToast('Asset added', 'success', f.name); }).catch(() => setBusy(false));
+    };
+
+    const SummaryCard = (label, val, color) => (
+      <div style={{ ...card, padding: 16 }}>
+        <div style={{ fontSize: 10.5, color: T.ink3, fontFamily: T.mono, letterSpacing: '0.05em', fontWeight: 600 }}>{label.toUpperCase()}</div>
+        <div style={{ fontSize: 21, fontWeight: 700, color: color || T.ink, marginTop: 6, fontVariantNumeric: 'tabular-nums' }}>{fmt(val)}</div>
+      </div>
+    );
+
+    return (
+      <div style={{ height: '100%', overflow: 'auto', background: T.bg, color: T.ink, fontFamily: T.font, fontSize: 13 }}>
+        <header style={{ padding: '22px 28px 16px', borderBottom: '1px solid ' + T.border, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+          <div>
+            <div style={{ fontSize: 11, color: T.ink3, fontFamily: T.mono, letterSpacing: '0.08em', fontWeight: 600, marginBottom: 8 }}>FINANCE · HEAD TEACHER & BURSAR ONLY</div>
+            <div style={{ fontSize: 24, fontWeight: 700, letterSpacing: '-0.02em' }}>Money</div>
+            <div style={{ fontSize: 13, color: T.ink3, marginTop: 4 }}>Cash in and out, expenses, surplus and assets — the full financial picture.</div>
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button style={btn(false)} onClick={() => setForm({ kind: 'income', category: 'donation', date: new Date().toISOString().slice(0, 10) })}>+ Income</button>
+            <button style={btn(true)} onClick={() => setForm({ kind: 'expense', category: 'maintenance', date: new Date().toISOString().slice(0, 10) })}>+ Expense</button>
+          </div>
+        </header>
+
+        <div style={{ padding: 24 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 18 }}>
+            {SummaryCard('Total inflow', totalIn, T.good)}
+            {SummaryCard('Total outflow', totalOut, T.redInk)}
+            {SummaryCard('Net surplus', net, net >= 0 ? T.good : T.redInk)}
+            {SummaryCard('Assets value', assetsValue, T.ink)}
+          </div>
+
+          <div style={{ display: 'flex', gap: 6, marginBottom: 16 }}>
+            {[['flow', 'Cash flow'], ['expenses', 'Expenses'], ['assets', 'Assets']].map(o => (
+              <button key={o[0]} onClick={() => setTab(o[0])} style={{ border: 'none', background: tab === o[0] ? T.surface2 : 'transparent', color: tab === o[0] ? T.ink : T.ink3, padding: '8px 16px', borderRadius: 8, fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }}>{o[1]}</button>
+            ))}
+          </div>
+
+          {tab === 'flow' && (
+            <div style={card}>
+              <div style={{ fontSize: 11, color: T.ink3, fontFamily: T.mono, marginBottom: 10 }}>FEES COLLECTED (from fee system): <span style={{ color: T.good }}>{fmt(feesCollected)}</span> · then your manual entries below</div>
+              {txns.length === 0 ? <div style={{ color: T.ink4, fontSize: 13, padding: '8px 0' }}>No transactions yet. Add income or an expense above.</div> : (
+                <div style={{ border: '1px solid ' + T.border, borderRadius: 10, overflow: 'hidden' }}>
+                  {txns.slice(0, 40).map((t, i) => (
+                    <div key={t.id || i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 14px', borderBottom: i < Math.min(txns.length, 40) - 1 ? '1px solid ' + T.border : 'none' }}>
+                      <span style={{ width: 8, height: 8, borderRadius: '50%', background: t.kind === 'income' ? T.good : T.redInk, flexShrink: 0 }} />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 13, color: T.ink }}>{CAT_LABEL[t.category] || t.category}{t.description ? <span style={{ color: T.ink3 }}> · {t.description}</span> : null}</div>
+                        <div style={{ fontSize: 11, color: T.ink4, fontFamily: T.mono }}>{t.occurred_at}{t.method ? (' · ' + t.method) : ''}{t.created_by ? (' · ' + t.created_by) : ''}</div>
+                      </div>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: t.kind === 'income' ? T.good : T.redInk, fontVariantNumeric: 'tabular-nums' }}>{t.kind === 'income' ? '+' : '−'}{fmt(t.amount)}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {tab === 'expenses' && (
+            <div style={card}>
+              <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 14 }}>Expenses by category · {fmt(totalOut)} total</div>
+              {catRows.length === 0 ? <div style={{ color: T.ink4, fontSize: 13 }}>No expenses recorded yet.</div> : catRows.map(c => (
+                <div key={c.k} style={{ marginBottom: 12 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12.5, marginBottom: 5 }}>
+                    <span style={{ color: T.ink2 }}>{CAT_LABEL[c.k] || c.k}</span>
+                    <span style={{ color: T.ink, fontWeight: 600 }}>{fmt(c.v)}</span>
+                  </div>
+                  <div style={{ height: 8, background: T.surface2, borderRadius: 4, overflow: 'hidden' }}>
+                    <div style={{ height: '100%', width: Math.round(c.v / maxCat * 100) + '%', background: T.redInk, borderRadius: 4 }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {tab === 'assets' && (
+            <div style={card}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+                <div style={{ fontSize: 13, fontWeight: 700 }}>School assets · {fmt(assetsValue)} total</div>
+                <button style={btn(false)} onClick={() => setForm({ asset: true, category: 'equipment', condition: 'good' })}>+ Add asset</button>
+              </div>
+              {assets.length === 0 ? <div style={{ color: T.ink4, fontSize: 13 }}>No assets registered yet.</div> : (
+                <div style={{ border: '1px solid ' + T.border, borderRadius: 10, overflow: 'hidden' }}>
+                  {assets.map((a, i) => (
+                    <div key={a.id || i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 14px', borderBottom: i < assets.length - 1 ? '1px solid ' + T.border : 'none' }}>
+                      <div style={{ flex: 1 }}><div style={{ fontSize: 13, color: T.ink, fontWeight: 600 }}>{a.name}</div><div style={{ fontSize: 11, color: T.ink4, fontFamily: T.mono }}>{a.category}{a.condition ? (' · ' + a.condition) : ''}</div></div>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: T.ink, fontVariantNumeric: 'tabular-nums' }}>{fmt(a.value)}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {form && !form.asset && (
+          <FModal title={(form.kind === 'income' ? 'Record income' : 'Record expense')} onClose={() => setForm(null)}>
+            <div style={{ padding: 22, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+              <label style={{ gridColumn: 'span 2' }}><div style={{ fontSize: 11, color: T.ink2, marginBottom: 5, fontFamily: T.mono }}>CATEGORY</div>
+                <select style={inp} value={form.category} onChange={e => setForm({ ...form, category: e.target.value })}>{(form.kind === 'income' ? INC_CATS : EXP_CATS).map(c => <option key={c} value={c}>{CAT_LABEL[c] || c}</option>)}</select></label>
+              <label><div style={{ fontSize: 11, color: T.ink2, marginBottom: 5, fontFamily: T.mono }}>AMOUNT (UGX)</div><input style={inp} value={form.amount || ''} onChange={e => setForm({ ...form, amount: e.target.value })} placeholder="250,000" /></label>
+              <label><div style={{ fontSize: 11, color: T.ink2, marginBottom: 5, fontFamily: T.mono }}>DATE</div><input style={inp} type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} /></label>
+              <label><div style={{ fontSize: 11, color: T.ink2, marginBottom: 5, fontFamily: T.mono }}>METHOD</div><select style={inp} value={form.method || 'cash'} onChange={e => setForm({ ...form, method: e.target.value })}>{['cash', 'bank', 'mtn', 'airtel', 'cheque'].map(m => <option key={m} value={m}>{m}</option>)}</select></label>
+              <label style={{ gridColumn: 'span 2' }}><div style={{ fontSize: 11, color: T.ink2, marginBottom: 5, fontFamily: T.mono }}>DESCRIPTION</div><input style={inp} value={form.description || ''} onChange={e => setForm({ ...form, description: e.target.value })} placeholder="e.g. Repair of P3 roof" /></label>
+            </div>
+            <div style={{ padding: '0 22px 18px', display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+              <button style={btn(false)} onClick={() => setForm(null)}>Cancel</button>
+              <button style={btn(true)} onClick={() => saveTxn(form)} disabled={busy}>{busy ? 'Saving...' : 'Record'}</button>
+            </div>
+          </FModal>
+        )}
+        {form && form.asset && (
+          <FModal title="Add asset" onClose={() => setForm(null)}>
+            <div style={{ padding: 22, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+              <label style={{ gridColumn: 'span 2' }}><div style={{ fontSize: 11, color: T.ink2, marginBottom: 5, fontFamily: T.mono }}>NAME</div><input style={inp} value={form.name || ''} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="e.g. School bus UAR 218V" /></label>
+              <label><div style={{ fontSize: 11, color: T.ink2, marginBottom: 5, fontFamily: T.mono }}>CATEGORY</div><select style={inp} value={form.category} onChange={e => setForm({ ...form, category: e.target.value })}>{ASSET_CATS.map(c => <option key={c} value={c}>{c}</option>)}</select></label>
+              <label><div style={{ fontSize: 11, color: T.ink2, marginBottom: 5, fontFamily: T.mono }}>VALUE (UGX)</div><input style={inp} value={form.value || ''} onChange={e => setForm({ ...form, value: e.target.value })} placeholder="45,000,000" /></label>
+              <label><div style={{ fontSize: 11, color: T.ink2, marginBottom: 5, fontFamily: T.mono }}>CONDITION</div><select style={inp} value={form.condition} onChange={e => setForm({ ...form, condition: e.target.value })}>{['good', 'fair', 'poor'].map(c => <option key={c} value={c}>{c}</option>)}</select></label>
+              <label><div style={{ fontSize: 11, color: T.ink2, marginBottom: 5, fontFamily: T.mono }}>ACQUIRED</div><input style={inp} type="date" value={form.acquired || ''} onChange={e => setForm({ ...form, acquired: e.target.value })} /></label>
+            </div>
+            <div style={{ padding: '0 22px 18px', display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+              <button style={btn(false)} onClick={() => setForm(null)}>Cancel</button>
+              <button style={btn(true)} onClick={() => saveAsset(form)} disabled={busy}>{busy ? 'Saving...' : 'Add asset'}</button>
+            </div>
+          </FModal>
+        )}
+      </div>
+    );
+  }
+  return { Finance };
+})();
+  </script>
+
   <script type="text/babel" data-src="src/peak-app.jsx">
 /* src/peak-app.jsx */
 /* global React, ReactDOM, V4, PD_Today, PD_Students, PD_Profile, PD_Fees, PD_Broadcast, PD_M, PEAK_SCREENS, PEAK_FORMS */
@@ -7404,6 +7596,7 @@ window.PEAK_ASKNEXT = (function () {
     { k: 'attn',  label: 'Attendance',     glyph: '◐' },
     { k: 'fees',  label: 'Fees',           glyph: '⌗', countKey: 'feesOutstandingStudents' },
     { k: 'exam',  label: 'Exams & Reports', glyph: '⊑' },
+    { k: 'finance', label: 'Finance', glyph: '⛁' },
     { k: 'comm',  label: 'Communications', glyph: '◊' },
     { k: 'teach', label: 'Teachers',       glyph: '◇', countKey: 'teachers' },
     { k: 'staff', label: 'Staff Today',     glyph: '◉' },
@@ -7993,6 +8186,7 @@ window.PEAK_ASKNEXT = (function () {
     else if (route === 'learn')   Screen = <PEAK_SCREENS.Learning   onNav={navigate} />;
     else if (route === 'rep')     Screen = <PEAK_SCREENS.Reports    onNav={navigate} />;
     else if (route === 'exam')    Screen = (window.PEAK_EXAMS ? <PEAK_EXAMS.Exams onNav={navigate} /> : null);
+    else if (route === 'finance') Screen = (window.PEAK_FINANCE ? <PEAK_FINANCE.Finance /> : null);
     else if (route === 'staff' && typeof window.HeadStaffPanel === 'function') {
       const HeadStaffPanel = window.HeadStaffPanel;
       Screen = <HeadStaffPanel onNav={navigate} />;
