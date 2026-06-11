@@ -124,16 +124,33 @@
     return null;
   }
   function siteKeyOf(){ try{ return new URL(profile.url).hostname.replace(/^www\./,''); }catch(e){ return (profile&&profile.url)||''; } }
+  function tolerantArray(str){
+    if(!str) return null;
+    var start=str.indexOf('['); if(start<0) return null;
+    for(var end=str.lastIndexOf(']'); end>start; end=str.lastIndexOf(']', end-1)){
+      try{ var a=JSON.parse(str.slice(start,end+1)); if(Array.isArray(a)&&a.length) return a; }catch(e){}
+    }
+    // truncated array: pull out every COMPLETE top-level {...} object
+    var objs=[], depth=0, objStart=-1, inStr=false, esc=false;
+    for(var i=start+1;i<str.length;i++){
+      var ch=str[i];
+      if(inStr){ if(esc){esc=false;} else if(ch==='\\'){esc=true;} else if(ch==='"'){inStr=false;} continue; }
+      if(ch==='"'){ inStr=true; continue; }
+      if(ch==='{'){ if(depth===0) objStart=i; depth++; }
+      else if(ch==='}'){ depth--; if(depth===0&&objStart>=0){ try{ objs.push(JSON.parse(str.slice(objStart,i+1))); }catch(e){} objStart=-1; } }
+    }
+    return objs.length?objs:null;
+  }
   function parseCollections(text){
     if(!text) return null;
-    var re=/```(?:json)?\s*([\s\S]*?)```/gi, m;
-    while((m=re.exec(text))){
-      var c=m[1].trim(); var a=c.indexOf('['), b=c.lastIndexOf(']');
-      if(a>=0 && b>a){ try{ var j=JSON.parse(c.slice(a,b+1)); if(Array.isArray(j)&&j.length&&j[0]&&j[0].name) return j; }catch(e){} }
+    var cands=[]; var re=/```(?:json)?\s*([\s\S]*?)```/gi, m;
+    while((m=re.exec(text))) cands.push(m[1]);
+    var idx=text.indexOf('COLLECTIONS_JSON'); if(idx>=0) cands.push(text.slice(idx));
+    cands.push(text);
+    for(var i=0;i<cands.length;i++){
+      var arr=tolerantArray(cands[i]);
+      if(arr&&arr.length&&arr[0]&&arr[0].name) return arr;
     }
-    var idx=text.indexOf('COLLECTIONS_JSON'); var tail=idx>=0?text.slice(idx):text;
-    var a2=tail.indexOf('['), b2=tail.lastIndexOf(']');
-    if(a2>=0 && b2>a2){ try{ var j2=JSON.parse(tail.slice(a2,b2+1)); if(Array.isArray(j2)&&j2.length) return j2; }catch(e){} }
     return null;
   }
   async function buildOS(btn){
