@@ -218,7 +218,7 @@ export default {
     }
 
     // GET-allowed routes (read-only endpoints live below this gate)
-    const GET_OK = ['/check-project', '/seo-audit', '/px.js', '/analytics', '/gsc', '/ga4', '/fetch-page', '/site-pages', '/cms/collections', '/cms/items'];
+    const GET_OK = ['/check-project', '/seo-audit', '/px.js', '/analytics', '/gsc', '/ga4', '/fetch-page', '/site-pages', '/cms/collections', '/cms/items', '/students'];
     if (request.method !== 'POST' && !GET_OK.includes(url.pathname)) {
       return new Response('Method not allowed', { status: 405, headers: cors });
     }
@@ -311,6 +311,10 @@ export default {
     // ─── Auth: email OTP sign-in (Supabase GoTrue via service key) ──
     if (url.pathname === '/auth/send-otp')   return handleSendOtp(request, env, cors);
     if (url.pathname === '/auth/verify-otp') return handleVerifyOtp(request, env, cors);
+
+    // ─── Students: list + bulk import (real students into a school tenant) ──
+    if (url.pathname === '/students')        return handleStudentsList(url.searchParams.get('tenant') || '', env, cors);
+    if (url.pathname === '/students/import') return handleStudentsImport(request, env, cors);
 
     // ─── Route: / — Llama agent (default) ───────────────────────────────
     return handleAgent(request, env, cors);
@@ -1019,6 +1023,53 @@ async function handleVerifyOtp(request, env, cors) {
     const d = await r.json().catch(() => ({}));
     if (!r.ok || !d.access_token) return J({ error: (d.msg || d.error_description || 'Invalid or expired code.') }, 200);
     return J({ ok: true, email: (d.user && d.user.email) || email, access_token: d.access_token, expires_at: d.expires_at || null, user_id: (d.user && d.user.id) || null });
+  } catch (e) { return J({ error: String((e && e.message) || e) }, 200); }
+}
+
+async function handleStudentsList(tenant, env, cors) {
+  const J = (oo, st) => new Response(JSON.stringify(oo), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
+  if (!tenant) return J({ error: 'tenant required' }, 400);
+  if (!env.SUPABASE_URL || !env.SUPABASE_KEY) return J({ error: 'Supabase not configured on the worker.' }, 500);
+  try {
+    const rows = await sbFetch(env, '/students?tenant_id=eq.' + encodeURIComponent(tenant) + '&select=id,name,stream,guardian_name,guardian_phone,status,enrolled_at&order=name.asc&limit=3000');
+    return J({ tenant, count: (rows || []).length, students: rows || [] });
+  } catch (e) { return J({ error: String((e && e.message) || e), tenant }, 200); }
+}
+
+async function handleStudentsImport(request, env, cors) {
+  const J = (oo, st) => new Response(JSON.stringify(oo), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
+  if (!env.SUPABASE_URL || !env.SUPABASE_KEY) return J({ error: 'Supabase not configured on the worker.' }, 500);
+  let b; try { b = await request.json(); } catch (e) { return J({ error: 'bad request body' }, 400); }
+  const tenant = String(b.tenant_id || b.tenant || '').trim();
+  const list = Array.isArray(b.students) ? b.students : [];
+  if (!tenant) return J({ error: 'tenant_id required' }, 400);
+  if (!list.length) return J({ error: 'No students provided.' }, 400);
+  const clean = [];
+  for (const s of list) {
+    const name = (s.name || '').toString().trim();
+    if (!name) continue;
+    clean.push({
+      tenant_id: tenant,
+      name: name.slice(0, 120),
+      stream: ((s.stream || '').toString().trim().slice(0, 16)) || null,
+      guardian_name: ((s.guardian_name || s.guardian || '').toString().trim().slice(0, 120)) || null,
+      guardian_phone: ((s.guardian_phone || s.phone || '').toString().trim().slice(0, 32)) || null,
+      status: 'active',
+    });
+  }
+  if (!clean.length) return J({ error: 'No valid rows — every student needs a name.' }, 400);
+  try {
+    let skipped = 0;
+    const existing = await sbFetch(env, '/students?tenant_id=eq.' + encodeURIComponent(tenant) + '&select=name,stream&limit=5000');
+    const seen = new Set((existing || []).map(x => ((x.name || '').toLowerCase() + '|' + ((x.stream || '').toLowerCase()))));
+    const filtered = clean.filter(r => { const k = r.name.toLowerCase() + '|' + ((r.stream || '').toLowerCase()); if (seen.has(k)) { skipped++; return false; } seen.add(k); return true; });
+    if (!filtered.length) return J({ ok: true, imported: 0, skipped, message: 'All rows already exist.' });
+    let imported = 0;
+    for (let i = 0; i < filtered.length; i += 500) {
+      await sbWrite(env, '/students', filtered.slice(i, i + 500), 'POST', 'return=minimal');
+      imported += Math.min(500, filtered.length - i);
+    }
+    return J({ ok: true, imported, skipped });
   } catch (e) { return J({ error: String((e && e.message) || e) }, 200); }
 }
 
