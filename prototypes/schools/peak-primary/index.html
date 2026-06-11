@@ -6,6 +6,27 @@
   <meta name="theme-color" content="#0a1029" />
   <title>Peak Primary · NEXT School OS — Prototype Spec</title>
   <link rel="icon" type="image/png" href="assets/peak-logo.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="NEXT School OS" id="nx-apple-title" />
+  <link rel="apple-touch-icon" href="assets/peak-logo.png" id="nx-apple-icon" />
+  <script>
+  (function () {
+    try {
+      var p = new URLSearchParams(location.search);
+      var slug = p.get('s') || p.get('t') || (location.pathname.match(/\/s\/([A-Za-z0-9_-]+)/) || [])[1] || 'peak-primary';
+      var ml = document.createElement('link'); ml.rel = 'manifest'; ml.href = '/manifest.php?s=' + encodeURIComponent(slug); document.head.appendChild(ml);
+      var WK = 'https://nextos-sentinel.nextafricaai.workers.dev';
+      var ai = document.getElementById('nx-apple-icon'); if (ai) ai.href = WK + '/icon?s=' + encodeURIComponent(slug);
+      if ('serviceWorker' in navigator) { navigator.serviceWorker.register('/sw.js').catch(function () {}); }
+      var deferred = null;
+      function makeBtn() { if (document.getElementById('nx-os-install')) return document.getElementById('nx-os-install'); var b = document.createElement('button'); b.id = 'nx-os-install'; b.textContent = '\u2913 Install app'; b.style.cssText = 'position:fixed;right:16px;bottom:16px;z-index:99999;display:none;background:#00fc8f;color:#062b18;border:0;border-radius:999px;padding:11px 18px;font-family:Inter,system-ui,sans-serif;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 8px 26px rgba(0,252,143,.4)'; b.onclick = function () { if (!deferred) return; deferred.prompt(); deferred.userChoice.then(function () { deferred = null; b.style.display = 'none'; }); }; document.body.appendChild(b); return b; }
+      window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); deferred = e; makeBtn().style.display = 'block'; });
+      window.addEventListener('appinstalled', function () { var b = document.getElementById('nx-os-install'); if (b) b.style.display = 'none'; });
+    } catch (e) {}
+  })();
+  </script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Instrument+Serif&display=swap" rel="stylesheet">
