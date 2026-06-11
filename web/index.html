@@ -9,6 +9,14 @@
   <link rel="icon" type="image/png" href="uploads/NEXT Favicon Transperent Logo@3x.png">
   <link rel="apple-touch-icon" href="uploads/NEXT Favicon Transperent Logo@3x.png">
 
+  <!-- PWA: installable NEXT OS app -->
+  <link rel="manifest" href="/manifest-os.json">
+  <meta name="theme-color" content="#00FC8F">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="NEXT OS">
+
   <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -6163,6 +6171,21 @@ Object.assign(window, { AppShell, Sidebar, Topbar, OSIcon, PlaceholderPage });
 
     const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<AuthGate><AppShell /></AuthGate>);
+  </script>
+  <script>
+  (function () {
+    if ('serviceWorker' in navigator) { navigator.serviceWorker.register('/sw.js').catch(function () {}); }
+    var deferred = null;
+    function makeBtn() {
+      if (document.getElementById('nx-os-install')) return document.getElementById('nx-os-install');
+      var b = document.createElement('button'); b.id = 'nx-os-install'; b.textContent = '\u2913 Install NEXT OS';
+      b.style.cssText = 'position:fixed;right:18px;bottom:18px;z-index:99999;display:none;background:linear-gradient(135deg,#7c3aed,#2563eb);color:#fff;border:0;border-radius:999px;padding:12px 18px;font-family:Inter,system-ui,sans-serif;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 8px 26px rgba(124,58,237,.45)';
+      b.onclick = function () { if (!deferred) return; deferred.prompt(); deferred.userChoice.then(function () { deferred = null; b.style.display = 'none'; }); };
+      document.body.appendChild(b); return b;
+    }
+    window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); deferred = e; var b = makeBtn(); b.style.display = 'block'; });
+    window.addEventListener('appinstalled', function () { var b = document.getElementById('nx-os-install'); if (b) b.style.display = 'none'; });
+  })();
   </script>
 </body>
 </html>
