@@ -218,7 +218,7 @@ export default {
     }
 
     // GET-allowed routes (read-only endpoints live below this gate)
-    const GET_OK = ['/check-project', '/seo-audit', '/px.js', '/analytics', '/gsc', '/ga4', '/fetch-page', '/site-pages', '/cms/collections', '/cms/items', '/students', '/exams', '/exam-results', '/fees-balances', '/staff-status', '/student-health', '/events'];
+    const GET_OK = ['/check-project', '/seo-audit', '/px.js', '/analytics', '/gsc', '/ga4', '/fetch-page', '/site-pages', '/cms/collections', '/cms/items', '/students', '/exams', '/exam-results', '/fees-balances', '/staff-status', '/student-health', '/events', '/finance', '/assets'];
     if (request.method !== 'POST' && !GET_OK.includes(url.pathname)) {
       return new Response('Method not allowed', { status: 405, headers: cors });
     }
@@ -329,6 +329,10 @@ export default {
     if (url.pathname === '/student-health')     return handleStudentHealth(url.searchParams.get('tenant') || '', env, cors);
     if (url.pathname === '/events')             return handleEventsList(url.searchParams.get('tenant') || '', env, cors);
     if (url.pathname === '/events/save')        return handleEventSave(request, env, cors);
+    if (url.pathname === '/finance')            return handleFinanceList(url.searchParams.get('tenant') || '', env, cors);
+    if (url.pathname === '/finance/save')       return handleFinanceSave(request, env, cors);
+    if (url.pathname === '/assets')             return handleAssetsList(url.searchParams.get('tenant') || '', env, cors);
+    if (url.pathname === '/assets/save')        return handleAssetSave(request, env, cors);
 
     // ─── Route: / — Llama agent (default) ───────────────────────────────
     return handleAgent(request, env, cors);
@@ -1108,6 +1112,41 @@ async function handleStudentsImport(request, env, cors) {
     }
     return J({ ok: true, imported, skipped });
   } catch (e) { return J({ error: String((e && e.message) || e) }, 200); }
+}
+
+async function handleFinanceList(tenant, env, cors) {
+  const J = (oo, st) => new Response(JSON.stringify(oo), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
+  if (!tenant) return J({ error: 'tenant required' }, 400);
+  if (!env.SUPABASE_URL || !env.SUPABASE_KEY) return J({ error: 'Supabase not configured.' }, 500);
+  try { const rows = await sbFetch(env, '/school_finance?tenant_id=eq.' + encodeURIComponent(tenant) + '&select=id,kind,category,description,amount,method,occurred_at,created_by&order=occurred_at.desc&limit=1000'); return J({ tenant, transactions: rows || [] }); }
+  catch (e) { return J({ error: String((e && e.message) || e), tenant }, 200); }
+}
+async function handleFinanceSave(request, env, cors) {
+  const J = (oo, st) => new Response(JSON.stringify(oo), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
+  if (!env.SUPABASE_URL || !env.SUPABASE_KEY) return J({ error: 'Supabase not configured.' }, 500);
+  let b; try { b = await request.json(); } catch (e) { return J({ error: 'bad body' }, 400); }
+  const t = b.txn || b; const tenant = String(b.tenant_id || t.tenant_id || '').trim();
+  if (!tenant || !t.kind || !(Number(t.amount) > 0)) return J({ error: 'tenant_id, kind and amount required' }, 400);
+  const row = { tenant_id: tenant, kind: t.kind, category: t.category || 'other', description: (t.description || '').slice(0, 200), amount: Number(t.amount), method: t.method || null, occurred_at: t.occurred_at || new Date().toISOString().slice(0, 10), created_by: t.created_by || null };
+  try { const r = await fetch(env.SUPABASE_URL + '/rest/v1/school_finance', { method: 'POST', headers: sbHeaders(env, 'return=representation'), body: JSON.stringify(row) }); const d = await r.json(); return J({ ok: true, txn: (d && d[0]) || row }); }
+  catch (x) { return J({ error: String((x && x.message) || x) }, 200); }
+}
+async function handleAssetsList(tenant, env, cors) {
+  const J = (oo, st) => new Response(JSON.stringify(oo), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
+  if (!tenant) return J({ error: 'tenant required' }, 400);
+  if (!env.SUPABASE_URL || !env.SUPABASE_KEY) return J({ error: 'Supabase not configured.' }, 500);
+  try { const rows = await sbFetch(env, '/school_assets?tenant_id=eq.' + encodeURIComponent(tenant) + '&select=id,name,category,value,condition,acquired,notes&order=value.desc&limit=500'); return J({ tenant, assets: rows || [] }); }
+  catch (e) { return J({ error: String((e && e.message) || e), tenant }, 200); }
+}
+async function handleAssetSave(request, env, cors) {
+  const J = (oo, st) => new Response(JSON.stringify(oo), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
+  if (!env.SUPABASE_URL || !env.SUPABASE_KEY) return J({ error: 'Supabase not configured.' }, 500);
+  let b; try { b = await request.json(); } catch (e) { return J({ error: 'bad body' }, 400); }
+  const a = b.asset || b; const tenant = String(b.tenant_id || a.tenant_id || '').trim();
+  if (!tenant || !a.name) return J({ error: 'tenant_id and name required' }, 400);
+  const row = { tenant_id: tenant, name: String(a.name).slice(0, 140), category: a.category || 'other', value: Number(a.value) || 0, condition: a.condition || 'good', acquired: a.acquired || null, notes: (a.notes || '').slice(0, 200) };
+  try { const r = await fetch(env.SUPABASE_URL + '/rest/v1/school_assets', { method: 'POST', headers: sbHeaders(env, 'return=representation'), body: JSON.stringify(row) }); const d = await r.json(); return J({ ok: true, asset: (d && d[0]) || row }); }
+  catch (x) { return J({ error: String((x && x.message) || x) }, 200); }
 }
 
 async function handleEventsList(tenant, env, cors) {
