@@ -2729,6 +2729,11 @@ const V4 = (function () {
             <div style={{ fontSize: 12.5, color: T.ink2, lineHeight: 1.5 }}>{SCHOOL_TIPS[tip.k]}</div>
           </div>
         )}
+        <div style={{ padding: '0 12px 8px' }}>
+          <button onClick={() => window.peakShareSchool && window.peakShareSchool()} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 9, padding: '9px 12px', borderRadius: 9, background: 'transparent', border: '1px solid ' + T.border, color: T.ink2, cursor: 'pointer', textAlign: 'left', fontFamily: T.font, fontSize: 12.5 }}>
+            <span>🔗</span><span>Share this school's app</span>
+          </button>
+        </div>
         <div style={{ padding: 12 }}>
           <button onClick={() => window.PEAK_ASKNEXT && window.PEAK_ASKNEXT.open()} style={{
             width: '100%', display: 'flex', alignItems: 'center', gap: 10,
@@ -6883,6 +6888,15 @@ window.PEAK_EXAMS = (function () {
   window.peakWhatsApp = function (phone, message) { var p = window.peakCleanPhone(phone); if (!p) { window.peakToast && window.peakToast('No phone on file', 'info', 'Add a guardian/contact number first.'); return; } window.open('https://wa.me/' + p + (message ? ('?text=' + encodeURIComponent(message)) : ''), '_blank'); };
   window.peakCall = function (phone) { var p = (phone || '').replace(/\s+/g, ''); if (!p) { window.peakToast && window.peakToast('No phone on file', 'info'); return; } window.open('tel:' + p, '_self'); };
   window.peakSchoolName = function () { return (window.__BRAND_NAME) || 'the school'; };
+  window.peakShareSchool = function () {
+    var t = ''; try { var p = JSON.parse(localStorage.getItem('nextos.profile') || 'null'); t = (p && p.tenantId) || localStorage.getItem('nextos.lastTenant') || ''; } catch (e) {}
+    if (!t) { try { t = new URLSearchParams(location.search).get('s') || (location.pathname.match(/\/(?:s|school)\/([A-Za-z0-9_-]+)/) || [])[1] || ''; } catch (e) {} }
+    var url = location.origin + '/s/' + encodeURIComponent(t);
+    var nm = window.peakSchoolName();
+    var data = { title: nm, text: 'Sign in to ' + nm + ' on NEXT OS', url: url };
+    if (navigator.share) { navigator.share(data).catch(function () {}); }
+    else { try { navigator.clipboard.writeText(url); window.peakToast && window.peakToast('Link copied', 'success', url); } catch (e) { prompt('Copy this link:', url); } }
+  };
   window.peakBulkWhatsApp = function (items, label) {
     items = (items || []).filter(function (x) { return x.to && x.text; });
     if (!items.length) { window.peakToast && window.peakToast('No recipients with phone numbers', 'info'); return; }
