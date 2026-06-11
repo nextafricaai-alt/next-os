@@ -235,6 +235,12 @@ export default {
     if (url.pathname === '/whatsapp/bulk') {
       return handleWhatsAppBulk(request, env, cors);
     }
+    if (url.pathname === '/email/send') {
+      return handleEmailSend(request, env, cors);
+    }
+    if (url.pathname === '/sms/send') {
+      return handleSmsSend(request, env, cors);
+    }
 
     // ─── Route: /supervise — manually trigger an Always-On brief ─────────
     // Body: { kind: 'morning' | 'pulse' | 'weekly' }
@@ -402,6 +408,49 @@ async function handleWhatsAppBulk(request, env, cors) {
     } catch (e) { failed++; if (errs.length < 15) errs.push({ to: to, error: String((e && e.message) || e) }); }
   }
   return J({ ok: true, sent, failed, errors: errs });
+}
+
+async function handleEmailSend(request, env, cors) {
+  const J = (o, st) => new Response(JSON.stringify(o), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
+  if (!env.RESEND_KEY) return J({ error: 'Email sender not configured on this worker.', hint: 'Set RESEND_KEY + MAIL_FROM (see COMMS-SETUP.md), then email broadcasts send.' }, 200);
+  let b; try { b = await request.json(); } catch (e) { return J({ error: 'bad body' }, 400); }
+  const from = env.MAIL_FROM || 'NEXT OS <noreply@nextafrica.ai>';
+  const subject = String(b.subject || 'A message from NEXT');
+  const items = Array.isArray(b.items) ? b.items.slice(0, 200) : [];
+  if (!items.length) return J({ error: 'no recipients' }, 400);
+  let sent = 0, failed = 0; const errs = [];
+  for (const it of items) {
+    const to = String(it.to || '').trim();
+    if (!to || to.indexOf('@') < 0) { failed++; continue; }
+    const body = String(it.text || b.message || '');
+    const html = it.html || ('<div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.6;color:#111">' + body.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/\n/g, '<br>') + '</div>');
+    try {
+      const r = await fetch('https://api.resend.com/emails', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + env.RESEND_KEY }, body: JSON.stringify({ from, to: [to], subject: it.subject || subject, html }) });
+      if (r.ok) sent++; else { failed++; const d = await r.json().catch(() => ({})); if (errs.length < 15) errs.push({ to, error: (d && d.message) || ('HTTP ' + r.status) }); }
+    } catch (e) { failed++; if (errs.length < 15) errs.push({ to, error: String((e && e.message) || e) }); }
+  }
+  return J({ ok: true, sent, failed, errors: errs });
+}
+
+async function handleSmsSend(request, env, cors) {
+  const J = (o, st) => new Response(JSON.stringify(o), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
+  if (!env.AT_USERNAME || !env.AT_KEY) return J({ error: 'SMS sender not configured on this worker.', hint: "Set AT_USERNAME + AT_KEY (Africa's Talking) (see COMMS-SETUP.md), then SMS broadcasts send." }, 200);
+  let b; try { b = await request.json(); } catch (e) { return J({ error: 'bad body' }, 400); }
+  const items = Array.isArray(b.items) ? b.items.slice(0, 500) : [];
+  if (!items.length) return J({ error: 'no recipients' }, 400);
+  const to = items.map(it => String(it.to || '').replace(/[^0-9+]/g, '')).filter(Boolean).join(',');
+  const message = String(b.message || (items[0] && items[0].text) || '');
+  if (!to || !message) return J({ error: 'recipients and message required' }, 400);
+  try {
+    const form = new URLSearchParams();
+    form.set('username', env.AT_USERNAME); form.set('to', to); form.set('message', message);
+    if (env.AT_SENDER) form.set('from', env.AT_SENDER);
+    const r = await fetch('https://api.africastalking.com/version1/messaging', { method: 'POST', headers: { 'apiKey': env.AT_KEY, 'Content-Type': 'application/x-www-form-urlencoded', 'Accept': 'application/json' }, body: form.toString() });
+    const d = await r.json().catch(() => ({}));
+    const recips = (d && d.SMSMessageData && d.SMSMessageData.Recipients) || [];
+    const sent = recips.filter(x => /Success/i.test(x.status || '')).length;
+    return J({ ok: true, sent: sent || (r.ok ? items.length : 0), failed: Math.max(0, items.length - (sent || (r.ok ? items.length : 0))), summary: (d && d.SMSMessageData && d.SMSMessageData.Message) || '' });
+  } catch (e) { return J({ error: String((e && e.message) || e) }, 200); }
 }
 
 async function handleWhatsApp(request, env, cors) {
