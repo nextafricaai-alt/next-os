@@ -7132,6 +7132,22 @@ window.PEAK_ASKNEXT = (function () {
         D.kpis.feesCollectedTerm = (D.kpis.feesCollectedTerm || 0) + (p.amount || 0);
         notify();
       },
+      applyRemotePayment(rec) {
+        if (!rec) return;
+        const amt = Number(rec.amount) || 0;
+        const nm = (rec.student_name || '').toLowerCase();
+        const sObj = D.students.find(x => (x.name || '').toLowerCase() === nm);
+        if (sObj) {
+          if (rec.balance_after != null) sObj.balance = Number(rec.balance_after) || 0;
+          else sObj.balance = Math.max(0, (sObj.balance || 0) - amt);
+          sObj.fees = sObj.balance <= 0 ? 'paid' : (sObj.balance < 200000 ? 'partial' : 'overdue');
+          sObj.lastSeen = sObj.lastSeen;
+        }
+        D.kpis.feesCollectedTerm = (D.kpis.feesCollectedTerm || 0) + amt;
+        if (D.kpis.feesCollectedToday != null) D.kpis.feesCollectedToday += amt;
+        D.kpis.feesOutstandingStudents = D.students.filter(x => (x.balance || 0) > 0).length;
+        notify();
+      },
       markAttendance(updates) {
         // updates: [{ studentId, status: 'present'|'absent'|'late' }]
         let present = 0;
@@ -7192,6 +7208,31 @@ window.PEAK_ASKNEXT = (function () {
     useEffect(() => Store.subscribe(force), []);
   }
   window.peakStore = Store;
+
+  // ─── Real-time sync between OS users (bursar records payment -> head teacher notified, records update everywhere) ──
+  (function () {
+    function setup() {
+      const sess = window.NextSession; const sb = sess && sess.sb;
+      const prof = (window.PEAK_ROLE && window.PEAK_ROLE.getProfile && window.PEAK_ROLE.getProfile()) || null;
+      const tenant = prof && prof.tenantId;
+      const me = ((prof && (prof.fullName || prof.email)) || '').toLowerCase();
+      if (!sb || !tenant || !sb.channel) { setTimeout(setup, 700); return; }
+      try {
+        sb.channel('nx-pay-' + tenant)
+          .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'receipts', filter: 'tenant_id=eq.' + tenant }, function (payload) {
+            const rec = payload.new || {};
+            const by = (rec.issued_by || '').toLowerCase();
+            if (by && me && by === me) return; // my own payment — already applied locally
+            if (window.peakStore && window.peakStore.applyRemotePayment) window.peakStore.applyRemotePayment(rec);
+            const amt = Number(rec.amount) || 0;
+            const body = 'UGX ' + amt.toLocaleString() + (rec.balance_after != null ? (' \u00b7 balance now UGX ' + Number(rec.balance_after).toLocaleString()) : '') + ' \u00b7 by ' + (rec.issued_by || 'bursar');
+            window.peakToast && window.peakToast((rec.student_name || 'A student') + ' has paid', 'success', body);
+          })
+          .subscribe();
+      } catch (e) {}
+    }
+    if (document.readyState !== 'loading') setup(); else document.addEventListener('DOMContentLoaded', setup);
+  })();
 
   // ─── Live per-school KPIs: pull THIS tenant's real numbers from the worker ──
   (function () {
