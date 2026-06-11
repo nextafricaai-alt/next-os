@@ -232,6 +232,9 @@ export default {
     if (url.pathname === '/whatsapp') {
       return handleWhatsApp(request, env, cors);
     }
+    if (url.pathname === '/whatsapp/bulk') {
+      return handleWhatsAppBulk(request, env, cors);
+    }
 
     // ─── Route: /supervise — manually trigger an Always-On brief ─────────
     // Body: { kind: 'morning' | 'pulse' | 'weekly' }
@@ -367,6 +370,29 @@ async function handleAgent(request, env, cors) {
 // Requires two secrets set on the worker:
 //   wrangler secret put WHATSAPP_TOKEN --config sentinel-wrangler.toml
 //   wrangler secret put WHATSAPP_PHONE_ID --config sentinel-wrangler.toml
+async function handleWhatsAppBulk(request, env, cors) {
+  const J = (o, st) => new Response(JSON.stringify(o), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
+  const token = env.WHATSAPP_TOKEN, phoneId = env.WHATSAPP_PHONE_ID;
+  if (!token || !phoneId) return J({ error: 'WhatsApp Cloud API not configured on this worker.', hint: 'Set WHATSAPP_TOKEN + WHATSAPP_PHONE_ID (see WHATSAPP-SETUP.md), then bulk send works.' }, 200);
+  let b; try { b = await request.json(); } catch (e) { return J({ error: 'bad body' }, 400); }
+  const items = Array.isArray(b.items) ? b.items.slice(0, 200) : [];
+  if (!items.length) return J({ error: 'no items' }, 400);
+  let sent = 0, failed = 0; const errs = [];
+  for (const it of items) {
+    const to = String(it.to || '').replace(/[^0-9]/g, '');
+    if (!to || (!it.text && !it.template)) { failed++; continue; }
+    try {
+      const payload = it.template
+        ? { messaging_product: 'whatsapp', to: to, type: 'template', template: it.template }
+        : { messaging_product: 'whatsapp', to: to, type: 'text', text: { body: String(it.text) } };
+      const r = await fetch('https://graph.facebook.com/v20.0/' + phoneId + '/messages', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token }, body: JSON.stringify(payload) });
+      const d = await r.json();
+      if (r.ok) sent++; else { failed++; if (errs.length < 15) errs.push({ to: to, error: (d.error && d.error.message) || ('HTTP ' + r.status) }); }
+    } catch (e) { failed++; if (errs.length < 15) errs.push({ to: to, error: String((e && e.message) || e) }); }
+  }
+  return J({ ok: true, sent, failed, errors: errs });
+}
+
 async function handleWhatsApp(request, env, cors) {
   let body;
   try {
