@@ -5384,19 +5384,67 @@ You: "'We help you get more done with less stress.' Nine plain words beat the ja
   </script>
   <script type="text/babel">
 /* os-onboarding.jsx - School onboarding embedded in NEXT OS */
-window.OnboardingPage = function OnboardingPage() {
+window.OnboardingPage = function OnboardingPage(props) {
+  const onNavigate = props && props.onNavigate;
+  const VERTICALS = [
+    { id: 'schools',    icon: '\u{1F393}', name: 'Schools',            live: true,  desc: 'Students, fees, attendance, exams, reports \u2014 primary & secondary.' },
+    { id: 'hospitals',  icon: '\u{1F3E5}', name: 'Hospitals & Clinics', live: false, desc: 'Patients, appointments, records, billing, pharmacy, staff rota.' },
+    { id: 'companies',  icon: '\u{1F3E2}', name: 'Companies',           live: false, desc: 'HR, payroll, operations, projects, performance.' },
+    { id: 'businesses', icon: '\u{1F6D2}', name: 'Businesses & SMEs',   live: false, desc: 'Inventory, sales, customers, invoicing, cash flow.' },
+    { id: 'government', icon: '\u{1F3DB}', name: 'Government',          live: false, desc: 'Departments, citizens, services, records, workflows.' },
+    { id: 'ngos',       icon: '\u{1F91D}', name: 'NGOs',                live: false, desc: 'Beneficiaries, programs, donors, impact reporting.' },
+    { id: 'churches',   icon: '\u26EA',    name: 'Churches',            live: false, desc: 'Members, giving, events, cell groups, communication.' },
+  ];
+  const [sel, setSel] = React.useState('schools');
+  const cur = VERTICALS.find(v => v.id === sel) || VERTICALS[0];
   return (
     <div>
-      <div style={{ marginBottom: 16 }}>
+      <div style={{ marginBottom: 18 }}>
         <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 28, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
-          School <span style={{ color: 'var(--mint)' }}>Onboarding</span>
+          Onboarding <span style={{ color: 'var(--mint)' }}>a new organisation</span>
         </h1>
         <p style={{ fontSize: 14, color: 'var(--text-secondary)', margin: '6px 0 0' }}>
-          Nia rebrands the Schools OS prototype to a new school in minutes - name, colour, logo. Preview their login, then download their branded OS.
+          Pick the kind of organisation. Schools is live today; the other verticals are reserved and rolling out next.
         </p>
       </div>
-      <iframe src="school-onboarding.html" title="School Onboarding"
-        style={{ width: '100%', height: 'calc(100vh - 220px)', minHeight: 600, border: '1px solid var(--border-subtle)', borderRadius: 12, background: '#0a1029' }} />
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12, marginBottom: 22 }}>
+        {VERTICALS.map(v => (
+          <div key={v.id} onClick={() => setSel(v.id)} style={{
+            background: 'var(--bg-elevated)', border: '1px solid ' + (sel === v.id ? 'var(--mint)' : 'var(--border-subtle)'),
+            borderRadius: 'var(--radius-md)', padding: 16, cursor: 'pointer', position: 'relative', transition: 'border-color .15s',
+          }}>
+            <div style={{ fontSize: 24, marginBottom: 8 }}>{v.icon}</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>{v.name}</div>
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--text-tertiary)', lineHeight: 1.5, marginTop: 6 }}>{v.desc}</div>
+            <div style={{ marginTop: 10, fontSize: 9.5, fontFamily: 'var(--font-mono)', letterSpacing: 1, fontWeight: 700, color: v.live ? 'var(--mint)' : 'var(--text-tertiary)' }}>{v.live ? '\u25CF LIVE' : 'COMING SOON'}</div>
+          </div>
+        ))}
+      </div>
+
+      {sel === 'schools' ? (
+        <div>
+          <p style={{ fontSize: 13.5, color: 'var(--text-secondary)', margin: '0 0 12px' }}>
+            Nia rebrands the Schools OS to a new school in minutes \u2014 name, colour, logo. Preview their login, then hand over their branded OS.
+          </p>
+          <iframe src="school-onboarding.html" title="School Onboarding"
+            style={{ width: '100%', height: 'calc(100vh - 360px)', minHeight: 520, border: '1px solid var(--border-subtle)', borderRadius: 12, background: '#0a1029' }} />
+        </div>
+      ) : (
+        <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: 30, textAlign: 'center' }}>
+          <div style={{ fontSize: 40, marginBottom: 12 }}>{cur.icon}</div>
+          <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-primary)' }}>{cur.name} OS \u2014 coming soon</div>
+          <div style={{ fontSize: 14, color: 'var(--text-secondary)', margin: '10px auto 0', maxWidth: 540, lineHeight: 1.6 }}>
+            We build vertical operating systems one at a time, starting with Schools. The <b>{cur.name}</b> structure is reserved on NEXT \u2014 {cur.desc.toLowerCase()} When you have a real {cur.name.toLowerCase()} client, tell Nia and we'll prioritise building it.
+          </div>
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginTop: 20 }}>
+            <button onClick={() => onNavigate && onNavigate('talk')} style={{ background: 'var(--mint)', color: 'var(--text-inverse)', border: 'none', borderRadius: 'var(--radius-sm)', padding: '11px 20px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>Discuss this with Nia</button>
+            <button onClick={() => setSel('schools')} style={{ background: 'transparent', color: 'var(--text-secondary)', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-sm)', padding: '11px 20px', fontSize: 13, cursor: 'pointer' }}>Onboard a school instead</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
