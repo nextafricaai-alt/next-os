@@ -5,12 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#0a1029" />
   <title>Peak Primary · NEXT School OS — Prototype Spec</title>
-  <link rel="icon" type="image/png" href="assets/peak-logo.png" />
+  <link rel="icon" type="image/png" href="/prototypes/schools/peak-primary/assets/peak-logo.png" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="NEXT School OS" id="nx-apple-title" />
-  <link rel="apple-touch-icon" href="assets/peak-logo.png" id="nx-apple-icon" />
+  <link rel="apple-touch-icon" href="/prototypes/schools/peak-primary/assets/peak-logo.png" id="nx-apple-icon" />
   <script>
   (function () {
     try {
@@ -90,7 +90,7 @@
 
   <!-- Session guard — must run BEFORE React so unauthenticated users get bounced -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-  <script src="session-guard.js?v=3"></script>
+  <script src="/prototypes/schools/peak-primary/session-guard.js?v=4"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script>
   /* NextReceipts — real receipts: save to Supabase, branded PDF, WhatsApp send (free click-to-send). */
@@ -2682,7 +2682,7 @@ const V4 = (function () {
             background: '#fff', display: 'grid', placeItems: 'center', flexShrink: 0,
             boxShadow: '0 0 0 1px ' + T.borderStr,
           }}>
-            <img src="assets/peak-logo.png" alt="Peak" style={{ width: 32, height: 32, objectFit: 'contain' }} />
+            <img src="/prototypes/schools/peak-primary/assets/peak-logo.png" alt="Peak" style={{ width: 32, height: 32, objectFit: 'contain' }} />
           </div>
           <div style={{ lineHeight: 1.15, minWidth: 0 }}>
             <div style={{ fontSize: 14, fontWeight: 600, color: T.ink, letterSpacing: '-0.01em' }}>{(typeof window!=='undefined'&&window.__BRAND_NAME)||'Peak Primary'}</div>
@@ -3217,7 +3217,7 @@ const PD_Today = (function () {
         <div style={{
           width: 40, height: 40, borderRadius: 10, background: '#fff', display: 'grid', placeItems: 'center', marginBottom: 18,
         }}>
-          <img src="assets/peak-logo.png" alt="" style={{ width: 34, height: 34, objectFit: 'contain' }} />
+          <img src="/prototypes/schools/peak-primary/assets/peak-logo.png" alt="" style={{ width: 34, height: 34, objectFit: 'contain' }} />
         </div>
         {items.map(n => {
           const a = active === n.k;
@@ -3591,7 +3591,7 @@ const PD_Students = (function () {
         display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '14px 0', flexShrink: 0,
       }}>
         <div style={{ width: 40, height: 40, borderRadius: 10, background: '#fff', display: 'grid', placeItems: 'center', marginBottom: 18 }}>
-          <img src="assets/peak-logo.png" alt="" style={{ width: 34, height: 34, objectFit: 'contain' }} />
+          <img src="/prototypes/schools/peak-primary/assets/peak-logo.png" alt="" style={{ width: 34, height: 34, objectFit: 'contain' }} />
         </div>
         {items.map(n => {
           const a = active === n.k;
@@ -3934,7 +3934,7 @@ const PD_Profile = (function () {
         display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '14px 0', flexShrink: 0,
       }}>
         <div style={{ width: 40, height: 40, borderRadius: 10, background: '#fff', display: 'grid', placeItems: 'center', marginBottom: 18 }}>
-          <img src="assets/peak-logo.png" alt="" style={{ width: 34, height: 34, objectFit: 'contain' }} />
+          <img src="/prototypes/schools/peak-primary/assets/peak-logo.png" alt="" style={{ width: 34, height: 34, objectFit: 'contain' }} />
         </div>
         {items.map(n => {
           const a = active === n.k;
@@ -4310,7 +4310,7 @@ const PD_Fees = (function () {
         display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '14px 0', flexShrink: 0,
       }}>
         <div style={{ width: 40, height: 40, borderRadius: 10, background: '#fff', display: 'grid', placeItems: 'center', marginBottom: 18 }}>
-          <img src="assets/peak-logo.png" alt="" style={{ width: 34, height: 34, objectFit: 'contain' }} />
+          <img src="/prototypes/schools/peak-primary/assets/peak-logo.png" alt="" style={{ width: 34, height: 34, objectFit: 'contain' }} />
         </div>
         {items.map(n => {
           const a = active === n.k;
@@ -4636,7 +4636,7 @@ const PD_Broadcast = (function () {
         display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '14px 0', flexShrink: 0,
       }}>
         <div style={{ width: 40, height: 40, borderRadius: 10, background: '#fff', display: 'grid', placeItems: 'center', marginBottom: 18 }}>
-          <img src="assets/peak-logo.png" alt="" style={{ width: 34, height: 34, objectFit: 'contain' }} />
+          <img src="/prototypes/schools/peak-primary/assets/peak-logo.png" alt="" style={{ width: 34, height: 34, objectFit: 'contain' }} />
         </div>
         {items.map(n => {
           const a = active === n.k;
@@ -4905,7 +4905,7 @@ const PD_Broadcast = (function () {
                     {/* WA header */}
                     <div style={{ background: '#1f2c33', padding: '10px 12px', display: 'flex', alignItems: 'center', gap: 8 }}>
                       <div style={{ width: 30, height: 30, borderRadius: 999, background: '#fff', display: 'grid', placeItems: 'center' }}>
-                        <img src="assets/peak-logo.png" alt="" style={{ width: 24, height: 24, objectFit: 'contain' }} />
+                        <img src="/prototypes/schools/peak-primary/assets/peak-logo.png" alt="" style={{ width: 24, height: 24, objectFit: 'contain' }} />
                       </div>
                       <div style={{ lineHeight: 1.1, flex: 1 }}>
                         <div style={{ fontSize: 12, fontWeight: 600, color: '#fff' }}>{(typeof window!=='undefined'&&window.__BRAND_NAME)||'Peak Primary'}</div>
@@ -5023,7 +5023,7 @@ const PD_M = (function () {
           {/* header */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 22 }}>
             <div style={{ width: 38, height: 38, borderRadius: 10, background: '#fff', display: 'grid', placeItems: 'center', boxShadow: '0 0 0 1px ' + T.borderStr }}>
-              <img src="assets/peak-logo.png" alt="" style={{ width: 32, height: 32, objectFit: 'contain' }} />
+              <img src="/prototypes/schools/peak-primary/assets/peak-logo.png" alt="" style={{ width: 32, height: 32, objectFit: 'contain' }} />
             </div>
             <div style={{ lineHeight: 1.15, flex: 1 }}>
               <div style={{ fontSize: 13.5, fontWeight: 600 }}>{(typeof window!=='undefined'&&window.__BRAND_NAME)||'Peak Primary'}</div>
@@ -7746,7 +7746,7 @@ window.PEAK_SETUP = (function () {
             display: 'grid', placeItems: 'center', flexShrink: 0,
             boxShadow: '0 0 0 1px ' + T.borderStr,
           }}>
-            <img src="assets/peak-logo.png" alt="Peak" style={{ width: 32, height: 32, objectFit: 'contain' }} />
+            <img src="/prototypes/schools/peak-primary/assets/peak-logo.png" alt="Peak" style={{ width: 32, height: 32, objectFit: 'contain' }} />
           </div>
           <div style={{ lineHeight: 1.15, minWidth: 0 }}>
             <div style={{ fontSize: 14, fontWeight: 600, color: T.ink, letterSpacing: '-0.01em' }}>{(typeof window!=='undefined'&&window.__BRAND_NAME)||'Peak Primary'}</div>
