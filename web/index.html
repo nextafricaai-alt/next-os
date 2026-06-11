@@ -4339,8 +4339,10 @@ You: "'We help you get more done with less stress.' Nine plain words beat the ja
         if (_p.language && _p.language !== 'English') prefNote += '\n- Language: reply in ' + _p.language + ' when natural for the recipient.';
       } catch (e) {}
       const augmentedSystem = SYSTEM_PROMPT + brainSnippet + (prefNote ? ('\n\nUSER PREFERENCES (set in Nia HQ):' + prefNote) : '');
-      const _t = trimmed.toLowerCase().replace(/[!.,?'\u2019]/g, '').trim();
-      const convoOnly = _t.length <= 40 && /^(hi+|hey+|hello+|yo|sup|hiya|howdy|wassup|whats up|good\s*(morning|afternoon|evening|day|night)|how\s*(are|is|s)?\s*(you|u|it going|things|yourself)?|nice to meet you|thanks?|thank you|cheers|much appreciated|ok|okay|kk|cool|nice|great|awesome|lovely|perfect|lol+|haha+|hmm+|bye|goodbye|see you|gn|gm|test|testing|you there|are you there|who are you|what can you do|introduce yourself)$/.test(_t);
+      const _t = trimmed.toLowerCase();
+      // Tools are offered ONLY when the message references something a tool can do; everything else stays pure conversation.
+      const needsTools = /\b(fleet|tenant|tenants|school|schools|peak|st\.?\s*mary|grace|hope|community|next services|student|students|pupil|enrol|enroll|enrolment|attendance|present|absent|register|fee|fees|pay|payment|paid|receipt|overdue|balance|arrears|money|revenue|finance|expense|expenses|profit|surplus|asset|analytics|traffic|visitor|visitors|pageview|seo|keyword|keywords|rank|ranking|search console|ga4|google|domain|expire|expiry|uptime|down|offline|whatsapp|message|messages|broadcast|draft|send|notify|reminder|remind|check|audit|report|reports|exam|exams|marks|grade|grading|division|teacher|teachers|staff|sick|health|project|projects|site|website|deploy|publish)\b/.test(_t);
+      const convoOnly = !needsTools;
       try {
         let apiMessages = convo.map(m => ({ role: m.role, content: m.apiContent !== undefined ? m.apiContent : m.content }));
         for (let loop = 0; loop < TOOL_LOOP_MAX; loop++) {
