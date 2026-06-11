@@ -113,11 +113,13 @@ function showResult(d){
   $('empty').style.display='none';
   const res=$('result'); res.className='result show';
   res.innerHTML=
-    '<div class="kv"><b style="font-size:18px;font-family:Big Shoulders Display,sans-serif">'+esc(d.name)+'</b> — live ✓</div>'+
-    '<div class="tag" style="margin-top:8px">Share this with the head teacher</div>'+
-    '<div class="linkbox" id="lnk">'+esc(d.loginUrl)+'</div>'+
-    '<button class="copy" data-c="'+esc(d.loginUrl)+'">Copy link</button> '+
-    '<button class="copy" id="openLogin">Open branded login</button>'+
+    '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><span style="width:22px;height:22px;border-radius:6px;background:var(--mint);color:#062b18;display:grid;place-items:center;font-family:JetBrains Mono,monospace;font-size:11px;font-weight:700">N</span><span style="font-size:12px;color:var(--ink3);font-family:JetBrains Mono,monospace">NIA</span></div>'+
+    '<div class="kv"><b style="font-size:18px;font-family:Big Shoulders Display,sans-serif">'+esc(d.name)+'</b> is provisioned and live ✓</div>'+
+    '<div style="font-size:13px;color:var(--ink2);margin:6px 0 12px">Here\'s the short link to share with the head teacher — it opens their own branded login. No long URLs.</div>'+
+    '<div class="tag">SHAREABLE LINK</div>'+
+    '<div class="linkbox" id="lnk" style="font-size:15px;font-weight:600">'+esc(d.loginUrl)+'</div>'+
+    '<button class="copy" data-c="'+esc(d.loginUrl)+'" style="background:var(--mint);color:#062b18;border:none;font-weight:700">Copy share link</button> '+
+    '<button class="copy" id="openLogin">Open it</button>'+
     '<div class="kv" style="margin-top:14px"><b>Head teacher email:</b> '+esc(d.adminEmail)+'</div>'+
     (d.tempPassword?('<div class="kv"><b>Temp password:</b> <span style="font-family:JetBrains Mono,monospace">'+esc(d.tempPassword)+'</span> <button class="copy" data-c="'+esc(d.tempPassword)+'">Copy</button></div>'):'')+
     '<div class="hint" style="margin-top:8px">'+esc(d.note||'')+'</div>'+
