@@ -2049,7 +2049,8 @@
     if (!t) return '';
     return t.slice(0, 5);
   };
-  const STREAMS = ['P1V','P1P','P2V','P2P','P3V','P3P','P4V','P4P','P5V','P5P','P6V','P6P','P7V','P7P'];
+  function getTimetableStreams() { var c = (window.SCHOOL_CONFIG && window.SCHOOL_CONFIG.classes) || []; return (c && c.length) ? c : ['P1V','P1P','P2V','P2P','P3V','P3P','P4V','P4P','P5V','P5P','P6V','P6P','P7V','P7P']; }
+  const STREAMS = getTimetableStreams();
 
   async function loadTimetable(tenantId) {
     const sb = window.NextSession?.sb;
@@ -2283,7 +2284,7 @@
                     color: T.ink3, textAlign: 'left', width: 110,
                     borderBottom: '1px solid ' + T.border,
                   }}>PERIOD</th>
-                  {STREAMS.map(s => (
+                  {getTimetableStreams().map(s => (
                     <th key={s} style={{
                       padding: '14px 6px', background: T.surface2,
                       fontSize: 10.5, fontFamily: T.mono, letterSpacing: 1,
@@ -7455,15 +7456,29 @@ window.PEAK_SETUP = (function () {
       { name: 'PCM', subjects: ['Physics', 'Chemistry', 'Mathematics'] }, { name: 'PCB', subjects: ['Physics', 'Chemistry', 'Biology'] }, { name: 'BCM', subjects: ['Biology', 'Chemistry', 'Mathematics'] },
       { name: 'PEM', subjects: ['Physics', 'Economics', 'Mathematics'] }, { name: 'HEG', subjects: ['History', 'Economics', 'Geography'] }, { name: 'MEG', subjects: ['Mathematics', 'Economics', 'Geography'] }, { name: 'HEL', subjects: ['History', 'Economics', 'Literature'] },
     ] },
+    tertiary: { classes: ['Year 1', 'Year 2', 'Year 3', 'Year 4'], subjects: ['Communication Skills', 'ICT', 'Research Methods', 'Mathematics', 'Entrepreneurship'], combinations: [] },
   };
+
+  const VOCAB = {
+    primary:   { unit: 'Class', units: 'Classes', stream: 'Stream', sub: 'Subject', subs: 'Subjects', staff: 'Teacher', term: 'Term', learner: 'Pupil' },
+    secondary: { unit: 'Class', units: 'Classes', stream: 'Stream', sub: 'Subject', subs: 'Subjects', staff: 'Teacher', term: 'Term', learner: 'Student' },
+    tertiary:  { unit: 'Year',  units: 'Years',   stream: 'Group',  sub: 'Course',  subs: 'Courses',  staff: 'Lecturer', term: 'Semester', learner: 'Student' },
+  };
+  function vocabFor(t) { return VOCAB[t] || VOCAB.primary; }
+  function detectLevel(name) {
+    const n = String(name || '').toLowerCase();
+    if (/universit|college|polytechnic|\binstitute\b|tertiary|campus|\bvocational\b/.test(n)) return 'tertiary';
+    if (/secondary|\bhigh\b|seminary|\bs\.?s\.?s?\b|o.?level|a.?level/.test(n)) return 'secondary';
+    return 'primary';
+  }
 
   // ── live config (read by student form, exams, etc.) ──
   if (!window.SCHOOL_CONFIG) {
-    window.SCHOOL_CONFIG = { type: 'primary', classes: PRESETS.primary.classes.slice(), subjects: PRESETS.primary.subjects.slice(), combinations: [], loaded: false };
+    window.SCHOOL_CONFIG = { type: 'primary', classes: PRESETS.primary.classes.slice(), subjects: PRESETS.primary.subjects.slice(), combinations: [], vocab: vocabFor('primary'), loaded: false };
     (function () {
       function go() {
         fetch(WK + '/school-config?tenant=' + encodeURIComponent(tenant())).then(function (r) { return r.json(); }).then(function (d) {
-          if (d && d.config) { const c = d.config; window.SCHOOL_CONFIG = { type: c.type || 'primary', classes: (c.classes && c.classes.length ? c.classes : window.SCHOOL_CONFIG.classes), subjects: (c.subjects && c.subjects.length ? c.subjects : window.SCHOOL_CONFIG.subjects), combinations: c.combinations || [], loaded: true }; }
+          if (d && d.config) { const c = d.config; window.SCHOOL_CONFIG = { type: c.type || 'primary', classes: (c.classes && c.classes.length ? c.classes : window.SCHOOL_CONFIG.classes), subjects: (c.subjects && c.subjects.length ? c.subjects : window.SCHOOL_CONFIG.subjects), combinations: c.combinations || [], vocab: vocabFor(c.type || 'primary'), loaded: true }; }
           else { window.SCHOOL_CONFIG.loaded = true; }
         }).catch(function () { window.SCHOOL_CONFIG.loaded = true; });
       }
@@ -7488,7 +7503,7 @@ window.PEAK_SETUP = (function () {
       const comboArr = combos.split('\n').map(l => l.trim()).filter(Boolean).map(l => { const m = l.split(':'); return { name: (m[0] || '').trim(), subjects: (m[1] || '').split(',').map(x => x.trim()).filter(Boolean), classes: ['S5', 'S6'] }; }).filter(c => c.name);
       const config = { type, classes: classesArr, subjects: subjArr, combinations: comboArr };
       fetch(WK + '/school-config/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tenant_id: tenant(), config }) })
-        .then(r => r.json()).then(res => { setBusy(false); if (res.error) { window.peakToast && window.peakToast('Could not save', 'info', res.error); return; } window.SCHOOL_CONFIG = Object.assign({}, config, { loaded: true }); window.peakToast && window.peakToast('School setup saved', 'success', type === 'secondary' ? 'Secondary structure applied (S1–S6 + combinations).' : 'Primary structure applied.'); }).catch(() => setBusy(false));
+        .then(r => r.json()).then(res => { setBusy(false); if (res.error) { window.peakToast && window.peakToast('Could not save', 'info', res.error); return; } window.SCHOOL_CONFIG = Object.assign({}, config, { vocab: vocabFor(type), loaded: true }); window.peakToast && window.peakToast('School setup saved', 'success', type === 'tertiary' ? 'University structure applied (Year 1–4 · courses · semesters).' : (type === 'secondary' ? 'Secondary structure applied (S1–S6 + combinations).' : 'Primary structure applied.')); }).catch(() => setBusy(false));
     };
 
     const card = { background: T.surface, border: '1px solid ' + T.border, borderRadius: 12, padding: 20, marginBottom: 16 };
@@ -7500,27 +7515,27 @@ window.PEAK_SETUP = (function () {
         <div style={{ marginBottom: 22 }}>
           <div style={{ fontSize: 11, color: T.ink3, fontFamily: T.mono, letterSpacing: '0.08em', fontWeight: 600, marginBottom: 8 }}>SCHOOL SETUP</div>
           <div style={{ fontSize: 26, fontWeight: 700, letterSpacing: '-0.02em' }}>How your school is structured</div>
-          <div style={{ fontSize: 14, color: T.ink3, marginTop: 6, maxWidth: 620 }}>Tell the OS whether you're primary or secondary. This sets the classes, subjects and (for secondary) the A-Level combinations used in students, exams and reports.</div>
+          <div style={{ fontSize: 14, color: T.ink3, marginTop: 6, maxWidth: 620 }}>Tell the OS whether you're a primary school, secondary school, or university/college. This sets the right year/class structure, the words the OS uses (e.g. courses & lecturers for tertiary), and the exam scheme — so you never see a P5 in a college.</div>
         </div>
 
         <div style={{ ...card }}>
           <div style={lbl}>SCHOOL TYPE</div>
-          <div style={{ display: 'flex', gap: 10 }}>
-            {[['primary', 'Primary (P1–P7 · PLE)'], ['secondary', 'Secondary (S1–S6 · UCE + UACE)']].map(o => (
-              <button key={o[0]} onClick={() => applyPreset(o[0])} style={{ flex: 1, textAlign: 'left', padding: '14px 16px', borderRadius: 10, border: '1px solid ' + (type === o[0] ? T.red : T.border), background: type === o[0] ? 'rgba(255,255,255,0.03)' : 'transparent', color: T.ink, cursor: 'pointer' }}>
-                <div style={{ fontSize: 14, fontWeight: 700 }}>{o[0] === 'primary' ? 'Primary' : 'Secondary'}</div>
-                <div style={{ fontSize: 12, color: T.ink3, marginTop: 3 }}>{o[1]}</div>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            {[['primary', 'Primary', 'P1–P7 · PLE'], ['secondary', 'Secondary', 'S1–S6 · UCE + UACE'], ['tertiary', 'University / College', 'Year 1–4 · courses & semesters']].map(o => (
+              <button key={o[0]} onClick={() => applyPreset(o[0])} style={{ flex: '1 1 30%', minWidth: 150, textAlign: 'left', padding: '14px 16px', borderRadius: 10, border: '1px solid ' + (type === o[0] ? T.red : T.border), background: type === o[0] ? 'rgba(255,255,255,0.03)' : 'transparent', color: T.ink, cursor: 'pointer' }}>
+                <div style={{ fontSize: 14, fontWeight: 700 }}>{o[1]}</div>
+                <div style={{ fontSize: 12, color: T.ink3, marginTop: 3 }}>{o[2]}</div>
               </button>
             ))}
           </div>
         </div>
 
         <div style={{ ...card }}>
-          <div style={lbl}>CLASSES / STREAMS <span style={{ color: T.ink4 }}>· comma or new line</span></div>
+          <div style={lbl}>{(type === 'tertiary' ? 'YEAR GROUPS / PROGRAMMES' : 'CLASSES / STREAMS')} <span style={{ color: T.ink4 }}>· comma or new line</span></div>
           <textarea style={ta} value={classes} onChange={e => setClasses(e.target.value)} />
         </div>
         <div style={{ ...card }}>
-          <div style={lbl}>SUBJECTS <span style={{ color: T.ink4 }}>· comma or new line</span></div>
+          <div style={lbl}>{(type === 'tertiary' ? 'COURSES' : 'SUBJECTS')} <span style={{ color: T.ink4 }}>· comma or new line</span></div>
           <textarea style={ta} value={subjects} onChange={e => setSubjects(e.target.value)} />
         </div>
         {type === 'secondary' && (
@@ -7533,7 +7548,7 @@ window.PEAK_SETUP = (function () {
       </div>
     );
   }
-  return { Setup };
+  return { Setup, detectLevel: detectLevel, vocabFor: vocabFor, PRESETS: PRESETS };
 })();
   </script>
 
