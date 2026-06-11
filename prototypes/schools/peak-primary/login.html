@@ -184,7 +184,7 @@
       if (!session) return; // no session -> show the login form (the normal client flow)
       var want = new URLSearchParams(location.search).get('t') || new URLSearchParams(location.search).get('s') || (location.pathname.match(/\/s\/([A-Za-z0-9_-]+)/)||[])[1];
       var prof = null; try { prof = JSON.parse(localStorage.getItem('nextos.profile')||'null'); } catch(e){}
-      if (!want || (prof && prof.tenantId === want)) { window.location.href = '/prototypes/schools/peak-primary/index.html'; return; }
+      if (!want || (prof && prof.tenantId === want)) { try { sessionStorage.setItem('nextos.welcome', '1'); } catch (e) {} window.location.href = '/prototypes/schools/peak-primary/index.html'; return; }
       try { await sb.auth.signOut(); localStorage.removeItem('nextos.profile'); } catch(e){}
     })();
 
@@ -246,6 +246,7 @@
         try { const { data: _t } = await sb.from('tenants').select('name, primary_color').eq('id', userRow.tenant_id).single(); if (_t) _brand = { name: _t.name, color: _t.primary_color }; } catch(e){}
         try { localStorage.setItem('nextos.brand', JSON.stringify(_brand)); } catch(e){}
         try { if (window.nxTrack) window.nxTrack('signin', 'school:' + userRow.tenant_id); } catch (e) {}
+        try { sessionStorage.setItem('nextos.welcome', '1'); } catch (e) {}
         window.location.href = '/prototypes/schools/peak-primary/index.html';
       } catch (err) {
         showError(err.message || 'Sign-in failed. Check your email and password.');

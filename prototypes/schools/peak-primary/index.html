@@ -8033,5 +8033,32 @@ window.PEAK_ASKNEXT = (function () {
     if(document.readyState!=='loading') init(); else document.addEventListener('DOMContentLoaded', init);
   })();
   </script>
+  <script>
+  (function () {
+    function roleLabel(r) { r = (r || '').toLowerCase(); return ({ head: 'Head Teacher', teacher: 'Teacher', bursar: 'Bursar', admin: 'Administrator', director: 'Director' })[r] || ''; }
+    function brand() { try { var b = JSON.parse(localStorage.getItem('nextos.brand') || 'null'); if (b && b.name) return b; } catch (e) {} return { name: (window.__BRAND_NAME) || 'your school', color: '#00fc8f' }; }
+    function show() {
+      try { if (sessionStorage.getItem('nextos.welcome') !== '1') return; } catch (e) { return; }
+      try { sessionStorage.removeItem('nextos.welcome'); } catch (e) {}
+      var prof = (window.PEAK_ROLE && window.PEAK_ROLE.getProfile && window.PEAK_ROLE.getProfile()) || {};
+      var first = (prof.fullName ? String(prof.fullName).split(' ')[0] : '');
+      var role = roleLabel(prof.role);
+      var b = brand(); var school = b.name; var color = b.color || '#00fc8f';
+      var line = 'Welcome' + (role ? (' ' + role) : '') + (first ? (' ' + first) : '');
+      var ov = document.createElement('div');
+      ov.style.cssText = 'position:fixed;inset:0;z-index:100000;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px;background:radial-gradient(circle at 50% 35%,#0f1f3a,#05080f);opacity:0;transition:opacity .5s ease;font-family:Inter,system-ui,sans-serif';
+      ov.innerHTML = '<div style="font-family:ui-monospace,monospace;letter-spacing:4px;color:' + color + ';font-size:12px;margin-bottom:18px">' + String(school).toUpperCase() + ' \u00b7 NEXT SCHOOL OS</div>'
+        + '<div style="font-size:42px;font-weight:800;color:#eef1fb;line-height:1.12;max-width:720px">' + line + '</div>'
+        + '<div style="font-size:21px;color:#aab2d5;margin-top:12px">to ' + school + ' OS</div>'
+        + '<div style="margin-top:28px;width:160px;height:3px;border-radius:3px;background:#1a2342;overflow:hidden"><div id="nxwb" style="height:100%;width:0;background:' + color + ';transition:width 2.1s linear"></div></div>';
+      document.body.appendChild(ov);
+      requestAnimationFrame(function () { ov.style.opacity = '1'; var w = document.getElementById('nxwb'); if (w) w.style.width = '100%'; });
+      setTimeout(function () { ov.style.opacity = '0'; }, 2300);
+      setTimeout(function () { if (ov.parentNode) ov.parentNode.removeChild(ov); }, 2900);
+    }
+    var tries = 0;
+    (function wait() { tries++; var ready = (window.PEAK_ROLE && window.PEAK_ROLE.getProfile && window.PEAK_ROLE.getProfile() && window.PEAK_ROLE.getProfile().fullName); if (ready || tries > 25) show(); else setTimeout(wait, 160); })();
+  })();
+  </script>
 </body>
 </html>
