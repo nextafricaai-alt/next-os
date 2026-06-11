@@ -5626,9 +5626,27 @@ window.OnboardingPage = function OnboardingPage(props) {
     const btn = (p) => ({ background: p ? 'var(--mint)' : 'transparent', color: p ? 'var(--text-inverse)' : 'var(--text-secondary)', border: p ? 'none' : '1px solid var(--border-default)', borderRadius: 'var(--radius-sm)', padding: '10px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer' });
 
     const save = () => {
-      if (!form.amount) return; setBusy(true);
-      fetch(WK + '/os-data/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind: 'finance', record: form }) })
+      setBusy(true);
+      const id = form._id; const rec = Object.assign({}, form); delete rec._id;
+      fetch(WK + '/os-data/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind: 'finance', record: rec, id: id }) })
         .then(r => r.json()).then(res => { setBusy(false); if (res.error) { alert(res.error); return; } setForm(null); reload(); }).catch(() => setBusy(false));
+    };
+    const seedFromPortfolio = () => {
+      const projs = (window.PROJECT_DATA || []);
+      const existing = new Set(rows.map(r => (r.label || '').toLowerCase()));
+      const toAdd = []; const seenDom = {};
+      projs.forEach(p => { if (p.domain && !seenDom[p.domain]) { seenDom[p.domain] = p; } });
+      Object.keys(seenDom).forEach(dom => { const p = seenDom[dom];
+        if (!existing.has((dom + ' domain').toLowerCase())) toAdd.push({ type: 'cost', category: 'Domain', label: dom + ' domain', party: p.client || p.name, frequency: 'Annual', amount: 0 });
+        if (!existing.has((dom + ' hosting').toLowerCase())) toAdd.push({ type: 'cost', category: 'Hosting', label: dom + ' hosting', party: p.client || p.name, frequency: 'Monthly', amount: 0 });
+      });
+      projs.forEach(p => {
+        if (p.kind === 'website' && !existing.has((p.name + ' maintenance').toLowerCase())) toAdd.push({ type: 'income', category: 'Website maintenance', label: p.name + ' maintenance', party: p.client || p.name, frequency: 'Monthly', amount: 0 });
+        if (p.kind === 'os' && !existing.has((p.name + ' subscription').toLowerCase())) toAdd.push({ type: 'income', category: 'OS revenue', label: p.name + ' subscription', party: p.client || p.name, frequency: 'Monthly', amount: 0 });
+      });
+      if (!toAdd.length) { alert('Already seeded from your portfolio. Click any row to edit its amount.'); return; }
+      setBusy(true);
+      Promise.all(toAdd.map(rec => fetch(WK + '/os-data/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind: 'finance', record: rec }) }))).then(() => { setBusy(false); reload(); }).catch(() => setBusy(false));
     };
     const statement = () => {
       const J = window.jspdf && window.jspdf.jsPDF; if (!J) { alert('Report engine loading — try again.'); return; }
@@ -5665,6 +5683,7 @@ window.OnboardingPage = function OnboardingPage(props) {
           <div style={{ display: 'flex', gap: 8 }}>
             <button style={btn(false)} onClick={() => setForm({ type: 'income', category: INCOME_CATS[0], frequency: 'Monthly' })}>+ Income</button>
             <button style={btn(false)} onClick={() => setForm({ type: 'cost', category: COST_CATS[0], frequency: 'Monthly' })}>+ Cost</button>
+            <button style={btn(false)} onClick={seedFromPortfolio} disabled={busy}>Seed from portfolio</button>
             <button style={btn(true)} onClick={statement}>Print statement</button>
           </div>
         </div>
@@ -5685,7 +5704,7 @@ window.OnboardingPage = function OnboardingPage(props) {
               <div style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                   <thead><tr style={{ borderBottom: '1px solid var(--border-default)' }}>{['Category', 'Item', 'Party', 'Amount', 'Frequency', 'Per month'].map((h, i) => <th key={i} style={{ textAlign: i > 2 ? 'right' : 'left', padding: '7px 8px', fontSize: 10.5, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>{h}</th>)}</tr></thead>
-                  <tbody>{grp[1].map((r, i) => (<tr key={i} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+                  <tbody>{grp[1].map((r, i) => (<tr key={i} onClick={() => setForm(Object.assign({}, r))} style={{ borderBottom: '1px solid var(--border-subtle)', cursor: 'pointer' }}>
                     <td style={{ padding: '9px 8px', color: 'var(--text-secondary)' }}>{r.category}</td>
                     <td style={{ padding: '9px 8px', color: 'var(--text-primary)', fontWeight: 600 }}>{r.label || '—'}</td>
                     <td style={{ padding: '9px 8px', color: 'var(--text-secondary)' }}>{r.party || '—'}</td>
@@ -5702,7 +5721,7 @@ window.OnboardingPage = function OnboardingPage(props) {
         {form && (
           <div onClick={() => setForm(null)} style={{ position: 'fixed', inset: 0, zIndex: 9000, background: 'rgba(5,8,22,0.7)', backdropFilter: 'blur(6px)', display: 'grid', placeItems: 'center', padding: 20 }}>
             <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 460, background: 'var(--bg-elevated)', border: '1px solid var(--border-default)', borderRadius: 16, padding: 22 }}>
-              <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 16 }}>{form.type === 'income' ? 'Add income' : 'Add cost'}</div>
+              <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 16 }}>{(form._id ? 'Edit ' : 'Add ') + (form.type === 'income' ? 'income' : 'cost')}</div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 <label><div style={{ fontSize: 11, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', marginBottom: 5 }}>CATEGORY</div>
                   <select style={inp} value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))}>{(form.type === 'income' ? INCOME_CATS : COST_CATS).map(c => <option key={c} value={c}>{c}</option>)}</select></label>
