@@ -1607,6 +1607,7 @@
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))', gap: 20 }}>
               <CheckInCard teacher={data.teacher} checkin={data.checkin} onCheckedIn={onCheckedIn} onCheckedOut={onCheckedOut} profile={profile} />
+              <MyTasksCard profile={profile} />
               <NiaCoachCard
                 data={{ teacher: data.teacher, assignments: data.assignments, rollCalls: data.rollCalls || [], checkin: data.checkin, healthRecords: data.healthRecords || [] }}
                 onTakeRollCall={setRollCallStream}
@@ -1654,6 +1655,60 @@
             profile={profile}
           />
         )}
+      </div>
+    );
+  }
+
+  function MyTasksCard({ profile }) {
+    const WK = 'https://nextos-sentinel.nextafricaai.workers.dev';
+    const email = ((profile && profile.email) || '').toLowerCase();
+    const tenantId = (profile && profile.tenantId) || 'peak-primary';
+    const [tasks, setTasks] = useState(null);
+    const [busyId, setBusyId] = useState(null);
+    const load = useCallback(() => {
+      fetch(WK + '/os-data?kind=staff_task&tenant=' + encodeURIComponent(tenantId)).then(r => r.json()).then(d => {
+        const rows = ((d && d.records) || []).map(x => Object.assign({ _id: x.id }, x.payload));
+        const mine = rows.filter(t => (t.emails || []).map(e => String(e).toLowerCase()).indexOf(email) >= 0).sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
+        setTasks(mine);
+      }).catch(() => setTasks([]));
+    }, [email, tenantId]);
+    useEffect(() => { load(); }, [load]);
+    const markDone = (t) => {
+      setBusyId(t._id);
+      const done = Object.assign({}, t.done || {}); done[email] = true;
+      const rec = Object.assign({}, t); delete rec._id; rec.done = done;
+      fetch(WK + '/os-data/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind: 'staff_task', tenant: tenantId, record: rec, id: t._id }) })
+        .then(r => r.json()).then(() => { setBusyId(null); load(); }).catch(() => setBusyId(null));
+    };
+    const open = (tasks || []).filter(t => !(t.done || {})[email]);
+    const doneList = (tasks || []).filter(t => (t.done || {})[email]);
+    return (
+      <div style={{ background: T.surface, border: '1px solid ' + T.border, borderRadius: 14, padding: 22 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+          <div style={{ fontSize: 12, fontFamily: T.mono, letterSpacing: 0.8, color: T.ink3 }}>MY TASKS</div>
+          {open.length > 0 && <div style={{ background: T.red, color: '#fff', borderRadius: 999, padding: '2px 9px', fontSize: 11.5, fontWeight: 700 }}>{open.length} to do</div>}
+        </div>
+        {tasks === null ? <div style={{ color: T.ink3, fontSize: 12.5 }}>Loading…</div> :
+          (open.length === 0 && doneList.length === 0) ? <div style={{ color: T.ink3, fontSize: 13 }}>No tasks assigned to you. The head teacher's tasks will show up here.</div> : (
+            <div style={{ display: 'grid', gap: 10 }}>
+              {open.map((t, i) => (
+                <div key={i} style={{ border: '1px solid ' + T.border, borderRadius: 10, padding: '12px 14px' }}>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: T.ink }}>{t.title}</div>
+                  {t.details && <div style={{ fontSize: 12.5, color: T.ink2, marginTop: 4 }}>{t.details}</div>}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 10 }}>
+                    <div style={{ fontSize: 11.5, color: T.ink3 }}>{t.due ? 'Due ' + t.due : 'No due date'}</div>
+                    <button onClick={() => markDone(t)} disabled={busyId === t._id} style={{ background: T.good, color: '#04210f', border: 'none', borderRadius: 8, padding: '6px 13px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>{busyId === t._id ? '…' : 'Mark done'}</button>
+                  </div>
+                </div>
+              ))}
+              {doneList.map((t, i) => (
+                <div key={'d' + i} style={{ border: '1px solid ' + T.border, borderRadius: 10, padding: '10px 14px', opacity: 0.6 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: T.ink2, textDecoration: 'line-through' }}>{t.title}</div>
+                  <div style={{ fontSize: 11, color: T.good, marginTop: 2 }}>✓ Done</div>
+                </div>
+              ))}
+            </div>
+          )}
       </div>
     );
   }
@@ -7552,6 +7607,315 @@ window.PEAK_SETUP = (function () {
 })();
   </script>
 
+  <script type="text/babel" data-src="src/peak-staff.jsx">
+/* PEAK_STAFF — staff layer: real teacher logins, custom + auto groups, head→teacher tasks. Email is the stable key. */
+window.PEAK_STAFF = (function () {
+  const { useState, useEffect, useCallback } = React;
+  const T = window.V4.T;
+  const WK = 'https://nextos-sentinel.nextafricaai.workers.dev';
+  function prof() { return (window.PEAK_ROLE && window.PEAK_ROLE.getProfile && window.PEAK_ROLE.getProfile()) || { tenantId: 'peak-primary' }; }
+  function tenant() { return prof().tenantId || 'peak-primary'; }
+  async function headToken() { try { const sb = window.NextSession && window.NextSession.sb; if (!sb) return ''; const { data } = await sb.auth.getSession(); return (data && data.session && data.session.access_token) || ''; } catch (e) { return ''; } }
+  const classesNow = () => ((window.SCHOOL_CONFIG && window.SCHOOL_CONFIG.classes) || []);
+  const vocab = () => ((window.SCHOOL_CONFIG && window.SCHOOL_CONFIG.vocab) || { staff: 'Teacher', sub: 'Subject', unit: 'Class' });
+
+  const card = { background: T.surface, border: '1px solid ' + T.border, borderRadius: 12, padding: 18 };
+  const inp = { width: '100%', background: T.bg, border: '1px solid ' + T.border, borderRadius: 9, padding: '10px 12px', fontSize: 13, color: T.ink, fontFamily: T.font, outline: 'none' };
+  const lbl = { fontSize: 11, color: T.ink3, fontFamily: T.mono, letterSpacing: '0.04em', marginBottom: 6 };
+  const btnP = { background: T.red, color: '#fff', border: 'none', borderRadius: 9, padding: '10px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer' };
+  const btnG = { background: 'transparent', border: '1px solid ' + T.border, color: T.ink2, borderRadius: 9, padding: '9px 14px', fontSize: 12.5, cursor: 'pointer' };
+
+  function osGet(kind) { return fetch(WK + '/os-data?kind=' + kind + '&tenant=' + encodeURIComponent(tenant())).then(r => r.json()).then(d => (d && d.records) || []).catch(() => []); }
+  function osSave(kind, record, id) { return fetch(WK + '/os-data/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(id ? { kind, tenant: tenant(), record, id } : { kind, tenant: tenant(), record }) }).then(r => r.json()).catch(e => ({ error: String(e && e.message || e) })); }
+
+  function Staff() {
+    const [tab, setTab] = useState('roster');
+    const [teachers, setTeachers] = useState([]);
+    const [groups, setGroups] = useState([]);
+    const [meta, setMeta] = useState({});      // email -> {classes:[]}
+    const [tasks, setTasks] = useState([]);
+    const [loading, setLoading] = useState(true);
+
+    const loadTeachers = useCallback(() => fetch(WK + '/teachers?tenant=' + encodeURIComponent(tenant())).then(r => r.json()).then(d => setTeachers((d && d.teachers) || [])).catch(() => {}), []);
+    const loadGroups = useCallback(() => osGet('staff_group').then(rs => setGroups(rs.map(x => Object.assign({ _id: x.id }, x.payload)))), []);
+    const loadMeta = useCallback(() => osGet('staff_meta').then(rs => { const m = {}; rs.forEach(x => { const p = x.payload || {}; if (p.email) m[p.email.toLowerCase()] = { _id: x.id, classes: p.classes || [] }; }); setMeta(m); }), []);
+    const loadTasks = useCallback(() => osGet('staff_task').then(rs => setTasks(rs.map(x => Object.assign({ _id: x.id }, x.payload)).sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || ''))))), []);
+    useEffect(() => { Promise.all([loadTeachers(), loadGroups(), loadMeta(), loadTasks()]).then(() => setLoading(false)); }, [loadTeachers, loadGroups, loadMeta, loadTasks]);
+
+    const tabBtn = (k, label) => <button onClick={() => setTab(k)} style={{ background: tab === k ? T.surface : 'transparent', color: tab === k ? T.ink : T.ink3, border: '1px solid ' + (tab === k ? T.border : 'transparent'), borderRadius: 9, padding: '8px 14px', fontSize: 13, fontWeight: tab === k ? 700 : 500, cursor: 'pointer' }}>{label}</button>;
+
+    return (
+      <div style={{ height: '100%', overflow: 'auto', background: T.bg, color: T.ink, fontFamily: T.font, fontSize: 13, padding: '26px 30px 60px' }}>
+        <div style={{ marginBottom: 18 }}>
+          <div style={{ fontSize: 11, color: T.ink3, fontFamily: T.mono, letterSpacing: '0.08em', fontWeight: 600, marginBottom: 8 }}>STAFF</div>
+          <div style={{ fontSize: 26, fontWeight: 700, letterSpacing: '-0.02em' }}>{vocab().staff}s &amp; tasks</div>
+          <div style={{ fontSize: 14, color: T.ink3, marginTop: 6, maxWidth: 640 }}>Give each {vocab().staff.toLowerCase()} their own login, organise them into groups, and assign tasks — to one person, a group, or everyone.</div>
+        </div>
+        <div style={{ display: 'flex', gap: 6, marginBottom: 18, flexWrap: 'wrap' }}>
+          {tabBtn('roster', 'Roster (' + teachers.length + ')')}
+          {tabBtn('groups', 'Groups (' + groups.length + ')')}
+          {tabBtn('tasks', 'Tasks (' + tasks.length + ')')}
+        </div>
+        {loading ? <div style={{ color: T.ink3 }}>Loading staff…</div> : (
+          <div>
+            {tab === 'roster' && <Roster teachers={teachers} meta={meta} reload={() => { loadTeachers(); loadMeta(); }} />}
+            {tab === 'groups' && <Groups teachers={teachers} groups={groups} reload={loadGroups} />}
+            {tab === 'tasks' && <Tasks teachers={teachers} groups={groups} meta={meta} tasks={tasks} reload={loadTasks} />}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  /* ---- Roster ---- */
+  function Roster({ teachers, meta, reload }) {
+    const [adding, setAdding] = useState(false);
+    return (
+      <div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+          <div style={{ fontSize: 12.5, color: T.ink3 }}>{teachers.length} on staff · {teachers.filter(t => t.user_id).length} with a login</div>
+          <button onClick={() => setAdding(true)} style={btnP}>+ Add {vocab().staff.toLowerCase()}</button>
+        </div>
+        <div style={card}>
+          {teachers.length === 0 ? <div style={{ padding: '20px 0', textAlign: 'center', color: T.ink3 }}>No {vocab().staff.toLowerCase()}s yet. Add one — they get a real login.</div> : (
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                <thead><tr style={{ borderBottom: '1px solid ' + T.border }}>{['Name', 'Email', vocab().subs || 'Subjects', vocab().unit + 'es', 'Login'].map((h, i) => <th key={i} style={{ textAlign: 'left', padding: '8px 10px', fontSize: 10.5, fontFamily: T.mono, color: T.ink3, textTransform: 'uppercase' }}>{h}</th>)}</tr></thead>
+                <tbody>{teachers.map((t, i) => { const m = meta[(t.email || '').toLowerCase()] || {}; return (
+                  <tr key={i} style={{ borderBottom: '1px solid ' + T.border }}>
+                    <td style={{ padding: '10px', color: T.ink, fontWeight: 600 }}>{t.full_name}</td>
+                    <td style={{ padding: '10px', color: T.ink2 }}>{t.email || '—'}</td>
+                    <td style={{ padding: '10px', color: T.ink2 }}>{(t.subjects || []).join(', ') || '—'}</td>
+                    <td style={{ padding: '10px', color: T.ink2 }}>{(m.classes || []).join(', ') || '—'}</td>
+                    <td style={{ padding: '10px' }}>{t.user_id ? <span style={{ color: T.good, fontSize: 12 }}>● active</span> : <span style={{ color: T.ink3, fontSize: 12 }}>not set</span>}</td>
+                  </tr>
+                ); })}</tbody>
+              </table>
+            </div>
+          )}
+        </div>
+        {adding && <AddTeacherReal onClose={() => setAdding(false)} onDone={() => { setAdding(false); reload(); }} />}
+      </div>
+    );
+  }
+
+  function AddTeacherReal({ onClose, onDone }) {
+    const [f, setF] = useState({ mode: 'password', subjects: '', classes: [] });
+    const [busy, setBusy] = useState(false);
+    const [res, setRes] = useState(null);
+    const set = (k, v) => setF(o => Object.assign({}, o, { [k]: v }));
+    const toggleClass = (c) => setF(o => { const has = (o.classes || []).indexOf(c) >= 0; return Object.assign({}, o, { classes: has ? o.classes.filter(x => x !== c) : (o.classes || []).concat([c]) }); });
+    const submit = async () => {
+      if (!f.name || !f.email) { setRes({ err: 'Name and email are required (the email becomes their login).' }); return; }
+      setBusy(true); setRes(null);
+      const token = await headToken();
+      const body = { tenant_id: tenant(), email: f.email.trim(), fullName: f.name.trim(), phone: f.phone || '', subjects: f.subjects, mode: f.mode };
+      try {
+        const r = await fetch(WK + '/provision-teacher', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token }, body: JSON.stringify(body) });
+        const d = await r.json();
+        setBusy(false);
+        if (!d.ok) { setRes({ err: d.error || 'Could not create the login.' }); return; }
+        if ((f.classes || []).length) osSave('staff_meta', { email: f.email.trim().toLowerCase(), classes: f.classes });
+        setRes({ ok: true, tempPassword: d.tempPassword, mode: d.mode, email: f.email.trim() });
+      } catch (e) { setBusy(false); setRes({ err: String(e && e.message || e) }); }
+    };
+    return (
+      <Modal title={'Add ' + vocab().staff.toLowerCase()} onClose={onClose}>
+        {res && res.ok ? (
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: T.good, marginBottom: 10 }}>{res.mode === 'invite' ? 'Invite sent ✓' : 'Login created ✓'}</div>
+            <div style={{ fontSize: 13, color: T.ink2, lineHeight: 1.6 }}>
+              <div><b>Email:</b> {res.email}</div>
+              {res.mode === 'invite' ? <div style={{ marginTop: 6 }}>They'll get an email to set their own password, then sign in at your school link.</div>
+                : <div style={{ marginTop: 6 }}><b>Temp password:</b> <span style={{ fontFamily: T.mono, color: T.ink, background: T.bg, padding: '3px 8px', borderRadius: 6, border: '1px solid ' + T.border }}>{res.tempPassword}</span><div style={{ marginTop: 6, fontSize: 12, color: T.ink3 }}>Share these two. They sign in at your school link and can change the password.</div></div>}
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 18 }}><button style={btnP} onClick={onDone}>Done</button></div>
+          </div>
+        ) : (
+          <div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <label style={{ gridColumn: 'span 2' }}><div style={lbl}>FULL NAME</div><input style={inp} value={f.name || ''} onChange={e => set('name', e.target.value)} placeholder="Mr. Patrick Wandera" /></label>
+              <label style={{ gridColumn: 'span 2' }}><div style={lbl}>EMAIL (their login)</div><input style={inp} value={f.email || ''} onChange={e => set('email', e.target.value)} placeholder="patrick@school.ug" /></label>
+              <label><div style={lbl}>PHONE</div><input style={inp} value={f.phone || ''} onChange={e => set('phone', e.target.value)} placeholder="+256 7..." /></label>
+              <label><div style={lbl}>{(vocab().subs || 'Subjects').toUpperCase()} · comma</div><input style={inp} value={f.subjects || ''} onChange={e => set('subjects', e.target.value)} placeholder="Mathematics, Physics" /></label>
+            </div>
+            <div style={{ marginTop: 12 }}><div style={lbl}>{(vocab().unit).toUpperCase()}ES THEY TEACH</div>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {classesNow().map(c => { const on = (f.classes || []).indexOf(c) >= 0; return <button key={c} onClick={() => toggleClass(c)} style={{ background: on ? T.red : 'transparent', color: on ? '#fff' : T.ink2, border: '1px solid ' + (on ? T.red : T.border), borderRadius: 999, padding: '5px 11px', fontSize: 12, cursor: 'pointer' }}>{c}</button>; })}
+              </div>
+            </div>
+            <div style={{ marginTop: 14 }}><div style={lbl}>HOW TO CREATE THE LOGIN</div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                {[['password', 'Temp password', 'You get a password to share now'], ['invite', 'Email invite', 'They set their own password (needs email sender)']].map(o => (
+                  <button key={o[0]} onClick={() => set('mode', o[0])} style={{ flex: 1, textAlign: 'left', padding: '11px 13px', borderRadius: 10, border: '1px solid ' + (f.mode === o[0] ? T.red : T.border), background: f.mode === o[0] ? 'rgba(255,255,255,0.03)' : 'transparent', color: T.ink, cursor: 'pointer' }}>
+                    <div style={{ fontWeight: 700, fontSize: 13 }}>{o[1]}</div><div style={{ fontSize: 11.5, color: T.ink3, marginTop: 2 }}>{o[2]}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+            {res && res.err && <div style={{ marginTop: 12, color: T.redInk, fontSize: 12.5 }}>{res.err}</div>}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 18 }}>
+              <button style={btnG} onClick={onClose}>Cancel</button>
+              <button style={Object.assign({}, btnP, busy ? { opacity: 0.6 } : null)} onClick={submit} disabled={busy}>{busy ? 'Creating…' : 'Create login'}</button>
+            </div>
+          </div>
+        )}
+      </Modal>
+    );
+  }
+
+  /* ---- Groups ---- */
+  function Groups({ teachers, groups, reload }) {
+    const [creating, setCreating] = useState(false);
+    // auto groups by subject + class for reference
+    const bySubject = {}; teachers.forEach(t => (t.subjects || []).forEach(s => { (bySubject[s] = bySubject[s] || []).push(t.full_name); }));
+    return (
+      <div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+          <div style={{ fontSize: 12.5, color: T.ink3 }}>Custom teams you build, plus automatic groups by {vocab().sub.toLowerCase()}.</div>
+          <button onClick={() => setCreating(true)} style={btnP}>+ New group</button>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 12, marginBottom: 18 }}>
+          {groups.length === 0 ? <div style={{ ...card, gridColumn: '1/-1', textAlign: 'center', color: T.ink3 }}>No custom groups yet. Build one (e.g. “Exams Committee”).</div> :
+            groups.map((g, i) => (
+              <div key={i} style={card}>
+                <div style={{ fontSize: 14, fontWeight: 700 }}>{g.name}</div>
+                <div style={{ fontSize: 12, color: T.ink3, marginTop: 4 }}>{(g.emails || []).length} member{(g.emails || []).length === 1 ? '' : 's'}</div>
+              </div>
+            ))}
+        </div>
+        <div style={{ ...card }}>
+          <div style={lbl}>AUTO GROUPS · BY {vocab().sub.toUpperCase()}</div>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            {Object.keys(bySubject).length === 0 ? <span style={{ color: T.ink3, fontSize: 12 }}>Add subjects to teachers to see these.</span> :
+              Object.keys(bySubject).map(s => <span key={s} style={{ background: T.bg, border: '1px solid ' + T.border, borderRadius: 999, padding: '5px 11px', fontSize: 12, color: T.ink2 }}>{s} · {bySubject[s].length}</span>)}
+          </div>
+        </div>
+        {creating && <GroupModal teachers={teachers} onClose={() => setCreating(false)} onDone={() => { setCreating(false); reload(); }} />}
+      </div>
+    );
+  }
+
+  function GroupModal({ teachers, onClose, onDone }) {
+    const [name, setName] = useState('');
+    const [sel, setSel] = useState({});
+    const [busy, setBusy] = useState(false);
+    const toggle = (em) => setSel(s => Object.assign({}, s, { [em]: !s[em] }));
+    const save = () => { const emails = Object.keys(sel).filter(k => sel[k]); if (!name.trim() || !emails.length) return; setBusy(true); osSave('staff_group', { name: name.trim(), emails }).then(() => { setBusy(false); onDone(); }); };
+    return (
+      <Modal title="New group" onClose={onClose}>
+        <label><div style={lbl}>GROUP NAME</div><input style={inp} value={name} onChange={e => setName(e.target.value)} placeholder="Exams Committee" /></label>
+        <div style={{ marginTop: 12 }}><div style={lbl}>MEMBERS</div>
+          <div style={{ maxHeight: 220, overflowY: 'auto', border: '1px solid ' + T.border, borderRadius: 9 }}>
+            {teachers.filter(t => t.email).map((t, i) => (
+              <label key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderBottom: '1px solid ' + T.border, cursor: 'pointer' }}>
+                <input type="checkbox" checked={!!sel[t.email]} onChange={() => toggle(t.email)} />
+                <span style={{ color: T.ink }}>{t.full_name}</span><span style={{ color: T.ink3, fontSize: 12 }}>{(t.subjects || []).join(', ')}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 18 }}><button style={btnG} onClick={onClose}>Cancel</button><button style={btnP} onClick={save} disabled={busy}>{busy ? 'Saving…' : 'Save group'}</button></div>
+      </Modal>
+    );
+  }
+
+  /* ---- Tasks ---- */
+  function Tasks({ teachers, groups, meta, tasks, reload }) {
+    const [creating, setCreating] = useState(false);
+    const nameFor = (em) => { const t = teachers.find(x => (x.email || '').toLowerCase() === (em || '').toLowerCase()); return t ? t.full_name : em; };
+    return (
+      <div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+          <div style={{ fontSize: 12.5, color: T.ink3 }}>Assign work to a person, a group, a {vocab().sub.toLowerCase()}/{vocab().unit.toLowerCase()}, or everyone.</div>
+          <button onClick={() => setCreating(true)} style={btnP}>+ New task</button>
+        </div>
+        <div style={{ display: 'grid', gap: 10 }}>
+          {tasks.length === 0 ? <div style={{ ...card, textAlign: 'center', color: T.ink3 }}>No tasks yet.</div> :
+            tasks.map((tk, i) => { const total = (tk.emails || []).length; const done = Object.keys(tk.done || {}).filter(k => tk.done[k]).length; const pct = total ? Math.round(done / total * 100) : 0; return (
+              <div key={i} style={card}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 14.5, fontWeight: 700 }}>{tk.title}</div>
+                    {tk.details && <div style={{ fontSize: 12.5, color: T.ink2, marginTop: 4 }}>{tk.details}</div>}
+                    <div style={{ fontSize: 11.5, color: T.ink3, marginTop: 6 }}>{tk.audienceLabel || (total + ' people')}{tk.due ? ' · due ' + tk.due : ''}</div>
+                  </div>
+                  <div style={{ textAlign: 'right', minWidth: 90 }}>
+                    <div style={{ fontSize: 18, fontWeight: 700, color: pct === 100 ? T.good : T.ink }}>{done}/{total}</div>
+                    <div style={{ fontSize: 10.5, color: T.ink3, fontFamily: T.mono }}>DONE</div>
+                  </div>
+                </div>
+                <div style={{ height: 5, background: T.bg, borderRadius: 999, marginTop: 10, overflow: 'hidden' }}><div style={{ width: pct + '%', height: '100%', background: pct === 100 ? T.good : T.red }} /></div>
+              </div>
+            ); })}
+        </div>
+        {creating && <TaskModal teachers={teachers} groups={groups} meta={meta} onClose={() => setCreating(false)} onDone={() => { setCreating(false); reload(); }} />}
+      </div>
+    );
+  }
+
+  function TaskModal({ teachers, groups, meta, onClose, onDone }) {
+    const [f, setF] = useState({ title: '', details: '', due: '', audience: 'all', subject: '', cls: '', group: '', picks: {} });
+    const [busy, setBusy] = useState(false);
+    const set = (k, v) => setF(o => Object.assign({}, o, { [k]: v }));
+    const subjects = Array.from(new Set([].concat.apply([], teachers.map(t => t.subjects || []))));
+    const resolve = () => {
+      const all = teachers.filter(t => t.email).map(t => t.email.toLowerCase());
+      if (f.audience === 'all') return { emails: all, label: 'Everyone (' + all.length + ')' };
+      if (f.audience === 'subject') return { emails: teachers.filter(t => (t.subjects || []).indexOf(f.subject) >= 0 && t.email).map(t => t.email.toLowerCase()), label: f.subject + ' teachers' };
+      if (f.audience === 'class') return { emails: teachers.filter(t => { const m = meta[(t.email || '').toLowerCase()]; return m && (m.classes || []).indexOf(f.cls) >= 0; }).map(t => t.email.toLowerCase()), label: f.cls + ' teachers' };
+      if (f.audience === 'group') { const g = groups.find(x => x.name === f.group); return { emails: (g && g.emails || []).map(e => e.toLowerCase()), label: 'Group · ' + f.group }; }
+      const picks = Object.keys(f.picks).filter(k => f.picks[k]); return { emails: picks.map(e => e.toLowerCase()), label: picks.length + ' selected' };
+    };
+    const r = resolve();
+    const save = () => {
+      if (!f.title.trim()) { return; }
+      if (!r.emails.length) { return; }
+      setBusy(true);
+      osSave('staff_task', { title: f.title.trim(), details: f.details.trim(), due: f.due.trim(), emails: r.emails, audienceLabel: r.label, done: {}, createdAt: new Date().toISOString() }).then(() => { setBusy(false); window.peakToast && window.peakToast('Task assigned', 'success', r.label); onDone(); });
+    };
+    const audBtn = (k, label) => <button onClick={() => set('audience', k)} style={{ background: f.audience === k ? T.red : 'transparent', color: f.audience === k ? '#fff' : T.ink2, border: '1px solid ' + (f.audience === k ? T.red : T.border), borderRadius: 999, padding: '6px 12px', fontSize: 12, cursor: 'pointer' }}>{label}</button>;
+    return (
+      <Modal title="New task" onClose={onClose}>
+        <label><div style={lbl}>TITLE</div><input style={inp} value={f.title} onChange={e => set('title', e.target.value)} placeholder="Submit end-of-term marks" /></label>
+        <label style={{ display: 'block', marginTop: 12 }}><div style={lbl}>DETAILS</div><textarea style={{ ...inp, minHeight: 70 }} value={f.details} onChange={e => set('details', e.target.value)} placeholder="What should they do?" /></label>
+        <label style={{ display: 'block', marginTop: 12 }}><div style={lbl}>DUE (optional)</div><input style={inp} value={f.due} onChange={e => set('due', e.target.value)} placeholder="Friday 20 June" /></label>
+        <div style={{ marginTop: 14 }}><div style={lbl}>ASSIGN TO</div>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
+            {audBtn('all', 'Everyone')}{audBtn('subject', 'By ' + vocab().sub.toLowerCase())}{audBtn('class', 'By ' + vocab().unit.toLowerCase())}{audBtn('group', 'Custom group')}{audBtn('picks', 'Pick people')}
+          </div>
+          {f.audience === 'subject' && <select style={inp} value={f.subject} onChange={e => set('subject', e.target.value)}><option value="">— choose {vocab().sub.toLowerCase()} —</option>{subjects.map(s => <option key={s} value={s}>{s}</option>)}</select>}
+          {f.audience === 'class' && <select style={inp} value={f.cls} onChange={e => set('cls', e.target.value)}><option value="">— choose {vocab().unit.toLowerCase()} —</option>{classesNow().map(c => <option key={c} value={c}>{c}</option>)}</select>}
+          {f.audience === 'group' && <select style={inp} value={f.group} onChange={e => set('group', e.target.value)}><option value="">— choose group —</option>{groups.map(g => <option key={g.name} value={g.name}>{g.name}</option>)}</select>}
+          {f.audience === 'picks' && (
+            <div style={{ maxHeight: 180, overflowY: 'auto', border: '1px solid ' + T.border, borderRadius: 9 }}>
+              {teachers.filter(t => t.email).map((t, i) => <label key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderBottom: '1px solid ' + T.border, cursor: 'pointer' }}><input type="checkbox" checked={!!f.picks[t.email]} onChange={() => set('picks', Object.assign({}, f.picks, { [t.email]: !f.picks[t.email] }))} /><span>{t.full_name}</span></label>)}
+            </div>
+          )}
+          <div style={{ fontSize: 12, color: T.ink3, marginTop: 8 }}>{r.emails.length} {vocab().staff.toLowerCase()}{r.emails.length === 1 ? '' : 's'} will get this — {r.label}.</div>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 18 }}><button style={btnG} onClick={onClose}>Cancel</button><button style={Object.assign({}, btnP, (busy || !f.title.trim() || !r.emails.length) ? { opacity: 0.6 } : null)} onClick={save} disabled={busy || !f.title.trim() || !r.emails.length}>{busy ? 'Assigning…' : 'Assign task'}</button></div>
+      </Modal>
+    );
+  }
+
+  /* ---- shared modal ---- */
+  function Modal({ title, onClose, children }) {
+    return (
+      <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 800, background: 'rgba(5,8,22,0.7)', backdropFilter: 'blur(6px)', display: 'grid', placeItems: 'center', padding: 20 }}>
+        <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 520, background: T.surface, border: '1px solid ' + T.border, borderRadius: 16, padding: 22, maxHeight: '92vh', overflow: 'auto', color: T.ink, fontFamily: T.font }}>
+          <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 16 }}>{title}</div>
+          {children}
+        </div>
+      </div>
+    );
+  }
+
+  return { Staff };
+})();
+
+  </script>
+
   <script type="text/babel" data-src="src/peak-app.jsx">
 /* src/peak-app.jsx */
 /* global React, ReactDOM, V4, PD_Today, PD_Students, PD_Profile, PD_Fees, PD_Broadcast, PD_M, PEAK_SCREENS, PEAK_FORMS */
@@ -8479,7 +8843,7 @@ window.PEAK_SETUP = (function () {
     else if (route === 'fees')    Screen = <PD_Fees.Fees         embed onNav={navigate} onRecordPayment={openRecordPay} />;
     else if (route === 'comm')    Screen = <PD_Broadcast.Broadcast embed onNav={navigate} />;
     else if (route === 'attn')    Screen = <PEAK_SCREENS.Attendance onNav={navigate} store={Store} />;
-    else if (route === 'teach')   Screen = <PEAK_SCREENS.Teachers   onNav={navigate} onAddTeacher={openNewTeacher} />;
+    else if (route === 'teach')   Screen = (window.PEAK_STAFF ? <PEAK_STAFF.Staff onNav={navigate} /> : <PEAK_SCREENS.Teachers onNav={navigate} onAddTeacher={openNewTeacher} />);
     else if (route === 'trans')   Screen = <PEAK_SCREENS.Transport  onNav={navigate} />;
     else if (route === 'learn')   Screen = <PEAK_SCREENS.Learning   onNav={navigate} />;
     else if (route === 'rep')     Screen = <PEAK_SCREENS.Reports    onNav={navigate} />;
