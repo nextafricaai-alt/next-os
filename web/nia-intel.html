@@ -196,7 +196,9 @@
     btn.textContent='Building the OS ('+cols.length+' collections)\u2026';
     try{
       var r2=await fetch(WK+'/cms/blueprint',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({site:sk,collections:cols})});
-      var d2=await r2.json();
+      var raw2=await r2.text(); var d2;
+      try{ d2=JSON.parse(raw2); }
+      catch(e){ d2={ ok:false, error: raw2 ? raw2.slice(0,180) : ('No response from /cms/blueprint (HTTP '+r2.status+'). The worker is not on the latest code \u2014 paste sentinel-worker.js into Cloudflare and Deploy.') }; }
       if(d2.ok){ var openOS=function(){ window.open('/cms-os.html?site='+encodeURIComponent(sk),'_blank'); }; btn.textContent='\u2713 OS built \u2014 Open it \u2197'; btn.disabled=false; btn.onclick=openOS; openOS(); addMsg('Built '+sk+' OS with '+d2.collections+' collections \u2014 open and ready. Add content, then tell me what to refine.','nia'); }
       else { btn.textContent='Build failed \u2014 retry'; btn.disabled=false; addMsg('Build failed: '+(d2.error||'unknown')+(/(cms tables|insert failed|relation|does not exist|404|method not allowed)/i.test(d2.error||'')?'  \u2192 run supabase-schema-cms.sql once AND redeploy the worker, then retry.':''),'nia'); }
     }catch(e){ btn.textContent='Build failed \u2014 retry'; btn.disabled=false; addMsg('Build error: '+e.message,'nia'); }
