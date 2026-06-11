@@ -6636,7 +6636,9 @@ window.PEAK_FORMS = (function () {
       setBusy(true); setResult(null);
       const WK = 'https://nextos-sentinel.nextafricaai.workers.dev';
       fetch(WK + '/fees/import', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tenant_id: tenantId, term: term.trim() || 'Term', rows: recs }) })
-        .then(r => r.json()).then(res => {
+        .then(async r => { const txt = await r.text(); try { return JSON.parse(txt); } catch (e) { return { error: r.status === 404 ? 'Fees import is not switched on yet — the worker needs the latest update (paste sentinel-worker.js in Cloudflare and Deploy).' : ('Server returned an unexpected response (' + r.status + ').') }; } })
+        .then(res => {
+          res = res || {};
           setBusy(false);
           if (res.error) { setResult({ err: res.error }); return; }
           if (!res.imported) { setResult({ err: res.message || 'No fees matched a student. Import students first, or check the name spelling.' }); return; }
@@ -7815,6 +7817,26 @@ window.PEAK_SETUP = (function () {
   };
   window.peakModal = Modal;
 
+  // Error boundary so a single modal can never white-screen the whole OS.
+  class ModalErrorBoundary extends React.Component {
+    constructor(p) { super(p); this.state = { err: null }; }
+    static getDerivedStateFromError(err) { return { err }; }
+    componentDidCatch(err, info) { try { console.error('[NEXT OS modal error]', err, info); } catch (e) {} }
+    render() {
+      if (this.state.err) {
+        return (
+          <div style={{ padding: 24, fontFamily: T.font, color: T.ink }}>
+            <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 8 }}>Something went wrong in this window</div>
+            <div style={{ fontSize: 13, color: T.ink3, marginBottom: 14, lineHeight: 1.5 }}>The rest of your OS is safe \u2014 nothing was lost. Close this and try again.</div>
+            <div style={{ fontSize: 11.5, color: T.redInk, fontFamily: T.mono, background: T.bg, border: '1px solid ' + T.border, borderRadius: 8, padding: '8px 10px', marginBottom: 14, wordBreak: 'break-word' }}>{String((this.state.err && this.state.err.message) || this.state.err)}</div>
+            <button onClick={() => window.peakModal.close()} style={{ border: 'none', background: T.red, color: '#fff', padding: '9px 16px', borderRadius: 9, fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }}>Close</button>
+          </div>
+        );
+      }
+      return this.props.children;
+    }
+  }
+
   function ModalLayer() {
     const [m, setM] = useState(null);
     useEffect(() => {
@@ -7838,7 +7860,7 @@ window.PEAK_SETUP = (function () {
           animation: 'peakRise 0.22s ease-out',
           color: T.ink, fontFamily: T.font,
         }}>
-          {m.content}
+          <ModalErrorBoundary>{m.content}</ModalErrorBoundary>
         </div>
         <style>{`
           @keyframes peakFade { from { opacity: 0; } to { opacity: 1; } }
