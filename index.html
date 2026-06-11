@@ -5981,35 +5981,58 @@ window.OnboardingPage = function OnboardingPage(props) {
   </script>
 
   <script type="text/babel">
-/* NEXT_VAULT — Fleet Vault: per-tenant credentials + metadata, stored in os_records (kind=fleet_vault, tenant=next). */
+/* NEXT_VAULT — Fleet Vault with client-side encryption (AES-GCM) + copy login details. */
 (function () {
   const WK = (typeof window !== 'undefined' && window.NEXT_OS_SENTINEL_ENDPOINT) || 'https://nextos-sentinel.nextafricaai.workers.dev';
   const VLABEL = (window.VERTICAL_LABELS) || { school: 'School', hospital: 'Hospital', company: 'Company', ngo: 'NGO', church: 'Church', government: 'Government' };
   function vget() { return fetch(WK + '/os-data?kind=fleet_vault&tenant=next').then(r => r.json()).then(d => (d && d.records) || []).catch(() => []); }
   function vsave(record, id) { return fetch(WK + '/os-data/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(id ? { kind: 'fleet_vault', tenant: 'next', record, id } : { kind: 'fleet_vault', tenant: 'next', record }) }).then(r => r.json()).catch(e => ({ error: String(e && e.message || e) })); }
+  function keyMetaGet() { return fetch(WK + '/os-data?kind=vault_key&tenant=next').then(r => r.json()).then(d => ((d && d.records) || [])[0] || null).catch(() => null); }
+  function keyMetaSave(record, id) { return fetch(WK + '/os-data/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(id ? { kind: 'vault_key', tenant: 'next', record, id } : { kind: 'vault_key', tenant: 'next', record }) }).then(r => r.json()).catch(e => ({ error: String(e && e.message || e) })); }
+
+  // ── Web Crypto helpers ──
+  const _enc = new TextEncoder(), _dec = new TextDecoder();
+  const b64 = (buf) => btoa(String.fromCharCode.apply(null, new Uint8Array(buf)));
+  const unb64 = (s) => { const bin = atob(s); const a = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) a[i] = bin.charCodeAt(i); return a; };
+  const isEnc = (v) => typeof v === 'string' && v.indexOf('enc:1:') === 0;
+  async function deriveKey(pass, saltBytes) {
+    const base = await crypto.subtle.importKey('raw', _enc.encode(pass), 'PBKDF2', false, ['deriveKey']);
+    return crypto.subtle.deriveKey({ name: 'PBKDF2', salt: saltBytes, iterations: 150000, hash: 'SHA-256' }, base, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+  }
+  async function encField(key, text) { if (text == null || text === '') return text; const iv = crypto.getRandomValues(new Uint8Array(12)); const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, _enc.encode(String(text))); return 'enc:1:' + b64(iv) + ':' + b64(ct); }
+  async function decField(key, blob) { if (!isEnc(blob)) return blob; try { const parts = blob.split(':'); const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: unb64(parts[2]) }, key, unb64(parts[3])); return _dec.decode(pt); } catch (e) { return ''; } }
+
+  async function copyLogin(row, vk) {
+    let pw = row.password || '';
+    if (isEnc(pw)) { if (!vk) { alert('Unlock the vault first to copy the password.'); return; } pw = await decField(vk, pw); }
+    const lines = [(row.name || row.tenantId) + ' — NEXT OS login', row.loginUrl ? ('Link: ' + row.loginUrl) : '', row.headEmail ? ('Email: ' + row.headEmail) : '', pw ? ('Password: ' + pw) : ''].filter(Boolean);
+    const text = lines.join('\n');
+    try { await navigator.clipboard.writeText(text); window.NEXT_OS && window.NEXT_OS.notify && window.NEXT_OS.notify({ severity: 'info', title: 'Login details copied', body: row.name || row.tenantId, source: 'Fleet Vault' }); }
+    catch (e) { prompt('Copy these login details:', text); }
+  }
 
   function NextVault() {
     const [tenants, setTenants] = React.useState(() => (window.OS_DATA && window.OS_DATA.getTenants) ? window.OS_DATA.getTenants() : []);
-    const [vaults, setVaults] = React.useState({});   // tenantId -> {_id, ...payload}
+    const [vaults, setVaults] = React.useState({});
     const [editing, setEditing] = React.useState(null);
     const [q, setQ] = React.useState('');
     const [mounted, setMounted] = React.useState(false);
+    const [keyMeta, setKeyMeta] = React.useState(undefined); // undefined=loading, null=none, obj=set
+    const [vk, setVk] = React.useState(null);                // unlocked CryptoKey
     React.useEffect(() => { setTimeout(() => setMounted(true), 40); }, []);
     const load = React.useCallback(() => {
       vget().then(rs => { const m = {}; rs.forEach(x => { const p = x.payload || {}; if (p.tenantId) m[p.tenantId] = Object.assign({ _id: x.id }, p); }); setVaults(m); });
       if (window.OS_DATA && window.OS_DATA.getTenants) setTenants(window.OS_DATA.getTenants());
     }, []);
-    React.useEffect(() => { load(); }, [load]);
+    React.useEffect(() => { load(); keyMetaGet().then(setKeyMeta); }, [load]);
 
-    // merge: every tenant + any vault-only records not in tenant list
-    const rows = [];
-    const seen = {};
+    const rows = []; const seen = {};
     tenants.forEach(t => { seen[t.id] = true; rows.push(Object.assign({ tenantId: t.id, name: t.name, vertical: t.vertical }, vaults[t.id] || {})); });
     Object.keys(vaults).forEach(tid => { if (!seen[tid]) rows.push(vaults[tid]); });
     const shown = rows.filter(r => !q || (String(r.name || '') + ' ' + String(r.tenantId || '')).toLowerCase().indexOf(q.toLowerCase()) >= 0);
-
     const card = { background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: 16 };
     const filled = rows.filter(r => r._id).length;
+    const locked = keyMeta && !vk;
 
     return (
       <div style={{ opacity: mounted ? 1 : 0, transition: 'opacity .35s' }}>
@@ -6018,59 +6041,102 @@ window.OnboardingPage = function OnboardingPage(props) {
           <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 30, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>Fleet Vault</h1>
           <p style={{ fontSize: 14, color: 'var(--text-secondary)', margin: '6px 0 0' }}>Every fleet member's logins, emails, links and key details — in one place. {filled}/{rows.length} have saved credentials.</p>
         </div>
-        <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
+
+        <LockBar keyMeta={keyMeta} vk={vk} setVk={setVk} setKeyMeta={setKeyMeta} />
+
+        <div style={{ display: 'flex', gap: 10, margin: '14px 0 16px', flexWrap: 'wrap' }}>
           <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search fleet…" style={{ flex: '1 1 220px', background: 'var(--bg-deep)', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-sm)', color: 'var(--text-primary)', padding: '10px 12px', fontSize: 13, outline: 'none' }} />
           <button onClick={() => setEditing({ tenantId: '', name: '', vertical: 'school', secrets: [] })} style={{ background: 'var(--mint)', color: 'var(--text-inverse)', border: 'none', borderRadius: 'var(--radius-sm)', padding: '10px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>+ Add entry</button>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 12 }}>
           {shown.length === 0 ? <div style={{ ...card, gridColumn: '1/-1', textAlign: 'center', color: 'var(--text-tertiary)' }}>No fleet members yet. Onboard a school and its credentials land here automatically.</div> :
             shown.map((r, i) => (
-              <div key={i} style={{ ...card, cursor: 'pointer' }} onClick={() => setEditing(Object.assign({ secrets: [] }, r))}>
+              <div key={i} style={card}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                  <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>{r.name || r.tenantId}</div>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)', cursor: 'pointer' }} onClick={() => setEditing(Object.assign({ secrets: [] }, r))}>{r.name || r.tenantId}</div>
                   <span style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>{VLABEL[r.vertical] || r.vertical || ''}</span>
                 </div>
                 <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.7 }}>
                   <div>{r.headEmail ? ('✉ ' + r.headEmail) : <span style={{ color: 'var(--text-tertiary)' }}>no login email yet</span>}</div>
-                  <div>{r.password ? '🔑 password saved' : <span style={{ color: 'var(--text-tertiary)' }}>no password saved</span>}</div>
+                  <div>{r.password ? (isEnc(r.password) ? '🔒 password encrypted' : '🔑 password saved') : <span style={{ color: 'var(--text-tertiary)' }}>no password saved</span>}</div>
                   {(r.secrets && r.secrets.length) ? <div>🗝 {r.secrets.length} secret{r.secrets.length === 1 ? '' : 's'}</div> : null}
                   {r.createdAt ? <div style={{ color: 'var(--text-tertiary)', fontSize: 11.5 }}>created {String(r.createdAt).slice(0, 10)}</div> : null}
                 </div>
-                <div style={{ marginTop: 10, fontSize: 11.5, color: 'var(--mint)' }}>{r._id ? 'View / edit →' : 'Add credentials →'}</div>
+                <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+                  <button onClick={() => setEditing(Object.assign({ secrets: [] }, r))} style={{ flex: 1, background: 'transparent', border: '1px solid var(--border-default)', color: 'var(--text-secondary)', borderRadius: 8, padding: '7px 0', fontSize: 12, cursor: 'pointer' }}>{r._id ? 'View / edit' : 'Add credentials'}</button>
+                  {(r.headEmail || r.password || r.loginUrl) ? <button onClick={() => copyLogin(r, vk)} style={{ flex: 1, background: 'rgba(0,252,143,0.12)', border: '1px solid var(--mint)', color: 'var(--mint)', borderRadius: 8, padding: '7px 0', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Copy login</button> : null}
+                </div>
               </div>
             ))}
         </div>
         <div style={{ marginTop: 16, fontSize: 11.5, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', textAlign: 'center' }}>
-          STORED IN YOUR SUPABASE · PASSWORDS MASKED BY DEFAULT · TREAT THIS PAGE LIKE A SAFE
+          {keyMeta ? 'ENCRYPTED AT REST · UNLOCK WITH YOUR PASSPHRASE' : 'STORED IN YOUR SUPABASE · SET A PASSPHRASE TO ENCRYPT'} · TREAT THIS PAGE LIKE A SAFE
         </div>
-        {editing && <VaultModal entry={editing} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); load(); }} />}
+        {editing && <VaultModal entry={editing} vk={vk} locked={locked} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); load(); }} />}
       </div>
     );
   }
 
-  function VaultModal({ entry, onClose, onSaved }) {
+  function LockBar({ keyMeta, vk, setVk, setKeyMeta }) {
+    const [pass, setPass] = React.useState('');
+    const [busy, setBusy] = React.useState(false);
+    const [err, setErr] = React.useState('');
+    const bar = { display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: '12px 14px' };
+    const inp = { background: 'var(--bg-deep)', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-sm)', color: 'var(--text-primary)', padding: '8px 11px', fontSize: 13, outline: 'none', flex: '1 1 180px' };
+    const btn = { background: 'var(--mint)', color: 'var(--text-inverse)', border: 'none', borderRadius: 'var(--radius-sm)', padding: '8px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer' };
+    if (keyMeta === undefined) return null;
+    if (vk) return <div style={bar}><span style={{ color: 'var(--mint)', fontSize: 13, fontWeight: 600 }}>🔓 Vault unlocked</span><span style={{ color: 'var(--text-tertiary)', fontSize: 12.5, flex: 1 }}>Passwords decrypt on screen. Lock when you step away.</span><button onClick={() => setVk(null)} style={{ ...btn, background: 'transparent', border: '1px solid var(--border-default)', color: 'var(--text-secondary)' }}>Lock</button></div>;
+    if (keyMeta === null) {
+      const setup = async () => { if (pass.length < 6) { setErr('Use at least 6 characters.'); return; } setBusy(true); const salt = crypto.getRandomValues(new Uint8Array(16)); const key = await deriveKey(pass, salt); const verifier = await encField(key, 'NEXTOS-VAULT-OK'); const res = await keyMetaSave({ salt: b64(salt), verifier }); setBusy(false); if (res && res.error) { setErr(res.error); return; } setVk(key); setKeyMeta({ payload: { salt: b64(salt), verifier } }); };
+      return <div style={bar}><span style={{ fontSize: 13, color: 'var(--text-secondary)', flex: '1 1 100%' }}>🔐 Set a vault passphrase to encrypt all credentials. Keep it safe — it can't be recovered.</span><input type="password" value={pass} onChange={e => { setPass(e.target.value); setErr(''); }} placeholder="Choose a passphrase" style={inp} /><button onClick={setup} disabled={busy} style={btn}>{busy ? 'Setting…' : 'Set passphrase'}</button>{err && <span style={{ color: 'var(--danger)', fontSize: 12, flex: '1 1 100%' }}>{err}</span>}</div>;
+    }
+    const unlock = async () => { setBusy(true); setErr(''); try { const meta = keyMeta.payload || keyMeta; const key = await deriveKey(pass, unb64(meta.salt)); const check = await decField(key, meta.verifier); if (check === 'NEXTOS-VAULT-OK') { setVk(key); } else { setErr('Wrong passphrase.'); } } catch (e) { setErr('Wrong passphrase.'); } setBusy(false); };
+    return <div style={bar}><span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>🔒 Vault locked.</span><input type="password" value={pass} onChange={e => { setPass(e.target.value); setErr(''); }} onKeyDown={e => { if (e.key === 'Enter') unlock(); }} placeholder="Passphrase" style={inp} /><button onClick={unlock} disabled={busy} style={btn}>{busy ? 'Unlocking…' : 'Unlock'}</button>{err && <span style={{ color: 'var(--danger)', fontSize: 12 }}>{err}</span>}</div>;
+  }
+
+  function VaultModal({ entry, vk, locked, onClose, onSaved }) {
     const [f, setF] = React.useState(Object.assign({ secrets: [] }, entry));
     const [busy, setBusy] = React.useState(false);
     const [reveal, setReveal] = React.useState(false);
+    const [ready, setReady] = React.useState(false);
+    // decrypt sensitive fields on open (if unlocked)
+    React.useEffect(() => {
+      let live = true;
+      (async () => {
+        const base = Object.assign({ secrets: [] }, entry);
+        if (vk) {
+          if (isEnc(base.password)) base.password = await decField(vk, base.password);
+          base.secrets = await Promise.all((base.secrets || []).map(async s => Object.assign({}, s, { value: isEnc(s.value) ? await decField(vk, s.value) : s.value })));
+        }
+        if (live) { setF(base); setReady(true); }
+      })();
+      return () => { live = false; };
+    }, [entry, vk]);
     const set = (k, v) => setF(o => Object.assign({}, o, { [k]: v }));
     const setSecret = (i, k, v) => setF(o => { const s = (o.secrets || []).slice(); s[i] = Object.assign({}, s[i], { [k]: v }); return Object.assign({}, o, { secrets: s }); });
     const addSecret = () => setF(o => Object.assign({}, o, { secrets: (o.secrets || []).concat([{ label: '', value: '' }]) }));
     const delSecret = (i) => setF(o => Object.assign({}, o, { secrets: (o.secrets || []).filter((_, j) => j !== i) }));
     const inp = { width: '100%', background: 'var(--bg-deep)', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-sm)', color: 'var(--text-primary)', padding: '9px 11px', fontSize: 13, outline: 'none' };
     const lbl = { fontSize: 11, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', marginBottom: 5 };
-    const save = () => {
-      if (!f.tenantId && !f.name) { return; }
+    const hasEncrypted = isEnc((entry || {}).password) || ((entry || {}).secrets || []).some(s => isEnc(s.value));
+    const lockedView = locked && hasEncrypted;
+    const save = async () => {
+      if (!f.tenantId && !f.name) return;
       setBusy(true);
-      const rec = { tenantId: (f.tenantId || (f.name || '').toLowerCase().replace(/[^a-z0-9]+/g, '-')).trim(), name: f.name, vertical: f.vertical, level: f.level, tier: f.tier, createdAt: f.createdAt, loginUrl: f.loginUrl, headName: f.headName, headEmail: f.headEmail, password: f.password, secrets: (f.secrets || []).filter(s => s.label || s.value), notes: f.notes };
-      vsave(rec, f._id).then(res => { setBusy(false); if (res && res.error) { alert(res.error); return; } onSaved(); });
+      let pw = f.password, secrets = (f.secrets || []).filter(s => s.label || s.value);
+      if (vk) { pw = await encField(vk, pw); secrets = await Promise.all(secrets.map(async s => Object.assign({}, s, { value: await encField(vk, s.value) }))); }
+      const rec = { tenantId: (f.tenantId || (f.name || '').toLowerCase().replace(/[^a-z0-9]+/g, '-')).trim(), name: f.name, vertical: f.vertical, level: f.level, tier: f.tier, createdAt: f.createdAt, loginUrl: f.loginUrl, headName: f.headName, headEmail: f.headEmail, password: pw, secrets: secrets, notes: f.notes };
+      const res = await vsave(rec, f._id); setBusy(false); if (res && res.error) { alert(res.error); return; } onSaved();
     };
-    const field = (k, label, ph, span) => (
-      <label style={{ gridColumn: span || 'span 1' }}><div style={lbl}>{label}</div><input style={inp} value={f[k] || ''} onChange={e => set(k, e.target.value)} placeholder={ph || ''} /></label>
-    );
+    const field = (k, label, ph, span) => (<label style={{ gridColumn: span || 'span 1' }}><div style={lbl}>{label}</div><input style={inp} value={f[k] || ''} onChange={e => set(k, e.target.value)} placeholder={ph || ''} /></label>);
     return (
       <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 9000, background: 'rgba(5,8,22,0.72)', backdropFilter: 'blur(6px)', display: 'grid', placeItems: 'center', padding: 20 }}>
         <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 560, background: 'var(--bg-elevated)', border: '1px solid var(--border-default)', borderRadius: 16, padding: 22, maxHeight: '92vh', overflow: 'auto' }}>
-          <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 16 }}>{f._id ? ('Credentials · ' + (f.name || f.tenantId)) : 'New vault entry'}</div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)' }}>{f._id ? ('Credentials · ' + (f.name || f.tenantId)) : 'New vault entry'}</div>
+            {(f.headEmail || f.password || f.loginUrl) && !lockedView ? <button onClick={() => copyLogin(Object.assign({}, f), vk ? vk : null)} style={{ background: 'rgba(0,252,143,0.12)', border: '1px solid var(--mint)', color: 'var(--mint)', borderRadius: 8, padding: '6px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Copy login</button> : null}
+          </div>
+          {lockedView && <div style={{ marginBottom: 14, padding: '10px 12px', background: 'rgba(255,181,61,0.12)', border: '1px solid var(--gold)', borderRadius: 'var(--radius-sm)', color: 'var(--gold)', fontSize: 12.5 }}>This entry is encrypted. Unlock the vault (top of the page) to read or copy the password.</div>}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             {field('name', 'NAME', 'Good Foundation School', 'span 2')}
             {field('tenantId', 'TENANT ID', 'good-foundation-school')}
@@ -6082,30 +6148,31 @@ window.OnboardingPage = function OnboardingPage(props) {
             {field('headName', 'ADMIN NAME', 'Mrs. Asiimwe')}
             {field('headEmail', 'ADMIN EMAIL (login)', 'head@school.ug')}
             <label style={{ gridColumn: 'span 2' }}>
-              <div style={lbl}>PASSWORD</div>
+              <div style={lbl}>PASSWORD{vk ? ' · encrypted on save' : ''}</div>
               <div style={{ display: 'flex', gap: 8 }}>
-                <input style={{ ...inp, fontFamily: reveal ? 'var(--font-mono)' : 'inherit' }} type={reveal ? 'text' : 'password'} value={f.password || ''} onChange={e => set('password', e.target.value)} placeholder="••••••" />
-                <button onClick={() => setReveal(r => !r)} style={{ background: 'transparent', border: '1px solid var(--border-default)', color: 'var(--text-secondary)', borderRadius: 'var(--radius-sm)', padding: '0 12px', fontSize: 12, cursor: 'pointer' }}>{reveal ? 'Hide' : 'Show'}</button>
+                <input style={{ ...inp, fontFamily: reveal ? 'var(--font-mono)' : 'inherit' }} type={reveal ? 'text' : 'password'} value={lockedView ? '' : (f.password || '')} disabled={lockedView} onChange={e => set('password', e.target.value)} placeholder={lockedView ? '🔒 locked' : '••••••'} />
+                <button onClick={() => setReveal(r => !r)} disabled={lockedView} style={{ background: 'transparent', border: '1px solid var(--border-default)', color: 'var(--text-secondary)', borderRadius: 'var(--radius-sm)', padding: '0 12px', fontSize: 12, cursor: 'pointer' }}>{reveal ? 'Hide' : 'Show'}</button>
               </div>
             </label>
           </div>
           <div style={{ marginTop: 16 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
               <div style={lbl}>OTHER SECRETS · keys, tokens, registrar, etc.</div>
-              <button onClick={addSecret} style={{ background: 'transparent', border: '1px solid var(--border-default)', color: 'var(--text-secondary)', borderRadius: 6, padding: '4px 10px', fontSize: 12, cursor: 'pointer' }}>+ Add secret</button>
+              <button onClick={addSecret} disabled={lockedView} style={{ background: 'transparent', border: '1px solid var(--border-default)', color: 'var(--text-secondary)', borderRadius: 6, padding: '4px 10px', fontSize: 12, cursor: 'pointer' }}>+ Add secret</button>
             </div>
-            {(f.secrets || []).map((sx, i) => (
-              <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-                <input style={{ ...inp, flex: '0 0 38%' }} value={sx.label || ''} onChange={e => setSecret(i, 'label', e.target.value)} placeholder="Label (e.g. Domain registrar)" />
-                <input style={{ ...inp, flex: 1 }} value={sx.value || ''} onChange={e => setSecret(i, 'value', e.target.value)} placeholder="Value" />
-                <button onClick={() => delSecret(i)} style={{ background: 'transparent', border: '1px solid var(--border-default)', color: 'var(--danger)', borderRadius: 6, padding: '0 11px', cursor: 'pointer' }}>×</button>
-              </div>
-            ))}
+            {lockedView ? <div style={{ fontSize: 12.5, color: 'var(--text-tertiary)' }}>{((entry || {}).secrets || []).length} encrypted secret(s) — unlock to view.</div> :
+              (f.secrets || []).map((sx, i) => (
+                <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+                  <input style={{ ...inp, flex: '0 0 38%' }} value={sx.label || ''} onChange={e => setSecret(i, 'label', e.target.value)} placeholder="Label (e.g. Domain registrar)" />
+                  <input style={{ ...inp, flex: 1 }} value={sx.value || ''} onChange={e => setSecret(i, 'value', e.target.value)} placeholder="Value" />
+                  <button onClick={() => delSecret(i)} style={{ background: 'transparent', border: '1px solid var(--border-default)', color: 'var(--danger)', borderRadius: 6, padding: '0 11px', cursor: 'pointer' }}>×</button>
+                </div>
+              ))}
           </div>
           <label style={{ display: 'block', marginTop: 12 }}><div style={lbl}>NOTES</div><textarea style={{ ...inp, minHeight: 60 }} value={f.notes || ''} onChange={e => set('notes', e.target.value)} placeholder="Anything else about this fleet member…" /></label>
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 18 }}>
             <button onClick={onClose} style={{ background: 'transparent', border: '1px solid var(--border-default)', color: 'var(--text-secondary)', borderRadius: 'var(--radius-sm)', padding: '9px 16px', fontSize: 13, cursor: 'pointer' }}>Cancel</button>
-            <button onClick={save} disabled={busy} style={{ background: 'var(--mint)', color: 'var(--text-inverse)', border: 'none', borderRadius: 'var(--radius-sm)', padding: '9px 18px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>{busy ? 'Saving…' : 'Save to vault'}</button>
+            <button onClick={save} disabled={busy || lockedView} style={{ background: 'var(--mint)', color: 'var(--text-inverse)', border: 'none', borderRadius: 'var(--radius-sm)', padding: '9px 18px', fontSize: 13, fontWeight: 700, cursor: 'pointer', opacity: (busy || lockedView) ? 0.6 : 1 }}>{busy ? 'Saving…' : 'Save to vault'}</button>
           </div>
         </div>
       </div>
