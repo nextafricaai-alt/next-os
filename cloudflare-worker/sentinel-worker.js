@@ -318,6 +318,7 @@ export default {
     // ─── Students: list + bulk import (real students into a school tenant) ──
     if (url.pathname === '/students')        return handleStudentsList(url.searchParams.get('tenant') || '', env, cors);
     if (url.pathname === '/students/import') return handleStudentsImport(request, env, cors);
+    if (url.pathname === '/fees/import') return handleFeesImport(request, env, cors);
 
     // ─── Exams + grading ──
     if (url.pathname === '/exams')              return handleExamsList(url.searchParams.get('tenant') || '', env, cors);
@@ -1115,6 +1116,53 @@ async function handleStudentsImport(request, env, cors) {
       imported += Math.min(500, filtered.length - i);
     }
     return J({ ok: true, imported, skipped });
+  } catch (e) { return J({ error: String((e && e.message) || e) }, 200); }
+}
+
+async function handleFeesImport(request, env, cors) {
+  const J = (oo, st) => new Response(JSON.stringify(oo), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
+  if (!env.SUPABASE_URL || !env.SUPABASE_KEY) return J({ error: 'Supabase not configured on the worker.' }, 500);
+  let b; try { b = await request.json(); } catch (e) { return J({ error: 'bad request body' }, 400); }
+  const tenant = String(b.tenant_id || b.tenant || '').trim();
+  const term = (String(b.term || '').trim()) || 'Term';
+  const rows = Array.isArray(b.rows) ? b.rows : [];
+  if (!tenant) return J({ error: 'tenant_id required' }, 400);
+  if (!rows.length) return J({ error: 'No fee rows provided.' }, 400);
+  try {
+    const students = (await sbFetch(env, '/students?tenant_id=eq.' + encodeURIComponent(tenant) + '&select=id,name,stream&limit=20000')) || [];
+    if (!students.length) return J({ ok: true, imported: 0, matched: 0, unmatched: rows.map(r => r.name).filter(Boolean), message: 'No students in this school yet. Import students first, then import their fees.' });
+    const byKey = new Map();    // name|stream -> id
+    const byName = new Map();   // name -> { id, amb }
+    for (const st of students) {
+      const nm = (st.name || '').toLowerCase().trim();
+      const sm = (st.stream || '').toLowerCase().trim();
+      byKey.set(nm + '|' + sm, st.id);
+      const cur = byName.get(nm); if (cur) cur.amb = true; else byName.set(nm, { id: st.id, amb: false });
+    }
+    const inserts = []; const matchedIds = new Set(); const unmatched = [];
+    for (const r of rows) {
+      const nm = (r.name || '').toString().toLowerCase().trim(); if (!nm) continue;
+      const sm = (r.stream || '').toString().toLowerCase().trim();
+      let sid = byKey.get(nm + '|' + sm);
+      if (!sid) { const bn = byName.get(nm); if (bn && !bn.amb) sid = bn.id; }
+      if (!sid) { unmatched.push(r.name); continue; }
+      matchedIds.add(sid);
+      const charge = Math.round(Number(r.charge || 0));
+      const paid = Math.round(Number(r.paid || 0));
+      if (charge > 0) inserts.push({ tenant_id: tenant, student_id: sid, term, kind: 'charge', amount: charge, notes: 'Imported' });
+      if (paid > 0) inserts.push({ tenant_id: tenant, student_id: sid, term, kind: 'payment', amount: -Math.abs(paid), channel: (r.channel || null), notes: 'Imported' });
+    }
+    if (!inserts.length) return J({ ok: true, imported: 0, matched: 0, unmatched, message: unmatched.length ? 'No rows matched a student. Check the name spelling, or import those students first.' : 'Nothing to import — set a term fee or amount paid.' });
+    // idempotent: clear any prior fees for this exact term on matched students, then insert fresh
+    const ids = Array.from(matchedIds);
+    for (let i = 0; i < ids.length; i += 200) {
+      const chunk = ids.slice(i, i + 200);
+      const q = '/fees?tenant_id=eq.' + encodeURIComponent(tenant) + '&term=eq.' + encodeURIComponent(term) + '&student_id=in.(' + chunk.join(',') + ')';
+      try { await fetch(env.SUPABASE_URL + '/rest/v1' + q, { method: 'DELETE', headers: sbHeaders(env, 'return=minimal') }); } catch (e) {}
+    }
+    let imported = 0;
+    for (let i = 0; i < inserts.length; i += 500) { await sbWrite(env, '/fees', inserts.slice(i, i + 500), 'POST', 'return=minimal'); imported += Math.min(500, inserts.length - i); }
+    return J({ ok: true, imported, matched: matchedIds.size, students: matchedIds.size, term, unmatched });
   } catch (e) { return J({ error: String((e && e.message) || e) }, 200); }
 }
 
