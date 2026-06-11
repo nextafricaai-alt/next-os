@@ -5601,6 +5601,386 @@ window.OnboardingPage = function OnboardingPage(props) {
   </script>
 
   <script type="text/babel">
+/* NEXT_COMMS — Communications hub: contacts directory + broadcast composer (WhatsApp/Email/SMS/In-app) + templates + log. Backed by os_records. */
+(function () {
+  const WK = (typeof window !== 'undefined' && window.NEXT_OS_SENTINEL_ENDPOINT) || 'https://nextos-sentinel.nextafricaai.workers.dev';
+  const SEGMENTS = ['client', 'team', 'prospect', 'parent', 'other'];
+  const SEG_LABEL = { client: 'Fleet client', team: 'Team & partner', prospect: 'Prospect', parent: 'Parent / member', other: 'Other' };
+  const CHANNELS = [
+    { k: 'whatsapp', label: 'WhatsApp', need: 'phone', glyph: '\u{1F4AC}' },
+    { k: 'email', label: 'Email', need: 'email', glyph: '✉' },
+    { k: 'sms', label: 'SMS', need: 'phone', glyph: '\u{1F4F1}' },
+    { k: 'inapp', label: 'In-app', need: 'tenant', glyph: '\u{1F514}' },
+  ];
+  const fill = (t, r) => String(t || '')
+    .replace(/\{name\}/gi, r.name || 'there')
+    .replace(/\{first\}/gi, (r.name || 'there').split(' ')[0])
+    .replace(/\{org\}/gi, r.org || 'your organisation');
+
+  function jget(kind) { return fetch(WK + '/os-data?kind=' + kind).then(r => r.json()).then(d => (d && d.records) || []).catch(() => []); }
+  function jsave(kind, record, id) { return fetch(WK + '/os-data/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(id ? { kind, record, id } : { kind, record }) }).then(r => r.json()).catch(e => ({ error: String(e && e.message || e) })); }
+
+  function NextComms() {
+    const [tab, setTab] = React.useState('compose');
+    const [contacts, setContacts] = React.useState([]);
+    const [templates, setTemplates] = React.useState([]);
+    const [log, setLog] = React.useState([]);
+    const [mounted, setMounted] = React.useState(false);
+    React.useEffect(() => { setTimeout(() => setMounted(true), 40); }, []);
+
+    const loadContacts = React.useCallback(() => {
+      Promise.all([jget('contact'), jget('members')]).then(([cs, ms]) => {
+        const a = cs.map(x => Object.assign({ _id: x.id, _src: 'contact' }, x.payload));
+        const b = ms.map(x => ({ _id: x.id, _src: 'member', name: x.payload.name, org: x.payload.organisation, role: x.payload.role, segment: 'client', phone: x.payload.phone, email: x.payload.email, tenant: x.payload.tenant || '' }));
+        setContacts(a.concat(b));
+      });
+    }, []);
+    const loadTemplates = React.useCallback(() => jget('msg_template').then(rs => setTemplates(rs.map(x => Object.assign({ _id: x.id }, x.payload)))), []);
+    const loadLog = React.useCallback(() => jget('broadcast').then(rs => setLog(rs.map(x => Object.assign({ _id: x.id }, x.payload)).sort((p, q) => String(q.at || '').localeCompare(String(p.at || ''))))), []);
+    React.useEffect(() => { loadContacts(); loadTemplates(); loadLog(); }, [loadContacts, loadTemplates, loadLog]);
+
+    const tabBtn = (k, label) => (
+      <button onClick={() => setTab(k)} style={{ background: tab === k ? 'var(--bg-elevated)' : 'transparent', color: tab === k ? 'var(--text-primary)' : 'var(--text-tertiary)', border: '1px solid ' + (tab === k ? 'var(--border-default)' : 'transparent'), borderRadius: 'var(--radius-sm)', padding: '8px 14px', fontSize: 13, fontWeight: tab === k ? 700 : 500, cursor: 'pointer' }}>{label}</button>
+    );
+
+    return (
+      <div style={{ opacity: mounted ? 1 : 0, transition: 'opacity .35s' }}>
+        <div style={{ marginBottom: 18 }}>
+          <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', letterSpacing: 2, color: 'var(--text-tertiary)', marginBottom: 6 }}>SIGNAL LAYER</div>
+          <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 30, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>Communications</h1>
+          <p style={{ fontSize: 14, color: 'var(--text-secondary)', margin: '6px 0 0' }}>One place to reach your fleet, team and prospects — compose once, send across channels.</p>
+        </div>
+        <div style={{ display: 'flex', gap: 6, marginBottom: 18, flexWrap: 'wrap' }}>
+          {tabBtn('compose', 'Compose')}
+          {tabBtn('contacts', 'Contacts (' + contacts.length + ')')}
+          {tabBtn('templates', 'Templates (' + templates.length + ')')}
+          {tabBtn('log', 'Sent log (' + log.length + ')')}
+        </div>
+        {tab === 'compose' && <Compose contacts={contacts} templates={templates} onSent={loadLog} />}
+        {tab === 'contacts' && <Contacts contacts={contacts} reload={loadContacts} />}
+        {tab === 'templates' && <Templates templates={templates} reload={loadTemplates} onUse={() => setTab('compose')} />}
+        {tab === 'log' && <SentLog log={log} />}
+      </div>
+    );
+  }
+
+  /* ---------- Compose ---------- */
+  function Compose({ contacts, templates, onSent }) {
+    const [channel, setChannel] = React.useState('whatsapp');
+    const [seg, setSeg] = React.useState('all');
+    const [picked, setPicked] = React.useState({});
+    const [subject, setSubject] = React.useState('');
+    const [message, setMessage] = React.useState('');
+    const [sending, setSending] = React.useState(false);
+    const [result, setResult] = React.useState(null);
+
+    const ch = CHANNELS.find(c => c.k === channel) || CHANNELS[0];
+    const inSeg = contacts.filter(c => seg === 'all' ? true : (c.segment || 'other') === seg);
+    const eligible = inSeg.filter(c => c[ch.need]);
+    const anyPicked = Object.keys(picked).filter(k => picked[k]);
+    const recipients = (anyPicked.length ? eligible.filter(c => picked[c._src + ':' + c._id]) : eligible);
+
+    const useTemplate = (t) => { if (t.channel) setChannel(t.channel); if (t.subject) setSubject(t.subject); setMessage(t.body || ''); };
+
+    const inp = { width: '100%', background: 'var(--bg-deep)', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-sm)', color: 'var(--text-primary)', padding: '10px 12px', fontSize: 13.5, outline: 'none', fontFamily: 'var(--font-sans)' };
+    const card = { background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: 18 };
+
+    const send = () => {
+      if (!message.trim()) { setResult({ err: 'Write a message first.' }); return; }
+      if (!recipients.length) { setResult({ err: 'No recipients have a ' + ch.need + ' on file for this channel.' }); return; }
+      setSending(true); setResult(null);
+      const logIt = (sent, failed, note) => {
+        jsave('broadcast', { channel, audience: seg, count: recipients.length, sent: sent, failed: failed, subject: subject, message: message, note: note || '', at: new Date().toISOString() });
+        onSent && onSent();
+      };
+      const done = (res) => {
+        setSending(false);
+        if (res && res.error) { setResult({ err: res.error + (res.hint ? ' — ' + res.hint : '') }); logIt(0, recipients.length, res.error); return; }
+        const sent = (res && res.sent) || 0, failed = (res && res.failed) || 0;
+        setResult({ ok: true, sent, failed });
+        logIt(sent, failed);
+      };
+      if (channel === 'whatsapp') {
+        const items = recipients.map(r => ({ to: String(r.phone || '').replace(/[^0-9]/g, ''), text: fill(message, r) }));
+        fetch(WK + '/whatsapp/bulk', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items }) }).then(r => r.json()).then(done).catch(e => done({ error: String(e && e.message || e) }));
+      } else if (channel === 'email') {
+        const items = recipients.map(r => ({ to: r.email, subject: subject || 'A message from NEXT', text: fill(message, r) }));
+        fetch(WK + '/email/send', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items, subject: subject || 'A message from NEXT' }) }).then(r => r.json()).then(done).catch(e => done({ error: String(e && e.message || e) }));
+      } else if (channel === 'sms') {
+        const items = recipients.map(r => ({ to: String(r.phone || '').replace(/[^0-9+]/g, ''), text: message }));
+        fetch(WK + '/sms/send', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items, message }) }).then(r => r.json()).then(done).catch(e => done({ error: String(e && e.message || e) }));
+      } else if (channel === 'inapp') {
+        const targets = recipients.filter(r => r.tenant);
+        if (!targets.length) { setSending(false); setResult({ err: 'In-app needs contacts that are linked to a tenant OS. None of these have one.' }); return; }
+        Promise.all(targets.map(r => jsave('notification', { tenant: r.tenant, title: subject || 'Message from NEXT', body: fill(message, r), at: new Date().toISOString() }))).then(() => { setSending(false); setResult({ ok: true, sent: targets.length, failed: recipients.length - targets.length }); logIt(targets.length, recipients.length - targets.length); });
+      }
+    };
+
+    return (
+      <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr', gap: 16, alignItems: 'start' }}>
+        <div style={card}>
+          <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)', marginBottom: 8 }}>CHANNEL</div>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
+            {CHANNELS.map(c => (
+              <button key={c.k} onClick={() => { setChannel(c.k); setResult(null); }} style={{ display: 'flex', alignItems: 'center', gap: 7, background: channel === c.k ? 'var(--mint)' : 'var(--bg-deep)', color: channel === c.k ? 'var(--text-inverse)' : 'var(--text-secondary)', border: '1px solid ' + (channel === c.k ? 'var(--mint)' : 'var(--border-default)'), borderRadius: 'var(--radius-sm)', padding: '9px 14px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+                <span>{c.glyph}</span>{c.label}
+              </button>
+            ))}
+          </div>
+
+          <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)', marginBottom: 8 }}>AUDIENCE</div>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
+            {['all'].concat(SEGMENTS).map(sgk => (
+              <button key={sgk} onClick={() => { setSeg(sgk); setPicked({}); }} style={{ background: seg === sgk ? 'var(--bg-elevated)' : 'transparent', color: seg === sgk ? 'var(--text-primary)' : 'var(--text-tertiary)', border: '1px solid ' + (seg === sgk ? 'var(--border-default)' : 'var(--border-subtle)'), borderRadius: 999, padding: '6px 12px', fontSize: 12, cursor: 'pointer' }}>{sgk === 'all' ? 'Everyone' : SEG_LABEL[sgk]}</button>
+            ))}
+          </div>
+          <div style={{ fontSize: 12.5, color: 'var(--text-secondary)', marginBottom: 14 }}>
+            <b style={{ color: 'var(--mint)' }}>{recipients.length}</b> recipient{recipients.length === 1 ? '' : 's'} with a {ch.need} {anyPicked.length ? '(hand-picked)' : 'in this segment'}.
+            {eligible.length < inSeg.length && <span style={{ color: 'var(--text-tertiary)' }}> {inSeg.length - eligible.length} skipped (no {ch.need}).</span>}
+          </div>
+
+          {channel === 'email' && (
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)', marginBottom: 6 }}>SUBJECT</div>
+              <input style={inp} value={subject} onChange={e => setSubject(e.target.value)} placeholder="e.g. Your June statement" />
+            </div>
+          )}
+          <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)', marginBottom: 6 }}>MESSAGE</div>
+          <textarea style={{ ...inp, minHeight: 150, resize: 'vertical', lineHeight: 1.5 }} value={message} onChange={e => setMessage(e.target.value)} placeholder={'Hi {first}, ...'} />
+          <div style={{ fontSize: 11.5, color: 'var(--text-tertiary)', marginTop: 6 }}>Personalise with <code>{'{first}'}</code>, <code>{'{name}'}</code>, <code>{'{org}'}</code>. {channel === 'sms' ? 'SMS sends the same text to all (no personalising).' : 'Filled in per recipient.'}</div>
+
+          {result && result.err && <div style={{ marginTop: 14, padding: '10px 12px', background: 'var(--danger-soft, rgba(226,58,82,0.12))', border: '1px solid var(--danger)', borderRadius: 'var(--radius-sm)', color: 'var(--danger)', fontSize: 13 }}>{result.err}</div>}
+          {result && result.ok && <div style={{ marginTop: 14, padding: '10px 12px', background: 'rgba(61,214,140,0.12)', border: '1px solid var(--mint)', borderRadius: 'var(--radius-sm)', color: 'var(--mint)', fontSize: 13 }}>Sent to {result.sent}{result.failed ? (' · ' + result.failed + ' failed') : ''}. Logged in Sent log.</div>}
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
+            <button onClick={send} disabled={sending} style={{ background: 'var(--mint)', color: 'var(--text-inverse)', border: 'none', borderRadius: 'var(--radius-sm)', padding: '11px 22px', fontSize: 14, fontWeight: 700, cursor: 'pointer', opacity: sending ? 0.6 : 1 }}>{sending ? 'Sending…' : ('Send to ' + recipients.length + ' →')}</button>
+          </div>
+        </div>
+
+        <div style={{ display: 'grid', gap: 16 }}>
+          <div style={card}>
+            <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)', marginBottom: 10 }}>TEMPLATES</div>
+            {templates.length === 0 ? <div style={{ fontSize: 12.5, color: 'var(--text-tertiary)' }}>No templates yet. Save reusable messages under the Templates tab.</div> : (
+              <div style={{ display: 'grid', gap: 8 }}>
+                {templates.slice(0, 6).map((t, i) => (
+                  <button key={i} onClick={() => useTemplate(t)} style={{ textAlign: 'left', background: 'var(--bg-deep)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-sm)', padding: '10px 12px', cursor: 'pointer' }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{t.name || 'Untitled'}</div>
+                    <div style={{ fontSize: 11.5, color: 'var(--text-tertiary)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.body || ''}</div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          <div style={{ ...card, fontSize: 12.5, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+            <div style={{ fontWeight: 700, color: 'var(--text-primary)', marginBottom: 6 }}>How sending works</div>
+            <div><b>WhatsApp</b> sends now if your WhatsApp Business number is connected. <b>Email / SMS</b> need a sender key — if not set, you'll get a clear note (see COMMS-SETUP). <b>In-app</b> drops a notice into a client's own OS.</div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  /* ---------- Contacts ---------- */
+  function Contacts({ contacts, reload }) {
+    const [seg, setSeg] = React.useState('all');
+    const [editing, setEditing] = React.useState(null);
+    const [importing, setImporting] = React.useState(false);
+    const shown = contacts.filter(c => seg === 'all' ? true : (c.segment || 'other') === seg);
+    const card = { background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: 18 };
+    return (
+      <div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10, marginBottom: 14 }}>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            {['all'].concat(SEGMENTS).map(sgk => (
+              <button key={sgk} onClick={() => setSeg(sgk)} style={{ background: seg === sgk ? 'var(--bg-elevated)' : 'transparent', color: seg === sgk ? 'var(--text-primary)' : 'var(--text-tertiary)', border: '1px solid ' + (seg === sgk ? 'var(--border-default)' : 'var(--border-subtle)'), borderRadius: 999, padding: '6px 12px', fontSize: 12, cursor: 'pointer' }}>{sgk === 'all' ? 'All (' + contacts.length + ')' : SEG_LABEL[sgk]}</button>
+            ))}
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button onClick={() => setImporting(true)} style={{ background: 'transparent', border: '1px solid var(--border-default)', color: 'var(--text-secondary)', borderRadius: 'var(--radius-sm)', padding: '9px 14px', fontSize: 13, cursor: 'pointer' }}>Import CSV</button>
+            <button onClick={() => setEditing({})} style={{ background: 'var(--mint)', color: 'var(--text-inverse)', border: 'none', borderRadius: 'var(--radius-sm)', padding: '9px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>+ Add contact</button>
+          </div>
+        </div>
+        <div style={card}>
+          {shown.length === 0 ? <div style={{ padding: '20px 0', textAlign: 'center', color: 'var(--text-tertiary)', fontSize: 13 }}>No contacts here yet. Add one, or Import CSV — they save live and feed the composer.</div> : (
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                <thead><tr style={{ borderBottom: '1px solid var(--border-default)' }}>{['Name', 'Organisation', 'Segment', 'Phone', 'Email', ''].map((h, i) => <th key={i} style={{ textAlign: 'left', padding: '8px 10px', fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>{h}</th>)}</tr></thead>
+                <tbody>{shown.map((c, i) => (
+                  <tr key={i} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+                    <td style={{ padding: '10px', color: 'var(--text-primary)', fontWeight: 600 }}>{c.name || '—'}</td>
+                    <td style={{ padding: '10px', color: 'var(--text-secondary)' }}>{c.org || '—'}</td>
+                    <td style={{ padding: '10px', color: 'var(--text-secondary)' }}>{SEG_LABEL[c.segment] || c.segment || '—'}</td>
+                    <td style={{ padding: '10px', color: 'var(--text-secondary)' }}>{c.phone || '—'}</td>
+                    <td style={{ padding: '10px', color: 'var(--text-secondary)' }}>{c.email || '—'}</td>
+                    <td style={{ padding: '10px', textAlign: 'right' }}>{c._src === 'contact' ? <button onClick={() => setEditing(c)} style={{ background: 'transparent', border: '1px solid var(--border-subtle)', color: 'var(--text-tertiary)', borderRadius: 6, padding: '4px 10px', fontSize: 11.5, cursor: 'pointer' }}>Edit</button> : <span style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>member</span>}</td>
+                  </tr>
+                ))}</tbody>
+              </table>
+            </div>
+          )}
+        </div>
+        {editing && <ContactModal contact={editing} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); reload(); }} />}
+        {importing && <ImportModal onClose={() => setImporting(false)} onDone={() => { setImporting(false); reload(); }} />}
+      </div>
+    );
+  }
+
+  function ContactModal({ contact, onClose, onSaved }) {
+    const [f, setF] = React.useState(Object.assign({ segment: 'client' }, contact));
+    const [busy, setBusy] = React.useState(false);
+    const inp = { width: '100%', background: 'var(--bg-deep)', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-sm)', color: 'var(--text-primary)', padding: '9px 11px', fontSize: 13, outline: 'none' };
+    const set = (k, v) => setF(o => Object.assign({}, o, { [k]: v }));
+    const save = () => { setBusy(true); const rec = { name: f.name, org: f.org, role: f.role, segment: f.segment, phone: f.phone, email: f.email, tenant: f.tenant, tags: f.tags }; jsave('contact', rec, f._id).then(res => { setBusy(false); if (res && res.error) { alert(res.error); return; } onSaved(); }); };
+    const fields = [['name', 'Name', 'span 2'], ['org', 'Organisation', 'span 2'], ['role', 'Role'], ['segment', 'Segment', '', SEGMENTS], ['phone', 'Phone (WhatsApp/SMS)'], ['email', 'Email'], ['tenant', 'Linked OS tenant (optional)', 'span 2']];
+    return (
+      <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 9000, background: 'rgba(5,8,22,0.7)', backdropFilter: 'blur(6px)', display: 'grid', placeItems: 'center', padding: 20 }}>
+        <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 480, background: 'var(--bg-elevated)', border: '1px solid var(--border-default)', borderRadius: 16, padding: 22, maxHeight: '90vh', overflow: 'auto' }}>
+          <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 16 }}>{f._id ? 'Edit contact' : 'New contact'}</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            {fields.map(fd => (
+              <label key={fd[0]} style={{ gridColumn: fd[2] || 'span 1' }}>
+                <div style={{ fontSize: 11, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', marginBottom: 5 }}>{fd[1].toUpperCase()}</div>
+                {fd[3] ? <select style={inp} value={f[fd[0]] || ''} onChange={e => set(fd[0], e.target.value)}>{fd[3].map(o => <option key={o} value={o}>{SEG_LABEL[o] || o}</option>)}</select>
+                  : <input style={inp} value={f[fd[0]] || ''} onChange={e => set(fd[0], e.target.value)} />}
+              </label>
+            ))}
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 18 }}>
+            <button onClick={onClose} style={{ background: 'transparent', border: '1px solid var(--border-default)', color: 'var(--text-secondary)', borderRadius: 'var(--radius-sm)', padding: '9px 16px', fontSize: 13, cursor: 'pointer' }}>Cancel</button>
+            <button onClick={save} disabled={busy} style={{ background: 'var(--mint)', color: 'var(--text-inverse)', border: 'none', borderRadius: 'var(--radius-sm)', padding: '9px 18px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>{busy ? 'Saving…' : 'Save contact'}</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  function ImportModal({ onClose, onDone }) {
+    const [raw, setRaw] = React.useState('');
+    const [seg, setSeg] = React.useState('client');
+    const [busy, setBusy] = React.useState(false);
+    const [done, setDone] = React.useState(null);
+    const inp = { width: '100%', background: 'var(--bg-deep)', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-sm)', color: 'var(--text-primary)', padding: '10px 12px', fontSize: 13, outline: 'none' };
+    function splitLine(line, d) { const out = []; let cur = '', q = false; for (let i = 0; i < line.length; i++) { const c = line[i]; if (c === '"') { if (q && line[i + 1] === '"') { cur += '"'; i++; } else q = !q; } else if (c === d && !q) { out.push(cur); cur = ''; } else cur += c; } out.push(cur); return out.map(x => x.trim()); }
+    const parse = () => {
+      const lines = raw.replace(/\r/g, '').split('\n').filter(l => l.trim());
+      if (!lines.length) return [];
+      const d = (lines[0].split('\t').length > lines[0].split(',').length) ? '\t' : ',';
+      const hd = splitLine(lines[0], d).map(h => h.toLowerCase());
+      const find = keys => { for (let i = 0; i < hd.length; i++) for (const k of keys) if (hd[i].indexOf(k) >= 0) return i; return -1; };
+      const iName = find(['name', 'contact', 'full']), iOrg = find(['org', 'organisation', 'organization', 'company', 'school']), iPhone = find(['phone', 'tel', 'mobile', 'whatsapp', 'number']), iEmail = find(['email', 'mail']), iRole = find(['role', 'title', 'position']);
+      return lines.slice(1).map(l => { const r = splitLine(l, d); return { name: iName >= 0 ? r[iName] : '', org: iOrg >= 0 ? r[iOrg] : '', phone: iPhone >= 0 ? r[iPhone] : '', email: iEmail >= 0 ? r[iEmail] : '', role: iRole >= 0 ? r[iRole] : '', segment: seg }; }).filter(x => (x.name || x.phone || x.email));
+    };
+    const rows = parse();
+    const run = () => { setBusy(true); Promise.all(rows.map(r => jsave('contact', r))).then(() => { setBusy(false); setDone(rows.length); setTimeout(onDone, 700); }); };
+    return (
+      <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 9000, background: 'rgba(5,8,22,0.7)', backdropFilter: 'blur(6px)', display: 'grid', placeItems: 'center', padding: 20 }}>
+        <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 520, background: 'var(--bg-elevated)', border: '1px solid var(--border-default)', borderRadius: 16, padding: 22 }}>
+          <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 6 }}>Import contacts</div>
+          <div style={{ fontSize: 12.5, color: 'var(--text-tertiary)', marginBottom: 14 }}>Paste rows with headers like <code>Name, Organisation, Phone, Email, Role</code>. Columns are auto-detected.</div>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 10 }}>
+            <span style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>Tag all as</span>
+            <select style={{ ...inp, width: 'auto' }} value={seg} onChange={e => setSeg(e.target.value)}>{SEGMENTS.map(o => <option key={o} value={o}>{SEG_LABEL[o]}</option>)}</select>
+          </div>
+          <textarea style={{ ...inp, minHeight: 130, fontFamily: 'var(--font-mono)' }} value={raw} onChange={e => setRaw(e.target.value)} placeholder={'Name, Organisation, Phone, Email\nJane Director, Good Foundation, +256700000000, jane@gf.org'} />
+          <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 8 }}>{rows.length} contact{rows.length === 1 ? '' : 's'} detected.</div>
+          {done != null && <div style={{ marginTop: 10, color: 'var(--mint)', fontSize: 13 }}>Imported {done}. Closing…</div>}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
+            <button onClick={onClose} style={{ background: 'transparent', border: '1px solid var(--border-default)', color: 'var(--text-secondary)', borderRadius: 'var(--radius-sm)', padding: '9px 16px', fontSize: 13, cursor: 'pointer' }}>Cancel</button>
+            <button onClick={run} disabled={busy || !rows.length} style={{ background: 'var(--mint)', color: 'var(--text-inverse)', border: 'none', borderRadius: 'var(--radius-sm)', padding: '9px 18px', fontSize: 13, fontWeight: 700, cursor: 'pointer', opacity: (busy || !rows.length) ? 0.6 : 1 }}>{busy ? 'Importing…' : ('Import ' + rows.length)}</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  /* ---------- Templates ---------- */
+  function Templates({ templates, reload, onUse }) {
+    const [editing, setEditing] = React.useState(null);
+    const card = { background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: 18 };
+    return (
+      <div>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 14 }}>
+          <button onClick={() => setEditing({})} style={{ background: 'var(--mint)', color: 'var(--text-inverse)', border: 'none', borderRadius: 'var(--radius-sm)', padding: '9px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>+ New template</button>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 12 }}>
+          {templates.length === 0 ? <div style={{ ...card, gridColumn: '1/-1', textAlign: 'center', color: 'var(--text-tertiary)', fontSize: 13 }}>No templates yet. Save your fee reminders, announcements and event invites here for one-tap reuse.</div> :
+            templates.map((t, i) => (
+              <div key={i} style={card}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>{t.name || 'Untitled'}</div>
+                  <span style={{ fontSize: 10.5, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>{t.channel || 'any'}</span>
+                </div>
+                {t.subject && <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 4 }}>{t.subject}</div>}
+                <div style={{ fontSize: 12.5, color: 'var(--text-tertiary)', lineHeight: 1.5, maxHeight: 70, overflow: 'hidden' }}>{t.body}</div>
+                <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+                  <button onClick={() => setEditing(t)} style={{ background: 'transparent', border: '1px solid var(--border-subtle)', color: 'var(--text-tertiary)', borderRadius: 6, padding: '5px 12px', fontSize: 12, cursor: 'pointer' }}>Edit</button>
+                </div>
+              </div>
+            ))}
+        </div>
+        {editing && <TemplateModal tpl={editing} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); reload(); }} />}
+      </div>
+    );
+  }
+
+  function TemplateModal({ tpl, onClose, onSaved }) {
+    const [f, setF] = React.useState(Object.assign({ channel: 'whatsapp' }, tpl));
+    const [busy, setBusy] = React.useState(false);
+    const inp = { width: '100%', background: 'var(--bg-deep)', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-sm)', color: 'var(--text-primary)', padding: '9px 11px', fontSize: 13, outline: 'none' };
+    const set = (k, v) => setF(o => Object.assign({}, o, { [k]: v }));
+    const save = () => { setBusy(true); jsave('msg_template', { name: f.name, channel: f.channel, subject: f.subject, body: f.body }, f._id).then(res => { setBusy(false); if (res && res.error) { alert(res.error); return; } onSaved(); }); };
+    return (
+      <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 9000, background: 'rgba(5,8,22,0.7)', backdropFilter: 'blur(6px)', display: 'grid', placeItems: 'center', padding: 20 }}>
+        <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 500, background: 'var(--bg-elevated)', border: '1px solid var(--border-default)', borderRadius: 16, padding: 22 }}>
+          <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 16 }}>{f._id ? 'Edit template' : 'New template'}</div>
+          <div style={{ display: 'grid', gap: 12 }}>
+            <label><div style={{ fontSize: 11, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', marginBottom: 5 }}>NAME</div><input style={inp} value={f.name || ''} onChange={e => set('name', e.target.value)} placeholder="Fee reminder" /></label>
+            <label><div style={{ fontSize: 11, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', marginBottom: 5 }}>CHANNEL</div><select style={inp} value={f.channel || 'whatsapp'} onChange={e => set('channel', e.target.value)}>{CHANNELS.map(c => <option key={c.k} value={c.k}>{c.label}</option>)}</select></label>
+            <label><div style={{ fontSize: 11, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', marginBottom: 5 }}>SUBJECT (email)</div><input style={inp} value={f.subject || ''} onChange={e => set('subject', e.target.value)} /></label>
+            <label><div style={{ fontSize: 11, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', marginBottom: 5 }}>BODY</div><textarea style={{ ...inp, minHeight: 120 }} value={f.body || ''} onChange={e => set('body', e.target.value)} placeholder={'Hi {first}, ...'} /></label>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 18 }}>
+            <button onClick={onClose} style={{ background: 'transparent', border: '1px solid var(--border-default)', color: 'var(--text-secondary)', borderRadius: 'var(--radius-sm)', padding: '9px 16px', fontSize: 13, cursor: 'pointer' }}>Cancel</button>
+            <button onClick={save} disabled={busy} style={{ background: 'var(--mint)', color: 'var(--text-inverse)', border: 'none', borderRadius: 'var(--radius-sm)', padding: '9px 18px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>{busy ? 'Saving…' : 'Save template'}</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  /* ---------- Sent log ---------- */
+  function SentLog({ log }) {
+    const card = { background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: 18 };
+    const chLabel = k => (CHANNELS.find(c => c.k === k) || {}).label || k;
+    return (
+      <div style={card}>
+        {log.length === 0 ? <div style={{ padding: '20px 0', textAlign: 'center', color: 'var(--text-tertiary)', fontSize: 13 }}>No broadcasts yet. Every message you send is recorded here.</div> : (
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+              <thead><tr style={{ borderBottom: '1px solid var(--border-default)' }}>{['When', 'Channel', 'Audience', 'Sent', 'Failed', 'Message'].map((h, i) => <th key={i} style={{ textAlign: 'left', padding: '8px 10px', fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>{h}</th>)}</tr></thead>
+              <tbody>{log.map((b, i) => (
+                <tr key={i} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+                  <td style={{ padding: '10px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>{b.at ? new Date(b.at).toLocaleString() : '—'}</td>
+                  <td style={{ padding: '10px', color: 'var(--text-primary)', fontWeight: 600 }}>{chLabel(b.channel)}</td>
+                  <td style={{ padding: '10px', color: 'var(--text-secondary)' }}>{b.audience === 'all' ? 'Everyone' : (SEG_LABEL[b.audience] || b.audience)}</td>
+                  <td style={{ padding: '10px', color: 'var(--mint)' }}>{b.sent || 0}</td>
+                  <td style={{ padding: '10px', color: b.failed ? 'var(--danger)' : 'var(--text-tertiary)' }}>{b.failed || 0}</td>
+                  <td style={{ padding: '10px', color: 'var(--text-tertiary)', maxWidth: 280, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{b.message || ''}</td>
+                </tr>
+              ))}</tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  window.NEXT_COMMS = NextComms;
+})();
+
+  </script>
+
+  <script type="text/babel">
 /* NEXT_FINANCE — company finances: income (maintenance, OS revenue) vs costs (hosting, domains, API) + statement */
 (function () {
   const WK = (typeof window !== 'undefined' && window.NEXT_OS_SENTINEL_ENDPOINT) || 'https://nextos-sentinel.nextafricaai.workers.dev';
@@ -6527,7 +6907,7 @@ const AppShell = () => {
       case 'training':
         return window.NEXT_OPS ? React.createElement(window.NEXT_OPS, { kind: 'training' }) : <PlaceholderPage title="Training" description="Loading." icon="" />;
       case 'comms':
-        return <PlaceholderPage title="Communications Hub" description="Reporting, client communications, and digital strategy coordination centre." icon="" />;
+        return window.NEXT_COMMS ? React.createElement(window.NEXT_COMMS) : <PlaceholderPage title="Communications" description="Loading." icon="" />;
       case 'settings':
         return window.NEXT_SETTINGS ? React.createElement(window.NEXT_SETTINGS) : <PlaceholderPage title="Settings" description="Loading." icon="Settings" />;
       default:
