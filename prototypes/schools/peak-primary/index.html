@@ -4389,6 +4389,7 @@ const PD_Fees = (function () {
                 </div>
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
+                <button onClick={() => window.peakModal && window.peakModal.open(React.createElement(window.PEAK_FORMS.FeesImport))} style={{ border: '1px solid ' + T.borderStr, background: 'transparent', color: T.ink2, padding: '8px 14px', borderRadius: 9, fontSize: 12.5, cursor: 'pointer' }}>Import fees</button>
                 <button onClick={() => window.peakModal && window.peakModal.open(React.createElement(window.PEAK_FORMS.Receipts))} style={{ border: '1px solid ' + T.borderStr, background: 'transparent', color: T.ink2, padding: '8px 14px', borderRadius: 9, fontSize: 12.5, cursor: 'pointer' }}>Receipts</button>
                 <button onClick={() => window.peakExportLedger && window.peakExportLedger()} style={{ border: '1px solid ' + T.borderStr, background: 'transparent', color: T.ink2, padding: '8px 14px', borderRadius: 9, fontSize: 12.5, cursor: 'pointer' }}>Export ledger</button>
                 <button onClick={() => window.peakToast && window.peakToast('Fees settings — coming in Phase 2', 'info')} style={{ border: '1px solid ' + T.borderStr, background: 'transparent', color: T.ink, padding: '8px 14px', borderRadius: 9, fontSize: 12.5, cursor: 'pointer' }}>Settings</button>
@@ -6575,7 +6576,144 @@ window.PEAK_FORMS = (function () {
     );
   }
 
-  return { AddStudent, AddTeacher, RecordPayment, Confirm, ReceiptResult, Receipts, ImportStudents, NewAssignment };
+  function FeesImport() {
+    const prof = (window.PEAK_ROLE && window.PEAK_ROLE.getProfile) ? window.PEAK_ROLE.getProfile() : { tenantId: 'peak-primary' };
+    const tenantId = prof.tenantId || 'peak-primary';
+    const nowYear = new Date().getFullYear();
+    const [term, setTerm] = useState('Term 2 ' + nowYear);
+    const [raw, setRaw] = useState('');
+    const [parsed, setParsed] = useState(null);
+    const [map, setMap] = useState({ name: -1, stream: -1, charge: -1, paid: -1 });
+    const [busy, setBusy] = useState(false);
+    const [result, setResult] = useState(null);
+
+    function splitLine(line, delim) {
+      const out = []; let cur = '', q = false;
+      for (let i = 0; i < line.length; i++) { const c = line[i];
+        if (c === '"') { if (q && line[i + 1] === '"') { cur += '"'; i++; } else q = !q; }
+        else if (c === delim && !q) { out.push(cur); cur = ''; }
+        else cur += c;
+      }
+      out.push(cur); return out.map(x => x.trim());
+    }
+    function guess(headers, keys) {
+      for (let i = 0; i < headers.length; i++) { const h = (headers[i] || '').toLowerCase(); for (let k = 0; k < keys.length; k++) if (h.indexOf(keys[k]) >= 0) return i; }
+      return -1;
+    }
+    function num(v) { return Math.round(Number(String(v == null ? '' : v).replace(/[^0-9.\-]/g, '')) || 0); }
+    function doParse(text) {
+      const lines = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n').filter(l => l.trim() !== '');
+      if (!lines.length) { setParsed(null); return; }
+      const delim = (lines[0].split('\t').length > lines[0].split(',').length) ? '\t' : ',';
+      const all = lines.map(l => splitLine(l, delim));
+      const headers = all[0], rows = all.slice(1);
+      setParsed({ headers, rows });
+      setMap({
+        name: guess(headers, ['name', 'student', 'pupil', 'learner', 'full']),
+        stream: guess(headers, ['stream', 'class', 'grade', 'level', 'form']),
+        charge: guess(headers, ['fee', 'charge', 'expected', 'billed', 'amount due', 'total fee', 'tuition']),
+        paid: guess(headers, ['paid', 'payment', 'received', 'amount paid', 'deposit', 'cleared']),
+      });
+      setResult(null);
+    }
+    function onFile(e) { const fl = e.target.files && e.target.files[0]; if (!fl) return; const rd = new FileReader(); rd.onload = () => { setRaw(rd.result || ''); doParse(rd.result || ''); }; rd.readAsText(fl); }
+
+    const recs = parsed ? parsed.rows.map(r => ({
+      name: map.name >= 0 ? (r[map.name] || '') : '',
+      stream: map.stream >= 0 ? (r[map.stream] || '') : '',
+      charge: map.charge >= 0 ? num(r[map.charge]) : 0,
+      paid: map.paid >= 0 ? num(r[map.paid]) : 0,
+    })).filter(x => (x.name || '').trim()) : [];
+    const totCharge = recs.reduce((a, x) => a + (x.charge || 0), 0);
+    const totPaid = recs.reduce((a, x) => a + (x.paid || 0), 0);
+    const fmt = (n) => 'UGX ' + (n || 0).toLocaleString();
+
+    const colOpts = parsed ? [{ value: '-1', label: '— none —' }].concat(parsed.headers.map((h, i) => ({ value: String(i), label: h || ('Column ' + (i + 1)) }))) : [];
+    const setCol = (k, v) => setMap(m => Object.assign({}, m, { [k]: parseInt(v, 10) }));
+
+    const doImport = () => {
+      if (!recs.length) return;
+      setBusy(true); setResult(null);
+      const WK = 'https://nextos-sentinel.nextafricaai.workers.dev';
+      fetch(WK + '/fees/import', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tenant_id: tenantId, term: term.trim() || 'Term', rows: recs }) })
+        .then(r => r.json()).then(res => {
+          setBusy(false);
+          if (res.error) { setResult({ err: res.error }); return; }
+          if (!res.imported) { setResult({ err: res.message || 'No fees matched a student. Import students first, or check the name spelling.' }); return; }
+          if (window.peakStore && window.peakStore.loadStudents) window.peakStore.loadStudents(tenantId);
+          const un = (res.unmatched || []).length;
+          window.peakToast((res.students || 0) + ' students\' fees imported', 'success', (un ? un + ' names did not match a student (skipped). ' : '') + 'Balances are live now.');
+          window.peakModal.close();
+        }).catch(e => { setBusy(false); setResult({ err: String((e && e.message) || e) }); });
+    };
+
+    return (
+      <div style={{ width: '100%' }}>
+        <ModalHeader eyebrow="Bulk import · fees" title="Import the fees ledger" subtitle="One row per student: the term fee and how much they have paid. Balance = fee − paid, computed for you." />
+        <div style={{ padding: 24 }}>
+          <div style={{ marginBottom: 16 }}>
+            <Field label="Which term is this for?"><TextInput value={term} onChange={setTerm} placeholder="Term 2 2026" /></Field>
+            <div style={{ fontSize: 11, color: T.ink3, marginTop: 5 }}>Re-importing the same term replaces those students' figures — safe to fix and re-upload.</div>
+          </div>
+          {!parsed && (
+            <div>
+              <div style={{ border: '1px dashed ' + T.borderStr, borderRadius: 12, padding: 22, textAlign: 'center', marginBottom: 14 }}>
+                <input type="file" accept=".csv,.tsv,.txt" onChange={onFile} style={{ fontSize: 13, color: T.ink2 }} />
+                <div style={{ fontSize: 12, color: T.ink3, marginTop: 8 }}>CSV from Excel (File → Save As → CSV). First row = column headers.</div>
+              </div>
+              <div style={{ fontSize: 11, color: T.ink3, fontFamily: T.mono, margin: '6px 0' }}>OR PASTE ROWS</div>
+              <textarea value={raw} onChange={e => { setRaw(e.target.value); doParse(e.target.value); }} placeholder={'Name, Class, Term Fee, Amount Paid\nMirembe Nakato, P4V, 850000, 600000'} rows={6} style={{ width: '100%', background: T.bg, border: '1px solid ' + T.border, borderRadius: 9, padding: 12, fontSize: 12.5, color: T.ink, fontFamily: T.mono, outline: 'none' }} />
+            </div>
+          )}
+          {parsed && (
+            <div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
+                <Field label="Student name column"><Select value={String(map.name)} onChange={v => setCol('name', v)} options={colOpts} /></Field>
+                <Field label="Class / stream column"><Select value={String(map.stream)} onChange={v => setCol('stream', v)} options={colOpts} /></Field>
+                <Field label="Term fee column"><Select value={String(map.charge)} onChange={v => setCol('charge', v)} options={colOpts} /></Field>
+                <Field label="Amount paid column"><Select value={String(map.paid)} onChange={v => setCol('paid', v)} options={colOpts} /></Field>
+              </div>
+              <div style={{ display: 'flex', gap: 14, marginBottom: 10, fontSize: 12, color: T.ink3 }}>
+                <span>Charged: <strong style={{ color: T.ink }}>{fmt(totCharge)}</strong></span>
+                <span>Paid: <strong style={{ color: T.good }}>{fmt(totPaid)}</strong></span>
+                <span>Outstanding: <strong style={{ color: (totCharge - totPaid) > 0 ? T.warn : T.good }}>{fmt(totCharge - totPaid)}</strong></span>
+              </div>
+              <div style={{ fontSize: 11, color: T.ink3, fontFamily: T.mono, marginBottom: 6 }}>PREVIEW · {recs.length} students</div>
+              <div style={{ border: '1px solid ' + T.border, borderRadius: 10, overflow: 'hidden', maxHeight: 240, overflowY: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5 }}>
+                  <thead><tr style={{ background: T.surface }}>{['Name', 'Class', 'Term fee', 'Paid', 'Balance'].map(h => <th key={h} style={{ textAlign: 'left', padding: '8px 10px', color: T.ink3, fontFamily: T.mono, fontSize: 10.5, textTransform: 'uppercase' }}>{h}</th>)}</tr></thead>
+                  <tbody>
+                    {recs.slice(0, 10).map((s, i) => { const bal = (s.charge || 0) - (s.paid || 0); return (
+                      <tr key={i} style={{ borderTop: '1px solid ' + T.border }}>
+                        <td style={{ padding: '7px 10px', color: T.ink }}>{s.name || <span style={{ color: T.redInk }}>—</span>}</td>
+                        <td style={{ padding: '7px 10px', color: T.ink2 }}>{s.stream || '—'}</td>
+                        <td style={{ padding: '7px 10px', color: T.ink2 }}>{(s.charge || 0).toLocaleString()}</td>
+                        <td style={{ padding: '7px 10px', color: T.good }}>{(s.paid || 0).toLocaleString()}</td>
+                        <td style={{ padding: '7px 10px', color: bal > 0 ? T.warn : T.good }}>{bal.toLocaleString()}</td>
+                      </tr>
+                    ); })}
+                  </tbody>
+                </table>
+              </div>
+              {recs.length > 10 && <div style={{ fontSize: 11, color: T.ink3, marginTop: 6 }}>…and {recs.length - 10} more.</div>}
+              <div style={{ marginTop: 8 }}><span onClick={() => { setParsed(null); setRaw(''); }} style={{ fontSize: 12, color: T.ink3, cursor: 'pointer', textDecoration: 'underline' }}>Start over / use a different file</span></div>
+            </div>
+          )}
+          {result && result.err && <div style={{ marginTop: 12, fontSize: 12.5, color: T.redInk }}>Import failed: {result.err}</div>}
+        </div>
+        <div style={{ padding: '0 24px 14px', display: 'flex', alignItems: 'center', gap: 10, fontSize: 12, color: T.ink3 }}>
+          <span style={{ width: 22, height: 22, borderRadius: 6, background: T.redSft, color: T.redInk, display: 'grid', placeItems: 'center', fontFamily: T.mono, fontSize: 11, fontWeight: 700 }}>AI</span>
+          <span>Each student is matched by name (and class, if given). Import your students first so the fees attach to them.</span>
+        </div>
+        <ModalFooter>
+          <SecondaryButton onClick={() => window.peakModal.close()}>Cancel</SecondaryButton>
+          <PrimaryButton onClick={doImport} disabled={busy || !recs.length}>{busy ? 'Importing…' : (recs.length ? ('Import ' + recs.length + ' fee records →') : 'Import fees →')}</PrimaryButton>
+        </ModalFooter>
+      </div>
+    );
+  }
+
+  return { AddStudent, AddTeacher, RecordPayment, Confirm, ReceiptResult, Receipts, ImportStudents, FeesImport, NewAssignment };
 })();
 
   </script>
