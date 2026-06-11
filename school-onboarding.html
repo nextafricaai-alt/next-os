@@ -118,7 +118,7 @@ $('go').addEventListener('click', async ()=>{
     const d=await r.json();
     if(r.status===401){ msg('Wrong admin PIN.','err'); }
     else if(!r.ok || !d.ok){ msg(d.error||'Could not create the school.','err'); }
-    else { showResult(d); saveFleet(d, payload.primaryColor); msg('Done — '+d.name+' is live.','ok'); }
+    else { showResult(d); saveFleet(d, payload.primaryColor, payload); msg('Done — '+d.name+' is live.','ok'); }
   }catch(e){ msg('Network error: '+e,'err'); }
   btn.disabled=false; btn.textContent='Create school →';
 });
@@ -157,10 +157,18 @@ function showResult(d){
   res.querySelectorAll('.copy[data-c]').forEach(b=>b.addEventListener('click',()=>{navigator.clipboard.writeText(b.getAttribute('data-c')); b.textContent='Copied!'; setTimeout(()=>b.textContent='Copy',1200);}));
   const ol=$('openLogin'); if(ol) ol.addEventListener('click',()=>window.open(d.loginUrl,'_blank','noopener'));
 }
-function saveFleet(d,color){
+function saveFleet(d,color,payload){
   let f=[]; try{f=JSON.parse(localStorage.getItem('nextos.onboarded')||'[]');}catch(e){}
   f=f.filter(x=>x.id!==d.tenantId); f.unshift({id:d.tenantId,name:d.name,color:color,link:cleanLink(d.tenantId)});
   localStorage.setItem('nextos.onboarded',JSON.stringify(f)); renderFleet();
+  // Auto-capture credentials into the NEXT OS Fleet Vault
+  try{
+    fetch(FN+'/os-data/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({kind:'fleet_vault',tenant:'next',record:{
+      tenantId:d.tenantId, name:d.name, vertical:'school', level:d.level||'', tier:(payload&&payload.tier)||'',
+      createdAt:new Date().toISOString().slice(0,10), loginUrl:d.loginUrl||cleanLink(d.tenantId),
+      headEmail:d.adminEmail||'', headName:(payload&&payload.adminName)||'', password:d.tempPassword||'', secrets:[], notes:'Auto-captured at onboarding.'
+    }})}).catch(function(){});
+  }catch(e){}
 }
 function renderFleet(){
   let f=[]; try{f=JSON.parse(localStorage.getItem('nextos.onboarded')||'[]');}catch(e){}
