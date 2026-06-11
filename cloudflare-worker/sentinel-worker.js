@@ -218,7 +218,7 @@ export default {
     }
 
     // GET-allowed routes (read-only endpoints live below this gate)
-    const GET_OK = ['/check-project', '/seo-audit', '/px.js', '/analytics', '/gsc', '/ga4', '/fetch-page', '/site-pages', '/cms/collections', '/cms/items', '/students', '/exams', '/exam-results', '/fees-balances', '/staff-status', '/student-health', '/events', '/finance', '/assets', '/school-config', '/os-data'];
+    const GET_OK = ['/check-project', '/seo-audit', '/px.js', '/analytics', '/gsc', '/ga4', '/fetch-page', '/site-pages', '/cms/collections', '/cms/items', '/students', '/exams', '/exam-results', '/fees-balances', '/staff-status', '/student-health', '/events', '/finance', '/assets', '/school-config', '/os-data', '/teachers'];
     if (request.method !== 'POST' && !GET_OK.includes(url.pathname)) {
       return new Response('Method not allowed', { status: 405, headers: cors });
     }
@@ -257,6 +257,12 @@ export default {
     // ─── Route: /provision-school — create a school tenant + admin login ──
     if (url.pathname === '/provision-school') {
       return handleProvisionSchool(request, env, cors);
+    }
+    if (url.pathname === '/provision-teacher') {
+      return handleProvisionTeacher(request, env, cors);
+    }
+    if (url.pathname === '/teachers') {
+      return handleTeachersList(url.searchParams.get('tenant') || '', env, cors);
     }
 
     // ─── Route: /issue-receipt — Nia issues a real receipt for a tenant ──
@@ -1670,6 +1676,86 @@ function detectLevel(name) {
   if (/universit|college|polytechnic|\binstitute\b|tertiary|campus|\bvocational\b/.test(n)) return 'tertiary';
   if (/secondary|\bhigh\b|seminary|\bs\.?s\.?s?\b|o.?level|a.?level/.test(n)) return 'secondary';
   return 'primary';
+}
+
+async function handleTeachersList(tenant, env, cors) {
+  const J = (oo, st) => new Response(JSON.stringify(oo), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
+  if (!tenant) return J({ error: 'tenant required' }, 400);
+  if (!env.SUPABASE_URL || !env.SUPABASE_KEY) return J({ error: 'Supabase not configured.' }, 500);
+  try { const rows = await sbFetch(env, '/teachers?tenant_id=eq.' + encodeURIComponent(tenant) + '&select=id,full_name,email,subjects,phone,status,user_id&order=full_name.asc&limit=500'); return J({ tenant, teachers: rows || [] }); }
+  catch (e) { return J({ error: String((e && e.message) || e), tenant }, 200); }
+}
+
+// Verify the caller is a head/admin of this tenant (Authorization: Bearer <supabase access token>).
+async function verifyHead(request, env, tenant) {
+  try {
+    const auth = request.headers.get('Authorization') || '';
+    const token = auth.replace(/^Bearer\s+/i, '').trim();
+    if (!token) return { ok: false, why: 'no token' };
+    const ur = await fetch(env.SUPABASE_URL + '/auth/v1/user', { headers: { 'apikey': env.SUPABASE_KEY, 'Authorization': 'Bearer ' + token } });
+    if (!ur.ok) return { ok: false, why: 'bad token' };
+    const u = await ur.json();
+    const email = (u && u.email) || '';
+    // role check via users table
+    const rows = await sbFetch(env, '/users?auth_id=eq.' + encodeURIComponent(u.id) + '&tenant_id=eq.' + encodeURIComponent(tenant) + '&select=role');
+    if (rows && rows.length && /^(head|admin)$/i.test(rows[0].role || '')) return { ok: true, email };
+    // fallback: this email is the tenant's registered head
+    const t = await sbFetch(env, '/tenants?id=eq.' + encodeURIComponent(tenant) + '&select=head_email');
+    if (t && t.length && t[0].head_email && email && t[0].head_email.toLowerCase() === email.toLowerCase()) return { ok: true, email };
+    return { ok: false, why: 'not head of this tenant' };
+  } catch (e) { return { ok: false, why: String((e && e.message) || e) }; }
+}
+
+async function handleProvisionTeacher(request, env, cors) {
+  const J = (oo, st) => new Response(JSON.stringify(oo), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
+  if (!env.SUPABASE_URL || !env.SUPABASE_KEY) return J({ ok: false, error: 'Supabase not configured.' }, 500);
+  let b; try { b = await request.json(); } catch (e) { return J({ ok: false, error: 'bad body' }, 400); }
+  const tenant = String(b.tenant_id || b.tenant || '').trim();
+  const email = String(b.email || '').trim().toLowerCase();
+  const fullName = String(b.fullName || b.full_name || '').trim();
+  const mode = (b.mode === 'invite') ? 'invite' : 'password';
+  if (!tenant || !email || !fullName) return J({ ok: false, error: 'tenant_id, email and fullName are required' }, 400);
+  if (email.indexOf('@') < 0) return J({ ok: false, error: 'A valid email is required to create a login.' }, 400);
+
+  const gate = await verifyHead(request, env, tenant);
+  if (!gate.ok) return J({ ok: false, error: 'Not authorised: ' + (gate.why || 'only the head teacher can add staff') }, 403);
+
+  const subjects = Array.isArray(b.subjects) ? b.subjects : String(b.subjects || '').split(',').map(x => x.trim()).filter(Boolean);
+  const site = env.SITE_URL || 'https://nextos.nextafrica.ai';
+  const redirectTo = site + '/s/' + encodeURIComponent(tenant);
+  try {
+    let authId = null, tempPassword = null, note = '';
+    if (mode === 'invite') {
+      const iv = await fetch(env.SUPABASE_URL + '/auth/v1/invite', {
+        method: 'POST', headers: { 'apikey': env.SUPABASE_KEY, 'Authorization': 'Bearer ' + env.SUPABASE_KEY, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, data: { full_name: fullName, tenant_id: tenant, role: 'teacher' } }),
+      });
+      const ivj = await iv.json().catch(() => ({}));
+      if (iv.ok && ivj && ivj.id) { authId = ivj.id; }
+      else { note = (ivj && (ivj.msg || ivj.error_description || ivj.error)) || ('invite status ' + iv.status); }
+    } else {
+      tempPassword = 'Teach-' + Math.random().toString(36).slice(2, 8) + '-' + Math.floor(Math.random() * 90 + 10);
+      const au = await fetch(env.SUPABASE_URL + '/auth/v1/admin/users', {
+        method: 'POST', headers: { 'apikey': env.SUPABASE_KEY, 'Authorization': 'Bearer ' + env.SUPABASE_KEY, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password: tempPassword, email_confirm: true, user_metadata: { full_name: fullName, tenant_id: tenant, role: 'teacher' } }),
+      });
+      const auj = await au.json().catch(() => ({}));
+      if (au.ok && auj && auj.id) { authId = auj.id; }
+      else { note = (auj && (auj.msg || auj.error_description || auj.error)) || ('auth status ' + au.status); tempPassword = null; }
+    }
+
+    let userRowId = null;
+    if (authId) {
+      try { const ur = await sbWrite(env, '/users', { auth_id: authId, tenant_id: tenant, email, full_name: fullName, role: 'teacher', phone: b.phone || null }, 'POST', 'return=representation'); if (Array.isArray(ur) && ur[0]) userRowId = ur[0].id; }
+      catch (e) { note = 'login created, but users-link failed: ' + (e.message || e); }
+    }
+    // teachers row (existing columns only)
+    try {
+      await sbWrite(env, '/teachers', { tenant_id: tenant, user_id: userRowId, full_name: fullName, subjects: subjects, phone: b.phone || null, email, status: 'active' }, 'POST', 'return=minimal');
+    } catch (e) { note = (note ? note + '; ' : '') + 'staff record: ' + (e.message || e); }
+
+    return J({ ok: !!authId, email, mode, tempPassword: tempPassword, loginUrl: redirectTo, note: authId ? (mode === 'invite' ? 'Invite email sent. They set their own password, then sign in.' : 'Login created. Share the email + temp password.') : ('Could not create login (' + note + ').') });
+  } catch (e) { return J({ ok: false, error: String((e && e.message) || e) }, 200); }
 }
 
 async function handleProvisionSchool(request, env, cors) {
