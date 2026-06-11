@@ -47,6 +47,14 @@
       <div style="font-weight:700;font-size:14px;margin-bottom:4px">New school</div>
       <div class="field"><label>School name *</label><input id="name" placeholder="Bright Future Academy"/></div>
       <div class="field"><label>URL slug</label><input id="slug" placeholder="bright-future-academy"/><div class="hint">Auto-filled from the name. Becomes the tenant id.</div></div>
+      <div class="field"><label>Institution level *</label>
+        <div class="row" id="lvlBtns" style="gap:8px;flex-wrap:wrap">
+          <button type="button" class="lvl" data-lvl="primary" style="flex:1;min-width:110px;padding:10px;border:1px solid #2a2f45;background:transparent;color:inherit;border-radius:8px;cursor:pointer;font-size:13px">Primary</button>
+          <button type="button" class="lvl" data-lvl="secondary" style="flex:1;min-width:110px;padding:10px;border:1px solid #2a2f45;background:transparent;color:inherit;border-radius:8px;cursor:pointer;font-size:13px">Secondary</button>
+          <button type="button" class="lvl" data-lvl="tertiary" style="flex:1;min-width:110px;padding:10px;border:1px solid #2a2f45;background:transparent;color:inherit;border-radius:8px;cursor:pointer;font-size:13px">University / College</button>
+        </div>
+        <div class="hint" id="lvlHint">Nia sets this from the name as you type — change it if needed.</div>
+      </div>
       <div class="field"><label>Brand colour</label><div class="row"><input type="color" id="color" value="#3B82F6" style="width:64px"/><input type="text" id="colorHex" value="#3B82F6"/></div></div>
       <div class="field"><label>Motto (optional)</label><input id="motto" placeholder="Learning today, leading tomorrow"/></div>
       <div class="field"><label>Logo URL (optional)</label><input id="logo" placeholder="https://.../logo.png"/><div class="hint">No logo? An initials badge is used.</div></div>
@@ -77,7 +85,18 @@ const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;',
 const slugify=s=>String(s).toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
 function msg(t,k){const m=$('msg');m.textContent=t;m.className='msg show '+(k||'');}
 
-$('name').addEventListener('input',()=>{ if(!$('slug')._t) $('slug').value=slugify($('name').value); });
+let levelManual=false, level='primary';
+const LVL_LABEL={primary:'Primary',secondary:'Secondary',tertiary:'University / College'};
+function detectLevel(name){ const n=String(name||'').toLowerCase();
+  if(/universit|college|polytechnic|\binstitute\b|tertiary|campus|\bvocational\b/.test(n)) return 'tertiary';
+  if(/secondary|\bhigh\b|seminary|\bs\.?s\.?s?\b|o.?level|a.?level/.test(n)) return 'secondary';
+  return 'primary'; }
+function paintLevel(){ document.querySelectorAll('#lvlBtns .lvl').forEach(b=>{ const on=b.dataset.lvl===level; b.style.borderColor=on?'#3B82F6':'#2a2f45'; b.style.background=on?'rgba(59,130,246,0.16)':'transparent'; b.style.fontWeight=on?'700':'500'; }); }
+function setLevel(l,manual){ level=l; if(manual){ levelManual=true; $('lvlHint').textContent='Set to '+LVL_LABEL[l]+'.'; } paintLevel(); }
+document.querySelectorAll('#lvlBtns .lvl').forEach(b=> b.addEventListener('click',()=>setLevel(b.dataset.lvl,true)));
+paintLevel();
+
+$('name').addEventListener('input',()=>{ if(!$('slug')._t) $('slug').value=slugify($('name').value); if(!levelManual){ level=detectLevel($('name').value); paintLevel(); $('lvlHint').textContent='Nia detected: '+LVL_LABEL[level]+' — change it if needed.'; } });
 $('slug').addEventListener('input',()=>{$('slug')._t=true;});
 $('color').addEventListener('input',e=>$('colorHex').value=e.target.value.toUpperCase());
 $('colorHex').addEventListener('input',e=>{ if(/^#[0-9a-fA-F]{6}$/.test(e.target.value)) $('color').value=e.target.value; });
@@ -88,7 +107,7 @@ $('go').addEventListener('click', async ()=>{
     primaryColor:$('colorHex').value.trim(), motto:$('motto').value.trim(),
     logoUrl:$('logo').value.trim(), tier:$('tier').value,
     adminEmail:$('adminEmail').value.trim(), adminName:$('adminName').value.trim(),
-    pin:$('pin').value.trim(),
+    pin:$('pin').value.trim(), level:level,
   };
   if(!payload.name){ msg('Enter the school name.','err'); return; }
   if(!payload.adminEmail){ msg('Enter the head teacher email.','err'); return; }

@@ -1658,11 +1658,25 @@ async function handleIssueReceipt(request, env, cors) {
 }
 
 // Provision a new school: tenant row + admin auth user + users link + branded link.
+const LEVEL_PRESETS = {
+  primary:   { classes: ['P1V','P1P','P2V','P2P','P3V','P3P','P4V','P4P','P5V','P5P','P6V','P6P','P7V','P7P'], subjects: ['English','Mathematics','Science','Social Studies'], combinations: [] },
+  secondary: { classes: ['S1','S2','S3','S4','S5','S6'], subjects: ['English','Mathematics','Physics','Chemistry','Biology','Geography','History','CRE','Literature','Economics','Entrepreneurship','ICT','Agriculture','Fine Art'], combinations: [
+    { name: 'PCM', subjects: ['Physics','Chemistry','Mathematics'], classes: ['S5','S6'] }, { name: 'PCB', subjects: ['Physics','Chemistry','Biology'], classes: ['S5','S6'] }, { name: 'BCM', subjects: ['Biology','Chemistry','Mathematics'], classes: ['S5','S6'] }, { name: 'HEG', subjects: ['History','Economics','Geography'], classes: ['S5','S6'] }, { name: 'HEL', subjects: ['History','Economics','Literature'], classes: ['S5','S6'] },
+  ] },
+  tertiary:  { classes: ['Year 1','Year 2','Year 3','Year 4'], subjects: ['Communication Skills','ICT','Research Methods','Mathematics','Entrepreneurship'], combinations: [] },
+};
+function detectLevel(name) {
+  const n = String(name || '').toLowerCase();
+  if (/universit|college|polytechnic|\binstitute\b|tertiary|campus|\bvocational\b/.test(n)) return 'tertiary';
+  if (/secondary|\bhigh\b|seminary|\bs\.?s\.?s?\b|o.?level|a.?level/.test(n)) return 'secondary';
+  return 'primary';
+}
+
 async function handleProvisionSchool(request, env, cors) {
   const reply = (o, st) => new Response(JSON.stringify(o), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
   let body;
   try { body = await request.json(); } catch (e) { return reply({ ok: false, error: 'Invalid JSON body' }, 400); }
-  const { pin, name, slug, primaryColor, logoUrl, motto, adminEmail, adminName, tier } = body || {};
+  const { pin, name, slug, primaryColor, logoUrl, motto, adminEmail, adminName, tier, level, type } = body || {};
   const ADMIN_PIN = env.GATE_PIN || '1379';
   if (pin !== ADMIN_PIN) return reply({ ok: false, error: 'Invalid admin PIN' }, 401);
   if (!name || !adminEmail) return reply({ ok: false, error: 'name and adminEmail are required' }, 400);
@@ -1677,6 +1691,15 @@ async function handleProvisionSchool(request, env, cors) {
       primary_color: primaryColor || null, logo_url: logoUrl || null, motto: motto || null,
       head_email: adminEmail, provisioned_at: new Date().toISOString(),
     }, 'POST', 'resolution=merge-duplicates,return=minimal');
+
+    // 1b. Seed the school structure (level) so the OS shows the right classes from first login
+    const lvl = (['primary','secondary','tertiary'].indexOf(String(level || type || '')) >= 0) ? String(level || type) : detectLevel(name);
+    const preset = LEVEL_PRESETS[lvl] || LEVEL_PRESETS.primary;
+    try {
+      await sbWrite(env, '/school_config?on_conflict=tenant_id', {
+        tenant_id: id, type: lvl, classes: preset.classes, subjects: preset.subjects, combinations: preset.combinations, updated_at: new Date().toISOString(),
+      }, 'POST', 'resolution=merge-duplicates,return=minimal');
+    } catch (e) {}
 
     // 2. Create the admin auth user (temp password)
     const tempPassword = 'Next-' + Math.random().toString(36).slice(2, 8) + '-' + Math.floor(Math.random()*90+10);
@@ -1701,7 +1724,7 @@ async function handleProvisionSchool(request, env, cors) {
     const loginUrl = site + '/s/' + encodeURIComponent(id);
 
     return reply({
-      ok: true, tenantId: id, name, loginUrl, adminEmail,
+      ok: true, tenantId: id, name, loginUrl, adminEmail, level: lvl,
       tempPassword: authId ? tempPassword : null,
       note: authId ? 'School created. Share the link + temp password with the head teacher.'
                    : 'School created/updated. Admin login not set automatically (' + userNote + ') — set the password in Supabase.',
