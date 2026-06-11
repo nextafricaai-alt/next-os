@@ -7132,6 +7132,19 @@ window.PEAK_ASKNEXT = (function () {
         D.kpis.feesCollectedTerm = (D.kpis.feesCollectedTerm || 0) + (p.amount || 0);
         notify();
       },
+      applyRemoteRollCall(rec) {
+        if (!rec || rec.student_id == null) return;
+        const sObj = D.students.find(x => x.id === rec.student_id);
+        if (sObj) { sObj._today = rec.status; sObj.lastSeen = rec.status === 'present' ? 'just marked' : (rec.status === 'late' ? 'late' : 'absent'); }
+        const marked = D.students.filter(x => x._today);
+        if (marked.length) {
+          const present = marked.filter(x => x._today === 'present' || x._today === 'late').length;
+          D.kpis.presentToday = present;
+          D.kpis.absentToday = marked.length - present;
+          D.kpis.attendancePct = Math.round(present / marked.length * 1000) / 10;
+        }
+        notify();
+      },
       applyRemotePayment(rec) {
         if (!rec) return;
         const amt = Number(rec.amount) || 0;
@@ -7217,8 +7230,9 @@ window.PEAK_ASKNEXT = (function () {
       const tenant = prof && prof.tenantId;
       const me = ((prof && (prof.fullName || prof.email)) || '').toLowerCase();
       if (!sb || !tenant || !sb.channel) { setTimeout(setup, 700); return; }
+      let rollBuf = []; let rollTimer = null;
       try {
-        sb.channel('nx-pay-' + tenant)
+        sb.channel('nx-sync-' + tenant)
           .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'receipts', filter: 'tenant_id=eq.' + tenant }, function (payload) {
             const rec = payload.new || {};
             const by = (rec.issued_by || '').toLowerCase();
@@ -7227,6 +7241,20 @@ window.PEAK_ASKNEXT = (function () {
             const amt = Number(rec.amount) || 0;
             const body = 'UGX ' + amt.toLocaleString() + (rec.balance_after != null ? (' \u00b7 balance now UGX ' + Number(rec.balance_after).toLocaleString()) : '') + ' \u00b7 by ' + (rec.issued_by || 'bursar');
             window.peakToast && window.peakToast((rec.student_name || 'A student') + ' has paid', 'success', body);
+          })
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'student_roll_call', filter: 'tenant_id=eq.' + tenant }, function (payload) {
+            const rec = payload.new || {};
+            if (rec.student_id == null) return;
+            if (window.peakStore && window.peakStore.applyRemoteRollCall) window.peakStore.applyRemoteRollCall(rec);
+            rollBuf.push(rec);
+            clearTimeout(rollTimer);
+            rollTimer = setTimeout(function () {
+              const byStream = {};
+              rollBuf.forEach(function (r) { const st = r.stream || '?'; (byStream[st] = byStream[st] || { p: 0, a: 0 }); if (r.status === 'absent') byStream[st].a++; else byStream[st].p++; });
+              const parts = Object.keys(byStream).map(function (st) { return st + ' \u00b7 ' + byStream[st].p + ' present, ' + byStream[st].a + ' absent'; });
+              window.peakToast && window.peakToast('Register taken', 'info', parts.join('  \u2022  '));
+              rollBuf = [];
+            }, 1500);
           })
           .subscribe();
       } catch (e) {}
