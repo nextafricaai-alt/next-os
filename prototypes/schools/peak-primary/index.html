@@ -2760,7 +2760,7 @@ const V4 = (function () {
           />
           <span style={{ fontSize: 10, color: T.ink3, fontFamily: T.mono, border: '1px solid ' + T.border, borderRadius: 5, padding: '2px 6px' }}>⌘K</span>
         </div>
-        <button onClick={() => window.peakToast && window.peakToast('Daily report exported', 'success', 'PDF · Today · 4 pages · Saved to bursar drive')} style={{ border: '1px solid ' + T.borderStr, background: 'transparent', padding: '8px 14px', borderRadius: 9, fontSize: 12.5, color: T.ink2, cursor: 'pointer', fontWeight: 500 }}>Export</button>
+        <button onClick={() => window.peakExportRoster && window.peakExportRoster()} style={{ border: '1px solid ' + T.borderStr, background: 'transparent', padding: '8px 14px', borderRadius: 9, fontSize: 12.5, color: T.ink2, cursor: 'pointer', fontWeight: 500 }}>Export</button>
         <button onClick={() => onNav ? onNav('comm') : (window.peakNav && window.peakNav('comm'))} style={{ border: 'none', background: T.red, color: '#fff', padding: '9px 16px', borderRadius: 9, fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }}>+ New broadcast</button>
       </header>
     );
@@ -3850,7 +3850,7 @@ const PD_Students = (function () {
                 <div style={{ display: 'flex', gap: 6 }}>
                   <button style={{ background: 'transparent', border: '1px solid ' + T.border, color: T.ink2, padding: '6px 12px', borderRadius: 7, fontSize: 12, cursor: 'pointer' }}>Send WhatsApp</button>
                   <button style={{ background: 'transparent', border: '1px solid ' + T.border, color: T.ink2, padding: '6px 12px', borderRadius: 7, fontSize: 12, cursor: 'pointer' }}>Generate report</button>
-                  <button style={{ background: 'transparent', border: '1px solid ' + T.border, color: T.ink2, padding: '6px 12px', borderRadius: 7, fontSize: 12, cursor: 'pointer' }}>Export CSV</button>
+                  <button onClick={() => window.peakExportRoster && window.peakExportRoster()} style={{ background: 'transparent', border: '1px solid ' + T.border, color: T.ink2, padding: '6px 12px', borderRadius: 7, fontSize: 12, cursor: 'pointer' }}>Export CSV</button>
                 </div>
                 <div style={{ flex: 1 }} />
                 <div style={{ fontSize: 11, color: T.ink3, fontFamily: T.mono }}>{rows.filter(s => s.flag === 'risk').length} at-risk in current view</div>
@@ -4009,7 +4009,7 @@ const PD_Profile = (function () {
                 <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
                   <button onClick={() => window.peakToast && window.peakToast('Director call scheduled', 'success', 'Mr. Robert Mugisha · Thursday 21 May at 16:30 · WhatsApp invite sent.')} style={{ background: T.red, color: '#fff', border: 'none', padding: '9px 16px', borderRadius: 9, fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }}>Schedule director call</button>
                   <button onClick={() => window.peakToast && window.peakToast('WhatsApp opened', 'info', 'Mr. Robert Mugisha · last seen 4 days ago')} style={{ background: 'transparent', color: T.ink, border: '1px solid ' + T.borderStr, padding: '9px 16px', borderRadius: 9, fontSize: 12.5, fontWeight: 500, cursor: 'pointer' }}>WhatsApp guardian</button>
-                  <button onClick={() => window.peakToast && window.peakToast('Report PDF generated', 'success', 'Brian Mugisha · Term 2 · attendance + academics + comms + fees · 6 pages.')} style={{ background: 'transparent', color: T.ink2, border: '1px solid ' + T.border, padding: '9px 14px', borderRadius: 9, fontSize: 12.5, cursor: 'pointer' }}>Generate report</button>
+                  <button onClick={() => window.peakStudentReport && window.peakStudentReport(window.peakFindStudent('Brian Mugisha') || { name: 'Brian Mugisha', stream: 'P5V', guardian: 'Mr. Robert Mugisha', guardianPhone: '+256 70 234 1017', fees: 'overdue', flag: 'risk' })} style={{ background: 'transparent', color: T.ink2, border: '1px solid ' + T.border, padding: '9px 14px', borderRadius: 9, fontSize: 12.5, cursor: 'pointer' }}>Generate report</button>
                   <button onClick={() => window.peakToast && window.peakToast('More actions', 'info', 'Edit · transfer stream · archive · suspend')} style={{ background: 'transparent', color: T.ink3, border: 'none', padding: '9px 12px', fontSize: 14, cursor: 'pointer' }}>⋯</button>
                 </div>
               </div>
@@ -4343,7 +4343,7 @@ const PD_Fees = (function () {
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
                 <button onClick={() => window.peakModal && window.peakModal.open(React.createElement(window.PEAK_FORMS.Receipts))} style={{ border: '1px solid ' + T.borderStr, background: 'transparent', color: T.ink2, padding: '8px 14px', borderRadius: 9, fontSize: 12.5, cursor: 'pointer' }}>Receipts</button>
-                <button onClick={() => window.peakToast && window.peakToast('Ledger exported', 'success', 'Excel · 67 outstanding accounts · sent to bursar email.')} style={{ border: '1px solid ' + T.borderStr, background: 'transparent', color: T.ink2, padding: '8px 14px', borderRadius: 9, fontSize: 12.5, cursor: 'pointer' }}>Export ledger</button>
+                <button onClick={() => window.peakExportLedger && window.peakExportLedger()} style={{ border: '1px solid ' + T.borderStr, background: 'transparent', color: T.ink2, padding: '8px 14px', borderRadius: 9, fontSize: 12.5, cursor: 'pointer' }}>Export ledger</button>
                 <button onClick={() => window.peakToast && window.peakToast('Fees settings — coming in Phase 2', 'info')} style={{ border: '1px solid ' + T.borderStr, background: 'transparent', color: T.ink, padding: '8px 14px', borderRadius: 9, fontSize: 12.5, cursor: 'pointer' }}>Settings</button>
                 <button onClick={() => onRecordPayment ? onRecordPayment() : (window.peakModal && window.peakModal.open(window.PEAK_FORMS.RecordPayment({})))} style={{ border: 'none', background: T.red, color: '#fff', padding: '9px 16px', borderRadius: 9, fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }}>+ Record cash payment</button>
               </div>
@@ -5818,7 +5818,7 @@ window.PEAK_SCREENS = (function () {
                   }}>{o.l}</button>
                 ))}
               </div>
-              <PrimaryBtn onClick={() => window.peakToast('New assignment composer — coming in Phase 2', 'info')}>+ New assignment</PrimaryBtn>
+              <PrimaryBtn onClick={() => window.peakModal && window.peakModal.open(React.createElement(window.PEAK_FORMS.NewAssignment))}>+ New assignment</PrimaryBtn>
             </>
           }
         />
@@ -6488,7 +6488,38 @@ window.PEAK_FORMS = (function () {
     );
   }
 
-  return { AddStudent, AddTeacher, RecordPayment, Confirm, ReceiptResult, Receipts, ImportStudents };
+  function NewAssignment() {
+    const [title, setTitle] = useState('');
+    const [stream, setStream] = useState((D.streams && D.streams[0] && D.streams[0].id) || 'P1V');
+    const [subject, setSubject] = useState('');
+    const [due, setDue] = useState('');
+    const [details, setDetails] = useState('');
+    const [err, setErr] = useState('');
+    const submit = () => {
+      if (!title.trim()) { setErr('Give the assignment a title.'); return; }
+      window.peakSaveAssignment({ title: title.trim(), stream, subject: subject.trim(), due: due.trim(), details: details.trim() });
+      window.peakToast && window.peakToast('Assignment created', 'success', title.trim() + ' - ' + stream + (due ? (' - due ' + due) : ''));
+      window.peakModal.close();
+    };
+    return (
+      <div style={{ width: '100%' }}>
+        <ModalHeader eyebrow="New assignment" title="Set work for a class" subtitle="Saved to the class - guardians can be notified from Communications." />
+        <div style={{ padding: 24, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+          <Field label="Title" error={err} span={2}><TextInput value={title} onChange={v => { setTitle(v); setErr(''); }} placeholder="e.g. Fractions worksheet 3" /></Field>
+          <Field label="Class / stream"><Select value={stream} onChange={setStream} options={(D.streams || []).map(s => ({ value: s.id, label: s.label || s.id }))} /></Field>
+          <Field label="Subject"><TextInput value={subject} onChange={setSubject} placeholder="Mathematics" /></Field>
+          <Field label="Due date" span={2}><TextInput value={due} onChange={setDue} placeholder="Friday 19 June" /></Field>
+          <Field label="Instructions" span={2}><textarea value={details} onChange={e => setDetails(e.target.value)} placeholder="What should the pupils do?" style={{ width: '100%', minHeight: 80, background: T.bg, border: '1px solid ' + T.border, borderRadius: 9, padding: 11, fontSize: 13, color: T.ink, fontFamily: T.font, outline: 'none' }} /></Field>
+        </div>
+        <ModalFooter>
+          <SecondaryButton onClick={() => window.peakModal.close()}>Cancel</SecondaryButton>
+          <PrimaryButton onClick={submit}>Create assignment</PrimaryButton>
+        </ModalFooter>
+      </div>
+    );
+  }
+
+  return { AddStudent, AddTeacher, RecordPayment, Confirm, ReceiptResult, Receipts, ImportStudents, NewAssignment };
 })();
 
   </script>
@@ -6783,6 +6814,34 @@ window.PEAK_EXAMS = (function () {
 })();
   </script>
 
+  <script>
+  window.peakExportCSV = function (filename, headers, rows) {
+    try {
+      var esc = function (v) { v = (v == null ? '' : String(v)); return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
+      var csv = [headers.map(esc).join(',')].concat(rows.map(function (r) { return r.map(esc).join(','); })).join('\n');
+      var blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+      var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = filename; a.click(); setTimeout(function () { URL.revokeObjectURL(a.href); }, 2000);
+    } catch (e) {}
+  };
+  window.peakRoster = function () { return (window.PEAK && window.PEAK.students) || []; };
+  window.peakExportRoster = function () { var s = window.peakRoster(); window.peakExportCSV('students-' + (((window.__BRAND_NAME) || 'school') + '').replace(/\s+/g, '_') + '.csv', ['Name', 'Stream', 'Guardian', 'Phone', 'Fees', 'Balance (UGX)', 'Attendance %', 'Standing'], s.map(function (x) { return [x.name, x.stream || '', x.guardian || '', x.guardianPhone || '', x.fees || '', x.balance || 0, (x.attendanceWk != null ? x.attendanceWk : ''), x.flag === 'risk' ? 'At-risk' : (x.flag === 'top' ? 'Top' : 'OK')]; })); window.peakToast && window.peakToast('Roster exported', 'success', s.length + ' students - CSV downloaded.'); };
+  window.peakExportLedger = function () { var s = window.peakRoster().filter(function (x) { return (x.balance || 0) > 0 || x.fees === 'overdue' || x.fees === 'partial'; }); window.peakExportCSV('fees-outstanding.csv', ['Name', 'Stream', 'Guardian', 'Phone', 'Fees', 'Balance (UGX)'], s.map(function (x) { return [x.name, x.stream || '', x.guardian || '', x.guardianPhone || '', x.fees || '', x.balance || 0]; })); window.peakToast && window.peakToast('Ledger exported', 'success', s.length + ' outstanding accounts - CSV downloaded.'); };
+  window.peakFindStudent = function (name) { var s = window.peakRoster(); name = (name || '').toLowerCase(); return s.find(function (x) { return (x.name || '').toLowerCase() === name; }) || s.find(function (x) { return (x.name || '').toLowerCase().indexOf(name) >= 0; }); };
+  window.peakStudentReport = function (stu) {
+    try {
+      var J = window.jspdf && window.jspdf.jsPDF; if (!J) { window.peakToast && window.peakToast('PDF engine loading - try again', 'info'); return; }
+      stu = stu || {}; var doc = new J(); var brand = (window.__BRAND_NAME) || 'School';
+      doc.setFontSize(18); doc.setFont(undefined, 'bold'); doc.text(brand, 105, 18, { align: 'center' });
+      doc.setFont(undefined, 'normal'); doc.setFontSize(11); doc.text('Student Summary', 105, 26, { align: 'center' });
+      doc.setDrawColor(200); doc.line(14, 31, 196, 31); var y = 45;
+      [['Name', stu.name || '-'], ['Class / Stream', stu.stream || '-'], ['Guardian', stu.guardian || '-'], ['Phone', stu.guardianPhone || stu.phone || '-'], ['Fees status', stu.fees || '-'], ['Balance', stu.balance ? ('UGX ' + Number(stu.balance).toLocaleString()) : '0'], ['Weekly attendance', (stu.attendanceWk != null ? stu.attendanceWk + '%' : '-')], ['Last seen', stu.lastSeen || '-'], ['Standing', stu.flag === 'risk' ? 'At-risk' : (stu.flag === 'top' ? 'Top performer' : 'OK')]].forEach(function (r) { doc.setFont(undefined, 'bold'); doc.text(r[0] + ':', 14, y); doc.setFont(undefined, 'normal'); doc.text(String(r[1]), 75, y); y += 9; });
+      doc.setFontSize(9); doc.setTextColor(120); doc.text('Generated by NEXT OS - Nia - ' + new Date().toLocaleDateString(), 14, 285);
+      doc.save((stu.name || 'student').replace(/\s+/g, '_') + '_summary.pdf');
+      window.peakToast && window.peakToast('Report generated', 'success', (stu.name || 'Student') + ' - summary PDF downloaded.');
+    } catch (e) { window.peakToast && window.peakToast('Could not generate', 'info', String(e.message || e)); }
+  };
+  window.peakSaveAssignment = function (a) { try { var key = 'nextos.assignments.' + ((window.PEAK_ROLE && window.PEAK_ROLE.getProfile && window.PEAK_ROLE.getProfile().tenantId) || 'peak-primary'); var arr = []; try { arr = JSON.parse(localStorage.getItem(key) || '[]'); } catch (e) {} arr.unshift(Object.assign({ id: Date.now(), created: new Date().toISOString() }, a)); localStorage.setItem(key, JSON.stringify(arr.slice(0, 200))); } catch (e) {} };
+  </script>
   <script type="text/babel">
 /* PEAK_ASKNEXT — real conversational Nia inside the school OS */
 window.PEAK_ASKNEXT = (function () {
