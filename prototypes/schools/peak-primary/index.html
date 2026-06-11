@@ -2723,6 +2723,12 @@ const V4 = (function () {
         </nav>
 
         {/* AI shortcut */}
+        {tut && tip && SCHOOL_TIPS[tip.k] && (
+          <div style={{ position: 'fixed', left: tip.left, top: tip.top, zIndex: 600, maxWidth: 250, background: T.surface, border: '1px solid ' + T.red, borderRadius: 10, padding: '10px 12px', boxShadow: '0 12px 34px rgba(0,0,0,0.5)' }}>
+            <div style={{ fontSize: 10, fontFamily: T.mono, letterSpacing: 1.5, color: T.red, marginBottom: 5 }}>NIA \u00b7 TIP</div>
+            <div style={{ fontSize: 12.5, color: T.ink2, lineHeight: 1.5 }}>{SCHOOL_TIPS[tip.k]}</div>
+          </div>
+        )}
         <div style={{ padding: 12 }}>
           <button onClick={() => window.PEAK_ASKNEXT && window.PEAK_ASKNEXT.open()} style={{
             width: '100%', display: 'flex', alignItems: 'center', gap: 10,
@@ -7323,7 +7329,26 @@ window.PEAK_ASKNEXT = (function () {
     { k: 'rep',   label: 'Reports',        glyph: '⊜' },
   ];
 
+  const SCHOOL_TIPS = {
+    today: "Your morning briefing - what needs you today: overdue fees, absentees, new enrolment inquiries, and Nia's nudges.",
+    dash: "The big picture - live numbers on enrolment, attendance, fees and performance across the whole school.",
+    stud: "Every student. Search the roster, open a child's full profile, import a class from CSV, or enrol a new pupil.",
+    attn: "Daily register - mark who's present, late or absent per stream, and catch at-risk attendance early.",
+    fees: "The money. Outstanding balances, record a cash payment, issue receipts, and export the ledger.",
+    exam: "Exams & reports - enter marks, Nia grades them (D1-F9 + Division), ranks each student, and prints report cards (held if fees are owed).",
+    comm: "Communications - message guardians on WhatsApp: fee reminders or notices, one child or the whole class.",
+    teach: "Your teachers - profiles, subjects, the streams they take, and contacts.",
+    staff: "Staff today - who has checked in, who's late, who hasn't shown up.",
+    timetable: "The class timetable - lessons per stream and subject across the week.",
+    trans: "Transport - buses, routes, drivers and live status; notify parents of ETAs.",
+    learn: "Learning - lesson coverage, syllabus progress and academic resources.",
+    rep: "Reports - compiled summaries you can export and share with the board.",
+  };
+
   function Sidebar({ route, onNav }) {
+    const [tut, setTut] = React.useState(() => { try { return localStorage.getItem('nextos.schooltutorial') !== '0'; } catch (e) { return true; } });
+    const [tip, setTip] = React.useState(null);
+    const toggleTut = () => setTut(v => { const n = !v; try { localStorage.setItem('nextos.schooltutorial', n ? '1' : '0'); } catch (e) {} if (!n) setTip(null); return n; });
     return (
       <aside style={{
         width: 244, background: T.bg, borderRight: '1px solid ' + T.border,
@@ -7343,6 +7368,11 @@ window.PEAK_ASKNEXT = (function () {
           </div>
         </div>
 
+        <div style={{ padding: '8px 12px', borderBottom: '1px solid ' + T.border }}>
+          <button onClick={toggleTut} title="Hover any item to learn what it does" style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: tut ? 'rgba(0,252,143,0.08)' : 'transparent', border: '1px solid ' + (tut ? T.red : T.border), color: tut ? T.red : T.ink3, borderRadius: 8, padding: '7px 10px', fontSize: 11.5, fontFamily: T.mono, cursor: 'pointer' }}>
+            <span>{'\u{1F393}'} Tutorial {tut ? 'ON' : 'OFF'}</span><span style={{ fontSize: 10, opacity: 0.8 }}>{tut ? 'hover items' : 'tap to learn'}</span>
+          </button>
+        </div>
         <nav style={{ padding: '14px 10px', display: 'flex', flexDirection: 'column', gap: 1, flex: 1, overflow: 'auto' }}>
           <div style={{ fontSize: 10, fontWeight: 700, color: T.ink4, padding: '10px 10px 8px', letterSpacing: '0.08em', textTransform: 'uppercase', fontFamily: T.mono }}>Operations</div>
           {(window.PEAK_ROLE ? window.PEAK_ROLE.filterNavItems(navItems) : navItems).map(n => {
@@ -7358,8 +7388,8 @@ window.PEAK_ASKNEXT = (function () {
                 cursor: 'pointer', textAlign: 'left', fontFamily: T.font, position: 'relative',
                 transition: 'background 0.12s',
               }}
-              onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = 'rgba(255,255,255,0.025)'; }}
-              onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = 'transparent'; }}
+              onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = 'rgba(255,255,255,0.025)'; if (tut) { const r = e.currentTarget.getBoundingClientRect(); setTip({ k: n.k, top: Math.min(r.top, window.innerHeight - 170), left: r.right + 10 }); } }}
+              onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = 'transparent'; setTip(null); }}
               >
                 {isActive && <span style={{ position: 'absolute', left: -10, top: 8, bottom: 8, width: 3, background: T.red, borderRadius: 999 }} />}
                 <span style={{ width: 18, color: isActive ? T.red : T.ink3, fontSize: 14, textAlign: 'center' }}>{n.glyph}</span>
