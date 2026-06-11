@@ -218,7 +218,7 @@ export default {
     }
 
     // GET-allowed routes (read-only endpoints live below this gate)
-    const GET_OK = ['/check-project', '/seo-audit', '/px.js', '/analytics', '/gsc', '/ga4', '/fetch-page', '/site-pages', '/cms/collections', '/cms/items', '/students'];
+    const GET_OK = ['/check-project', '/seo-audit', '/px.js', '/analytics', '/gsc', '/ga4', '/fetch-page', '/site-pages', '/cms/collections', '/cms/items', '/students', '/exams', '/exam-results', '/fees-balances'];
     if (request.method !== 'POST' && !GET_OK.includes(url.pathname)) {
       return new Response('Method not allowed', { status: 405, headers: cors });
     }
@@ -315,6 +315,13 @@ export default {
     // ─── Students: list + bulk import (real students into a school tenant) ──
     if (url.pathname === '/students')        return handleStudentsList(url.searchParams.get('tenant') || '', env, cors);
     if (url.pathname === '/students/import') return handleStudentsImport(request, env, cors);
+
+    // ─── Exams + grading ──
+    if (url.pathname === '/exams')              return handleExamsList(url.searchParams.get('tenant') || '', env, cors);
+    if (url.pathname === '/exams/save')         return handleExamSave(request, env, cors);
+    if (url.pathname === '/exam-results')       return handleResultsList(url.searchParams.get('tenant') || '', url.searchParams.get('exam') || '', env, cors);
+    if (url.pathname === '/exam-results/save')  return handleResultsSave(request, env, cors);
+    if (url.pathname === '/fees-balances')      return handleFeesBalances(url.searchParams.get('tenant') || '', env, cors);
 
     // ─── Route: / — Llama agent (default) ───────────────────────────────
     return handleAgent(request, env, cors);
@@ -1071,6 +1078,68 @@ async function handleStudentsImport(request, env, cors) {
     }
     return J({ ok: true, imported, skipped });
   } catch (e) { return J({ error: String((e && e.message) || e) }, 200); }
+}
+
+async function handleFeesBalances(tenant, env, cors) {
+  const J = (oo, st) => new Response(JSON.stringify(oo), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
+  if (!tenant) return J({ error: 'tenant required' }, 400);
+  if (!env.SUPABASE_URL || !env.SUPABASE_KEY) return J({ error: 'Supabase not configured.' }, 500);
+  try {
+    const rows = await sbFetch(env, '/fees?tenant_id=eq.' + encodeURIComponent(tenant) + '&select=student_id,amount&limit=20000');
+    const bal = {};
+    (rows || []).forEach(r => { bal[r.student_id] = (bal[r.student_id] || 0) + Number(r.amount || 0); });
+    return J({ tenant, balances: bal });
+  } catch (e) { return J({ error: String((e && e.message) || e), tenant }, 200); }
+}
+
+async function handleExamsList(tenant, env, cors) {
+  const J = (oo, st) => new Response(JSON.stringify(oo), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
+  if (!tenant) return J({ error: 'tenant required' }, 400);
+  if (!env.SUPABASE_URL || !env.SUPABASE_KEY) return J({ error: 'Supabase not configured.' }, 500);
+  try { const rows = await sbFetch(env, '/exams?tenant_id=eq.' + encodeURIComponent(tenant) + '&select=*&order=created_at.desc&limit=200'); return J({ tenant, exams: rows || [] }); }
+  catch (e) { return J({ error: String((e && e.message) || e), tenant }, 200); }
+}
+async function handleExamSave(request, env, cors) {
+  const J = (oo, st) => new Response(JSON.stringify(oo), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
+  if (!env.SUPABASE_URL || !env.SUPABASE_KEY) return J({ error: 'Supabase not configured.' }, 500);
+  let b; try { b = await request.json(); } catch (e) { return J({ error: 'bad body' }, 400); }
+  const e = b.exam || b; const tenant = String(b.tenant_id || e.tenant_id || '').trim();
+  if (!tenant || !e.name) return J({ error: 'tenant_id and exam name required' }, 400);
+  const row = { tenant_id: tenant, name: String(e.name).slice(0, 120), term: e.term || null, year: e.year || null, level: e.level || 'primary', subjects: e.subjects || [], core: e.core || [], config: e.config || {} };
+  try {
+    if (e.id) {
+      const r = await fetch(env.SUPABASE_URL + '/rest/v1/exams?id=eq.' + encodeURIComponent(e.id), { method: 'PATCH', headers: sbHeaders(env, 'return=representation'), body: JSON.stringify(row) });
+      const d = await r.json(); return J({ ok: true, exam: (d && d[0]) || row });
+    } else {
+      const r = await fetch(env.SUPABASE_URL + '/rest/v1/exams', { method: 'POST', headers: sbHeaders(env, 'return=representation'), body: JSON.stringify(row) });
+      const d = await r.json(); return J({ ok: true, exam: (d && d[0]) || row });
+    }
+  } catch (x) { return J({ error: String((x && x.message) || x) }, 200); }
+}
+async function handleResultsList(tenant, exam, env, cors) {
+  const J = (oo, st) => new Response(JSON.stringify(oo), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
+  if (!tenant || !exam) return J({ error: 'tenant and exam required' }, 400);
+  if (!env.SUPABASE_URL || !env.SUPABASE_KEY) return J({ error: 'Supabase not configured.' }, 500);
+  try { const rows = await sbFetch(env, '/exam_results?tenant_id=eq.' + encodeURIComponent(tenant) + '&exam_id=eq.' + encodeURIComponent(exam) + '&select=student_id,marks&limit=5000'); return J({ exam, results: rows || [] }); }
+  catch (e) { return J({ error: String((e && e.message) || e) }, 200); }
+}
+async function handleResultsSave(request, env, cors) {
+  const J = (oo, st) => new Response(JSON.stringify(oo), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
+  if (!env.SUPABASE_URL || !env.SUPABASE_KEY) return J({ error: 'Supabase not configured.' }, 500);
+  let b; try { b = await request.json(); } catch (e) { return J({ error: 'bad body' }, 400); }
+  const tenant = String(b.tenant_id || '').trim(); const examId = b.exam_id; const results = Array.isArray(b.results) ? b.results : [];
+  if (!tenant || !examId) return J({ error: 'tenant_id and exam_id required' }, 400);
+  if (!results.length) return J({ error: 'no results' }, 400);
+  const rows = results.filter(r => r.student_id != null).map(r => ({ tenant_id: tenant, exam_id: examId, student_id: r.student_id, marks: r.marks || {}, updated_at: new Date().toISOString() }));
+  try {
+    let saved = 0;
+    for (let i = 0; i < rows.length; i += 500) {
+      const chunk = rows.slice(i, i + 500);
+      await fetch(env.SUPABASE_URL + '/rest/v1/exam_results?on_conflict=exam_id,student_id', { method: 'POST', headers: sbHeaders(env, 'resolution=merge-duplicates,return=minimal'), body: JSON.stringify(chunk) });
+      saved += chunk.length;
+    }
+    return J({ ok: true, saved });
+  } catch (x) { return J({ error: String((x && x.message) || x) }, 200); }
 }
 
 async function getGoogleToken(env, scope) {
