@@ -1547,7 +1547,7 @@
 
     const signOut = async () => {
       if (window.NextSession && window.NextSession.signOut) await window.NextSession.signOut();
-      else window.location.href = 'login.html';
+      else { var _t=''; try{var _p=JSON.parse(localStorage.getItem('nextos.profile')||'null'); _t=(_p&&_p.tenantId)||localStorage.getItem('nextos.lastTenant')||'';}catch(e){} window.location.href = 'login.html'+(_t?('?t='+encodeURIComponent(_t)):''); }
     };
 
     const onCheckedIn = (checkin) => setData(prev => ({ ...prev, checkin }));
@@ -7826,7 +7826,7 @@ window.PEAK_SETUP = (function () {
                 </div>
                 <span onClick={async () => {
                   if (window.NextSession && window.NextSession.signOut) await window.NextSession.signOut();
-                  else window.location.href = 'login.html';
+                  else { var _t=''; try{var _p=JSON.parse(localStorage.getItem('nextos.profile')||'null'); _t=(_p&&_p.tenantId)||localStorage.getItem('nextos.lastTenant')||'';}catch(e){} window.location.href = 'login.html'+(_t?('?t='+encodeURIComponent(_t)):''); }
                 }} title="Sign out" style={{ color: T.ink3, fontSize: 14, cursor: 'pointer' }}>⎋</span>
               </>
             );
