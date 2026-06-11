@@ -218,7 +218,7 @@ export default {
     }
 
     // GET-allowed routes (read-only endpoints live below this gate)
-    const GET_OK = ['/check-project', '/seo-audit', '/px.js', '/analytics', '/gsc', '/ga4', '/fetch-page', '/site-pages', '/cms/collections', '/cms/items', '/students', '/exams', '/exam-results', '/fees-balances', '/staff-status', '/student-health'];
+    const GET_OK = ['/check-project', '/seo-audit', '/px.js', '/analytics', '/gsc', '/ga4', '/fetch-page', '/site-pages', '/cms/collections', '/cms/items', '/students', '/exams', '/exam-results', '/fees-balances', '/staff-status', '/student-health', '/events'];
     if (request.method !== 'POST' && !GET_OK.includes(url.pathname)) {
       return new Response('Method not allowed', { status: 405, headers: cors });
     }
@@ -327,6 +327,8 @@ export default {
     if (url.pathname === '/fees-balances')      return handleFeesBalances(url.searchParams.get('tenant') || '', env, cors);
     if (url.pathname === '/staff-status')       return handleStaffStatus(url.searchParams.get('tenant') || '', env, cors);
     if (url.pathname === '/student-health')     return handleStudentHealth(url.searchParams.get('tenant') || '', env, cors);
+    if (url.pathname === '/events')             return handleEventsList(url.searchParams.get('tenant') || '', env, cors);
+    if (url.pathname === '/events/save')        return handleEventSave(request, env, cors);
 
     // ─── Route: / — Llama agent (default) ───────────────────────────────
     return handleAgent(request, env, cors);
@@ -1106,6 +1108,24 @@ async function handleStudentsImport(request, env, cors) {
     }
     return J({ ok: true, imported, skipped });
   } catch (e) { return J({ error: String((e && e.message) || e) }, 200); }
+}
+
+async function handleEventsList(tenant, env, cors) {
+  const J = (oo, st) => new Response(JSON.stringify(oo), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
+  if (!tenant) return J({ error: 'tenant required' }, 400);
+  if (!env.SUPABASE_URL || !env.SUPABASE_KEY) return J({ error: 'Supabase not configured.' }, 500);
+  try { const rows = await sbFetch(env, '/school_events?tenant_id=eq.' + encodeURIComponent(tenant) + '&select=id,title,date,type&order=date.asc&limit=400'); return J({ tenant, events: rows || [] }); }
+  catch (e) { return J({ error: String((e && e.message) || e), tenant }, 200); }
+}
+async function handleEventSave(request, env, cors) {
+  const J = (oo, st) => new Response(JSON.stringify(oo), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
+  if (!env.SUPABASE_URL || !env.SUPABASE_KEY) return J({ error: 'Supabase not configured.' }, 500);
+  let b; try { b = await request.json(); } catch (e) { return J({ error: 'bad body' }, 400); }
+  const e = b.event || b; const tenant = String(b.tenant_id || e.tenant_id || '').trim();
+  if (!tenant || !e.title || !e.date) return J({ error: 'tenant_id, title and date required' }, 400);
+  const row = { tenant_id: tenant, title: String(e.title).slice(0, 140), date: e.date, type: e.type || 'event' };
+  try { const r = await fetch(env.SUPABASE_URL + '/rest/v1/school_events', { method: 'POST', headers: sbHeaders(env, 'return=representation'), body: JSON.stringify(row) }); const d = await r.json(); return J({ ok: true, event: (d && d[0]) || row }); }
+  catch (x) { return J({ error: String((x && x.message) || x) }, 200); }
 }
 
 async function handleStaffStatus(tenant, env, cors) {

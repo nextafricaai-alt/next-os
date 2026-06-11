@@ -3329,6 +3329,111 @@ const PD_Today = (function () {
     );
   }
 
+  function brandColor() { try { var b = JSON.parse(localStorage.getItem('nextos.brand') || 'null'); if (b && b.color) return b.color; } catch (e) {} return (window.__BRAND_COLOR) || T.red; }
+  function ugHolidays(year) {
+    var H = [['01-01', "New Year's Day"], ['01-26', 'Liberation Day'], ['02-16', 'Janani Luwum Day'], ['03-08', "Women's Day"], ['05-01', 'Labour Day'], ['06-03', 'Martyrs Day'], ['06-09', 'National Heroes Day'], ['10-09', 'Independence Day'], ['12-25', 'Christmas Day'], ['12-26', 'Boxing Day']];
+    return H.map(function (h) { return { date: year + '-' + h[0], title: h[1], type: 'holiday' }; });
+  }
+  function DailyTasks({ onNav }) {
+    var tasks = [
+      { dot: T.red,  t: 'Reach today’s unreached absences', cta: 'Send nudges', go: function () { window.peakBulkWhatsApp(window.peakOverdueRecipients(), 'Absence nudges'); } },
+      { dot: T.warn, t: 'Fee accounts overdue 30+ days',       cta: 'Open fees',   go: function () { onNav && onNav('fees'); } },
+      { dot: T.good, t: 'Take / review today’s register',    cta: 'Attendance', go: function () { onNav && onNav('attn'); } },
+      { dot: T.warn, t: 'At-risk students need a check-in',     cta: 'Students',    go: function () { onNav && onNav('stud'); } },
+      { dot: T.ink3, t: 'Enter or release exam reports',        cta: 'Exams',       go: function () { onNav && onNav('exam'); } },
+      { dot: T.ink3, t: 'Bus departure · 4 routes · 16:30', cta: 'Transport',   go: function () { onNav && onNav('trans'); } },
+    ];
+    return (
+      <div style={{ background: T.surface, border: '1px solid ' + T.border, borderRadius: 14, padding: 18 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+          <div style={{ fontSize: 14, fontWeight: 700, color: T.ink }}>Daily Tasks</div>
+          <div style={{ fontSize: 11, color: T.ink3, fontFamily: T.mono }}>{tasks.length} to do</div>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          {tasks.map(function (k, i) { return (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '10px 4px', borderBottom: i < tasks.length - 1 ? '1px solid ' + T.border : 'none' }}>
+              <span style={{ width: 8, height: 8, borderRadius: '50%', background: k.dot, flexShrink: 0 }} />
+              <span style={{ flex: 1, fontSize: 13, color: T.ink2, lineHeight: 1.4 }}>{k.t}</span>
+              <button onClick={k.go} style={{ flexShrink: 0, background: 'transparent', border: '1px solid ' + T.borderStr, color: T.ink, borderRadius: 8, padding: '6px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>{k.cta}</button>
+            </div>
+          ); })}
+        </div>
+      </div>
+    );
+  }
+  function SchoolCalendar() {
+    const [cur, setCur] = React.useState(new Date());
+    const [events, setEvents] = React.useState([]);
+    const [adding, setAdding] = React.useState(false);
+    const [nt, setNt] = React.useState(''); const [nd, setNd] = React.useState('');
+    const tenant = (window.PEAK_ROLE && window.PEAK_ROLE.getProfile && window.PEAK_ROLE.getProfile().tenantId) || 'peak-primary';
+    const WK = 'https://nextos-sentinel.nextafricaai.workers.dev';
+    const reload = React.useCallback(function () { fetch(WK + '/events?tenant=' + encodeURIComponent(tenant)).then(function (r) { return r.json(); }).then(function (d) { if (d && d.events) setEvents(d.events); }).catch(function () {}); }, [tenant]);
+    React.useEffect(function () { reload(); }, [reload]);
+    const BC = brandColor();
+    const y = cur.getFullYear(), m = cur.getMonth();
+    const all = ugHolidays(y).concat(ugHolidays(y + 1)).concat(events.map(function (e) { return { date: e.date, title: e.title, type: e.type || 'event' }; }));
+    const byDate = {}; all.forEach(function (e) { (byDate[e.date] = byDate[e.date] || []).push(e); });
+    const pad = function (n) { return (n < 10 ? '0' : '') + n; };
+    const dstr = function (yy, mm, dd) { return yy + '-' + pad(mm + 1) + '-' + pad(dd); };
+    const today = new Date(); const isToday = function (dd) { return today.getFullYear() === y && today.getMonth() === m && today.getDate() === dd; };
+    const first = new Date(y, m, 1).getDay(); const dim = new Date(y, m + 1, 0).getDate();
+    const cells = []; for (var i = 0; i < first; i++) cells.push(null); for (var d = 1; d <= dim; d++) cells.push(d);
+    const monthName = cur.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    const upcoming = all.filter(function (e) { return e.date >= dstr(today.getFullYear(), today.getMonth(), today.getDate()); }).sort(function (a, b) { return a.date < b.date ? -1 : 1; }).slice(0, 5);
+    const addEvent = function () { const t = nt.trim(), dd = nd.trim(); if (!t || !dd) return; fetch(WK + '/events/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tenant_id: tenant, event: { title: t, date: dd, type: 'event' } }) }).then(function (r) { return r.json(); }).then(function (res) { if (res.error) { window.peakToast && window.peakToast('Could not save', 'info', res.error); return; } setNt(''); setNd(''); setAdding(false); reload(); window.peakToast && window.peakToast('Event added', 'success', t); }).catch(function () {}); };
+    const typeColor = function (t) { return t === 'holiday' ? T.warn : (t === 'exam' ? T.red : BC); };
+    return (
+      <div style={{ background: T.surface, border: '1px solid ' + T.border, borderRadius: 14, padding: 18 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+          <div style={{ fontSize: 14, fontWeight: 700, color: T.ink }}>{monthName}</div>
+          <div style={{ display: 'flex', gap: 4 }}>
+            <button onClick={function () { setCur(new Date(y, m - 1, 1)); }} style={{ background: 'transparent', border: '1px solid ' + T.border, color: T.ink2, borderRadius: 7, width: 26, height: 26, cursor: 'pointer' }}>{'‹'}</button>
+            <button onClick={function () { setCur(new Date(y, m + 1, 1)); }} style={{ background: 'transparent', border: '1px solid ' + T.border, color: T.ink2, borderRadius: 7, width: 26, height: 26, cursor: 'pointer' }}>{'›'}</button>
+          </div>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 2, fontSize: 10.5, color: T.ink4, fontFamily: T.mono, marginBottom: 4, textAlign: 'center' }}>
+          {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map(function (d, i) { return <div key={i}>{d}</div>; })}
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 2 }}>
+          {cells.map(function (d, i) {
+            if (!d) return <div key={i} />;
+            const ds = dstr(y, m, d); const ev = byDate[ds]; const tod = isToday(d);
+            return (
+              <div key={i} title={ev ? ev.map(function (e) { return e.title; }).join(', ') : ''} style={{ aspectRatio: '1', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', position: 'relative', fontSize: 12.5, color: tod ? '#fff' : T.ink2, borderRadius: '50%', background: tod ? BC : 'transparent', fontWeight: tod ? 700 : 400 }}>
+                {d}
+                {ev && !tod && <span style={{ position: 'absolute', bottom: 4, width: 5, height: 5, borderRadius: '50%', background: typeColor(ev[0].type) }} />}
+              </div>
+            );
+          })}
+        </div>
+        <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid ' + T.border }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+            <div style={{ fontSize: 11, color: T.ink3, fontFamily: T.mono, letterSpacing: '0.06em' }}>UPCOMING</div>
+            <button onClick={function () { setAdding(!adding); }} style={{ background: 'transparent', border: 'none', color: BC, fontSize: 12, cursor: 'pointer', fontWeight: 600 }}>{adding ? 'Close' : '+ Add'}</button>
+          </div>
+          {adding && (
+            <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
+              <input value={nt} onChange={function (e) { setNt(e.target.value); }} placeholder="Event" style={{ flex: 1, background: T.bg, border: '1px solid ' + T.border, borderRadius: 7, padding: '7px 9px', color: T.ink, fontSize: 12, outline: 'none' }} />
+              <input value={nd} onChange={function (e) { setNd(e.target.value); }} type="date" style={{ background: T.bg, border: '1px solid ' + T.border, borderRadius: 7, padding: '7px 9px', color: T.ink, fontSize: 12, outline: 'none' }} />
+              <button onClick={addEvent} style={{ background: BC, color: '#062b18', border: 'none', borderRadius: 7, padding: '0 12px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>Add</button>
+            </div>
+          )}
+          {upcoming.length === 0 ? <div style={{ fontSize: 12, color: T.ink4 }}>Nothing scheduled.</div> : upcoming.map(function (e, i) {
+            const dd = new Date(e.date + 'T00:00:00');
+            return (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 0' }}>
+                <span style={{ width: 7, height: 7, borderRadius: '50%', background: typeColor(e.type), flexShrink: 0 }} />
+                <span style={{ fontSize: 12.5, color: T.ink2, flex: 1 }}>{e.title}{e.type === 'holiday' ? <span style={{ color: T.ink4, fontSize: 11 }}> · holiday</span> : null}</span>
+                <span style={{ fontSize: 11.5, color: T.ink3, fontFamily: T.mono }}>{dd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
   function Today({ embed = false, onNav } = {}) {
     return (
       <div style={{
@@ -3343,13 +3448,13 @@ const PD_Today = (function () {
             {/* page header */}
             <div style={{ marginBottom: 28 }}>
               <div style={{ fontSize: 11, color: T.ink3, fontFamily: T.mono, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 10, fontWeight: 600 }}>
-                Your morning · Thursday 14 May
+                {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
               </div>
               <div style={{ fontSize: 34, fontWeight: 700, letterSpacing: '-0.025em', lineHeight: 1.05, marginBottom: 8 }}>
-                Six things, in order.
+                Today
               </div>
               <div style={{ fontSize: 14, color: T.ink2, maxWidth: 600 }}>
-                A calm, sequenced path through the morning. Nothing urgent is hidden — and nothing else is shouting either.
+                Your day at a glance — the tasks that need you, and what's coming up.
               </div>
             </div>
 
@@ -3372,100 +3477,10 @@ const PD_Today = (function () {
               ))}
             </div>
 
-            {/* timeline */}
-            <Step
-              idx={1} time="07:30" status="done" title="Attendance window opened · auto-roll"
-              body={<div style={{ fontSize: 13.5, color: T.ink2, lineHeight: 1.55 }}>
-                All 14 streams have started checking in. WhatsApp alerts for the first 18 absences have already gone out automatically.
-              </div>}
-              body2={
-                <div style={{ marginTop: 12, display: 'flex', gap: 16, fontSize: 12, color: T.ink3, fontFamily: T.mono }}>
-                  <span>● 793 present</span>
-                  <span style={{ color: T.warn }}>● 49 absent</span>
-                  <span style={{ color: T.redInk }}>● 12 unreached</span>
-                </div>
-              }
-            />
-
-            <Step
-              idx={2} time="08:24" status="now" title="Reach the 12 unreached absences"
-              body={<div style={{ fontSize: 13.5, color: T.ink2, lineHeight: 1.55, marginBottom: 12 }}>
-                Twelve children are absent and their guardians have not replied to the 07:30 message. Concentrated in <span style={{ color: T.ink, fontWeight: 600, fontFamily: T.mono }}>P3 Prudent</span>, <span style={{ color: T.ink, fontWeight: 600, fontFamily: T.mono }}>P4 Prudent</span> and <span style={{ color: T.ink, fontWeight: 600, fontFamily: T.mono }}>P5 Vigilant</span>.
-              </div>}
-              body2={
-                <div style={{
-                  background: T.surface2, border: '1px solid ' + T.border, borderRadius: 10, padding: 14,
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-                    <span style={{ width: 22, height: 22, borderRadius: 6, background: T.red, color: '#fff', display: 'grid', placeItems: 'center', fontFamily: T.mono, fontSize: 10, fontWeight: 700 }}>AI</span>
-                    <span style={{ fontSize: 12, fontWeight: 600, color: T.ink }}>NEXT has drafted personalised nudges</span>
-                  </div>
-                  <div style={{ fontSize: 13, color: T.ink2, lineHeight: 1.5, fontStyle: 'italic' }}>
-                    "Webale Ssebo Mugisha. Brian has not yet been marked at school today. Please let us know if he is well. — Peak Primary"
-                  </div>
-                  <div style={{ fontSize: 11, color: T.ink3, marginTop: 8, fontFamily: T.mono }}>
-                    + 11 more · personalised per child · language matched to guardian preference
-                  </div>
-                </div>
-              }
-              action={<>
-                <button onClick={() => window.peakBulkWhatsApp(window.peakOverdueRecipients(), 'Fee reminders')} style={{ background: T.red, color: '#fff', border: 'none', padding: '10px 18px', borderRadius: 9, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Send all 12 →</button>
-                <button onClick={() => onNav && onNav('comm')} style={{ background: 'transparent', color: T.ink, border: '1px solid ' + T.borderStr, padding: '10px 18px', borderRadius: 9, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>Review each</button>
-                <button onClick={() => window.peakToast && window.peakToast('Snoozed 15 minutes', 'info', 'I\'ll remind you at 08:39.')} style={{ background: 'transparent', color: T.ink3, border: 'none', padding: '10px 12px', borderRadius: 9, fontSize: 13, cursor: 'pointer' }}>Snooze 15m</button>
-              </>}
-            />
-
-            <Step
-              idx={3} time="08:30" status="next" title="P4 Vigilant Math quiz · Mrs. Namugga"
-              body={<div style={{ fontSize: 13.5, color: T.ink2, lineHeight: 1.55 }}>
-                Lesson plan submitted yesterday. 47 children expected · 58 marked in this week. Mrs. Namugga will share scores by 09:30.
-              </div>}
-              action={<>
-                <button onClick={() => onNav && onNav('learn')} style={{ background: 'transparent', color: T.ink, border: '1px solid ' + T.borderStr, padding: '8px 14px', borderRadius: 8, fontSize: 12.5, cursor: 'pointer' }}>Open lesson plan</button>
-                <button onClick={() => window.peakToast && window.peakToast('Skipped · trust noted', 'info', 'Mrs. Namugga has 4-week green streak. We\'ll keep watching quietly.')} style={{ background: 'transparent', color: T.ink3, border: 'none', padding: '8px 12px', fontSize: 12.5, cursor: 'pointer' }}>Skip · I trust her</button>
-              </>}
-            />
-
-            <Step
-              idx={4} time="10:00" status="next" title="Director's morning walk · Block A → C"
-              body={<div style={{ fontSize: 13.5, color: T.ink2, lineHeight: 1.55 }}>
-                Walking schedule. Three classrooms flagged by AI for a courtesy visit based on this week's data.
-              </div>}
-              body2={
-                <div style={{ marginTop: 12, display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
-                  {[
-                    { c: 'P3 Prudent', why: '4 unreached absences this morning', tone: T.red },
-                    { c: 'P5 Vigilant', why: 'attendance dipped to 86% this wk',  tone: T.warn },
-                    { c: 'P7 Prudent', why: 'top performers — recognise',          tone: T.good },
-                  ].map((s, i) => (
-                    <div key={i} style={{
-                      background: T.surface2, border: '1px solid ' + T.border, borderRadius: 9, padding: 12,
-                      borderLeft: '3px solid ' + s.tone,
-                    }}>
-                      <div style={{ fontSize: 12, fontWeight: 600, color: T.ink, fontFamily: T.mono }}>{s.c}</div>
-                      <div style={{ fontSize: 11, color: T.ink3, marginTop: 4, lineHeight: 1.4 }}>{s.why}</div>
-                    </div>
-                  ))}
-                </div>
-              }
-            />
-
-            <Step
-              idx={5} time="12:30" status="later" title="Arrears clinic · with bursar"
-              body={<div style={{ fontSize: 13.5, color: T.ink2, lineHeight: 1.55 }}>
-                14 parents booked for the lunchtime fees clinic. <span style={{ color: T.redInk, fontWeight: 600 }}>3 accounts over 30 days</span> — sit-down conversations rather than nudges.
-              </div>}
-              action={<>
-                <button onClick={() => window.peakToast && window.peakToast('Booking list opened', 'info', '4 P1 / P3 enrolment inquiries · WhatsApp threads ready for response.')} style={{ background: 'transparent', color: T.ink, border: '1px solid ' + T.borderStr, padding: '8px 14px', borderRadius: 8, fontSize: 12.5, cursor: 'pointer' }}>Open booking list</button>
-              </>}
-            />
-
-            <Step
-              idx={6} time="16:30" status="later" title="Bus departure · 4 routes · 296 children"
-              body={<div style={{ fontSize: 13.5, color: T.ink2, lineHeight: 1.55 }}>
-                Bus 02 on the Kireka route is currently delayed. Parents on that route will be auto-notified 15 minutes before pickup.
-              </div>}
-            />
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }} className="today-grid">
+              <DailyTasks onNav={onNav} />
+              <SchoolCalendar />
+            </div>
           </div>
 
           {/* right side: AI co-pilot for today */}
