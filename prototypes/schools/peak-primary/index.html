@@ -214,7 +214,7 @@
   const ROLE_NAV_WHITELIST = {
     admin:   null, // null = show all
     head:    null,
-    bursar:  new Set(['spec', 'dash', 'fees', 'rep', 'exam']),
+    bursar:  new Set(['dash', 'fees', 'rep', 'exam']),
     teacher: new Set(), // teacher uses its own shell, sidebar not rendered
   };
 
@@ -237,7 +237,7 @@
     const role = getRole();
     if (role === 'bursar')  return 'fees';
     if (role === 'teacher') return 'teacher-home'; // handled by TeacherShell
-    return 'spec'; // admin / head keep current default
+    return 'today'; // admin / head land on Today
   }
 
   // ─── Pretty label for the sidebar profile chip ───────────────────────
@@ -7029,7 +7029,6 @@ window.PEAK_EXAMS = (function () {
 
   // ─── Unified sidebar (244px, labelled) ────────────────────────────────────
   const navItems = [
-    { k: 'spec',  label: 'NEXT OS Spec',    glyph: '✦' },
     { k: 'today', label: 'Today',          glyph: '◉' },
     { k: 'dash',  label: 'Dashboard',      glyph: '◫' },
     { k: 'stud',  label: 'Students',       glyph: '☰', countKey: 'students' },
@@ -7571,7 +7570,7 @@ window.PEAK_EXAMS = (function () {
       window.addEventListener('resize', onR);
       return () => window.removeEventListener('resize', onR);
     }, []);
-    const initialRoute = (window.PEAK_ROLE && window.PEAK_ROLE.defaultRouteForRole()) || 'spec';
+    const initialRoute = (window.PEAK_ROLE && window.PEAK_ROLE.defaultRouteForRole()) || 'today';
     const [route, setRoute] = useState(initialRoute);
     const [profileStudentId, setProfileStudentId] = useState(4);
 
