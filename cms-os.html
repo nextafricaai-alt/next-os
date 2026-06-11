@@ -60,9 +60,11 @@
       var r=await fetch(WK+'/cms/collections?site='+encodeURIComponent(site));
       var d=await r.json(); collections=d.collections||[];
     }catch(e){ collections=[]; }
+    var ICONS={music:'\u{1F3B5}',calendar:'\u{1F4C5}',event:'\u{1F4C5}',events:'\u{1F4C5}',image:'\u{1F5BC}\uFE0F',gallery:'\u{1F5BC}\uFE0F',photo:'\u{1F5BC}\uFE0F',cart:'\u{1F6D2}',store:'\u{1F6D2}',shop:'\u{1F6D2}',product:'\u{1F6D2}',heart:'\u2764\uFE0F',donation:'\u2764\uFE0F',donations:'\u2764\uFE0F',doc:'\u{1F4C4}',page:'\u{1F4C4}',pages:'\u{1F4C4}',news:'\u{1F4F0}',blog:'\u{1F4DD}',post:'\u{1F4DD}',posts:'\u{1F4DD}',book:'\u{1F4DA}',booking:'\u{1F4C5}',bookings:'\u{1F4C5}',ministry:'\u26EA',user:'\u{1F464}',content:'\u{1F4C4}'};
+    function iconFor(c){ var k=String((c&&c.icon)||'').toLowerCase().trim(); if(ICONS[k]) return ICONS[k]; if(c&&c.icon&&/[^\x00-\x7F]/.test(c.icon)) return c.icon; return '\u25A6'; }
     var nav=$('cols'); nav.innerHTML='';
     if(!collections.length){ $('content').innerHTML='<div class="empty">No collections yet for '+site+'.<br/>Run Nia Intelligence and click "Build this OS" first.</div>'; return; }
-    collections.forEach(function(c,i){ var a=document.createElement('a'); a.innerHTML='<span>'+(c.icon||'▦')+'</span><span>'+(c.label||c.name)+'</span>'; a.onclick=function(){ openCollection(c); }; a.dataset.name=c.name; nav.appendChild(a); });
+    collections.forEach(function(c,i){ var a=document.createElement('a'); a.innerHTML='<span>'+iconFor(c)+'</span><span>'+(c.label||c.name)+'</span>'; a.onclick=function(){ openCollection(c); }; a.dataset.name=c.name; nav.appendChild(a); });
     openCollection(collections[0]);
   }
 
@@ -73,7 +75,7 @@
     $('content').innerHTML='<div class="empty">Loading '+(c.label||c.name)+'…</div>';
     var items=[]; try{ var r=await fetch(WK+'/cms/items?site='+encodeURIComponent(site)+'&collection='+encodeURIComponent(c.name)); var d=await r.json(); items=d.items||[]; }catch(e){}
     var fields=c.fields||[];
-    var html='<div class="head"><h1>'+(c.icon||'')+' '+(c.label||c.name)+'</h1><button class="btn" id="addBtn">+ Add '+(c.label||c.name).replace(/s$/,'')+'</button></div>';
+    var html='<div class="head"><h1>'+iconFor(c)+' '+(c.label||c.name)+'</h1><button class="btn" id="addBtn">+ Add '+(c.label||c.name).replace(/s$/,'')+'</button></div>';
     if(!items.length){ html+='<div class="empty">No '+(c.label||c.name).toLowerCase()+' yet. Click "+ Add" to create the first one.</div>'; }
     else {
       html+='<table><thead><tr>'+fields.slice(0,4).map(function(f){return '<th>'+(f.label||f.name)+'</th>';}).join('')+'<th></th></tr></thead><tbody>';
