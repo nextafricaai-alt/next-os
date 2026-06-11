@@ -218,7 +218,7 @@ export default {
     }
 
     // GET-allowed routes (read-only endpoints live below this gate)
-    const GET_OK = ['/check-project', '/seo-audit', '/px.js', '/analytics', '/gsc', '/ga4', '/fetch-page', '/site-pages', '/cms/collections', '/cms/items', '/students', '/exams', '/exam-results', '/fees-balances', '/staff-status', '/student-health', '/events', '/finance', '/assets', '/school-config'];
+    const GET_OK = ['/check-project', '/seo-audit', '/px.js', '/analytics', '/gsc', '/ga4', '/fetch-page', '/site-pages', '/cms/collections', '/cms/items', '/students', '/exams', '/exam-results', '/fees-balances', '/staff-status', '/student-health', '/events', '/finance', '/assets', '/school-config', '/os-data'];
     if (request.method !== 'POST' && !GET_OK.includes(url.pathname)) {
       return new Response('Method not allowed', { status: 405, headers: cors });
     }
@@ -335,6 +335,8 @@ export default {
     if (url.pathname === '/assets/save')        return handleAssetSave(request, env, cors);
     if (url.pathname === '/school-config')      return handleConfigGet(url.searchParams.get('tenant') || '', env, cors);
     if (url.pathname === '/school-config/save') return handleConfigSave(request, env, cors);
+    if (url.pathname === '/os-data')            return handleOsDataList(url.searchParams.get('tenant') || 'next', url.searchParams.get('kind') || '', env, cors);
+    if (url.pathname === '/os-data/save')       return handleOsDataSave(request, env, cors);
 
     // ─── Route: / — Llama agent (default) ───────────────────────────────
     return handleAgent(request, env, cors);
@@ -1114,6 +1116,23 @@ async function handleStudentsImport(request, env, cors) {
     }
     return J({ ok: true, imported, skipped });
   } catch (e) { return J({ error: String((e && e.message) || e) }, 200); }
+}
+
+async function handleOsDataList(tenant, kind, env, cors) {
+  const J = (oo, st) => new Response(JSON.stringify(oo), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
+  if (!kind) return J({ error: 'kind required' }, 400);
+  if (!env.SUPABASE_URL || !env.SUPABASE_KEY) return J({ error: 'Supabase not configured.' }, 500);
+  try { const rows = await sbFetch(env, '/os_records?tenant=eq.' + encodeURIComponent(tenant || 'next') + '&kind=eq.' + encodeURIComponent(kind) + '&select=id,payload,created_at&order=created_at.desc&limit=1000'); return J({ tenant: tenant || 'next', kind, records: rows || [] }); }
+  catch (e) { return J({ error: String((e && e.message) || e) }, 200); }
+}
+async function handleOsDataSave(request, env, cors) {
+  const J = (oo, st) => new Response(JSON.stringify(oo), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
+  if (!env.SUPABASE_URL || !env.SUPABASE_KEY) return J({ error: 'Supabase not configured.' }, 500);
+  let b; try { b = await request.json(); } catch (e) { return J({ error: 'bad body' }, 400); }
+  const kind = String(b.kind || '').trim(); const tenant = String(b.tenant || 'next').trim(); const rec = b.record || {};
+  if (!kind) return J({ error: 'kind required' }, 400);
+  try { const r = await fetch(env.SUPABASE_URL + '/rest/v1/os_records', { method: 'POST', headers: sbHeaders(env, 'return=representation'), body: JSON.stringify({ tenant, kind, payload: rec }) }); const d = await r.json(); return J({ ok: true, record: (d && d[0]) || { payload: rec } }); }
+  catch (x) { return J({ error: String((x && x.message) || x) }, 200); }
 }
 
 async function handleConfigGet(tenant, env, cors) {
