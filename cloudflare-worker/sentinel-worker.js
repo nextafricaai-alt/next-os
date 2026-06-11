@@ -129,8 +129,8 @@ function openAIResponseToAnthropic(data) {
   //   { response: "text", tool_calls: [{ id, name, arguments | parameters }] }
   // Sometimes the response is nested differently. Handle both.
   const result = data.result || data;
-  const text = result.response || '';
-  const tool_calls = result.tool_calls || [];
+  const text = (typeof result.response === 'string') ? result.response : (result.response == null ? '' : String(result.response));
+  const tool_calls = Array.isArray(result.tool_calls) ? result.tool_calls : [];
 
   const content = [];
   if (text && text.trim()) content.push({ type: 'text', text: text });
