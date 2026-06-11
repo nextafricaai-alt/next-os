@@ -6805,35 +6805,41 @@ window.PEAK_ASKNEXT = (function () {
   function recentQuestions() { try { const a = JSON.parse(localStorage.getItem(memKey()) || '[]'); const seen = {}, out = []; a.forEach(x => { if (x.q && !seen[x.q]) { seen[x.q] = 1; out.push(x.q); } }); return out.slice(0, 4); } catch (e) { return []; } }
 
   function buildContext() {
-    const D = window.PEAK || {}; const k = D.kpis || {}; const studs = D.students || [];
-    const atRisk = studs.filter(s => s.flag === 'risk').map(s => s.name);
-    const top = studs.filter(s => s.flag === 'top').map(s => s.name);
-    const overdue = studs.filter(s => s.fees === 'overdue');
-    const streams = Array.from(new Set(studs.map(s => s.stream).filter(Boolean)));
+    const D = window.PEAK || {}; const k = D.kpis || {}; const studs = D.students || []; const teach = D.teachers || [];
     const fmt = n => 'UGX ' + (Number(n) || 0).toLocaleString();
-    return [
-      'SCHOOL: ' + ((window.__BRAND_NAME) || 'School') + ' (tenant ' + tenant() + ')',
-      'KPIs: students ' + (k.students || studs.length) + ', teachers ' + (k.teachers || '?') + ', streams ' + (k.streams || streams.length) + ', attendance ' + (k.attendancePct || '?') + '%, present today ' + (k.presentToday || '?') + ', absent ' + (k.absentToday || '?'),
-      'Fees: collected this term ' + fmt(k.feesCollectedTerm) + ', target ' + fmt(k.feesTargetTerm) + ', accounts overdue ' + (k.feesOutstandingStudents != null ? k.feesOutstandingStudents : overdue.length),
-      'At-risk students (' + atRisk.length + '): ' + (atRisk.slice(0, 15).join(', ') || 'none'),
-      'Top performers: ' + (top.slice(0, 8).join(', ') || '—'),
-      'Streams: ' + streams.join(', '),
-      'Roster (sample): ' + studs.slice(0, 40).map(s => s.name + ' [' + s.stream + ', fees ' + s.fees + (s.balance ? (', owes ' + s.balance) : '') + ']').join('; '),
-    ].join('\n');
+    const flagLabel = f => f === 'risk' ? 'AT-RISK (needs follow-up)' : (f === 'top' ? 'top performer' : 'ok');
+    const lines = [];
+    lines.push('SCHOOL: ' + ((window.__BRAND_NAME) || 'School') + ' · tenant ' + tenant());
+    lines.push('OVERVIEW: students ' + (k.students || studs.length) + ', teachers ' + (k.teachers || teach.length) + ', streams ' + (k.streams || '?') + ', attendance today ' + (k.attendancePct || '?') + '% (present ' + (k.presentToday || '?') + ', absent ' + (k.absentToday || '?') + '), fees collected ' + fmt(k.feesCollectedTerm) + ' of ' + fmt(k.feesTargetTerm) + ', accounts overdue ' + (k.feesOutstandingStudents != null ? k.feesOutstandingStudents : '?') + ', enrollment inquiries ' + (k.enrollmentInquiries || 0));
+    lines.push('');
+    lines.push('STUDENTS (' + studs.length + ') — name | stream | guardian | phone | fees | attendance | standing:');
+    studs.slice(0, 150).forEach(s => {
+      const att = (s.attendanceWk != null ? (s.attendanceWk + '% this wk') : '') + (s.lastSeen ? (', last seen ' + s.lastSeen) : '');
+      lines.push('• ' + s.name + ' | ' + (s.stream || '?') + ' | guardian ' + (s.guardian || '—') + ' | ' + (s.guardianPhone || 'no phone on file') + ' | fees ' + (s.fees || '?') + (s.balance ? (' (owes ' + fmt(s.balance) + ')') : '') + ' | ' + att + ' | ' + flagLabel(s.flag));
+    });
+    lines.push('');
+    lines.push('STAFF (' + teach.length + ') — name | role | subjects | streams | phone | since | standing:');
+    teach.slice(0, 80).forEach(t => {
+      lines.push('• ' + t.name + ' | ' + (t.role || 'Teacher') + ' | ' + ((t.subjects || []).join('/') || '—') + ' | ' + ((t.streams || []).join(',') || '—') + ' | ' + (t.phone || 'no phone') + ' | since ' + (t.joined || '?') + ' | ' + (t.tone === 'top' ? 'strong performer' : (t.tone === 'risk' ? 'needs support' : 'ok')));
+    });
+    return lines.join('\n');
   }
-
   function systemPrompt() {
     const topics = frequentTopics();
-    const mem = topics.length ? ('\n\nHEAD TEACHER MEMORY: this head teacher frequently asks about: ' + topics.join(', ') + '. Anticipate those needs and offer proactively when relevant.') : '';
-    return 'You are Nia, the AI assistant living inside ' + ((window.__BRAND_NAME) || 'this school') + "'s NEXT School OS. You are talking to " + whoami() + '. You can see the school’s live data below and answer accurately about students, attendance, fees, exams, staff, and reports. Be warm, brief, decisive and practical — like a sharp deputy who runs the school with the head teacher. Ugandan context (UGX, WhatsApp, terms, streams like P4V).\n\n'
-      + 'WHEN ASKED TO DO SOMETHING THE OS CAN DO, include exactly ONE fenced code block labelled action with JSON, plus one short sentence. Actions:\n'
+    const mem = topics.length ? ('\n\nHEAD TEACHER MEMORY: this head teacher frequently asks about: ' + topics.join(', ') + '. Anticipate those needs.') : '';
+    return 'You are Nia, the intelligence inside ' + ((window.__BRAND_NAME) || 'this school') + "'s NEXT School OS, talking to " + whoami() + '. You KNOW every student and staff member personally from the live data below — their stream, guardian, phone, fees, attendance and standing. You understand how the whole OS works.\n\n'
+      + 'HOW YOU ANSWER:\n'
+      + '- Answer DIRECTLY from the data. If asked who is at-risk / away / absent / needs follow-up, LIST the specific students by name with the reason (status AT-RISK, low attendance, or not recently seen). If asked about fees, name who owes and how much. If asked about a teacher being late/absent or how staff are doing, use their standing and role.\n'
+      + '- If asked about ONE person, give their full profile: a student\u2019s stream, guardian, phone, fees/balance, attendance and standing; a staff member\u2019s role, subjects, streams, phone, years of service and standing.\n'
+      + '- Do NOT navigate or say \"go to the X page\" for a who/what/which/how question \u2014 just answer it with real names and numbers. Never invent a fact; if a detail genuinely is not in the data (e.g. a specific logged illness), say what you DO have (attendance/standing) and offer to open that person\u2019s profile.\n'
+      + '- Be warm, brief, decisive. Ugandan school context (UGX, WhatsApp, streams like P4V).\n\n'
+      + 'ACTIONS \u2014 only when the user asks you to DO something (open a page, message a parent, set a reminder), include ONE fenced code block labelled action with JSON and one short sentence:\n'
       + '{"action":"navigate","screen":"today|dash|stud|attn|fees|exam|rep|comm|teach|trans"}\n'
-      + '{"action":"whatsapp","name":"<student or guardian name>","message":"..."}\n'
-      + '{"action":"reminder","text":"...","when":"e.g. tomorrow 8am"}\n'
-      + 'For report cards: navigate to "exam" and tell them reports are issued there (fee-gated). Only state facts you can see in the data — never invent fees or marks; if you lack it, say so plainly.'
+      + '{"action":"whatsapp","name":"<student or guardian>","message":"..."}\n'
+      + '{"action":"reminder","text":"...","when":"tomorrow 8am"}\n'
+      + 'For report cards, navigate to "exam" (reports are issued there, fee-gated).'
       + mem + '\n\nLIVE SCHOOL DATA:\n' + buildContext();
   }
-
   function runAction(a) {
     try {
       if (a.action === 'navigate' && a.screen) { window.peakNav && window.peakNav(a.screen); window.peakModal && window.peakModal.close(); return 'Opened ' + a.screen + '.'; }
