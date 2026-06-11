@@ -157,9 +157,10 @@
     if(!profile){ return; }
     var sk=siteKeyOf();
     btn.textContent='Reading the blueprint\u2026'; btn.disabled=true;
-    // 1) use the collections already in the blueprint
-    var lastA=''; for(var i=history.length-1;i>=0;i--){ if(history[i].role==='assistant'){ lastA=history[i].content; break; } }
-    var cols=parseCollections(lastA);
+    // 1) collections from ANY assistant blueprint, then from the rendered report on screen
+    var cols=null;
+    for(var i=history.length-1;i>=0 && !cols;i--){ if(history[i] && history[i].role==='assistant'){ var c=parseCollections(history[i].content); if(c&&c.length) cols=c; } }
+    if(!cols||!cols.length){ var rep=document.getElementById('report'); if(rep){ var c2=parseCollections(rep.innerText||rep.textContent||''); if(c2&&c2.length) cols=c2; } }
     // 2) fallback: a focused JSON-only pass
     if(!cols||!cols.length){
       btn.textContent='Nia is designing the collections\u2026';
