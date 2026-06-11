@@ -136,6 +136,7 @@
     </form>
 
     <button type="button" id="nx-install" style="display:none;width:100%;margin-top:16px;padding:13px;border-radius:11px;border:1.5px solid var(--accent);background:rgba(0,252,143,0.06);color:var(--accent);font-weight:700;font-family:inherit;font-size:14px;cursor:pointer;">⤓ Install this school’s app</button>
+    <button type="button" id="nx-share" style="width:100%;margin-top:10px;padding:12px;border-radius:11px;border:1px solid rgba(255,255,255,0.12);background:transparent;color:#aab2d5;font-weight:600;font-family:inherit;font-size:13.5px;cursor:pointer;">🔗 Share this school&#39;s link</button>
     <div id="nx-ios-hint" style="display:none;margin-top:14px;font-size:12.5px;line-height:1.55;color:#9aa3c0;text-align:center;">To add to your home screen: tap <b>Share</b> &#x2191; then <b>“Add to Home Screen”</b>.</div>
     <div class="footer">
       Powered by NEXT OS · Nia is watching while you work
@@ -164,6 +165,7 @@
         var _ai=document.getElementById('nx-apple-icon'); if(_ai) _ai.href=WK+'/icon?s='+encodeURIComponent(sslug);
       }
       if('serviceWorker' in navigator){ navigator.serviceWorker.register('/sw.js').catch(function(){}); }
+      var _sh=document.getElementById('nx-share'); if(_sh){ _sh.addEventListener('click',function(){ var url = location.origin + '/s/' + encodeURIComponent(sslug||''); var nm=(window.__BRAND_NAME)||'our school'; var data={ title:nm, text:'Sign in to '+nm+' on NEXT OS', url:url }; if(navigator.share){ navigator.share(data).catch(function(){}); } else { try{ navigator.clipboard.writeText(url); _sh.textContent='✓ Link copied'; setTimeout(function(){_sh.innerHTML='🔗 Share this school&#39;s link';},1500); }catch(e){ prompt('Copy this link:', url); } } }); }
     } catch(e){}
   })();
   </script>

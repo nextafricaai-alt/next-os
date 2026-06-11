@@ -5749,6 +5749,89 @@ window.OnboardingPage = function OnboardingPage(props) {
   </script>
 
   <script type="text/babel">
+/* SettingsPage — real account / appearance / app / preferences */
+(function () {
+  const ACCENTS = ['#00FC8F', '#3b82f6', '#7c3aed', '#f155a1', '#ffb400', '#ef4444', '#14b8a6'];
+  function SettingsPage() {
+    const [accent, setAccent] = React.useState(() => { try { return localStorage.getItem('nextos.accent') || '#00FC8F'; } catch (e) { return '#00FC8F'; } });
+    const [tut, setTut] = React.useState(() => { try { return localStorage.getItem('nextos.tutorial') !== '0'; } catch (e) { return true; } });
+    const [gate, setGate] = React.useState(() => { try { return localStorage.getItem('nextos.gate') === 'on'; } catch (e) { return false; } });
+    const email = (window.NEXT_OS_USER && window.NEXT_OS_USER()) || '';
+    const card = { background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: 20, marginBottom: 16 };
+    const h = { fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4 };
+    const sub = { fontSize: 12.5, color: 'var(--text-tertiary)', marginBottom: 14 };
+    const btn = (p) => ({ background: p ? 'var(--mint)' : 'transparent', color: p ? 'var(--text-inverse)' : 'var(--text-secondary)', border: p ? 'none' : '1px solid var(--border-default)', borderRadius: 'var(--radius-sm)', padding: '9px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer' });
+    const row = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' };
+    const applyAccent = (c) => { setAccent(c); try { localStorage.setItem('nextos.accent', c); } catch (e) {} document.documentElement.style.setProperty('--mint', c); document.documentElement.style.setProperty('--accent', c); };
+    const toggleTut = () => setTut(v => { const n = !v; try { localStorage.setItem('nextos.tutorial', n ? '1' : '0'); } catch (e) {} return n; });
+    const toggleGate = () => { const n = !gate; try { localStorage.setItem('nextos.gate', n ? 'on' : 'off'); } catch (e) {} setGate(n); setTimeout(() => location.reload(), 400); };
+    const Toggle = ({ on, onClick }) => (<button onClick={onClick} style={{ width: 46, height: 26, borderRadius: 13, border: 'none', cursor: 'pointer', background: on ? 'var(--mint)' : 'var(--border-default)', position: 'relative', flexShrink: 0 }}><span style={{ position: 'absolute', top: 3, left: on ? 23 : 3, width: 20, height: 20, borderRadius: '50%', background: '#fff', transition: 'left .15s' }} /></button>);
+
+    return (
+      <div style={{ maxWidth: 720 }}>
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', letterSpacing: 2, color: 'var(--text-tertiary)', marginBottom: 6 }}>SETTINGS</div>
+          <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 30, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>Settings</h1>
+        </div>
+
+        <div style={card}>
+          <div style={h}>Account</div>
+          <div style={sub}>You're signed in to NEXT OS.</div>
+          <div style={row}>
+            <div><div style={{ fontSize: 14, color: 'var(--text-primary)', fontWeight: 600 }}>{email || 'Admin'}</div><div style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>Administrator</div></div>
+            <button style={btn(false)} onClick={() => window.NEXT_OS_SIGNOUT && window.NEXT_OS_SIGNOUT()}>Sign out</button>
+          </div>
+        </div>
+
+        <div style={card}>
+          <div style={h}>The app</div>
+          <div style={sub}>Install NEXT OS on this device, or share it with your team.</div>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            <button style={btn(true)} onClick={() => window.NEXT_OS_INSTALL && window.NEXT_OS_INSTALL()}>{'⤓'} Install NEXT OS</button>
+            <button style={btn(false)} onClick={() => window.NEXT_OS_SHARE && window.NEXT_OS_SHARE()}>{'\u{1F517}'} Share app</button>
+          </div>
+        </div>
+
+        <div style={card}>
+          <div style={h}>Appearance</div>
+          <div style={sub}>Pick your accent colour — applies across the OS instantly.</div>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            {ACCENTS.map(c => (
+              <button key={c} onClick={() => applyAccent(c)} title={c} style={{ width: 34, height: 34, borderRadius: '50%', background: c, border: accent.toLowerCase() === c.toLowerCase() ? '3px solid var(--text-primary)' : '2px solid var(--border-default)', cursor: 'pointer' }} />
+            ))}
+          </div>
+        </div>
+
+        <div style={card}>
+          <div style={h}>Preferences</div>
+          <div style={{ ...row, paddingBottom: 12, borderBottom: '1px solid var(--border-subtle)', marginBottom: 12 }}>
+            <div><div style={{ fontSize: 13.5, color: 'var(--text-primary)', fontWeight: 600 }}>Tutorial mode</div><div style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>Hover tips + quick tour. Reload to apply.</div></div>
+            <Toggle on={tut} onClick={toggleTut} />
+          </div>
+          <div style={row}>
+            <div><div style={{ fontSize: 13.5, color: 'var(--text-primary)', fontWeight: 600 }}>Require sign-in (email code)</div><div style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>Gate the OS behind email verification.</div></div>
+            <Toggle on={gate} onClick={toggleGate} />
+          </div>
+        </div>
+
+        <div style={card}>
+          <div style={h}>Nia</div>
+          <div style={sub}>Tone, language and voice live in Nia HQ.</div>
+          <button style={btn(false)} onClick={() => window.NEXT_OS_NAVIGATE && window.NEXT_OS_NAVIGATE('sentinel')}>Open Nia HQ {'→'}</button>
+        </div>
+
+        <div style={{ ...card, marginBottom: 0 }}>
+          <div style={h}>About</div>
+          <div style={{ fontSize: 12.5, color: 'var(--text-tertiary)', lineHeight: 1.6 }}>NEXT OS — Africa's intelligent operating system.<br />Engine: Cloudflare Worker (Nia) + Supabase + Hostinger.</div>
+        </div>
+      </div>
+    );
+  }
+  window.NEXT_SETTINGS = SettingsPage;
+})();
+  </script>
+
+  <script type="text/babel">
 /* os-shell.jsx - NEXT OS App Shell: Sidebar, Topbar, Routing */
 
 /* -- SVG Icons -- */
@@ -6446,7 +6529,7 @@ const AppShell = () => {
       case 'comms':
         return <PlaceholderPage title="Communications Hub" description="Reporting, client communications, and digital strategy coordination centre." icon="" />;
       case 'settings':
-        return <PlaceholderPage title="Settings" description="System configuration, user management, and platform preferences." icon="Settings" />;
+        return window.NEXT_SETTINGS ? React.createElement(window.NEXT_SETTINGS) : <PlaceholderPage title="Settings" description="Loading." icon="Settings" />;
       default:
         return <DashboardPage onNavigate={setActiveTab} />;
     }
@@ -6549,6 +6632,11 @@ Object.assign(window, { AppShell, Sidebar, Topbar, OSIcon, PlaceholderPage });
     }
     window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); deferred = e; var b = makeBtn(); b.style.display = 'block'; });
     window.addEventListener('appinstalled', function () { var b = document.getElementById('nx-os-install'); if (b) b.style.display = 'none'; });
+    window.NEXT_OS_INSTALL = function () { if (deferred) { deferred.prompt(); deferred.userChoice.then(function () { deferred = null; var b = document.getElementById('nx-os-install'); if (b) b.style.display = 'none'; }); } else { alert('To install: open your browser menu and choose "Install app" / "Add to Home Screen".'); } };
+    window.NEXT_OS_CAN_INSTALL = function () { return !!deferred; };
+    window.NEXT_OS_SHARE = function () { var url = location.origin + '/'; var data = { title: 'NEXT OS', text: "Africa's intelligent operating system", url: url }; if (navigator.share) { navigator.share(data).catch(function () {}); } else { try { navigator.clipboard.writeText(url); alert('Link copied: ' + url); } catch (e) { prompt('Copy this link:', url); } } };
+    // apply saved accent colour
+    try { var ac = localStorage.getItem('nextos.accent'); if (ac) { document.documentElement.style.setProperty('--mint', ac); document.documentElement.style.setProperty('--accent', ac); } } catch (e) {}
   })();
   </script>
 </body>
