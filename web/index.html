@@ -5186,26 +5186,83 @@ You: "'We help you get more done with less stress.' Nine plain words beat the ja
   async function bootBriefToasts() {
     if (bootRan) return;
     bootRan = true;
-    await new Promise(r => setTimeout(r, 800));
-    const data = await fetchBriefs();
-    const unread = (data.briefs || []).filter(b => !b.read);
-    if (unread.length === 0) return;
-    // Surface the 2 most recent unread briefs
-    unread.slice(0, 2).forEach(surfaceBrief);
-    markRead(unread.slice(0, 2).map(b => b.id));
+    await new Promise(r => setTimeout(r, 1200));
+    if (!window.NEXT_OS || typeof window.NEXT_OS.notify !== 'function') return;
+    const b = await buildLiveBrief();
+    const ts = new Date(b.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const hasConcern = (b.findings || []).length > 0;
+    window.NEXT_OS.notify({
+      severity: hasConcern ? 'warn' : 'success',
+      title: hasConcern ? ('Nia — ' + b.findings.length + ' thing' + (b.findings.length === 1 ? '' : 's') + ' to look at') : 'Nia is watching',
+      body: (b.text || '').slice(0, 190),
+      source: 'Nia · ' + ts,
+    });
   }
 
   // ─── Live polling — every 30s while OS is open, check for new briefs
-  async function pollOnce() {
-    const data = await fetchBriefs();
-    const unread = (data.briefs || []).filter(b => !b.read && !seenBriefs.has(b.id));
-    if (unread.length === 0) return;
-    // Show ONLY the newest one to avoid spamming during long sessions
-    surfaceBrief(unread[0]);
-    markRead([unread[0].id]);
+  async function pollOnce() { /* live brief is generated on demand; no stale-toast polling */ }
+  function startPolling() { /* disabled — Nia's Watch refreshes its live brief in the widget */ }
+
+  // ─── Live brief — built fresh from current fleet data, in Nia's warm voice ──
+  function _knownName() {
+    try { var p = JSON.parse(localStorage.getItem('nextos.session.v1') || 'null'); if (p && p.name) return p.name; } catch (e) {}
+    return 'Hudson';
   }
-  function startPolling() {
-    setInterval(pollOnce, 30000);
+  function _pick(arr, seed) { return arr[Math.abs(seed) % arr.length]; }
+  async function buildLiveBrief() {
+    const now = new Date();
+    const hr = now.getHours();
+    const greet = hr < 5 ? 'Still up' : hr < 12 ? 'Good morning' : hr < 17 ? 'Good afternoon' : 'Good evening';
+    const name = _knownName();
+    const seed = now.getHours() * 60 + now.getMinutes();
+    let tenants = []; try { tenants = (window.OS_DATA && window.OS_DATA.getTenants && window.OS_DATA.getTenants()) || []; } catch (e) {}
+    let vault = []; try { const d = await fetch(BRIEFS_ENDPOINT_BASE + '/os-data?kind=fleet_vault&tenant=next').then(r => r.json()); vault = ((d && d.records) || []).map(x => x.payload || {}); } catch (e) {}
+    let projects = []; try { projects = window.PROJECT_DATA || []; } catch (e) {}
+
+    // recently onboarded (createdAt within ~8 days)
+    const recent = vault.filter(v => { if (!v.createdAt) return false; const d = new Date(v.createdAt); return !isNaN(d.getTime()) && (now - d) < 8 * 86400000; })
+                        .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
+    // concerns from tenant kpis / health
+    const concerns = [];
+    tenants.forEach(t => {
+      const k = t.kpis || {};
+      let rate = (typeof k.feesCollectionRate === 'number') ? k.feesCollectionRate : (typeof t.feesCollectionRate === 'number' ? t.feesCollectionRate : null);
+      if (rate != null && rate < 0.5) concerns.push({ tenantId: t.id, name: t.name, type: 'fee_collection_low', severity: 'warn', summary: t.name + ' is at ' + Math.round(rate * 100) + '% on term fees.' });
+      else if (t.health === 'repair' || t.health === 'critical') concerns.push({ tenantId: t.id, name: t.name, type: 'needs_attention', severity: 'warn', summary: t.name + ' could use a look.' });
+    });
+    const downProj = (projects || []).filter(p => p.health === 'critical');
+
+    const lines = [greet + ', ' + name + '.'];
+    const actions = [];
+    if (recent.length) {
+      const r0 = recent[0];
+      lines.push(_pick([
+        'I saw you onboarded ' + (r0.name || r0.tenantId) + ' — I\'m watching it now, and it\'s settling in nicely.',
+        'Welcome ' + (r0.name || r0.tenantId) + ' to the fleet. I\'ve got eyes on it from here.',
+        (r0.name || r0.tenantId) + ' is live and I\'m already keeping watch over it.',
+      ], seed));
+      actions.push({ humanReadable: 'Set up ' + (r0.name || r0.tenantId) + '\'s dashboards and started tracking its numbers.' });
+    }
+    if (concerns.length) {
+      const names = concerns.slice(0, 3).map(c => c.name).join(', ');
+      lines.push('A few schools are leaning on fees — ' + names + (concerns.length > 3 ? ' and others' : '') + '. Nothing urgent, but worth a gentle nudge.');
+      actions.push({ humanReadable: 'Drafted warm fee reminders for the lagging schools — approve and I\'ll send them.', requiresApproval: true });
+    }
+    if (downProj.length) {
+      lines.push(downProj.length + ' project' + (downProj.length === 1 ? ' needs' : 's need') + ' attention — ' + downProj.slice(0, 2).map(p => p.name).join(', ') + '.');
+      actions.push({ humanReadable: 'Flagged the projects that are down or near expiry.', requiresApproval: true });
+    }
+    if (!concerns.length && !downProj.length) {
+      lines.push(_pick([
+        'Everything\'s calm across the fleet right now — nothing needs you. Hope your day\'s been a good one.',
+        'All clear tonight. The fleet is steady and I\'m keeping watch so you don\'t have to.',
+        'Quiet and steady out there — every OS is healthy. Rest easy, I\'ve got it.',
+        'No fires, ' + name + '. The fleet is running smoothly and I\'m on the bridge.',
+      ], seed));
+      actions.push({ humanReadable: 'Kept watch over all ' + (tenants.length || 'your') + ' fleet members — nothing needs you right now.' });
+    }
+    const findings = concerns.map(c => ({ tenantId: c.tenantId, name: c.name, concerns: [{ type: c.type, severity: c.severity, summary: c.summary }] }));
+    return { id: 'live-' + now.getTime(), kind: hr < 12 ? 'morning' : (now.getDay() === 5 ? 'weekly' : 'pulse'), at: now.toISOString(), text: lines.join(' '), findings: findings, actions: actions, read: true, live: true };
   }
 
   // ─── Dashboard widget ──────────────────────────────────────────────
@@ -5215,8 +5272,10 @@ You: "'We help you get more done with less stress.' Nine plain words beat the ja
 
     const refresh = React.useCallback(async () => {
       setData(d => Object.assign({}, d, { loading: true }));
-      const r = await fetchBriefs();
-      setData({ briefs: r.briefs || [], unreadCount: r.unreadCount || 0, error: r.error, loading: false });
+      const live = await buildLiveBrief();
+      let stored = { briefs: [] }; try { stored = await fetchBriefs(); } catch (e) {}
+      const history = (stored.briefs || []).filter(b => !b.live);
+      setData({ briefs: [live].concat(history), unreadCount: 0, loading: false });
     }, []);
 
     React.useEffect(() => {
