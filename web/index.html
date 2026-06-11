@@ -5981,6 +5981,143 @@ window.OnboardingPage = function OnboardingPage(props) {
   </script>
 
   <script type="text/babel">
+/* NEXT_VAULT — Fleet Vault: per-tenant credentials + metadata, stored in os_records (kind=fleet_vault, tenant=next). */
+(function () {
+  const WK = (typeof window !== 'undefined' && window.NEXT_OS_SENTINEL_ENDPOINT) || 'https://nextos-sentinel.nextafricaai.workers.dev';
+  const VLABEL = (window.VERTICAL_LABELS) || { school: 'School', hospital: 'Hospital', company: 'Company', ngo: 'NGO', church: 'Church', government: 'Government' };
+  function vget() { return fetch(WK + '/os-data?kind=fleet_vault&tenant=next').then(r => r.json()).then(d => (d && d.records) || []).catch(() => []); }
+  function vsave(record, id) { return fetch(WK + '/os-data/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(id ? { kind: 'fleet_vault', tenant: 'next', record, id } : { kind: 'fleet_vault', tenant: 'next', record }) }).then(r => r.json()).catch(e => ({ error: String(e && e.message || e) })); }
+
+  function NextVault() {
+    const [tenants, setTenants] = React.useState(() => (window.OS_DATA && window.OS_DATA.getTenants) ? window.OS_DATA.getTenants() : []);
+    const [vaults, setVaults] = React.useState({});   // tenantId -> {_id, ...payload}
+    const [editing, setEditing] = React.useState(null);
+    const [q, setQ] = React.useState('');
+    const [mounted, setMounted] = React.useState(false);
+    React.useEffect(() => { setTimeout(() => setMounted(true), 40); }, []);
+    const load = React.useCallback(() => {
+      vget().then(rs => { const m = {}; rs.forEach(x => { const p = x.payload || {}; if (p.tenantId) m[p.tenantId] = Object.assign({ _id: x.id }, p); }); setVaults(m); });
+      if (window.OS_DATA && window.OS_DATA.getTenants) setTenants(window.OS_DATA.getTenants());
+    }, []);
+    React.useEffect(() => { load(); }, [load]);
+
+    // merge: every tenant + any vault-only records not in tenant list
+    const rows = [];
+    const seen = {};
+    tenants.forEach(t => { seen[t.id] = true; rows.push(Object.assign({ tenantId: t.id, name: t.name, vertical: t.vertical }, vaults[t.id] || {})); });
+    Object.keys(vaults).forEach(tid => { if (!seen[tid]) rows.push(vaults[tid]); });
+    const shown = rows.filter(r => !q || (String(r.name || '') + ' ' + String(r.tenantId || '')).toLowerCase().indexOf(q.toLowerCase()) >= 0);
+
+    const card = { background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: 16 };
+    const filled = rows.filter(r => r._id).length;
+
+    return (
+      <div style={{ opacity: mounted ? 1 : 0, transition: 'opacity .35s' }}>
+        <div style={{ marginBottom: 18 }}>
+          <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', letterSpacing: 2, color: 'var(--text-tertiary)', marginBottom: 6 }}>MOTHERSHIP · SECURE</div>
+          <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 30, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>Fleet Vault</h1>
+          <p style={{ fontSize: 14, color: 'var(--text-secondary)', margin: '6px 0 0' }}>Every fleet member's logins, emails, links and key details — in one place. {filled}/{rows.length} have saved credentials.</p>
+        </div>
+        <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
+          <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search fleet…" style={{ flex: '1 1 220px', background: 'var(--bg-deep)', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-sm)', color: 'var(--text-primary)', padding: '10px 12px', fontSize: 13, outline: 'none' }} />
+          <button onClick={() => setEditing({ tenantId: '', name: '', vertical: 'school', secrets: [] })} style={{ background: 'var(--mint)', color: 'var(--text-inverse)', border: 'none', borderRadius: 'var(--radius-sm)', padding: '10px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>+ Add entry</button>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 12 }}>
+          {shown.length === 0 ? <div style={{ ...card, gridColumn: '1/-1', textAlign: 'center', color: 'var(--text-tertiary)' }}>No fleet members yet. Onboard a school and its credentials land here automatically.</div> :
+            shown.map((r, i) => (
+              <div key={i} style={{ ...card, cursor: 'pointer' }} onClick={() => setEditing(Object.assign({ secrets: [] }, r))}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>{r.name || r.tenantId}</div>
+                  <span style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>{VLABEL[r.vertical] || r.vertical || ''}</span>
+                </div>
+                <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.7 }}>
+                  <div>{r.headEmail ? ('✉ ' + r.headEmail) : <span style={{ color: 'var(--text-tertiary)' }}>no login email yet</span>}</div>
+                  <div>{r.password ? '🔑 password saved' : <span style={{ color: 'var(--text-tertiary)' }}>no password saved</span>}</div>
+                  {(r.secrets && r.secrets.length) ? <div>🗝 {r.secrets.length} secret{r.secrets.length === 1 ? '' : 's'}</div> : null}
+                  {r.createdAt ? <div style={{ color: 'var(--text-tertiary)', fontSize: 11.5 }}>created {String(r.createdAt).slice(0, 10)}</div> : null}
+                </div>
+                <div style={{ marginTop: 10, fontSize: 11.5, color: 'var(--mint)' }}>{r._id ? 'View / edit →' : 'Add credentials →'}</div>
+              </div>
+            ))}
+        </div>
+        <div style={{ marginTop: 16, fontSize: 11.5, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', textAlign: 'center' }}>
+          STORED IN YOUR SUPABASE · PASSWORDS MASKED BY DEFAULT · TREAT THIS PAGE LIKE A SAFE
+        </div>
+        {editing && <VaultModal entry={editing} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); load(); }} />}
+      </div>
+    );
+  }
+
+  function VaultModal({ entry, onClose, onSaved }) {
+    const [f, setF] = React.useState(Object.assign({ secrets: [] }, entry));
+    const [busy, setBusy] = React.useState(false);
+    const [reveal, setReveal] = React.useState(false);
+    const set = (k, v) => setF(o => Object.assign({}, o, { [k]: v }));
+    const setSecret = (i, k, v) => setF(o => { const s = (o.secrets || []).slice(); s[i] = Object.assign({}, s[i], { [k]: v }); return Object.assign({}, o, { secrets: s }); });
+    const addSecret = () => setF(o => Object.assign({}, o, { secrets: (o.secrets || []).concat([{ label: '', value: '' }]) }));
+    const delSecret = (i) => setF(o => Object.assign({}, o, { secrets: (o.secrets || []).filter((_, j) => j !== i) }));
+    const inp = { width: '100%', background: 'var(--bg-deep)', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-sm)', color: 'var(--text-primary)', padding: '9px 11px', fontSize: 13, outline: 'none' };
+    const lbl = { fontSize: 11, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', marginBottom: 5 };
+    const save = () => {
+      if (!f.tenantId && !f.name) { return; }
+      setBusy(true);
+      const rec = { tenantId: (f.tenantId || (f.name || '').toLowerCase().replace(/[^a-z0-9]+/g, '-')).trim(), name: f.name, vertical: f.vertical, level: f.level, tier: f.tier, createdAt: f.createdAt, loginUrl: f.loginUrl, headName: f.headName, headEmail: f.headEmail, password: f.password, secrets: (f.secrets || []).filter(s => s.label || s.value), notes: f.notes };
+      vsave(rec, f._id).then(res => { setBusy(false); if (res && res.error) { alert(res.error); return; } onSaved(); });
+    };
+    const field = (k, label, ph, span) => (
+      <label style={{ gridColumn: span || 'span 1' }}><div style={lbl}>{label}</div><input style={inp} value={f[k] || ''} onChange={e => set(k, e.target.value)} placeholder={ph || ''} /></label>
+    );
+    return (
+      <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 9000, background: 'rgba(5,8,22,0.72)', backdropFilter: 'blur(6px)', display: 'grid', placeItems: 'center', padding: 20 }}>
+        <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 560, background: 'var(--bg-elevated)', border: '1px solid var(--border-default)', borderRadius: 16, padding: 22, maxHeight: '92vh', overflow: 'auto' }}>
+          <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 16 }}>{f._id ? ('Credentials · ' + (f.name || f.tenantId)) : 'New vault entry'}</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            {field('name', 'NAME', 'Good Foundation School', 'span 2')}
+            {field('tenantId', 'TENANT ID', 'good-foundation-school')}
+            <label><div style={lbl}>VERTICAL</div><select style={inp} value={f.vertical || 'school'} onChange={e => set('vertical', e.target.value)}>{Object.keys(VLABEL).map(v => <option key={v} value={v}>{VLABEL[v]}</option>)}</select></label>
+            {field('level', 'LEVEL', 'primary / secondary / tertiary')}
+            {field('tier', 'TIER', 'Catalyst / Builder / Architect')}
+            {field('createdAt', 'CREATED', '2026-06-11', 'span 2')}
+            {field('loginUrl', 'LOGIN LINK', 'https://nextos.nextafrica.ai/s/...', 'span 2')}
+            {field('headName', 'ADMIN NAME', 'Mrs. Asiimwe')}
+            {field('headEmail', 'ADMIN EMAIL (login)', 'head@school.ug')}
+            <label style={{ gridColumn: 'span 2' }}>
+              <div style={lbl}>PASSWORD</div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <input style={{ ...inp, fontFamily: reveal ? 'var(--font-mono)' : 'inherit' }} type={reveal ? 'text' : 'password'} value={f.password || ''} onChange={e => set('password', e.target.value)} placeholder="••••••" />
+                <button onClick={() => setReveal(r => !r)} style={{ background: 'transparent', border: '1px solid var(--border-default)', color: 'var(--text-secondary)', borderRadius: 'var(--radius-sm)', padding: '0 12px', fontSize: 12, cursor: 'pointer' }}>{reveal ? 'Hide' : 'Show'}</button>
+              </div>
+            </label>
+          </div>
+          <div style={{ marginTop: 16 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <div style={lbl}>OTHER SECRETS · keys, tokens, registrar, etc.</div>
+              <button onClick={addSecret} style={{ background: 'transparent', border: '1px solid var(--border-default)', color: 'var(--text-secondary)', borderRadius: 6, padding: '4px 10px', fontSize: 12, cursor: 'pointer' }}>+ Add secret</button>
+            </div>
+            {(f.secrets || []).map((sx, i) => (
+              <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+                <input style={{ ...inp, flex: '0 0 38%' }} value={sx.label || ''} onChange={e => setSecret(i, 'label', e.target.value)} placeholder="Label (e.g. Domain registrar)" />
+                <input style={{ ...inp, flex: 1 }} value={sx.value || ''} onChange={e => setSecret(i, 'value', e.target.value)} placeholder="Value" />
+                <button onClick={() => delSecret(i)} style={{ background: 'transparent', border: '1px solid var(--border-default)', color: 'var(--danger)', borderRadius: 6, padding: '0 11px', cursor: 'pointer' }}>×</button>
+              </div>
+            ))}
+          </div>
+          <label style={{ display: 'block', marginTop: 12 }}><div style={lbl}>NOTES</div><textarea style={{ ...inp, minHeight: 60 }} value={f.notes || ''} onChange={e => set('notes', e.target.value)} placeholder="Anything else about this fleet member…" /></label>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 18 }}>
+            <button onClick={onClose} style={{ background: 'transparent', border: '1px solid var(--border-default)', color: 'var(--text-secondary)', borderRadius: 'var(--radius-sm)', padding: '9px 16px', fontSize: 13, cursor: 'pointer' }}>Cancel</button>
+            <button onClick={save} disabled={busy} style={{ background: 'var(--mint)', color: 'var(--text-inverse)', border: 'none', borderRadius: 'var(--radius-sm)', padding: '9px 18px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>{busy ? 'Saving…' : 'Save to vault'}</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  window.NEXT_VAULT = NextVault;
+})();
+
+  </script>
+
+  <script type="text/babel">
 /* NEXT_FINANCE — company finances: income (maintenance, OS revenue) vs costs (hosting, domains, API) + statement */
 (function () {
   const WK = (typeof window !== 'undefined' && window.NEXT_OS_SENTINEL_ENDPOINT) || 'https://nextos-sentinel.nextafricaai.workers.dev';
@@ -6228,6 +6365,7 @@ const OSIcon = ({ name, size = 20 }) => {
     training: <><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></>,
     members: <><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4-4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></>,
     comms: <><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></>,
+    vault: <><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></>,
     billing: <><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></>,
     sentinel: <><path d="M12 2l7 3v6c0 5-3.4 9.4-7 11-3.6-1.6-7-6-7-11V5l7-3z"/><path d="M9 12l2 2 4-5"/></>,
     onboarding: <><path d="M12 5v14"/><path d="M5 12h14"/><rect x="4" y="4" width="16" height="16" rx="3"/></>,
@@ -6378,6 +6516,7 @@ const NAV_SECTIONS = [
   { id: 'system', label: 'System', items: [
     { id: 'billing', label: 'Finance', icon: 'billing' },
     { id: 'sentinel', label: 'Nia HQ', icon: 'sentinel' },
+    { id: 'vault', label: 'Fleet Vault', icon: 'vault' },
     { id: 'onboarding', label: 'Onboarding', icon: 'onboarding' },
     { id: 'settings', label: 'Settings', icon: 'settings' },
   ]},
@@ -6677,6 +6816,7 @@ const PAGE_TITLES = {
   training: 'Training',
   members: 'Members & Cards',
   comms: 'Communications',
+  vault: 'Fleet Vault',
   billing: 'Financial Overview',
   sentinel: 'Nia HQ',
   analytics: 'Fleet Analytics',
@@ -6908,6 +7048,8 @@ const AppShell = () => {
         return window.NEXT_OPS ? React.createElement(window.NEXT_OPS, { kind: 'training' }) : <PlaceholderPage title="Training" description="Loading." icon="" />;
       case 'comms':
         return window.NEXT_COMMS ? React.createElement(window.NEXT_COMMS) : <PlaceholderPage title="Communications" description="Loading." icon="" />;
+      case 'vault':
+        return window.NEXT_VAULT ? React.createElement(window.NEXT_VAULT) : <PlaceholderPage title="Fleet Vault" description="Loading." icon="" />;
       case 'settings':
         return window.NEXT_SETTINGS ? React.createElement(window.NEXT_SETTINGS) : <PlaceholderPage title="Settings" description="Loading." icon="Settings" />;
       default:
