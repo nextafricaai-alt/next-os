@@ -3661,8 +3661,8 @@ const PD_Students = (function () {
               <div style={{ fontSize: 13.5, color: T.ink, fontWeight: 600 }}>{s.guardian}</div>
               <div style={{ fontSize: 11.5, color: T.ink3, fontFamily: T.mono, marginTop: 2 }}>+256 70 234 1{(s.id * 17) % 1000}</div>
               <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-                <button onClick={() => window.peakToast && window.peakToast('WhatsApp opened', 'info', s.guardian + ' · +256 70 234 1' + ((s.id * 17) % 1000))} style={{ flex: 1, padding: '7px 10px', background: 'transparent', border: '1px solid ' + T.borderStr, color: T.ink, borderRadius: 7, fontSize: 11.5, cursor: 'pointer' }}>WhatsApp</button>
-                <button onClick={() => window.peakToast && window.peakToast('Calling guardian…', 'info', s.guardian + ' · +256 70 234 1' + ((s.id * 17) % 1000))} style={{ flex: 1, padding: '7px 10px', background: 'transparent', border: '1px solid ' + T.borderStr, color: T.ink, borderRadius: 7, fontSize: 11.5, cursor: 'pointer' }}>Call</button>
+                <button onClick={() => window.peakWhatsApp(s.guardianPhone || ('0702341' + ((s.id * 17) % 1000)), 'Hello ' + (s.guardian || '') + ', a message from ' + window.peakSchoolName() + ' regarding ' + s.name + '.')} style={{ flex: 1, padding: '7px 10px', background: 'transparent', border: '1px solid ' + T.borderStr, color: T.ink, borderRadius: 7, fontSize: 11.5, cursor: 'pointer' }}>WhatsApp</button>
+                <button onClick={() => window.peakCall(s.guardianPhone || ('+256702341' + ((s.id * 17) % 1000)))} style={{ flex: 1, padding: '7px 10px', background: 'transparent', border: '1px solid ' + T.borderStr, color: T.ink, borderRadius: 7, fontSize: 11.5, cursor: 'pointer' }}>Call</button>
               </div>
             </div>
           </div>
@@ -4008,7 +4008,7 @@ const PD_Profile = (function () {
                 </div>
                 <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
                   <button onClick={() => window.peakToast && window.peakToast('Director call scheduled', 'success', 'Mr. Robert Mugisha · Thursday 21 May at 16:30 · WhatsApp invite sent.')} style={{ background: T.red, color: '#fff', border: 'none', padding: '9px 16px', borderRadius: 9, fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }}>Schedule director call</button>
-                  <button onClick={() => window.peakToast && window.peakToast('WhatsApp opened', 'info', 'Mr. Robert Mugisha · last seen 4 days ago')} style={{ background: 'transparent', color: T.ink, border: '1px solid ' + T.borderStr, padding: '9px 16px', borderRadius: 9, fontSize: 12.5, fontWeight: 500, cursor: 'pointer' }}>WhatsApp guardian</button>
+                  <button onClick={() => window.peakWhatsApp(((window.peakFindStudent('Brian Mugisha') || {}).guardianPhone) || '+256702341017', 'Hello Mr. Robert Mugisha, a message from ' + window.peakSchoolName() + ' regarding Brian.')} style={{ background: 'transparent', color: T.ink, border: '1px solid ' + T.borderStr, padding: '9px 16px', borderRadius: 9, fontSize: 12.5, fontWeight: 500, cursor: 'pointer' }}>WhatsApp guardian</button>
                   <button onClick={() => window.peakStudentReport && window.peakStudentReport(window.peakFindStudent('Brian Mugisha') || { name: 'Brian Mugisha', stream: 'P5V', guardian: 'Mr. Robert Mugisha', guardianPhone: '+256 70 234 1017', fees: 'overdue', flag: 'risk' })} style={{ background: 'transparent', color: T.ink2, border: '1px solid ' + T.border, padding: '9px 14px', borderRadius: 9, fontSize: 12.5, cursor: 'pointer' }}>Generate report</button>
                   <button onClick={() => window.peakToast && window.peakToast('More actions', 'info', 'Edit · transfer stream · archive · suspend')} style={{ background: 'transparent', color: T.ink3, border: 'none', padding: '9px 12px', fontSize: 14, cursor: 'pointer' }}>⋯</button>
                 </div>
@@ -5619,8 +5619,8 @@ window.PEAK_SCREENS = (function () {
                   <div style={{ fontSize: 10.5, color: T.ink3, fontFamily: T.mono, letterSpacing: '0.05em', fontWeight: 600, marginBottom: 6 }}>CONTACT</div>
                   <div style={{ fontSize: 12.5, color: T.ink, fontFamily: T.mono }}>{selected.phone}</div>
                   <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
-                    <GhostBtn onClick={() => window.peakToast('WhatsApp opened', 'info', selected.name + ' · ' + selected.phone)}>WhatsApp</GhostBtn>
-                    <GhostBtn onClick={() => window.peakToast('Calling…', 'info', selected.phone)}>Call</GhostBtn>
+                    <GhostBtn onClick={() => window.peakWhatsApp(selected.phone, 'Hello ' + (selected.name || '') + ',')}>WhatsApp</GhostBtn>
+                    <GhostBtn onClick={() => window.peakCall(selected.phone)}>Call</GhostBtn>
                   </div>
                 </div>
                 <div>
@@ -5774,7 +5774,7 @@ window.PEAK_SCREENS = (function () {
                   </div>
                 )}
                 <div style={{ display: 'flex', gap: 8 }}>
-                  <GhostBtn onClick={() => window.peakToast('Driver called', 'info', sel.driver + ' · UAR ' + sel.plate)}>Call driver</GhostBtn>
+                  <GhostBtn onClick={() => window.peakCall(sel.phone || sel.driverPhone || '')}>Call driver</GhostBtn>
                   <PrimaryBtn onClick={() => window.peakToast('Route guardians notified', 'success', sel.students + ' WhatsApp messages sent · ETA included.')}>Notify route parents</PrimaryBtn>
                 </div>
               </div>
@@ -6825,6 +6825,10 @@ window.PEAK_EXAMS = (function () {
     } catch (e) {}
   };
   window.peakRoster = function () { return (window.PEAK && window.PEAK.students) || []; };
+  window.peakCleanPhone = function (p) { p = (p || '').replace(/[^0-9]/g, ''); if (!p) return ''; if (p.charAt(0) === '0') p = '256' + p.slice(1); return p; };
+  window.peakWhatsApp = function (phone, message) { var p = window.peakCleanPhone(phone); if (!p) { window.peakToast && window.peakToast('No phone on file', 'info', 'Add a guardian/contact number first.'); return; } window.open('https://wa.me/' + p + (message ? ('?text=' + encodeURIComponent(message)) : ''), '_blank'); };
+  window.peakCall = function (phone) { var p = (phone || '').replace(/\s+/g, ''); if (!p) { window.peakToast && window.peakToast('No phone on file', 'info'); return; } window.open('tel:' + p, '_self'); };
+  window.peakSchoolName = function () { return (window.__BRAND_NAME) || 'the school'; };
   window.peakExportRoster = function () { var s = window.peakRoster(); window.peakExportCSV('students-' + (((window.__BRAND_NAME) || 'school') + '').replace(/\s+/g, '_') + '.csv', ['Name', 'Stream', 'Guardian', 'Phone', 'Fees', 'Balance (UGX)', 'Attendance %', 'Standing'], s.map(function (x) { return [x.name, x.stream || '', x.guardian || '', x.guardianPhone || '', x.fees || '', x.balance || 0, (x.attendanceWk != null ? x.attendanceWk : ''), x.flag === 'risk' ? 'At-risk' : (x.flag === 'top' ? 'Top' : 'OK')]; })); window.peakToast && window.peakToast('Roster exported', 'success', s.length + ' students - CSV downloaded.'); };
   window.peakExportLedger = function () { var s = window.peakRoster().filter(function (x) { return (x.balance || 0) > 0 || x.fees === 'overdue' || x.fees === 'partial'; }); window.peakExportCSV('fees-outstanding.csv', ['Name', 'Stream', 'Guardian', 'Phone', 'Fees', 'Balance (UGX)'], s.map(function (x) { return [x.name, x.stream || '', x.guardian || '', x.guardianPhone || '', x.fees || '', x.balance || 0]; })); window.peakToast && window.peakToast('Ledger exported', 'success', s.length + ' outstanding accounts - CSV downloaded.'); };
   window.peakFindStudent = function (name) { var s = window.peakRoster(); name = (name || '').toLowerCase(); return s.find(function (x) { return (x.name || '').toLowerCase() === name; }) || s.find(function (x) { return (x.name || '').toLowerCase().indexOf(name) >= 0; }); };
