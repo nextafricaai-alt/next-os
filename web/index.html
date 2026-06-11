@@ -1329,7 +1329,7 @@ const DashboardPage = ({ onNavigate }) => {
       {/* KPI Row */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, marginBottom: 24 }}>
         <DashboardKPI
-          label="Active Projects" value="12" change="+3 this month" positive
+          label="Active Projects" value={String((window.PROJECT_DATA || []).length)} change="live portfolio" positive
           icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>}
         />
         <DashboardKPI
@@ -1371,11 +1371,9 @@ const DashboardPage = ({ onNavigate }) => {
               }}>
                 <span>Client</span><span>Project</span><span>Status</span><span>Progress</span>
               </div>
-              <ProjectRow client="Ministry of ICT" project="Digital Services Platform" status="Active" progress={67} />
-              <ProjectRow client="UBA Group" project="AI Operations Suite" status="Active" progress={42} />
-              <ProjectRow client="University of Lagos" project="Smart Campus" status="Review" progress={89} />
-              <ProjectRow client="Safaricom" project="Process Automation" status="Active" progress={31} />
-              <ProjectRow client="KCCA Kampala" project="Citizen Portal" status="Active" progress={55} />
+              {(window.PROJECT_DATA || []).slice(0, 7).map((p, i) => (
+                <ProjectRow key={i} client={p.client || p.name} project={p.name} status={p.planned ? 'Review' : 'Active'} progress={typeof p.progress === 'number' ? p.progress : (p.url ? 100 : 40)} />
+              ))}
             </div>
           </div>
 
