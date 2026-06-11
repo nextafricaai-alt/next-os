@@ -2703,7 +2703,7 @@ const V4 = (function () {
 
         {/* AI shortcut */}
         <div style={{ padding: 12 }}>
-          <button style={{
+          <button onClick={() => window.PEAK_ASKNEXT && window.PEAK_ASKNEXT.open()} style={{
             width: '100%', display: 'flex', alignItems: 'center', gap: 10,
             padding: '11px 12px', borderRadius: 10,
             background: 'linear-gradient(135deg, ' + T.surface3 + ' 0%, #2b3b85 100%)',
@@ -3217,7 +3217,7 @@ const PD_Today = (function () {
     const [val, setVal] = useState('');
     const send = () => {
       if (!val.trim()) return;
-      window.peakToast && window.peakToast('Asked NEXT: ' + val.slice(0, 60), 'info', 'AI thinking — reply will arrive in a moment. (Phase 2 ships the real model.)');
+      if (window.PEAK_ASKNEXT) window.PEAK_ASKNEXT.open(val);
       setVal('');
     };
     return (
@@ -6783,6 +6783,150 @@ window.PEAK_EXAMS = (function () {
 })();
   </script>
 
+  <script type="text/babel">
+/* PEAK_ASKNEXT — real conversational Nia inside the school OS */
+window.PEAK_ASKNEXT = (function () {
+  const { useState, useEffect, useRef } = React;
+  const T = window.V4.T;
+  const WK = 'https://nextos-sentinel.nextafricaai.workers.dev';
+  function tenant() { const p = (window.PEAK_ROLE && window.PEAK_ROLE.getProfile) ? window.PEAK_ROLE.getProfile() : null; return (p && p.tenantId) || 'peak-primary'; }
+  function whoami() { const p = (window.PEAK_ROLE && window.PEAK_ROLE.getProfile) ? window.PEAK_ROLE.getProfile() : null; return (p && (p.fullName || p.role)) || 'Head Teacher'; }
+  function memKey() { return 'nextos.asknext.' + tenant(); }
+
+  function logQuestion(q) { try { const a = JSON.parse(localStorage.getItem(memKey()) || '[]'); a.unshift({ q: q, t: Date.now() }); localStorage.setItem(memKey(), JSON.stringify(a.slice(0, 200))); } catch (e) {} }
+  function frequentTopics() {
+    try {
+      const a = JSON.parse(localStorage.getItem(memKey()) || '[]'); const words = {};
+      const stop = new Set(['the','a','of','to','is','in','and','for','me','my','show','what','how','who','can','you','please','give','about','this','that','do','does','are','was','were','with','any','all','our','need','want','tell','list','have','has','many','much','from','their','they','them','will','should','could']);
+      a.forEach(x => (x.q || '').toLowerCase().replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).forEach(w => { if (w.length > 3 && !stop.has(w)) words[w] = (words[w] || 0) + 1; }));
+      return Object.keys(words).sort((p, q) => words[q] - words[p]).slice(0, 6);
+    } catch (e) { return []; }
+  }
+  function recentQuestions() { try { const a = JSON.parse(localStorage.getItem(memKey()) || '[]'); const seen = {}, out = []; a.forEach(x => { if (x.q && !seen[x.q]) { seen[x.q] = 1; out.push(x.q); } }); return out.slice(0, 4); } catch (e) { return []; } }
+
+  function buildContext() {
+    const D = window.PEAK || {}; const k = D.kpis || {}; const studs = D.students || [];
+    const atRisk = studs.filter(s => s.flag === 'risk').map(s => s.name);
+    const top = studs.filter(s => s.flag === 'top').map(s => s.name);
+    const overdue = studs.filter(s => s.fees === 'overdue');
+    const streams = Array.from(new Set(studs.map(s => s.stream).filter(Boolean)));
+    const fmt = n => 'UGX ' + (Number(n) || 0).toLocaleString();
+    return [
+      'SCHOOL: ' + ((window.__BRAND_NAME) || 'School') + ' (tenant ' + tenant() + ')',
+      'KPIs: students ' + (k.students || studs.length) + ', teachers ' + (k.teachers || '?') + ', streams ' + (k.streams || streams.length) + ', attendance ' + (k.attendancePct || '?') + '%, present today ' + (k.presentToday || '?') + ', absent ' + (k.absentToday || '?'),
+      'Fees: collected this term ' + fmt(k.feesCollectedTerm) + ', target ' + fmt(k.feesTargetTerm) + ', accounts overdue ' + (k.feesOutstandingStudents != null ? k.feesOutstandingStudents : overdue.length),
+      'At-risk students (' + atRisk.length + '): ' + (atRisk.slice(0, 15).join(', ') || 'none'),
+      'Top performers: ' + (top.slice(0, 8).join(', ') || '—'),
+      'Streams: ' + streams.join(', '),
+      'Roster (sample): ' + studs.slice(0, 40).map(s => s.name + ' [' + s.stream + ', fees ' + s.fees + (s.balance ? (', owes ' + s.balance) : '') + ']').join('; '),
+    ].join('\n');
+  }
+
+  function systemPrompt() {
+    const topics = frequentTopics();
+    const mem = topics.length ? ('\n\nHEAD TEACHER MEMORY: this head teacher frequently asks about: ' + topics.join(', ') + '. Anticipate those needs and offer proactively when relevant.') : '';
+    return 'You are Nia, the AI assistant living inside ' + ((window.__BRAND_NAME) || 'this school') + "'s NEXT School OS. You are talking to " + whoami() + '. You can see the school’s live data below and answer accurately about students, attendance, fees, exams, staff, and reports. Be warm, brief, decisive and practical — like a sharp deputy who runs the school with the head teacher. Ugandan context (UGX, WhatsApp, terms, streams like P4V).\n\n'
+      + 'WHEN ASKED TO DO SOMETHING THE OS CAN DO, include exactly ONE fenced code block labelled action with JSON, plus one short sentence. Actions:\n'
+      + '{"action":"navigate","screen":"today|dash|stud|attn|fees|exam|rep|comm|teach|trans"}\n'
+      + '{"action":"whatsapp","name":"<student or guardian name>","message":"..."}\n'
+      + '{"action":"reminder","text":"...","when":"e.g. tomorrow 8am"}\n'
+      + 'For report cards: navigate to "exam" and tell them reports are issued there (fee-gated). Only state facts you can see in the data — never invent fees or marks; if you lack it, say so plainly.'
+      + mem + '\n\nLIVE SCHOOL DATA:\n' + buildContext();
+  }
+
+  function runAction(a) {
+    try {
+      if (a.action === 'navigate' && a.screen) { window.peakNav && window.peakNav(a.screen); window.peakModal && window.peakModal.close(); return 'Opened ' + a.screen + '.'; }
+      if (a.action === 'whatsapp') {
+        const studs = (window.PEAK && window.PEAK.students) || [];
+        const target = (a.name || '').toLowerCase();
+        const s = studs.find(x => (x.name || '').toLowerCase().includes(target) || (x.guardian || '').toLowerCase().includes(target));
+        const phone = s && (s.guardianPhone || '').replace(/[^0-9]/g, '');
+        const msg = a.message || '';
+        if (phone) { window.open('https://wa.me/' + phone + '?text=' + encodeURIComponent(msg), '_blank'); return 'Opened WhatsApp to ' + (s.guardian || s.name) + '.'; }
+        try { navigator.clipboard.writeText(msg); } catch (e) {}
+        return 'Drafted (no phone on file) — copied to clipboard.';
+      }
+      if (a.action === 'reminder' && a.text) {
+        const key = 'nextos.reminders.' + tenant();
+        let arr = []; try { arr = JSON.parse(localStorage.getItem(key) || '[]'); } catch (e) {}
+        arr.unshift({ text: a.text, when: a.when || '', at: Date.now() }); try { localStorage.setItem(key, JSON.stringify(arr.slice(0, 100))); } catch (e) {}
+        return 'Noted: ' + a.text + (a.when ? (' (' + a.when + ')') : '') + '.';
+      }
+    } catch (e) {}
+    return null;
+  }
+
+  function AskNextChat({ prefill }) {
+    const [msgs, setMsgs] = useState([]);
+    const [input, setInput] = useState('');
+    const [busy, setBusy] = useState(false);
+    const histRef = useRef([]);
+    const scrollRef = useRef(null);
+    useEffect(() => { if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight; }, [msgs, busy]);
+
+    const send = (text) => {
+      const q = (text != null ? text : input).trim(); if (!q || busy) return;
+      logQuestion(q);
+      const newMsgs = msgs.concat([{ role: 'user', content: q }]); setMsgs(newMsgs); setInput(''); setBusy(true);
+      histRef.current = histRef.current.concat([{ role: 'user', content: q }]);
+      fetch(WK + '/', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ system: systemPrompt(), messages: histRef.current }) })
+        .then(r => r.json()).then(data => {
+          let txt = '';
+          if (data && data.content && data.content.length) txt = data.content.filter(c => c.type === 'text').map(c => c.text).join('');
+          else if (data && data.error) txt = 'Error: ' + data.error;
+          else txt = typeof data === 'string' ? data : JSON.stringify(data).slice(0, 200);
+          let actMsg = '';
+          const m = txt.match(/```(?:action|json)?\s*([\s\S]*?)```/i);
+          if (m) { try { const a = JSON.parse(m[1].trim()); if (a && a.action) { const r = runAction(a); if (r) actMsg = '\n\n✓ ' + r; } } catch (e) {} }
+          const disp = txt.replace(/```[\s\S]*?```/g, '').replace(/\n{3,}/g, '\n\n').trim() + actMsg;
+          histRef.current = histRef.current.concat([{ role: 'assistant', content: txt }]);
+          setMsgs(m2 => m2.concat([{ role: 'nia', content: disp || '(no reply)' }])); setBusy(false);
+        }).catch(e => { setMsgs(m2 => m2.concat([{ role: 'nia', content: 'Could not reach Nia: ' + (e.message || e) }])); setBusy(false); });
+    };
+    useEffect(() => { if (prefill) send(prefill); /* eslint-disable-next-line */ }, []);
+
+    const chips = (recentQuestions().length ? recentQuestions() : ['How are fees looking this term?', 'Who are the at-risk students?', "What's today's attendance?", 'Draft a WhatsApp to overdue parents']);
+
+    return (
+      <div style={{ width: '100%', height: '74vh', maxHeight: 680, display: 'flex', flexDirection: 'column', background: T.bg }}>
+        <div style={{ padding: '16px 20px', borderBottom: '1px solid ' + T.border, display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{ width: 30, height: 30, borderRadius: 8, background: T.red, color: '#fff', display: 'grid', placeItems: 'center', fontFamily: T.mono, fontSize: 11, fontWeight: 700 }}>AI</span>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 15, fontWeight: 700, color: T.ink }}>Ask NEXT · Nia</div>
+            <div style={{ fontSize: 11, color: T.ink3 }}>Sees your live school · runs the OS · learns what you ask</div>
+          </div>
+          <button onClick={() => window.peakModal.close()} style={{ background: 'transparent', border: '1px solid ' + T.border, color: T.ink3, borderRadius: 8, padding: '5px 10px', cursor: 'pointer', fontSize: 12 }}>Close</button>
+        </div>
+        <div ref={scrollRef} style={{ flex: 1, overflowY: 'auto', padding: 18, display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {msgs.length === 0 && (
+            <div style={{ color: T.ink3, fontSize: 13, lineHeight: 1.6 }}>
+              <div style={{ fontWeight: 600, color: T.ink2, marginBottom: 8 }}>Hello {whoami().split(' ')[0]} — ask me anything about your school.</div>
+              I can read your students, attendance, fees and exams, draft parent messages, open any screen, and note reminders. Try one of these:
+            </div>
+          )}
+          {msgs.map((m, i) => (
+            <div key={i} style={{ alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: '90%', background: m.role === 'user' ? T.red : T.surface, color: m.role === 'user' ? '#fff' : T.ink, border: m.role === 'user' ? 'none' : '1px solid ' + T.border, borderRadius: 12, padding: '10px 13px', fontSize: 13, lineHeight: 1.55, whiteSpace: 'pre-wrap' }}>{m.content}</div>
+          ))}
+          {busy && <div style={{ alignSelf: 'flex-start', color: T.ink3, fontSize: 12.5, fontStyle: 'italic' }}>Nia is thinking…</div>}
+        </div>
+        <div style={{ padding: '0 16px 8px', display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          {chips.map((c, i) => <button key={i} onClick={() => send(c)} style={{ fontSize: 11, background: T.surface, border: '1px solid ' + T.border, color: T.ink2, borderRadius: 999, padding: '5px 10px', cursor: 'pointer' }}>{c.length > 42 ? c.slice(0, 40) + '…' : c}</button>)}
+        </div>
+        <div style={{ padding: 14, borderTop: '1px solid ' + T.border, display: 'flex', gap: 8 }}>
+          <input value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') send(); }} placeholder="Ask Nia, or tell her to do something…" style={{ flex: 1, background: T.surface, border: '1px solid ' + T.border, borderRadius: 10, padding: '11px 13px', color: T.ink, fontSize: 13, outline: 'none', fontFamily: T.font }} />
+          <button onClick={() => send()} disabled={busy} style={{ background: T.red, color: '#fff', border: 'none', borderRadius: 10, padding: '0 18px', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>Send</button>
+        </div>
+      </div>
+    );
+  }
+
+  function open(prefill) { window.peakModal && window.peakModal.open(React.createElement(AskNextChat, { prefill: prefill || '', width: 600 })); }
+  try { document.addEventListener('keydown', function (e) { if ((e.metaKey || e.ctrlKey) && (e.key === 'k' || e.key === 'K')) { e.preventDefault(); open(); } }); } catch (e) {}
+  return { open };
+})();
+  </script>
+
   <script type="text/babel" data-src="src/peak-app.jsx">
 /* src/peak-app.jsx */
 /* global React, ReactDOM, V4, PD_Today, PD_Students, PD_Profile, PD_Fees, PD_Broadcast, PD_M, PEAK_SCREENS, PEAK_FORMS */
@@ -7099,7 +7243,7 @@ window.PEAK_EXAMS = (function () {
         </nav>
 
         <div style={{ padding: 12 }}>
-          <button onClick={() => window.peakToast('Ask NEXT — coming soon', 'info', 'AI assistant launches in Phase 2 with full conversation context across attendance, fees, and reports.')} style={{
+          <button onClick={() => window.PEAK_ASKNEXT && window.PEAK_ASKNEXT.open()} style={{
             width: '100%', display: 'flex', alignItems: 'center', gap: 10,
             padding: '11px 12px', borderRadius: 10,
             background: 'linear-gradient(135deg, ' + T.surface3 + ' 0%, #2b3b85 100%)',
