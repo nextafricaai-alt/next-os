@@ -6499,6 +6499,33 @@ window.PEAK_EXAMS = (function () {
   const T = window.V4.T;
   const WK = 'https://nextos-sentinel.nextafricaai.workers.dev';
   function tenant() { const p = (window.PEAK_ROLE && window.PEAK_ROLE.getProfile) ? window.PEAK_ROLE.getProfile() : null; return (p && p.tenantId) || 'peak-primary'; }
+  let LOGO_DATA = null;
+  (function () {
+    try {
+      const src = (window.__BRAND_LOGO) || (window.__resources && window.__resources.faviconLogo) || 'assets/peak-logo.png';
+      const img = new Image(); img.crossOrigin = 'anonymous';
+      img.onload = function () { try { const c = document.createElement('canvas'); c.width = img.naturalWidth || 128; c.height = img.naturalHeight || 128; c.getContext('2d').drawImage(img, 0, 0); LOGO_DATA = { data: c.toDataURL('image/png'), w: c.width, h: c.height }; } catch (e) {} };
+      img.src = src;
+    } catch (e) {}
+  })();
+  function firstName(n) { return (n || 'Student').split(' ')[0]; }
+  function teacherComment(rec, exam) {
+    const fn = firstName(rec.student.name);
+    if (exam.level === 'alevel') { const p = rec.alevelPoints || 0; if (p >= 15) return fn + ' has performed excellently this term — a strong, university-bound result. Keep it up.'; if (p >= 10) return fn + ' has done well. With more consistency the top grades are within reach.'; if (p >= 6) return 'A fair performance. ' + fn + ' should deepen revision in the weaker principal subjects.'; return fn + ' needs significant improvement and close guidance next term.'; }
+    const d = rec.division;
+    if (d === 'I') return 'An excellent term. ' + fn + ' shows strong understanding across subjects. Keep up the great work.';
+    if (d === 'II') return 'A good performance. With steady effort ' + fn + ' can reach the very top next term. Well done.';
+    if (d === 'III') return 'A fair effort. ' + fn + ' should revise more, especially in the weaker subjects.';
+    if (d === 'IV') return fn + ' needs to work harder and seek help in the difficult areas. More focus is expected.';
+    return fn + ' requires serious improvement and close support. Let us work together next term.';
+  }
+  function headRemark(rec, exam) {
+    if (exam.level === 'alevel') { const p = rec.alevelPoints || 0; if (p >= 12) return 'A commendable result. Well done.'; if (p >= 6) return 'Satisfactory — more effort expected.'; return 'Improvement needed. Parental support requested.'; }
+    const d = rec.division;
+    if (d === 'I' || d === 'II') return 'A commendable result. Keep it up.';
+    if (d === 'III') return 'Satisfactory. More effort expected next term.';
+    return 'Improvement needed. Parental support is requested.';
+  }
 
   const LEVELS = {
     primary: { label: 'Primary (PLE)', subjects: ['English', 'Mathematics', 'Science', 'Social Studies'], coreCount: 4, aggCount: 4 },
@@ -6539,23 +6566,32 @@ window.PEAK_EXAMS = (function () {
 
   function makeReport(rec, exam) {
     const stu = rec.student; const jsPDFc = window.jspdf && window.jspdf.jsPDF; if (!jsPDFc) { window.peakToast && window.peakToast('PDF engine not loaded', 'info'); return; }
-    const doc = new jsPDFc(); const brand = (window.__BRAND_NAME) || 'School';
-    doc.setFontSize(18); doc.text(brand, 105, 18, { align: 'center' });
-    doc.setFontSize(11); doc.text('Student Report Card', 105, 26, { align: 'center' });
-    doc.setFontSize(10); doc.text((exam.name || '') + ' · ' + (exam.term || '') + ' ' + (exam.year || ''), 105, 32, { align: 'center' });
+    const doc = new jsPDFc(); const brand = (window.__BRAND_NAME) || 'School'; const W = 210;
+    if (LOGO_DATA) { try { const h = 18, w = Math.max(12, h * (LOGO_DATA.w / LOGO_DATA.h)); doc.addImage(LOGO_DATA.data, 'PNG', 14, 11, w, h); } catch (e) {} }
+    doc.setFontSize(18); doc.setFont(undefined, 'bold'); doc.text(brand, W / 2, 19, { align: 'center' });
+    doc.setFont(undefined, 'normal'); doc.setFontSize(11); doc.text('Student Report Card', W / 2, 26, { align: 'center' });
+    doc.setFontSize(9.5); doc.text((exam.name || '') + ' \u00b7 ' + (exam.term || '') + ' ' + (exam.year || ''), W / 2, 32, { align: 'center' });
+    doc.setDrawColor(200); doc.line(14, 37, W - 14, 37);
     doc.setFontSize(11);
-    doc.text('Name: ' + stu.name, 14, 46);
-    doc.text('Class / Stream: ' + (stu.stream || '-'), 14, 53);
-    doc.text('Stream position: ' + (rec.streamRank || '-') + '     Class position: ' + (rec.classRank || '-'), 14, 60);
-    let y = 74; doc.setFontSize(10); doc.setFont(undefined, 'bold');
-    doc.text('Subject', 14, y); doc.text('Mark', 110, y); doc.text('Grade', 140, y); doc.setFont(undefined, 'normal');
-    y += 2; doc.line(14, y, 175, y); y += 7;
-    (exam.subjects || []).forEach(sub => { const p = rec.per[sub]; doc.text(String(sub), 14, y); doc.text(p ? String(p.mark) : '—', 110, y); doc.text(p ? p.grade : '—', 140, y); y += 7; });
-    y += 4; doc.line(14, y, 175, y); y += 9; doc.setFontSize(12); doc.setFont(undefined, 'bold');
+    doc.text('Name: ' + stu.name, 14, 47);
+    doc.text('Class / Stream: ' + (stu.stream || '-'), 14, 54);
+    doc.text('Stream position: ' + (rec.streamRank || '-'), 120, 47);
+    doc.text('Class position: ' + (rec.classRank || '-'), 120, 54);
+    let y = 67; doc.setFontSize(10); doc.setFont(undefined, 'bold');
+    doc.text('Subject', 14, y); doc.text('Mark', 120, y); doc.text('Grade', 150, y); doc.setFont(undefined, 'normal');
+    y += 2; doc.line(14, y, W - 14, y); y += 7;
+    (exam.subjects || []).forEach(sub => { const p = rec.per[sub]; doc.text(String(sub), 14, y); doc.text(p ? String(p.mark) : '\u2014', 120, y); doc.text(p ? p.grade : '\u2014', 150, y); y += 7; });
+    y += 2; doc.line(14, y, W - 14, y); y += 9; doc.setFontSize(12); doc.setFont(undefined, 'bold');
     if (exam.level === 'alevel') doc.text('Total points: ' + rec.alevelPoints, 14, y);
-    else doc.text('Aggregate: ' + rec.aggregate + '          Division: ' + (rec.division || '—'), 14, y);
-    doc.setFont(undefined, 'normal'); doc.setFontSize(9);
-    doc.text('Generated by NEXT OS · Nia · ' + new Date().toLocaleDateString(), 14, 285);
+    else doc.text('Aggregate: ' + rec.aggregate + '          Division: ' + (rec.division || '\u2014'), 14, y);
+    doc.setFont(undefined, 'normal');
+    y += 14; doc.setFontSize(10); doc.setFont(undefined, 'bold'); doc.text("Class Teacher's comment:", 14, y); doc.setFont(undefined, 'normal'); y += 6;
+    const tc = doc.splitTextToSize(teacherComment(rec, exam), W - 28); doc.text(tc, 14, y); y += tc.length * 5 + 6;
+    doc.setFont(undefined, 'bold'); doc.text("Head Teacher's remark:", 14, y); doc.setFont(undefined, 'normal'); y += 6;
+    const hr = doc.splitTextToSize(headRemark(rec, exam), W - 28); doc.text(hr, 14, y); y += hr.length * 5 + 16;
+    doc.setDrawColor(120); doc.line(14, y, 70, y); doc.line(120, y, 176, y); doc.setFontSize(9); doc.text('Class Teacher', 14, y + 5); doc.text('Head Teacher', 120, y + 5);
+    try { const cx = 95, cy = y + 30, r = 16; doc.setDrawColor(180, 30, 30); doc.setLineWidth(0.8); doc.circle(cx, cy, r); doc.circle(cx, cy, r - 2.5); doc.setTextColor(180, 30, 30); doc.setFontSize(6.5); doc.text(brand.toUpperCase().slice(0, 24), cx, cy - 3, { align: 'center' }); doc.setFont(undefined, 'bold'); doc.setFontSize(7.5); doc.text('OFFICIAL', cx, cy + 1.5, { align: 'center' }); doc.setFont(undefined, 'normal'); doc.setFontSize(5.5); doc.text(new Date().toLocaleDateString(), cx, cy + 5.5, { align: 'center' }); doc.setTextColor(0, 0, 0); doc.setLineWidth(0.2); } catch (e) {}
+    doc.setFontSize(9); doc.setTextColor(120); doc.text('Generated by NEXT OS \u00b7 Nia \u00b7 ' + new Date().toLocaleDateString(), 14, 288); doc.setTextColor(0, 0, 0);
     doc.save((stu.name || 'report').replace(/\s+/g, '_') + '_report.pdf');
   }
   function heldMessage(rec, exam) { const s = rec.student; return 'Dear ' + (s.guardian || 'Parent') + ', ' + s.name + "'s " + (exam.term || 'term') + ' report is ready but is being held pending an outstanding balance of UGX ' + Math.round(rec.balance).toLocaleString() + '. Kindly clear the balance so we can release the report. Thank you. — ' + ((window.__BRAND_NAME) || 'School'); }
