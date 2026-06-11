@@ -1129,10 +1129,16 @@ async function handleOsDataSave(request, env, cors) {
   const J = (oo, st) => new Response(JSON.stringify(oo), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
   if (!env.SUPABASE_URL || !env.SUPABASE_KEY) return J({ error: 'Supabase not configured.' }, 500);
   let b; try { b = await request.json(); } catch (e) { return J({ error: 'bad body' }, 400); }
-  const kind = String(b.kind || '').trim(); const tenant = String(b.tenant || 'next').trim(); const rec = b.record || {};
+  const kind = String(b.kind || '').trim(); const tenant = String(b.tenant || 'next').trim(); const rec = b.record || {}; const id = b.id;
   if (!kind) return J({ error: 'kind required' }, 400);
-  try { const r = await fetch(env.SUPABASE_URL + '/rest/v1/os_records', { method: 'POST', headers: sbHeaders(env, 'return=representation'), body: JSON.stringify({ tenant, kind, payload: rec }) }); const d = await r.json(); return J({ ok: true, record: (d && d[0]) || { payload: rec } }); }
-  catch (x) { return J({ error: String((x && x.message) || x) }, 200); }
+  try {
+    if (id) {
+      const r = await fetch(env.SUPABASE_URL + '/rest/v1/os_records?id=eq.' + encodeURIComponent(id), { method: 'PATCH', headers: sbHeaders(env, 'return=representation'), body: JSON.stringify({ payload: rec }) });
+      const d = await r.json(); return J({ ok: true, record: (d && d[0]) || { payload: rec } });
+    }
+    const r = await fetch(env.SUPABASE_URL + '/rest/v1/os_records', { method: 'POST', headers: sbHeaders(env, 'return=representation'), body: JSON.stringify({ tenant, kind, payload: rec }) });
+    const d = await r.json(); return J({ ok: true, record: (d && d[0]) || { payload: rec } });
+  } catch (x) { return J({ error: String((x && x.message) || x) }, 200); }
 }
 
 async function handleConfigGet(tenant, env, cors) {
