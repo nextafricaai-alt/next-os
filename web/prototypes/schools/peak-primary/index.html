@@ -6120,8 +6120,11 @@ window.PEAK_FORMS = (function () {
 
   // ─── Add Student ──────────────────────────────────────────────────────────
   function AddStudent({ store }) {
+    const _CL = (window.SCHOOL_CONFIG && window.SCHOOL_CONFIG.classes && window.SCHOOL_CONFIG.classes.length) ? window.SCHOOL_CONFIG.classes : D.streams.map(s => s.id);
+    const _COMBOS = (window.SCHOOL_CONFIG && window.SCHOOL_CONFIG.combinations) || [];
     const [name, setName] = useState('');
-    const [stream, setStream] = useState('P1V');
+    const [stream, setStream] = useState(_CL[0] || 'P1V');
+    const [combination, setCombination] = useState('');
     const [guardian, setGuardian] = useState('');
     const [phone, setPhone] = useState('');
     const [dob, setDob] = useState('');
@@ -6139,6 +6142,7 @@ window.PEAK_FORMS = (function () {
       store.addStudent({
         name: name.trim(),
         stream,
+        combination: combination || null,
         guardian: guardian.trim(),
         phone: phone.trim(),
         fees: feesStatus,
@@ -6160,9 +6164,14 @@ window.PEAK_FORMS = (function () {
           <Field label="Student name" error={errors.name} span={2}>
             <TextInput value={name} onChange={v => { setName(v); setErrors(e => ({ ...e, name: null })); }} placeholder="e.g. Esther Nakimuli" />
           </Field>
-          <Field label="Class · stream" hint="14 streams · P1–P7">
-            <Select value={stream} onChange={setStream} options={D.streams.map(s => ({ value: s.id, label: s.label }))} />
+          <Field label="Class · stream" hint={(window.SCHOOL_CONFIG && window.SCHOOL_CONFIG.type === 'secondary') ? 'S1–S6' : 'P1–P7'}>
+            <Select value={stream} onChange={setStream} options={_CL.map(c => ({ value: c, label: c }))} />
           </Field>
+          {_COMBOS.length > 0 && (
+            <Field label="Combination" hint="A-Level (S5/S6)">
+              <Select value={combination} onChange={setCombination} options={[{ value: '', label: '— none / O-Level —' }].concat(_COMBOS.map(c => ({ value: c.name, label: c.name + ' · ' + (c.subjects || []).join('/') })))} />
+            </Field>
+          )}
           <Field label="Date of birth" hint="optional">
             <TextInput value={dob} onChange={setDob} placeholder="14 March 2019" />
           </Field>
@@ -6679,7 +6688,10 @@ window.PEAK_EXAMS = (function () {
     const [exams, setExams] = useState([]);
     const [exam, setExam] = useState(null);
     const [view, setView] = useState('list'); // list | new | entry | results
-    const [form, setForm] = useState({ name: '', term: 'Term 2', year: 2026, level: 'primary', subjectsText: LEVELS.primary.subjects.join(', ') });
+    const _SC = window.SCHOOL_CONFIG || {};
+    const _lvl0 = _SC.type === 'secondary' ? 'olevel' : 'primary';
+    const _subs0 = (_SC.subjects && _SC.subjects.length) ? _SC.subjects.join(', ') : LEVELS[_lvl0].subjects.join(', ');
+    const [form, setForm] = useState({ name: '', term: 'Term 2', year: 2026, level: _lvl0, subjectsText: _subs0 });
     const [marks, setMarks] = useState({});
     const [streamFilter, setStreamFilter] = useState('All');
     const [recs, setRecs] = useState(null);
@@ -7275,6 +7287,102 @@ window.PEAK_FINANCE = (function () {
 })();
   </script>
 
+  <script type="text/babel">
+/* PEAK_SETUP — make the OS adapt: primary vs secondary, classes, subjects, A-level combinations */
+window.PEAK_SETUP = (function () {
+  const { useState } = React;
+  const T = window.V4.T;
+  const WK = 'https://nextos-sentinel.nextafricaai.workers.dev';
+  function tenant() { const p = (window.PEAK_ROLE && window.PEAK_ROLE.getProfile && window.PEAK_ROLE.getProfile()); return (p && p.tenantId) || 'peak-primary'; }
+
+  const PRESETS = {
+    primary: { classes: ['P1V', 'P1P', 'P2V', 'P2P', 'P3V', 'P3P', 'P4V', 'P4P', 'P5V', 'P5P', 'P6V', 'P6P', 'P7V', 'P7P'], subjects: ['English', 'Mathematics', 'Science', 'Social Studies'], combinations: [] },
+    secondary: { classes: ['S1', 'S2', 'S3', 'S4', 'S5', 'S6'], subjects: ['English', 'Mathematics', 'Physics', 'Chemistry', 'Biology', 'Geography', 'History', 'CRE', 'Literature', 'Economics', 'Entrepreneurship', 'ICT', 'Agriculture', 'Fine Art'], combinations: [
+      { name: 'PCM', subjects: ['Physics', 'Chemistry', 'Mathematics'] }, { name: 'PCB', subjects: ['Physics', 'Chemistry', 'Biology'] }, { name: 'BCM', subjects: ['Biology', 'Chemistry', 'Mathematics'] },
+      { name: 'PEM', subjects: ['Physics', 'Economics', 'Mathematics'] }, { name: 'HEG', subjects: ['History', 'Economics', 'Geography'] }, { name: 'MEG', subjects: ['Mathematics', 'Economics', 'Geography'] }, { name: 'HEL', subjects: ['History', 'Economics', 'Literature'] },
+    ] },
+  };
+
+  // ── live config (read by student form, exams, etc.) ──
+  if (!window.SCHOOL_CONFIG) {
+    window.SCHOOL_CONFIG = { type: 'primary', classes: PRESETS.primary.classes.slice(), subjects: PRESETS.primary.subjects.slice(), combinations: [], loaded: false };
+    (function () {
+      function go() {
+        fetch(WK + '/school-config?tenant=' + encodeURIComponent(tenant())).then(function (r) { return r.json(); }).then(function (d) {
+          if (d && d.config) { const c = d.config; window.SCHOOL_CONFIG = { type: c.type || 'primary', classes: (c.classes && c.classes.length ? c.classes : window.SCHOOL_CONFIG.classes), subjects: (c.subjects && c.subjects.length ? c.subjects : window.SCHOOL_CONFIG.subjects), combinations: c.combinations || [], loaded: true }; }
+          else { window.SCHOOL_CONFIG.loaded = true; }
+        }).catch(function () { window.SCHOOL_CONFIG.loaded = true; });
+      }
+      if (document.readyState !== 'loading') go(); else document.addEventListener('DOMContentLoaded', go);
+    })();
+  }
+
+  function Setup() {
+    const cfg = window.SCHOOL_CONFIG || PRESETS.primary;
+    const [type, setType] = useState(cfg.type || 'primary');
+    const [classes, setClasses] = useState((cfg.classes || []).join(', '));
+    const [subjects, setSubjects] = useState((cfg.subjects || []).join(', '));
+    const [combos, setCombos] = useState((cfg.combinations || []).map(c => c.name + ': ' + (c.subjects || []).join(', ')).join('\n'));
+    const [busy, setBusy] = useState(false);
+
+    const applyPreset = (t) => { setType(t); const p = PRESETS[t]; setClasses(p.classes.join(', ')); setSubjects(p.subjects.join(', ')); setCombos(p.combinations.map(c => c.name + ': ' + c.subjects.join(', ')).join('\n')); };
+
+    const save = () => {
+      setBusy(true);
+      const classesArr = classes.split(/[,\n]/).map(x => x.trim()).filter(Boolean);
+      const subjArr = subjects.split(/[,\n]/).map(x => x.trim()).filter(Boolean);
+      const comboArr = combos.split('\n').map(l => l.trim()).filter(Boolean).map(l => { const m = l.split(':'); return { name: (m[0] || '').trim(), subjects: (m[1] || '').split(',').map(x => x.trim()).filter(Boolean), classes: ['S5', 'S6'] }; }).filter(c => c.name);
+      const config = { type, classes: classesArr, subjects: subjArr, combinations: comboArr };
+      fetch(WK + '/school-config/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tenant_id: tenant(), config }) })
+        .then(r => r.json()).then(res => { setBusy(false); if (res.error) { window.peakToast && window.peakToast('Could not save', 'info', res.error); return; } window.SCHOOL_CONFIG = Object.assign({}, config, { loaded: true }); window.peakToast && window.peakToast('School setup saved', 'success', type === 'secondary' ? 'Secondary structure applied (S1–S6 + combinations).' : 'Primary structure applied.'); }).catch(() => setBusy(false));
+    };
+
+    const card = { background: T.surface, border: '1px solid ' + T.border, borderRadius: 12, padding: 20, marginBottom: 16 };
+    const ta = { width: '100%', minHeight: 70, background: T.bg, border: '1px solid ' + T.border, borderRadius: 9, padding: 11, fontSize: 13, color: T.ink, fontFamily: T.mono, outline: 'none' };
+    const lbl = { fontSize: 11, color: T.ink2, fontFamily: T.mono, letterSpacing: '0.04em', marginBottom: 6 };
+
+    return (
+      <div style={{ height: '100%', overflow: 'auto', background: T.bg, color: T.ink, fontFamily: T.font, fontSize: 13, padding: '28px 32px 60px' }}>
+        <div style={{ marginBottom: 22 }}>
+          <div style={{ fontSize: 11, color: T.ink3, fontFamily: T.mono, letterSpacing: '0.08em', fontWeight: 600, marginBottom: 8 }}>SCHOOL SETUP</div>
+          <div style={{ fontSize: 26, fontWeight: 700, letterSpacing: '-0.02em' }}>How your school is structured</div>
+          <div style={{ fontSize: 14, color: T.ink3, marginTop: 6, maxWidth: 620 }}>Tell the OS whether you're primary or secondary. This sets the classes, subjects and (for secondary) the A-Level combinations used in students, exams and reports.</div>
+        </div>
+
+        <div style={{ ...card }}>
+          <div style={lbl}>SCHOOL TYPE</div>
+          <div style={{ display: 'flex', gap: 10 }}>
+            {[['primary', 'Primary (P1–P7 · PLE)'], ['secondary', 'Secondary (S1–S6 · UCE + UACE)']].map(o => (
+              <button key={o[0]} onClick={() => applyPreset(o[0])} style={{ flex: 1, textAlign: 'left', padding: '14px 16px', borderRadius: 10, border: '1px solid ' + (type === o[0] ? T.red : T.border), background: type === o[0] ? 'rgba(255,255,255,0.03)' : 'transparent', color: T.ink, cursor: 'pointer' }}>
+                <div style={{ fontSize: 14, fontWeight: 700 }}>{o[0] === 'primary' ? 'Primary' : 'Secondary'}</div>
+                <div style={{ fontSize: 12, color: T.ink3, marginTop: 3 }}>{o[1]}</div>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div style={{ ...card }}>
+          <div style={lbl}>CLASSES / STREAMS <span style={{ color: T.ink4 }}>· comma or new line</span></div>
+          <textarea style={ta} value={classes} onChange={e => setClasses(e.target.value)} />
+        </div>
+        <div style={{ ...card }}>
+          <div style={lbl}>SUBJECTS <span style={{ color: T.ink4 }}>· comma or new line</span></div>
+          <textarea style={ta} value={subjects} onChange={e => setSubjects(e.target.value)} />
+        </div>
+        {type === 'secondary' && (
+          <div style={{ ...card }}>
+            <div style={lbl}>A-LEVEL COMBINATIONS <span style={{ color: T.ink4 }}>· one per line, e.g. PCM: Physics, Chemistry, Mathematics</span></div>
+            <textarea style={{ ...ta, minHeight: 130 }} value={combos} onChange={e => setCombos(e.target.value)} />
+          </div>
+        )}
+        <button onClick={save} disabled={busy} style={{ background: T.red, color: '#fff', border: 'none', borderRadius: 10, padding: '12px 22px', fontSize: 13.5, fontWeight: 700, cursor: 'pointer' }}>{busy ? 'Saving…' : 'Save school setup'}</button>
+      </div>
+    );
+  }
+  return { Setup };
+})();
+  </script>
+
   <script type="text/babel" data-src="src/peak-app.jsx">
 /* src/peak-app.jsx */
 /* global React, ReactDOM, V4, PD_Today, PD_Students, PD_Profile, PD_Fees, PD_Broadcast, PD_M, PEAK_SCREENS, PEAK_FORMS */
@@ -7597,6 +7705,7 @@ window.PEAK_FINANCE = (function () {
     { k: 'fees',  label: 'Fees',           glyph: '⌗', countKey: 'feesOutstandingStudents' },
     { k: 'exam',  label: 'Exams & Reports', glyph: '⊑' },
     { k: 'finance', label: 'Finance', glyph: '⛁' },
+    { k: 'setup', label: 'School Setup', glyph: '⚙' },
     { k: 'comm',  label: 'Communications', glyph: '◊' },
     { k: 'teach', label: 'Teachers',       glyph: '◇', countKey: 'teachers' },
     { k: 'staff', label: 'Staff Today',     glyph: '◉' },
@@ -8187,6 +8296,7 @@ window.PEAK_FINANCE = (function () {
     else if (route === 'rep')     Screen = <PEAK_SCREENS.Reports    onNav={navigate} />;
     else if (route === 'exam')    Screen = (window.PEAK_EXAMS ? <PEAK_EXAMS.Exams onNav={navigate} /> : null);
     else if (route === 'finance') Screen = (window.PEAK_FINANCE ? <PEAK_FINANCE.Finance /> : null);
+    else if (route === 'setup')   Screen = (window.PEAK_SETUP ? <PEAK_SETUP.Setup /> : null);
     else if (route === 'staff' && typeof window.HeadStaffPanel === 'function') {
       const HeadStaffPanel = window.HeadStaffPanel;
       Screen = <HeadStaffPanel onNav={navigate} />;
