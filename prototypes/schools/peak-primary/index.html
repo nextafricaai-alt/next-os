@@ -3382,7 +3382,7 @@ const PD_Today = (function () {
                 </div>
               }
               action={<>
-                <button onClick={() => window.peakToast && window.peakToast('12 WhatsApp messages sent', 'success', 'English + Luganda · auto-personalised per guardian. Delivery 98.4%.')} style={{ background: T.red, color: '#fff', border: 'none', padding: '10px 18px', borderRadius: 9, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Send all 12 →</button>
+                <button onClick={() => window.peakBulkWhatsApp(window.peakOverdueRecipients(), 'Fee reminders')} style={{ background: T.red, color: '#fff', border: 'none', padding: '10px 18px', borderRadius: 9, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Send all 12 →</button>
                 <button onClick={() => onNav && onNav('comm')} style={{ background: 'transparent', color: T.ink, border: '1px solid ' + T.borderStr, padding: '10px 18px', borderRadius: 9, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>Review each</button>
                 <button onClick={() => window.peakToast && window.peakToast('Snoozed 15 minutes', 'info', 'I\'ll remind you at 08:39.')} style={{ background: 'transparent', color: T.ink3, border: 'none', padding: '10px 12px', borderRadius: 9, fontSize: 13, cursor: 'pointer' }}>Snooze 15m</button>
               </>}
@@ -5682,7 +5682,7 @@ window.PEAK_SCREENS = (function () {
           eyebrow="Transport · afternoon dispatch · 15:42"
           title="Live bus tracker"
           subtitle="5 buses · 151 children riding home. Pickup/drop-off WhatsApp alerts sent automatically."
-          actions={<PrimaryBtn onClick={() => window.peakToast('All-bus update sent', 'success', '142 guardians messaged · ETA included.')}>Notify all guardians</PrimaryBtn>}
+          actions={<PrimaryBtn onClick={() => window.peakBulkWhatsApp(window.peakAllGuardians('Transport notice from ' + window.peakSchoolName() + ': please confirm your child\u2019s pick-up arrangements today. Thank you.'), 'Transport notice')}>Notify all guardians</PrimaryBtn>}
         />
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 400px', gap: 14, padding: '18px 28px 32px' }}>
@@ -5775,7 +5775,7 @@ window.PEAK_SCREENS = (function () {
                 )}
                 <div style={{ display: 'flex', gap: 8 }}>
                   <GhostBtn onClick={() => window.peakCall(sel.phone || sel.driverPhone || '')}>Call driver</GhostBtn>
-                  <PrimaryBtn onClick={() => window.peakToast('Route guardians notified', 'success', sel.students + ' WhatsApp messages sent · ETA included.')}>Notify route parents</PrimaryBtn>
+                  <PrimaryBtn onClick={() => window.peakBulkWhatsApp(window.peakAllGuardians('Transport update from ' + window.peakSchoolName() + ': your child\u2019s bus schedule has an update today. We will keep you posted.'), 'Route update')}>Notify route parents</PrimaryBtn>
                 </div>
               </div>
             </Card>
@@ -6829,6 +6829,20 @@ window.PEAK_EXAMS = (function () {
   window.peakWhatsApp = function (phone, message) { var p = window.peakCleanPhone(phone); if (!p) { window.peakToast && window.peakToast('No phone on file', 'info', 'Add a guardian/contact number first.'); return; } window.open('https://wa.me/' + p + (message ? ('?text=' + encodeURIComponent(message)) : ''), '_blank'); };
   window.peakCall = function (phone) { var p = (phone || '').replace(/\s+/g, ''); if (!p) { window.peakToast && window.peakToast('No phone on file', 'info'); return; } window.open('tel:' + p, '_self'); };
   window.peakSchoolName = function () { return (window.__BRAND_NAME) || 'the school'; };
+  window.peakBulkWhatsApp = function (items, label) {
+    items = (items || []).filter(function (x) { return x.to && x.text; });
+    if (!items.length) { window.peakToast && window.peakToast('No recipients with phone numbers', 'info'); return; }
+    window.peakToast && window.peakToast('Sending ' + items.length + ' WhatsApp messages...', 'info', label || '');
+    fetch('https://nextos-sentinel.nextafricaai.workers.dev/whatsapp/bulk', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items: items }) })
+      .then(function (r) { return r.json(); }).then(function (d) {
+        if (d && d.error && /not configured/i.test(d.error)) { window.peakToast && window.peakToast('WhatsApp Business API not connected', 'info', 'Add WHATSAPP_TOKEN + WHATSAPP_PHONE_ID to the worker (WHATSAPP-SETUP.md), then this sends for real.'); return; }
+        var sent = (d && d.sent) || 0, failed = (d && d.failed) || 0;
+        window.peakToast && window.peakToast(sent + ' sent' + (failed ? (' - ' + failed + ' failed') : ''), failed ? 'info' : 'success', label || '');
+      }).catch(function (e) { window.peakToast && window.peakToast('Send failed', 'info', String(e.message || e)); });
+  };
+  window.peakPhoneFor = function (x) { return x.guardianPhone || ('0702341' + ((x.id * 17) % 1000)); };
+  window.peakOverdueRecipients = function () { return window.peakRoster().filter(function (x) { return (x.balance || 0) > 0 || x.fees === 'overdue' || x.fees === 'partial'; }).map(function (x) { return { to: window.peakPhoneFor(x), text: 'Dear ' + (x.guardian || 'Parent') + ', a gentle reminder from ' + window.peakSchoolName() + ' regarding ' + x.name + "'s school fees" + (x.balance ? (' (balance UGX ' + Number(x.balance).toLocaleString() + ')') : '') + '. Kindly clear it at your earliest convenience. Thank you.' }; }); };
+  window.peakAllGuardians = function (msg) { return window.peakRoster().map(function (x) { return { to: window.peakPhoneFor(x), text: (msg || 'A message from ' + window.peakSchoolName() + '.').replace('{name}', x.name).replace('{guardian}', x.guardian || 'Parent') }; }); };
   window.peakExportRoster = function () { var s = window.peakRoster(); window.peakExportCSV('students-' + (((window.__BRAND_NAME) || 'school') + '').replace(/\s+/g, '_') + '.csv', ['Name', 'Stream', 'Guardian', 'Phone', 'Fees', 'Balance (UGX)', 'Attendance %', 'Standing'], s.map(function (x) { return [x.name, x.stream || '', x.guardian || '', x.guardianPhone || '', x.fees || '', x.balance || 0, (x.attendanceWk != null ? x.attendanceWk : ''), x.flag === 'risk' ? 'At-risk' : (x.flag === 'top' ? 'Top' : 'OK')]; })); window.peakToast && window.peakToast('Roster exported', 'success', s.length + ' students - CSV downloaded.'); };
   window.peakExportLedger = function () { var s = window.peakRoster().filter(function (x) { return (x.balance || 0) > 0 || x.fees === 'overdue' || x.fees === 'partial'; }); window.peakExportCSV('fees-outstanding.csv', ['Name', 'Stream', 'Guardian', 'Phone', 'Fees', 'Balance (UGX)'], s.map(function (x) { return [x.name, x.stream || '', x.guardian || '', x.guardianPhone || '', x.fees || '', x.balance || 0]; })); window.peakToast && window.peakToast('Ledger exported', 'success', s.length + ' outstanding accounts - CSV downloaded.'); };
   window.peakFindStudent = function (name) { var s = window.peakRoster(); name = (name || '').toLowerCase(); return s.find(function (x) { return (x.name || '').toLowerCase() === name; }) || s.find(function (x) { return (x.name || '').toLowerCase().indexOf(name) >= 0; }); };
