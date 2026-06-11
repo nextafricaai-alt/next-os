@@ -42,9 +42,10 @@
     sb,
     profile,
     async signOut() {
+      var url = loginUrl(); // read the school BEFORE we clear the profile
       try { await sb.auth.signOut(); } catch (e) {}
       localStorage.removeItem('nextos.profile');
-      window.location.href = loginUrl();
+      window.location.href = url;
     },
     async refresh() {
       // Re-fetch the user's row in case role/tenant changed
