@@ -153,6 +153,22 @@
     }
     return null;
   }
+  function collectionsFromProfile(p){
+    if(!p) return null;
+    var s=p.signals||{}; var blob=((p.title||'')+' '+(p.description||'')+' '+(p.headings||[]).join(' ')+' '+(p.nav||[]).join(' ')).toLowerCase();
+    var H=function(re){ return re.test(blob); };
+    var out=[];
+    if(s.music||H(/music|song|album|gospel|artist|worship|listen|track/)) out.push({name:'music',label:'Music',icon:'music',fields:[{name:'title',label:'Title',type:'text'},{name:'description',label:'Description',type:'textarea'},{name:'audio_url',label:'Audio / video link',type:'text'},{name:'cover',label:'Cover image',type:'image'},{name:'release_date',label:'Release date',type:'date'}]});
+    if(s.events||s.tickets||H(/event|concert|crusade|tour/)) out.push({name:'events',label:'Events',icon:'calendar',fields:[{name:'title',label:'Title',type:'text'},{name:'description',label:'Description',type:'textarea'},{name:'date',label:'Date',type:'date'},{name:'venue',label:'Venue',type:'text'},{name:'ticket_price',label:'Ticket price (UGX)',type:'number'},{name:'image',label:'Poster',type:'image'}]});
+    if(s.gallery||H(/gallery|photo|media/)) out.push({name:'gallery',label:'Gallery',icon:'image',fields:[{name:'caption',label:'Caption',type:'text'},{name:'photo',label:'Photo',type:'image'}]});
+    if(s.shop||s.cart||H(/shop|store|merch|product|buy/)) out.push({name:'products',label:'Store',icon:'cart',fields:[{name:'name',label:'Name',type:'text'},{name:'description',label:'Description',type:'textarea'},{name:'price',label:'Price (UGX)',type:'number'},{name:'image',label:'Image',type:'image'},{name:'in_stock',label:'In stock',type:'boolean'}]});
+    if(s.donate||H(/donate|donation|give|charity|partner|support/)) out.push({name:'donations',label:'Donations',icon:'heart',fields:[{name:'campaign',label:'Campaign',type:'text'},{name:'description',label:'Description',type:'textarea'},{name:'goal',label:'Goal (UGX)',type:'number'},{name:'image',label:'Image',type:'image'}]});
+    if(s.blog||H(/blog|news|article|story|testimon/)) out.push({name:'posts',label:'News / Blog',icon:'doc',fields:[{name:'title',label:'Title',type:'text'},{name:'body',label:'Body',type:'textarea'},{name:'image',label:'Image',type:'image'},{name:'published',label:'Published',type:'date'}]});
+    if(s.booking||H(/book|appointment|invite|hire/)) out.push({name:'bookings',label:'Bookings',icon:'calendar',fields:[{name:'name',label:'Name',type:'text'},{name:'contact',label:'Contact',type:'text'},{name:'date',label:'Date',type:'date'},{name:'notes',label:'Notes',type:'textarea'}]});
+    if(!out.length) out.push({name:'content',label:'Content',icon:'doc',fields:[{name:'title',label:'Title',type:'text'},{name:'body',label:'Body',type:'textarea'},{name:'image',label:'Image',type:'image'}]});
+    out.push({name:'pages',label:'Pages',icon:'doc',fields:[{name:'title',label:'Title',type:'text'},{name:'body',label:'Body',type:'textarea'},{name:'image',label:'Image',type:'image'}]});
+    return out;
+  }
   async function buildOS(btn){
     if(!profile){ return; }
     var sk=siteKeyOf();
@@ -175,6 +191,7 @@
         cols=parseCollections(txt);
       }catch(e){}
     }
+    if((!cols||!cols.length) && profile){ cols=collectionsFromProfile(profile); }
     if(!cols||!cols.length){ btn.textContent='Could not read collections \u2014 retry'; btn.disabled=false; addMsg('I could not extract a clean collection list. Click Build again, or paste the collections you want.','nia'); return; }
     btn.textContent='Building the OS ('+cols.length+' collections)\u2026';
     try{
