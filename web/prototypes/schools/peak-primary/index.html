@@ -500,8 +500,29 @@
       .order('checked_in_at', { ascending: false })
       .limit(1);
 
+    // Merge the classes the head allocated to this teacher (staff_meta) so roll call has the right streams + the REAL imported students
+    let metaClasses = [];
+    try {
+      const md = await fetch('https://nextos-sentinel.nextafricaai.workers.dev/os-data?kind=staff_meta&tenant=' + encodeURIComponent(tenantId)).then(r => r.json());
+      const rec = ((md && md.records) || []).find(x => x.payload && (x.payload.email || '').toLowerCase() === (email || '').toLowerCase());
+      metaClasses = (rec && rec.payload && rec.payload.classes) || [];
+    } catch (e) {}
+    const _assignStreams = new Set((assignments || []).map(a => a.stream));
+    const mergedAssignments = (assignments || []).slice();
+    metaClasses.forEach(c => { if (!_assignStreams.has(c)) mergedAssignments.push({ id: 'meta-' + c, stream: c, subject: (teacher.subjects && teacher.subjects[0]) || 'Class', is_class_teacher: true }); });
+    const _effStreams = mergedAssignments.map(a => a.stream);
+    let liveStudents = [];
+    if (_effStreams.length) {
+      try {
+        const { data: sd } = await sb.from('students').select('id, name, stream, guardian_name, guardian_phone').eq('tenant_id', tenantId).in('stream', _effStreams);
+        liveStudents = (sd || []).map(s => ({ id: s.id, name: s.name, stream: s.stream, guardian: s.guardian_name, guardianPhone: s.guardian_phone }));
+      } catch (e) {}
+    }
+    try { window.__TEACHER_STUDENTS = liveStudents; } catch (e) {}
+    const studentsPool = liveStudents.length ? liveStudents : ((window.PEAK && window.PEAK.students) || []);
+
     // Today's roll call records (so cards reflect what's been done)
-    const streamCodes = (assignments || []).map(a => a.stream);
+    const streamCodes = mergedAssignments.map(a => a.stream);
     let rollCalls = [];
     if (streamCodes.length > 0) {
       const { data: rc } = await sb
@@ -513,8 +534,8 @@
     }
 
     // Recent health records for students in this teacher's streams
-    const allStudents = (window.PEAK && window.PEAK.students) || [];
-    const myStreamsSet = new Set((assignments || []).map(a => a.stream));
+    const allStudents = studentsPool;
+    const myStreamsSet = new Set(mergedAssignments.map(a => a.stream));
     const myStudentIds = allStudents.filter(s => myStreamsSet.has(s.stream)).map(s => s.id);
     let healthRecords = [];
     if (myStudentIds.length > 0) {
@@ -530,8 +551,9 @@
 
     return {
       teacher,
-      assignments: assignments || [],
+      assignments: mergedAssignments,
       lessons: lessons || [],
+      students: studentsPool,
       syllabus: syllabus || [],
       payroll: payroll || [],
       checkin: (checkins && checkins[0]) || null,
@@ -665,8 +687,8 @@
 
   // ─── Nia's intelligence layer ───────────────────────────────────────
   function computeNiaNudges({ teacher, assignments, rollCalls, checkin, healthRecords }) {
+    const allStudents = (window.__TEACHER_STUDENTS && window.__TEACHER_STUDENTS.length) ? window.__TEACHER_STUDENTS : ((window.PEAK && window.PEAK.students) || []);
     const nudges = [];
-    const allStudents = (window.PEAK && window.PEAK.students) || [];
     const myStreams = new Set(assignments.map(a => a.stream));
     const myStudents = allStudents.filter(s => myStreams.has(s.stream));
     const today = new Date();
@@ -1103,7 +1125,7 @@
 
   // ─── Modal: Roll Call ──────────────────────────────────────────────
   function RollCallModal({ stream, teacher, assignments, existingRollCalls, onClose, onSaved, profile }) {
-    const allStudents = (window.PEAK && window.PEAK.students) || [];
+    const allStudents = (window.__TEACHER_STUDENTS && window.__TEACHER_STUDENTS.length) ? window.__TEACHER_STUDENTS : ((window.PEAK && window.PEAK.students) || []);
     const streamStudents = useMemo(
       () => allStudents.filter(s => s.stream === stream),
       [allStudents, stream]
@@ -1515,7 +1537,6 @@
       return map;
     }, [healthRecords]);
     const myStreams = new Set(assignments.map(a => a.stream));
-    const allStudents = (window.PEAK && window.PEAK.students) || [];
     const myStudents = allStudents.filter(s => myStreams.has(s.stream));
     const flagged = myStudents.filter(s => s.flag === 'risk');
     const topPerformers = myStudents.filter(s => s.flag === 'top');
@@ -9388,7 +9409,7 @@ window.PEAK_STAFF = (function () {
             <div className="peak-topbar" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 14px', borderBottom: '1px solid ' + T.border, background: T.bg, flexShrink: 0 }}>
               <button onClick={() => setNavOpen(true)} aria-label="Menu" style={{ background: 'transparent', border: '1px solid ' + T.border, borderRadius: 9, color: T.ink, width: 40, height: 40, fontSize: 19, lineHeight: 1, cursor: 'pointer', flexShrink: 0 }}>{'\u2630'}</button>
               <div style={{ fontSize: 15, fontWeight: 700, color: T.ink, letterSpacing: '-0.01em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{(typeof window !== 'undefined' && window.__BRAND_NAME) || 'Peak Primary'}</div>
-              <span style={{ marginLeft: 'auto', fontSize: 9, color: T.ink4, fontFamily: T.mono, flexShrink: 0 }}>b21</span>
+              <span style={{ marginLeft: 'auto', fontSize: 9, color: T.ink4, fontFamily: T.mono, flexShrink: 0 }}>b22</span>
             </div>
           )}
           <div className="peak-screen" style={{ flex: 1, minWidth: 0, overflow: 'auto' }}>{Screen}</div>
