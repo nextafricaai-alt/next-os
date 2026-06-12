@@ -364,6 +364,11 @@
       priority: input.priority || 'medium',
       platform: input.platform || '',
       domain: input.domain || '',
+      url: input.url || '',
+      registrar: input.registrar || '',
+      renewalDate: input.renewalDate || '',
+      hosting: input.hosting || '',
+      registrarAccount: input.registrarAccount || '',
       team: input.team || [],
       startDate: input.startDate || new Date().toISOString().slice(0, 10),
       deadline: input.deadline || '',
@@ -2275,6 +2280,10 @@ const ProjectDetail = ({ project, onBack }) => {
               (p.kind === 'os' && p.runs) ? { label: 'Runs', value: p.runs } : null,
               { label: 'Platform', value: p.platform },
               { label: 'Domain', value: p.domain },
+              p.registrar ? { label: 'Registrar', value: p.registrar } : null,
+              p.renewalDate ? { label: 'Domain renewal', value: p.renewalDate } : null,
+              p.hosting ? { label: 'Hosting', value: p.hosting } : null,
+              p.registrarAccount ? { label: 'Registrar account', value: p.registrarAccount } : null,
               { label: 'Progress', value: `${p.progress}%` },
             ].filter(Boolean)).map(r => (
               <div key={r.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid var(--border-subtle)' }}>
@@ -2536,13 +2545,19 @@ const AddProjectModal = ({ onSave, onClose }) => {
   const [progress, setProgress] = React.useState('0');
   const [platform, setPlatform] = React.useState('');
   const [deadline, setDeadline] = React.useState('');
+  const [domain, setDomain] = React.useState('');
+  const [url, setUrl] = React.useState('');
+  const [registrar, setRegistrar] = React.useState('');
+  const [renewalDate, setRenewalDate] = React.useState('');
+  const [hosting, setHosting] = React.useState('');
+  const [registrarAccount, setRegistrarAccount] = React.useState('');
   const canSubmit = name.trim().length >= 2;
   const inputStyle = { width: '100%', background: 'var(--bg-deep)', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-sm)', padding: '10px 12px', color: 'var(--text-primary)', fontSize: 13, fontFamily: 'var(--font-body)', outline: 'none' };
   const labelStyle = { fontSize: 10, fontFamily: 'var(--font-mono)', letterSpacing: 1.5, color: 'var(--text-tertiary)', marginBottom: 6, display: 'block', textTransform: 'uppercase' };
   const submit = (e) => {
     if (e) e.preventDefault();
     if (!canSubmit) return;
-    onSave({ name: name.trim(), client: client.trim(), status, health, progress: Number(progress) || 0, platform: platform.trim(), deadline });
+    onSave({ name: name.trim(), client: client.trim(), status, health, progress: Number(progress) || 0, platform: platform.trim(), deadline, domain: domain.trim(), url: url.trim(), registrar: registrar.trim(), renewalDate, hosting: hosting.trim(), registrarAccount: registrarAccount.trim() });
   };
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(6,0,18,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, backdropFilter: 'blur(8px)' }}>
@@ -2568,6 +2583,24 @@ const AddProjectModal = ({ onSave, onClose }) => {
             <div><label style={labelStyle}>Progress %</label><input style={inputStyle} type="number" min="0" max="100" value={progress} onChange={(e) => setProgress(e.target.value)} /></div>
             <div><label style={labelStyle}>Platform</label><input style={inputStyle} value={platform} onChange={(e) => setPlatform(e.target.value)} placeholder="e.g. Supabase + React" /></div>
             <div><label style={labelStyle}>Deadline</label><input style={inputStyle} type="date" value={deadline} onChange={(e) => setDeadline(e.target.value)} /></div>
+          </div>
+
+          <div style={{ marginTop: 4, paddingTop: 16, borderTop: '1px solid var(--border-subtle)' }}>
+            <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', letterSpacing: 1.5, color: 'var(--mint)', marginBottom: 12 }}>DOMAIN &amp; REGISTRAR</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div><label style={labelStyle}>Domain</label><input style={inputStyle} value={domain} onChange={(e) => setDomain(e.target.value)} placeholder="example.org" /></div>
+              <div><label style={labelStyle}>Live URL</label><input style={inputStyle} value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://example.org" /></div>
+              <div><label style={labelStyle}>Registrar</label>
+                <input style={inputStyle} value={registrar} onChange={(e) => setRegistrar(e.target.value)} placeholder="Where the domain is registered" list="nx-registrars" />
+                <datalist id="nx-registrars">
+                  <option value="Hostinger" /><option value="Namecheap" /><option value="GoDaddy" /><option value="Cloudflare" /><option value="Truehost" /><option value="Whogohost" /><option value="Google Domains / Squarespace" /><option value="Other" />
+                </datalist>
+              </div>
+              <div><label style={labelStyle}>Renewal date</label><input style={inputStyle} type="date" value={renewalDate} onChange={(e) => setRenewalDate(e.target.value)} /></div>
+              <div><label style={labelStyle}>Hosting</label><input style={inputStyle} value={hosting} onChange={(e) => setHosting(e.target.value)} placeholder="e.g. Hostinger \u00b7 Cloudflare" /></div>
+              <div><label style={labelStyle}>Registrar account</label><input style={inputStyle} value={registrarAccount} onChange={(e) => setRegistrarAccount(e.target.value)} placeholder="login email (not the password)" /></div>
+            </div>
+            <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginTop: 8, lineHeight: 1.5 }}>Keep the registrar <b>password</b> out of here \u2014 store it encrypted in the <b>Fleet Vault</b>. Nia uses the domain + renewal date to warn you before it expires.</div>
           </div>
         </div>
         <div style={{ marginTop: 28, paddingTop: 20, borderTop: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
@@ -5335,7 +5368,7 @@ You: "'We help you get more done with less stress.' Nine plain words beat the ja
               fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 14,
             }}>N</div>
             <div>
-              <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', letterSpacing: 1.5, color: 'var(--text-tertiary)' }}>NIA'S WATCH <span style={{ color: 'var(--mint)', marginLeft: 6 }}>· LIVE v3</span></div>
+              <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', letterSpacing: 1.5, color: 'var(--text-tertiary)' }}>NIA'S WATCH <span style={{ color: 'var(--mint)', marginLeft: 6 }}>· LIVE v4</span></div>
               <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)' }}>
                 What happened while you were away
               </div>
