@@ -1753,6 +1753,7 @@
               <LessonsCard lessons={data.lessons} />
               <SyllabusCard syllabus={data.syllabus} />
               <StudentsCard assignments={data.assignments} onLogHealth={setHealthStudent} healthRecords={data.healthRecords || []} />
+              <LoggedNotesCard healthRecords={data.healthRecords || []} students={data.students || []} onLog={setHealthStudent} />
               <PayslipCard payroll={data.payroll} />
             </div>
           )}
@@ -1786,7 +1787,7 @@
             student={healthStudent}
             teacher={data.teacher}
             onClose={() => setHealthStudent(null)}
-            onSaved={() => tinyToast('Note saved.', 'success')}
+            onSaved={() => { tinyToast('Note saved.', 'success'); refresh(); }}
             profile={profile}
           />
         )}
@@ -1961,6 +1962,35 @@
             <button onClick={save} disabled={busy} style={{ background: T.red, color: '#fff', border: 'none', borderRadius: 9, padding: '9px 18px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>{busy ? 'Saving…' : 'Save plan'}</button>
           </div>
         </div>
+      </div>
+    );
+  }
+
+  function LoggedNotesCard({ healthRecords, students, onLog }) {
+    const nameOf = (id) => { const st = (students || []).find(x => String(x.id) === String(id)); return st ? st.name : ('Student #' + id); };
+    const catColor = (c) => ({ illness: T.red, injury: T.gold, wellbeing: T.blue, behavior: T.green, behaviour: T.green }[c] || T.ink3);
+    const recs = (healthRecords || []).slice().sort((a, b) => String(b.recorded_at || '').localeCompare(String(a.recorded_at || '')));
+    const fmt = (d) => { try { return new Date(d).toLocaleDateString([], { month: 'short', day: 'numeric' }) + ' · ' + new Date(d).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); } catch (e) { return ''; } }
+    return (
+      <div style={{ background: T.surface, border: '1px solid ' + T.border, borderRadius: 14, padding: 22 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+          <div style={{ fontSize: 12, fontFamily: T.mono, letterSpacing: 0.8, color: T.ink3 }}>NOTES I'VE LOGGED</div>
+          <span style={{ fontSize: 11, color: T.ink3 }}>{recs.length}</span>
+        </div>
+        {recs.length === 0 ? <div style={{ color: T.ink3, fontSize: 13, lineHeight: 1.5 }}>No notes yet. Log a wellbeing, behaviour or health note from a student — it appears here and in their profile for the head teacher.</div> : (
+          <div style={{ display: 'grid', gap: 10, maxHeight: 360, overflow: 'auto' }}>
+            {recs.slice(0, 30).map((h, i) => (
+              <div key={h.id || i} style={{ border: '1px solid ' + T.border, borderRadius: 10, padding: '10px 12px', opacity: h.resolved_at ? 0.6 : 1 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: T.ink }}>{nameOf(h.student_id)}</div>
+                  <span style={{ fontSize: 9.5, fontFamily: T.mono, color: catColor(h.category), border: '1px solid ' + catColor(h.category), borderRadius: 5, padding: '1px 6px', textTransform: 'uppercase' }}>{h.category}{h.severity ? (' · ' + h.severity) : ''}</span>
+                </div>
+                <div style={{ fontSize: 12.5, color: T.ink2, marginTop: 5, lineHeight: 1.45 }}>{h.description}</div>
+                <div style={{ fontSize: 10.5, color: T.ink4, marginTop: 5, fontFamily: T.mono }}>{fmt(h.recorded_at)}{h.resolved_at ? ' · resolved' : (h.follow_up_needed ? ' · follow-up' : '')}</div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     );
   }
@@ -4301,7 +4331,39 @@ const PD_Profile = (function () {
     );
   }
 
-  function Profile({ embed = false, onNav, onBack } = {}) {
+  function ProfileNotes({ studentId }) {
+    const [notes, setNotes] = React.useState(null);
+    React.useEffect(() => {
+      const sb = window.NextSession && window.NextSession.sb;
+      if (!sb || studentId == null) { setNotes([]); return; }
+      let live = true;
+      sb.from('student_health_records').select('id, category, severity, description, recorded_at, follow_up_needed, resolved_at').eq('student_id', studentId).order('recorded_at', { ascending: false }).limit(50).then(function (r) { if (live) setNotes((r && r.data) || []); }).catch(function () { if (live) setNotes([]); });
+      return function () { live = false; };
+    }, [studentId]);
+    const catColor = function (c) { return ({ illness: T.red, injury: T.gold, wellbeing: T.blue, behavior: T.green, behaviour: T.green }[c] || T.ink3); };
+    const fmt = function (d) { try { return new Date(d).toLocaleDateString([], { month: 'short', day: 'numeric' }) + ' \u00b7 ' + new Date(d).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); } catch (e) { return ''; } };
+    return (
+      <Card eyebrow="NOTES & LOGS" title="Teacher notes" action={<Pill tone="brand">{notes ? notes.length : '\u2026'}</Pill>}>
+        {notes === null ? <div style={{ color: T.ink3, fontSize: 12.5 }}>Loading\u2026</div> :
+          notes.length === 0 ? <div style={{ color: T.ink3, fontSize: 12.5, lineHeight: 1.5 }}>No notes logged for this student yet. When a teacher logs a wellbeing, behaviour or health note, it appears here automatically.</div> : (
+            <div style={{ display: 'grid', gap: 10, maxHeight: 300, overflow: 'auto' }}>
+              {notes.map(function (h, i) { return (
+                <div key={h.id || i} style={{ borderLeft: '3px solid ' + catColor(h.category), background: T.bg, borderRadius: 8, padding: '10px 12px', opacity: h.resolved_at ? 0.6 : 1 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                    <span style={{ fontSize: 10, fontFamily: T.mono, color: catColor(h.category), textTransform: 'uppercase', fontWeight: 700 }}>{h.category}{h.severity ? (' \u00b7 ' + h.severity) : ''}</span>
+                    <span style={{ fontSize: 10, color: T.ink4, fontFamily: T.mono }}>{fmt(h.recorded_at)}</span>
+                  </div>
+                  <div style={{ fontSize: 12.5, color: T.ink2, marginTop: 5, lineHeight: 1.45 }}>{h.description}</div>
+                  {(h.follow_up_needed && !h.resolved_at) ? <div style={{ fontSize: 10.5, color: T.gold, marginTop: 4 }}>\u2691 follow-up needed</div> : (h.resolved_at ? <div style={{ fontSize: 10.5, color: T.good, marginTop: 4 }}>\u2713 resolved</div> : null)}
+                </div>
+              ); })}
+            </div>
+          )}
+      </Card>
+    );
+  }
+
+  function Profile({ embed = false, onNav, onBack, studentId } = {}) {
     const [tab, setTab] = useState('Overview');
     const tabs = ['Overview','Attendance','Academics','Behaviour','Fees','Comms'];
 
@@ -4404,6 +4466,7 @@ const PD_Profile = (function () {
 
           {/* content */}
           <div style={{ flex: 1, overflow: 'auto', padding: '22px 32px 32px' }}>
+            <div style={{ marginBottom: 16 }}><ProfileNotes studentId={studentId} /></div>
             <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 16, marginBottom: 16 }}>
               {/* attendance trend */}
               <Card eyebrow="ATTENDANCE · 12 WEEKS" title="The slide started in week 5" action={<Pill tone="bad">▼ 36 pts</Pill>}>
@@ -9423,7 +9486,7 @@ window.PEAK_STAFF = (function () {
             <div className="peak-topbar" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 14px', borderBottom: '1px solid ' + T.border, background: T.bg, flexShrink: 0 }}>
               <button onClick={() => setNavOpen(true)} aria-label="Menu" style={{ background: 'transparent', border: '1px solid ' + T.border, borderRadius: 9, color: T.ink, width: 40, height: 40, fontSize: 19, lineHeight: 1, cursor: 'pointer', flexShrink: 0 }}>{'\u2630'}</button>
               <div style={{ fontSize: 15, fontWeight: 700, color: T.ink, letterSpacing: '-0.01em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{(typeof window !== 'undefined' && window.__BRAND_NAME) || 'Peak Primary'}</div>
-              <span style={{ marginLeft: 'auto', fontSize: 9, color: T.ink4, fontFamily: T.mono, flexShrink: 0 }}>b24</span>
+              <span style={{ marginLeft: 'auto', fontSize: 9, color: T.ink4, fontFamily: T.mono, flexShrink: 0 }}>b26</span>
             </div>
           )}
           <div className="peak-screen" style={{ flex: 1, minWidth: 0, overflow: 'auto' }}>{Screen}</div>
