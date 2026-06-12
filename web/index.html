@@ -5419,7 +5419,7 @@ You: "'We help you get more done with less stress.' Nine plain words beat the ja
               fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 14,
             }}>N</div>
             <div>
-              <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', letterSpacing: 1.5, color: 'var(--text-tertiary)' }}>NIA'S WATCH <span style={{ color: 'var(--mint)', marginLeft: 6 }}>· LIVE v10</span></div>
+              <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', letterSpacing: 1.5, color: 'var(--text-tertiary)' }}>NIA'S WATCH <span style={{ color: 'var(--mint)', marginLeft: 6 }}>· LIVE v11</span></div>
               <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)' }}>
                 What happened while you were away
               </div>
@@ -6268,6 +6268,10 @@ window.OnboardingPage = function OnboardingPage(props) {
           if (isEnc(base.password)) base.password = await decField(vk, base.password);
           base.secrets = await Promise.all((base.secrets || []).map(async s => Object.assign({}, s, { value: isEnc(s.value) ? await decField(vk, s.value) : s.value })));
         }
+        let logins = Array.isArray(base.logins) ? base.logins.slice() : [];
+        if (!logins.length && (base.headEmail || base.password || base.headName)) logins = [{ label: 'Head / Admin', name: base.headName || '', email: base.headEmail || '', password: base.password || '' }];
+        if (vk) logins = await Promise.all(logins.map(async L => Object.assign({}, L, { password: isEnc(L.password) ? await decField(vk, L.password) : L.password })));
+        base.logins = logins;
         if (live) { setF(base); setReady(true); }
       })();
       return () => { live = false; };
@@ -6276,16 +6280,36 @@ window.OnboardingPage = function OnboardingPage(props) {
     const setSecret = (i, k, v) => setF(o => { const s = (o.secrets || []).slice(); s[i] = Object.assign({}, s[i], { [k]: v }); return Object.assign({}, o, { secrets: s }); });
     const addSecret = () => setF(o => Object.assign({}, o, { secrets: (o.secrets || []).concat([{ label: '', value: '' }]) }));
     const delSecret = (i) => setF(o => Object.assign({}, o, { secrets: (o.secrets || []).filter((_, j) => j !== i) }));
+    const [revealMap, setRevealMap] = React.useState({});
+    const setLogin = (i, k, v) => setF(o => { const L = (o.logins || []).slice(); L[i] = Object.assign({}, L[i], { [k]: v }); return Object.assign({}, o, { logins: L }); });
+    const addLogin = () => setF(o => Object.assign({}, o, { logins: (o.logins || []).concat([{ label: '', name: '', email: '', password: '' }]) }));
+    const delLogin = (i) => setF(o => Object.assign({}, o, { logins: (o.logins || []).filter((_, j) => j !== i) }));
+    const resetLogin = async (i) => {
+      const L = (f.logins || [])[i]; if (!L || !L.email) { alert('Add an email for this login first.'); return; }
+      const pin = window.prompt('Admin PIN to reset the login for ' + L.email + ':'); if (!pin) return;
+      try {
+        const baseU = (window.NEXT_OS_SENTINEL_ENDPOINT) || 'https://nextos-sentinel.nextafricaai.workers.dev';
+        const rr = await fetch(baseU + '/admin/reset-login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pin: pin, email: L.email, tenant_id: f.tenantId }) });
+        const d = await rr.json(); if (!d.ok) { alert(d.error || 'Reset failed'); return; }
+        setLogin(i, 'password', d.tempPassword); setRevealMap(m => Object.assign({}, m, { [i]: true }));
+        window.prompt('New temp password for ' + L.email + ' (copy & share; Save to keep it in the vault):', d.tempPassword);
+      } catch (e) { alert('Reset error: ' + (e && e.message || e)); }
+    };
     const inp = { width: '100%', background: 'var(--bg-deep)', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-sm)', color: 'var(--text-primary)', padding: '9px 11px', fontSize: 13, outline: 'none' };
     const lbl = { fontSize: 11, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', marginBottom: 5 };
-    const hasEncrypted = isEnc((entry || {}).password) || ((entry || {}).secrets || []).some(s => isEnc(s.value));
+    const hasEncrypted = isEnc((entry || {}).password) || ((entry || {}).logins || []).some(L => isEnc(L.password)) || ((entry || {}).secrets || []).some(s => isEnc(s.value));
     const lockedView = locked && hasEncrypted;
     const save = async () => {
       if (!f.tenantId && !f.name) return;
       setBusy(true);
-      let pw = f.password, secrets = (f.secrets || []).filter(s => s.label || s.value);
-      if (vk) { pw = await encField(vk, pw); secrets = await Promise.all(secrets.map(async s => Object.assign({}, s, { value: await encField(vk, s.value) }))); }
-      const rec = { tenantId: (f.tenantId || (f.name || '').toLowerCase().replace(/[^a-z0-9]+/g, '-')).trim(), name: f.name, vertical: f.vertical, level: f.level, tier: f.tier, createdAt: f.createdAt, loginUrl: f.loginUrl, headName: f.headName, headEmail: f.headEmail, password: pw, secrets: secrets, notes: f.notes };
+      let secrets = (f.secrets || []).filter(s => s.label || s.value);
+      if (vk) secrets = await Promise.all(secrets.map(async s => Object.assign({}, s, { value: await encField(vk, s.value) })));
+      const cleanLogins = (f.logins || []).filter(L => L.email || L.password || L.name || L.label);
+      const first = cleanLogins[0] || {};
+      let logins = cleanLogins;
+      if (vk) logins = await Promise.all(cleanLogins.map(async L => Object.assign({}, L, { password: L.password ? await encField(vk, L.password) : L.password })));
+      let pw0 = first.password; if (vk && pw0) pw0 = await encField(vk, pw0);
+      const rec = { tenantId: (f.tenantId || (f.name || '').toLowerCase().replace(/[^a-z0-9]+/g, '-')).trim(), name: f.name, vertical: f.vertical, level: f.level, tier: f.tier, createdAt: f.createdAt, loginUrl: f.loginUrl, logins: logins, headName: first.name || '', headEmail: first.email || '', password: pw0, secrets: secrets, notes: f.notes };
       const res = await vsave(rec, f._id); setBusy(false); if (res && res.error) { alert(res.error); return; } onSaved();
     };
     const field = (k, label, ph, span) => (<label style={{ gridColumn: span || 'span 1' }}><div style={lbl}>{label}</div><input style={inp} value={f[k] || ''} onChange={e => set(k, e.target.value)} placeholder={ph || ''} /></label>);
@@ -6305,26 +6329,31 @@ window.OnboardingPage = function OnboardingPage(props) {
             {field('tier', 'TIER', 'Catalyst / Builder / Architect')}
             {field('createdAt', 'CREATED', '2026-06-11', 'span 2')}
             {field('loginUrl', 'LOGIN LINK', 'https://nextos.nextafrica.ai/s/...', 'span 2')}
-            {field('headName', 'ADMIN NAME', 'Mrs. Asiimwe')}
-            {field('headEmail', 'ADMIN EMAIL (login)', 'head@school.ug')}
-            <label style={{ gridColumn: 'span 2' }}>
-              <div style={lbl}>PASSWORD{vk ? ' · encrypted on save' : ''}</div>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <input style={{ ...inp, fontFamily: reveal ? 'var(--font-mono)' : 'inherit' }} type={reveal ? 'text' : 'password'} value={lockedView ? '' : (f.password || '')} disabled={lockedView} onChange={e => set('password', e.target.value)} placeholder={lockedView ? '🔒 locked' : '••••••'} />
-                <button onClick={() => setReveal(r => !r)} disabled={lockedView} style={{ background: 'transparent', border: '1px solid var(--border-default)', color: 'var(--text-secondary)', borderRadius: 'var(--radius-sm)', padding: '0 12px', fontSize: 12, cursor: 'pointer' }}>{reveal ? 'Hide' : 'Show'}</button>
+            <div style={{ gridColumn: 'span 2' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                <div style={lbl}>LOGINS · head, bursar, deputy…{vk ? ' · encrypted on save' : ''}</div>
+                <button onClick={addLogin} disabled={lockedView} style={{ background: 'transparent', border: '1px solid var(--border-default)', color: 'var(--text-secondary)', borderRadius: 6, padding: '4px 10px', fontSize: 12, cursor: 'pointer' }}>+ Add login</button>
               </div>
-              {f.headEmail ? <button onClick={async () => {
-                const pin = window.prompt('Admin PIN to reset the login for ' + f.headEmail + ':'); if (!pin) return;
-                try {
-                  const base = (window.NEXT_OS_SENTINEL_ENDPOINT) || 'https://nextos-sentinel.nextafricaai.workers.dev';
-                  const rr = await fetch(base + '/admin/reset-login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pin: pin, email: f.headEmail, tenant_id: f.tenantId }) });
-                  const d = await rr.json();
-                  if (!d.ok) { alert(d.error || 'Reset failed'); return; }
-                  set('password', d.tempPassword); setReveal(true);
-                  window.prompt('New temporary password for ' + f.headEmail + ' (copy & share; Save to keep it in the vault):', d.tempPassword);
-                } catch (e) { alert('Reset error: ' + (e && e.message || e)); }
-              }} style={{ marginTop: 8, background: 'rgba(255,180,0,0.10)', border: '1px solid var(--gold)', color: 'var(--gold)', borderRadius: 'var(--radius-sm)', padding: '7px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>↺ Reset this login (operator)</button> : null}
-            </label>
+              {lockedView ? <div style={{ fontSize: 12.5, color: 'var(--text-tertiary)' }}>{(((entry || {}).logins || []).length || ((entry || {}).headEmail ? 1 : 0))} encrypted login(s) — unlock the vault to read or reset.</div> :
+                (f.logins || []).length === 0 ? <div style={{ fontSize: 12.5, color: 'var(--text-tertiary)' }}>No logins yet. Click <b>+ Add login</b>.</div> :
+                (f.logins || []).map((L, i) => (
+                  <div key={i} style={{ border: '1px solid var(--border-subtle)', borderRadius: 10, padding: 12, marginBottom: 8 }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                      <input style={inp} value={L.label || ''} onChange={e => setLogin(i, 'label', e.target.value)} placeholder="Role (Head, Bursar…)" />
+                      <input style={inp} value={L.name || ''} onChange={e => setLogin(i, 'name', e.target.value)} placeholder="Name" />
+                      <input style={{ ...inp, gridColumn: 'span 2' }} value={L.email || ''} onChange={e => setLogin(i, 'email', e.target.value)} placeholder="email@school.ug" />
+                    </div>
+                    <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                      <input style={{ ...inp, fontFamily: revealMap[i] ? 'var(--font-mono)' : 'inherit' }} type={revealMap[i] ? 'text' : 'password'} value={L.password || ''} onChange={e => setLogin(i, 'password', e.target.value)} placeholder="password" />
+                      <button onClick={() => setRevealMap(m => Object.assign({}, m, { [i]: !m[i] }))} style={{ background: 'transparent', border: '1px solid var(--border-default)', color: 'var(--text-secondary)', borderRadius: 'var(--radius-sm)', padding: '0 12px', fontSize: 12, cursor: 'pointer' }}>{revealMap[i] ? 'Hide' : 'Show'}</button>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8 }}>
+                      <button onClick={() => resetLogin(i)} style={{ background: 'rgba(255,180,0,0.10)', border: '1px solid var(--gold)', color: 'var(--gold)', borderRadius: 'var(--radius-sm)', padding: '6px 11px', fontSize: 11.5, fontWeight: 600, cursor: 'pointer' }}>↺ Reset (operator)</button>
+                      <button onClick={() => delLogin(i)} style={{ background: 'transparent', border: '1px solid var(--border-subtle)', color: 'var(--danger)', borderRadius: 'var(--radius-sm)', padding: '6px 11px', fontSize: 11.5, cursor: 'pointer' }}>Remove</button>
+                    </div>
+                  </div>
+                ))}
+            </div>
           </div>
           <div style={{ marginTop: 16 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
