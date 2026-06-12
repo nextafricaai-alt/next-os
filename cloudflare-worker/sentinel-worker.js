@@ -264,6 +264,9 @@ export default {
     if (url.pathname === '/provision-teacher/bulk') {
       return handleProvisionTeachersBulk(request, env, cors);
     }
+    if (url.pathname === '/reset-teacher-password') {
+      return handleResetTeacherPassword(request, env, cors);
+    }
     if (url.pathname === '/teachers') {
       return handleTeachersList(url.searchParams.get('tenant') || '', env, cors);
     }
@@ -1810,6 +1813,31 @@ async function verifyHead(request, env, tenant) {
     if (t && t.length && t[0].head_email && email && t[0].head_email.toLowerCase() === email.toLowerCase()) return { ok: true, email };
     return { ok: false, why: 'not head of this tenant' };
   } catch (e) { return { ok: false, why: String((e && e.message) || e) }; }
+}
+
+async function handleResetTeacherPassword(request, env, cors) {
+  const J = (o, st) => new Response(JSON.stringify(o), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
+  if (!env.SUPABASE_URL || !env.SUPABASE_KEY) return J({ ok: false, error: 'Supabase not configured.' }, 500);
+  let b; try { b = await request.json(); } catch (e) { return J({ ok: false, error: 'bad body' }, 400); }
+  const tenant = String(b.tenant_id || b.tenant || '').trim();
+  const email = String(b.email || '').trim().toLowerCase();
+  if (!tenant || !email) return J({ ok: false, error: 'tenant_id and email required' }, 400);
+  const gate = await verifyHead(request, env, tenant);
+  if (!gate.ok) return J({ ok: false, error: 'Not authorised: ' + (gate.why || 'only the head teacher can reset logins') }, 403);
+  try {
+    let authId = null;
+    const rows = await sbFetch(env, '/users?tenant_id=eq.' + encodeURIComponent(tenant) + '&email=eq.' + encodeURIComponent(email) + '&select=auth_id&limit=1');
+    if (rows && rows[0] && rows[0].auth_id) authId = rows[0].auth_id;
+    if (!authId) {
+      const ur = await fetch(env.SUPABASE_URL + '/auth/v1/admin/users?email=' + encodeURIComponent(email), { headers: { 'apikey': env.SUPABASE_KEY, 'Authorization': 'Bearer ' + env.SUPABASE_KEY } });
+      const uj = await ur.json().catch(() => ({})); const u = (uj && uj.users && uj.users[0]) || (Array.isArray(uj) && uj[0]); if (u && u.id) authId = u.id;
+    }
+    if (!authId) return J({ ok: false, error: 'No login found for ' + email + '.' }, 200);
+    const newPw = 'Teach-' + Math.random().toString(36).slice(2, 8) + '-' + Math.floor(Math.random() * 90 + 10);
+    const r = await fetch(env.SUPABASE_URL + '/auth/v1/admin/users/' + authId, { method: 'PUT', headers: { 'apikey': env.SUPABASE_KEY, 'Authorization': 'Bearer ' + env.SUPABASE_KEY, 'Content-Type': 'application/json' }, body: JSON.stringify({ password: newPw }) });
+    if (!r.ok) { const d = await r.json().catch(() => ({})); return J({ ok: false, error: (d && (d.msg || d.error_description || d.error)) || ('reset failed ' + r.status) }, 200); }
+    return J({ ok: true, email, tempPassword: newPw });
+  } catch (e) { return J({ ok: false, error: String((e && e.message) || e) }, 200); }
 }
 
 async function handleProvisionTeachersBulk(request, env, cors) {

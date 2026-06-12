@@ -8120,6 +8120,16 @@ window.PEAK_STAFF = (function () {
   function Roster({ teachers, meta, reload }) {
     const [adding, setAdding] = useState(false);
     const [importing, setImporting] = useState(false);
+    const resetLogin = async (t) => {
+      if (!window.confirm('Reset login for ' + (t.full_name || t.email) + '? A new temporary password will be generated.')) return;
+      const token = await headToken();
+      try {
+        const r = await fetch(WK + '/reset-teacher-password', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token }, body: JSON.stringify({ tenant_id: tenant(), email: t.email }) });
+        const d = await r.json();
+        if (!d.ok) { window.peakToast ? window.peakToast('Could not reset', 'info', d.error || '') : alert(d.error || 'Reset failed'); return; }
+        window.prompt((t.full_name || t.email) + ' — new temporary password (copy & share). They can change it after signing in:', d.tempPassword);
+      } catch (e) { alert('Reset error: ' + (e && e.message || e)); }
+    };
     return (
       <div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
@@ -8140,7 +8150,10 @@ window.PEAK_STAFF = (function () {
                     <td style={{ padding: '10px', color: T.ink2 }}>{t.email || '—'}</td>
                     <td style={{ padding: '10px', color: T.ink2 }}>{(t.subjects || []).join(', ') || '—'}</td>
                     <td style={{ padding: '10px', color: T.ink2 }}>{(m.classes || []).join(', ') || '—'}</td>
-                    <td style={{ padding: '10px' }}>{t.user_id ? <span style={{ color: T.good, fontSize: 12 }}>● active</span> : <span style={{ color: T.ink3, fontSize: 12 }}>not set</span>}</td>
+                    <td style={{ padding: '10px' }}>
+                      {t.user_id ? <span style={{ color: T.good, fontSize: 12 }}>● active</span> : <span style={{ color: T.ink3, fontSize: 12 }}>not set</span>}
+                      {t.email ? <button onClick={() => resetLogin(t)} style={{ marginLeft: 8, background: 'transparent', border: '1px solid ' + T.border, color: T.ink3, borderRadius: 6, padding: '3px 8px', fontSize: 10.5, cursor: 'pointer' }}>Reset login</button> : null}
+                    </td>
                   </tr>
                 ); })}</tbody>
               </table>
@@ -9409,7 +9422,7 @@ window.PEAK_STAFF = (function () {
             <div className="peak-topbar" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 14px', borderBottom: '1px solid ' + T.border, background: T.bg, flexShrink: 0 }}>
               <button onClick={() => setNavOpen(true)} aria-label="Menu" style={{ background: 'transparent', border: '1px solid ' + T.border, borderRadius: 9, color: T.ink, width: 40, height: 40, fontSize: 19, lineHeight: 1, cursor: 'pointer', flexShrink: 0 }}>{'\u2630'}</button>
               <div style={{ fontSize: 15, fontWeight: 700, color: T.ink, letterSpacing: '-0.01em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{(typeof window !== 'undefined' && window.__BRAND_NAME) || 'Peak Primary'}</div>
-              <span style={{ marginLeft: 'auto', fontSize: 9, color: T.ink4, fontFamily: T.mono, flexShrink: 0 }}>b22</span>
+              <span style={{ marginLeft: 'auto', fontSize: 9, color: T.ink4, fontFamily: T.mono, flexShrink: 0 }}>b23</span>
             </div>
           )}
           <div className="peak-screen" style={{ flex: 1, minWidth: 0, overflow: 'auto' }}>{Screen}</div>
