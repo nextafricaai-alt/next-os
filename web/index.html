@@ -5368,7 +5368,7 @@ You: "'We help you get more done with less stress.' Nine plain words beat the ja
               fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 14,
             }}>N</div>
             <div>
-              <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', letterSpacing: 1.5, color: 'var(--text-tertiary)' }}>NIA'S WATCH <span style={{ color: 'var(--mint)', marginLeft: 6 }}>· LIVE v4</span></div>
+              <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', letterSpacing: 1.5, color: 'var(--text-tertiary)' }}>NIA'S WATCH <span style={{ color: 'var(--mint)', marginLeft: 6 }}>· LIVE v5</span></div>
               <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)' }}>
                 What happened while you were away
               </div>
@@ -6294,6 +6294,196 @@ window.OnboardingPage = function OnboardingPage(props) {
   </script>
 
   <script type="text/babel">
+/* NEXT_HOSTING — Hostinger Business resource tracker: plan pool + per-site usage (disk, files/inodes, DBs, CPU note manual; visits + page weight auto). os_records: hosting_pool, hosting_site. */
+(function () {
+  const WK = (typeof window !== 'undefined' && window.NEXT_OS_SENTINEL_ENDPOINT) || 'https://nextos-sentinel.nextafricaai.workers.dev';
+  const DEFAULT_POOL = { sites: 100, diskGB: 200, inodes: 600000 };
+  function osGet(kind) { return fetch(WK + '/os-data?kind=' + kind + '&tenant=next').then(r => r.json()).then(d => (d && d.records) || []).catch(() => []); }
+  function osSave(kind, record, id) { return fetch(WK + '/os-data/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(id ? { kind, tenant: 'next', record, id } : { kind, tenant: 'next', record }) }).then(r => r.json()).catch(e => ({ error: String(e && e.message || e) })); }
+  const fmt = (n) => (Number(n) || 0).toLocaleString();
+  const pct = (used, total) => total > 0 ? Math.min(100, Math.round(used / total * 100)) : 0;
+  const barColor = (p) => p >= 90 ? 'var(--danger)' : p >= 70 ? 'var(--gold)' : 'var(--mint)';
+
+  function Bar({ used, total, suffix }) {
+    const p = pct(used, total);
+    return (
+      <div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--text-secondary)', marginBottom: 5 }}>
+          <span><b style={{ color: 'var(--text-primary)' }}>{fmt(used)}</b> / {fmt(total)} {suffix || ''}</span>
+          <span style={{ color: barColor(p) }}>{p}%</span>
+        </div>
+        <div style={{ height: 8, background: 'var(--bg-deep)', borderRadius: 999, overflow: 'hidden' }}>
+          <div style={{ width: p + '%', height: '100%', background: barColor(p), transition: 'width .4s' }} />
+        </div>
+        <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginTop: 4 }}>{fmt(Math.max(0, total - used))} {suffix || ''} left</div>
+      </div>
+    );
+  }
+
+  function NextHosting() {
+    const [pool, setPool] = React.useState(DEFAULT_POOL);
+    const [poolId, setPoolId] = React.useState(null);
+    const [sites, setSites] = React.useState([]);
+    const [traffic, setTraffic] = React.useState({});   // _id -> {visitors, pageviews, avgPageKB}
+    const [editing, setEditing] = React.useState(null);
+    const [editPool, setEditPool] = React.useState(false);
+    const [mounted, setMounted] = React.useState(false);
+    React.useEffect(() => { setTimeout(() => setMounted(true), 40); }, []);
+
+    const loadPool = React.useCallback(() => osGet('hosting_pool').then(rs => { if (rs[0]) { setPool(Object.assign({}, DEFAULT_POOL, rs[0].payload)); setPoolId(rs[0].id); } }), []);
+    const loadSites = React.useCallback(() => osGet('hosting_site').then(rs => setSites(rs.map(x => Object.assign({ _id: x.id }, x.payload)))), []);
+    React.useEffect(() => { loadPool(); loadSites(); }, [loadPool, loadSites]);
+
+    // auto traffic + page weight per site (by domain)
+    React.useEffect(() => {
+      let live = true;
+      sites.forEach(s => {
+        if (!s.domain || traffic[s._id]) return;
+        fetch(WK + '/analytics?site=' + encodeURIComponent(s.domain) + '&days=30').then(r => r.json()).then(d => {
+          if (!live || !d || d.error) return;
+          setTraffic(t => Object.assign({}, t, { [s._id]: { visitors: d.visitors || 0, pageviews: d.pageviews || 0, avgPageKB: d.avgPageKB } }));
+        }).catch(() => {});
+      });
+      return () => { live = false; };
+    }, [sites]);
+
+    const totalDisk = sites.reduce((a, s) => a + (Number(s.diskGB) || 0), 0);
+    const totalInodes = sites.reduce((a, s) => a + (Number(s.inodes) || 0), 0);
+    const totalDB = sites.reduce((a, s) => a + (Number(s.databases) || 0), 0);
+    // heavy flags: top consumers by inodes or disk
+    const avgInode = sites.length ? totalInodes / sites.length : 0;
+    const avgDisk = sites.length ? totalDisk / sites.length : 0;
+    const isHeavy = (s) => (Number(s.inodes) || 0) > Math.max(avgInode * 1.6, 1) || (Number(s.diskGB) || 0) > Math.max(avgDisk * 1.6, 0.1);
+
+    const card = { background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: 18 };
+
+    return (
+      <div style={{ opacity: mounted ? 1 : 0, transition: 'opacity .35s' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: 12, marginBottom: 18 }}>
+          <div>
+            <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', letterSpacing: 2, color: 'var(--text-tertiary)', marginBottom: 6 }}>HOSTINGER BUSINESS</div>
+            <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 30, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>Hosting & Resources</h1>
+            <p style={{ fontSize: 14, color: 'var(--text-secondary)', margin: '6px 0 0' }}>What each of your {sites.length} sites uses, and what's left in the plan.</p>
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button onClick={() => setEditPool(true)} style={{ background: 'transparent', border: '1px solid var(--border-default)', color: 'var(--text-secondary)', borderRadius: 'var(--radius-sm)', padding: '10px 14px', fontSize: 13, cursor: 'pointer' }}>Edit plan</button>
+            <button onClick={() => setEditing({})} style={{ background: 'var(--mint)', color: 'var(--text-inverse)', border: 'none', borderRadius: 'var(--radius-sm)', padding: '10px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>+ Add site</button>
+          </div>
+        </div>
+
+        {/* Pool summary */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12, marginBottom: 18 }}>
+          <div style={card}><div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)', marginBottom: 10 }}>SITES USED</div><Bar used={sites.length} total={pool.sites} suffix="sites" /></div>
+          <div style={card}><div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)', marginBottom: 10 }}>DISK STORAGE</div><Bar used={totalDisk} total={pool.diskGB} suffix="GB" /></div>
+          <div style={card}><div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)', marginBottom: 10 }}>FILES (INODES)</div><Bar used={totalInodes} total={pool.inodes} suffix="files" /></div>
+          <div style={card}><div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)', marginBottom: 10 }}>DATABASES</div><div style={{ fontSize: 26, fontWeight: 700, color: 'var(--text-primary)' }}>{fmt(totalDB)}</div><div style={{ fontSize: 11.5, color: 'var(--text-tertiary)', marginTop: 4 }}>across all sites · CPU/RAM/I-O is plan-wide on shared hosting</div></div>
+        </div>
+
+        {/* Per-site table */}
+        <div style={card}>
+          {sites.length === 0 ? (
+            <div style={{ padding: '24px 0', textAlign: 'center', color: 'var(--text-tertiary)', fontSize: 13, lineHeight: 1.6 }}>No sites tracked yet. Click <b>+ Add site</b>, then fill its disk &amp; file count from hPanel.<br/>Traffic &amp; page weight fill in automatically for any site running your tracker.</div>
+          ) : (
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                <thead><tr style={{ borderBottom: '1px solid var(--border-default)' }}>{['Site', 'Disk', 'Files (inodes)', 'DBs', 'Visits 30d', 'Avg page', ''].map((h, i) => <th key={i} style={{ textAlign: i === 0 ? 'left' : 'left', padding: '8px 10px', fontSize: 10.5, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>{h}</th>)}</tr></thead>
+                <tbody>{sites.slice().sort((a, b) => (Number(b.inodes) || 0) - (Number(a.inodes) || 0)).map((s, i) => { const tr = traffic[s._id] || {}; const heavy = isHeavy(s); const sharePctDisk = pct(Number(s.diskGB) || 0, pool.diskGB);
+                  return (
+                  <tr key={i} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+                    <td style={{ padding: '10px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{s.name || s.domain || 'Untitled'}</span>
+                        {heavy && <span style={{ fontSize: 9.5, fontFamily: 'var(--font-mono)', color: 'var(--gold)', background: 'rgba(255,180,0,0.12)', border: '1px solid var(--gold)', borderRadius: 4, padding: '1px 6px' }}>HEAVY</span>}
+                      </div>
+                      {s.domain && <div style={{ fontSize: 11.5, color: 'var(--text-tertiary)' }}>{s.domain}</div>}
+                    </td>
+                    <td style={{ padding: '10px', minWidth: 120 }}>
+                      <div style={{ color: 'var(--text-secondary)' }}>{s.diskGB != null && s.diskGB !== '' ? (fmt(s.diskGB) + ' GB') : '—'}</div>
+                      {s.diskGB ? <div style={{ height: 5, background: 'var(--bg-deep)', borderRadius: 999, marginTop: 4, overflow: 'hidden' }}><div style={{ width: sharePctDisk + '%', height: '100%', background: barColor(sharePctDisk) }} /></div> : null}
+                    </td>
+                    <td style={{ padding: '10px', color: 'var(--text-secondary)' }}>{s.inodes != null && s.inodes !== '' ? fmt(s.inodes) : '—'}</td>
+                    <td style={{ padding: '10px', color: 'var(--text-secondary)' }}>{s.databases != null && s.databases !== '' ? fmt(s.databases) : '—'}</td>
+                    <td style={{ padding: '10px', color: tr.visitors ? 'var(--mint)' : 'var(--text-tertiary)' }}>{s.domain ? (tr.visitors != null ? fmt(tr.visitors) : '…') : '—'}</td>
+                    <td style={{ padding: '10px', color: 'var(--text-secondary)' }}>{tr.avgPageKB != null ? (fmt(tr.avgPageKB) + ' KB') : (s.domain ? '—' : '—')}</td>
+                    <td style={{ padding: '10px', textAlign: 'right' }}><button onClick={() => setEditing(s)} style={{ background: 'transparent', border: '1px solid var(--border-subtle)', color: 'var(--text-tertiary)', borderRadius: 6, padding: '4px 10px', fontSize: 11.5, cursor: 'pointer' }}>Edit</button></td>
+                  </tr>
+                ); })}</tbody>
+              </table>
+            </div>
+          )}
+        </div>
+        <div style={{ marginTop: 14, fontSize: 11.5, color: 'var(--text-tertiary)', lineHeight: 1.6 }}>
+          Disk, file count &amp; databases come from <b>hPanel → Websites → Resources</b> (typed in here — Hostinger has no API for these). Visits &amp; average page weight are measured live by your on-site tracker. On Business, bandwidth is unmetered — the limits that bite are <b>files (inodes)</b> and <b>disk</b>.
+        </div>
+
+        {editing && <SiteModal site={editing} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); loadSites(); }} />}
+        {editPool && <PoolModal pool={pool} poolId={poolId} onClose={() => setEditPool(false)} onSaved={() => { setEditPool(false); loadPool(); }} />}
+      </div>
+    );
+  }
+
+  function SiteModal({ site, onClose, onSaved }) {
+    const [f, setF] = React.useState(Object.assign({}, site));
+    const [busy, setBusy] = React.useState(false);
+    const set = (k, v) => setF(o => Object.assign({}, o, { [k]: v }));
+    const inp = { width: '100%', background: 'var(--bg-deep)', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-sm)', color: 'var(--text-primary)', padding: '9px 11px', fontSize: 13, outline: 'none' };
+    const lbl = { fontSize: 11, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', marginBottom: 5 };
+    const save = () => { if (!f.name && !f.domain) return; setBusy(true); osSave('hosting_site', { name: f.name, domain: f.domain, diskGB: f.diskGB, inodes: f.inodes, databases: f.databases, cpuNote: f.cpuNote }, f._id).then(r => { setBusy(false); if (r && r.error) { alert(r.error); return; } onSaved(); }); };
+    const fld = (k, label, ph, type) => <label><div style={lbl}>{label}</div><input style={inp} type={type || 'text'} value={f[k] != null ? f[k] : ''} onChange={e => set(k, e.target.value)} placeholder={ph || ''} /></label>;
+    return (
+      <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 9000, background: 'rgba(5,8,22,0.72)', backdropFilter: 'blur(6px)', display: 'grid', placeItems: 'center', padding: 20 }}>
+        <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 460, background: 'var(--bg-elevated)', border: '1px solid var(--border-default)', borderRadius: 16, padding: 22 }}>
+          <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 16 }}>{f._id ? 'Edit site' : 'Add site'}</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div style={{ gridColumn: 'span 2' }}>{fld('name', 'SITE NAME', 'Fathers Arise')}</div>
+            <div style={{ gridColumn: 'span 2' }}>{fld('domain', 'DOMAIN (for auto traffic)', 'fathersarize.org')}</div>
+            {fld('diskGB', 'DISK (GB)', '2.4', 'number')}
+            {fld('inodes', 'FILES / INODES', '18000', 'number')}
+            {fld('databases', 'DATABASES', '1', 'number')}
+            {fld('cpuNote', 'CPU / I-O NOTE', 'normal')}
+          </div>
+          <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginTop: 8 }}>Get disk &amp; file count from hPanel → that site → Resources. Visits fill in from the tracker.</div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 18 }}>
+            <button onClick={onClose} style={{ background: 'transparent', border: '1px solid var(--border-default)', color: 'var(--text-secondary)', borderRadius: 'var(--radius-sm)', padding: '9px 16px', fontSize: 13, cursor: 'pointer' }}>Cancel</button>
+            <button onClick={save} disabled={busy} style={{ background: 'var(--mint)', color: 'var(--text-inverse)', border: 'none', borderRadius: 'var(--radius-sm)', padding: '9px 18px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>{busy ? 'Saving…' : 'Save site'}</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  function PoolModal({ pool, poolId, onClose, onSaved }) {
+    const [f, setF] = React.useState(Object.assign({}, pool));
+    const [busy, setBusy] = React.useState(false);
+    const set = (k, v) => setF(o => Object.assign({}, o, { [k]: Number(v) || 0 }));
+    const inp = { width: '100%', background: 'var(--bg-deep)', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-sm)', color: 'var(--text-primary)', padding: '9px 11px', fontSize: 13, outline: 'none' };
+    const lbl = { fontSize: 11, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', marginBottom: 5 };
+    const save = () => { setBusy(true); osSave('hosting_pool', { sites: f.sites, diskGB: f.diskGB, inodes: f.inodes }, poolId).then(r => { setBusy(false); if (r && r.error) { alert(r.error); return; } onSaved(); }); };
+    return (
+      <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 9000, background: 'rgba(5,8,22,0.72)', backdropFilter: 'blur(6px)', display: 'grid', placeItems: 'center', padding: 20 }}>
+        <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 420, background: 'var(--bg-elevated)', border: '1px solid var(--border-default)', borderRadius: 16, padding: 22 }}>
+          <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 6 }}>Plan allowance</div>
+          <div style={{ fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 16 }}>Your Hostinger Business plan totals. Defaults: 100 sites, 200 GB, 600,000 inodes — adjust to your plan.</div>
+          <div style={{ display: 'grid', gap: 12 }}>
+            <label><div style={lbl}>TOTAL SITES</div><input style={inp} type="number" value={f.sites} onChange={e => set('sites', e.target.value)} /></label>
+            <label><div style={lbl}>TOTAL DISK (GB)</div><input style={inp} type="number" value={f.diskGB} onChange={e => set('diskGB', e.target.value)} /></label>
+            <label><div style={lbl}>TOTAL FILES (INODES)</div><input style={inp} type="number" value={f.inodes} onChange={e => set('inodes', e.target.value)} /></label>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 18 }}>
+            <button onClick={onClose} style={{ background: 'transparent', border: '1px solid var(--border-default)', color: 'var(--text-secondary)', borderRadius: 'var(--radius-sm)', padding: '9px 16px', fontSize: 13, cursor: 'pointer' }}>Cancel</button>
+            <button onClick={save} disabled={busy} style={{ background: 'var(--mint)', color: 'var(--text-inverse)', border: 'none', borderRadius: 'var(--radius-sm)', padding: '9px 18px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>{busy ? 'Saving…' : 'Save plan'}</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  window.NEXT_HOSTING = NextHosting;
+})();
+
+  </script>
+
+  <script type="text/babel">
 /* NEXT_FINANCE — company finances: income (maintenance, OS revenue) vs costs (hosting, domains, API) + statement */
 (function () {
   const WK = (typeof window !== 'undefined' && window.NEXT_OS_SENTINEL_ENDPOINT) || 'https://nextos-sentinel.nextafricaai.workers.dev';
@@ -6542,6 +6732,7 @@ const OSIcon = ({ name, size = 20 }) => {
     members: <><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4-4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></>,
     comms: <><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></>,
     vault: <><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></>,
+    hosting: <><rect x="2" y="4" width="20" height="6" rx="1"/><rect x="2" y="14" width="20" height="6" rx="1"/><path d="M6 7h.01M6 17h.01"/></>,
     billing: <><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></>,
     sentinel: <><path d="M12 2l7 3v6c0 5-3.4 9.4-7 11-3.6-1.6-7-6-7-11V5l7-3z"/><path d="M9 12l2 2 4-5"/></>,
     onboarding: <><path d="M12 5v14"/><path d="M5 12h14"/><rect x="4" y="4" width="16" height="16" rx="3"/></>,
@@ -6693,6 +6884,7 @@ const NAV_SECTIONS = [
     { id: 'billing', label: 'Finance', icon: 'billing' },
     { id: 'sentinel', label: 'Nia HQ', icon: 'sentinel' },
     { id: 'vault', label: 'Fleet Vault', icon: 'vault' },
+    { id: 'hosting', label: 'Hosting', icon: 'hosting' },
     { id: 'onboarding', label: 'Onboarding', icon: 'onboarding' },
     { id: 'settings', label: 'Settings', icon: 'settings' },
   ]},
@@ -6993,6 +7185,7 @@ const PAGE_TITLES = {
   members: 'Members & Cards',
   comms: 'Communications',
   vault: 'Fleet Vault',
+  hosting: 'Hosting',
   billing: 'Financial Overview',
   sentinel: 'Nia HQ',
   analytics: 'Fleet Analytics',
@@ -7226,6 +7419,8 @@ const AppShell = () => {
         return window.NEXT_COMMS ? React.createElement(window.NEXT_COMMS) : <PlaceholderPage title="Communications" description="Loading." icon="" />;
       case 'vault':
         return window.NEXT_VAULT ? React.createElement(window.NEXT_VAULT) : <PlaceholderPage title="Fleet Vault" description="Loading." icon="" />;
+      case 'hosting':
+        return window.NEXT_HOSTING ? React.createElement(window.NEXT_HOSTING) : <PlaceholderPage title="Hosting" description="Loading." icon="" />;
       case 'settings':
         return window.NEXT_SETTINGS ? React.createElement(window.NEXT_SETTINGS) : <PlaceholderPage title="Settings" description="Loading." icon="Settings" />;
       default:

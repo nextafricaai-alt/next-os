@@ -1482,7 +1482,7 @@ async function handleGa4(property, days, env, cors) {
 // First-party analytics tracker served at /px.js. Install on a site with:
 //   <script defer src="https://nextos-sentinel.nextafricaai.workers.dev/px.js?s=YOURDOMAIN.com"></script>
 // Then call window.nxTrack('signin'|'conversion', 'label', value) on key actions.
-const PX_JS = "(function(){try{var el=document.currentScript||document.querySelector('script[src*=\"/px.js\"]');var site=null;if(el){try{site=new URL(el.src,location.href).searchParams.get('s');}catch(e){}}site=site||location.hostname.replace(/^www\\./,'');var EP='https://nextos-sentinel.nextafricaai.workers.dev/collect';function sid(){try{var k='nx_sid',v=sessionStorage.getItem(k);if(!v){v=Date.now().toString(36)+Math.random().toString(36).slice(2,8);sessionStorage.setItem(k,v);}return v;}catch(e){return 'na';}}function send(type,label,value){try{var body=JSON.stringify({site:site,type:type,path:location.pathname,ref:document.referrer||'',session:sid(),label:label||null,value:(value!=null?value:null)});if(navigator.sendBeacon){var ok=navigator.sendBeacon(EP,body);if(ok)return;}fetch(EP,{method:'POST',headers:{'Content-Type':'application/json'},body:body,keepalive:true}).catch(function(){});}catch(e){}}window.nxTrack=function(type,label,value){send(type||'event',label,value);};send('pageview');}catch(e){}})();";
+const PX_JS = "(function(){try{var el=document.currentScript||document.querySelector('script[src*=\"/px.js\"]');var site=null;if(el){try{site=new URL(el.src,location.href).searchParams.get('s');}catch(e){}}site=site||location.hostname.replace(/^www\\./,'');var EP='https://nextos-sentinel.nextafricaai.workers.dev/collect';function sid(){try{var k='nx_sid',v=sessionStorage.getItem(k);if(!v){v=Date.now().toString(36)+Math.random().toString(36).slice(2,8);sessionStorage.setItem(k,v);}return v;}catch(e){return 'na';}}function send(type,label,value){try{var body=JSON.stringify({site:site,type:type,path:location.pathname,ref:document.referrer||'',session:sid(),label:label||null,value:(value!=null?value:null)});if(navigator.sendBeacon){var ok=navigator.sendBeacon(EP,body);if(ok)return;}fetch(EP,{method:'POST',headers:{'Content-Type':'application/json'},body:body,keepalive:true}).catch(function(){});}catch(e){}}window.nxTrack=function(type,label,value){send(type||'event',label,value);};function _w(){try{var n=performance.getEntriesByType&&performance.getEntriesByType('navigation')[0];var b=n&&(n.transferSize||n.encodedBodySize||0);return b?Math.round(b/1024):null;}catch(e){return null;}}function _f(){send('pageview','kb',_w());}if(document.readyState==='complete'){_f();}else{window.addEventListener('load',_f);}}catch(e){}})();";
 
 // Receive one analytics event from a site. Inserts via service_role (browser sends no keys).
 async function handleCollect(request, env, cors) {
@@ -1521,6 +1521,7 @@ async function handleAnalytics(site, days, env, cors) {
   } catch (e) { return J({ error: String((e && e.message) || e), site, days }); }
   const pv = rows.filter(r => r.type === 'pageview');
   const sessions = new Set(pv.map(r => r.session).filter(Boolean));
+  const _w = pv.map(r => Number(r.value)).filter(v => v > 0); const avgPageKB = _w.length ? Math.round(_w.reduce((a, b) => a + b, 0) / _w.length) : null;
   const byType = {}; rows.forEach(r => { byType[r.type] = (byType[r.type] || 0) + 1; });
   const tally = (arr, key, norm) => { const m = {}; arr.forEach(r => { let k = (r[key] || '').trim(); if (norm) k = norm(k); if (!k) k = '(none)'; m[k] = (m[k] || 0) + 1; }); return Object.entries(m).sort((a, b) => b[1] - a[1]).slice(0, 8).map(e => ({ name: e[0], count: e[1] })); };
   const refHost = (u) => { if (!u) return '(direct)'; try { return new URL(u).hostname.replace(/^www\./, ''); } catch (e) { return u.slice(0, 40); } };
@@ -1532,6 +1533,7 @@ async function handleAnalytics(site, days, env, cors) {
     site, days, since,
     pageviews: pv.length,
     visitors: sessions.size,
+    avgPageKB: avgPageKB,
     signins: (byType.signin || 0) + (byType.login || 0),
     signups: byType.signup || 0,
     conversions: conversions.length,
