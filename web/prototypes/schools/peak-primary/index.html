@@ -157,6 +157,11 @@
       [style*="width: 260px"], [style*="width: 240px"], [style*="width: 220px"] { width: 100% !important; max-width: 100% !important; }
       /* any wrapping strip that scrolls keeps within the screen */
       [style*="overflow-x: auto"], [style*="overflowX: auto"] { max-width: 100% !important; }
+      /* Every screen-root (display:flex + height:100% + overflow:hidden) flows by content,
+         so short screens don't stretch into a long empty void on phones. */
+      [style*="display: flex"][style*="height: 100%"][style*="overflow: hidden"] {
+        height: auto !important; min-height: 0 !important; overflow: visible !important; flex-direction: column !important;
+      }
       /* ===== Comprehensive anti-bleed pass ===== */
       /* every fixed-width split (detail panels, label columns) collapses to one column */
       [style*="grid-template-columns: 1fr 340px"], [style*="grid-template-columns: 1fr 360px"],
@@ -8982,7 +8987,7 @@ window.PEAK_STAFF = (function () {
             <div className="peak-topbar" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 14px', borderBottom: '1px solid ' + T.border, background: T.bg, flexShrink: 0 }}>
               <button onClick={() => setNavOpen(true)} aria-label="Menu" style={{ background: 'transparent', border: '1px solid ' + T.border, borderRadius: 9, color: T.ink, width: 40, height: 40, fontSize: 19, lineHeight: 1, cursor: 'pointer', flexShrink: 0 }}>{'\u2630'}</button>
               <div style={{ fontSize: 15, fontWeight: 700, color: T.ink, letterSpacing: '-0.01em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{(typeof window !== 'undefined' && window.__BRAND_NAME) || 'Peak Primary'}</div>
-              <span style={{ marginLeft: 'auto', fontSize: 9, color: T.ink4, fontFamily: T.mono, flexShrink: 0 }}>b17</span>
+              <span style={{ marginLeft: 'auto', fontSize: 9, color: T.ink4, fontFamily: T.mono, flexShrink: 0 }}>b18</span>
             </div>
           )}
           <div className="peak-screen" style={{ flex: 1, minWidth: 0, overflow: 'auto' }}>{Screen}</div>
