@@ -218,7 +218,7 @@ export default {
     }
 
     // GET-allowed routes (read-only endpoints live below this gate)
-    const GET_OK = ['/check-project', '/seo-audit', '/px.js', '/analytics', '/gsc', '/ga4', '/fetch-page', '/site-pages', '/cms/collections', '/cms/items', '/students', '/exams', '/exam-results', '/fees-balances', '/staff-status', '/student-health', '/events', '/finance', '/assets', '/school-config', '/os-data', '/teachers', '/hosting-report'];
+    const GET_OK = ['/check-project', '/seo-audit', '/px.js', '/analytics', '/gsc', '/ga4', '/fetch-page', '/site-pages', '/cms/collections', '/cms/items', '/students', '/exams', '/exam-results', '/fees-balances', '/staff-status', '/student-health', '/events', '/finance', '/assets', '/school-config', '/os-data', '/teachers', '/hosting-report', '/watch/status'];
     if (request.method !== 'POST' && !GET_OK.includes(url.pathname)) {
       return new Response('Method not allowed', { status: 405, headers: cors });
     }
@@ -266,6 +266,12 @@ export default {
     }
     if (url.pathname === '/hosting-report') {
       return handleHostingReport(request, env, cors);
+    }
+    if (url.pathname === '/watch/sync') {
+      return handleWatchSync(request, env, cors);
+    }
+    if (url.pathname === '/watch/status') {
+      return handleWatchStatus(env, cors);
     }
 
     // ─── Route: /issue-receipt — Nia issues a real receipt for a tenant ──
@@ -594,19 +600,82 @@ async function niaGenerate(env, system, user, maxTokens, temperature) {
   return '';
 }
 
-async function composeBrief(env, kind, tenants, actions) {
+async function probeSite(siteUrl, domain) {
+  const out = { url: siteUrl, domain: domain, up: null, status: null, ms: null, daysLeft: null, expiry: null };
+  if (siteUrl) {
+    const t0 = Date.now();
+    try {
+      const r = await fetch(siteUrl, { method: 'GET', redirect: 'follow', headers: { 'User-Agent': 'NextOS-Sentinel/1.0' } });
+      out.status = r.status; out.up = (r.status >= 200 && r.status < 500); out.ms = Date.now() - t0;
+    } catch (e) { out.up = false; out.ms = Date.now() - t0; out.error = String((e && e.message) || e); }
+  }
+  if (domain) {
+    try {
+      const dom = String(domain).replace(/^https?:\/\//, '').replace(/\/.*$/, '').replace(/^www\./, '');
+      const r = await fetch('https://rdap.org/domain/' + encodeURIComponent(dom), { headers: { 'Accept': 'application/rdap+json' } });
+      if (r.ok) { const d = await r.json(); const ev = (d.events || []).find(e => /expiration/i.test(e.eventAction || '')); if (ev && ev.eventDate) { out.expiry = String(ev.eventDate).slice(0, 10); out.daysLeft = Math.round((new Date(ev.eventDate).getTime() - Date.now()) / 86400000); } }
+    } catch (e) {}
+  }
+  return out;
+}
+
+async function watchSites(env) {
+  let list = [];
+  try { const rows = await sbFetch(env, '/os_records?tenant=eq.next&kind=eq.site_watch&select=payload&order=created_at.desc&limit=1'); list = (rows && rows[0] && rows[0].payload && rows[0].payload.sites) || []; } catch (e) {}
+  const concerns = []; const results = [];
+  for (const sct of list.slice(0, 60)) {
+    if (!sct || (!sct.url && !sct.domain)) continue;
+    const probe = await probeSite(sct.url || ('https://' + (sct.domain || '')), sct.domain || '');
+    const nm = sct.name || sct.domain || sct.url;
+    results.push(Object.assign({ name: nm }, probe));
+    if (probe.up === false) concerns.push({ tenantId: '_site', name: nm, type: 'site_down', severity: 'warn', summary: nm + ' looks DOWN (' + (probe.status ? ('HTTP ' + probe.status) : 'no response') + ').' });
+    if (probe.daysLeft != null && probe.daysLeft <= 30) concerns.push({ tenantId: '_site', name: nm, type: 'domain_expiring', severity: probe.daysLeft <= 7 ? 'warn' : 'info', summary: (sct.domain || nm) + ' domain renews in ' + probe.daysLeft + ' day' + (probe.daysLeft === 1 ? '' : 's') + (probe.expiry ? (' (' + probe.expiry + ')') : '') + '.' });
+  }
+  try {
+    const rec = { results, at: new Date().toISOString() };
+    const ex = await sbFetch(env, '/os_records?tenant=eq.next&kind=eq.site_watch_results&select=id&limit=1');
+    if (ex && ex[0]) await fetch(env.SUPABASE_URL + '/rest/v1/os_records?id=eq.' + ex[0].id, { method: 'PATCH', headers: sbHeaders(env, 'return=minimal'), body: JSON.stringify({ payload: rec }) });
+    else await sbWrite(env, '/os_records', { tenant: 'next', kind: 'site_watch_results', payload: rec }, 'POST', 'return=minimal');
+  } catch (e) {}
+  return concerns;
+}
+
+async function handleWatchSync(request, env, cors) {
+  const J = (o, st) => new Response(JSON.stringify(o), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
+  if (!env.SUPABASE_URL || !env.SUPABASE_KEY) return J({ error: 'Supabase not configured.' }, 500);
+  let b; try { b = await request.json(); } catch (e) { return J({ error: 'bad body' }, 400); }
+  const sites = Array.isArray(b.sites) ? b.sites.filter(x => x && (x.url || x.domain)).map(x => ({ name: x.name || '', url: x.url || '', domain: x.domain || '' })).slice(0, 200) : [];
+  try {
+    const rec = { sites, at: new Date().toISOString() };
+    const ex = await sbFetch(env, '/os_records?tenant=eq.next&kind=eq.site_watch&select=id&limit=1');
+    if (ex && ex[0]) await fetch(env.SUPABASE_URL + '/rest/v1/os_records?id=eq.' + ex[0].id, { method: 'PATCH', headers: sbHeaders(env, 'return=minimal'), body: JSON.stringify({ payload: rec }) });
+    else await sbWrite(env, '/os_records', { tenant: 'next', kind: 'site_watch', payload: rec }, 'POST', 'return=minimal');
+    return J({ ok: true, count: sites.length });
+  } catch (e) { return J({ error: String((e && e.message) || e) }, 200); }
+}
+
+async function handleWatchStatus(env, cors) {
+  const J = (o, st) => new Response(JSON.stringify(o), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
+  if (!env.SUPABASE_URL || !env.SUPABASE_KEY) return J({ error: 'Supabase not configured.' }, 500);
+  try { const rows = await sbFetch(env, '/os_records?tenant=eq.next&kind=eq.site_watch_results&select=payload&order=created_at.desc&limit=1'); return J((rows && rows[0] && rows[0].payload) || { results: [], at: null }); }
+  catch (e) { return J({ error: String((e && e.message) || e) }, 200); }
+}
+
+async function composeBrief(env, kind, tenants, actions, siteConcerns) {
+  siteConcerns = siteConcerns || [];
   const findings = tenants.map(t => ({
     name: t.name,
     concerns: serverEvaluate(t),
   })).filter(f => f.concerns.length > 0);
 
-  if (findings.length === 0 && kind !== 'weekly') {
+  if (findings.length === 0 && siteConcerns.length === 0 && kind !== 'weekly') {
     return null; // nothing to report; stay silent
   }
 
   const factsBlock = findings.map(f =>
     f.name + ':\n' + f.concerns.map(c => '  - ' + c.summary).join('\n')
   ).join('\n\n');
+  const siteBlock = siteConcerns.length ? ('\n\nWebsites:\n' + siteConcerns.map(c => '  - ' + c.summary).join('\n')) : '';
 
   const greeting = kind === 'morning' ? 'Morning Hudson.' :
                    kind === 'weekly'  ? 'Friday wrap.' :
@@ -618,7 +687,7 @@ async function composeBrief(env, kind, tenants, actions) {
     ? '\n\nActions I already took:\n' + actions.map(a => '  - ' + a.humanReadable).join('\n')
     : '';
 
-  const userPrompt = greeting + '\n\nFacts:\n' + factsBlock + actionsBlock + '\n\nWrite the brief now.';
+  const userPrompt = greeting + '\n\nFacts:\n' + factsBlock + siteBlock + actionsBlock + '\n\nWrite the brief now.';
 
   const text = await niaGenerate(env, sysPrompt, userPrompt, 220, 0.3);
   if (text && text.trim()) return text.trim();
@@ -681,7 +750,9 @@ async function runSupervise(env, kind) {
     findings.push({ name: t.name, tenantId: t.id, concerns, fixes });
   }
 
-  const text = await composeBrief(env, kind, tenants, allActions);
+  const siteConcerns = await watchSites(env);
+  if (siteConcerns.length) findings.push({ name: 'Websites', tenantId: '_sites', concerns: siteConcerns });
+  const text = await composeBrief(env, kind, tenants, allActions, siteConcerns);
 
   // ALWAYS persist the brief to KV — even quiet briefs get a record.
   // This is what Hudson sees when he opens NEXT OS.
