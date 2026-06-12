@@ -218,7 +218,7 @@ export default {
     }
 
     // GET-allowed routes (read-only endpoints live below this gate)
-    const GET_OK = ['/check-project', '/seo-audit', '/px.js', '/analytics', '/gsc', '/ga4', '/fetch-page', '/site-pages', '/cms/collections', '/cms/items', '/students', '/exams', '/exam-results', '/fees-balances', '/attendance-summary', '/staff-status', '/student-health', '/events', '/finance', '/assets', '/school-config', '/os-data', '/teachers', '/hosting-report', '/watch/status'];
+    const GET_OK = ['/check-project', '/seo-audit', '/px.js', '/analytics', '/gsc', '/ga4', '/fetch-page', '/site-pages', '/cms/collections', '/cms/items', '/students', '/exams', '/exam-results', '/fees-balances', '/attendance-summary', '/staff-status', '/student-health', '/events', '/finance', '/assets', '/school-config', '/os-data', '/teachers', '/hosting-report', '/watch/status', '/push/vapid-public'];
     if (request.method !== 'POST' && !GET_OK.includes(url.pathname)) {
       return new Response('Method not allowed', { status: 405, headers: cors });
     }
@@ -369,6 +369,10 @@ export default {
     if (url.pathname === '/school-config/save') return handleConfigSave(request, env, cors);
     if (url.pathname === '/os-data')            return handleOsDataList(url.searchParams.get('tenant') || 'next', url.searchParams.get('kind') || '', env, cors);
     if (url.pathname === '/os-data/save')       return handleOsDataSave(request, env, cors);
+    if (url.pathname === '/push/vapid-public')  return new Response(JSON.stringify({ key: env.VAPID_PUBLIC || '' }), { status: 200, headers: { ...cors, 'Content-Type': 'application/json' } });
+    if (url.pathname === '/push/subscribe')     return handlePushSubscribe(request, env, cors);
+    if (url.pathname === '/push/notify')        return handlePushNotify(request, env, cors);
+    if (url.pathname === '/push/test')          return handlePushTest(request, env, cors);
 
     // ─── Route: / — Llama agent (default) ───────────────────────────────
     return handleAgent(request, env, cors);
@@ -804,6 +808,18 @@ async function runSupervise(env, kind) {
       } catch (e) {}
     }
   }
+
+  // Push to Hudson's phone (lock-screen) when there are real concerns or it's a scheduled brief.
+  try {
+    const urgent = (siteConcerns || []).filter(c => c.type === 'site_down' || (c.type === 'domain_expiring' && c.severity === 'warn'));
+    let title = 'Nia · ' + (kind === 'morning' ? 'Morning brief' : kind === 'weekly' ? 'Weekly brief' : 'Update');
+    let body = '';
+    if (urgent.length) { title = 'Nia · needs your eye'; body = urgent[0].summary + (urgent.length > 1 ? (' (+' + (urgent.length - 1) + ' more)') : ''); }
+    else { const firstLine = String(brief.text || '').split('\n').find(l => l.trim()); body = (firstLine || 'Fleet is calm.').slice(0, 140); }
+    if (urgent.length || kind === 'morning' || kind === 'weekly') {
+      await deliverPush(env, 'next', null, 'owner', { title, body, url: '/', tag: 'nia-' + kind });
+    }
+  } catch (e) { console.log('[Nia push] ' + (e.message || e)); }
 
   console.log('[Nia Always On] ' + kind + ' brief stored. WA sent=' + brief.sentToWA);
   return { kind, briefId: brief.id, sentToWA: brief.sentToWA, text: brief.text };
@@ -1839,6 +1855,24 @@ async function verifyHead(request, env, tenant) {
   } catch (e) { return { ok: false, why: String((e && e.message) || e) }; }
 }
 
+async function verifyMember(request, env, tenant) {
+  // Any signed-in user belonging to this tenant (head, admin, bursar, teacher) may trigger a push.
+  try {
+    const auth = request.headers.get('Authorization') || '';
+    const token = auth.replace(/^Bearer\s+/i, '').trim();
+    if (!token) return { ok: false, why: 'no token' };
+    const ur = await fetch(env.SUPABASE_URL + '/auth/v1/user', { headers: { 'apikey': env.SUPABASE_KEY, 'Authorization': 'Bearer ' + token } });
+    if (!ur.ok) return { ok: false, why: 'bad token' };
+    const u = await ur.json();
+    const email = (u && u.email) || '';
+    const rows = await sbFetch(env, '/users?auth_id=eq.' + encodeURIComponent(u.id) + '&tenant_id=eq.' + encodeURIComponent(tenant) + '&select=role');
+    if (rows && rows.length) return { ok: true, email, role: rows[0].role || '' };
+    const t = await sbFetch(env, '/tenants?id=eq.' + encodeURIComponent(tenant) + '&select=head_email');
+    if (t && t.length && t[0].head_email && email && t[0].head_email.toLowerCase() === email.toLowerCase()) return { ok: true, email, role: 'head' };
+    return { ok: false, why: 'not a member of this tenant' };
+  } catch (e) { return { ok: false, why: String((e && e.message) || e) }; }
+}
+
 async function handleAdminResetLogin(request, env, cors) {
   const J = (o, st) => new Response(JSON.stringify(o), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
   if (!env.SUPABASE_URL || !env.SUPABASE_KEY) return J({ ok: false, error: 'Supabase not configured.' }, 500);
@@ -2119,3 +2153,123 @@ async function loadTenants(env) {
   return TENANTS_SEED;
 }
 
+
+
+// ─── Web Push (RFC 8291 aes128gcm + VAPID ES256) ───────────────────────────
+function _pbu(s) { s = String(s).replace(/-/g, '+').replace(/_/g, '/'); while (s.length % 4) s += '='; const bin = atob(s); const b = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) b[i] = bin.charCodeAt(i); return b; }
+function _b64u(buf) { const b = new Uint8Array(buf); let s = ''; for (let i = 0; i < b.length; i++) s += String.fromCharCode(b[i]); return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
+function _cat() { let len = 0; for (const a of arguments) len += a.length; const out = new Uint8Array(len); let o = 0; for (const a of arguments) { out.set(a, o); o += a.length; } return out; }
+async function _hmac(keyBuf, dataBuf) { const k = await crypto.subtle.importKey('raw', keyBuf, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']); return new Uint8Array(await crypto.subtle.sign('HMAC', k, dataBuf)); }
+
+async function _vapidJWT(env, aud) {
+  const te = new TextEncoder();
+  const head = _b64u(te.encode(JSON.stringify({ typ: 'JWT', alg: 'ES256' })));
+  const body = _b64u(te.encode(JSON.stringify({ aud: aud, exp: Math.floor(Date.now() / 1000) + 12 * 3600, sub: env.VAPID_SUBJECT || 'mailto:admin@nextafrica.ai' })));
+  const unsigned = head + '.' + body;
+  const jwk = JSON.parse(env.VAPID_JWK);
+  const key = await crypto.subtle.importKey('jwk', jwk, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['sign']);
+  const sig = await crypto.subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, key, te.encode(unsigned));
+  return unsigned + '.' + _b64u(sig);
+}
+
+async function _encryptPush(payloadStr, p256dhB64, authB64) {
+  const te = new TextEncoder();
+  const uaPub = _pbu(p256dhB64);
+  const authSecret = _pbu(authB64);
+  const eph = await crypto.subtle.generateKey({ name: 'ECDH', namedCurve: 'P-256' }, true, ['deriveBits']);
+  const asPubRaw = new Uint8Array(await crypto.subtle.exportKey('raw', eph.publicKey));
+  const uaKey = await crypto.subtle.importKey('raw', uaPub, { name: 'ECDH', namedCurve: 'P-256' }, false, []);
+  const ecdh = new Uint8Array(await crypto.subtle.deriveBits({ name: 'ECDH', public: uaKey }, eph.privateKey, 256));
+  const prkKey = await _hmac(authSecret, ecdh);
+  const keyInfo = _cat(te.encode('WebPush: info\0'), uaPub, asPubRaw);
+  const ikm = await _hmac(prkKey, _cat(keyInfo, new Uint8Array([1])));
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const prk = await _hmac(salt, ikm);
+  const cek = (await _hmac(prk, _cat(te.encode('Content-Encoding: aes128gcm\0'), new Uint8Array([1])))).slice(0, 16);
+  const nonce = (await _hmac(prk, _cat(te.encode('Content-Encoding: nonce\0'), new Uint8Array([1])))).slice(0, 12);
+  const plaintext = _cat(te.encode(payloadStr), new Uint8Array([2]));
+  const aesKey = await crypto.subtle.importKey('raw', cek, { name: 'AES-GCM' }, false, ['encrypt']);
+  const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv: nonce }, aesKey, plaintext));
+  const rs = new Uint8Array([0, 0, 0x10, 0]);
+  const idlen = new Uint8Array([asPubRaw.length]);
+  return _cat(salt, rs, idlen, asPubRaw, ct);
+}
+
+async function sendWebPush(env, sub, payloadObj) {
+  try {
+    if (!env.VAPID_JWK || !env.VAPID_PUBLIC) return { ok: false, status: 0, error: 'VAPID not configured' };
+    const aud = new URL(sub.endpoint).origin;
+    const jwt = await _vapidJWT(env, aud);
+    const body = await _encryptPush(JSON.stringify(payloadObj), sub.keys.p256dh, sub.keys.auth);
+    const res = await fetch(sub.endpoint, {
+      method: 'POST',
+      headers: {
+        'TTL': '2419200',
+        'Content-Encoding': 'aes128gcm',
+        'Content-Type': 'application/octet-stream',
+        'Authorization': 'vapid t=' + jwt + ', k=' + env.VAPID_PUBLIC,
+      },
+      body: body,
+    });
+    return { ok: res.status >= 200 && res.status < 300, status: res.status, gone: res.status === 404 || res.status === 410 };
+  } catch (e) { return { ok: false, status: 0, error: String((e && e.message) || e) }; }
+}
+
+async function deliverPush(env, tenant, emails, role, payload) {
+  let rows = [];
+  try { rows = await sbFetch(env, '/os_records?tenant=eq.' + encodeURIComponent(tenant) + '&kind=eq.push_sub&select=id,payload&limit=1000'); } catch (e) {}
+  const emailSet = (emails || []).map(e => String(e).toLowerCase());
+  const targets = (rows || []).filter(r => {
+    const p = r.payload || {};
+    if (emailSet.length) return emailSet.indexOf((p.email || '').toLowerCase()) >= 0;
+    if (role) return (p.role || '') === role;
+    return false;
+  });
+  let ok = 0, gone = 0;
+  for (const r of targets) {
+    const res = await sendWebPush(env, r.payload, payload);
+    if (res.ok) ok++;
+    if (res.gone) { gone++; try { await fetch(env.SUPABASE_URL + '/rest/v1/os_records?id=eq.' + r.id, { method: 'DELETE', headers: sbHeaders(env, 'return=minimal') }); } catch (e) {} }
+  }
+  return { matched: targets.length, ok: ok, gone: gone };
+}
+
+async function handlePushSubscribe(request, env, cors) {
+  const J = (oo, st) => new Response(JSON.stringify(oo), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
+  let b; try { b = await request.json(); } catch (e) { return J({ error: 'bad body' }, 400); }
+  const tenant = String(b.tenant || 'next').trim();
+  const email = String(b.email || '').trim().toLowerCase();
+  const role = String(b.role || '').trim();
+  const sub = b.subscription;
+  if (!sub || !sub.endpoint || !sub.keys || !sub.keys.p256dh || !sub.keys.auth) return J({ error: 'valid subscription required' }, 400);
+  try {
+    const existing = await sbFetch(env, '/os_records?tenant=eq.' + encodeURIComponent(tenant) + '&kind=eq.push_sub&select=id,payload&limit=1000');
+    for (const row of (existing || [])) { if (row.payload && row.payload.endpoint === sub.endpoint) { try { await fetch(env.SUPABASE_URL + '/rest/v1/os_records?id=eq.' + row.id, { method: 'DELETE', headers: sbHeaders(env, 'return=minimal') }); } catch (e) {} } }
+    await sbWrite(env, '/os_records', { tenant: tenant, kind: 'push_sub', payload: { email: email, role: role, endpoint: sub.endpoint, keys: sub.keys, ts: Date.now() } }, 'POST', 'return=minimal');
+    return J({ ok: true });
+  } catch (e) { return J({ error: String((e && e.message) || e) }, 200); }
+}
+
+async function handlePushNotify(request, env, cors) {
+  const J = (oo, st) => new Response(JSON.stringify(oo), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
+  let b; try { b = await request.json(); } catch (e) { return J({ error: 'bad body' }, 400); }
+  const tenant = String(b.tenant || 'next').trim();
+  const v = await verifyMember(request, env, tenant);
+  if (!v.ok) return J({ error: 'not authorized: ' + (v.why || '') }, 401);
+  const emails = Array.isArray(b.emails) ? b.emails : [];
+  const role = b.role ? String(b.role) : null;
+  const payload = { title: String(b.title || 'NEXT OS'), body: String(b.body || ''), url: String(b.url || '/'), tag: String(b.tag || ('t' + Date.now())) };
+  if (!emails.length && !role) return J({ error: 'emails or role required' }, 400);
+  const r = await deliverPush(env, tenant, emails, role, payload);
+  return J({ ok: true, matched: r.matched, sent: r.ok, gone: r.gone });
+}
+
+async function handlePushTest(request, env, cors) {
+  const J = (oo, st) => new Response(JSON.stringify(oo), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
+  let b; try { b = await request.json(); } catch (e) { return J({ error: 'bad body' }, 400); }
+  const tenant = String(b.tenant || 'next').trim();
+  const email = String(b.email || '').trim().toLowerCase();
+  if (!email) return J({ error: 'email required' }, 400);
+  const r = await deliverPush(env, tenant, [email], null, { title: 'NEXT OS ✓', body: 'Phone alerts are on. Head’s tasks will land right here.', url: '/', tag: 'nx-test' });
+  return J({ ok: true, matched: r.matched, sent: r.ok });
+}

@@ -5419,7 +5419,7 @@ You: "'We help you get more done with less stress.' Nine plain words beat the ja
               fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 14,
             }}>N</div>
             <div>
-              <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', letterSpacing: 1.5, color: 'var(--text-tertiary)' }}>NIA'S WATCH <span style={{ color: 'var(--mint)', marginLeft: 6 }}>· LIVE v11</span></div>
+              <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', letterSpacing: 1.5, color: 'var(--text-tertiary)' }}>NIA'S WATCH <span style={{ color: 'var(--mint)', marginLeft: 6 }}>· LIVE v12</span></div>
               <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)' }}>
                 What happened while you were away
               </div>
@@ -6957,6 +6957,52 @@ const Sidebar = ({ activeTab, onTabChange, collapsed, onToggle, tutorial, narrow
 };
 
 /* -- BellButton — clickable bell with live unread badge -- */
+// ─── Web Push client (phone / lock-screen alerts) ───────────────────────────
+window.NX_VAPID = window.NX_VAPID || 'BN6fZK3_ipRqATydKqGPB22d-Iaf9knXLDZrLGqAuPeSfac0C8elNLovSBtKlEugC-t7XeMoYg8FsEUwTwb6Y-c';
+window.NX_PUSH = window.NX_PUSH || {
+  WK: (window.NEXT_OS_SENTINEL_ENDPOINT) || 'https://nextos-sentinel.nextafricaai.workers.dev',
+  supported() { return (typeof navigator !== 'undefined') && ('serviceWorker' in navigator) && ('PushManager' in window) && ('Notification' in window); },
+  async status() { if (!this.supported()) return 'unsupported'; if (Notification.permission === 'denied') return 'denied'; try { const reg = await navigator.serviceWorker.ready; const sub = await reg.pushManager.getSubscription(); return sub ? 'on' : 'off'; } catch (e) { return 'off'; } },
+  _key() { const raw = atob(window.NX_VAPID.replace(/-/g, '+').replace(/_/g, '/')); const a = new Uint8Array(raw.length); for (let i = 0; i < raw.length; i++) a[i] = raw.charCodeAt(i); return a; },
+  async enable(opts) {
+    opts = opts || {};
+    if (!this.supported()) throw new Error('This browser can’t do phone alerts. Install the app first.');
+    const perm = await Notification.requestPermission();
+    if (perm !== 'granted') throw new Error('Notifications were not allowed.');
+    const reg = await navigator.serviceWorker.ready;
+    let sub = await reg.pushManager.getSubscription();
+    if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: this._key() });
+    const j = sub.toJSON();
+    const r = await fetch(this.WK + '/push/subscribe', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tenant: opts.tenant || 'next', email: (opts.email || '').toLowerCase(), role: opts.role || 'owner', subscription: { endpoint: j.endpoint, keys: j.keys } }) });
+    const d = await r.json(); if (!d.ok) throw new Error(d.error || 'Could not register this device.');
+    return true;
+  },
+  async test(opts) { opts = opts || {}; const r = await fetch(this.WK + '/push/test', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tenant: opts.tenant || 'next', email: (opts.email || '').toLowerCase() }) }); return r.json(); },
+};
+
+const PhoneAlertBtn = () => {
+  const [st, setSt] = React.useState('off');
+  const [busy, setBusy] = React.useState(false);
+  const email = (window.NEXT_OS_USER && window.NEXT_OS_USER()) || '';
+  React.useEffect(() => { window.NX_PUSH.status().then(setSt); }, []);
+  if (st === 'unsupported') return null;
+  const on = st === 'on';
+  const click = async () => {
+    if (busy) return; setBusy(true);
+    try {
+      if (on) { await window.NX_PUSH.test({ tenant: 'next', email }); }
+      else { await window.NX_PUSH.enable({ tenant: 'next', email, role: 'owner' }); setSt('on'); window.NX_PUSH.test({ tenant: 'next', email }); }
+    } catch (e) { alert(String((e && e.message) || e)); }
+    setBusy(false);
+  };
+  return (
+    <button onClick={click} disabled={busy} title={on ? 'Phone alerts on — tap to test' : 'Turn on phone alerts (Nia notifies you here)'} style={{
+      background: on ? 'rgba(0,252,143,0.12)' : 'transparent', border: '1px solid ' + (on ? 'var(--mint)' : 'var(--border-default)'),
+      color: on ? 'var(--mint)' : 'var(--text-secondary)', borderRadius: 'var(--radius-sm)', padding: '6px 9px', fontSize: 13, cursor: busy ? 'wait' : 'pointer', lineHeight: 1,
+    }}>{on ? '\uD83D\uDD14' : '\uD83D\uDD15'}</button>
+  );
+};
+
 const BellButton = () => {
   const [count, setCount] = React.useState(() => (window.NEXT_OS && window.NEXT_OS.unreadCount) ? window.NEXT_OS.unreadCount() : 0);
   React.useEffect(() => {
@@ -7040,6 +7086,7 @@ const Topbar = ({ pageTitle, sidebarWidth, tutorial, onToggleTutorial, narrow, o
         {/* Notifications */}
         <button onClick={() => onToggleTutorial && onToggleTutorial()} title={tutorial ? 'Tutorial mode: on — hover sidebar icons for tips' : 'Turn on tutorial mode'} style={{ background: tutorial ? 'var(--mint)' : 'transparent', border: '1px solid ' + (tutorial ? 'var(--mint)' : 'var(--border-default)'), color: tutorial ? 'var(--text-inverse)' : 'var(--text-secondary)', borderRadius: 'var(--radius-sm)', padding: '6px 10px', fontSize: 11, fontFamily: 'var(--font-mono)', letterSpacing: 1, cursor: 'pointer' }}>{tutorial ? '\u{1F393} TUTORIAL ON' : '\u{1F393} TUTORIAL'}</button>
 
+        <PhoneAlertBtn />
         <BellButton />
 
         {/* Sign out */}
