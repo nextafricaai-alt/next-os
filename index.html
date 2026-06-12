@@ -2659,6 +2659,22 @@ const ProjectsPage = ({ onNavigate }) => {
   });
   React.useEffect(() => { setTimeout(() => setMounted(true), 50); }, []);
 
+  // Push the project list to Nia's watcher so her nightly sweep knows what sites to watch (uptime + domain expiry).
+  React.useEffect(() => {
+    try {
+      const all = (window.OS_DATA && window.OS_DATA.getProjects) ? window.OS_DATA.getProjects() : projects;
+      const sites = (all || []).map(p => {
+        let m = {}; try { m = JSON.parse(localStorage.getItem('nextos.projectmeta.' + p.id) || '{}'); } catch (e) {}
+        const url = m.url || p.url || ''; const domain = m.domain || p.domain || '';
+        return (url || domain) ? { name: p.name, url: url, domain: domain } : null;
+      }).filter(Boolean);
+      if (sites.length) {
+        const base = (window.NEXT_OS_SENTINEL_ENDPOINT) || 'https://nextos-sentinel.nextafricaai.workers.dev';
+        fetch(base + '/watch/sync', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sites }) }).catch(() => {});
+      }
+    } catch (e) {}
+  }, []);
+
   if (selectedProject) {
     return <ProjectDetail project={selectedProject} onBack={() => setSelectedProject(null)} />;
   }
@@ -5403,7 +5419,7 @@ You: "'We help you get more done with less stress.' Nine plain words beat the ja
               fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 14,
             }}>N</div>
             <div>
-              <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', letterSpacing: 1.5, color: 'var(--text-tertiary)' }}>NIA'S WATCH <span style={{ color: 'var(--mint)', marginLeft: 6 }}>· LIVE v8</span></div>
+              <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', letterSpacing: 1.5, color: 'var(--text-tertiary)' }}>NIA'S WATCH <span style={{ color: 'var(--mint)', marginLeft: 6 }}>· LIVE v9</span></div>
               <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)' }}>
                 What happened while you were away
               </div>
