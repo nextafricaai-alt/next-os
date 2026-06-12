@@ -2306,7 +2306,7 @@ const ProjectDetail = ({ project, onBack }) => {
           <div style={sectionStyle}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
               <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Resources · Hostinger {autoStat ? <span style={{ color: 'var(--mint)' }}>· auto</span> : null}</div>
-              {siteKey ? <button onClick={refreshStats} disabled={statBusy} style={{ background: 'transparent', border: '1px solid var(--border-subtle)', color: 'var(--text-secondary)', borderRadius: 'var(--radius-sm)', padding: '5px 11px', fontSize: 11.5, cursor: 'pointer' }}>{statBusy ? 'Scanning…' : 'Refresh'}</button> : null}
+              {autoStat ? <button onClick={refreshStats} disabled={statBusy} style={{ background: 'transparent', border: '1px solid var(--border-subtle)', color: 'var(--text-secondary)', borderRadius: 'var(--radius-sm)', padding: '5px 11px', fontSize: 11.5, cursor: 'pointer' }}>{statBusy ? 'Scanning…' : 'Refresh'}</button> : null}
             </div>
             {(() => {
               const autoDiskGB = (autoStat && autoStat.diskMB != null) ? (autoStat.diskMB / 1024) : null;
@@ -2328,7 +2328,7 @@ const ProjectDetail = ({ project, onBack }) => {
                 <Row label="CPU / I-O" val={pm.cpuNote || '\u2014'} />
                 <Row label="Visits (7d)" val={siteKey ? (visits != null ? visits.toLocaleString() : '\u2026') : 'add a domain'} />
                 <Row label="Avg page weight" val={kb != null ? (kb + ' KB') : '\u2014'} />
-                <div style={{ fontSize: 10.5, color: 'var(--text-tertiary)', marginTop: 10, lineHeight: 1.5 }}>{isAuto ? ('Disk &amp; files measured automatically' + (autoStat.at ? (' \u00b7 updated ' + new Date(autoStat.at).toLocaleString()) : '')) : 'For automatic disk &amp; file numbers, upload nx-stats.php to this site (see HOSTING-AUTO-STATS-SETUP). Otherwise type them from hPanel \u2192 Resources via Edit.'}<br/>Databases &amp; CPU/I-O stay manual (hPanel). Visits &amp; page weight are live from your tracker. Business plan: bandwidth unmetered \u2014 watch <b>files</b> &amp; <b>disk</b>.</div>
+                <div style={{ fontSize: 10.5, color: 'var(--text-tertiary)', marginTop: 10, lineHeight: 1.5 }}>{isAuto ? ('Disk &amp; files measured automatically' + (autoStat.at ? (' \u00b7 updated ' + new Date(autoStat.at).toLocaleString()) : '')) : 'Disk, files &amp; databases: read this site in hPanel \u2192 Resources and type them via Edit (they change slowly).'}<br/>Visits &amp; page weight update automatically from your tracker. On Business, bandwidth is unmetered \u2014 the limits that bite are <b>files</b> &amp; <b>disk</b>.</div>
               </div>);
             })()}
           </div>
@@ -5403,7 +5403,7 @@ You: "'We help you get more done with less stress.' Nine plain words beat the ja
               fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 14,
             }}>N</div>
             <div>
-              <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', letterSpacing: 1.5, color: 'var(--text-tertiary)' }}>NIA'S WATCH <span style={{ color: 'var(--mint)', marginLeft: 6 }}>· LIVE v7</span></div>
+              <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', letterSpacing: 1.5, color: 'var(--text-tertiary)' }}>NIA'S WATCH <span style={{ color: 'var(--mint)', marginLeft: 6 }}>· LIVE v8</span></div>
               <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)' }}>
                 What happened while you were away
               </div>
