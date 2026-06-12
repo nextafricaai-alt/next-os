@@ -261,6 +261,9 @@ export default {
     if (url.pathname === '/provision-teacher') {
       return handleProvisionTeacher(request, env, cors);
     }
+    if (url.pathname === '/provision-teacher/bulk') {
+      return handleProvisionTeachersBulk(request, env, cors);
+    }
     if (url.pathname === '/teachers') {
       return handleTeachersList(url.searchParams.get('tenant') || '', env, cors);
     }
@@ -1807,6 +1810,39 @@ async function verifyHead(request, env, tenant) {
     if (t && t.length && t[0].head_email && email && t[0].head_email.toLowerCase() === email.toLowerCase()) return { ok: true, email };
     return { ok: false, why: 'not head of this tenant' };
   } catch (e) { return { ok: false, why: String((e && e.message) || e) }; }
+}
+
+async function handleProvisionTeachersBulk(request, env, cors) {
+  const J = (o, st) => new Response(JSON.stringify(o), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
+  if (!env.SUPABASE_URL || !env.SUPABASE_KEY) return J({ ok: false, error: 'Supabase not configured.' }, 500);
+  let b; try { b = await request.json(); } catch (e) { return J({ ok: false, error: 'bad body' }, 400); }
+  const tenant = String(b.tenant_id || b.tenant || '').trim();
+  const rows = Array.isArray(b.teachers) ? b.teachers.slice(0, 300) : [];
+  if (!tenant) return J({ ok: false, error: 'tenant_id required' }, 400);
+  if (!rows.length) return J({ ok: false, error: 'No teachers provided.' }, 400);
+  const gate = await verifyHead(request, env, tenant);
+  if (!gate.ok) return J({ ok: false, error: 'Not authorised: ' + (gate.why || 'only the head teacher can add staff') }, 403);
+  const toList = (v) => Array.isArray(v) ? v : String(v || '').split(/[;,]/).map(x => x.trim()).filter(Boolean);
+  const results = [];
+  for (const t of rows) {
+    const email = String(t.email || '').trim().toLowerCase();
+    const fullName = String(t.fullName || t.name || '').trim();
+    if (!email || email.indexOf('@') < 0 || !fullName) { results.push({ email: t.email || '', name: fullName, ok: false, error: 'name + valid email required' }); continue; }
+    const subjects = toList(t.subjects); const classes = toList(t.classes);
+    const tempPassword = 'Teach-' + Math.random().toString(36).slice(2, 8) + '-' + Math.floor(Math.random() * 90 + 10);
+    let authId = null, note = '';
+    try {
+      const au = await fetch(env.SUPABASE_URL + '/auth/v1/admin/users', { method: 'POST', headers: { 'apikey': env.SUPABASE_KEY, 'Authorization': 'Bearer ' + env.SUPABASE_KEY, 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password: tempPassword, email_confirm: true, user_metadata: { full_name: fullName, tenant_id: tenant, role: 'teacher' } }) });
+      const auj = await au.json().catch(() => ({}));
+      if (au.ok && auj && auj.id) authId = auj.id; else note = (auj && (auj.msg || auj.error_description || auj.error)) || ('auth ' + au.status);
+    } catch (e) { note = String((e && e.message) || e); }
+    let userRowId = null;
+    if (authId) { try { const ur = await sbWrite(env, '/users', { auth_id: authId, tenant_id: tenant, email, full_name: fullName, role: 'teacher', phone: t.phone || null }, 'POST', 'return=representation'); if (Array.isArray(ur) && ur[0]) userRowId = ur[0].id; } catch (e) { note = 'login created, link failed'; } }
+    try { await sbWrite(env, '/teachers', { tenant_id: tenant, user_id: userRowId, full_name: fullName, subjects: subjects, phone: t.phone || null, email, status: 'active' }, 'POST', 'return=minimal'); } catch (e) { note = (note ? note + '; ' : '') + 'staff: ' + ((e && e.message) || e); }
+    if (classes.length) { try { await sbWrite(env, '/os_records', { tenant: tenant, kind: 'staff_meta', payload: { email, classes } }, 'POST', 'return=minimal'); } catch (e) {} }
+    results.push({ email, name: fullName, ok: !!authId, tempPassword: authId ? tempPassword : null, note });
+  }
+  return J({ ok: true, created: results.filter(r => r.ok).length, total: rows.length, results });
 }
 
 async function handleProvisionTeacher(request, env, cors) {

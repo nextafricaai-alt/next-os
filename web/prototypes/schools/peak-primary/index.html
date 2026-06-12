@@ -7980,11 +7980,15 @@ window.PEAK_STAFF = (function () {
   /* ---- Roster ---- */
   function Roster({ teachers, meta, reload }) {
     const [adding, setAdding] = useState(false);
+    const [importing, setImporting] = useState(false);
     return (
       <div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
           <div style={{ fontSize: 12.5, color: T.ink3 }}>{teachers.length} on staff · {teachers.filter(t => t.user_id).length} with a login</div>
-          <button onClick={() => setAdding(true)} style={btnP}>+ Add {vocab().staff.toLowerCase()}</button>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button onClick={() => setImporting(true)} style={btnG}>Import CSV</button>
+            <button onClick={() => setAdding(true)} style={btnP}>+ Add {vocab().staff.toLowerCase()}</button>
+          </div>
         </div>
         <div style={card}>
           {teachers.length === 0 ? <div style={{ padding: '20px 0', textAlign: 'center', color: T.ink3 }}>No {vocab().staff.toLowerCase()}s yet. Add one — they get a real login.</div> : (
@@ -8005,7 +8009,89 @@ window.PEAK_STAFF = (function () {
           )}
         </div>
         {adding && <AddTeacherReal onClose={() => setAdding(false)} onDone={() => { setAdding(false); reload(); }} />}
+        {importing && <ImportTeachers onClose={() => setImporting(false)} onDone={() => { setImporting(false); reload(); }} />}
       </div>
+    );
+  }
+
+  function ImportTeachers({ onClose, onDone }) {
+    const [raw, setRaw] = useState('');
+    const [parsed, setParsed] = useState(null);
+    const [map, setMap] = useState({ name: -1, email: -1, phone: -1, subjects: -1, classes: -1 });
+    const [busy, setBusy] = useState(false);
+    const [res, setRes] = useState(null);
+    function splitLine(line, d) { const out = []; let cur = '', q = false; for (let i = 0; i < line.length; i++) { const c = line[i]; if (c === '"') { if (q && line[i + 1] === '"') { cur += '"'; i++; } else q = !q; } else if (c === d && !q) { out.push(cur); cur = ''; } else cur += c; } out.push(cur); return out.map(x => x.trim()); }
+    function guess(h, keys) { for (let i = 0; i < h.length; i++) { const x = (h[i] || '').toLowerCase(); for (const k of keys) if (x.indexOf(k) >= 0) return i; } return -1; }
+    function doParse(text) {
+      const lines = text.replace(/\r/g, '').split('\n').filter(l => l.trim()); if (!lines.length) { setParsed(null); return; }
+      const d = (lines[0].split('\t').length > lines[0].split(',').length) ? '\t' : ',';
+      const headers = splitLine(lines[0], d), rows = lines.slice(1).map(l => splitLine(l, d));
+      setParsed({ headers, rows });
+      setMap({ name: guess(headers, ['name', 'teacher', 'full']), email: guess(headers, ['email', 'mail']), phone: guess(headers, ['phone', 'tel', 'mobile', 'whatsapp']), subjects: guess(headers, ['subject', 'teaches', 'subj']), classes: guess(headers, ['class', 'stream', 'form', 'level', 'allocat']) });
+      setRes(null);
+    }
+    function onFile(e) { const fl = e.target.files && e.target.files[0]; if (!fl) return; const rd = new FileReader(); rd.onload = () => { setRaw(rd.result || ''); doParse(rd.result || ''); }; rd.readAsText(fl); }
+    const teachersArr = parsed ? parsed.rows.map(r => ({ name: map.name >= 0 ? (r[map.name] || '') : '', email: map.email >= 0 ? (r[map.email] || '') : '', phone: map.phone >= 0 ? (r[map.phone] || '') : '', subjects: map.subjects >= 0 ? (r[map.subjects] || '') : '', classes: map.classes >= 0 ? (r[map.classes] || '') : '' })).filter(x => (x.name || '').trim() && (x.email || '').indexOf('@') >= 0) : [];
+    const colOpts = parsed ? [{ value: '-1', label: '— none —' }].concat(parsed.headers.map((h, i) => ({ value: String(i), label: h || ('Column ' + (i + 1)) }))) : [];
+    const setCol = (k, v) => setMap(m => Object.assign({}, m, { [k]: parseInt(v, 10) }));
+    const run = async () => {
+      if (!teachersArr.length) { setRes({ err: 'No valid rows — each needs a name and a valid email.' }); return; }
+      setBusy(true); setRes(null);
+      const token = await headToken();
+      try {
+        const r = await fetch(WK + '/provision-teacher/bulk', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token }, body: JSON.stringify({ tenant_id: tenant(), teachers: teachersArr }) });
+        const d = await r.json(); setBusy(false);
+        if (!d.ok) { setRes({ err: d.error || 'Import failed.' }); return; }
+        setRes({ ok: true, created: d.created, total: d.total, results: d.results || [] });
+      } catch (e) { setBusy(false); setRes({ err: String(e && e.message || e) }); }
+    };
+    const downloadCreds = () => {
+      const rows = (res.results || []).filter(x => x.ok && x.tempPassword);
+      const csv = 'Name,Email,Temp password,Login link\n' + rows.map(x => [x.name, x.email, x.tempPassword, location.origin + '/s/' + tenant()].map(v => '"' + String(v || '').replace(/"/g, '""') + '"').join(',')).join('\n');
+      const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' })); a.download = 'teacher-logins-' + tenant() + '.csv'; a.click();
+    };
+    return (
+      <Modal title={'Import ' + vocab().staff.toLowerCase() + 's'} onClose={onClose}>
+        {res && res.ok ? (
+          <div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: T.good, marginBottom: 8 }}>{res.created} of {res.total} created ✓</div>
+            <div style={{ fontSize: 12.5, color: T.ink2, lineHeight: 1.6 }}>Each got a login (email + temp password) and their subjects/classes are saved. Download the credentials to share, then open <b>Timetable → Auto-generate</b> and they'll be allocated automatically.</div>
+            {res.results.filter(x => !x.ok).length > 0 && <div style={{ marginTop: 10, fontSize: 12, color: T.warn }}>{res.results.filter(x => !x.ok).length} skipped (already exist or bad email).</div>}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 18 }}>
+              <button style={btnG} onClick={downloadCreds}>Download logins (CSV)</button>
+              <button style={btnP} onClick={onDone}>Done</button>
+            </div>
+          </div>
+        ) : !parsed ? (
+          <div>
+            <div style={{ fontSize: 12.5, color: T.ink3, marginBottom: 12 }}>Columns: <b>Name, Email, Phone, Subjects, Classes</b>. Subjects &amp; classes can be separated by ; or , (e.g. <code>Physics;Chemistry</code> · <code>S1;S2</code>).</div>
+            <div style={{ border: '1px dashed ' + T.border, borderRadius: 12, padding: 20, textAlign: 'center', marginBottom: 12 }}>
+              <input type="file" accept=".csv,.tsv,.txt" onChange={onFile} style={{ fontSize: 13, color: T.ink2 }} />
+            </div>
+            <div style={{ fontSize: 11, color: T.ink3, fontFamily: T.mono, marginBottom: 6 }}>OR PASTE</div>
+            <textarea value={raw} onChange={e => { setRaw(e.target.value); doParse(e.target.value); }} placeholder={'Name, Email, Phone, Subjects, Classes\nMr Patrick Wandera, patrick@school.ug, +2567.., Mathematics;Physics, S1;S2;S3'} rows={5} style={{ width: '100%', background: T.bg, border: '1px solid ' + T.border, borderRadius: 9, padding: 12, fontSize: 12.5, color: T.ink, fontFamily: T.mono, outline: 'none' }} />
+            {res && res.err && <div style={{ marginTop: 10, color: T.redInk, fontSize: 12.5 }}>{res.err}</div>}
+          </div>
+        ) : (
+          <div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
+              {[['name', 'Name'], ['email', 'Email'], ['phone', 'Phone'], ['subjects', 'Subjects'], ['classes', 'Classes']].map(fd => (
+                <label key={fd[0]}><div style={{ fontSize: 11, color: T.ink3, fontFamily: T.mono, marginBottom: 5 }}>{fd[1].toUpperCase()}</div><select style={inp} value={String(map[fd[0]])} onChange={e => setCol(fd[0], e.target.value)}>{colOpts.map(co => <option key={co.value} value={co.value}>{co.label}</option>)}</select></label>
+              ))}
+            </div>
+            <div style={{ fontSize: 11.5, color: T.ink3, marginBottom: 6 }}>{teachersArr.length} teacher(s) ready · each gets a login.</div>
+            <div style={{ border: '1px solid ' + T.border, borderRadius: 9, maxHeight: 180, overflowY: 'auto' }}>
+              {teachersArr.slice(0, 12).map((t, i) => <div key={i} style={{ padding: '8px 11px', borderBottom: '1px solid ' + T.border, fontSize: 12 }}><b style={{ color: T.ink }}>{t.name}</b> · {t.email} · <span style={{ color: T.ink3 }}>{t.subjects || 'no subjects'} · {t.classes || 'no classes'}</span></div>)}
+            </div>
+            <div style={{ marginTop: 8 }}><span onClick={() => { setParsed(null); setRaw(''); }} style={{ fontSize: 12, color: T.ink3, cursor: 'pointer', textDecoration: 'underline' }}>Start over</span></div>
+            {res && res.err && <div style={{ marginTop: 10, color: T.redInk, fontSize: 12.5 }}>{res.err}</div>}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
+              <button style={btnG} onClick={onClose}>Cancel</button>
+              <button style={Object.assign({}, btnP, (busy || !teachersArr.length) ? { opacity: 0.6 } : null)} onClick={run} disabled={busy || !teachersArr.length}>{busy ? 'Creating…' : ('Create ' + teachersArr.length + ' logins')}</button>
+            </div>
+          </div>
+        )}
+      </Modal>
     );
   }
 
@@ -9184,7 +9270,7 @@ window.PEAK_STAFF = (function () {
             <div className="peak-topbar" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 14px', borderBottom: '1px solid ' + T.border, background: T.bg, flexShrink: 0 }}>
               <button onClick={() => setNavOpen(true)} aria-label="Menu" style={{ background: 'transparent', border: '1px solid ' + T.border, borderRadius: 9, color: T.ink, width: 40, height: 40, fontSize: 19, lineHeight: 1, cursor: 'pointer', flexShrink: 0 }}>{'\u2630'}</button>
               <div style={{ fontSize: 15, fontWeight: 700, color: T.ink, letterSpacing: '-0.01em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{(typeof window !== 'undefined' && window.__BRAND_NAME) || 'Peak Primary'}</div>
-              <span style={{ marginLeft: 'auto', fontSize: 9, color: T.ink4, fontFamily: T.mono, flexShrink: 0 }}>b19</span>
+              <span style={{ marginLeft: 'auto', fontSize: 9, color: T.ink4, fontFamily: T.mono, flexShrink: 0 }}>b20</span>
             </div>
           )}
           <div className="peak-screen" style={{ flex: 1, minWidth: 0, overflow: 'auto' }}>{Screen}</div>
