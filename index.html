@@ -5419,7 +5419,7 @@ You: "'We help you get more done with less stress.' Nine plain words beat the ja
               fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 14,
             }}>N</div>
             <div>
-              <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', letterSpacing: 1.5, color: 'var(--text-tertiary)' }}>NIA'S WATCH <span style={{ color: 'var(--mint)', marginLeft: 6 }}>· LIVE v9</span></div>
+              <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', letterSpacing: 1.5, color: 'var(--text-tertiary)' }}>NIA'S WATCH <span style={{ color: 'var(--mint)', marginLeft: 6 }}>· LIVE v10</span></div>
               <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)' }}>
                 What happened while you were away
               </div>
@@ -6313,6 +6313,17 @@ window.OnboardingPage = function OnboardingPage(props) {
                 <input style={{ ...inp, fontFamily: reveal ? 'var(--font-mono)' : 'inherit' }} type={reveal ? 'text' : 'password'} value={lockedView ? '' : (f.password || '')} disabled={lockedView} onChange={e => set('password', e.target.value)} placeholder={lockedView ? '🔒 locked' : '••••••'} />
                 <button onClick={() => setReveal(r => !r)} disabled={lockedView} style={{ background: 'transparent', border: '1px solid var(--border-default)', color: 'var(--text-secondary)', borderRadius: 'var(--radius-sm)', padding: '0 12px', fontSize: 12, cursor: 'pointer' }}>{reveal ? 'Hide' : 'Show'}</button>
               </div>
+              {f.headEmail ? <button onClick={async () => {
+                const pin = window.prompt('Admin PIN to reset the login for ' + f.headEmail + ':'); if (!pin) return;
+                try {
+                  const base = (window.NEXT_OS_SENTINEL_ENDPOINT) || 'https://nextos-sentinel.nextafricaai.workers.dev';
+                  const rr = await fetch(base + '/admin/reset-login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pin: pin, email: f.headEmail, tenant_id: f.tenantId }) });
+                  const d = await rr.json();
+                  if (!d.ok) { alert(d.error || 'Reset failed'); return; }
+                  set('password', d.tempPassword); setReveal(true);
+                  window.prompt('New temporary password for ' + f.headEmail + ' (copy & share; Save to keep it in the vault):', d.tempPassword);
+                } catch (e) { alert('Reset error: ' + (e && e.message || e)); }
+              }} style={{ marginTop: 8, background: 'rgba(255,180,0,0.10)', border: '1px solid var(--gold)', color: 'var(--gold)', borderRadius: 'var(--radius-sm)', padding: '7px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>↺ Reset this login (operator)</button> : null}
             </label>
           </div>
           <div style={{ marginTop: 16 }}>
