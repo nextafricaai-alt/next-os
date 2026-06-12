@@ -123,6 +123,12 @@
       [style*="padding: 26px 30px"] { padding: 14px 14px !important; }
       [style*="padding: 24px 28px"] { padding: 13px 13px !important; }
       [style*="padding: 24px 32px"] { padding: 13px 14px !important; }
+      /* Today screen: stop the fixed-height two-panel split, flow as one scrolling page */
+      .today-shell { height: auto !important; min-height: 0 !important; overflow: visible !important; display: block !important; }
+      .today-main { display: block !important; height: auto !important; }
+      .today-left { overflow: visible !important; padding: 16px 14px 8px !important; }
+      .today-aside { border-left: none !important; border-top: 1px solid rgba(255,255,255,0.08) !important; min-height: 0 !important; }
+      .today-aside-scroll { overflow: visible !important; flex: none !important; }
       /* let inputs/buttons be comfortable tap targets */
       input, select, textarea, button { font-size: 16px; }
     }
@@ -3237,7 +3243,7 @@ const V4 = (function () {
     const setActive = onNav || setLocalActive;
     const [period, setPeriod] = useState('Today');
     return (
-      <div style={{
+      <div className="today-shell" style={{
         width: embed ? '100%' : 1440, height: embed ? '100%' : 900,
         display: 'flex', background: T.bg, color: T.ink,
         fontFamily: T.font, fontSize: 13, overflow: 'hidden',
@@ -3554,9 +3560,9 @@ const PD_Today = (function () {
         fontFamily: T.font, fontSize: 13, overflow: 'hidden',
       }}>
         {!embed && <Rail active="today" onNav={onNav} />}
-        <main style={{ flex: 1, display: 'grid', gridTemplateColumns: '1fr 380px', minWidth: 0 }}>
+        <main className="today-main" style={{ flex: 1, display: 'grid', gridTemplateColumns: '1fr 380px', minWidth: 0 }}>
           {/* left scroll column */}
-          <div style={{ overflow: 'auto', padding: '32px 40px 60px' }}>
+          <div className="today-left" style={{ overflow: 'auto', padding: '32px 40px 60px' }}>
             {/* page header */}
             <div style={{ marginBottom: 28 }}>
               <div style={{ fontSize: 11, color: T.ink3, fontFamily: T.mono, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 10, fontWeight: 600 }}>
@@ -3596,7 +3602,7 @@ const PD_Today = (function () {
           </div>
 
           {/* right side: AI co-pilot for today */}
-          <aside style={{
+          <aside className="today-aside" style={{
             background: T.surface, borderLeft: '1px solid ' + T.border, display: 'flex', flexDirection: 'column', minHeight: 0,
           }}>
             <div style={{ padding: '22px 22px 18px', borderBottom: '1px solid ' + T.border }}>
@@ -3615,7 +3621,7 @@ const PD_Today = (function () {
               </div>
             </div>
 
-            <div style={{ padding: 18, flex: 1, overflow: 'auto', display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div className="today-aside-scroll" style={{ padding: 18, flex: 1, overflow: 'auto', display: 'flex', flexDirection: 'column', gap: 12 }}>
               {[
                 {
                   tag: 'TREND',
