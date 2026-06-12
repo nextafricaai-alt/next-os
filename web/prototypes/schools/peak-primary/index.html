@@ -126,6 +126,11 @@
       [style*="padding: 26px 30px"] { padding: 14px 14px !important; }
       [style*="padding: 24px 28px"] { padding: 13px 13px !important; }
       [style*="padding: 24px 32px"] { padding: 13px 14px !important; }
+      /* Mobile: let the whole school OS scroll as a normal document (no fixed-height clipping) */
+      .peak-shell { height: auto !important; min-height: 100vh; overflow: visible !important; display: block !important; }
+      .peak-col { height: auto !important; overflow: visible !important; }
+      .peak-screen { height: auto !important; overflow: visible !important; }
+      .peak-topbar { position: sticky; top: 0; z-index: 50; }
       /* Today screen: stop the fixed-height two-panel split, flow as one scrolling page */
       .today-shell { height: auto !important; min-height: 0 !important; overflow: visible !important; display: block !important; }
       .today-main { display: block !important; height: auto !important; }
@@ -8920,7 +8925,7 @@ window.PEAK_STAFF = (function () {
     }
 
     return (
-      <div style={{ display: 'flex', height: '100vh', background: T.bg, color: T.ink, fontFamily: T.font, overflow: 'hidden' }}>
+      <div className="peak-shell" style={{ display: 'flex', height: '100vh', background: T.bg, color: T.ink, fontFamily: T.font, overflow: 'hidden' }}>
         {!narrow && <Sidebar route={route} onNav={navigate} />}
         {narrow && navOpen && (
           <React.Fragment>
@@ -8930,14 +8935,14 @@ window.PEAK_STAFF = (function () {
             </div>
           </React.Fragment>
         )}
-        <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <div className="peak-col" style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           {narrow && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 14px', borderBottom: '1px solid ' + T.border, background: T.bg, flexShrink: 0 }}>
+            <div className="peak-topbar" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 14px', borderBottom: '1px solid ' + T.border, background: T.bg, flexShrink: 0 }}>
               <button onClick={() => setNavOpen(true)} aria-label="Menu" style={{ background: 'transparent', border: '1px solid ' + T.border, borderRadius: 9, color: T.ink, width: 40, height: 40, fontSize: 19, lineHeight: 1, cursor: 'pointer', flexShrink: 0 }}>{'\u2630'}</button>
               <div style={{ fontSize: 15, fontWeight: 700, color: T.ink, letterSpacing: '-0.01em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{(typeof window !== 'undefined' && window.__BRAND_NAME) || 'Peak Primary'}</div>
             </div>
           )}
-          <div style={{ flex: 1, minWidth: 0, overflow: 'auto' }}>{Screen}</div>
+          <div className="peak-screen" style={{ flex: 1, minWidth: 0, overflow: 'auto' }}>{Screen}</div>
         </div>
       </div>
     );
