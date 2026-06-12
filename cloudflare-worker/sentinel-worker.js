@@ -218,7 +218,7 @@ export default {
     }
 
     // GET-allowed routes (read-only endpoints live below this gate)
-    const GET_OK = ['/check-project', '/seo-audit', '/px.js', '/analytics', '/gsc', '/ga4', '/fetch-page', '/site-pages', '/cms/collections', '/cms/items', '/students', '/exams', '/exam-results', '/fees-balances', '/staff-status', '/student-health', '/events', '/finance', '/assets', '/school-config', '/os-data', '/teachers'];
+    const GET_OK = ['/check-project', '/seo-audit', '/px.js', '/analytics', '/gsc', '/ga4', '/fetch-page', '/site-pages', '/cms/collections', '/cms/items', '/students', '/exams', '/exam-results', '/fees-balances', '/staff-status', '/student-health', '/events', '/finance', '/assets', '/school-config', '/os-data', '/teachers', '/hosting-report'];
     if (request.method !== 'POST' && !GET_OK.includes(url.pathname)) {
       return new Response('Method not allowed', { status: 405, headers: cors });
     }
@@ -263,6 +263,9 @@ export default {
     }
     if (url.pathname === '/teachers') {
       return handleTeachersList(url.searchParams.get('tenant') || '', env, cors);
+    }
+    if (url.pathname === '/hosting-report') {
+      return handleHostingReport(request, env, cors);
     }
 
     // ─── Route: /issue-receipt — Nia issues a real receipt for a tenant ──
@@ -1683,6 +1686,28 @@ function detectLevel(name) {
   if (/universit|college|polytechnic|\binstitute\b|tertiary|campus|\bvocational\b/.test(n)) return 'tertiary';
   if (/secondary|\bhigh\b|seminary|\bs\.?s\.?s?\b|o.?level|a.?level/.test(n)) return 'secondary';
   return 'primary';
+}
+
+async function handleHostingReport(request, env, cors) {
+  const J = (o, st) => new Response(JSON.stringify(o), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
+  if (!env.SUPABASE_URL || !env.SUPABASE_KEY) return J({ error: 'Supabase not configured.' }, 500);
+  const url = new URL(request.url);
+  if (request.method === 'POST') {
+    let b; try { b = await request.json(); } catch (e) { return J({ error: 'bad body' }, 400); }
+    const site = String(b.site || '').toLowerCase().replace(/^www\./, '').trim();
+    if (!site) return J({ error: 'site required' }, 400);
+    const payload = { site: site, diskMB: Math.round((Number(b.diskMB) || 0) * 10) / 10, inodes: Math.round(Number(b.inodes != null ? b.inodes : b.files) || 0), files: Math.round(Number(b.files != null ? b.files : b.inodes) || 0), at: new Date().toISOString() };
+    try {
+      const existing = await sbFetch(env, '/os_records?tenant=eq.next&kind=eq.hosting_stat&payload->>site=eq.' + encodeURIComponent(site) + '&select=id&limit=1');
+      if (existing && existing[0]) { await fetch(env.SUPABASE_URL + '/rest/v1/os_records?id=eq.' + existing[0].id, { method: 'PATCH', headers: sbHeaders(env, 'return=minimal'), body: JSON.stringify({ payload: payload }) }); }
+      else { await sbWrite(env, '/os_records', { tenant: 'next', kind: 'hosting_stat', payload: payload }, 'POST', 'return=minimal'); }
+      return J(Object.assign({ ok: true }, payload));
+    } catch (e) { return J({ error: String((e && e.message) || e) }, 200); }
+  }
+  const site = String(url.searchParams.get('site') || '').toLowerCase().replace(/^www\./, '').trim();
+  if (!site) return J({ error: 'site required' }, 400);
+  try { const rows = await sbFetch(env, '/os_records?tenant=eq.next&kind=eq.hosting_stat&payload->>site=eq.' + encodeURIComponent(site) + '&select=payload&limit=1'); return J({ site, stat: (rows && rows[0] && rows[0].payload) || null }); }
+  catch (e) { return J({ error: String((e && e.message) || e), site }, 200); }
 }
 
 async function handleTeachersList(tenant, env, cors) {
