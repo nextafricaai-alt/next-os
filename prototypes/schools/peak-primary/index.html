@@ -137,6 +137,25 @@
       .today-left { overflow: visible !important; padding: 16px 14px 8px !important; }
       .today-aside { border-left: none !important; border-top: 1px solid rgba(255,255,255,0.08) !important; min-height: 0 !important; }
       .today-aside-scroll { overflow: visible !important; flex: none !important; }
+      /* ===== Hard stop on horizontal bleed + fix dense/fixed-width layouts ===== */
+      html, body { overflow-x: hidden !important; }
+      #root, .peak-shell, .peak-col, .peak-screen { max-width: 100vw !important; }
+      /* 14-stream attendance heat strip -> swipeable horizontal row (calendar 7-col grid untouched) */
+      [style*="repeat(14, 1fr)"], [style*="repeat(14,1fr)"] {
+        display: flex !important; flex-wrap: nowrap !important; overflow-x: auto !important;
+        gap: 8px !important; -webkit-overflow-scrolling: touch; padding-bottom: 6px;
+      }
+      [style*="repeat(14, 1fr)"] > *, [style*="repeat(14,1fr)"] > * { flex: 0 0 auto !important; min-width: 62px !important; }
+      /* rows/grids with a fixed wide column -> wrap to fit the phone */
+      [style*="44px 1fr 1fr 320px"], [style*="1fr 1fr 320px"], [style*="1fr 320px"],
+      [style*="1fr 300px"], [style*="1fr 280px"], [style*="1fr 260px"], [style*="1fr 240px"] {
+        display: flex !important; flex-wrap: wrap !important; gap: 8px !important; align-items: center !important;
+      }
+      /* fixed-width inputs/search/cards -> fluid */
+      [style*="width: 320px"], [style*="width: 300px"], [style*="width: 280px"],
+      [style*="width: 260px"], [style*="width: 240px"], [style*="width: 220px"] { width: 100% !important; max-width: 100% !important; }
+      /* any wrapping strip that scrolls keeps within the screen */
+      [style*="overflow-x: auto"], [style*="overflowX: auto"] { max-width: 100% !important; }
       /* let inputs/buttons be comfortable tap targets */
       input, select, textarea, button { font-size: 16px; }
     }
