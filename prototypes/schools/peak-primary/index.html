@@ -78,6 +78,57 @@
       [style*="grid-template-columns: 50px 60px 80px 1.2fr 100px 1.4fr 100px 80px"] > *:nth-child(4),
       [style*="grid-template-columns: 90px 1fr 1.6fr 100px 100px 110px 120px"] > *:nth-child(3) { flex: 1 1 60% !important; min-width: 0 !important; }
     }
+
+    /* ===== Phone polish — broad reflow (calendar 7-col grid intentionally left alone) ===== */
+    @media (max-width: 640px) {
+      /* two/three-column layouts and any auto-fit/minmax card grid -> single column */
+      [style*="grid-template-columns: 1fr 1fr"],
+      [style*="grid-template-columns: 2fr 1fr"],
+      [style*="grid-template-columns: 1fr 2fr"],
+      [style*="grid-template-columns: 1.5fr 1fr"],
+      [style*="grid-template-columns: 1.6fr 1fr"],
+      [style*="grid-template-columns: 1.4fr 1fr"],
+      [style*="grid-template-columns: 1fr 1.4fr"],
+      [style*="grid-template-columns: 1fr 1.2fr"],
+      [style*="grid-template-columns: repeat(auto-fit"],
+      [style*="grid-template-columns: repeat(auto-fill"],
+      [style*="minmax(380px"], [style*="minmax(360px"], [style*="minmax(340px"],
+      [style*="minmax(320px"], [style*="minmax(300px"], [style*="minmax(280px"],
+      [style*="minmax(260px"], [style*="minmax(240px"], [style*="minmax(220px"],
+      [style*="minmax(200px"], [style*="minmax(180px"] {
+        grid-template-columns: 1fr !important;
+      }
+      /* real tables scroll sideways instead of overflowing */
+      table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; max-width: 100%; }
+      /* tame oversized display type */
+      h1 { font-size: 24px !important; line-height: 1.12 !important; }
+      [style*="font-size: 42px"] { font-size: 27px !important; }
+      [style*="font-size: 40px"] { font-size: 27px !important; }
+      [style*="font-size: 38px"] { font-size: 26px !important; }
+      [style*="font-size: 36px"] { font-size: 26px !important; }
+      [style*="font-size: 34px"] { font-size: 25px !important; }
+      [style*="font-size: 30px"] { font-size: 23px !important; }
+      [style*="font-size: 28px"] { font-size: 22px !important; }
+      [style*="font-size: 26px"] { font-size: 21px !important; }
+      /* trim the biggest paddings so content is not squeezed */
+      [style*="padding: 32px"] { padding: 15px !important; }
+      [style*="padding: 30px"] { padding: 15px !important; }
+      [style*="padding: 28px"] { padding: 15px !important; }
+      [style*="padding: 26px"] { padding: 14px !important; }
+      [style*="padding: 24px"] { padding: 14px !important; }
+      [style*="padding: 22px"] { padding: 13px !important; }
+      [style*="padding: 20px 32px"] { padding: 12px 14px !important; }
+      [style*="padding: 18px 32px"] { padding: 12px 14px !important; }
+      [style*="padding: 28px 32px"] { padding: 14px 14px !important; }
+      [style*="padding: 26px 30px"] { padding: 14px 14px !important; }
+      [style*="padding: 24px 28px"] { padding: 13px 13px !important; }
+      [style*="padding: 24px 32px"] { padding: 13px 14px !important; }
+      /* let inputs/buttons be comfortable tap targets */
+      input, select, textarea, button { font-size: 16px; }
+    }
+    @media (max-width: 400px) {
+      h1 { font-size: 21px !important; }
+    }
   </style>
 </head>
 <body>
