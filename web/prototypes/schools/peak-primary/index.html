@@ -1720,6 +1720,7 @@
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))', gap: 20 }}>
               <CheckInCard teacher={data.teacher} checkin={data.checkin} onCheckedIn={onCheckedIn} onCheckedOut={onCheckedOut} profile={profile} />
               <MyTasksCard profile={profile} />
+              <MyLessonsCard profile={profile} />
               <NiaCoachCard
                 data={{ teacher: data.teacher, assignments: data.assignments, rollCalls: data.rollCalls || [], checkin: data.checkin, healthRecords: data.healthRecords || [] }}
                 onTakeRollCall={setRollCallStream}
@@ -1821,6 +1822,123 @@
               ))}
             </div>
           )}
+      </div>
+    );
+  }
+
+  function MyLessonsCard({ profile }) {
+    const WK = 'https://nextos-sentinel.nextafricaai.workers.dev';
+    const email = ((profile && profile.email) || '').toLowerCase();
+    const tenantId = (profile && profile.tenantId) || 'peak-primary';
+    const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const [tt, setTt] = useState(null);   // {periods, grid}
+    const [showWeek, setShowWeek] = useState(false);
+    const [plan, setPlan] = useState(null); // lesson object being planned
+    const load = useCallback(() => {
+      fetch(WK + '/os-data?kind=timetable&tenant=' + encodeURIComponent(tenantId)).then(r => r.json()).then(d => {
+        const rec = ((d && d.records) || [])[0]; if (rec && rec.payload) setTt(rec.payload); else setTt({ periods: [], grid: {} });
+      }).catch(() => setTt({ periods: [], grid: {} }));
+    }, [email, tenantId]);
+    useEffect(() => { load(); const iv = setInterval(load, 60000); const onVis = () => { if (!document.hidden) load(); }; document.addEventListener('visibilitychange', onVis); window.addEventListener('focus', load); return () => { clearInterval(iv); document.removeEventListener('visibilitychange', onVis); window.removeEventListener('focus', load); }; }, [load]);
+
+    // build this teacher's lessons per weekday from the grid
+    const mine = {}; ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'].forEach(d => mine[d] = []);
+    if (tt && tt.grid) {
+      Object.keys(tt.grid).forEach(cls => {
+        ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'].forEach(d => {
+          (tt.grid[cls][d] || []).forEach((cell, pi) => {
+            if (cell && !cell.brk && cell.subject && (cell.teacherEmail || '').toLowerCase() === email) {
+              const p = (tt.periods || [])[pi] || {};
+              mine[d].push({ cls, subject: cell.subject, pi, label: p.l, start: p.s, end: p.e });
+            }
+          });
+        });
+      });
+      ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'].forEach(d => mine[d].sort((a, b) => (a.pi - b.pi)));
+    }
+    const todayName = DAYS[new Date().getDay()];
+    const todayKey = (todayName === 'Sat' || todayName === 'Sun') ? 'Mon' : todayName;
+    const todays = mine[todayKey] || [];
+    const totalWeek = Object.values(mine).reduce((a, arr) => a + arr.length, 0);
+
+    const lessonRow = (L, withDay) => (
+      <div key={(withDay || '') + L.cls + L.pi} style={{ display: 'flex', alignItems: 'center', gap: 10, border: '1px solid ' + T.border, borderRadius: 10, padding: '9px 12px' }}>
+        <div style={{ width: 46, flexShrink: 0 }}>
+          <div style={{ fontSize: 11.5, fontWeight: 700, color: T.ink }}>{L.label}</div>
+          <div style={{ fontSize: 9.5, color: T.ink4, fontFamily: T.mono }}>{L.start}</div>
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 13.5, fontWeight: 600, color: T.ink }}>{L.subject}</div>
+          <div style={{ fontSize: 11.5, color: T.ink3 }}>{(withDay ? withDay + ' · ' : '') + L.cls}</div>
+        </div>
+        <button onClick={() => setPlan(L)} style={{ background: 'transparent', border: '1px solid ' + T.border, color: T.ink2, borderRadius: 8, padding: '6px 11px', fontSize: 11.5, cursor: 'pointer', flexShrink: 0 }}>Lesson plan</button>
+      </div>
+    );
+
+    return (
+      <div style={{ background: T.surface, border: '1px solid ' + T.border, borderRadius: 14, padding: 22 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+          <div style={{ fontSize: 12, fontFamily: T.mono, letterSpacing: 0.8, color: T.ink3 }}>MY LESSONS · {todayName.toUpperCase()}</div>
+          {totalWeek > 0 && <button onClick={() => setShowWeek(w => !w)} style={{ background: 'transparent', border: 'none', color: T.red, fontSize: 11.5, cursor: 'pointer' }}>{showWeek ? 'Today only' : 'Full week (' + totalWeek + ')'}</button>}
+        </div>
+        {tt === null ? <div style={{ color: T.ink3, fontSize: 12.5 }}>Loading your timetable…</div> :
+          totalWeek === 0 ? <div style={{ color: T.ink3, fontSize: 13, lineHeight: 1.5 }}>No lessons assigned to you yet. Once the head teacher builds the timetable, your classes appear here automatically.</div> :
+          showWeek ? (
+            <div style={{ display: 'grid', gap: 10 }}>
+              {['Mon', 'Tue', 'Wed', 'Thu', 'Fri'].map(d => (mine[d].length ? <div key={d}><div style={{ fontSize: 10.5, fontFamily: T.mono, color: T.ink4, margin: '4px 0 6px' }}>{d.toUpperCase()}</div><div style={{ display: 'grid', gap: 8 }}>{mine[d].map(L => lessonRow(L))}</div></div> : null))}
+            </div>
+          ) : (
+            todays.length ? <div style={{ display: 'grid', gap: 8 }}>{todays.map(L => lessonRow(L))}</div> : <div style={{ color: T.ink3, fontSize: 13 }}>No lessons for you today. Enjoy the breather.</div>
+          )}
+        {plan && <LessonPlanModal lesson={plan} profile={profile} onClose={() => setPlan(null)} />}
+      </div>
+    );
+  }
+
+  function LessonPlanModal({ lesson, profile, onClose }) {
+    const WK = 'https://nextos-sentinel.nextafricaai.workers.dev';
+    const email = ((profile && profile.email) || '').toLowerCase();
+    const tenantId = (profile && profile.tenantId) || 'peak-primary';
+    const key = email + '|' + lesson.cls + '|' + lesson.subject;
+    const [f, setF] = useState({ topic: '', objectives: '', activities: '', materials: '', notes: '' });
+    const [recId, setRecId] = useState(null);
+    const [busy, setBusy] = useState(false);
+    const [loaded, setLoaded] = useState(false);
+    useEffect(() => {
+      fetch(WK + '/os-data?kind=lesson_plan&tenant=' + encodeURIComponent(tenantId)).then(r => r.json()).then(d => {
+        const rec = ((d && d.records) || []).find(x => (x.payload && x.payload.key) === key);
+        if (rec) { setRecId(rec.id); setF(Object.assign({ topic: '', objectives: '', activities: '', materials: '', notes: '' }, rec.payload)); }
+        setLoaded(true);
+      }).catch(() => setLoaded(true));
+    }, []);
+    const set = (k, v) => setF(o => Object.assign({}, o, { [k]: v }));
+    const inp = { width: '100%', background: T.bg, border: '1px solid ' + T.border, borderRadius: 9, padding: '10px 12px', fontSize: 13, color: T.ink, fontFamily: T.font, outline: 'none', boxSizing: 'border-box' };
+    const lbl = { fontSize: 11, color: T.ink3, fontFamily: T.mono, marginBottom: 5 };
+    const save = () => {
+      setBusy(true);
+      const rec = { key, teacherEmail: email, cls: lesson.cls, subject: lesson.subject, topic: f.topic, objectives: f.objectives, activities: f.activities, materials: f.materials, notes: f.notes, updatedAt: new Date().toISOString() };
+      fetch(WK + '/os-data/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(recId ? { kind: 'lesson_plan', tenant: tenantId, record: rec, id: recId } : { kind: 'lesson_plan', tenant: tenantId, record: rec }) })
+        .then(r => r.json()).then(() => { setBusy(false); window.tinyToast ? window.tinyToast('Lesson plan saved', 'success') : null; onClose(); }).catch(() => setBusy(false));
+    };
+    return (
+      <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 9000, background: 'rgba(5,8,22,0.72)', backdropFilter: 'blur(6px)', display: 'grid', placeItems: 'center', padding: 20 }}>
+        <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 480, background: T.surface, border: '1px solid ' + T.border, borderRadius: 16, padding: 22, maxHeight: '92vh', overflow: 'auto', color: T.ink, fontFamily: T.font }}>
+          <div style={{ fontSize: 16, fontWeight: 700 }}>{lesson.subject} · {lesson.cls}</div>
+          <div style={{ fontSize: 12, color: T.ink3, marginBottom: 16 }}>Lesson plan</div>
+          {!loaded ? <div style={{ color: T.ink3, fontSize: 12.5 }}>Loading…</div> : (
+            <div style={{ display: 'grid', gap: 12 }}>
+              <label><div style={lbl}>TOPIC</div><input style={inp} value={f.topic} onChange={e => set('topic', e.target.value)} placeholder="e.g. Fractions — part-whole" /></label>
+              <label><div style={lbl}>OBJECTIVES</div><textarea style={{ ...inp, minHeight: 60 }} value={f.objectives} onChange={e => set('objectives', e.target.value)} placeholder="By the end, learners can…" /></label>
+              <label><div style={lbl}>ACTIVITIES</div><textarea style={{ ...inp, minHeight: 70 }} value={f.activities} onChange={e => set('activities', e.target.value)} placeholder="Intro, main activity, group work, practice…" /></label>
+              <label><div style={lbl}>MATERIALS</div><input style={inp} value={f.materials} onChange={e => set('materials', e.target.value)} placeholder="Chalkboard, worksheets, counters…" /></label>
+              <label><div style={lbl}>NOTES</div><textarea style={{ ...inp, minHeight: 50 }} value={f.notes} onChange={e => set('notes', e.target.value)} placeholder="Anything else" /></label>
+            </div>
+          )}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 18 }}>
+            <button onClick={onClose} style={{ background: 'transparent', border: '1px solid ' + T.border, color: T.ink2, borderRadius: 9, padding: '9px 16px', fontSize: 13, cursor: 'pointer' }}>Close</button>
+            <button onClick={save} disabled={busy} style={{ background: T.red, color: '#fff', border: 'none', borderRadius: 9, padding: '9px 18px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>{busy ? 'Saving…' : 'Save plan'}</button>
+          </div>
+        </div>
       </div>
     );
   }
@@ -9270,7 +9388,7 @@ window.PEAK_STAFF = (function () {
             <div className="peak-topbar" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 14px', borderBottom: '1px solid ' + T.border, background: T.bg, flexShrink: 0 }}>
               <button onClick={() => setNavOpen(true)} aria-label="Menu" style={{ background: 'transparent', border: '1px solid ' + T.border, borderRadius: 9, color: T.ink, width: 40, height: 40, fontSize: 19, lineHeight: 1, cursor: 'pointer', flexShrink: 0 }}>{'\u2630'}</button>
               <div style={{ fontSize: 15, fontWeight: 700, color: T.ink, letterSpacing: '-0.01em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{(typeof window !== 'undefined' && window.__BRAND_NAME) || 'Peak Primary'}</div>
-              <span style={{ marginLeft: 'auto', fontSize: 9, color: T.ink4, fontFamily: T.mono, flexShrink: 0 }}>b20</span>
+              <span style={{ marginLeft: 'auto', fontSize: 9, color: T.ink4, fontFamily: T.mono, flexShrink: 0 }}>b21</span>
             </div>
           )}
           <div className="peak-screen" style={{ flex: 1, minWidth: 0, overflow: 'auto' }}>{Screen}</div>
