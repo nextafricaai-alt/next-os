@@ -218,7 +218,7 @@ export default {
     }
 
     // GET-allowed routes (read-only endpoints live below this gate)
-    const GET_OK = ['/check-project', '/seo-audit', '/px.js', '/analytics', '/gsc', '/ga4', '/fetch-page', '/site-pages', '/cms/collections', '/cms/items', '/students', '/exams', '/exam-results', '/fees-balances', '/staff-status', '/student-health', '/events', '/finance', '/assets', '/school-config', '/os-data', '/teachers', '/hosting-report', '/watch/status'];
+    const GET_OK = ['/check-project', '/seo-audit', '/px.js', '/analytics', '/gsc', '/ga4', '/fetch-page', '/site-pages', '/cms/collections', '/cms/items', '/students', '/exams', '/exam-results', '/fees-balances', '/attendance-summary', '/staff-status', '/student-health', '/events', '/finance', '/assets', '/school-config', '/os-data', '/teachers', '/hosting-report', '/watch/status'];
     if (request.method !== 'POST' && !GET_OK.includes(url.pathname)) {
       return new Response('Method not allowed', { status: 405, headers: cors });
     }
@@ -356,6 +356,7 @@ export default {
     if (url.pathname === '/exam-results')       return handleResultsList(url.searchParams.get('tenant') || '', url.searchParams.get('exam') || '', env, cors);
     if (url.pathname === '/exam-results/save')  return handleResultsSave(request, env, cors);
     if (url.pathname === '/fees-balances')      return handleFeesBalances(url.searchParams.get('tenant') || '', env, cors);
+    if (url.pathname === '/attendance-summary') return handleAttendanceSummary(url.searchParams.get('tenant') || '', url.searchParams.get('days') || '7', env, cors);
     if (url.pathname === '/staff-status')       return handleStaffStatus(url.searchParams.get('tenant') || '', env, cors);
     if (url.pathname === '/student-health')     return handleStudentHealth(url.searchParams.get('tenant') || '', env, cors);
     if (url.pathname === '/events')             return handleEventsList(url.searchParams.get('tenant') || '', env, cors);
@@ -1449,6 +1450,26 @@ async function handleFeesBalances(tenant, env, cors) {
     const bal = {};
     (rows || []).forEach(r => { bal[r.student_id] = (bal[r.student_id] || 0) + Number(r.amount || 0); });
     return J({ tenant, balances: bal });
+  } catch (e) { return J({ error: String((e && e.message) || e), tenant }, 200); }
+}
+
+async function handleAttendanceSummary(tenant, days, env, cors) {
+  const J = (oo, st) => new Response(JSON.stringify(oo), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
+  if (!tenant) return J({ error: 'tenant required' }, 400);
+  if (!env.SUPABASE_URL || !env.SUPABASE_KEY) return J({ error: 'Supabase not configured.' }, 500);
+  try {
+    const win = Math.max(1, Math.min(120, parseInt(days, 10) || 7));
+    const since = new Date(Date.now() - win * 86400000).toISOString().slice(0, 10);
+    const rows = await sbFetch(env, '/student_roll_call?tenant_id=eq.' + encodeURIComponent(tenant) + '&roll_date=gte.' + since + '&select=student_id,status&limit=50000');
+    const agg = {};
+    (rows || []).forEach(r => {
+      const a = agg[r.student_id] || (agg[r.student_id] = { tot: 0, present: 0 });
+      a.tot++;
+      if (r.status === 'present' || r.status === 'late') a.present++;
+    });
+    const summary = {};
+    Object.keys(agg).forEach(k => { const a = agg[k]; summary[k] = { pct: Math.round(100 * a.present / a.tot), days: a.tot }; });
+    return J({ tenant, since, summary });
   } catch (e) { return J({ error: String((e && e.message) || e), tenant }, 200); }
 }
 

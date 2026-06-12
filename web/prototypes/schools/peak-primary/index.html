@@ -8643,14 +8643,18 @@ window.PEAK_STAFF = (function () {
           var WK = 'https://nextos-sentinel.nextafricaai.workers.dev';
           Promise.all([
             fetch(WK + '/students?tenant=' + encodeURIComponent(tenantId)).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; }),
-            fetch(WK + '/fees-balances?tenant=' + encodeURIComponent(tenantId)).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; })
+            fetch(WK + '/fees-balances?tenant=' + encodeURIComponent(tenantId)).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; }),
+            fetch(WK + '/attendance-summary?tenant=' + encodeURIComponent(tenantId) + '&days=7').then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; })
           ]).then(function (res) {
-            var d = res[0], fb = res[1];
+            var d = res[0], fb = res[1], att = res[2];
             if (d && Array.isArray(d.students) && d.students.length) {
               var bal = (fb && fb.balances) || {};
+              var asum = (att && att.summary) || {};
               D.students = d.students.map(function (s) {
                 var b = Number(bal[s.id] || 0);
-                return { id: s.id, name: s.name, stream: s.stream || '', guardian: s.guardian_name || '', guardianPhone: s.guardian_phone || '', balance: b, fees: b > 0 ? 'partial' : 'paid', attendanceWk: null, lastSeen: '\u2014', flag: null };
+                var a = asum[s.id];
+                var pct = (a && a.days > 0) ? a.pct : null;
+                return { id: s.id, name: s.name, stream: s.stream || '', guardian: s.guardian_name || '', guardianPhone: s.guardian_phone || '', balance: b, fees: b > 0 ? 'partial' : 'paid', attendanceWk: pct, lastSeen: '\u2014', flag: (pct != null && pct < 70) || b > 0 ? 'risk' : null };
               });
               D.kpis.students = d.students.length;
               D.studentsLive = true;
@@ -9494,7 +9498,7 @@ window.PEAK_STAFF = (function () {
             <div className="peak-topbar" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 14px', borderBottom: '1px solid ' + T.border, background: T.bg, flexShrink: 0 }}>
               <button onClick={() => setNavOpen(true)} aria-label="Menu" style={{ background: 'transparent', border: '1px solid ' + T.border, borderRadius: 9, color: T.ink, width: 40, height: 40, fontSize: 19, lineHeight: 1, cursor: 'pointer', flexShrink: 0 }}>{'\u2630'}</button>
               <div style={{ fontSize: 15, fontWeight: 700, color: T.ink, letterSpacing: '-0.01em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{(typeof window !== 'undefined' && window.__BRAND_NAME) || 'Peak Primary'}</div>
-              <span style={{ marginLeft: 'auto', fontSize: 9, color: T.ink4, fontFamily: T.mono, flexShrink: 0 }}>b27</span>
+              <span style={{ marginLeft: 'auto', fontSize: 9, color: T.ink4, fontFamily: T.mono, flexShrink: 0 }}>b28</span>
             </div>
           )}
           <div className="peak-screen" style={{ flex: 1, minWidth: 0, overflow: 'auto' }}>{Screen}</div>
