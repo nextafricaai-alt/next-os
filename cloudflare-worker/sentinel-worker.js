@@ -569,6 +569,28 @@ function serverEvaluate(tenant) {
 
 // Ask Llama to write the brief in Nia's voice. Falls back to a plain
 // template if AI is unavailable.
+// Nia's brain: prefer Claude (ANTHROPIC_API_KEY) when set, else Workers AI (free Llama), else empty.
+async function niaGenerate(env, system, user, maxTokens, temperature) {
+  maxTokens = maxTokens || 300; temperature = (temperature == null) ? 0.3 : temperature;
+  if (env.ANTHROPIC_API_KEY) {
+    try {
+      const r = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-api-key': env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
+        body: JSON.stringify({ model: env.ANTHROPIC_MODEL || 'claude-3-5-sonnet-20241022', max_tokens: maxTokens, temperature: temperature, system: system, messages: [{ role: 'user', content: user }] }),
+      });
+      if (r.ok) { const d = await r.json(); const t = (d.content && d.content[0] && d.content[0].text) || ''; if (t && t.trim()) return t.trim(); }
+    } catch (e) {}
+  }
+  if (env.AI) {
+    try {
+      const result = await env.AI.run(MODEL, { messages: [{ role: 'system', content: system }, { role: 'user', content: user }], max_tokens: maxTokens, temperature: temperature });
+      const t = ((result.result || result).response || ''); if (t && t.trim()) return t.trim();
+    } catch (e) {}
+  }
+  return '';
+}
+
 async function composeBrief(env, kind, tenants, actions) {
   const findings = tenants.map(t => ({
     name: t.name,
@@ -595,20 +617,8 @@ async function composeBrief(env, kind, tenants, actions) {
 
   const userPrompt = greeting + '\n\nFacts:\n' + factsBlock + actionsBlock + '\n\nWrite the brief now.';
 
-  try {
-    const result = await env.AI.run(MODEL, {
-      messages: [
-        { role: 'system', content: sysPrompt },
-        { role: 'user', content: userPrompt },
-      ],
-      max_tokens: 200,
-      temperature: 0.3,
-    });
-    const text = (result.result || result).response || '';
-    if (text && text.trim()) return text.trim();
-  } catch (e) {
-    // fall through to template
-  }
+  const text = await niaGenerate(env, sysPrompt, userPrompt, 220, 0.3);
+  if (text && text.trim()) return text.trim();
   // Template fallback
   return greeting + ' ' + findings.map(f =>
     f.name + ': ' + f.concerns.slice(0, 2).map(c => c.summary).join('; ')
@@ -789,14 +799,9 @@ async function composeReminderDraft(env, tenant, concern) {
   const sysPrompt = "You are Nia drafting a warm WhatsApp message for Hudson to send to a guardian at " + tenant.name + ". Use the Charis voice: warm, never demanding, partnership not collection. Open with 'Dear Mr./Mrs. <Surname>,'. Acknowledge the relationship. State the balance factually. Offer payment options. Close warmly. Under 280 chars. Mark guardian name as [GUARDIAN_NAME] and amount as [AMOUNT] so Hudson can fill in.";
   const userPrompt = "Draft a Term 2 fee reminder. " + concern.summary;
   try {
-    const r = await env.AI.run(MODEL, {
-      messages: [
-        { role: 'system', content: sysPrompt },
-        { role: 'user', content: userPrompt },
-      ],
-      max_tokens: 220, temperature: 0.4,
-    });
-    return ((r.result || r).response || '').trim();
+    const t = await niaGenerate(env, sysPrompt, userPrompt, 220, 0.4);
+    if (t && t.trim()) return t.trim();
+    throw new Error('empty');
   } catch (e) {
     return 'Dear [GUARDIAN_NAME], thank you for your continued partnership with ' + tenant.name + '. This is a gentle reminder that Term 2 fees of UGX [AMOUNT] remain outstanding. Please reach out if you would like to arrange installments. Webale.';
   }

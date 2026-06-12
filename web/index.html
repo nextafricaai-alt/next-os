@@ -4331,8 +4331,16 @@ You: "'We help you get more done with less stress.' Nine plain words beat the ja
   function saveConvo(m) { safeSet(KEY_CONVERSATION, JSON.stringify(m)); }
   function shortenForUI(s) { if (!s) return ''; return s.length > 140 ? s.slice(0, 137) + '...' : s; }
 
+  // ─── Nia memory — what she remembers about Hudson & the fleet (persisted) ──
+  const NIA_MEM_WK = (typeof window !== 'undefined' && window.NEXT_OS_SENTINEL_ENDPOINT) || 'https://nextos-sentinel.nextafricaai.workers.dev';
+  function loadNiaMemory() { return fetch(NIA_MEM_WK + '/os-data?kind=nia_memory&tenant=next').then(r => r.json()).then(d => ((d && d.records) || []).map(x => ({ id: x.id, text: (x.payload && x.payload.text) || '' })).filter(m => m.text)).catch(() => []); }
+  function saveNiaMemory(text) { return fetch(NIA_MEM_WK + '/os-data/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind: 'nia_memory', tenant: 'next', record: { text: text, at: new Date().toISOString() } }) }).then(r => r.json()).catch(() => ({})); }
+  function memoryNote(mem) { if (!mem || !mem.length) return ''; return '\n\nWHAT YOU REMEMBER (carry this knowledge naturally, do not list it back):\n' + mem.slice(0, 40).map(m => '- ' + m.text).join('\n'); }
+
   function useConversation() {
     const [messages, setMessages] = React.useState(() => loadConvo());
+    const [memory, setMemory] = React.useState([]);
+    React.useEffect(() => { loadNiaMemory().then(setMemory); }, []);
     const [pending, setPending] = React.useState(false);
     const [error, setError] = React.useState(null);
     const [apiKey, setApiKey] = React.useState(() => safeGet(KEY_API_KEY, ''));
@@ -4360,7 +4368,13 @@ You: "'We help you get more done with less stress.' Nine plain words beat the ja
         if (_p.length) prefNote += '\n- Length: keep replies ' + _p.length + '.';
         if (_p.language && _p.language !== 'English') prefNote += '\n- Language: reply in ' + _p.language + ' when natural for the recipient.';
       } catch (e) {}
-      const augmentedSystem = SYSTEM_PROMPT + brainSnippet + (prefNote ? ('\n\nUSER PREFERENCES (set in Nia HQ):' + prefNote) : '');
+      const augmentedSystem = SYSTEM_PROMPT + brainSnippet + memoryNote(memory) + (prefNote ? ('\n\nUSER PREFERENCES (set in Nia HQ):' + prefNote) : '');
+      // Auto-remember: "remember ..." / "note that ..." / "don't forget ..."
+      const _mem = trimmed.match(/^(?:nia[, ]+)?(?:please\s+)?(?:remember|note that|note:|keep in mind|don'?t forget)\b[:,]?\s*(.+)/i);
+      if (_mem && _mem[1] && _mem[1].length > 2) {
+        const fact = _mem[1].trim().replace(/\.$/, '');
+        saveNiaMemory(fact).then(() => loadNiaMemory().then(setMemory));
+      }
       const _t = trimmed.toLowerCase();
       // Tools are offered ONLY when the message references something a tool can do; everything else stays pure conversation.
       const needsTools = /\b(fleet|tenant|tenants|school|schools|peak|st\.?\s*mary|grace|hope|community|next services|student|students|pupil|enrol|enroll|enrolment|attendance|present|absent|register|fee|fees|pay|payment|paid|receipt|overdue|balance|arrears|money|revenue|finance|expense|expenses|profit|surplus|asset|analytics|traffic|visitor|visitors|pageview|seo|keyword|keywords|rank|ranking|search console|ga4|google|domain|expire|expiry|uptime|down|offline|whatsapp|message|messages|broadcast|draft|send|notify|reminder|remind|check|audit|report|reports|exam|exams|marks|grade|grading|division|teacher|teachers|staff|sick|health|project|projects|site|website|deploy|publish|bare\s?foot|good\s?foundation|st\s?mary|this (?:month|term|week|year)|perform|performing|performance|enrol|enrolment|how many|how much)\b/.test(_t);
@@ -5321,7 +5335,7 @@ You: "'We help you get more done with less stress.' Nine plain words beat the ja
               fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 14,
             }}>N</div>
             <div>
-              <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', letterSpacing: 1.5, color: 'var(--text-tertiary)' }}>NIA'S WATCH <span style={{ color: 'var(--mint)', marginLeft: 6 }}>· LIVE v2</span></div>
+              <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', letterSpacing: 1.5, color: 'var(--text-tertiary)' }}>NIA'S WATCH <span style={{ color: 'var(--mint)', marginLeft: 6 }}>· LIVE v3</span></div>
               <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)' }}>
                 What happened while you were away
               </div>
