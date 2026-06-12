@@ -4115,6 +4115,7 @@ const PD_Students = (function () {
     const [streamFilter, setStreamFilter] = useState('All');
     const [feesFilter, setFeesFilter] = useState('All');
     const [sort, setSort] = useState('name');
+    const [attWin, setAttWin] = useState((window.peakStore && window.peakStore.attWindow) || 7);
     const [drawerOpen, setDrawerOpen] = useState(true);
     const [, force] = React.useReducer(n => n + 1, 0);
     React.useEffect(() => {
@@ -4185,6 +4186,15 @@ const PD_Students = (function () {
                 <option value="overdue">Overdue</option>
               </select>
               <div style={{ flex: 1 }} />
+              <div title="Attendance window" style={{ display: 'flex', gap: 4, padding: 3, background: T.surface, border: '1px solid ' + T.border, borderRadius: 9 }}>
+                {[[7,'This week'],[120,'Term-to-date']].map(([d, l]) => (
+                  <button key={d} onClick={() => { setAttWin(d); if (window.peakStore && window.peakStore.setAttendanceWindow) window.peakStore.setAttendanceWindow(d); }} style={{
+                    padding: '5px 12px', borderRadius: 6, border: 'none',
+                    background: attWin === d ? T.ink : 'transparent', color: attWin === d ? '#fff' : T.ink2,
+                    fontSize: 11.5, fontWeight: 600, cursor: 'pointer', fontFamily: T.font,
+                  }}>{l}</button>
+                ))}
+              </div>
               <div style={{ display: 'flex', gap: 4, padding: 3, background: T.surface, border: '1px solid ' + T.border, borderRadius: 9 }}>
                 {[['name','Name'],['risk','Risk'],['fees','Fees due'],['recent','Recent']].map(([k, l]) => (
                   <button key={k} onClick={() => setSort(k)} style={{
@@ -8638,13 +8648,17 @@ window.PEAK_STAFF = (function () {
         D.live = true; D.hasData = (v.students || 0) > 0;
         notify();
       },
+      _tenant: null,
+      attWindow: 7,
       loadStudents(tenantId) {
+        this._tenant = tenantId;
+        var DAYS = this.attWindow || 7;
         try {
           var WK = 'https://nextos-sentinel.nextafricaai.workers.dev';
           Promise.all([
             fetch(WK + '/students?tenant=' + encodeURIComponent(tenantId)).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; }),
             fetch(WK + '/fees-balances?tenant=' + encodeURIComponent(tenantId)).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; }),
-            fetch(WK + '/attendance-summary?tenant=' + encodeURIComponent(tenantId) + '&days=7').then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; })
+            fetch(WK + '/attendance-summary?tenant=' + encodeURIComponent(tenantId) + '&days=' + DAYS).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; })
           ]).then(function (res) {
             var d = res[0], fb = res[1], att = res[2];
             if (d && Array.isArray(d.students) && d.students.length) {
@@ -8662,6 +8676,23 @@ window.PEAK_STAFF = (function () {
             }
           }).catch(function () {});
         } catch (e) {}
+      },
+      setAttendanceWindow(days) {
+        this.attWindow = days;
+        var tenantId = this._tenant;
+        if (!tenantId) { notify(); return; }
+        var WK = 'https://nextos-sentinel.nextafricaai.workers.dev';
+        fetch(WK + '/attendance-summary?tenant=' + encodeURIComponent(tenantId) + '&days=' + days)
+          .then(function (r) { return r.ok ? r.json() : null; })
+          .then(function (att) {
+            var asum = (att && att.summary) || {};
+            D.students = D.students.map(function (s) {
+              var a = asum[s.id];
+              var pct = (a && a.days > 0) ? a.pct : null;
+              return Object.assign({}, s, { attendanceWk: pct, flag: (pct != null && pct < 70) || s.balance > 0 ? 'risk' : null });
+            });
+            notify();
+          }).catch(function () {});
       },
       saveBroadcast(b) {
         const id = 'b' + (D.broadcasts.length + 1);
@@ -9498,7 +9529,7 @@ window.PEAK_STAFF = (function () {
             <div className="peak-topbar" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 14px', borderBottom: '1px solid ' + T.border, background: T.bg, flexShrink: 0 }}>
               <button onClick={() => setNavOpen(true)} aria-label="Menu" style={{ background: 'transparent', border: '1px solid ' + T.border, borderRadius: 9, color: T.ink, width: 40, height: 40, fontSize: 19, lineHeight: 1, cursor: 'pointer', flexShrink: 0 }}>{'\u2630'}</button>
               <div style={{ fontSize: 15, fontWeight: 700, color: T.ink, letterSpacing: '-0.01em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{(typeof window !== 'undefined' && window.__BRAND_NAME) || 'Peak Primary'}</div>
-              <span style={{ marginLeft: 'auto', fontSize: 9, color: T.ink4, fontFamily: T.mono, flexShrink: 0 }}>b28</span>
+              <span style={{ marginLeft: 'auto', fontSize: 9, color: T.ink4, fontFamily: T.mono, flexShrink: 0 }}>b29</span>
             </div>
           )}
           <div className="peak-screen" style={{ flex: 1, minWidth: 0, overflow: 'auto' }}>{Screen}</div>
