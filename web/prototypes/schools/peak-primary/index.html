@@ -3973,7 +3973,7 @@ const PD_Students = (function () {
 
   function StudentRow({ s, selected, onClick, idx }) {
     const tone = s.fees === 'paid' ? 'good' : s.fees === 'partial' ? 'warn' : 'bad';
-    const attTone = s.attendanceWk >= 90 ? T.good : s.attendanceWk >= 70 ? T.warn : T.red;
+    const attTone = (s.attendanceWk == null) ? T.ink3 : (s.attendanceWk >= 90 ? T.good : s.attendanceWk >= 70 ? T.warn : T.red);
     return (
       <div onClick={() => onClick(s)} style={{
         display: 'grid', gridTemplateColumns: '32px 36px 1.8fr 70px 1fr 1.2fr 90px 80px 36px',
@@ -3996,9 +3996,9 @@ const PD_Students = (function () {
         <div style={{ fontSize: 12, color: T.ink, fontFamily: T.mono, fontWeight: 600 }}>{s.stream}</div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <div style={{ flex: 1, height: 5, borderRadius: 999, background: T.surface2 }}>
-            <div style={{ height: '100%', width: s.attendanceWk + '%', background: attTone, borderRadius: 999 }} />
+            <div style={{ height: '100%', width: (s.attendanceWk == null ? 0 : s.attendanceWk) + '%', background: attTone, borderRadius: 999 }} />
           </div>
-          <span style={{ fontSize: 11, color: attTone, fontFamily: T.mono, fontWeight: 600, width: 32 }}>{s.attendanceWk}%</span>
+          <span style={{ fontSize: 11, color: attTone, fontFamily: T.mono, fontWeight: 600, width: 32 }}>{s.attendanceWk == null ? '\u2014' : s.attendanceWk + '%'}</span>
         </div>
         <div>
           <Pill tone={tone}>{s.fees === 'paid' ? 'Paid' : D.fmtUGXshort(s.balance) + ' due'}</Pill>
@@ -4033,7 +4033,7 @@ const PD_Students = (function () {
         <div style={{ padding: '18px 22px', flex: 1, overflow: 'auto', display: 'flex', flexDirection: 'column', gap: 18 }}>
           {/* status pills */}
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-            <Pill tone={s.attendanceWk >= 90 ? 'good' : s.attendanceWk >= 70 ? 'warn' : 'bad'}>{s.attendanceWk}% wk</Pill>
+            <Pill tone={s.attendanceWk == null ? 'neutral' : (s.attendanceWk >= 90 ? 'good' : s.attendanceWk >= 70 ? 'warn' : 'bad')}>{s.attendanceWk == null ? 'no attendance yet' : s.attendanceWk + '% wk'}</Pill>
             <Pill tone={s.fees === 'paid' ? 'good' : s.fees === 'partial' ? 'warn' : 'bad'}>{s.fees === 'paid' ? 'Fees paid' : D.fmtUGXshort(s.balance) + ' due'}</Pill>
             {s.flag === 'top'  && <Pill tone="brand">★ top-5 in class</Pill>}
             {s.flag === 'risk' && <Pill tone="bad">● risk this term</Pill>}
@@ -4072,13 +4072,13 @@ const PD_Students = (function () {
             <div style={{ fontSize: 10.5, color: T.ink3, fontFamily: T.mono, letterSpacing: '0.05em', fontWeight: 600, marginBottom: 8 }}>TERM 2 FEES</div>
             <div style={{ background: T.surface2, borderRadius: 10, padding: 14 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                <span style={{ fontSize: 22, fontWeight: 700, color: T.ink, fontVariantNumeric: 'tabular-nums' }}>
-                  UGX {(850_000 - s.balance).toLocaleString()}
+                <span style={{ fontSize: 22, fontWeight: 700, color: s.balance > 0 ? T.warn : T.good, fontVariantNumeric: 'tabular-nums' }}>
+                  {s.balance > 0 ? ('UGX ' + Number(s.balance).toLocaleString()) : 'Cleared'}
                 </span>
-                <span style={{ fontSize: 11, color: T.ink3, fontFamily: T.mono }}>of 850K</span>
+                <span style={{ fontSize: 11, color: T.ink3, fontFamily: T.mono }}>{s.balance > 0 ? 'outstanding' : 'no balance'}</span>
               </div>
               <div style={{ height: 6, background: T.bg, borderRadius: 999, marginTop: 10, overflow: 'hidden' }}>
-                <div style={{ height: '100%', width: (100 - s.balance / 8500) + '%', background: s.fees === 'paid' ? T.good : s.fees === 'partial' ? T.warn : T.red, borderRadius: 999 }} />
+                <div style={{ height: '100%', width: s.balance > 0 ? '55%' : '100%', background: s.balance > 0 ? T.warn : T.good, borderRadius: 999 }} />
               </div>
             </div>
           </div>
@@ -4095,9 +4095,9 @@ const PD_Students = (function () {
             <div style={{ fontSize: 12.5, color: T.ink2, lineHeight: 1.55 }}>
               {s.flag === 'top'
                 ? `${s.name.split(' ')[0]} is in the top 5 of ${s.stream} on quiz scores this term. Consistent attendance and strong engagement in Math.`
-                : s.flag === 'risk'
-                ? `${s.name.split(' ')[0]} shows a joint signal: ${s.attendanceWk}% attendance + UGX ${(s.balance/1000).toFixed(0)}K overdue. Last guardian reply was 4 days ago. Suggested action: director call today.`
-                : `${s.name.split(' ')[0]} is steady. Attendance ${s.attendanceWk}%, fees ${s.fees}. No anomalies detected this week.`}
+                : s.balance > 0
+                ? `${s.name.split(' ')[0]} has UGX ${(s.balance/1000).toFixed(0)}K outstanding in fees${s.attendanceWk != null ? ` and ${s.attendanceWk}% attendance` : ''}. Attendance and performance build as the term runs.`
+                : `${s.name.split(' ')[0]} is on the roster, fees cleared. Attendance and performance data will appear here as the term runs.`}
             </div>
           </div>
 
@@ -4129,7 +4129,7 @@ const PD_Students = (function () {
       if (streamFilter !== 'All') r = r.filter(s => s.stream === streamFilter);
       if (feesFilter !== 'All')   r = r.filter(s => s.fees === feesFilter);
       if (sort === 'name') r.sort((a, b) => a.name.localeCompare(b.name));
-      if (sort === 'risk') r.sort((a, b) => a.attendanceWk - b.attendanceWk);
+      if (sort === 'risk') r.sort((a, b) => (a.attendanceWk == null ? 101 : a.attendanceWk) - (b.attendanceWk == null ? 101 : b.attendanceWk));
       if (sort === 'fees') r.sort((a, b) => b.balance - a.balance);
       if (sort === 'recent') r.sort((a, b) => a.lastSeen.localeCompare(b.lastSeen));
       return r;
@@ -4152,8 +4152,8 @@ const PD_Students = (function () {
             <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 18 }}>
               <div>
                 <div style={{ fontSize: 11, color: T.ink3, fontFamily: T.mono, letterSpacing: '0.08em', fontWeight: 600, marginBottom: 8 }}>ROSTER</div>
-                <div style={{ fontSize: 24, fontWeight: 700, letterSpacing: '-0.02em', lineHeight: 1.05 }}>Students · 842 enrolled</div>
-                <div style={{ fontSize: 13, color: T.ink3, marginTop: 4 }}>14 streams · 38 teachers · Term 2, Week 6</div>
+                <div style={{ fontSize: 24, fontWeight: 700, letterSpacing: '-0.02em', lineHeight: 1.05 }}>Students · {(D.students || []).length} enrolled</div>
+                <div style={{ fontSize: 13, color: T.ink3, marginTop: 4 }}>{new Set((D.students || []).map(function (x) { return x.stream; }).filter(Boolean)).size} streams · Term 2, Week 6</div>
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
                 <button onClick={() => window.peakModal && window.peakModal.open(React.createElement(window.PEAK_FORMS.ImportStudents))} style={{ border: '1px solid ' + T.borderStr, background: 'transparent', color: T.ink2, padding: '8px 14px', borderRadius: 9, fontSize: 12.5, cursor: 'pointer' }}>Import CSV</button>
@@ -4223,7 +4223,7 @@ const PD_Students = (function () {
                     onClick={(st) => { setSelectedId(st.id); setDrawerOpen(true); }} />
                 ))}
                 <div style={{ padding: '20px 22px', fontSize: 11.5, color: T.ink3, fontFamily: T.mono, textAlign: 'center' }}>
-                  Showing {rows.length} of {D.students.length} · {D.students.length} more in full roster
+                  Showing {rows.length} of {(D.students || []).length}
                 </div>
               </div>
               {/* bulk action bar */}
@@ -8641,9 +8641,17 @@ window.PEAK_STAFF = (function () {
       loadStudents(tenantId) {
         try {
           var WK = 'https://nextos-sentinel.nextafricaai.workers.dev';
-          fetch(WK + '/students?tenant=' + encodeURIComponent(tenantId)).then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
+          Promise.all([
+            fetch(WK + '/students?tenant=' + encodeURIComponent(tenantId)).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; }),
+            fetch(WK + '/fees-balances?tenant=' + encodeURIComponent(tenantId)).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; })
+          ]).then(function (res) {
+            var d = res[0], fb = res[1];
             if (d && Array.isArray(d.students) && d.students.length) {
-              D.students = d.students.map(function (s) { return { id: s.id, name: s.name, stream: s.stream || '', guardian: s.guardian_name || '', guardianPhone: s.guardian_phone || '', fees: 'paid', balance: 0, attendanceWk: 100, lastSeen: '\u2014', flag: null }; });
+              var bal = (fb && fb.balances) || {};
+              D.students = d.students.map(function (s) {
+                var b = Number(bal[s.id] || 0);
+                return { id: s.id, name: s.name, stream: s.stream || '', guardian: s.guardian_name || '', guardianPhone: s.guardian_phone || '', balance: b, fees: b > 0 ? 'partial' : 'paid', attendanceWk: null, lastSeen: '\u2014', flag: null };
+              });
               D.kpis.students = d.students.length;
               D.studentsLive = true;
               notify();
@@ -9486,7 +9494,7 @@ window.PEAK_STAFF = (function () {
             <div className="peak-topbar" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 14px', borderBottom: '1px solid ' + T.border, background: T.bg, flexShrink: 0 }}>
               <button onClick={() => setNavOpen(true)} aria-label="Menu" style={{ background: 'transparent', border: '1px solid ' + T.border, borderRadius: 9, color: T.ink, width: 40, height: 40, fontSize: 19, lineHeight: 1, cursor: 'pointer', flexShrink: 0 }}>{'\u2630'}</button>
               <div style={{ fontSize: 15, fontWeight: 700, color: T.ink, letterSpacing: '-0.01em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{(typeof window !== 'undefined' && window.__BRAND_NAME) || 'Peak Primary'}</div>
-              <span style={{ marginLeft: 'auto', fontSize: 9, color: T.ink4, fontFamily: T.mono, flexShrink: 0 }}>b26</span>
+              <span style={{ marginLeft: 'auto', fontSize: 9, color: T.ink4, fontFamily: T.mono, flexShrink: 0 }}>b27</span>
             </div>
           )}
           <div className="peak-screen" style={{ flex: 1, minWidth: 0, overflow: 'auto' }}>{Screen}</div>
