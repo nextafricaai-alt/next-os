@@ -231,6 +231,10 @@
         issued_by:(prof.fullName||prof.email||null) };
       var res=await sb.from('receipts').insert(rec).select().single();
       if(res.error) throw res.error;
+      try {
+        var tok=''; try { var sd=await sb.auth.getSession(); tok=(sd&&sd.data&&sd.data.session&&sd.data.session.access_token)||''; } catch(e){}
+        if (window.NX_PUSH) window.NX_PUSH.notify({ tenant: tenantId, role: 'head', title: 'Payment received', body: fmt(amount) + ' · ' + (opts.studentName || 'a student'), url: '/', tag: 'pay-' + Date.now() }, tok);
+      } catch(e){}
       return res.data;
     }
     function buildPdf(rec){
@@ -1169,6 +1173,15 @@
         return;
       }
       tinyToast(`Roll call for ${stream} saved — head teacher sees it now.`, 'success');
+      try {
+        const absent = records.filter(r => r.status === 'absent').length;
+        if (absent > 0) {
+          const sb = window.NextSession && window.NextSession.sb;
+          let tok = ''; try { const sd = await sb.auth.getSession(); tok = (sd && sd.data && sd.data.session && sd.data.session.access_token) || ''; } catch (e) {}
+          const tid = (profile && profile.tenantId) || (window.PEAK_ROLE && window.PEAK_ROLE.getProfile && window.PEAK_ROLE.getProfile().tenantId);
+          if (window.NX_PUSH) window.NX_PUSH.notify({ tenant: tid, role: 'head', title: stream + ' roll call', body: absent + ' absent today · marked by ' + ((profile && profile.fullName) || 'a teacher'), url: window.location.pathname, tag: 'rc-' + stream }, tok);
+        }
+      } catch (e) {}
       onSaved(records);
       onClose();
     };
@@ -1722,6 +1735,7 @@
               <div style={{ fontSize: 13, fontWeight: 600 }}>{profile.fullName}</div>
               <div style={{ fontSize: 10.5, color: T.ink3 }}>Teacher</div>
             </div>
+            {window.PushBell ? React.createElement(window.PushBell, { compact: true }) : null}
             <button onClick={signOut} style={{ background: 'transparent', border: '1px solid ' + T.borderStr, color: T.ink2, padding: '7px 14px', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontFamily: T.font }}>Sign out</button>
           </div>
         </header>
@@ -8494,7 +8508,11 @@ window.PEAK_STAFF = (function () {
       if (!f.title.trim()) { return; }
       if (!r.emails.length) { return; }
       setBusy(true);
-      osSave('staff_task', { title: f.title.trim(), details: f.details.trim(), due: f.due.trim(), emails: r.emails, audienceLabel: r.label, done: {}, createdAt: new Date().toISOString() }).then(() => { setBusy(false); window.peakToast && window.peakToast('Task assigned', 'success', r.label); onDone(); });
+      osSave('staff_task', { title: f.title.trim(), details: f.details.trim(), due: f.due.trim(), emails: r.emails, audienceLabel: r.label, done: {}, createdAt: new Date().toISOString() }).then(async () => {
+        setBusy(false); window.peakToast && window.peakToast('Task assigned', 'success', r.label);
+        try { const token = await headToken(); if (window.NX_PUSH) window.NX_PUSH.notify({ tenant: tenant(), emails: r.emails, title: 'New task from the head', body: f.title.trim() + (f.due.trim() ? ' · due ' + f.due.trim() : ''), url: window.location.pathname, tag: 'task-' + Date.now() }, token); } catch (e) {}
+        onDone();
+      });
     };
     const audBtn = (k, label) => <button onClick={() => set('audience', k)} style={{ background: f.audience === k ? T.red : 'transparent', color: f.audience === k ? '#fff' : T.ink2, border: '1px solid ' + (f.audience === k ? T.red : T.border), borderRadius: 999, padding: '6px 12px', fontSize: 12, cursor: 'pointer' }}>{label}</button>;
     return (
@@ -9529,7 +9547,10 @@ window.PEAK_STAFF = (function () {
             <div className="peak-topbar" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 14px', borderBottom: '1px solid ' + T.border, background: T.bg, flexShrink: 0 }}>
               <button onClick={() => setNavOpen(true)} aria-label="Menu" style={{ background: 'transparent', border: '1px solid ' + T.border, borderRadius: 9, color: T.ink, width: 40, height: 40, fontSize: 19, lineHeight: 1, cursor: 'pointer', flexShrink: 0 }}>{'\u2630'}</button>
               <div style={{ fontSize: 15, fontWeight: 700, color: T.ink, letterSpacing: '-0.01em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{(typeof window !== 'undefined' && window.__BRAND_NAME) || 'Peak Primary'}</div>
-              <span style={{ marginLeft: 'auto', fontSize: 9, color: T.ink4, fontFamily: T.mono, flexShrink: 0 }}>b29</span>
+              <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                <PushBell compact />
+                <span style={{ fontSize: 9, color: T.ink4, fontFamily: T.mono }}>b30</span>
+              </div>
             </div>
           )}
           <div className="peak-screen" style={{ flex: 1, minWidth: 0, overflow: 'auto' }}>{Screen}</div>
@@ -9537,6 +9558,62 @@ window.PEAK_STAFF = (function () {
       </div>
     );
   }
+
+  // ─── Web Push client (phone / lock-screen alerts) ─────────────────────────
+  window.NX_VAPID = 'BN6fZK3_ipRqATydKqGPB22d-Iaf9knXLDZrLGqAuPeSfac0C8elNLovSBtKlEugC-t7XeMoYg8FsEUwTwb6Y-c';
+  window.NX_PUSH = window.NX_PUSH || {
+    WK: 'https://nextos-sentinel.nextafricaai.workers.dev',
+    supported() { return (typeof navigator !== 'undefined') && ('serviceWorker' in navigator) && ('PushManager' in window) && ('Notification' in window); },
+    async status() { if (!this.supported()) return 'unsupported'; if (Notification.permission === 'denied') return 'denied'; try { const reg = await navigator.serviceWorker.ready; const sub = await reg.pushManager.getSubscription(); return sub ? 'on' : 'off'; } catch (e) { return 'off'; } },
+    _key() { const raw = atob(window.NX_VAPID.replace(/-/g, '+').replace(/_/g, '/')); const a = new Uint8Array(raw.length); for (let i = 0; i < raw.length; i++) a[i] = raw.charCodeAt(i); return a; },
+    async enable(opts) {
+      opts = opts || {};
+      if (!this.supported()) throw new Error('This browser can’t do phone alerts. Install the app (Add to Home screen) first.');
+      const perm = await Notification.requestPermission();
+      if (perm !== 'granted') throw new Error('Notifications were not allowed. Turn them on in your browser settings.');
+      const reg = await navigator.serviceWorker.ready;
+      let sub = await reg.pushManager.getSubscription();
+      if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: this._key() });
+      const j = sub.toJSON();
+      const r = await fetch(this.WK + '/push/subscribe', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tenant: opts.tenant || 'next', email: (opts.email || '').toLowerCase(), role: opts.role || '', subscription: { endpoint: j.endpoint, keys: j.keys } }) });
+      const d = await r.json(); if (!d.ok) throw new Error(d.error || 'Could not register this device.');
+      return true;
+    },
+    async test(opts) { opts = opts || {}; const r = await fetch(this.WK + '/push/test', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tenant: opts.tenant || 'next', email: (opts.email || '').toLowerCase() }) }); return r.json(); },
+    async notify(payload, token) { const r = await fetch(this.WK + '/push/notify', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (token || '') }, body: JSON.stringify(payload) }); return r.json(); },
+  };
+
+  function PushBell({ compact } = {}) {
+    const [st, setSt] = React.useState('off');
+    const [busy, setBusy] = React.useState(false);
+    const prof = (window.PEAK_ROLE && window.PEAK_ROLE.getProfile) ? window.PEAK_ROLE.getProfile() : {};
+    React.useEffect(() => { window.NX_PUSH.status().then(setSt); }, []);
+    if (st === 'unsupported') return null;
+    const on = st === 'on';
+    const click = async () => {
+      if (busy) return; setBusy(true);
+      try {
+        if (on) { await window.NX_PUSH.test({ tenant: prof.tenantId, email: prof.email }); window.peakToast && window.peakToast('Test alert sent to your phone', 'success'); }
+        else {
+          await window.NX_PUSH.enable({ tenant: prof.tenantId, email: prof.email, role: prof.role });
+          setSt('on'); window.peakToast && window.peakToast('Phone alerts on', 'success', 'Head’s tasks will land on your phone');
+          window.NX_PUSH.test({ tenant: prof.tenantId, email: prof.email });
+        }
+      } catch (e) { window.peakToast && window.peakToast(String((e && e.message) || e), 'error'); }
+      setBusy(false);
+    };
+    const bell = on ? '\uD83D\uDD14' : '\uD83D\uDD15';
+    return (
+      <button onClick={click} disabled={busy} title={on ? 'Phone alerts on — tap to send a test' : 'Turn on phone alerts'} style={{
+        display: 'inline-flex', alignItems: 'center', gap: 6, background: on ? 'rgba(34,197,94,0.12)' : 'transparent',
+        border: '1px solid ' + (on ? 'rgba(34,197,94,0.5)' : T.border), borderRadius: 9, color: on ? T.good : T.ink2,
+        padding: compact ? '6px 9px' : '7px 12px', fontSize: 12.5, fontWeight: 600, cursor: busy ? 'wait' : 'pointer', fontFamily: T.font, flexShrink: 0,
+      }}>
+        <span style={{ fontSize: 14, lineHeight: 1 }}>{bell}</span>{compact ? null : <span>{on ? 'Alerts on' : 'Enable alerts'}</span>}
+      </button>
+    );
+  }
+  window.PushBell = PushBell;
 
   // ─── Root · responsive + role-aware ───────────────────────────────────────
   function App() {
