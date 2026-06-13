@@ -4637,6 +4637,40 @@ You: "'We help you get more done with less stress.' Nine plain words beat the ja
       for (let i = ms.length - 1; i >= 0; i--) { if (ms[i].role === 'assistant' && ms[i].content) { if (i > lastSpoke.current) { lastSpoke.current = i; niaSpeak(ms[i].content); } break; } }
     }, [convo.messages, voiceOn]);
     const toggleVoice = () => setVoiceOn(v => { const n = !v; try { localStorage.setItem('nextos.nia.voiceout', n ? '1' : '0'); } catch (e) {} if (!n) { try { window.speechSynthesis && window.speechSynthesis.cancel(); } catch (e) {} } else { lastSpoke.current = convo.messages.length - 1; } return n; });
+    // ── Hands-free wake word: say "Nia …" and she answers ───────────────────
+    const SR_WAKE = (typeof window !== 'undefined') && (window.SpeechRecognition || window.webkitSpeechRecognition);
+    const [handsFree, setHandsFree] = React.useState(false);
+    const [heard, setHeard] = React.useState('');
+    const sendRef = React.useRef(convo.send); sendRef.current = convo.send;
+    React.useEffect(() => {
+      if (!handsFree || !SR_WAKE) return;
+      if (!voiceOn) { setVoiceOn(true); try { localStorage.setItem('nextos.nia.voiceout', '1'); } catch (e) {} lastSpoke.current = convo.messages.length - 1; }
+      let rec, stopped = false, restartT = null;
+      const start = () => {
+        try { rec = new SR_WAKE(); } catch (e) { return; }
+        rec.lang = 'en-US'; rec.continuous = true; rec.interimResults = false; rec.maxAlternatives = 1;
+        rec.onresult = (e) => {
+          // Ignore what we hear while Nia is speaking (prevents her hearing herself).
+          if (window.speechSynthesis && window.speechSynthesis.speaking) return;
+          for (let i = e.resultIndex; i < e.results.length; i++) {
+            if (!e.results[i].isFinal) continue;
+            const t = (e.results[i][0].transcript || '').trim();
+            const low = t.toLowerCase();
+            const m = low.match(/\b(nia|nya|near|neah|nina)\b/);
+            if (!m) continue;
+            setHeard(t);
+            let cmd = t.slice(low.indexOf(m[1]) + m[1].length).replace(/^[\s,.:;!?-]+/, '').trim();
+            if (cmd.length > 1) { sendRef.current && sendRef.current(cmd); }
+            else { niaSpeak("Yes? I'm listening."); }
+          }
+        };
+        rec.onerror = (ev) => { if (ev && ev.error === 'not-allowed') { setHandsFree(false); } };
+        rec.onend = () => { if (!stopped && !restartT) { restartT = setTimeout(() => { restartT = null; try { rec.start(); } catch (e) {} }, 350); } };
+        try { rec.start(); } catch (e) {}
+      };
+      start();
+      return () => { stopped = true; if (restartT) clearTimeout(restartT); try { rec && rec.stop(); } catch (e) {} };
+    }, [handsFree]);
     const isFree = convo.provider === 'nia-free';
     const ready = isFree || !!convo.apiKey;
     const [showKey, setShowKey] = React.useState(!ready);
@@ -4654,12 +4688,14 @@ You: "'We help you get more done with less stress.' Nine plain words beat the ja
             </div>
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
+            {SR_WAKE && <button onClick={() => setHandsFree(h => !h)} title={handsFree ? 'Hands-free on — just say “Nia …”' : 'Turn on hands-free — call her by name'} style={{ background: handsFree ? '#e23a52' : 'transparent', border: '1px solid ' + (handsFree ? '#e23a52' : 'var(--border-default)'), color: handsFree ? '#fff' : 'var(--text-secondary)', padding: '8px 12px', borderRadius: 'var(--radius-sm)', fontSize: 12, fontFamily: 'var(--font-mono)', letterSpacing: 1, cursor: 'pointer', boxShadow: handsFree ? '0 0 0 4px rgba(226,58,82,0.22)' : 'none' }}>{handsFree ? '\u{1F3A4} HEY NIA \u25CF' : '\u{1F3A4} HEY NIA'}</button>}
             <button onClick={toggleVoice} title={voiceOn ? 'Nia voice: on (reads replies aloud)' : 'Nia voice: off'} style={{ background: voiceOn ? 'var(--mint)' : 'transparent', border: '1px solid ' + (voiceOn ? 'var(--mint)' : 'var(--border-default)'), color: voiceOn ? 'var(--text-inverse)' : 'var(--text-secondary)', padding: '8px 12px', borderRadius: 'var(--radius-sm)', fontSize: 12, fontFamily: 'var(--font-mono)', letterSpacing: 1, cursor: 'pointer' }}>{voiceOn ? '\u{1F50A} VOICE ON' : '\u{1F507} VOICE'}</button>
             <button onClick={() => setShowKey(s => !s)} style={{ background: 'transparent', border: '1px solid var(--border-default)', color: 'var(--text-secondary)', padding: '8px 14px', borderRadius: 'var(--radius-sm)', fontSize: 12, fontFamily: 'var(--font-mono)', letterSpacing: 1, cursor: 'pointer' }}>{ready ? 'SWITCH AGENT' : 'CONNECT'}</button>
             <button onClick={convo.clearConvo} style={{ background: 'transparent', border: '1px solid var(--border-subtle)', color: 'var(--text-tertiary)', padding: '8px 14px', borderRadius: 'var(--radius-sm)', fontSize: 12, fontFamily: 'var(--font-mono)', letterSpacing: 1, cursor: 'pointer' }}>CLEAR</button>
           </div>
         </div>
 
+        {handsFree && <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(226,58,82,0.08)', border: '1px solid rgba(226,58,82,0.4)', borderRadius: 'var(--radius-sm)', padding: '9px 13px', fontSize: 12.5, color: 'var(--text-secondary)' }}><span style={{ width: 8, height: 8, borderRadius: '50%', background: '#e23a52', boxShadow: '0 0 0 4px rgba(226,58,82,0.25)' }} />Listening — just say <b style={{ color: 'var(--text-primary)', margin: '0 4px' }}>“Nia, …”</b> followed by what you need.{heard ? <span style={{ marginLeft: 8, color: 'var(--text-tertiary)', fontStyle: 'italic' }}>heard: “{heard}”</span> : null}</div>}
         {showKey && <KeyPanel apiKey={convo.apiKey} provider={convo.provider} setKey={convo.setKey} setProv={convo.setProv} onClose={() => setShowKey(false)} />}
 
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-lg)', padding: '12px 16px', minHeight: 0 }}>
@@ -5419,7 +5455,7 @@ You: "'We help you get more done with less stress.' Nine plain words beat the ja
               fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 14,
             }}>N</div>
             <div>
-              <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', letterSpacing: 1.5, color: 'var(--text-tertiary)' }}>NIA'S WATCH <span style={{ color: 'var(--mint)', marginLeft: 6 }}>· LIVE v16</span></div>
+              <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', letterSpacing: 1.5, color: 'var(--text-tertiary)' }}>NIA'S WATCH <span style={{ color: 'var(--mint)', marginLeft: 6 }}>· LIVE v17</span></div>
               <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)' }}>
                 What happened while you were away
               </div>
