@@ -35,13 +35,15 @@ echo json_encode([
   'description'      => $name . ' — school operating system, powered by NEXT OS.',
   'start_url'        => $start,
   'id'               => '/s/' . $s,
-  'scope'            => 'https://nextos.nextafrica.ai/s/' . $s,
+  'scope'            => 'https://nextos.nextafrica.ai/',
   'display'          => 'standalone',
   'orientation'      => 'portrait',
   'background_color' => '#0a1029',
   'theme_color'      => $color,
   'icons'            => [
+    ['src' => 'https://nextos.nextafrica.ai/icon-192.png', 'sizes' => '192x192', 'type' => 'image/png', 'purpose' => 'any'],
+    ['src' => 'https://nextos.nextafrica.ai/icon-512.png', 'sizes' => '512x512', 'type' => 'image/png', 'purpose' => 'any'],
     ['src' => $icon, 'sizes' => '192x192', 'type' => $itype, 'purpose' => 'any'],
-    ['src' => $icon, 'sizes' => '512x512', 'type' => $itype, 'purpose' => 'any maskable'],
+    ['src' => $icon, 'sizes' => '512x512', 'type' => $itype, 'purpose' => 'maskable'],
   ],
 ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
