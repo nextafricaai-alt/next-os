@@ -3195,17 +3195,23 @@ const V4 = (function () {
     let results = [];
     if (term) {
       const DD = window.PEAK || {};
+      const feeKw = /owe|owing|overdue|balance|arrear|fees|debt|unpaid|outstanding/.test(term);
       (DD.students || []).forEach(st => { if ((st.name + ' ' + (st.guardian || '') + ' ' + (st.stream || '')).toLowerCase().indexOf(term) >= 0) results.push({ type: 'Student', label: st.name, sub: (st.stream || '') + (st.guardian ? (' · ' + st.guardian) : ''), run: () => window.peakOpenProfile && window.peakOpenProfile(st) }); });
       (DD.teachers || []).forEach(t => { if ((t.name + ' ' + ((t.subjects || []).join(' ')) + ' ' + (t.role || '')).toLowerCase().indexOf(term) >= 0) results.push({ type: 'Teacher', label: t.name, sub: ((t.subjects || []).join(', ')) || t.role || 'Teacher', run: () => window.peakNav && window.peakNav('teach') }); });
+      // Fees — a named student's balance, or fee keywords list everyone owing
+      (DD.students || []).forEach(st => { const bal = Number(st.balance) || 0; const named = (st.name || '').toLowerCase().indexOf(term) >= 0; if ((feeKw && bal > 0) || (named && bal > 0)) results.push({ type: 'Fee', label: st.name + ' — UGX ' + bal.toLocaleString() + ' due', sub: (st.stream || '') + ' · open Fees', run: () => window.peakNav && window.peakNav('fees') }); });
+      // Messages — parent threads by parent, child or last message
+      (DD.threads || []).forEach(th => { if ((th.name + ' ' + (th.child || '') + ' ' + (th.last || '')).toLowerCase().indexOf(term) >= 0) results.push({ type: 'Message', label: th.name, sub: (th.child ? (th.child + ' · ') : '') + (th.last || ''), run: () => window.peakNav && window.peakNav('comm') }); });
       SCREENS.forEach(([k, l]) => { if (l.toLowerCase().indexOf(term) >= 0) results.push({ type: 'Open', label: l, sub: 'Go to ' + l, run: () => window.peakNav && window.peakNav(k) }); });
-      results = results.slice(0, 8);
+      // de-dup identical labels, cap
+      const seen = {}; results = results.filter(r => { const key = r.type + '|' + r.label; if (seen[key]) return false; seen[key] = 1; return true; }).slice(0, 12);
     }
     const go = (r) => { setOpen(false); setQ(''); try { r.run(); } catch (e) {} };
     return (
       <div style={{ position: 'relative', width: 340 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 14px', borderRadius: 10, background: T.surface, border: '1px solid ' + T.border }}>
           <span style={{ color: T.ink3, fontSize: 14 }}>{'\u2315'}</span>
-          <input value={q} placeholder="Search students, teachers, screens…" onChange={e => { setQ(e.target.value); setOpen(true); }} onFocus={() => setOpen(true)} onBlur={() => setTimeout(() => setOpen(false), 160)} onKeyDown={e => { if (e.key === 'Enter' && results[0]) go(results[0]); if (e.key === 'Escape') setOpen(false); }} style={{ border: 'none', outline: 'none', background: 'transparent', flex: 1, fontSize: 13, color: T.ink, fontFamily: T.font }} />
+          <input value={q} placeholder="Search students, teachers, fees, messages…" onChange={e => { setQ(e.target.value); setOpen(true); }} onFocus={() => setOpen(true)} onBlur={() => setTimeout(() => setOpen(false), 160)} onKeyDown={e => { if (e.key === 'Enter' && results[0]) go(results[0]); if (e.key === 'Escape') setOpen(false); }} style={{ border: 'none', outline: 'none', background: 'transparent', flex: 1, fontSize: 13, color: T.ink, fontFamily: T.font }} />
           <span style={{ fontSize: 10, color: T.ink3, fontFamily: T.mono, border: '1px solid ' + T.border, borderRadius: 5, padding: '2px 6px' }}>{'\u2318K'}</span>
         </div>
         {open && term ? (
@@ -9868,7 +9874,7 @@ window.PEAK_STAFF = (function () {
               <div style={{ fontSize: 15, fontWeight: 700, color: T.ink, letterSpacing: '-0.01em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{(typeof window !== 'undefined' && window.__BRAND_NAME) || 'Peak Primary'}</div>
               <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
                 <PushBell compact />
-                <span style={{ fontSize: 9, color: T.ink4, fontFamily: T.mono }}>b39</span>
+                <span style={{ fontSize: 9, color: T.ink4, fontFamily: T.mono }}>b40</span>
               </div>
             </div>
           )}
