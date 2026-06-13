@@ -4628,56 +4628,86 @@ You: "'We help you get more done with less stress.' Nine plain words beat the ja
   }
   if (typeof window !== 'undefined') window.niaSpeak = niaSpeak;
 
-  // ── Global "Hey Nia" orb — listens for her name anywhere in the OS ─────────
+  // ── Global "Hey Nia" orb. Wake-word on Chrome/Android; tap-to-talk (server STT) on iOS. ──
   function NiaWakeOrb() {
     const SR = (typeof window !== 'undefined') && (window.SpeechRecognition || window.webkitSpeechRecognition);
+    const hasMedia = (typeof navigator !== 'undefined') && navigator.mediaDevices && navigator.mediaDevices.getUserMedia && (typeof MediaRecorder !== 'undefined');
+    const WKB = (window.NEXT_OS_SENTINEL_ENDPOINT) || 'https://nextos-sentinel.nextafricaai.workers.dev';
     const [on, setOn] = React.useState(() => { try { return localStorage.getItem('nextos.nia.handsfree') === '1'; } catch (e) { return false; } });
     const [heard, setHeard] = React.useState('');
     const [pulse, setPulse] = React.useState(false);
-    const chime = () => { try { const A = window.AudioContext || window.webkitAudioContext; if (!A) return; const c = new A(); const now = c.currentTime; [[880, 0], [1175, 0.12]].forEach(function (pair) { const o2 = c.createOscillator(), g = c.createGain(); o2.type = 'sine'; o2.frequency.value = pair[0]; g.gain.setValueAtTime(0.0001, now + pair[1]); g.gain.exponentialRampToValueAtTime(0.12, now + pair[1] + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, now + pair[1] + 0.16); o2.connect(g); g.connect(c.destination); o2.start(now + pair[1]); o2.stop(now + pair[1] + 0.18); }); setTimeout(function () { try { c.close(); } catch (e) {} }, 600); } catch (e) {} };
+    const [rec, setRec] = React.useState('idle');
+    const recRef = React.useRef(null); const chunksRef = React.useRef([]); const stopTimer = React.useRef(null);
+    const chime = () => { try { const A = window.AudioContext || window.webkitAudioContext; if (!A) return; const c = new A(); const now = c.currentTime; [[880, 0], [1175, 0.12]].forEach(function (p) { const o2 = c.createOscillator(), g = c.createGain(); o2.type = 'sine'; o2.frequency.value = p[0]; g.gain.setValueAtTime(0.0001, now + p[1]); g.gain.exponentialRampToValueAtTime(0.12, now + p[1] + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, now + p[1] + 0.16); o2.connect(g); g.connect(c.destination); o2.start(now + p[1]); o2.stop(now + p[1] + 0.18); }); setTimeout(function () { try { c.close(); } catch (e) {} }, 600); } catch (e) {} };
     React.useEffect(() => { if (typeof window !== 'undefined') window.NIA_HANDS_FREE_TOGGLE = () => setOn(v => !v); }, []);
+    const handle = (cmd) => {
+      const c = (cmd || '').replace(/^(hey |ok )?(nia|nya|nina)[\s,.:!?-]*/i, '').trim();
+      if (!c || c.length < 2) { window.niaSpeak && window.niaSpeak("Yes? I'm listening."); return; }
+      window.__NIA_PENDING = c;
+      try { localStorage.setItem('nextos.nia.voiceout', '1'); } catch (e) {}
+      if (window.NIA_ASK) { window.NIA_ASK(c); window.__NIA_PENDING = null; }
+      else if (window.NEXT_OS_NAVIGATE) { window.NEXT_OS_NAVIGATE('talk'); }
+    };
+    // Wake-word mode
     React.useEffect(() => {
       try { localStorage.setItem('nextos.nia.handsfree', on ? '1' : '0'); } catch (e) {}
       if (!on || !SR) return;
       try { localStorage.setItem('nextos.nia.voiceout', '1'); } catch (e) {}
-      let rec, stopped = false, rt = null;
-      const ask = (cmd) => {
-        if (!cmd || cmd.length < 2) { window.niaSpeak && window.niaSpeak("Yes? I'm listening."); return; }
-        window.__NIA_PENDING = cmd;
-        if (window.NIA_ASK) { window.NIA_ASK(cmd); window.__NIA_PENDING = null; }
-        else if (window.NEXT_OS_NAVIGATE) { window.NEXT_OS_NAVIGATE('talk'); }
-      };
+      let r, stopped = false, rt = null;
       const start = () => {
-        try { rec = new SR(); } catch (e) { return; }
-        rec.lang = 'en-US'; rec.continuous = true; rec.interimResults = false; rec.maxAlternatives = 1;
-        rec.onresult = (e) => {
+        try { r = new SR(); } catch (e) { return; }
+        r.lang = 'en-US'; r.continuous = true; r.interimResults = false; r.maxAlternatives = 1;
+        r.onresult = (e) => {
           if (window.speechSynthesis && window.speechSynthesis.speaking) return;
           for (let i = e.resultIndex; i < e.results.length; i++) {
             if (!e.results[i].isFinal) continue;
-            const t = (e.results[i][0].transcript || '').trim();
-            const low = t.toLowerCase();
-            const m = low.match(/\b(hey nia|ok nia|nia|nya|nina|near|neah)\b/);
-            if (!m) continue;
-            setHeard(t); setTimeout(() => setHeard(''), 4000);
-            chime(); setPulse(true); setTimeout(() => setPulse(false), 900);
-            const cmd = t.slice(low.indexOf(m[1]) + m[1].length).replace(/^[\s,.:;!?-]+/, '').trim();
-            ask(cmd);
+            const t = (e.results[i][0].transcript || '').trim(); const low = t.toLowerCase();
+            const m = low.match(/\b(hey nia|ok nia|nia|nya|nina|near|neah)\b/); if (!m) continue;
+            setHeard(t); setTimeout(() => setHeard(''), 4000); chime(); setPulse(true); setTimeout(() => setPulse(false), 900);
+            handle(t.slice(low.indexOf(m[1]) + m[1].length));
           }
         };
-        rec.onerror = (ev) => { if (ev && ev.error === 'not-allowed') setOn(false); };
-        rec.onend = () => { if (!stopped && !rt) { rt = setTimeout(() => { rt = null; try { rec.start(); } catch (e) {} }, 350); } };
-        try { rec.start(); } catch (e) {}
+        r.onerror = (ev) => { if (ev && ev.error === 'not-allowed') setOn(false); };
+        r.onend = () => { if (!stopped && !rt) { rt = setTimeout(() => { rt = null; try { r.start(); } catch (e) {} }, 350); } };
+        try { r.start(); } catch (e) {}
       };
       start();
-      return () => { stopped = true; if (rt) clearTimeout(rt); try { rec && rec.stop(); } catch (e) {} };
+      return () => { stopped = true; if (rt) clearTimeout(rt); try { r && r.stop(); } catch (e) {} };
     }, [on]);
-    if (!SR) return null;
+    // Tap-to-talk
+    const stopRec = () => { try { recRef.current && recRef.current.state !== 'inactive' && recRef.current.stop(); } catch (e) {} };
+    const startPtt = async () => {
+      if (!hasMedia) return;
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const mr = new MediaRecorder(stream); recRef.current = mr; chunksRef.current = [];
+        mr.ondataavailable = (e) => { if (e.data && e.data.size) chunksRef.current.push(e.data); };
+        mr.onstop = async () => {
+          try { stream.getTracks().forEach(t => t.stop()); } catch (e) {}
+          setRec('thinking');
+          try {
+            const blob = new Blob(chunksRef.current, { type: (chunksRef.current[0] && chunksRef.current[0].type) || 'audio/webm' });
+            const buf = await blob.arrayBuffer();
+            const resp = await fetch(WKB + '/stt', { method: 'POST', headers: { 'Content-Type': 'application/octet-stream' }, body: buf });
+            const d = await resp.json(); setRec('idle');
+            if (d && d.text) { setHeard(d.text); setTimeout(() => setHeard(''), 5000); chime(); handle(d.text); }
+            else { window.niaSpeak && window.niaSpeak("Sorry, I didn't catch that."); }
+          } catch (e) { setRec('idle'); window.niaSpeak && window.niaSpeak('Could not transcribe.'); }
+        };
+        mr.start(); setRec('recording'); chime();
+        stopTimer.current = setTimeout(stopRec, 7000);
+      } catch (e) { setRec('idle'); }
+    };
+    const tap = () => { if (SR) { setOn(v => !v); return; } if (rec === 'recording') { if (stopTimer.current) clearTimeout(stopTimer.current); stopRec(); } else if (rec === 'idle') { startPtt(); } };
+    const active = SR ? on : (rec !== 'idle');
+    const glyph = (!SR && rec === 'thinking') ? '⋯' : (active ? '\u{1F3A4}' : '◆');
+    const hint = SR ? (on ? 'say “Nia …”' : '') : (rec === 'recording' ? 'tap to send' : rec === 'thinking' ? 'thinking…' : 'tap & talk');
     return (
       <div style={{ position: 'fixed', right: 18, bottom: 18, zIndex: 400, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
         <style>{'@keyframes niaWakePulse{0%{transform:scale(1)}30%{transform:scale(1.18)}100%{transform:scale(1)}}'}</style>
-        {on && heard ? <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: '7px 11px', fontSize: 12, color: 'var(--text-secondary)', maxWidth: 260, boxShadow: '0 8px 24px rgba(0,0,0,0.45)' }}>{'\u201C'}{heard}{'\u201D'}</div> : null}
-        {on ? <div style={{ fontSize: 10.5, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 999, padding: '3px 9px' }}>say {'\u201C'}Nia {'\u2026\u201D'}</div> : null}
-        <button onClick={() => setOn(v => !v)} title={on ? 'Hands-free on — say "Nia ..." from any screen' : 'Let Nia listen for her name'} style={{ width: 56, height: 56, borderRadius: '50%', border: 'none', cursor: 'pointer', background: on ? '#e23a52' : 'var(--mint)', color: on ? '#fff' : 'var(--text-inverse)', fontSize: 22, boxShadow: on ? '0 0 0 6px rgba(226,58,82,0.22), 0 10px 30px rgba(0,0,0,0.45)' : '0 10px 30px rgba(0,0,0,0.45)', display: 'grid', placeItems: 'center', animation: pulse ? 'niaWakePulse 0.6s ease' : 'none' }}>{on ? '\u{1F3A4}' : '\u25C6'}</button>
+        {heard ? <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: '7px 11px', fontSize: 12, color: 'var(--text-secondary)', maxWidth: 260, boxShadow: '0 8px 24px rgba(0,0,0,0.45)' }}>{'“'}{heard}{'”'}</div> : null}
+        {hint ? <div style={{ fontSize: 10.5, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 999, padding: '3px 9px' }}>{hint}</div> : null}
+        <button onClick={tap} title={SR ? (on ? 'Hands-free on — say "Nia ..."' : 'Let Nia listen') : 'Tap and talk to Nia'} style={{ width: 56, height: 56, borderRadius: '50%', border: 'none', cursor: 'pointer', background: active ? '#e23a52' : 'var(--mint)', color: active ? '#fff' : 'var(--text-inverse)', fontSize: 22, boxShadow: active ? '0 0 0 6px rgba(226,58,82,0.22), 0 10px 30px rgba(0,0,0,0.45)' : '0 10px 30px rgba(0,0,0,0.45)', display: 'grid', placeItems: 'center', animation: pulse ? 'niaWakePulse 0.6s ease' : 'none' }}>{glyph}</button>
       </div>
     );
   }
@@ -5481,7 +5511,7 @@ You: "'We help you get more done with less stress.' Nine plain words beat the ja
               fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 14,
             }}>N</div>
             <div>
-              <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', letterSpacing: 1.5, color: 'var(--text-tertiary)' }}>NIA'S WATCH <span style={{ color: 'var(--mint)', marginLeft: 6 }}>· LIVE v19</span></div>
+              <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', letterSpacing: 1.5, color: 'var(--text-tertiary)' }}>NIA'S WATCH <span style={{ color: 'var(--mint)', marginLeft: 6 }}>· LIVE v20</span></div>
               <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)' }}>
                 What happened while you were away
               </div>
