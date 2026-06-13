@@ -374,6 +374,7 @@ export default {
     if (url.pathname === '/push/notify')        return handlePushNotify(request, env, cors);
     if (url.pathname === '/push/test')          return handlePushTest(request, env, cors);
     if (url.pathname === '/push/debug')         return handlePushDebug(url.searchParams.get('tenant') || 'next', url.searchParams.get('send') === '1', env, cors);
+    if (url.pathname === '/stt')                return handleSTT(request, env, cors);
 
     // ─── Route: / — Llama agent (default) ───────────────────────────────
     return handleAgent(request, env, cors);
@@ -2293,4 +2294,22 @@ async function handlePushDebug(tenant, doSend, env, cors) {
     out.sendResults = results;
   }
   return J(out, 200);
+}
+
+
+// ── Speech-to-text (tap-to-talk transcription, esp. for iOS where the browser
+//    has no SpeechRecognition). Uses Workers AI Whisper. POST raw audio bytes. ──
+async function handleSTT(request, env, cors) {
+  const J = (oo, st) => new Response(JSON.stringify(oo), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
+  if (request.method !== 'POST') return J({ error: 'POST audio bytes' }, 405);
+  if (!env.AI) return J({ error: 'Workers AI (env.AI) not bound' }, 500);
+  try {
+    const buf = await request.arrayBuffer();
+    if (!buf || buf.byteLength < 200) return J({ error: 'no audio' }, 400);
+    const bytes = [...new Uint8Array(buf)];
+    let text = '';
+    try { const r = await env.AI.run('@cf/openai/whisper', { audio: bytes }); text = (r && (r.text || r.transcription || '')) || ''; }
+    catch (e) { return J({ error: 'stt failed: ' + String((e && e.message) || e) }, 200); }
+    return J({ ok: true, text: String(text).trim() });
+  } catch (e) { return J({ error: String((e && e.message) || e) }, 200); }
 }
