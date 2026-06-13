@@ -9571,7 +9571,7 @@ window.PEAK_STAFF = (function () {
               <div style={{ fontSize: 15, fontWeight: 700, color: T.ink, letterSpacing: '-0.01em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{(typeof window !== 'undefined' && window.__BRAND_NAME) || 'Peak Primary'}</div>
               <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
                 <PushBell compact />
-                <span style={{ fontSize: 9, color: T.ink4, fontFamily: T.mono }}>b32</span>
+                <span style={{ fontSize: 9, color: T.ink4, fontFamily: T.mono }}>b33</span>
               </div>
             </div>
           )}
@@ -9614,14 +9614,27 @@ window.PEAK_STAFF = (function () {
     const on = st === 'on';
     const click = async () => {
       if (busy) return; setBusy(true);
+      const L = [];
       try {
-        if (on) { await window.NX_PUSH.test({ tenant: prof.tenantId, email: prof.email }); window.peakToast && window.peakToast('Test alert sent to your phone', 'success'); }
-        else {
-          await window.NX_PUSH.enable({ tenant: prof.tenantId, email: prof.email, role: prof.role });
-          setSt('on'); window.peakToast && window.peakToast('Phone alerts on', 'success', 'Head’s tasks will land on your phone');
-          window.NX_PUSH.test({ tenant: prof.tenantId, email: prof.email });
+        L.push('Supported: ' + (window.NX_PUSH.supported() ? 'yes' : 'NO'));
+        L.push('Permission: ' + (window.Notification ? Notification.permission : 'n/a'));
+        if (window.Notification && Notification.permission !== 'granted') {
+          const p = await Notification.requestPermission(); L.push('→ asked, now: ' + p);
         }
-      } catch (e) { window.peakToast && window.peakToast(String((e && e.message) || e), 'error'); }
+        let reg = null; try { reg = await navigator.serviceWorker.ready; } catch (e) {}
+        L.push('SW active: ' + (reg && reg.active ? reg.active.scriptURL.split('/').pop() : 'NONE'));
+        // Ensure subscription
+        try { await window.NX_PUSH.enable({ tenant: prof.tenantId, email: prof.email, role: prof.role }); setSt('on'); } catch (e) { L.push('Subscribe error: ' + (e.message || e)); }
+        let sub = null; try { sub = reg && (await reg.pushManager.getSubscription()); } catch (e) {}
+        L.push('Subscribed to: ' + (sub ? (new URL(sub.endpoint).host) : 'NO'));
+        // 1) LOCAL notification — tests the DISPLAY path only (no network)
+        let localOk = false;
+        try { if (reg) { await reg.showNotification('NEXT OS — local test', { body: 'If you see THIS, your phone can show alerts.', tag: 'nx-local' }); localOk = true; } } catch (e) { L.push('Local show FAILED: ' + (e.message || e)); }
+        L.push('Local notification: ' + (localOk ? 'shown ✓' : 'blocked ✗'));
+        // 2) SERVER push — tests the delivery path
+        try { const res = await window.NX_PUSH.test({ tenant: prof.tenantId, email: prof.email }); L.push('Server push: matched ' + (res.matched || 0) + ', accepted ' + (res.sent || 0)); } catch (e) { L.push('Server push error: ' + (e.message || e)); }
+        alert('NOTIFICATION SELF-TEST\n\n' + L.join('\n') + '\n\nIf "Local notification: shown" but you saw nothing, check iOS Settings → Notifications → this app (and turn off Focus/DND).');
+      } catch (e) { alert('Self-test error: ' + (e.message || e) + '\n\n' + L.join('\n')); }
       setBusy(false);
     };
     const bell = on ? '\uD83D\uDD14' : '\uD83D\uDD15';
