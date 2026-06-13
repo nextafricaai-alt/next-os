@@ -7501,10 +7501,42 @@ window.PEAK_ASKNEXT = (function () {
   function whoami() { const p = (window.PEAK_ROLE && window.PEAK_ROLE.getProfile) ? window.PEAK_ROLE.getProfile() : null; return (p && (p.fullName || p.role)) || 'Head Teacher'; }
   function memKey() { return 'nextos.asknext.' + tenant(); }
   let LIVE_STAFF = [], LIVE_HEALTH = [], LIVE_LOADED = false;
+  let ASSIGNABLE = [];   // [{name,email,subjects:[],classes:[],checkedIn:bool,openTasks:n}]
   function refreshLive() {
     const t = tenant();
     fetch(WK + '/staff-status?tenant=' + encodeURIComponent(t)).then(r => r.json()).then(d => { if (d && Array.isArray(d.staff)) { LIVE_STAFF = d.staff; LIVE_LOADED = true; } }).catch(() => {});
     fetch(WK + '/student-health?tenant=' + encodeURIComponent(t)).then(r => r.json()).then(d => { if (d && Array.isArray(d.health)) { LIVE_HEALTH = d.health; LIVE_LOADED = true; } }).catch(() => {});
+    // Real assignable teachers + their classes + current open-task load
+    Promise.all([
+      fetch(WK + '/teachers?tenant=' + encodeURIComponent(t)).then(r => r.ok ? r.json() : null).catch(() => null),
+      fetch(WK + '/os-data?kind=staff_meta&tenant=' + encodeURIComponent(t)).then(r => r.ok ? r.json() : null).catch(() => null),
+      fetch(WK + '/os-data?kind=staff_task&tenant=' + encodeURIComponent(t)).then(r => r.ok ? r.json() : null).catch(() => null),
+    ]).then(function (res) {
+      const td = res[0], md = res[1], kd = res[2];
+      const metaByEmail = {}; ((md && md.records) || []).forEach(function (r) { const p = r.payload || {}; if (p.email) metaByEmail[String(p.email).toLowerCase()] = p.classes || []; });
+      const loadByEmail = {}; ((kd && kd.records) || []).forEach(function (r) { const p = r.payload || {}; const done = p.done || {}; (p.emails || []).forEach(function (e) { e = String(e).toLowerCase(); if (!done[e]) loadByEmail[e] = (loadByEmail[e] || 0) + 1; }); });
+      const checkedSet = {}; (LIVE_STAFF || []).forEach(function (x) { if (/in|late|present/i.test(x.status || '')) checkedSet[String(x.name || '').toLowerCase()] = true; });
+      ASSIGNABLE = ((td && td.teachers) || []).filter(function (x) { return x.email; }).map(function (x) {
+        const em = String(x.email).toLowerCase();
+        return { name: x.full_name || x.email, email: em, subjects: x.subjects || [], classes: metaByEmail[em] || [], openTasks: loadByEmail[em] || 0, checkedIn: !!checkedSet[String(x.full_name || '').toLowerCase()] };
+      });
+    }).catch(() => {});
+  }
+  async function niaToken() { try { const sb = window.NextSession && window.NextSession.sb; if (!sb) return ''; const r = await sb.auth.getSession(); return (r && r.data && r.data.session && r.data.session.access_token) || ''; } catch (e) { return ''; } }
+  // Execute approved task assignments: create real staff_task + push to phones.
+  async function executeAssignments(tasks) {
+    const t = tenant(); const token = await niaToken(); const done = [];
+    for (const tk of (tasks || [])) {
+      const emails = (tk.emails || []).map(e => String(e).toLowerCase()).filter(Boolean);
+      if (!tk.title || !emails.length) continue;
+      const rec = { title: String(tk.title).trim(), details: String(tk.details || '').trim(), due: String(tk.due || '').trim(), emails: emails, audienceLabel: tk.why ? ('Nia · ' + tk.why) : 'Assigned by Nia', done: {}, createdAt: new Date().toISOString() };
+      try {
+        await fetch(WK + '/os-data/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind: 'staff_task', tenant: t, record: rec }) });
+        try { if (window.NX_PUSH) await window.NX_PUSH.notify({ tenant: t, emails: emails, title: 'New task from the head', body: rec.title + (rec.due ? (' · due ' + rec.due) : ''), url: window.location.pathname, tag: 'nia-task-' + Date.now() }, token); } catch (e) {}
+        done.push({ title: rec.title, emails: emails });
+      } catch (e) {}
+    }
+    return done;
   }
 
   function logQuestion(q) { try { const a = JSON.parse(localStorage.getItem(memKey()) || '[]'); a.unshift({ q: q, t: Date.now() }); localStorage.setItem(memKey(), JSON.stringify(a.slice(0, 200))); } catch (e) {} }
@@ -7540,6 +7572,14 @@ window.PEAK_ASKNEXT = (function () {
     else { lines.push(''); lines.push("STAFF TODAY: the live check-in feed is NOT loaded. You do NOT know whether any teacher has checked in today. Do NOT claim any teacher is present, checked in, late, or absent — say the check-in data isn't available yet."); }
     if (LIVE_HEALTH.length) { lines.push(''); lines.push('HEALTH WATCH — students with an active (unresolved) health record = currently unwell / sick / needing follow-up:'); LIVE_HEALTH.slice(0, 60).forEach(h => lines.push('• ' + h.name + ' (' + (h.stream || '?') + ') — ' + (h.category || 'health note') + (h.severity ? (' · ' + h.severity) : '') + (h.description ? (': ' + h.description) : '') + (h.follow_up ? ' · follow-up needed' : ''))); }
     else if (LIVE_LOADED) { lines.push(''); lines.push('HEALTH WATCH: no active health records logged right now.'); }
+    if (ASSIGNABLE.length) {
+      lines.push('');
+      lines.push('ASSIGNABLE TEACHERS (real logins — use ONLY these emails when assigning tasks) — name | email | teaches subjects | classes | checked-in today | open tasks now:');
+      ASSIGNABLE.forEach(a => lines.push('• ' + a.name + ' | ' + a.email + ' | ' + ((a.subjects || []).join('/') || 'no subjects set') + ' | ' + ((a.classes || []).join(',') || 'no classes set') + ' | ' + (a.checkedIn ? 'CHECKED IN' : 'not checked in') + ' | ' + a.openTasks + ' open'));
+    } else {
+      lines.push('');
+      lines.push('ASSIGNABLE TEACHERS: not loaded yet — if asked to assign a task, say the staff list is still loading and to try again in a moment.');
+    }
     return lines.join('\n');
   }
   function systemPrompt() {
@@ -7557,6 +7597,8 @@ window.PEAK_ASKNEXT = (function () {
       + '{"action":"navigate","screen":"today|dash|stud|attn|fees|exam|rep|comm|teach|trans"}\n'
       + '{"action":"whatsapp","name":"<student or guardian>","message":"..."}\n'
       + '{"action":"reminder","text":"...","when":"tomorrow 8am"}\n'
+      + '{"action":"propose_tasks","tasks":[{"title":"...","details":"...","due":"...","emails":["teacher@email"],"why":"short reason this teacher"}]}\n'
+      + '\nASSIGNING WORK (important): when the head asks you to assign, give out, delegate, or distribute a task (or several), DO NOT just describe it — emit a propose_tasks action. CHOOSE the assignee yourself from ASSIGNABLE TEACHERS using, in order: (1) subject match, (2) class they teach, (3) who is CHECKED IN today, (4) the one with the FEWEST open tasks (fair load). To split several tasks across a group, output multiple task objects, balancing the load. Use ONLY real emails from ASSIGNABLE TEACHERS. In your text, briefly say who you picked and why. The head will see an Approve button — nothing is sent until they approve. Never invent an email.\n'
       + 'For report cards, navigate to "exam" (reports are issued there, fee-gated).'
       + mem + '\n\nLIVE SCHOOL DATA:\n' + buildContext();
   }
@@ -7583,6 +7625,35 @@ window.PEAK_ASKNEXT = (function () {
     return null;
   }
 
+  function ProposalCard({ tasks }) {
+    const [state, setState] = useState('pending');
+    const [result, setResult] = useState([]);
+    const approve = async () => { setState('sending'); try { const done = await executeAssignments(tasks); setResult(done); setState('sent'); window.peakToast && window.peakToast('Nia assigned ' + done.length + ' task' + (done.length === 1 ? '' : 's'), 'success', 'Teachers notified'); } catch (e) { setState('pending'); window.peakToast && window.peakToast('Could not assign', 'info', String(e.message || e)); } };
+    if (state === 'cancelled') return <div style={{ fontSize: 12, color: T.ink3, fontStyle: 'italic' }}>Assignment cancelled — nothing was sent.</div>;
+    if (state === 'sent') return (
+      <div style={{ border: '1px solid ' + T.good, borderRadius: 12, padding: '11px 13px', background: 'rgba(34,197,94,0.08)', fontSize: 12.5, color: T.ink }}>
+        ✓ Assigned {result.length} task{result.length === 1 ? '' : 's'} and pushed to {Array.from(new Set([].concat.apply([], result.map(r => r.emails)))).length} teacher{(Array.from(new Set([].concat.apply([], result.map(r => r.emails)))).length) === 1 ? '' : 's'}.
+      </div>
+    );
+    return (
+      <div style={{ border: '1px solid ' + T.border, borderRadius: 12, padding: 12, background: T.surface }}>
+        <div style={{ fontSize: 10.5, fontFamily: T.mono, color: T.ink3, letterSpacing: '0.06em', marginBottom: 8 }}>NIA PROPOSES — APPROVE TO SEND</div>
+        {tasks.map((t, i) => (
+          <div key={i} style={{ marginBottom: 8, paddingBottom: 8, borderBottom: i < tasks.length - 1 ? '1px solid ' + T.border : 'none' }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: T.ink }}>{t.title}</div>
+            {t.details ? <div style={{ fontSize: 12, color: T.ink2, marginTop: 2 }}>{t.details}</div> : null}
+            <div style={{ fontSize: 11.5, color: T.ink2, fontFamily: T.mono, marginTop: 3 }}>→ {(t.emails || []).join(', ')}{t.due ? (' · due ' + t.due) : ''}</div>
+            {t.why ? <div style={{ fontSize: 11, color: T.ink3, fontStyle: 'italic', marginTop: 2 }}>{t.why}</div> : null}
+          </div>
+        ))}
+        <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+          <button onClick={approve} disabled={state === 'sending'} style={{ background: T.red, color: '#fff', border: 'none', borderRadius: 8, padding: '7px 14px', fontSize: 12, fontWeight: 700, cursor: state === 'sending' ? 'wait' : 'pointer' }}>{state === 'sending' ? 'Sending…' : 'Approve & notify'}</button>
+          <button onClick={() => setState('cancelled')} style={{ background: 'transparent', border: '1px solid ' + T.border, color: T.ink2, borderRadius: 8, padding: '7px 14px', fontSize: 12, cursor: 'pointer' }}>Cancel</button>
+        </div>
+      </div>
+    );
+  }
+
   function AskNextChat({ prefill }) {
     const [msgs, setMsgs] = useState([]);
     const [input, setInput] = useState('');
@@ -7602,12 +7673,12 @@ window.PEAK_ASKNEXT = (function () {
           if (data && data.content && data.content.length) txt = data.content.filter(c => c.type === 'text').map(c => c.text).join('');
           else if (data && data.error) txt = 'Error: ' + data.error;
           else txt = typeof data === 'string' ? data : JSON.stringify(data).slice(0, 200);
-          let actMsg = '';
+          let actMsg = ''; let proposal = null;
           const m = txt.match(/```(?:action|json)?\s*([\s\S]*?)```/i);
-          if (m) { try { const a = JSON.parse(m[1].trim()); if (a && a.action) { const r = runAction(a); if (r) actMsg = '\n\n✓ ' + r; } } catch (e) {} }
+          if (m) { try { const a = JSON.parse(m[1].trim()); if (a && a.action === 'propose_tasks' && Array.isArray(a.tasks) && a.tasks.length) { proposal = a.tasks; } else if (a && a.action) { const r = runAction(a); if (r) actMsg = '\n\n✓ ' + r; } } catch (e) {} }
           const disp = txt.replace(/```[\s\S]*?```/g, '').replace(/\n{3,}/g, '\n\n').trim() + actMsg;
           histRef.current = histRef.current.concat([{ role: 'assistant', content: txt }]);
-          setMsgs(m2 => m2.concat([{ role: 'nia', content: disp || '(no reply)' }])); setBusy(false);
+          setMsgs(m2 => m2.concat([{ role: 'nia', content: disp || (proposal ? '' : '(no reply)'), proposal: proposal }])); setBusy(false);
         }).catch(e => { setMsgs(m2 => m2.concat([{ role: 'nia', content: 'Could not reach Nia: ' + (e.message || e) }])); setBusy(false); });
     };
     useEffect(() => { if (prefill) send(prefill); /* eslint-disable-next-line */ }, []);
@@ -7632,7 +7703,10 @@ window.PEAK_ASKNEXT = (function () {
             </div>
           )}
           {msgs.map((m, i) => (
-            <div key={i} style={{ alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: '90%', background: m.role === 'user' ? T.red : T.surface, color: m.role === 'user' ? '#fff' : T.ink, border: m.role === 'user' ? 'none' : '1px solid ' + T.border, borderRadius: 12, padding: '10px 13px', fontSize: 13, lineHeight: 1.55, whiteSpace: 'pre-wrap' }}>{m.content}</div>
+            <React.Fragment key={i}>
+              {m.content ? <div style={{ alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: '90%', background: m.role === 'user' ? T.red : T.surface, color: m.role === 'user' ? '#fff' : T.ink, border: m.role === 'user' ? 'none' : '1px solid ' + T.border, borderRadius: 12, padding: '10px 13px', fontSize: 13, lineHeight: 1.55, whiteSpace: 'pre-wrap' }}>{m.content}</div> : null}
+              {m.proposal ? <div style={{ alignSelf: 'flex-start', maxWidth: '92%' }}><ProposalCard tasks={m.proposal} /></div> : null}
+            </React.Fragment>
           ))}
           {busy && <div style={{ alignSelf: 'flex-start', color: T.ink3, fontSize: 12.5, fontStyle: 'italic' }}>Nia is thinking…</div>}
         </div>
@@ -9571,7 +9645,7 @@ window.PEAK_STAFF = (function () {
               <div style={{ fontSize: 15, fontWeight: 700, color: T.ink, letterSpacing: '-0.01em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{(typeof window !== 'undefined' && window.__BRAND_NAME) || 'Peak Primary'}</div>
               <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
                 <PushBell compact />
-                <span style={{ fontSize: 9, color: T.ink4, fontFamily: T.mono }}>b34</span>
+                <span style={{ fontSize: 9, color: T.ink4, fontFamily: T.mono }}>b35</span>
               </div>
             </div>
           )}
