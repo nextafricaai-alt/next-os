@@ -3186,6 +3186,43 @@ const V4 = (function () {
     );
   }
 
+  // ─── Global search (real: students, teachers, screens) ─────────────────────
+  function GlobalSearch() {
+    const [q, setQ] = React.useState('');
+    const [open, setOpen] = React.useState(false);
+    const term = q.trim().toLowerCase();
+    const SCREENS = [['dash', 'Dashboard'], ['stud', 'Students'], ['attn', 'Attendance'], ['fees', 'Fees'], ['comm', 'Communications'], ['teach', 'Teachers'], ['trans', 'Transport'], ['learn', 'Learning'], ['rep', 'Reports'], ['finance', 'Finance'], ['timetable', 'Timetable'], ['today', 'Today']];
+    let results = [];
+    if (term) {
+      const DD = window.PEAK || {};
+      (DD.students || []).forEach(st => { if ((st.name + ' ' + (st.guardian || '') + ' ' + (st.stream || '')).toLowerCase().indexOf(term) >= 0) results.push({ type: 'Student', label: st.name, sub: (st.stream || '') + (st.guardian ? (' · ' + st.guardian) : ''), run: () => window.peakOpenProfile && window.peakOpenProfile(st) }); });
+      (DD.teachers || []).forEach(t => { if ((t.name + ' ' + ((t.subjects || []).join(' ')) + ' ' + (t.role || '')).toLowerCase().indexOf(term) >= 0) results.push({ type: 'Teacher', label: t.name, sub: ((t.subjects || []).join(', ')) || t.role || 'Teacher', run: () => window.peakNav && window.peakNav('teach') }); });
+      SCREENS.forEach(([k, l]) => { if (l.toLowerCase().indexOf(term) >= 0) results.push({ type: 'Open', label: l, sub: 'Go to ' + l, run: () => window.peakNav && window.peakNav(k) }); });
+      results = results.slice(0, 8);
+    }
+    const go = (r) => { setOpen(false); setQ(''); try { r.run(); } catch (e) {} };
+    return (
+      <div style={{ position: 'relative', width: 340 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 14px', borderRadius: 10, background: T.surface, border: '1px solid ' + T.border }}>
+          <span style={{ color: T.ink3, fontSize: 14 }}>{'\u2315'}</span>
+          <input value={q} placeholder="Search students, teachers, screens…" onChange={e => { setQ(e.target.value); setOpen(true); }} onFocus={() => setOpen(true)} onBlur={() => setTimeout(() => setOpen(false), 160)} onKeyDown={e => { if (e.key === 'Enter' && results[0]) go(results[0]); if (e.key === 'Escape') setOpen(false); }} style={{ border: 'none', outline: 'none', background: 'transparent', flex: 1, fontSize: 13, color: T.ink, fontFamily: T.font }} />
+          <span style={{ fontSize: 10, color: T.ink3, fontFamily: T.mono, border: '1px solid ' + T.border, borderRadius: 5, padding: '2px 6px' }}>{'\u2318K'}</span>
+        </div>
+        {open && term ? (
+          <div style={{ position: 'absolute', top: 'calc(100% + 6px)', left: 0, right: 0, background: T.surface, border: '1px solid ' + T.border, borderRadius: 10, boxShadow: '0 12px 30px rgba(0,0,0,0.4)', zIndex: 300, overflow: 'hidden', maxHeight: 360, overflowY: 'auto' }}>
+            {results.length === 0 ? <div style={{ padding: '12px 14px', color: T.ink3, fontSize: 12.5 }}>No matches for “{q}”.</div> :
+              results.map((r, i) => (
+                <div key={i} onMouseDown={() => go(r)} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', cursor: 'pointer', borderTop: i ? '1px solid ' + T.border : 'none' }}>
+                  <span style={{ fontSize: 9.5, fontFamily: T.mono, color: T.ink3, border: '1px solid ' + T.border, borderRadius: 5, padding: '2px 6px', minWidth: 54, textAlign: 'center' }}>{r.type}</span>
+                  <div style={{ minWidth: 0 }}><div style={{ fontSize: 13, color: T.ink, fontWeight: 600 }}>{r.label}</div><div style={{ fontSize: 11, color: T.ink3 }}>{r.sub}</div></div>
+                </div>
+              ))}
+          </div>
+        ) : null}
+      </div>
+    );
+  }
+
   // ─── top bar ──────────────────────────────────────────────────────────────
   function TopBar({ onNav }) {
     return (
@@ -3200,18 +3237,7 @@ const V4 = (function () {
         </div>
         <span style={{ marginLeft: 6, fontFamily: T.mono, color: T.ink4, fontSize: 11.5 }}>Thu 14 May · 08:24 EAT</span>
         <div style={{ flex: 1 }} />
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: 10, padding: '8px 14px',
-          borderRadius: 10, background: T.surface, border: '1px solid ' + T.border, width: 340,
-        }}>
-          <span style={{ color: T.ink3, fontSize: 14 }}>⌕</span>
-          <input
-            placeholder="Search students, fees, messages…"
-            onKeyDown={e => { if (e.key === 'Enter' && e.currentTarget.value) { window.peakToast && window.peakToast('Searching: ' + e.currentTarget.value, 'info'); } }}
-            style={{ border: 'none', outline: 'none', background: 'transparent', flex: 1, fontSize: 13, color: T.ink, fontFamily: T.font }}
-          />
-          <span style={{ fontSize: 10, color: T.ink3, fontFamily: T.mono, border: '1px solid ' + T.border, borderRadius: 5, padding: '2px 6px' }}>⌘K</span>
-        </div>
+        <GlobalSearch />
         <button onClick={() => window.peakExportRoster && window.peakExportRoster()} style={{ border: '1px solid ' + T.borderStr, background: 'transparent', padding: '8px 14px', borderRadius: 9, fontSize: 12.5, color: T.ink2, cursor: 'pointer', fontWeight: 500 }}>Export</button>
         <button onClick={() => onNav ? onNav('comm') : (window.peakNav && window.peakNav('comm'))} style={{ border: 'none', background: T.red, color: '#fff', padding: '9px 16px', borderRadius: 9, fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }}>+ New broadcast</button>
       </header>
@@ -9842,7 +9868,7 @@ window.PEAK_STAFF = (function () {
               <div style={{ fontSize: 15, fontWeight: 700, color: T.ink, letterSpacing: '-0.01em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{(typeof window !== 'undefined' && window.__BRAND_NAME) || 'Peak Primary'}</div>
               <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
                 <PushBell compact />
-                <span style={{ fontSize: 9, color: T.ink4, fontFamily: T.mono }}>b38</span>
+                <span style={{ fontSize: 9, color: T.ink4, fontFamily: T.mono }}>b39</span>
               </div>
             </div>
           )}
