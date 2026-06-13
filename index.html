@@ -4626,9 +4626,67 @@ You: "'We help you get more done with less stress.' Nine plain words beat the ja
       window.speechSynthesis.speak(u);
     } catch (e) {}
   }
+  if (typeof window !== 'undefined') window.niaSpeak = niaSpeak;
+
+  // ── Global "Hey Nia" orb — listens for her name anywhere in the OS ─────────
+  function NiaWakeOrb() {
+    const SR = (typeof window !== 'undefined') && (window.SpeechRecognition || window.webkitSpeechRecognition);
+    const [on, setOn] = React.useState(() => { try { return localStorage.getItem('nextos.nia.handsfree') === '1'; } catch (e) { return false; } });
+    const [heard, setHeard] = React.useState('');
+    React.useEffect(() => { if (typeof window !== 'undefined') window.NIA_HANDS_FREE_TOGGLE = () => setOn(v => !v); }, []);
+    React.useEffect(() => {
+      try { localStorage.setItem('nextos.nia.handsfree', on ? '1' : '0'); } catch (e) {}
+      if (!on || !SR) return;
+      try { localStorage.setItem('nextos.nia.voiceout', '1'); } catch (e) {}
+      let rec, stopped = false, rt = null;
+      const ask = (cmd) => {
+        if (!cmd || cmd.length < 2) { window.niaSpeak && window.niaSpeak("Yes? I'm listening."); return; }
+        window.__NIA_PENDING = cmd;
+        if (window.NIA_ASK) { window.NIA_ASK(cmd); window.__NIA_PENDING = null; }
+        else if (window.NEXT_OS_NAVIGATE) { window.NEXT_OS_NAVIGATE('talk'); }
+      };
+      const start = () => {
+        try { rec = new SR(); } catch (e) { return; }
+        rec.lang = 'en-US'; rec.continuous = true; rec.interimResults = false; rec.maxAlternatives = 1;
+        rec.onresult = (e) => {
+          if (window.speechSynthesis && window.speechSynthesis.speaking) return;
+          for (let i = e.resultIndex; i < e.results.length; i++) {
+            if (!e.results[i].isFinal) continue;
+            const t = (e.results[i][0].transcript || '').trim();
+            const low = t.toLowerCase();
+            const m = low.match(/\b(hey nia|ok nia|nia|nya|nina|near|neah)\b/);
+            if (!m) continue;
+            setHeard(t); setTimeout(() => setHeard(''), 4000);
+            const cmd = t.slice(low.indexOf(m[1]) + m[1].length).replace(/^[\s,.:;!?-]+/, '').trim();
+            ask(cmd);
+          }
+        };
+        rec.onerror = (ev) => { if (ev && ev.error === 'not-allowed') setOn(false); };
+        rec.onend = () => { if (!stopped && !rt) { rt = setTimeout(() => { rt = null; try { rec.start(); } catch (e) {} }, 350); } };
+        try { rec.start(); } catch (e) {}
+      };
+      start();
+      return () => { stopped = true; if (rt) clearTimeout(rt); try { rec && rec.stop(); } catch (e) {} };
+    }, [on]);
+    if (!SR) return null;
+    return (
+      <div style={{ position: 'fixed', right: 18, bottom: 18, zIndex: 400, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
+        {on && heard ? <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: '7px 11px', fontSize: 12, color: 'var(--text-secondary)', maxWidth: 260, boxShadow: '0 8px 24px rgba(0,0,0,0.45)' }}>{'\u201C'}{heard}{'\u201D'}</div> : null}
+        {on ? <div style={{ fontSize: 10.5, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 999, padding: '3px 9px' }}>say {'\u201C'}Nia {'\u2026\u201D'}</div> : null}
+        <button onClick={() => setOn(v => !v)} title={on ? 'Hands-free on — say "Nia ..." from any screen' : 'Let Nia listen for her name'} style={{ width: 56, height: 56, borderRadius: '50%', border: 'none', cursor: 'pointer', background: on ? '#e23a52' : 'var(--mint)', color: on ? '#fff' : 'var(--text-inverse)', fontSize: 22, boxShadow: on ? '0 0 0 6px rgba(226,58,82,0.22), 0 10px 30px rgba(0,0,0,0.45)' : '0 10px 30px rgba(0,0,0,0.45)', display: 'grid', placeItems: 'center' }}>{on ? '\u{1F3A4}' : '\u25C6'}</button>
+      </div>
+    );
+  }
+  if (typeof window !== 'undefined') window.NiaWakeOrb = NiaWakeOrb;
 
   const TalkToSentinelPage = () => {
     const convo = useConversation();
+    const sendRefT = React.useRef(convo.send); sendRefT.current = convo.send;
+    React.useEffect(() => {
+      window.NIA_ASK = (q) => { try { sendRefT.current && sendRefT.current(q); } catch (e) {} };
+      if (window.__NIA_PENDING) { const q = window.__NIA_PENDING; window.__NIA_PENDING = null; setTimeout(() => { try { sendRefT.current && sendRefT.current(q); } catch (e) {} }, 300); }
+      return () => { if (window.NIA_ASK) window.NIA_ASK = null; };
+    }, []);
     const [voiceOn, setVoiceOn] = React.useState(() => { try { return localStorage.getItem('nextos.nia.voiceout') === '1'; } catch (e) { return false; } });
     const lastSpoke = React.useRef(-1);
     React.useEffect(() => {
@@ -4637,40 +4695,6 @@ You: "'We help you get more done with less stress.' Nine plain words beat the ja
       for (let i = ms.length - 1; i >= 0; i--) { if (ms[i].role === 'assistant' && ms[i].content) { if (i > lastSpoke.current) { lastSpoke.current = i; niaSpeak(ms[i].content); } break; } }
     }, [convo.messages, voiceOn]);
     const toggleVoice = () => setVoiceOn(v => { const n = !v; try { localStorage.setItem('nextos.nia.voiceout', n ? '1' : '0'); } catch (e) {} if (!n) { try { window.speechSynthesis && window.speechSynthesis.cancel(); } catch (e) {} } else { lastSpoke.current = convo.messages.length - 1; } return n; });
-    // ── Hands-free wake word: say "Nia …" and she answers ───────────────────
-    const SR_WAKE = (typeof window !== 'undefined') && (window.SpeechRecognition || window.webkitSpeechRecognition);
-    const [handsFree, setHandsFree] = React.useState(false);
-    const [heard, setHeard] = React.useState('');
-    const sendRef = React.useRef(convo.send); sendRef.current = convo.send;
-    React.useEffect(() => {
-      if (!handsFree || !SR_WAKE) return;
-      if (!voiceOn) { setVoiceOn(true); try { localStorage.setItem('nextos.nia.voiceout', '1'); } catch (e) {} lastSpoke.current = convo.messages.length - 1; }
-      let rec, stopped = false, restartT = null;
-      const start = () => {
-        try { rec = new SR_WAKE(); } catch (e) { return; }
-        rec.lang = 'en-US'; rec.continuous = true; rec.interimResults = false; rec.maxAlternatives = 1;
-        rec.onresult = (e) => {
-          // Ignore what we hear while Nia is speaking (prevents her hearing herself).
-          if (window.speechSynthesis && window.speechSynthesis.speaking) return;
-          for (let i = e.resultIndex; i < e.results.length; i++) {
-            if (!e.results[i].isFinal) continue;
-            const t = (e.results[i][0].transcript || '').trim();
-            const low = t.toLowerCase();
-            const m = low.match(/\b(nia|nya|near|neah|nina)\b/);
-            if (!m) continue;
-            setHeard(t);
-            let cmd = t.slice(low.indexOf(m[1]) + m[1].length).replace(/^[\s,.:;!?-]+/, '').trim();
-            if (cmd.length > 1) { sendRef.current && sendRef.current(cmd); }
-            else { niaSpeak("Yes? I'm listening."); }
-          }
-        };
-        rec.onerror = (ev) => { if (ev && ev.error === 'not-allowed') { setHandsFree(false); } };
-        rec.onend = () => { if (!stopped && !restartT) { restartT = setTimeout(() => { restartT = null; try { rec.start(); } catch (e) {} }, 350); } };
-        try { rec.start(); } catch (e) {}
-      };
-      start();
-      return () => { stopped = true; if (restartT) clearTimeout(restartT); try { rec && rec.stop(); } catch (e) {} };
-    }, [handsFree]);
     const isFree = convo.provider === 'nia-free';
     const ready = isFree || !!convo.apiKey;
     const [showKey, setShowKey] = React.useState(!ready);
@@ -4688,14 +4712,12 @@ You: "'We help you get more done with less stress.' Nine plain words beat the ja
             </div>
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
-            {SR_WAKE && <button onClick={() => setHandsFree(h => !h)} title={handsFree ? 'Hands-free on — just say “Nia …”' : 'Turn on hands-free — call her by name'} style={{ background: handsFree ? '#e23a52' : 'transparent', border: '1px solid ' + (handsFree ? '#e23a52' : 'var(--border-default)'), color: handsFree ? '#fff' : 'var(--text-secondary)', padding: '8px 12px', borderRadius: 'var(--radius-sm)', fontSize: 12, fontFamily: 'var(--font-mono)', letterSpacing: 1, cursor: 'pointer', boxShadow: handsFree ? '0 0 0 4px rgba(226,58,82,0.22)' : 'none' }}>{handsFree ? '\u{1F3A4} HEY NIA \u25CF' : '\u{1F3A4} HEY NIA'}</button>}
             <button onClick={toggleVoice} title={voiceOn ? 'Nia voice: on (reads replies aloud)' : 'Nia voice: off'} style={{ background: voiceOn ? 'var(--mint)' : 'transparent', border: '1px solid ' + (voiceOn ? 'var(--mint)' : 'var(--border-default)'), color: voiceOn ? 'var(--text-inverse)' : 'var(--text-secondary)', padding: '8px 12px', borderRadius: 'var(--radius-sm)', fontSize: 12, fontFamily: 'var(--font-mono)', letterSpacing: 1, cursor: 'pointer' }}>{voiceOn ? '\u{1F50A} VOICE ON' : '\u{1F507} VOICE'}</button>
             <button onClick={() => setShowKey(s => !s)} style={{ background: 'transparent', border: '1px solid var(--border-default)', color: 'var(--text-secondary)', padding: '8px 14px', borderRadius: 'var(--radius-sm)', fontSize: 12, fontFamily: 'var(--font-mono)', letterSpacing: 1, cursor: 'pointer' }}>{ready ? 'SWITCH AGENT' : 'CONNECT'}</button>
             <button onClick={convo.clearConvo} style={{ background: 'transparent', border: '1px solid var(--border-subtle)', color: 'var(--text-tertiary)', padding: '8px 14px', borderRadius: 'var(--radius-sm)', fontSize: 12, fontFamily: 'var(--font-mono)', letterSpacing: 1, cursor: 'pointer' }}>CLEAR</button>
           </div>
         </div>
 
-        {handsFree && <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(226,58,82,0.08)', border: '1px solid rgba(226,58,82,0.4)', borderRadius: 'var(--radius-sm)', padding: '9px 13px', fontSize: 12.5, color: 'var(--text-secondary)' }}><span style={{ width: 8, height: 8, borderRadius: '50%', background: '#e23a52', boxShadow: '0 0 0 4px rgba(226,58,82,0.25)' }} />Listening — just say <b style={{ color: 'var(--text-primary)', margin: '0 4px' }}>“Nia, …”</b> followed by what you need.{heard ? <span style={{ marginLeft: 8, color: 'var(--text-tertiary)', fontStyle: 'italic' }}>heard: “{heard}”</span> : null}</div>}
         {showKey && <KeyPanel apiKey={convo.apiKey} provider={convo.provider} setKey={convo.setKey} setProv={convo.setProv} onClose={() => setShowKey(false)} />}
 
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-lg)', padding: '12px 16px', minHeight: 0 }}>
@@ -5455,7 +5477,7 @@ You: "'We help you get more done with less stress.' Nine plain words beat the ja
               fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 14,
             }}>N</div>
             <div>
-              <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', letterSpacing: 1.5, color: 'var(--text-tertiary)' }}>NIA'S WATCH <span style={{ color: 'var(--mint)', marginLeft: 6 }}>· LIVE v17</span></div>
+              <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', letterSpacing: 1.5, color: 'var(--text-tertiary)' }}>NIA'S WATCH <span style={{ color: 'var(--mint)', marginLeft: 6 }}>· LIVE v18</span></div>
               <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)' }}>
                 What happened while you were away
               </div>
@@ -7520,6 +7542,8 @@ const AppShell = () => {
       </TweaksPanel>
       )}
 
+      {/* Global "Hey Nia" voice orb — listens for her name on every screen */}
+      {window.NiaWakeOrb ? React.createElement(window.NiaWakeOrb) : null}
       {/* Global notification center — toasts from any module / Nia stack here */}
       {window.NotificationCenter ? React.createElement(window.NotificationCenter) : null}
       {window.NotificationPanel ? React.createElement(window.NotificationPanel) : null}
