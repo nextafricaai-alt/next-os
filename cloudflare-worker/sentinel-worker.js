@@ -218,7 +218,7 @@ export default {
     }
 
     // GET-allowed routes (read-only endpoints live below this gate)
-    const GET_OK = ['/check-project', '/seo-audit', '/px.js', '/analytics', '/gsc', '/ga4', '/fetch-page', '/site-pages', '/cms/collections', '/cms/items', '/students', '/exams', '/exam-results', '/fees-balances', '/attendance-summary', '/staff-status', '/student-health', '/events', '/finance', '/assets', '/school-config', '/os-data', '/teachers', '/hosting-report', '/watch/status', '/push/vapid-public'];
+    const GET_OK = ['/check-project', '/seo-audit', '/px.js', '/analytics', '/gsc', '/ga4', '/fetch-page', '/site-pages', '/cms/collections', '/cms/items', '/students', '/exams', '/exam-results', '/fees-balances', '/attendance-summary', '/staff-status', '/student-health', '/events', '/finance', '/assets', '/school-config', '/os-data', '/teachers', '/hosting-report', '/watch/status', '/push/vapid-public', '/push/debug'];
     if (request.method !== 'POST' && !GET_OK.includes(url.pathname)) {
       return new Response('Method not allowed', { status: 405, headers: cors });
     }
@@ -373,6 +373,7 @@ export default {
     if (url.pathname === '/push/subscribe')     return handlePushSubscribe(request, env, cors);
     if (url.pathname === '/push/notify')        return handlePushNotify(request, env, cors);
     if (url.pathname === '/push/test')          return handlePushTest(request, env, cors);
+    if (url.pathname === '/push/debug')         return handlePushDebug(url.searchParams.get('tenant') || 'next', url.searchParams.get('send') === '1', env, cors);
 
     // ─── Route: / — Llama agent (default) ───────────────────────────────
     return handleAgent(request, env, cors);
@@ -2272,4 +2273,24 @@ async function handlePushTest(request, env, cors) {
   if (!email) return J({ error: 'email required' }, 400);
   const r = await deliverPush(env, tenant, [email], null, { title: 'NEXT OS ✓', body: 'Phone alerts are on. Head’s tasks will land right here.', url: '/', tag: 'nx-test' });
   return J({ ok: true, matched: r.matched, sent: r.ok });
+}
+
+async function handlePushDebug(tenant, doSend, env, cors) {
+  const J = (oo, st) => new Response(JSON.stringify(oo), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
+  const conf = { VAPID_PUBLIC: !!env.VAPID_PUBLIC, VAPID_JWK: !!env.VAPID_JWK, VAPID_SUBJECT: env.VAPID_SUBJECT || null };
+  let jwkOk = false; try { const j = JSON.parse(env.VAPID_JWK); jwkOk = !!(j && j.d && j.x && j.y); } catch (e) {}
+  let rows = [];
+  try { rows = await sbFetch(env, '/os_records?tenant=eq.' + encodeURIComponent(tenant) + '&kind=eq.push_sub&select=id,payload&limit=1000'); } catch (e) { return J({ tenant, conf, jwkOk, error: 'db: ' + String(e && e.message || e) }, 200); }
+  const subs = (rows || []).map(r => { const p = r.payload || {}; let host = ''; try { host = new URL(p.endpoint).host; } catch (e) {} return { email: p.email || '', role: p.role || '', host: host, ts: p.ts || 0 }; });
+  const out = { tenant, conf, jwkOk, subCount: subs.length, subs: subs };
+  if (doSend) {
+    const results = [];
+    for (const r of (rows || [])) {
+      const res = await sendWebPush(env, r.payload, { title: 'NEXT OS · diagnostic', body: 'If you see this, push works.', url: '/', tag: 'nx-debug' });
+      let host = ''; try { host = new URL(r.payload.endpoint).host; } catch (e) {}
+      results.push({ email: (r.payload && r.payload.email) || '', host: host, ok: res.ok, status: res.status, gone: !!res.gone, error: res.error || null });
+    }
+    out.sendResults = results;
+  }
+  return J(out, 200);
 }
