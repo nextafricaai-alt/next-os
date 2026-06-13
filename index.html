@@ -5419,7 +5419,7 @@ You: "'We help you get more done with less stress.' Nine plain words beat the ja
               fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 14,
             }}>N</div>
             <div>
-              <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', letterSpacing: 1.5, color: 'var(--text-tertiary)' }}>NIA'S WATCH <span style={{ color: 'var(--mint)', marginLeft: 6 }}>· LIVE v13</span></div>
+              <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', letterSpacing: 1.5, color: 'var(--text-tertiary)' }}>NIA'S WATCH <span style={{ color: 'var(--mint)', marginLeft: 6 }}>· LIVE v14</span></div>
               <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)' }}>
                 What happened while you were away
               </div>
@@ -7037,6 +7037,7 @@ const BellButton = () => {
 /* -- Topbar -- */
 const Topbar = ({ pageTitle, sidebarWidth, tutorial, onToggleTutorial, narrow, onHamburger }) => {
   const [searchFocused, setSearchFocused] = React.useState(false);
+  const [searchQ, setSearchQ] = React.useState('');
 
   return (
     <header style={{
@@ -7062,26 +7063,46 @@ const Topbar = ({ pageTitle, sidebarWidth, tutorial, onToggleTutorial, narrow, o
       {/* Right side */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
         {/* Search */}
-        <div style={{
-          display: narrow ? 'none' : 'flex', alignItems: 'center', gap: 8,
-          background: searchFocused ? 'var(--bg-surface)' : 'var(--bg-elevated)',
-          border: `1px solid ${searchFocused ? 'var(--border-active)' : 'var(--border-subtle)'}`,
-          borderRadius: 'var(--radius-sm)', padding: '6px 12px',
-          transition: 'all 0.2s', width: searchFocused ? 280 : 200,
-        }}>
-          <OSIcon name="search" size={14} />
-          <input
-            placeholder="Search..."
-            onFocus={() => setSearchFocused(true)}
-            onBlur={() => setSearchFocused(false)}
-            style={{
-              background: 'none', border: 'none', outline: 'none',
-              color: 'var(--text-primary)', fontSize: 13,
-              fontFamily: 'var(--font-body)', width: '100%',
-            }}
-          />
-          <span style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)', background: 'var(--bg-deep)', padding: '2px 6px', borderRadius: 3 }}>Ctrl+K</span>
-        </div>
+        {(() => {
+          const term = searchQ.trim().toLowerCase();
+          const pages = [];
+          (typeof NAV_SECTIONS !== 'undefined' ? NAV_SECTIONS : []).forEach(sec => (sec.items || []).forEach(it => pages.push(it)));
+          const results = term ? pages.filter(p => (p.label || '').toLowerCase().indexOf(term) >= 0).slice(0, 8) : [];
+          const go = (p) => { setSearchQ(''); setSearchFocused(false); if (p.external) { window.open(p.external, '_blank'); } else if (window.NEXT_OS_NAVIGATE) { window.NEXT_OS_NAVIGATE(p.id); } };
+          return (
+            <div style={{ position: 'relative', display: narrow ? 'none' : 'block' }}>
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 8,
+                background: searchFocused ? 'var(--bg-surface)' : 'var(--bg-elevated)',
+                border: `1px solid ${searchFocused ? 'var(--border-active)' : 'var(--border-subtle)'}`,
+                borderRadius: 'var(--radius-sm)', padding: '6px 12px',
+                transition: 'all 0.2s', width: searchFocused ? 280 : 200,
+              }}>
+                <OSIcon name="search" size={14} />
+                <input
+                  value={searchQ}
+                  placeholder="Search pages…"
+                  onChange={e => setSearchQ(e.target.value)}
+                  onFocus={() => setSearchFocused(true)}
+                  onBlur={() => setTimeout(() => setSearchFocused(false), 160)}
+                  onKeyDown={e => { if (e.key === 'Enter' && results[0]) go(results[0]); if (e.key === 'Escape') { setSearchQ(''); e.currentTarget.blur(); } }}
+                  style={{ background: 'none', border: 'none', outline: 'none', color: 'var(--text-primary)', fontSize: 13, fontFamily: 'var(--font-body)', width: '100%' }}
+                />
+                <span style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)', background: 'var(--bg-deep)', padding: '2px 6px', borderRadius: 3 }}>Ctrl+K</span>
+              </div>
+              {searchFocused && term ? (
+                <div style={{ position: 'absolute', top: 'calc(100% + 6px)', left: 0, right: 0, minWidth: 240, background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-sm)', boxShadow: '0 14px 34px rgba(0,0,0,0.5)', zIndex: 300, overflow: 'hidden' }}>
+                  {results.length === 0 ? <div style={{ padding: '11px 13px', color: 'var(--text-tertiary)', fontSize: 12.5 }}>No page matches “{searchQ}”.</div> :
+                    results.map((p, i) => (
+                      <div key={p.id} onMouseDown={() => go(p)} style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '10px 13px', cursor: 'pointer', borderTop: i ? '1px solid var(--border-subtle)' : 'none', color: 'var(--text-primary)', fontSize: 13 }}>
+                        <OSIcon name={p.icon || 'dashboard'} size={14} /><span>{p.label}</span>
+                      </div>
+                    ))}
+                </div>
+              ) : null}
+            </div>
+          );
+        })()}
 
         {/* Notifications */}
         <button onClick={() => onToggleTutorial && onToggleTutorial()} title={tutorial ? 'Tutorial mode: on — hover sidebar icons for tips' : 'Turn on tutorial mode'} style={{ background: tutorial ? 'var(--mint)' : 'transparent', border: '1px solid ' + (tutorial ? 'var(--mint)' : 'var(--border-default)'), color: tutorial ? 'var(--text-inverse)' : 'var(--text-secondary)', borderRadius: 'var(--radius-sm)', padding: '6px 10px', fontSize: 11, fontFamily: 'var(--font-mono)', letterSpacing: 1, cursor: 'pointer' }}>{tutorial ? '\u{1F393} TUTORIAL ON' : '\u{1F393} TUTORIAL'}</button>
