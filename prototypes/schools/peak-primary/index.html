@@ -7756,7 +7756,17 @@ window.PEAK_ASKNEXT = (function () {
   function ProposalCard({ tasks }) {
     const [state, setState] = useState('pending');
     const [result, setResult] = useState([]);
-    const approve = async () => { setState('sending'); try { const done = await executeAssignments(tasks); setResult(done); setState('sent'); window.peakToast && window.peakToast('Nia assigned ' + done.length + ' task' + (done.length === 1 ? '' : 's'), 'success', 'Teachers notified'); } catch (e) { setState('pending'); window.peakToast && window.peakToast('Could not assign', 'info', String(e.message || e)); } };
+    const approve = async () => { setState('sending'); try { const done = await executeAssignments(tasks); setResult(done); setState('sent'); window.__peakPendingApprove = null; window.__peakPendingCancel = null; window.peakToast && window.peakToast('Nia assigned ' + done.length + ' task' + (done.length === 1 ? '' : 's'), 'success', 'Teachers notified'); if (window.__PEAK_NIA_VOICE && window.__peakSpeak) window.__peakSpeak('Done. Assigned ' + done.length + ' task' + (done.length === 1 ? '' : 's') + ' and notified the teachers.'); } catch (e) { setState('pending'); window.peakToast && window.peakToast('Could not assign', 'info', String(e.message || e)); } };
+    React.useEffect(() => {
+      if (state !== 'pending') return;
+      window.__peakPendingApprove = approve;
+      window.__peakPendingCancel = () => { setState('cancelled'); window.__peakPendingApprove = null; window.__peakPendingCancel = null; if (window.__peakSpeak) window.__peakSpeak('Cancelled. Nothing was sent.'); };
+      if (window.__PEAK_NIA_VOICE && window.__peakSpeak) {
+        const who = Array.from(new Set([].concat.apply([], tasks.map(t => t.emails || [])))).length;
+        window.__peakSpeak('I have prepared ' + tasks.length + ' task' + (tasks.length === 1 ? '' : 's') + ' for ' + who + ' teacher' + (who === 1 ? '' : 's') + '. Say "Nia approve" to send, or "Nia cancel".');
+      }
+      return () => { if (window.__peakPendingApprove === approve) { window.__peakPendingApprove = null; window.__peakPendingCancel = null; } };
+    }, [state]);
     if (state === 'cancelled') return <div style={{ fontSize: 12, color: T.ink3, fontStyle: 'italic' }}>Assignment cancelled — nothing was sent.</div>;
     if (state === 'sent') return (
       <div style={{ border: '1px solid ' + T.good, borderRadius: 12, padding: '11px 13px', background: 'rgba(34,197,94,0.08)', fontSize: 12.5, color: T.ink }}>
@@ -7888,6 +7898,9 @@ window.PEAK_ASKNEXT = (function () {
             const m = low.match(/\b(hey nia|ok nia|nia|nya|nina|near|neah)\b/); if (!m) continue;
             setHeard(t); setTimeout(() => setHeard(''), 4000); chime(); setPulse(true); setTimeout(() => setPulse(false), 900);
             const cmd = t.slice(low.indexOf(m[1]) + m[1].length).replace(/^[\s,.:;!?-]+/, '').trim();
+            const cl = cmd.toLowerCase();
+            if (window.__peakPendingApprove && /\b(approve|confirm|send it|send|yes|do it|go ahead|okay|ok)\b/.test(cl)) { try { window.__peakPendingApprove(); } catch (e) {} return; }
+            if (window.__peakPendingCancel && /\b(cancel|no|stop|never mind|don't|do not)\b/.test(cl)) { try { window.__peakPendingCancel(); } catch (e) {} return; }
             if (cmd.length > 1) { try { open(cmd); } catch (e) {} } else { window.__peakSpeak && window.__peakSpeak("Yes? I'm listening."); }
           }
         };
@@ -9934,7 +9947,7 @@ window.PEAK_STAFF = (function () {
               <div style={{ fontSize: 15, fontWeight: 700, color: T.ink, letterSpacing: '-0.01em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{(typeof window !== 'undefined' && window.__BRAND_NAME) || 'Peak Primary'}</div>
               <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
                 <PushBell compact />
-                <span style={{ fontSize: 9, color: T.ink4, fontFamily: T.mono }}>b41</span>
+                <span style={{ fontSize: 9, color: T.ink4, fontFamily: T.mono }}>b42</span>
               </div>
             </div>
           )}
