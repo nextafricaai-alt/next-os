@@ -1156,6 +1156,16 @@
 
     const [statuses, setStatuses] = useState(initialStatuses);
     const [saving, setSaving] = useState(false);
+    // Timetable time-gate: only allow this class's roll call during its scheduled period.
+    const _prof = profile || (window.PEAK_ROLE && window.PEAK_ROLE.getProfile && window.PEAK_ROLE.getProfile()) || {};
+    const _email = ((_prof && _prof.email) || '').toLowerCase();
+    const _tid = (_prof && _prof.tenantId) || 'peak-primary';
+    const [_tt, _setTt] = useState(null);
+    useEffect(() => { fetch('https://nextos-sentinel.nextafricaai.workers.dev/os-data?kind=timetable&tenant=' + encodeURIComponent(_tid)).then(r => r.json()).then(d => { const rec = ((d && d.records) || [])[0]; _setTt((rec && rec.payload) || { periods: [], grid: {} }); }).catch(() => _setTt({ periods: [], grid: {} })); }, []);
+    const _lessons = _teacherLessonsToday(_tt, _email);
+    const _hasTT = _lessons.length > 0;
+    const _activeNow = _activeLessonNow(_lessons);
+    const _locked = _hasTT && (!_activeNow || _activeNow.cls !== stream);
 
     const setStatus = (id, status) => setStatuses(prev => ({ ...prev, [id]: status }));
 
@@ -1209,6 +1219,19 @@
       );
     };
 
+    if (_locked) {
+      const _nxt = _nextLessonForClass(_lessons, stream);
+      return (
+        <Modal title={`Roll Call · ${stream}`} onClose={onClose} width={520}>
+          <div style={{ padding: 22, textAlign: 'center', color: T.ink2 }}>
+            <div style={{ fontSize: 30, marginBottom: 10 }}>{'\uD83D\uDD12'}</div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: T.ink, marginBottom: 8 }}>Not this class's time yet</div>
+            <div style={{ fontSize: 12.5, color: T.ink3, lineHeight: 1.6 }}>You can only take <b>{stream}</b>'s roll call during its timetabled period{_nxt ? (' — next at ' + _nxt.s + ' (' + _nxt.subject + ')') : ' today'}.{_activeNow ? (' Right now your timetable has you in ' + _activeNow.cls + ' (' + _activeNow.subject + ').') : ''}</div>
+            <button onClick={onClose} style={{ marginTop: 16, background: T.green, color: T.bg, border: 'none', borderRadius: 9, padding: '9px 18px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>Got it</button>
+          </div>
+        </Modal>
+      );
+    }
     return (
       <Modal title={`Roll Call · ${stream}`} onClose={onClose} width={640}>
         <div style={{
@@ -1402,18 +1425,52 @@
   }
 
   // ─── Card: Today's Classes (with Take Roll Call buttons) ───────────
+  // ── Timetable time-gating: a teacher may only roll-call the class they are
+  //    timetabled to teach in the CURRENT period (prevents rolling several at once).
+  function _nowMins() { const d = new Date(); return d.getHours() * 60 + d.getMinutes(); }
+  function _toMins(hhmm) { const m = String(hhmm || '').match(/(\d{1,2}):(\d{2})/); return m ? (parseInt(m[1], 10) * 60 + parseInt(m[2], 10)) : null; }
+  function _teacherLessonsToday(tt, email) {
+    const DN = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']; const d = DN[new Date().getDay()];
+    if (d === 'Sat' || d === 'Sun') return [];
+    const out = [];
+    if (tt && tt.grid) { Object.keys(tt.grid).forEach(cls => { ((tt.grid[cls] || {})[d] || []).forEach((cell, pi) => { if (cell && !cell.brk && cell.subject && (cell.teacherEmail || '').toLowerCase() === email) { const p = (tt.periods || [])[pi] || {}; out.push({ cls: cls, subject: cell.subject, pi: pi, s: p.s, e: p.e, label: p.l }); } }); }); }
+    out.sort((a, b) => a.pi - b.pi); return out;
+  }
+  function _activeLessonNow(lessons) { const n = _nowMins(); return lessons.find(L => { const a = _toMins(L.s), b = _toMins(L.e); return a != null && b != null && n >= a && n < b; }) || null; }
+  function _nextLessonForClass(lessons, cls) { const n = _nowMins(); return lessons.filter(L => L.cls === cls && (_toMins(L.s) != null) && _toMins(L.s) > n).sort((a, b) => _toMins(a.s) - _toMins(b.s))[0] || null; }
+
   function TodaysClassesCard({ assignments, rollCalls, onTakeRollCall }) {
     const today = new Date();
     const todayName = DAY_NAMES[today.getDay()];
     const isWeekend = today.getDay() === 0 || today.getDay() === 6;
     const todaysClasses = isWeekend ? [] : assignments;
 
-    const allStudents = (window.PEAK && window.PEAK.students) || [];
+    const WK = 'https://nextos-sentinel.nextafricaai.workers.dev';
+    const prof = (window.PEAK_ROLE && window.PEAK_ROLE.getProfile) ? window.PEAK_ROLE.getProfile() : {};
+    const email = ((prof && prof.email) || '').toLowerCase();
+    const tenantId = (prof && prof.tenantId) || 'peak-primary';
+    const [tt, setTt] = useState(null);
+    const [, tick] = React.useReducer(n => n + 1, 0);
+    useEffect(() => {
+      const load = () => fetch(WK + '/os-data?kind=timetable&tenant=' + encodeURIComponent(tenantId)).then(r => r.json()).then(d => { const rec = ((d && d.records) || [])[0]; setTt((rec && rec.payload) || { periods: [], grid: {} }); }).catch(() => setTt({ periods: [], grid: {} }));
+      load(); const iv = setInterval(() => { tick(); }, 60000); const lv = setInterval(load, 300000); return () => { clearInterval(iv); clearInterval(lv); };
+    }, [tenantId]);
+    const lessonsToday = _teacherLessonsToday(tt, email);
+    const hasTimetable = lessonsToday.length > 0;        // only enforce if a timetable exists for this teacher
+    const activeLesson = _activeLessonNow(lessonsToday);
+    const activeCls = activeLesson ? activeLesson.cls : null;
+
+    const allStudents = (window.__TEACHER_STUDENTS && window.__TEACHER_STUDENTS.length) ? window.__TEACHER_STUDENTS : ((window.PEAK && window.PEAK.students) || []);
         const rollCountFor = (stream) => rollCalls.filter(rc => rc.stream === stream).length;
     const studentsInStream = (stream) => allStudents.filter(s => s.stream === stream).length;
 
     return (
       <Card title={"Today · " + todayName} subtitle="TODAY'S CLASSES" accent={T.green}>
+        {!isWeekend && hasTimetable && (
+          <div style={{ fontSize: 11.5, marginBottom: 10, padding: '8px 11px', borderRadius: 9, background: activeCls ? 'rgba(0,252,143,0.10)' : T.surface2, border: '1px solid ' + (activeCls ? 'rgba(0,252,143,0.35)' : T.border), color: activeCls ? T.green : T.ink3 }}>
+            {activeCls ? ('● In session now: ' + activeLesson.subject + ' · ' + activeCls + ' (' + activeLesson.s + '–' + activeLesson.e + '). You can take this roll call.') : 'No lesson in session right now — roll call opens when your timetabled period starts.'}
+          </div>
+        )}
         {isWeekend ? (
           <Empty text="No classes today — it's the weekend. Enjoy the rest." />
         ) : todaysClasses.length === 0 ? (
@@ -1456,13 +1513,15 @@
                       )}
                     </div>
                   </div>
-                  <button onClick={() => onTakeRollCall(a.stream)} style={{
-                    background: rollDone ? 'transparent' : T.green,
-                    color: rollDone ? T.green : T.bg,
-                    border: '1px solid ' + T.green,
-                    padding: '8px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600,
-                    cursor: 'pointer', fontFamily: T.font,
-                  }}>{rollDone ? 'Update Roll' : 'Take Roll Call'}</button>
+                  {(() => {
+                    const locked = hasTimetable && a.stream !== activeCls;
+                    if (locked) {
+                      const nxt = _nextLessonForClass(lessonsToday, a.stream);
+                      const label = nxt ? ('Opens ' + nxt.s) : 'Not today';
+                      return <button disabled title="You can only take this roll call during its timetabled period." style={{ background: 'transparent', color: T.ink4, border: '1px solid ' + T.border, padding: '8px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'not-allowed', fontFamily: T.font, display: 'flex', alignItems: 'center', gap: 6 }}><span style={{ fontSize: 11 }}>{'\uD83D\uDD12'}</span>{label}</button>;
+                    }
+                    return <button onClick={() => onTakeRollCall(a.stream)} style={{ background: rollDone ? 'transparent' : T.green, color: rollDone ? T.green : T.bg, border: '1px solid ' + T.green, padding: '8px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: T.font }}>{rollDone ? 'Update Roll' : 'Take Roll Call'}</button>;
+                  })()}
                 </div>
               );
             })}
@@ -9645,7 +9704,7 @@ window.PEAK_STAFF = (function () {
               <div style={{ fontSize: 15, fontWeight: 700, color: T.ink, letterSpacing: '-0.01em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{(typeof window !== 'undefined' && window.__BRAND_NAME) || 'Peak Primary'}</div>
               <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
                 <PushBell compact />
-                <span style={{ fontSize: 9, color: T.ink4, fontFamily: T.mono }}>b35</span>
+                <span style={{ fontSize: 9, color: T.ink4, fontFamily: T.mono }}>b36</span>
               </div>
             </div>
           )}
