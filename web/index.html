@@ -4633,10 +4633,11 @@ You: "'We help you get more done with less stress.' Nine plain words beat the ja
     const SR = (typeof window !== 'undefined') && (window.SpeechRecognition || window.webkitSpeechRecognition);
     const hasMedia = (typeof navigator !== 'undefined') && navigator.mediaDevices && navigator.mediaDevices.getUserMedia && (typeof MediaRecorder !== 'undefined');
     const WKB = (window.NEXT_OS_SENTINEL_ENDPOINT) || 'https://nextos-sentinel.nextafricaai.workers.dev';
-    const [on, setOn] = React.useState(() => { try { return localStorage.getItem('nextos.nia.handsfree') === '1'; } catch (e) { return false; } });
+    const [on, setOn] = React.useState(() => { try { return localStorage.getItem('nextos.nia.voice') === '1'; } catch (e) { return false; } });
     const [heard, setHeard] = React.useState('');
     const [pulse, setPulse] = React.useState(false);
     const [rec, setRec] = React.useState('idle');
+    React.useEffect(() => { const h = (e) => setOn(!!(e && e.detail)); window.addEventListener('niaVoiceToggle', h); return () => window.removeEventListener('niaVoiceToggle', h); }, []);
     const recRef = React.useRef(null); const chunksRef = React.useRef([]); const stopTimer = React.useRef(null);
     const chime = () => { try { const A = window.AudioContext || window.webkitAudioContext; if (!A) return; const c = new A(); const now = c.currentTime; [[880, 0], [1175, 0.12]].forEach(function (p) { const o2 = c.createOscillator(), g = c.createGain(); o2.type = 'sine'; o2.frequency.value = p[0]; g.gain.setValueAtTime(0.0001, now + p[1]); g.gain.exponentialRampToValueAtTime(0.12, now + p[1] + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, now + p[1] + 0.16); o2.connect(g); g.connect(c.destination); o2.start(now + p[1]); o2.stop(now + p[1] + 0.18); }); setTimeout(function () { try { c.close(); } catch (e) {} }, 600); } catch (e) {} };
     React.useEffect(() => { if (typeof window !== 'undefined') window.NIA_HANDS_FREE_TOGGLE = () => setOn(v => !v); }, []);
@@ -4650,7 +4651,7 @@ You: "'We help you get more done with less stress.' Nine plain words beat the ja
     };
     // Wake-word mode
     React.useEffect(() => {
-      try { localStorage.setItem('nextos.nia.handsfree', on ? '1' : '0'); } catch (e) {}
+      try { localStorage.setItem('nextos.nia.voice', on ? '1' : '0'); } catch (e) {}
       if (!on || !SR) return;
       try { localStorage.setItem('nextos.nia.voiceout', '1'); } catch (e) {}
       let r, stopped = false, rt = null;
@@ -4698,8 +4699,9 @@ You: "'We help you get more done with less stress.' Nine plain words beat the ja
         stopTimer.current = setTimeout(stopRec, 7000);
       } catch (e) { setRec('idle'); }
     };
-    const tap = () => { if (SR) { setOn(v => !v); return; } if (rec === 'recording') { if (stopTimer.current) clearTimeout(stopTimer.current); stopRec(); } else if (rec === 'idle') { startPtt(); } };
-    const active = SR ? on : (rec !== 'idle');
+    const tap = () => { if (SR) return; if (rec === 'recording') { if (stopTimer.current) clearTimeout(stopTimer.current); stopRec(); } else if (rec === 'idle') { startPtt(); } };
+    if (!on) return null;
+    const active = SR ? true : (rec !== 'idle');
     const glyph = (!SR && rec === 'thinking') ? '⋯' : (active ? '\u{1F3A4}' : '◆');
     const hint = SR ? (on ? 'say “Nia …”' : '') : (rec === 'recording' ? 'tap to send' : rec === 'thinking' ? 'thinking…' : 'tap & talk');
     return (
@@ -5511,7 +5513,7 @@ You: "'We help you get more done with less stress.' Nine plain words beat the ja
               fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 14,
             }}>N</div>
             <div>
-              <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', letterSpacing: 1.5, color: 'var(--text-tertiary)' }}>NIA'S WATCH <span style={{ color: 'var(--mint)', marginLeft: 6 }}>· LIVE v20</span></div>
+              <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', letterSpacing: 1.5, color: 'var(--text-tertiary)' }}>NIA'S WATCH <span style={{ color: 'var(--mint)', marginLeft: 6 }}>· LIVE v21</span></div>
               <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)' }}>
                 What happened while you were away
               </div>
@@ -6634,6 +6636,8 @@ window.OnboardingPage = function OnboardingPage(props) {
     const [accent, setAccent] = React.useState(() => { try { return localStorage.getItem('nextos.accent') || '#00FC8F'; } catch (e) { return '#00FC8F'; } });
     const [tut, setTut] = React.useState(() => { try { return localStorage.getItem('nextos.tutorial') !== '0'; } catch (e) { return true; } });
     const [gate, setGate] = React.useState(() => { try { return localStorage.getItem('nextos.gate') === 'on'; } catch (e) { return false; } });
+    const [voice, setVoice] = React.useState(() => { try { return localStorage.getItem('nextos.nia.voice') === '1'; } catch (e) { return false; } });
+    const toggleVoice = () => setVoice(v => { const n = !v; try { localStorage.setItem('nextos.nia.voice', n ? '1' : '0'); } catch (e) {} try { window.dispatchEvent(new CustomEvent('niaVoiceToggle', { detail: n })); } catch (e) {} return n; });
     const email = (window.NEXT_OS_USER && window.NEXT_OS_USER()) || '';
     const card = { background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: 20, marginBottom: 16 };
     const h = { fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4 };
@@ -6689,6 +6693,10 @@ window.OnboardingPage = function OnboardingPage(props) {
           <div style={row}>
             <div><div style={{ fontSize: 13.5, color: 'var(--text-primary)', fontWeight: 600 }}>Require sign-in (email code)</div><div style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>Gate the OS behind email verification.</div></div>
             <Toggle on={gate} onClick={toggleGate} />
+          </div>
+          <div style={{ ...row, paddingTop: 12, borderTop: '1px solid var(--border-subtle)', marginTop: 12 }}>
+            <div><div style={{ fontSize: 13.5, color: 'var(--text-primary)', fontWeight: 600 }}>Nia voice assistant</div><div style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>Hands-free “Hey Nia” on Chrome/Android; tap-to-talk on iPhone. A mic appears once on.</div></div>
+            <Toggle on={voice} onClick={toggleVoice} />
           </div>
         </div>
 
