@@ -1,4 +1,4 @@
-// NEXT OS service worker — installability + Web Push notifications.  [v2-push]
+// NEXT OS service worker — installability + Web Push notifications.  [v3-push]
 // Network-first passthrough; no aggressive caching so school data stays live.
 self.addEventListener('install', function (e) { self.skipWaiting(); });
 self.addEventListener('message', function (e) { if (e.data === 'skipWaiting') self.skipWaiting(); });
@@ -18,12 +18,12 @@ self.addEventListener('push', function (event) {
     body: data.body || '',
     tag: data.tag || 'nx',
     renotify: true,
-    icon: data.icon || '/icon-192.png',
-    badge: data.badge || '/icon-192.png',
     data: { url: data.url || '/' },
     vibrate: [120, 60, 120],
     requireInteraction: false,
   };
+  if (data.icon) opts.icon = data.icon;
+  if (data.badge) opts.badge = data.badge;
   event.waitUntil(self.registration.showNotification(data.title || 'NEXT OS', opts));
 });
 
