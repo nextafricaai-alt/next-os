@@ -5419,7 +5419,7 @@ You: "'We help you get more done with less stress.' Nine plain words beat the ja
               fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 14,
             }}>N</div>
             <div>
-              <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', letterSpacing: 1.5, color: 'var(--text-tertiary)' }}>NIA'S WATCH <span style={{ color: 'var(--mint)', marginLeft: 6 }}>· LIVE v14</span></div>
+              <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', letterSpacing: 1.5, color: 'var(--text-tertiary)' }}>NIA'S WATCH <span style={{ color: 'var(--mint)', marginLeft: 6 }}>· LIVE v15</span></div>
               <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)' }}>
                 What happened while you were away
               </div>
@@ -7038,6 +7038,19 @@ const BellButton = () => {
 const Topbar = ({ pageTitle, sidebarWidth, tutorial, onToggleTutorial, narrow, onHamburger }) => {
   const [searchFocused, setSearchFocused] = React.useState(false);
   const [searchQ, setSearchQ] = React.useState('');
+  const [searchExtra, setSearchExtra] = React.useState({ members: [], vault: [] });
+  React.useEffect(() => {
+    const WK = (window.NEXT_OS_SENTINEL_ENDPOINT) || 'https://nextos-sentinel.nextafricaai.workers.dev';
+    Promise.all([
+      fetch(WK + '/os-data?kind=members&tenant=next').then(r => r.ok ? r.json() : null).catch(() => null),
+      fetch(WK + '/os-data?kind=fleet_vault&tenant=next').then(r => r.ok ? r.json() : null).catch(() => null),
+    ]).then(([m, v]) => {
+      setSearchExtra({
+        members: ((m && m.records) || []).map(x => x.payload || {}),
+        vault: ((v && v.records) || []).map(x => x.payload || {}),
+      });
+    }).catch(() => {});
+  }, []);
 
   return (
     <header style={{
@@ -7065,10 +7078,25 @@ const Topbar = ({ pageTitle, sidebarWidth, tutorial, onToggleTutorial, narrow, o
         {/* Search */}
         {(() => {
           const term = searchQ.trim().toLowerCase();
-          const pages = [];
-          (typeof NAV_SECTIONS !== 'undefined' ? NAV_SECTIONS : []).forEach(sec => (sec.items || []).forEach(it => pages.push(it)));
-          const results = term ? pages.filter(p => (p.label || '').toLowerCase().indexOf(term) >= 0).slice(0, 8) : [];
-          const go = (p) => { setSearchQ(''); setSearchFocused(false); if (p.external) { window.open(p.external, '_blank'); } else if (window.NEXT_OS_NAVIGATE) { window.NEXT_OS_NAVIGATE(p.id); } };
+          const nav = (id) => { if (window.NEXT_OS_NAVIGATE) window.NEXT_OS_NAVIGATE(id); };
+          let results = [];
+          if (term) {
+            const OD = window.OS_DATA || {};
+            // Pages
+            (typeof NAV_SECTIONS !== 'undefined' ? NAV_SECTIONS : []).forEach(sec => (sec.items || []).forEach(it => { if ((it.label || '').toLowerCase().indexOf(term) >= 0) results.push({ kind: 'Page', icon: it.icon || 'dashboard', label: it.label, sub: 'Open', run: () => { if (it.external) window.open(it.external, '_blank'); else nav(it.id); } }); }));
+            // Fleet / client OSes (schools, churches, NGOs)
+            try { (OD.getTenants ? OD.getTenants() : []).forEach(t => { if (((t.name || '') + ' ' + (t.vertical || '')).toLowerCase().indexOf(term) >= 0) results.push({ kind: 'Client', icon: 'fleet', label: t.name, sub: (t.vertical || 'organisation') + ' · open Fleet', run: () => nav('fleet') }); }); } catch (e) {}
+            // Projects / websites
+            try { (OD.getProjects ? OD.getProjects() : []).forEach(p => { if (((p.name || '') + ' ' + (p.url || '') + ' ' + (p.domain || '')).toLowerCase().indexOf(term) >= 0) results.push({ kind: 'Project', icon: 'projects', label: p.name, sub: (p.domain || p.url || '') + ' · open Projects', run: () => nav('projects') }); }); } catch (e) {}
+            // AI tools
+            try { (OD.getAiTools ? OD.getAiTools() : []).forEach(a => { const nm = a.name || a.label || a.title || ''; if (nm.toLowerCase().indexOf(term) >= 0) results.push({ kind: 'AI tool', icon: 'ai', label: nm, sub: 'open AI Tools', run: () => nav('ai-tools') }); }); } catch (e) {}
+            // Members
+            (searchExtra.members || []).forEach(m => { if (((m.name || '') + ' ' + (m.organisation || '') + ' ' + (m.role || '') + ' ' + (m.email || '')).toLowerCase().indexOf(term) >= 0) results.push({ kind: 'Member', icon: 'members', label: m.name || m.email || 'Member', sub: (m.role || '') + (m.organisation ? (' · ' + m.organisation) : '') + ' · open Members', run: () => nav('members') }); });
+            // Vault entries (names only — never the secrets)
+            (searchExtra.vault || []).forEach(v => { const nm = v.school || v.name || v.label || ''; if (nm.toLowerCase().indexOf(term) >= 0) results.push({ kind: 'Vault', icon: 'vault', label: nm, sub: 'open Fleet Vault', run: () => nav('vault') }); });
+            const seen = {}; results = results.filter(r => { const k = r.kind + '|' + r.label; if (seen[k]) return false; seen[k] = 1; return true; }).slice(0, 12);
+          }
+          const go = (p) => { setSearchQ(''); setSearchFocused(false); try { p.run(); } catch (e) {} };
           return (
             <div style={{ position: 'relative', display: narrow ? 'none' : 'block' }}>
               <div style={{
@@ -7081,7 +7109,7 @@ const Topbar = ({ pageTitle, sidebarWidth, tutorial, onToggleTutorial, narrow, o
                 <OSIcon name="search" size={14} />
                 <input
                   value={searchQ}
-                  placeholder="Search pages…"
+                  placeholder="Search the whole OS…"
                   onChange={e => setSearchQ(e.target.value)}
                   onFocus={() => setSearchFocused(true)}
                   onBlur={() => setTimeout(() => setSearchFocused(false), 160)}
@@ -7092,10 +7120,12 @@ const Topbar = ({ pageTitle, sidebarWidth, tutorial, onToggleTutorial, narrow, o
               </div>
               {searchFocused && term ? (
                 <div style={{ position: 'absolute', top: 'calc(100% + 6px)', left: 0, right: 0, minWidth: 240, background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-sm)', boxShadow: '0 14px 34px rgba(0,0,0,0.5)', zIndex: 300, overflow: 'hidden' }}>
-                  {results.length === 0 ? <div style={{ padding: '11px 13px', color: 'var(--text-tertiary)', fontSize: 12.5 }}>No page matches “{searchQ}”.</div> :
+                  {results.length === 0 ? <div style={{ padding: '11px 13px', color: 'var(--text-tertiary)', fontSize: 12.5 }}>No matches for “{searchQ}”.</div> :
                     results.map((p, i) => (
-                      <div key={p.id} onMouseDown={() => go(p)} style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '10px 13px', cursor: 'pointer', borderTop: i ? '1px solid var(--border-subtle)' : 'none', color: 'var(--text-primary)', fontSize: 13 }}>
-                        <OSIcon name={p.icon || 'dashboard'} size={14} /><span>{p.label}</span>
+                      <div key={i} onMouseDown={() => go(p)} style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '10px 13px', cursor: 'pointer', borderTop: i ? '1px solid var(--border-subtle)' : 'none', color: 'var(--text-primary)', fontSize: 13 }}>
+                        <OSIcon name={p.icon || 'dashboard'} size={14} />
+                        <div style={{ minWidth: 0, flex: 1 }}><div style={{ fontWeight: 600 }}>{p.label}</div><div style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>{p.sub}</div></div>
+                        <span style={{ fontSize: 9, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)', border: '1px solid var(--border-subtle)', borderRadius: 4, padding: '1px 5px' }}>{p.kind}</span>
                       </div>
                     ))}
                 </div>
