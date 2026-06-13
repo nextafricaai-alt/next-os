@@ -8218,6 +8218,18 @@ window.PEAK_STAFF = (function () {
         window.prompt((t.full_name || t.email) + ' — new temporary password (copy & share). They can change it after signing in:', d.tempPassword);
       } catch (e) { alert('Reset error: ' + (e && e.message || e)); }
     };
+    const remind = async (t) => {
+      if (!t.email) return;
+      const msg = window.prompt('Send a phone reminder to ' + (t.full_name || t.email) + ':', 'Please check your tasks for today.');
+      if (msg == null || !msg.trim()) return;
+      try {
+        const token = await headToken();
+        const res = await window.NX_PUSH.notify({ tenant: tenant(), emails: [t.email], title: 'Reminder from the head', body: msg.trim(), url: window.location.pathname, tag: 'remind-' + Date.now() }, token);
+        if (res && res.sent > 0) window.peakToast && window.peakToast('Reminder delivered', 'success', (t.full_name || t.email) + ' · on their phone');
+        else if (res && res.matched === 0) window.peakToast && window.peakToast('No phone yet', 'info', (t.full_name || t.email) + ' hasn’t turned on phone alerts.');
+        else window.peakToast && window.peakToast('Sent — pending delivery', 'info', (res && res.error) || '');
+      } catch (e) { window.peakToast && window.peakToast('Could not send', 'info', String(e && e.message || e)); }
+    };
     return (
       <div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
@@ -8240,7 +8252,8 @@ window.PEAK_STAFF = (function () {
                     <td style={{ padding: '10px', color: T.ink2 }}>{(m.classes || []).join(', ') || '—'}</td>
                     <td style={{ padding: '10px' }}>
                       {t.user_id ? <span style={{ color: T.good, fontSize: 12 }}>● active</span> : <span style={{ color: T.ink3, fontSize: 12 }}>not set</span>}
-                      {t.email ? <button onClick={() => resetLogin(t)} style={{ marginLeft: 8, background: 'transparent', border: '1px solid ' + T.border, color: T.ink3, borderRadius: 6, padding: '3px 8px', fontSize: 10.5, cursor: 'pointer' }}>Reset login</button> : null}
+                      {t.email ? <button onClick={() => remind(t)} title="Push a reminder to their phone" style={{ marginLeft: 8, background: 'transparent', border: '1px solid ' + T.border, color: T.ink2, borderRadius: 6, padding: '3px 8px', fontSize: 10.5, cursor: 'pointer' }}>🔔 Remind</button> : null}
+                      {t.email ? <button onClick={() => resetLogin(t)} style={{ marginLeft: 6, background: 'transparent', border: '1px solid ' + T.border, color: T.ink3, borderRadius: 6, padding: '3px 8px', fontSize: 10.5, cursor: 'pointer' }}>Reset login</button> : null}
                     </td>
                   </tr>
                 ); })}</tbody>
@@ -9549,7 +9562,7 @@ window.PEAK_STAFF = (function () {
               <div style={{ fontSize: 15, fontWeight: 700, color: T.ink, letterSpacing: '-0.01em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{(typeof window !== 'undefined' && window.__BRAND_NAME) || 'Peak Primary'}</div>
               <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
                 <PushBell compact />
-                <span style={{ fontSize: 9, color: T.ink4, fontFamily: T.mono }}>b30</span>
+                <span style={{ fontSize: 9, color: T.ink4, fontFamily: T.mono }}>b31</span>
               </div>
             </div>
           )}
