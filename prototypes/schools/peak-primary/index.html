@@ -7807,6 +7807,7 @@ window.PEAK_ASKNEXT = (function () {
           const disp = txt.replace(/```[\s\S]*?```/g, '').replace(/\n{3,}/g, '\n\n').trim() + actMsg;
           histRef.current = histRef.current.concat([{ role: 'assistant', content: txt }]);
           setMsgs(m2 => m2.concat([{ role: 'nia', content: disp || (proposal ? '' : '(no reply)'), proposal: proposal }])); setBusy(false);
+          if (window.__PEAK_NIA_VOICE && disp && window.__peakSpeak) window.__peakSpeak(disp);
         }).catch(e => { setMsgs(m2 => m2.concat([{ role: 'nia', content: 'Could not reach Nia: ' + (e.message || e) }])); setBusy(false); });
     };
     useEffect(() => { if (prefill) send(prefill); /* eslint-disable-next-line */ }, []);
@@ -7850,6 +7851,65 @@ window.PEAK_ASKNEXT = (function () {
   }
 
   function open(prefill) { try { refreshLive(); } catch (e) {} window.peakModal && window.peakModal.open(React.createElement(AskNextChat, { prefill: prefill || '', width: 600 })); }
+
+  // Spoken replies for the school's Nia
+  window.__peakSpeak = function (text) {
+    try {
+      if (!window.speechSynthesis || !text) return;
+      const clean = String(text).replace(/```[\s\S]*?```/g, ' ').replace(/[*_#>`~]/g, '').replace(/\s+/g, ' ').trim();
+      if (!clean) return;
+      window.speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(clean.slice(0, 600)); u.rate = 1.03; u.lang = 'en-US';
+      const vs = window.speechSynthesis.getVoices() || []; const pick = vs.find(v => /female|samantha|aria|jenny|zira|google uk english female/i.test(v.name)) || vs.find(v => /^en/i.test(v.lang)); if (pick) u.voice = pick;
+      window.speechSynthesis.speak(u);
+    } catch (e) {}
+  };
+
+  // Global "Hey Nia" orb for the school OS
+  function PeakNiaOrb() {
+    const SR = (typeof window !== 'undefined') && (window.SpeechRecognition || window.webkitSpeechRecognition);
+    const [on, setOn] = React.useState(() => { try { return localStorage.getItem('peak.nia.handsfree') === '1'; } catch (e) { return false; } });
+    const [heard, setHeard] = React.useState('');
+    const [pulse, setPulse] = React.useState(false);
+    const chime = () => { try { const A = window.AudioContext || window.webkitAudioContext; if (!A) return; const c = new A(); const now = c.currentTime; [[880, 0], [1175, 0.12]].forEach(function (p) { const o2 = c.createOscillator(), g = c.createGain(); o2.type = 'sine'; o2.frequency.value = p[0]; g.gain.setValueAtTime(0.0001, now + p[1]); g.gain.exponentialRampToValueAtTime(0.12, now + p[1] + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, now + p[1] + 0.16); o2.connect(g); g.connect(c.destination); o2.start(now + p[1]); o2.stop(now + p[1] + 0.18); }); setTimeout(function () { try { c.close(); } catch (e) {} }, 600); } catch (e) {} };
+    React.useEffect(() => {
+      try { localStorage.setItem('peak.nia.handsfree', on ? '1' : '0'); } catch (e) {}
+      if (!on || !SR) return;
+      window.__PEAK_NIA_VOICE = true;
+      let rec, stopped = false, rt = null;
+      const start = () => {
+        try { rec = new SR(); } catch (e) { return; }
+        rec.lang = 'en-US'; rec.continuous = true; rec.interimResults = false; rec.maxAlternatives = 1;
+        rec.onresult = (e) => {
+          if (window.speechSynthesis && window.speechSynthesis.speaking) return;
+          for (let i = e.resultIndex; i < e.results.length; i++) {
+            if (!e.results[i].isFinal) continue;
+            const t = (e.results[i][0].transcript || '').trim(); const low = t.toLowerCase();
+            const m = low.match(/\b(hey nia|ok nia|nia|nya|nina|near|neah)\b/); if (!m) continue;
+            setHeard(t); setTimeout(() => setHeard(''), 4000); chime(); setPulse(true); setTimeout(() => setPulse(false), 900);
+            const cmd = t.slice(low.indexOf(m[1]) + m[1].length).replace(/^[\s,.:;!?-]+/, '').trim();
+            if (cmd.length > 1) { try { open(cmd); } catch (e) {} } else { window.__peakSpeak && window.__peakSpeak("Yes? I'm listening."); }
+          }
+        };
+        rec.onerror = (ev) => { if (ev && ev.error === 'not-allowed') setOn(false); };
+        rec.onend = () => { if (!stopped && !rt) { rt = setTimeout(() => { rt = null; try { rec.start(); } catch (e) {} }, 350); } };
+        try { rec.start(); } catch (e) {}
+      };
+      start();
+      return () => { stopped = true; if (rt) clearTimeout(rt); try { rec && rec.stop(); } catch (e) {} };
+    }, [on]);
+    if (!SR) return null;
+    const T2 = window.V4 && window.V4.T ? window.V4.T : { surface: '#0f1838', border: '#212d56', ink2: '#aab2d5', ink3: '#7e88b8', green: '#00c389', bg: '#0a1029' };
+    return (
+      <div style={{ position: 'fixed', right: 16, bottom: 16, zIndex: 4000, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
+        <style>{'@keyframes peakNiaPulse{0%{transform:scale(1)}30%{transform:scale(1.18)}100%{transform:scale(1)}}'}</style>
+        {on && heard ? <div style={{ background: T2.surface, border: '1px solid ' + T2.border, borderRadius: 12, padding: '7px 11px', fontSize: 12, color: T2.ink2, maxWidth: 240, boxShadow: '0 8px 24px rgba(0,0,0,0.45)' }}>{'\u201C'}{heard}{'\u201D'}</div> : null}
+        <button onClick={() => setOn(v => !v)} title={on ? 'Hands-free on — say "Nia ..." anywhere' : 'Let Nia listen for her name'} style={{ width: 54, height: 54, borderRadius: '50%', border: 'none', cursor: 'pointer', background: on ? '#e23a52' : T2.green, color: '#fff', fontSize: 21, boxShadow: on ? '0 0 0 6px rgba(226,58,82,0.22), 0 10px 28px rgba(0,0,0,0.45)' : '0 10px 28px rgba(0,0,0,0.45)', display: 'grid', placeItems: 'center', animation: pulse ? 'peakNiaPulse 0.6s ease' : 'none' }}>{on ? '\u{1F3A4}' : '\u25C6'}</button>
+      </div>
+    );
+  }
+  window.PeakNiaOrb = PeakNiaOrb;
+
   try { document.addEventListener('keydown', function (e) { if ((e.metaKey || e.ctrlKey) && (e.key === 'k' || e.key === 'K')) { e.preventDefault(); open(); } }); } catch (e) {}
   return { open };
 })();
@@ -9874,7 +9934,7 @@ window.PEAK_STAFF = (function () {
               <div style={{ fontSize: 15, fontWeight: 700, color: T.ink, letterSpacing: '-0.01em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{(typeof window !== 'undefined' && window.__BRAND_NAME) || 'Peak Primary'}</div>
               <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
                 <PushBell compact />
-                <span style={{ fontSize: 9, color: T.ink4, fontFamily: T.mono }}>b40</span>
+                <span style={{ fontSize: 9, color: T.ink4, fontFamily: T.mono }}>b41</span>
               </div>
             </div>
           )}
@@ -9967,6 +10027,7 @@ window.PEAK_STAFF = (function () {
           <TeacherShell />
           <ToastStack />
           <ModalLayer />
+          {window.PeakNiaOrb ? React.createElement(window.PeakNiaOrb) : null}
         </>
       );
     }
@@ -9977,6 +10038,7 @@ window.PEAK_STAFF = (function () {
         <Shell />
         <ToastStack />
         <ModalLayer />
+        {window.PeakNiaOrb ? React.createElement(window.PeakNiaOrb) : null}
       </>
     );
   }

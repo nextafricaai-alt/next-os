@@ -4633,6 +4633,8 @@ You: "'We help you get more done with less stress.' Nine plain words beat the ja
     const SR = (typeof window !== 'undefined') && (window.SpeechRecognition || window.webkitSpeechRecognition);
     const [on, setOn] = React.useState(() => { try { return localStorage.getItem('nextos.nia.handsfree') === '1'; } catch (e) { return false; } });
     const [heard, setHeard] = React.useState('');
+    const [pulse, setPulse] = React.useState(false);
+    const chime = () => { try { const A = window.AudioContext || window.webkitAudioContext; if (!A) return; const c = new A(); const now = c.currentTime; [[880, 0], [1175, 0.12]].forEach(function (pair) { const o2 = c.createOscillator(), g = c.createGain(); o2.type = 'sine'; o2.frequency.value = pair[0]; g.gain.setValueAtTime(0.0001, now + pair[1]); g.gain.exponentialRampToValueAtTime(0.12, now + pair[1] + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, now + pair[1] + 0.16); o2.connect(g); g.connect(c.destination); o2.start(now + pair[1]); o2.stop(now + pair[1] + 0.18); }); setTimeout(function () { try { c.close(); } catch (e) {} }, 600); } catch (e) {} };
     React.useEffect(() => { if (typeof window !== 'undefined') window.NIA_HANDS_FREE_TOGGLE = () => setOn(v => !v); }, []);
     React.useEffect(() => {
       try { localStorage.setItem('nextos.nia.handsfree', on ? '1' : '0'); } catch (e) {}
@@ -4657,6 +4659,7 @@ You: "'We help you get more done with less stress.' Nine plain words beat the ja
             const m = low.match(/\b(hey nia|ok nia|nia|nya|nina|near|neah)\b/);
             if (!m) continue;
             setHeard(t); setTimeout(() => setHeard(''), 4000);
+            chime(); setPulse(true); setTimeout(() => setPulse(false), 900);
             const cmd = t.slice(low.indexOf(m[1]) + m[1].length).replace(/^[\s,.:;!?-]+/, '').trim();
             ask(cmd);
           }
@@ -4671,9 +4674,10 @@ You: "'We help you get more done with less stress.' Nine plain words beat the ja
     if (!SR) return null;
     return (
       <div style={{ position: 'fixed', right: 18, bottom: 18, zIndex: 400, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
+        <style>{'@keyframes niaWakePulse{0%{transform:scale(1)}30%{transform:scale(1.18)}100%{transform:scale(1)}}'}</style>
         {on && heard ? <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: '7px 11px', fontSize: 12, color: 'var(--text-secondary)', maxWidth: 260, boxShadow: '0 8px 24px rgba(0,0,0,0.45)' }}>{'\u201C'}{heard}{'\u201D'}</div> : null}
         {on ? <div style={{ fontSize: 10.5, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 999, padding: '3px 9px' }}>say {'\u201C'}Nia {'\u2026\u201D'}</div> : null}
-        <button onClick={() => setOn(v => !v)} title={on ? 'Hands-free on — say "Nia ..." from any screen' : 'Let Nia listen for her name'} style={{ width: 56, height: 56, borderRadius: '50%', border: 'none', cursor: 'pointer', background: on ? '#e23a52' : 'var(--mint)', color: on ? '#fff' : 'var(--text-inverse)', fontSize: 22, boxShadow: on ? '0 0 0 6px rgba(226,58,82,0.22), 0 10px 30px rgba(0,0,0,0.45)' : '0 10px 30px rgba(0,0,0,0.45)', display: 'grid', placeItems: 'center' }}>{on ? '\u{1F3A4}' : '\u25C6'}</button>
+        <button onClick={() => setOn(v => !v)} title={on ? 'Hands-free on — say "Nia ..." from any screen' : 'Let Nia listen for her name'} style={{ width: 56, height: 56, borderRadius: '50%', border: 'none', cursor: 'pointer', background: on ? '#e23a52' : 'var(--mint)', color: on ? '#fff' : 'var(--text-inverse)', fontSize: 22, boxShadow: on ? '0 0 0 6px rgba(226,58,82,0.22), 0 10px 30px rgba(0,0,0,0.45)' : '0 10px 30px rgba(0,0,0,0.45)', display: 'grid', placeItems: 'center', animation: pulse ? 'niaWakePulse 0.6s ease' : 'none' }}>{on ? '\u{1F3A4}' : '\u25C6'}</button>
       </div>
     );
   }
@@ -5477,7 +5481,7 @@ You: "'We help you get more done with less stress.' Nine plain words beat the ja
               fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 14,
             }}>N</div>
             <div>
-              <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', letterSpacing: 1.5, color: 'var(--text-tertiary)' }}>NIA'S WATCH <span style={{ color: 'var(--mint)', marginLeft: 6 }}>· LIVE v18</span></div>
+              <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', letterSpacing: 1.5, color: 'var(--text-tertiary)' }}>NIA'S WATCH <span style={{ color: 'var(--mint)', marginLeft: 6 }}>· LIVE v19</span></div>
               <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)' }}>
                 What happened while you were away
               </div>
