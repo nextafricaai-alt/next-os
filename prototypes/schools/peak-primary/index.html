@@ -3377,11 +3377,44 @@ const V4 = (function () {
   }
 
   // ─── alerts + AI ──────────────────────────────────────────────────────────
+  // Derive real, actionable signals from the live school data (replaces demo arrays).
+  function _liveSignals() {
+    const DD = window.PEAK || {}; const studs = DD.students || []; const k = DD.kpis || {};
+    const overdue = studs.filter(s => (Number(s.balance) || 0) > 0 || (s.fees && s.fees !== 'paid'));
+    const overdueTotal = overdue.reduce((a, s) => a + (Number(s.balance) || 0), 0);
+    const atRisk = studs.filter(s => s.flag === 'risk' || (s.attendanceWk != null && s.attendanceWk < 70));
+    const noPhone = studs.filter(s => !s.guardianPhone);
+    const absent = Number(k.absentToday) || 0;
+    const nav = (scr) => { if (window.peakNav) window.peakNav(scr); };
+    const askNia = (q) => { if (window.PEAK_ASKNEXT) window.PEAK_ASKNEXT.open(q); };
+    return { studs, overdue, overdueTotal, atRisk, noPhone, absent, nav, askNia, hasData: studs.length > 0 };
+  }
+  function _liveSuggestions() {
+    const g = _liveSignals(); const out = [];
+    if (!g.hasData) { out.push({ t: 'setup', text: 'Import your student roster to activate Nia', detail: 'No students yet — bring the dashboard to life', cta: 'Import', run: () => g.nav('stud') }); return out; }
+    if (g.overdue.length) out.push({ t: 'fees', text: 'Draft fee reminders for ' + g.overdue.length + ' guardian' + (g.overdue.length === 1 ? '' : 's') + ' with balances', detail: (g.overdueTotal ? ('UGX ' + g.overdueTotal.toLocaleString() + ' outstanding') : 'Balances outstanding'), cta: 'Draft', run: () => g.askNia('Draft a warm WhatsApp fee reminder I can send to the ' + g.overdue.length + ' guardians who have outstanding balances.') });
+    if (g.atRisk.length) out.push({ t: 'pastoral', text: 'Follow up on ' + g.atRisk.length + ' at-risk learner' + (g.atRisk.length === 1 ? '' : 's'), detail: g.atRisk.slice(0, 3).map(s => s.name).join(', ') + (g.atRisk.length > 3 ? '…' : ''), cta: 'Review', run: () => g.nav('stud') });
+    if (g.absent > 0) out.push({ t: 'attendance', text: 'Check on ' + g.absent + ' child' + (g.absent === 1 ? '' : 'ren') + ' absent today', detail: 'Call or message their guardians', cta: 'Open', run: () => g.nav('attn') });
+    if (g.noPhone.length) out.push({ t: 'data', text: 'Add guardian phone numbers for ' + g.noPhone.length + ' learner' + (g.noPhone.length === 1 ? '' : 's'), detail: 'Needed for WhatsApp + SMS alerts', cta: 'Fix', run: () => g.nav('stud') });
+    if (!out.length) out.push({ t: 'clear', text: 'All clear — nothing urgent right now', detail: 'Nia is watching fees, attendance and at-risk learners', cta: 'Ask Nia', run: () => g.askNia('What should I focus on today?') });
+    return out;
+  }
+  function _liveAlerts() {
+    const g = _liveSignals(); const out = [];
+    if (!g.hasData) return out;
+    g.overdue.slice(0, 3).forEach(s => out.push({ id: 'od' + s.id, level: (Number(s.balance) || 0) > 300000 ? 'high' : 'med', text: s.name + ' — fees outstanding' + ((Number(s.balance) || 0) ? (' (UGX ' + Number(s.balance).toLocaleString() + ')') : ''), meta: (s.stream || '') + ' · guardian ' + (s.guardian || '—'), cta: 'Remind', run: () => { const ph = (s.guardianPhone || '').replace(/[^0-9]/g, ''); if (ph) window.open('https://wa.me/' + ph + '?text=' + encodeURIComponent('Dear ' + (s.guardian || 'Parent') + ', a gentle reminder regarding ' + s.name + "'s school fees. Thank you."), '_blank'); else if (window.peakNav) window.peakNav('fees'); } }));
+    g.atRisk.slice(0, 2).forEach(s => out.push({ id: 'ar' + s.id, level: 'med', text: s.name + ' — needs follow-up' + (s.attendanceWk != null ? (' (' + s.attendanceWk + '% attendance)') : ''), meta: (s.stream || '') + ' · pastoral check-in', cta: 'Open', run: () => { if (window.peakNav) window.peakNav('stud'); } }));
+    if (g.absent > 0) out.push({ id: 'abs', level: g.absent > 5 ? 'high' : 'low', text: g.absent + ' child' + (g.absent === 1 ? '' : 'ren') + ' absent today', meta: 'Attendance · follow up with guardians', cta: 'Review', run: () => { if (window.peakNav) window.peakNav('attn'); } });
+    return out;
+  }
+
   function AlertsCard() {
+    const items = _liveAlerts();
     return (
-      <Card title="Action queue" subtitle="5 items · sorted by urgency" pad={0}>
+      <Card title="Action queue" subtitle={items.length ? (items.length + ' item' + (items.length === 1 ? '' : 's') + ' · from your live data') : 'Nothing urgent right now'} pad={0}>
+        {items.length === 0 ? <div style={{ padding: '18px 22px', color: T.ink3, fontSize: 13 }}>Nothing needs action right now. As fees, attendance and at-risk signals appear, they show up here.</div> : (
         <div>
-          {D.alerts.map((a, i) => {
+          {items.map((a, i) => {
             const cfg = a.level === 'high'
               ? { dot: T.red, bg: T.redSft, label: 'HIGH', labelBg: 'rgba(226,58,82,0.28)', labelFg: T.redInk }
               : a.level === 'med'
@@ -3402,7 +3435,7 @@ const V4 = (function () {
                   <div style={{ fontSize: 13.5, color: T.ink, fontWeight: 500, lineHeight: 1.35 }}>{a.text}</div>
                   <div style={{ fontSize: 11, color: T.ink3, fontFamily: T.mono, marginTop: 3 }}>{a.meta}</div>
                 </div>
-                <button onClick={() => window.peakToast && window.peakToast(a.cta + ' queued', 'success', a.text)} style={{
+                <button onClick={() => { try { a.run && a.run(); } catch (e) {} }} style={{
                   background: a.level === 'high' ? T.red : T.surface2, color: a.level === 'high' ? '#fff' : T.ink,
                   border: 'none', padding: '7px 13px', borderRadius: 7, fontSize: 11.5, fontWeight: 600,
                   cursor: 'pointer', whiteSpace: 'nowrap',
@@ -3411,49 +3444,53 @@ const V4 = (function () {
             );
           })}
         </div>
+        )}
       </Card>
     );
   }
 
   // ─── fees breakdown card ──────────────────────────────────────────────────
   function FeesBreakdown() {
-    const rows = [
-      { l: 'MTN Mobile Money',     v: 248_400_000, pct: 60, c: T.red },
-      { l: 'Airtel Money',          v:  98_700_000, pct: 24, c: T.gold },
-      { l: 'Bank · Stanbic',        v:  41_200_000, pct: 10, c: T.navyLite },
-      { l: 'Cash · bursar',         v:  24_200_000, pct:  6, c: '#7e88b8' },
-    ];
+    const studs = D.students || []; const k = D.kpis || {};
+    const collected = Number(k.feesCollectedTerm) || 0;
+    const target = Number(k.feesTargetTerm) || 0;
+    const outstanding = studs.reduce((a, s) => a + (Number(s.balance) || 0), 0);
+    const owing = studs.filter(s => (Number(s.balance) || 0) > 0).length;
+    const cleared = studs.filter(s => (Number(s.balance) || 0) === 0).length;
+    const pct = target > 0 ? Math.min(100, Math.round(100 * collected / target)) : 0;
     return (
-      <Card title="Fees collected this term" subtitle="Channel breakdown · UGX 412.5M total">
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          {rows.map(r => (
-            <div key={r.l}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 }}>
-                <span style={{ fontSize: 13, color: T.ink2 }}>{r.l}</span>
-                <div style={{ display: 'flex', gap: 12, alignItems: 'baseline' }}>
-                  <span style={{ fontSize: 12.5, color: T.ink, fontFamily: T.mono, fontWeight: 600 }}>{D.fmtUGXshort(r.v)}</span>
-                  <span style={{ fontSize: 11, color: T.ink3, fontFamily: T.mono, width: 32, textAlign: 'right' }}>{r.pct}%</span>
+      <Card title="Fees this term" subtitle={target > 0 ? ('Collected vs target · ' + pct + '%') : 'From your fee records'}>
+        {(!collected && !outstanding) ? (
+          <div style={{ color: T.ink3, fontSize: 13, lineHeight: 1.5 }}>No fee data yet. Import the fees CSV or record payments, and this fills in automatically.</div>
+        ) : (
+          <div>
+            {target > 0 && (
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 }}>
+                  <span style={{ fontSize: 13, color: T.ink2 }}>Collected of target</span>
+                  <span style={{ fontSize: 12.5, color: T.ink, fontFamily: T.mono, fontWeight: 600 }}>{D.fmtUGXshort(collected)} / {D.fmtUGXshort(target)}</span>
+                </div>
+                <div style={{ height: 7, borderRadius: 999, background: T.surface2 }}>
+                  <div style={{ height: '100%', width: pct + '%', background: T.good, borderRadius: 999 }} />
                 </div>
               </div>
-              <div style={{ height: 6, borderRadius: 999, background: T.surface2 }}>
-                <div style={{ height: '100%', width: r.pct + '%', background: r.c, borderRadius: 999 }} />
+            )}
+            <div style={{ display: 'flex', gap: 18, fontSize: 12, color: T.ink2, marginBottom: 4 }}>
+              <span><span style={{ color: T.good }}>●</span> {cleared} cleared</span>
+              <span><span style={{ color: T.redInk }}>●</span> {owing} owing</span>
+            </div>
+            <div style={{ marginTop: 14, padding: '12px 14px', background: T.surface2, borderRadius: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <div style={{ fontSize: 11, color: T.ink3, fontFamily: T.mono }}>Collected</div>
+                <div style={{ fontSize: 18, fontWeight: 700, color: T.ink, fontVariantNumeric: 'tabular-nums' }}>{D.fmtUGXshort(collected)}</div>
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ fontSize: 11, color: T.ink3, fontFamily: T.mono }}>Outstanding</div>
+                <div style={{ fontSize: 18, fontWeight: 700, color: outstanding > 0 ? T.redInk : T.good, fontVariantNumeric: 'tabular-nums' }}>{D.fmtUGXshort(outstanding)}</div>
               </div>
             </div>
-          ))}
-        </div>
-        <div style={{
-          marginTop: 18, padding: '12px 14px', background: T.surface2, borderRadius: 10,
-          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-        }}>
-          <div>
-            <div style={{ fontSize: 11, color: T.ink3, fontFamily: T.mono }}>Today</div>
-            <div style={{ fontSize: 18, fontWeight: 700, color: T.ink, fontVariantNumeric: 'tabular-nums' }}>UGX 18.24M</div>
           </div>
-          <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: 11, color: T.ink3, fontFamily: T.mono }}>Outstanding</div>
-            <div style={{ fontSize: 18, fontWeight: 700, color: T.redInk, fontVariantNumeric: 'tabular-nums' }}>UGX 167.5M</div>
-          </div>
-        </div>
+        )}
       </Card>
     );
   }
@@ -3473,11 +3510,11 @@ const V4 = (function () {
             }}>AI</div>
             <div style={{ lineHeight: 1.15, flex: 1 }}>
               <div style={{ fontSize: 14, fontWeight: 600, color: T.ink }}>Suggestions for the next hour</div>
-              <div style={{ fontSize: 10.5, color: T.ink3, fontFamily: T.mono }}>4 drafts ready · learned from your school</div>
+              <div style={{ fontSize: 10.5, color: T.ink3, fontFamily: T.mono }}>{_liveSuggestions().length} from your live school data</div>
             </div>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {D.aiSuggestions.map((s, i) => (
+            {_liveSuggestions().map((s, i) => (
               <div key={i} style={{
                 background: T.surface, border: '1px solid ' + T.border, borderRadius: 10,
                 padding: '12px 14px', display: 'grid', gridTemplateColumns: 'auto 1fr auto', gap: 12, alignItems: 'flex-start',
@@ -3490,10 +3527,10 @@ const V4 = (function () {
                   <div style={{ fontSize: 13, color: T.ink, lineHeight: 1.4 }}>{s.text}</div>
                   <div style={{ fontSize: 11, color: T.ink3, marginTop: 4, fontFamily: T.mono }}>{s.detail}</div>
                 </div>
-                <button onClick={() => window.peakToast && window.peakToast('AI draft opened for review', 'info', s.text)} style={{
+                <button onClick={() => { try { s.run && s.run(); } catch (e) {} }} style={{
                   border: '1px solid ' + T.borderStr, background: 'transparent', color: T.ink,
-                  padding: '5px 11px', borderRadius: 6, fontSize: 11.5, fontWeight: 500, cursor: 'pointer',
-                }}>Review</button>
+                  padding: '5px 11px', borderRadius: 6, fontSize: 11.5, fontWeight: 500, cursor: 'pointer', whiteSpace: 'nowrap',
+                }}>{s.cta || 'Open'}</button>
               </div>
             ))}
           </div>
@@ -9805,7 +9842,7 @@ window.PEAK_STAFF = (function () {
               <div style={{ fontSize: 15, fontWeight: 700, color: T.ink, letterSpacing: '-0.01em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{(typeof window !== 'undefined' && window.__BRAND_NAME) || 'Peak Primary'}</div>
               <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
                 <PushBell compact />
-                <span style={{ fontSize: 9, color: T.ink4, fontFamily: T.mono }}>b37</span>
+                <span style={{ fontSize: 9, color: T.ink4, fontFamily: T.mono }}>b38</span>
               </div>
             </div>
           )}
