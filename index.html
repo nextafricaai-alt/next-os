@@ -5419,7 +5419,7 @@ You: "'We help you get more done with less stress.' Nine plain words beat the ja
               fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 14,
             }}>N</div>
             <div>
-              <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', letterSpacing: 1.5, color: 'var(--text-tertiary)' }}>NIA'S WATCH <span style={{ color: 'var(--mint)', marginLeft: 6 }}>· LIVE v12</span></div>
+              <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', letterSpacing: 1.5, color: 'var(--text-tertiary)' }}>NIA'S WATCH <span style={{ color: 'var(--mint)', marginLeft: 6 }}>· LIVE v13</span></div>
               <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)' }}>
                 What happened while you were away
               </div>
@@ -7459,7 +7459,16 @@ Object.assign(window, { AppShell, Sidebar, Topbar, OSIcon, PlaceholderPage });
   </script>
   <script>
   (function () {
-    if ('serviceWorker' in navigator) { navigator.serviceWorker.register('/sw.js').catch(function () {}); }
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/sw.js').then(function (reg) {
+          try { reg.update(); } catch (e) {}
+          if (reg.waiting) { try { reg.waiting.postMessage('skipWaiting'); } catch (e) {} }
+          reg.addEventListener && reg.addEventListener('updatefound', function () {
+            var nw = reg.installing;
+            if (nw) nw.addEventListener('statechange', function () { if (nw.state === 'installed') { try { nw.postMessage('skipWaiting'); } catch (e) {} } });
+          });
+        }).catch(function () {});
+      }
     var deferred = null;
     function makeBtn() {
       if (document.getElementById('nx-os-install')) return document.getElementById('nx-os-install');

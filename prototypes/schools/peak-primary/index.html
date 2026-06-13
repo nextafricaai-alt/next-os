@@ -22,7 +22,16 @@
       var ml = document.createElement('link'); ml.rel = 'manifest'; ml.href = '/manifest.php?s=' + encodeURIComponent(slug); document.head.appendChild(ml);
       var WK = 'https://nextos-sentinel.nextafricaai.workers.dev';
       var ai = document.getElementById('nx-apple-icon'); if (ai) ai.href = WK + '/icon?s=' + encodeURIComponent(slug);
-      if ('serviceWorker' in navigator) { navigator.serviceWorker.register('/sw.js').catch(function () {}); }
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/sw.js').then(function (reg) {
+          try { reg.update(); } catch (e) {}
+          if (reg.waiting) { try { reg.waiting.postMessage('skipWaiting'); } catch (e) {} }
+          reg.addEventListener && reg.addEventListener('updatefound', function () {
+            var nw = reg.installing;
+            if (nw) nw.addEventListener('statechange', function () { if (nw.state === 'installed') { try { nw.postMessage('skipWaiting'); } catch (e) {} } });
+          });
+        }).catch(function () {});
+      }
       var deferred = null;
       function makeBtn() { if (document.getElementById('nx-os-install')) return document.getElementById('nx-os-install'); var b = document.createElement('button'); b.id = 'nx-os-install'; b.textContent = '\u2913 Install app'; b.style.cssText = 'position:fixed;right:16px;bottom:16px;z-index:99999;display:none;background:#00fc8f;color:#062b18;border:0;border-radius:999px;padding:11px 18px;font-family:Inter,system-ui,sans-serif;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 8px 26px rgba(0,252,143,.4)'; b.onclick = function () { if (!deferred) return; deferred.prompt(); deferred.userChoice.then(function () { deferred = null; b.style.display = 'none'; }); }; document.body.appendChild(b); return b; }
       window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); deferred = e; makeBtn().style.display = 'block'; });
@@ -9562,7 +9571,7 @@ window.PEAK_STAFF = (function () {
               <div style={{ fontSize: 15, fontWeight: 700, color: T.ink, letterSpacing: '-0.01em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{(typeof window !== 'undefined' && window.__BRAND_NAME) || 'Peak Primary'}</div>
               <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
                 <PushBell compact />
-                <span style={{ fontSize: 9, color: T.ink4, fontFamily: T.mono }}>b31</span>
+                <span style={{ fontSize: 9, color: T.ink4, fontFamily: T.mono }}>b32</span>
               </div>
             </div>
           )}
