@@ -1431,8 +1431,18 @@ async function handleSyllabusGenerate(request, env, cors) {
   if (lessons < 6) lessons = 6; if (lessons > 120) lessons = 120;
   if (!klass || !subject) return J({ error: 'class and subject required' }, 400);
   const levelWord = level === 'tertiary' ? 'university/college' : (level === 'secondary' ? 'secondary school' : 'primary school');
+  const isSecondary = (level === 'secondary' || level === 'tertiary');
+  const subjLc = subject.toLowerCase();
+  const isMath = /math/.test(subjLc);
+  const isScience = /(physics|chemistry|biology|agric|science|ict|computer|technical|home\s*econ|nutrition|food)/.test(subjLc);
+  let extra = '';
+  if (isSecondary && isMath) {
+    extra = ' This is secondary Mathematics. Ugandan secondary Mathematics is examined in two papers: Paper 1 (pure mathematics — algebra, trigonometry, calculus, etc.) and Paper 2 (applied — statistics, probability, mechanics, vectors, etc.). Cover BOTH papers across the lessons and set a "paper" field on each lesson to either "Paper 1" or "Paper 2". If the subject name already specifies a paper (e.g. "Mathematics 1" means Paper 1, "Mathematics 2" means Paper 2), cover ONLY that paper and set "paper" accordingly.';
+  } else if (isSecondary && isScience) {
+    extra = ' This is a secondary science/technical subject. Include hands-on PRACTICAL lessons interleaved with theory (Ugandan UNEB practical examinations are compulsory). Mark practical lessons with "kind":"practical" and theory lessons with "kind":"theory". Aim for roughly one practical for every three or four theory lessons, placed after the relevant theory.';
+  }
   const sys = 'You are a Ugandan curriculum planner who knows the National Curriculum Development Centre (NCDC) syllabi for ' + levelWord + '. You break a class subject syllabus into a sequenced term scheme of work, one teachable lesson per period, in the correct teaching order (foundational topics first).';
-  const user = 'Class: ' + klass + '. Subject: ' + subject + '. The teacher has exactly ' + lessons + ' lesson periods this term. Produce EXACTLY ' + lessons + ' lessons that together cover the term\'s NCDC syllabus for this class and subject, paced so the syllabus finishes within the ' + lessons + ' periods. Return ONLY a JSON array (no prose, no markdown). Each element: {"topic":"<broad topic/theme>","title":"<specific lesson title>","objective":"<one-sentence learning objective starting with a verb>"}. Order them in proper teaching sequence.';
+  const user = 'Class: ' + klass + '. Subject: ' + subject + '. The teacher has exactly ' + lessons + ' lesson periods this term. Produce EXACTLY ' + lessons + ' lessons that together cover the term\'s NCDC syllabus for this class and subject, paced so the syllabus finishes within the ' + lessons + ' periods.' + extra + ' Return ONLY a JSON array (no prose, no markdown). Each element: {"topic":"<broad topic/theme>","title":"<specific lesson title>","objective":"<one-sentence objective starting with a verb>","kind":"theory|practical","paper":"<Paper 1|Paper 2|empty>"}. Order them in proper teaching sequence.';
   let raw = '';
   try { raw = await niaGenerate(env, sys, user, 3500, 0.3); } catch (e) { return J({ error: 'generation failed: ' + String(e && e.message || e) }, 200); }
   if (!raw || !raw.trim()) return J({ error: 'Nia could not generate a plan right now. Try again.' }, 200);
@@ -1443,7 +1453,7 @@ async function handleSyllabusGenerate(request, env, cors) {
     if (m) { try { arr = JSON.parse(m[0]); } catch (e2) {} }
   }
   if (!Array.isArray(arr) || !arr.length) return J({ error: 'Could not parse the generated plan. Try again.', raw: raw.slice(0, 400) }, 200);
-  const clean = arr.filter(x => x && (x.title || x.topic)).map((x, i) => ({ seq: i + 1, topic: String(x.topic || x.title || '').slice(0, 120), title: String(x.title || x.topic || '').slice(0, 160), objective: String(x.objective || '').slice(0, 240), done: false, doneAt: null }));
+  const clean = arr.filter(x => x && (x.title || x.topic)).map((x, i) => { const o = { seq: i + 1, topic: String(x.topic || x.title || '').slice(0, 120), title: String(x.title || x.topic || '').slice(0, 160), objective: String(x.objective || '').slice(0, 240), done: false, doneAt: null }; if (x.kind && /practical/i.test(x.kind)) o.kind = 'practical'; if (x.paper && /paper/i.test(String(x.paper))) o.paper = String(x.paper).slice(0, 12); return o; });
   return J({ ok: true, class: klass, subject: subject, count: clean.length, lessons: clean });
 }
 
