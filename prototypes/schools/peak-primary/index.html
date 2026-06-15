@@ -18,8 +18,12 @@
   (function () {
     try {
       var p = new URLSearchParams(location.search);
-      var slug = p.get('s') || p.get('t') || (location.pathname.match(/\/s\/([A-Za-z0-9_-]+)/) || [])[1] || 'peak-primary';
-      var ml = document.createElement('link'); ml.rel = 'manifest'; ml.href = '/manifest.php?s=' + encodeURIComponent(slug); document.head.appendChild(ml);
+      // Resolve THIS app's school from the URL (/school/<slug> or /s/<slug>) or the signed-in tenant.
+      // NEVER default to peak-primary — that would make Chrome silently rewrite an installed app to Peak.
+      var slug = p.get('s') || p.get('t') || (location.pathname.match(/\/(?:s|school)\/([A-Za-z0-9_-]+)/) || [])[1] || '';
+      if (!slug) { try { var _pf = JSON.parse(localStorage.getItem('nextos.profile') || 'null'); slug = (_pf && _pf.tenantId) || ''; } catch (e) {} }
+      if (!slug) { try { slug = localStorage.getItem('nextos.lastTenant') || ''; } catch (e) {} }
+      if (slug) { var ml = document.createElement('link'); ml.rel = 'manifest'; ml.href = '/manifest.php?s=' + encodeURIComponent(slug); document.head.appendChild(ml); }
       var WK = 'https://nextos-sentinel.nextafricaai.workers.dev';
       /* keep PNG apple-touch-icon (iOS requires PNG, not SVG) */
       if ('serviceWorker' in navigator) {
@@ -10035,7 +10039,7 @@ window.PEAK_STAFF = (function () {
               <div style={{ fontSize: 15, fontWeight: 700, color: T.ink, letterSpacing: '-0.01em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{(typeof window !== 'undefined' && window.__BRAND_NAME) || 'Peak Primary'}</div>
               <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
                 <PushBell compact />
-                <span style={{ fontSize: 9, color: T.ink4, fontFamily: T.mono }}>b50</span>
+                <span style={{ fontSize: 9, color: T.ink4, fontFamily: T.mono }}>b51</span>
               </div>
             </div>
           )}
