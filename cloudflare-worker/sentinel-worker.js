@@ -910,7 +910,7 @@ async function checkTenantAttendance(env, tenantId) {
   const nowMin = eat.getUTCHours() * 60 + eat.getUTCMinutes();
 
   // Timetable (has periods + grid)
-  const ttRows = await sbFetch(env, '/os_records?tenant=eq.' + encodeURIComponent(tenantId) + '&kind=eq.timetable&select=payload&order=updated_at.desc&limit=1');
+  const ttRows = await sbFetch(env, '/os_records?tenant=eq.' + encodeURIComponent(tenantId) + '&kind=eq.timetable&select=payload&order=created_at.desc&limit=1');
   const tt = (ttRows && ttRows[0] && ttRows[0].payload) || null;
   if (!tt || !tt.periods || !tt.grid) { out.reason = 'no timetable'; return out; }
 
