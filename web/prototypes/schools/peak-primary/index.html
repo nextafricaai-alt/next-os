@@ -214,7 +214,7 @@
     <div style="min-height:100vh;display:grid;place-items:center;color:#8a91b0;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px;letter-spacing:0.08em;">
       <div style="text-align:center">
         <div id="nx-loading-text">LOADING · NEXT SCHOOL OS</div>
-        <div style="margin-top:12px;font-size:10px;opacity:0.5">build b66</div>
+        <div style="margin-top:12px;font-size:10px;opacity:0.5">build b67</div>
       </div>
     </div>
   </div>
@@ -8622,6 +8622,12 @@ window.PEAK_TIMETABLE = (function () {
   function osGet(kind) { return fetch(WK + '/os-data?kind=' + kind + '&tenant=' + encodeURIComponent(tenant())).then(r => r.json()).then(d => (d && d.records) || []).catch(() => []); }
   function osSave(kind, record, id) { return fetch(WK + '/os-data/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(id ? { kind, tenant: tenant(), record, id } : { kind, tenant: tenant(), record }) }).then(r => r.json()).catch(e => ({ error: String(e && e.message || e) })); }
 
+  // ---- "now" helpers (for live green cells) ----
+  function _toMin(s) { const m = String(s || '').split(':'); return (parseInt(m[0], 10) || 0) * 60 + (parseInt(m[1], 10) || 0); }
+  function todayDay() { return ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][new Date().getDay()]; }
+  function nowPeriodIndex(periods) { const mins = new Date().getHours() * 60 + new Date().getMinutes(); for (let i = 0; i < periods.length; i++) { const p = periods[i]; if (!p.brk && mins >= _toMin(p.s) && mins < _toMin(p.e)) return i; } return -1; }
+  function presentNameSet(staff) { return new Set((staff || []).filter(s => /in at/i.test(s.status || '') && !/checked out/i.test(s.status || '')).map(s => norm(s.name))); }
+
   // ---- generation + allocation ----
   function buildEmpty(classes, periods) {
     const g = {};
@@ -8665,6 +8671,9 @@ window.PEAK_TIMETABLE = (function () {
     const [busy, setBusy] = useState(false);
     const [edit, setEdit] = useState(null); // {day, pi}
     const [msg, setMsg] = useState('');
+    const [staff, setStaff] = useState([]);
+    const [, setNowTick] = useState(0);
+    const autoTried = React.useRef(false);
 
     const loadTeachers = useCallback(async () => {
       try {
@@ -8675,7 +8684,22 @@ window.PEAK_TIMETABLE = (function () {
       } catch (e) {}
     }, []);
     const loadGrid = useCallback(() => osGet('timetable').then(rs => { if (rs[0]) { setRecId(rs[0].id); const p = rs[0].payload || {}; if (p.grid) setGrid(p.grid); } }), []);
-    useEffect(() => { loadTeachers(); loadGrid(); }, [loadTeachers, loadGrid]);
+    const loadStaff = useCallback(() => { fetch(WK + '/staff-status?tenant=' + encodeURIComponent(tenant())).then(r => r.json()).then(d => setStaff((d && d.staff) || [])).catch(() => {}); }, []);
+    useEffect(() => { loadTeachers(); loadGrid(); loadStaff(); }, [loadTeachers, loadGrid, loadStaff]);
+    useEffect(() => { const iv = setInterval(() => { setNowTick(t => t + 1); loadStaff(); }, 60000); return () => clearInterval(iv); }, [loadStaff]);
+    useEffect(() => {
+      if (autoTried.current || !grid || !teachers.length) return;
+      let hasSubject = false, hasTeacher = false;
+      classes.forEach(c => DAYS.forEach(d => ((grid[c] && grid[c][d]) || []).forEach(cell => { if (cell && cell.subject) { hasSubject = true; if (cell.teacher) hasTeacher = true; } })));
+      if (hasTeacher) { autoTried.current = true; return; }
+      if (hasSubject) {
+        autoTried.current = true;
+        const g = JSON.parse(JSON.stringify(grid));
+        allocate(g, classes, periods, teachers);
+        setGrid(g);
+        setMsg('Teachers auto-assigned from your staff list by subject + class. Review, then Save.');
+      }
+    }, [grid, teachers]);
 
     const generate = () => {
       setBusy(true); setMsg('');
@@ -8688,12 +8712,28 @@ window.PEAK_TIMETABLE = (function () {
     };
     function countUnfilled(g) { let n = 0; classes.forEach(c => DAYS.forEach(d => (g[c][d] || []).forEach(cell => { if (cell && cell.subject && !cell.teacher) n++; }))); return n; }
 
+    const autoAssign = () => {
+      if (!grid) { generate(); return; }
+      if (!teachers.length) { setMsg('No teachers found yet. Add staff (with their subjects + classes) under Teachers first.'); return; }
+      setBusy(true); setMsg('');
+      const g = JSON.parse(JSON.stringify(grid));
+      classes.forEach(c => DAYS.forEach(d => ((g[c] && g[c][d]) || []).forEach(cell => { if (cell && !cell.brk) { cell.teacher = ''; cell.teacherEmail = ''; } })));
+      allocate(g, classes, periods, teachers);
+      setGrid(g); setBusy(false);
+      const unfilled = countUnfilled(g);
+      setMsg('Teachers re-balanced across your staff list' + (unfilled ? ' — ' + unfilled + ' slot' + (unfilled === 1 ? '' : 's') + ' still need a teacher (no subject match).' : ' — every slot covered.') + ' Review, then Save.');
+    };
+
     const save = () => { if (!grid) return; setBusy(true); osSave('timetable', { level, periods, grid, updatedAt: new Date().toISOString() }, recId).then(res => { setBusy(false); if (res && res.error) { setMsg('Could not save: ' + res.error); return; } if (res && res.record && res.record.id) setRecId(res.record.id); window.peakToast && window.peakToast('Timetable saved', 'success', classes.length + ' classes stored.'); setMsg('Saved.'); }); };
 
     const setCell = (d, pi, patch) => { setGrid(g => { const n = JSON.parse(JSON.stringify(g)); n[cls][d][pi] = Object.assign({}, n[cls][d][pi], patch); return n; }); };
 
     const card = { background: T.surface, border: '1px solid ' + T.border, borderRadius: 12, padding: 16 };
     const cg = (grid && grid[cls]) ? grid[cls] : null;
+    const curDay = todayDay();
+    const curIdx = nowPeriodIndex(periods);
+    const activeNames = presentNameSet(staff);
+    const isSchoolNow = DAYS.indexOf(curDay) >= 0 && curIdx >= 0;
 
     return (
       <div style={{ height: '100%', overflow: 'auto', background: T.bg, color: T.ink, fontFamily: T.font, fontSize: 13, padding: '26px 28px 60px' }}>
@@ -8705,6 +8745,7 @@ window.PEAK_TIMETABLE = (function () {
           </div>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <button onClick={generate} disabled={busy} style={{ background: T.red, color: '#fff', border: 'none', borderRadius: 9, padding: '10px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>{busy ? '…' : (grid ? 'Re-generate' : 'Auto-generate')}</button>
+            {grid && <button onClick={autoAssign} disabled={busy} style={{ background: 'transparent', border: '1px solid ' + T.green, color: T.green, borderRadius: 9, padding: '10px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>Auto-assign teachers</button>}
             <button onClick={save} disabled={busy || !grid} style={{ background: 'transparent', border: '1px solid ' + T.border, color: T.ink2, borderRadius: 9, padding: '10px 16px', fontSize: 13, cursor: 'pointer' }}>Save</button>
           </div>
         </div>
@@ -8731,11 +8772,19 @@ window.PEAK_TIMETABLE = (function () {
                       <div style={{ fontSize: 10, color: T.ink4, fontFamily: T.mono }}>{p.s}–{p.e}</div>
                     </td>
                     {p.brk ? <td colSpan={5} style={{ textAlign: 'center', color: T.ink4, fontFamily: T.mono, fontSize: 11, background: 'rgba(255,255,255,0.02)' }}>{p.l}</td>
-                      : DAYS.map(d => { const cell = cg[d][pi] || {}; return (
+                      : DAYS.map(d => {
+                        const cell = cg[d][pi] || {};
+                        const isNow = !p.brk && d === curDay && pi === curIdx;
+                        const teacherActive = !!cell.teacher && activeNames.has(norm(cell.teacher));
+                        let bg = cell.subject ? 'rgba(58,79,156,0.14)' : T.bg;
+                        let bd = cell.subject && !cell.teacher ? T.warn : T.border;
+                        if (isNow && cell.subject) { if (teacherActive) { bg = 'rgba(46,160,67,0.18)'; bd = T.green; } else { bg = 'rgba(218,54,51,0.14)'; bd = T.warn; } }
+                        return (
                         <td key={d} style={{ padding: 4, verticalAlign: 'top' }}>
-                          <button onClick={() => setEdit({ day: d, pi })} style={{ width: '100%', minHeight: 46, textAlign: 'left', background: cell.subject ? 'rgba(58,79,156,0.14)' : T.bg, border: '1px solid ' + (cell.subject && !cell.teacher ? T.warn : T.border), borderRadius: 8, padding: '6px 8px', cursor: 'pointer', color: T.ink }}>
-                            <div style={{ fontSize: 11.5, fontWeight: 700 }}>{cell.subject || '—'}</div>
-                            <div style={{ fontSize: 10.5, color: cell.teacher ? T.ink3 : T.warn, marginTop: 2 }}>{cell.teacher || (cell.subject ? 'assign teacher' : '')}</div>
+                          <button onClick={() => setEdit({ day: d, pi })} style={{ width: '100%', minHeight: 46, textAlign: 'left', background: bg, border: '1px solid ' + bd, boxShadow: isNow && cell.subject ? '0 0 0 1px ' + bd : 'none', borderRadius: 8, padding: '6px 8px', cursor: 'pointer', color: T.ink, position: 'relative' }}>
+                            {isNow && cell.subject && <span style={{ position: 'absolute', top: 5, right: 6, fontSize: 8.5, fontFamily: T.mono, fontWeight: 700, letterSpacing: '0.05em', color: teacherActive ? T.green : T.warn }}>{teacherActive ? '\u25CF NOW' : '\u25CB NOW'}</span>}
+                            <div style={{ fontSize: 11.5, fontWeight: 700 }}>{cell.subject || '\u2014'}</div>
+                            <div style={{ fontSize: 10.5, color: cell.teacher ? (isNow ? (teacherActive ? T.green : T.warn) : T.ink3) : T.warn, marginTop: 2 }}>{cell.teacher || (cell.subject ? 'assign teacher' : '')}{isNow && cell.teacher && !teacherActive ? ' \u00b7 not in' : ''}</div>
                           </button>
                         </td>
                       ); })}
@@ -8743,6 +8792,18 @@ window.PEAK_TIMETABLE = (function () {
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {cg && (
+          <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'center', marginTop: 12, fontSize: 11.5, color: T.ink3, fontFamily: T.mono }}>
+            {isSchoolNow
+              ? <React.Fragment>
+                  <span style={{ color: T.ink2 }}>NOW · {curDay} {periods[curIdx] && periods[curIdx].l}</span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><span style={{ width: 10, height: 10, borderRadius: 3, background: 'rgba(46,160,67,0.55)', border: '1px solid ' + T.green }} /> teacher in &amp; teaching</span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><span style={{ width: 10, height: 10, borderRadius: 3, background: 'rgba(218,54,51,0.35)', border: '1px solid ' + T.warn }} /> period live · teacher not in (uncovered)</span>
+                </React.Fragment>
+              : <span>Live green/amber highlighting shows on class days during lesson periods (08:00–15:20).</span>}
           </div>
         )}
 
