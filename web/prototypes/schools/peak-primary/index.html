@@ -4453,7 +4453,7 @@ window.PD_Students = PD_Students;
 /* src/v4-profile.jsx */
 /* global React, PEAK, V4 */
 // Peak Dark · Student profile deep dive
-// One child, all signals. Brian Mugisha (P5V) — at-risk, the interesting case.
+// Student profile — loads the real child by id.
 
 const PD_Profile = (function () {
   const T = window.V4.T;
@@ -4562,20 +4562,6 @@ const PD_Profile = (function () {
     const [tab, setTab] = useState('Overview');
     const tabs = ['Overview','Attendance','Academics','Behaviour','Fees','Comms'];
 
-    // 12 weeks of attendance — engineered story: started fine, deteriorated
-    const weeks = [
-      96, 95, 94, 92, 90, 88, 85, 80, 75, 70, 65, 60,
-    ];
-
-    // Subject marks
-    const subjects = [
-      { s: 'Mathematics',     mid: 64, end: 52, trend: 'down', tone: T.red  },
-      { s: 'English',          mid: 71, end: 68, trend: 'flat', tone: T.warn },
-      { s: 'Social Studies',   mid: 74, end: 75, trend: 'flat', tone: T.good },
-      { s: 'Science',          mid: 68, end: 60, trend: 'down', tone: T.warn },
-      { s: 'Reading',          mid: 80, end: 78, trend: 'flat', tone: T.good },
-    ];
-
     // The REAL child this profile is for (looked up by id) — never the demo.
     const _all = (window.__TEACHER_STUDENTS && window.__TEACHER_STUDENTS.length) ? window.__TEACHER_STUDENTS : ((window.PEAK && window.PEAK.students) || []);
     const stu = _all.find(x => String(x.id) === String(studentId)) || {};
@@ -4668,7 +4654,7 @@ const PD_Profile = (function () {
             ))}
             <div style={{ flex: 1 }} />
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 0', fontSize: 11, color: T.ink3, fontFamily: T.mono }}>
-              <span>build b55 · {stuName}</span>
+              <span>{stuName} · live profile</span>
             </div>
           </div>
 
@@ -4676,186 +4662,61 @@ const PD_Profile = (function () {
           <div style={{ flex: 1, overflow: 'auto', padding: '22px 32px 32px' }}>
             <div style={{ marginBottom: 16 }}><ProfileNotes studentId={studentId} /></div>
             <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 16, marginBottom: 16 }}>
-              {/* attendance trend */}
-              <Card eyebrow="ATTENDANCE · 12 WEEKS" title="The slide started in week 5" action={<Pill tone="bad">▼ 36 pts</Pill>}>
-                <svg viewBox="0 0 480 180" style={{ width: '100%', height: 180, display: 'block' }}>
-                  <defs>
-                    <linearGradient id="prof-attend-fade" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0" stopColor={T.red} stopOpacity="0.35" />
-                      <stop offset="1" stopColor={T.red} stopOpacity="0" />
-                    </linearGradient>
-                  </defs>
-                  {/* grid lines */}
-                  {[40, 80, 120, 160].map(y => (
-                    <line key={y} x1="20" x2="470" y1={y} y2={y} stroke={T.border} strokeDasharray="2 4" />
-                  ))}
-                  {[100, 80, 60, 40].map((v, i) => (
-                    <text key={v} x="0" y={40 + i * 40 + 4} fontSize="10" fill={T.ink3} fontFamily={T.mono}>{v}</text>
-                  ))}
-                  {(() => {
-                    const pts = weeks.map((w, i) => [20 + i * 41, 200 - (w * 1.6)]);
-                    const path = pts.map((p, i) => (i ? 'L' : 'M') + p[0] + ',' + p[1]).join(' ');
-                    return <>
-                      <path d={path + ' L' + pts[pts.length-1][0] + ',180 L20,180 Z'} fill="url(#prof-attend-fade)" />
-                      <path d={path} fill="none" stroke={T.red} strokeWidth="2.5" strokeLinecap="round" />
-                      {pts.map((p, i) => (
-                        <circle key={i} cx={p[0]} cy={p[1]} r={i === pts.length - 1 ? 5 : 3} fill={T.red} stroke="#fff" strokeWidth={i === pts.length - 1 ? 2 : 0} />
-                      ))}
-                      {/* moment marker — week 5 */}
-                      <line x1={20 + 4 * 41} x2={20 + 4 * 41} y1="20" y2="180" stroke={T.gold} strokeDasharray="3 3" strokeWidth="1" />
-                      <text x={20 + 4 * 41 + 6} y="32" fontSize="10" fill={T.gold} fontFamily={T.mono}>Father lost job</text>
-                    </>;
+              {/* What I see — honest summary from real data */}
+              <Card eyebrow="OVERVIEW" title={stuName.split(' ')[0] + "’s status"}>
+                <div style={{ fontSize: 13, color: T.ink2, lineHeight: 1.65 }}>
+                  {(function () {
+                    var bits = [];
+                    bits.push(stuName + ' is in ' + (stuStream || 'their class') + '. Guardian: ' + stuGuardian + (stuPhone ? (' (' + stuPhone + ')') : '') + '.');
+                    if (stuAttWk != null) bits.push('Attendance this week is ' + stuAttWk + '%' + (stuAttWk < 70 ? ' — below the watch line; worth a check-in.' : '.'));
+                    else bits.push('Attendance history will build as the class teacher marks the daily register.');
+                    if (stuBalance > 0) bits.push('Fees: UGX ' + stuBalance.toLocaleString() + ' is outstanding this term.');
+                    else bits.push('Fees are cleared for this term.');
+                    bits.push('Standing: ' + (isRisk ? 'at-risk — keep an eye on attendance and fees.' : isTop ? 'top performer.' : 'steady.'));
+                    return bits.join(' ');
                   })()}
-                  {/* x labels */}
-                  {weeks.map((_, i) => (
-                    <text key={i} x={20 + i * 41} y="195" fontSize="9.5" fill={T.ink3} fontFamily={T.mono} textAnchor="middle">W{i + 1}</text>
-                  ))}
-                </svg>
-              </Card>
-
-              {/* AI summary */}
-              <Card pad={0} title={null} action={null}>
-                <div style={{
-                  background: 'linear-gradient(150deg, ' + T.surface3 + ' 0%, ' + T.surface + ' 60%)',
-                  padding: 20, borderRadius: 12, height: '100%', display: 'flex', flexDirection: 'column',
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-                    <div style={{ width: 26, height: 26, borderRadius: 7, background: T.red, color: '#fff', display: 'grid', placeItems: 'center', fontFamily: T.mono, fontSize: 11, fontWeight: 700 }}>AI</div>
-                    <div style={{ fontSize: 13.5, fontWeight: 600 }}>What I see</div>
-                  </div>
-                  <div style={{ fontSize: 13, color: T.ink2, lineHeight: 1.6, marginBottom: 14 }}>
-                    Brian was a steady child until <span style={{ color: T.gold, fontWeight: 600 }}>week 5 of Term 2</span>. Attendance, quiz scores and behaviour notes all decline from the same point. Mathematics has fallen 12 points; the family is now 30+ days behind on fees and has not replied on WhatsApp in 4 days.
-                  </div>
-                  <div style={{ fontSize: 13, color: T.ink2, lineHeight: 1.6, marginBottom: 18 }}>
-                    Pattern matches three other historical cases at Peak where a family hardship became the underlying cause. Suggested next steps:
-                  </div>
-                  <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12.5, color: T.ink, lineHeight: 1.7 }}>
-                    <li>Director call to Mr. Mugisha — today.</li>
-                    <li>Offer a Term 2 fees payment plan via the bursar.</li>
-                    <li>Quiet check-in with Mrs. Namugga, his class teacher.</li>
-                  </ul>
-                  <div style={{ flex: 1 }} />
-                  <div style={{ display: 'flex', gap: 8, marginTop: 18 }}>
-                    <button onClick={() => window.peakToast && window.peakToast('Care plan started', 'success', 'Director, P5V teacher, and counsellor added to follow-up loop. Guardian call scheduled.')} style={{ flex: 1, background: T.red, color: '#fff', border: 'none', padding: '9px 12px', borderRadius: 8, fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }}>Start care plan</button>
-                    <button onClick={() => window.peakToast && window.peakToast('AI summary dismissed for today', 'info')} style={{ background: 'transparent', color: T.ink, border: '1px solid ' + T.borderStr, padding: '9px 14px', borderRadius: 8, fontSize: 12.5, cursor: 'pointer' }}>Dismiss</button>
-                  </div>
                 </div>
+              </Card>
+              {/* Attendance — real this week, honest if none */}
+              <Card eyebrow="ATTENDANCE" title={stuAttWk != null ? (stuAttWk + '% this week') : 'No data yet'}>
+                {stuAttWk != null ? (
+                  <div>
+                    <div style={{ height: 10, borderRadius: 999, background: T.surface2, overflow: 'hidden', marginBottom: 8 }}>
+                      <div style={{ height: '100%', width: stuAttWk + '%', background: stuAttWk >= 90 ? T.good : stuAttWk >= 70 ? T.warn : T.red, borderRadius: 999 }} />
+                    </div>
+                    <div style={{ fontSize: 12, color: T.ink3 }}>Last seen: {stuLastSeen}. This is drawn from the real roll-call register.</div>
+                  </div>
+                ) : (
+                  <div style={{ fontSize: 12.5, color: T.ink3, lineHeight: 1.55 }}>{stuName.split(' ')[0]}’s attendance appears here once their class teacher starts marking the daily register.</div>
+                )}
               </Card>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, marginBottom: 16 }}>
-              {/* Academics */}
-              <Card eyebrow="ACADEMICS · TERM 2" title="Subjects" pad={18}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                  {subjects.map(sub => (
-                    <div key={sub.s}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 }}>
-                        <span style={{ fontSize: 12.5, color: T.ink }}>{sub.s}</span>
-                        <span style={{ display: 'flex', gap: 8, alignItems: 'baseline' }}>
-                          <span style={{ fontSize: 11, color: T.ink3, fontFamily: T.mono }}>mid {sub.mid} → end {sub.end}</span>
-                          <span style={{ fontSize: 12, color: sub.tone, fontFamily: T.mono, fontWeight: 600 }}>
-                            {sub.end - sub.mid > 0 ? '+' : ''}{sub.end - sub.mid}
-                          </span>
-                        </span>
-                      </div>
-                      <div style={{ display: 'flex', gap: 3, height: 5 }}>
-                        <div style={{ flex: 1, background: T.surface2, borderRadius: 999, position: 'relative' }}>
-                          <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: sub.end + '%', background: sub.tone, borderRadius: 999 }} />
-                          <div style={{ position: 'absolute', left: sub.mid + '%', top: -2, bottom: -2, width: 2, background: T.ink, borderRadius: 1 }} />
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+              {/* Academics — honest until exam results exist */}
+              <Card eyebrow="ACADEMICS" title="Exam results" pad={18}>
+                <div style={{ fontSize: 12.5, color: T.ink3, lineHeight: 1.55 }}>No exam results recorded for {stuName.split(' ')[0]} yet. Marks and trends appear here once you record an exam in the Reports screen.</div>
               </Card>
-
-              {/* Behaviour notes */}
-              <Card eyebrow="BEHAVIOUR · LAST 6 NOTES" title="Class teacher" pad={18}>
-                {[
-                  { d: '12 May', who: 'Mrs. Namugga', note: 'Quiet today. Did not finish Math exercise.', tone: T.warn },
-                  { d: '08 May', who: 'Mrs. Namugga', note: 'Came in late, no breakfast.', tone: T.red },
-                  { d: '02 May', who: 'Mr. Bbosa',    note: 'Helped younger child at the gate.', tone: T.good },
-                  { d: '26 Apr', who: 'Mrs. Namugga', note: 'Distracted during Reading.', tone: T.warn },
-                  { d: '19 Apr', who: 'Mrs. Namugga', note: 'Excellent participation in SST.', tone: T.good },
-                ].map((n, i) => (
-                  <div key={i} style={{
-                    display: 'grid', gridTemplateColumns: '4px 1fr', gap: 10,
-                    padding: '9px 0', borderTop: i ? '1px solid ' + T.border : 'none',
-                  }}>
-                    <div style={{ width: 3, background: n.tone, borderRadius: 999 }} />
-                    <div>
-                      <div style={{ fontSize: 12.5, color: T.ink, lineHeight: 1.4 }}>{n.note}</div>
-                      <div style={{ fontSize: 10.5, color: T.ink3, fontFamily: T.mono, marginTop: 3 }}>{n.d} · {n.who}</div>
-                    </div>
-                  </div>
-                ))}
-              </Card>
-
-              {/* Fees timeline */}
-              <Card eyebrow="FEES · TERM 2" title="UGX 340K outstanding" pad={18}>
-                <div style={{ marginBottom: 12 }}>
-                  <div style={{ height: 8, borderRadius: 999, background: T.surface2, overflow: 'hidden', marginBottom: 6 }}>
-                    <div style={{ height: '100%', width: '60%', background: T.red, borderRadius: 999 }} />
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10.5, color: T.ink3, fontFamily: T.mono }}>
-                    <span>510K paid</span>
-                    <span>340K due · 31 May</span>
-                  </div>
+              {/* Fees — real balance */}
+              <Card eyebrow="FEES · THIS TERM" title={stuBalance > 0 ? ('UGX ' + stuBalance.toLocaleString() + ' due') : 'Cleared'} pad={18}>
+                <div style={{ height: 8, borderRadius: 999, background: T.surface2, overflow: 'hidden', marginBottom: 8 }}>
+                  <div style={{ height: '100%', width: stuBalance > 0 ? '55%' : '100%', background: stuBalance > 0 ? T.red : T.good, borderRadius: 999 }} />
                 </div>
-                {[
-                  { d: '08 Feb', who: 'Stanbic xfer', amt: 850_000, type: 'good', note: 'Term 1' },
-                  { d: '14 Mar', who: 'MTN MoMo',    amt: 510_000, type: 'good', note: 'Term 2 deposit' },
-                  { d: '15 Apr', who: '—',           amt: 0,        type: 'warn', note: 'Reminder sent · no payment' },
-                  { d: '05 May', who: '—',           amt: 0,        type: 'bad',  note: 'Reminder sent · no payment' },
-                  { d: '12 May', who: '—',           amt: 0,        type: 'bad',  note: 'Auto-escalated to bursar' },
-                ].map((p, i) => (
-                  <div key={i} style={{
-                    display: 'grid', gridTemplateColumns: '50px 1fr auto', gap: 10,
-                    padding: '8px 0', borderTop: i ? '1px solid ' + T.border : 'none', alignItems: 'baseline',
-                  }}>
-                    <span style={{ fontSize: 10.5, color: T.ink3, fontFamily: T.mono }}>{p.d}</span>
-                    <div>
-                      <div style={{ fontSize: 12, color: T.ink }}>{p.who}</div>
-                      <div style={{ fontSize: 10, color: T.ink3, fontFamily: T.mono }}>{p.note}</div>
-                    </div>
-                    {p.amt > 0
-                      ? <span style={{ fontSize: 12, color: T.good, fontFamily: T.mono, fontWeight: 600 }}>+{D.fmtUGXshort(p.amt)}</span>
-                      : <span style={{ fontSize: 11, color: p.type === 'bad' ? T.redInk : T.warn, fontFamily: T.mono }}>{p.type === 'bad' ? 'overdue' : 'reminder'}</span>
-                    }
-                  </div>
-                ))}
+                <div style={{ fontSize: 12, color: T.ink3, lineHeight: 1.5 }}>{stuBalance > 0 ? 'Outstanding balance for this term. Record a payment in Fees to update and issue a receipt.' : 'No outstanding balance this term.'}</div>
               </Card>
             </div>
 
-            {/* Comms history */}
-            <Card eyebrow="GUARDIAN COMMUNICATION" title="WhatsApp thread with Mr. Robert Mugisha" pad={0}>
-              <div style={{ padding: '16px 20px', borderTop: '1px solid ' + T.border, display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {[
-                  { from: 'peak',   t: '12 May 07:30', text: 'Reminder: Brian (P5V) was marked absent this morning. Please confirm he is well.', delivered: true },
-                  { from: 'parent', t: '12 May 09:42', text: 'He is at the village this week. Will be back Friday.', delivered: true },
-                  { from: 'peak',   t: '13 May 07:30', text: 'Reminder: Brian (P5V) was marked absent this morning.' },
-                  { from: 'peak',   t: '13 May 16:20', text: 'Term 2 balance reminder: UGX 340,000 due by 31 May. Pay via MTN *165*3# acct PEAK001.' },
-                  { from: 'peak',   t: '14 May 07:30', text: 'Reminder: Brian (P5V) was marked absent again this morning. Please reach out — we are here to help.', flagged: true },
-                ].map((m, i) => {
-                  const isPeak = m.from === 'peak';
-                  return (
-                    <div key={i} style={{ display: 'flex', justifyContent: isPeak ? 'flex-start' : 'flex-end' }}>
-                      <div style={{
-                        maxWidth: '70%',
-                        background: isPeak ? T.surface2 : 'rgba(58,79,156,0.20)',
-                        border: m.flagged ? '1px solid rgba(226,58,82,0.4)' : '1px solid ' + T.border,
-                        borderRadius: 12, padding: '10px 14px',
-                        borderTopLeftRadius: isPeak ? 4 : 12, borderTopRightRadius: isPeak ? 12 : 4,
-                      }}>
-                        <div style={{ fontSize: 9.5, fontFamily: T.mono, color: isPeak ? T.ink3 : '#a8b4e8', marginBottom: 4, letterSpacing: '0.05em', fontWeight: 600 }}>
-                          {isPeak ? 'PEAK PRIMARY' : 'MR. MUGISHA'} · {m.t}
-                          {m.flagged && <span style={{ color: T.redInk, marginLeft: 8 }}>● NO REPLY 28h</span>}
-                        </div>
-                        <div style={{ fontSize: 12.5, color: T.ink, lineHeight: 1.5 }}>{m.text}</div>
-                      </div>
-                    </div>
-                  );
-                })}
+            {/* Guardian communication — real guardian, honest history */}
+            <Card eyebrow="GUARDIAN COMMUNICATION" title={"Thread with " + stuGuardian} pad={0}>
+              <div style={{ padding: '20px', textAlign: 'center' }}>
+                <div style={{ fontSize: 12.5, color: T.ink3, lineHeight: 1.6, marginBottom: 14 }}>
+                  No messages logged with {stuGuardian} yet. As you message this guardian, the conversation will appear here.
+                </div>
+                {stuPhone ? (
+                  <button onClick={() => window.peakWhatsApp((stuPhone || '').replace(/[^0-9]/g, ''), 'Hello ' + stuGuardian + ', a message from ' + window.peakSchoolName() + ' regarding ' + stuName.split(' ')[0] + '.')} style={{ background: '#00a884', color: '#fff', border: 'none', padding: '10px 18px', borderRadius: 9, fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }}>Message {stuGuardian} on WhatsApp</button>
+                ) : (
+                  <div style={{ fontSize: 12, color: T.ink4 }}>No phone number on file for this guardian.</div>
+                )}
               </div>
             </Card>
           </div>
@@ -10055,7 +9916,7 @@ window.PEAK_STAFF = (function () {
               <div style={{ fontSize: 15, fontWeight: 700, color: T.ink, letterSpacing: '-0.01em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{(typeof window !== 'undefined' && window.__BRAND_NAME) || 'Peak Primary'}</div>
               <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
                 <PushBell compact />
-                <span style={{ fontSize: 9, color: T.ink4, fontFamily: T.mono }}>b56</span>
+                <span style={{ fontSize: 9, color: T.ink4, fontFamily: T.mono }}>b57</span>
               </div>
             </div>
           )}
