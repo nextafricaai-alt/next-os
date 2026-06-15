@@ -381,6 +381,7 @@ export default {
     if (url.pathname === '/school-config/save') return handleConfigSave(request, env, cors);
     if (url.pathname === '/os-data')            return handleOsDataList(url.searchParams.get('tenant') || 'next', url.searchParams.get('kind') || '', env, cors);
     if (url.pathname === '/os-data/save')       return handleOsDataSave(request, env, cors);
+    if (url.pathname === '/translate')          return handleTranslate(request, env, cors);
     if (url.pathname === '/push/vapid-public')  return new Response(JSON.stringify({ key: env.VAPID_PUBLIC || '' }), { status: 200, headers: { ...cors, 'Content-Type': 'application/json' } });
     if (url.pathname === '/push/subscribe')     return handlePushSubscribe(request, env, cors);
     if (url.pathname === '/push/notify')        return handlePushNotify(request, env, cors);
@@ -1416,6 +1417,20 @@ async function handleFeesImport(request, env, cors) {
     let imported = 0;
     for (let i = 0; i < inserts.length; i += 500) { await sbWrite(env, '/fees', inserts.slice(i, i + 500), 'POST', 'return=minimal'); imported += Math.min(500, inserts.length - i); }
     return J({ ok: true, imported, matched: matchedIds.size, students: matchedIds.size, term, unmatched });
+  } catch (e) { return J({ error: String((e && e.message) || e) }, 200); }
+}
+
+async function handleTranslate(request, env, cors) {
+  const J = (oo, st) => new Response(JSON.stringify(oo), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
+  let b; try { b = await request.json(); } catch (e) { return J({ error: 'bad body' }, 400); }
+  const text = String(b.text || '').trim();
+  const lang = String(b.lang || 'Luganda').trim() || 'Luganda';
+  if (!text) return J({ error: 'text required' }, 400);
+  const sys = 'You are a precise, warm translator for a Ugandan school messaging parents. Translate the user\'s message into ' + lang + '. CRITICAL: keep every {{placeholder}} token (double curly braces) EXACTLY as written, do not translate or alter them. Keep it natural and respectful for a parent. Return ONLY the translation with no preamble, notes, or quotes.';
+  try {
+    const out = await niaGenerate(env, sys, text, 400, 0.2);
+    if (!out || !out.trim()) return J({ error: 'translation unavailable' }, 200);
+    return J({ text: out.trim(), lang });
   } catch (e) { return J({ error: String((e && e.message) || e) }, 200); }
 }
 

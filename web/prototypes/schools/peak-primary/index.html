@@ -212,7 +212,7 @@
   <script>
     /* Build self-heal: if this cached HTML is older than what the server now serves,
        reload ONCE with a cache-buster so no school is ever stuck on a stale build. */
-    window.__BUILD = 'b72';
+    window.__BUILD = 'b73';
     (function () {
       try {
         fetch('/build.txt?ts=' + Date.now(), { cache: 'no-store' })
@@ -233,7 +233,7 @@
     <div style="min-height:100vh;display:grid;place-items:center;color:#8a91b0;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px;letter-spacing:0.08em;">
       <div style="text-align:center">
         <div id="nx-loading-text">LOADING · NEXT SCHOOL OS</div>
-        <div style="margin-top:12px;font-size:10px;opacity:0.5">build b72</div>
+        <div style="margin-top:12px;font-size:10px;opacity:0.5">build b73</div>
       </div>
     </div>
   </div>
@@ -5371,6 +5371,10 @@ const PD_Broadcast = (function () {
     const [idx, setIdx] = useState(0);
     const [started, setStarted] = useState(false);
     const [logged, setLogged] = useState(false);
+    const [lang, setLang] = useState('en'); // en | lg | both
+    const [lgBase, setLgBase] = useState('');
+    const [lgFor, setLgFor] = useState('');
+    const [translating, setTranslating] = useState(false);
 
     const phoneOk = (s) => (String(s.guardianPhone || '').replace(/[^0-9]/g, '').length >= 9);
 
@@ -5402,6 +5406,30 @@ const PD_Broadcast = (function () {
       .replace(/{{\s*class\s*}}/g, s.stream || '')
       .replace(/{{\s*balance\s*}}/g, (Number(s.balance) || 0).toLocaleString())
       .replace(/{{\s*school\s*}}/g, school);
+    const fillLg = (s) => String(lgBase || '')
+      .replace(/{{\s*guardian\s*}}/g, s.guardian || 'Parent')
+      .replace(/{{\s*child\s*}}/g, (String(s.name || '').split(' ')[0]) || s.name || 'your child')
+      .replace(/{{\s*class\s*}}/g, s.stream || '')
+      .replace(/{{\s*balance\s*}}/g, (Number(s.balance) || 0).toLocaleString())
+      .replace(/{{\s*school\s*}}/g, school);
+    const lgReady = lgBase && lgFor === baseMsg;
+    const finalMsg = (s) => {
+      const en = fill(s);
+      if (lang === 'en' || !lgReady) return en;
+      const lg = fillLg(s);
+      if (lang === 'lg') return lg;
+      return en + '\n\n' + lg;
+    };
+    const translate = async () => {
+      setTranslating(true);
+      try {
+        const WK = 'https://nextos-sentinel.nextafricaai.workers.dev';
+        const r = await fetch(WK + '/translate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: baseMsg, lang: 'Luganda' }) }).then(r => r.json());
+        if (r && r.text) { setLgBase(r.text); setLgFor(baseMsg); }
+        else window.peakToast && window.peakToast('Could not translate', 'info', (r && r.error) || 'Try again in a moment.');
+      } catch (e) { window.peakToast && window.peakToast('Translation failed', 'info', String(e && e.message || e)); }
+      setTranslating(false);
+    };
 
     const logBroadcast = (n) => {
       if (logged) return; setLogged(true);
@@ -5415,7 +5443,7 @@ const PD_Broadcast = (function () {
       if (idx >= reachable.length) return;
       const s = reachable[idx];
       const ph = String(s.guardianPhone || '').replace(/[^0-9]/g, '');
-      if (ph) window.peakWhatsApp(ph, fill(s));
+      if (ph) window.peakWhatsApp(ph, finalMsg(s));
       if (idx === 0) logBroadcast(reachable.length);
       setStarted(true); setIdx(idx + 1);
     };
@@ -5468,6 +5496,21 @@ const PD_Broadcast = (function () {
               </div>
               <textarea value={baseMsg} onChange={e => setEdited(e.target.value)} style={{ width: '100%', minHeight: 120, background: T.bg, border: '1px solid ' + T.border, borderRadius: 9, padding: 11, fontSize: 13, color: T.ink, fontFamily: T.font, outline: 'none', lineHeight: 1.5 }} />
               <div style={{ fontSize: 10.5, color: T.ink4, fontFamily: T.mono, marginTop: 6 }}>Variables: {'{{guardian}} {{child}} {{class}} {{balance}} {{school}}'} — filled per guardian.</div>
+              <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid ' + T.border }}>
+                <div style={{ fontSize: 10.5, color: T.ink3, fontFamily: T.mono, letterSpacing: '0.04em', marginBottom: 7 }}>LANGUAGE</div>
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+                  {[['en', 'English'], ['lg', 'Luganda'], ['both', 'Both']].map(o => (
+                    <button key={o[0]} onClick={() => { setLang(o[0]); if (o[0] !== 'en' && lgFor !== baseMsg && !translating) translate(); }} style={{ border: '1px solid ' + (lang === o[0] ? T.red : T.border), background: 'transparent', color: lang === o[0] ? T.red : T.ink2, borderRadius: 999, padding: '5px 12px', fontSize: 12, cursor: 'pointer' }}>{o[1]}</button>
+                  ))}
+                  {lang !== 'en' && (translating
+                    ? <span style={{ fontSize: 11.5, color: T.ink3 }}>Translating…</span>
+                    : (lgFor === baseMsg
+                      ? <span style={{ fontSize: 11.5, color: T.good }}>✓ Luganda ready</span>
+                      : <button onClick={translate} style={{ background: 'transparent', border: '1px solid ' + T.border, color: T.ink2, borderRadius: 8, padding: '5px 11px', fontSize: 11.5, cursor: 'pointer' }}>↻ Translate to Luganda</button>))}
+                </div>
+                {lang !== 'en' && lgReady && <div style={{ marginTop: 8, fontSize: 11.5, color: T.ink3, lineHeight: 1.5, background: T.bg, border: '1px solid ' + T.border, borderRadius: 8, padding: '8px 10px', whiteSpace: 'pre-wrap' }}>{lgBase}</div>}
+                {lang !== 'en' && lgFor !== baseMsg && !translating && <div style={{ marginTop: 6, fontSize: 10.5, color: T.warn }}>You edited the message — re-translate to refresh the Luganda version.</div>}
+              </div>
             </div>
           </div>
 
@@ -5495,7 +5538,7 @@ const PD_Broadcast = (function () {
                   {current && (
                     <div style={{ background: T.bg, border: '1px solid ' + T.border, borderRadius: 10, padding: 12, marginBottom: 10 }}>
                       <div style={{ fontSize: 12.5, fontWeight: 600 }}>{current.guardian || 'Parent'} <span style={{ color: T.ink3, fontWeight: 400 }}>{'·'} guardian of {current.name} ({current.stream})</span></div>
-                      <div style={{ fontSize: 11.5, color: T.ink2, marginTop: 6, lineHeight: 1.5 }}>{fill(current)}</div>
+                      <div style={{ fontSize: 11.5, color: T.ink2, marginTop: 6, lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>{finalMsg(current)}</div>
                     </div>
                   )}
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -5516,7 +5559,7 @@ const PD_Broadcast = (function () {
                   return (
                     <div key={s.id || i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, padding: '8px 11px', borderBottom: i < recipients.length - 1 ? '1px solid ' + T.border : 'none' }}>
                       <div style={{ minWidth: 0 }}><div style={{ fontSize: 12.5, color: T.ink, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.guardian || 'Parent'} <span style={{ color: T.ink4 }}>{'·'} {s.name}</span></div><div style={{ fontSize: 10.5, color: T.ink4, fontFamily: 'ui-monospace,monospace' }}>{s.stream || ''} {ok ? ('· ' + s.guardianPhone) : '· no phone'}</div></div>
-                      {ok ? <button onClick={() => window.peakWhatsApp(String(s.guardianPhone || '').replace(/[^0-9]/g, ''), fill(s))} style={{ background: 'transparent', border: '1px solid ' + T.border, color: T.ink2, borderRadius: 7, padding: '4px 10px', fontSize: 11, cursor: 'pointer', flexShrink: 0 }}>Open</button> : <span style={{ fontSize: 10.5, color: T.warn, flexShrink: 0 }}>add phone</span>}
+                      {ok ? <button onClick={() => window.peakWhatsApp(String(s.guardianPhone || '').replace(/[^0-9]/g, ''), finalMsg(s))} style={{ background: 'transparent', border: '1px solid ' + T.border, color: T.ink2, borderRadius: 7, padding: '4px 10px', fontSize: 11, cursor: 'pointer', flexShrink: 0 }}>Open</button> : <span style={{ fontSize: 10.5, color: T.warn, flexShrink: 0 }}>add phone</span>}
                     </div>
                   );
                 })}
