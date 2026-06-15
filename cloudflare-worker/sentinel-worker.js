@@ -1322,7 +1322,8 @@ async function handleFeesImport(request, env, cors) {
       matchedIds.add(sid);
       const charge = Math.round(Number(r.charge || 0));
       const paid = Math.round(Number(r.paid || 0));
-      if (charge > 0) inserts.push({ tenant_id: tenant, student_id: sid, term, kind: 'charge', amount: charge, notes: 'Imported' });
+      // Every row must carry the SAME keys (PostgREST bulk-insert requires it).
+      if (charge > 0) inserts.push({ tenant_id: tenant, student_id: sid, term, kind: 'charge', amount: charge, channel: null, notes: 'Imported' });
       if (paid > 0) inserts.push({ tenant_id: tenant, student_id: sid, term, kind: 'payment', amount: -Math.abs(paid), channel: (r.channel || null), notes: 'Imported' });
     }
     if (!inserts.length) return J({ ok: true, imported: 0, matched: 0, unmatched, message: unmatched.length ? 'No rows matched a student. Check the name spelling, or import those students first.' : 'Nothing to import — set a term fee or amount paid.' });
