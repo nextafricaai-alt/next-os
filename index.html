@@ -219,6 +219,7 @@
   const KEY_TENANTS      = 'nextos.tenants.v1';
   const KEY_PROJECTS     = 'nextos.projects.v1';
   const KEY_TRANSACTIONS = 'nextos.transactions.v1';
+  const KEY_TX_HIDDEN = 'nextos.transactions.hidden.v1';
 
   // ─── PROJECTS (seed) ─────────────────────────────────────────────────────
   const DEFAULT_PROJECTS = [
@@ -394,8 +395,9 @@
   function getTransactions() {
     if (_transactionsCache) return _transactionsCache;
     const added = safeLoad(KEY_TRANSACTIONS);
-    // Newest first.
-    _transactionsCache = added.concat(DEFAULT_TRANSACTIONS);
+    const hidden = safeLoad(KEY_TX_HIDDEN) || [];
+    // Newest first. Demo defaults the user has deleted are filtered out.
+    _transactionsCache = added.concat(DEFAULT_TRANSACTIONS.filter(t => hidden.indexOf(t.id) < 0));
     return _transactionsCache;
   }
   function addTransaction(input) {
@@ -419,7 +421,13 @@
   function removeTransaction(id) {
     const added = safeLoad(KEY_TRANSACTIONS).filter(t => t.id !== id);
     safeSave(KEY_TRANSACTIONS, added);
-    _transactionsCache = added.concat(DEFAULT_TRANSACTIONS);
+    // If it's a built-in default, remember it as hidden so it stays deleted.
+    if (DEFAULT_TRANSACTIONS.some(t => t.id === id)) {
+      const hidden = safeLoad(KEY_TX_HIDDEN) || [];
+      if (hidden.indexOf(id) < 0) { hidden.push(id); safeSave(KEY_TX_HIDDEN, hidden); }
+    }
+    const hidden2 = safeLoad(KEY_TX_HIDDEN) || [];
+    _transactionsCache = added.concat(DEFAULT_TRANSACTIONS.filter(t => hidden2.indexOf(t.id) < 0));
     return _transactionsCache;
   }
 
@@ -2932,6 +2940,14 @@ const FinancePage = ({ onNavigate }) => {
     setShowAddModal(false);
   };
 
+  const handleRemoveTx = (tx) => {
+    if (!window.confirm('Delete this ' + (tx.type === 'expense' ? 'cost' : 'entry') + '?\n\n' + tx.desc + ' — $' + (tx.amount || 0).toLocaleString() + '\n\nThis removes it from your cash-flow totals.')) return;
+    if (window.OS_DATA && window.OS_DATA.removeTransaction) {
+      const updated = window.OS_DATA.removeTransaction(tx.id);
+      setTxList(updated);
+    }
+  };
+
   const totalIncome = txList.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
   const totalExpense = txList.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
   const netCashFlow = totalIncome - totalExpense;
@@ -3014,19 +3030,19 @@ const FinancePage = ({ onNavigate }) => {
         </div>
         <div>
           <div style={{
-            display: 'grid', gridTemplateColumns: '110px 1fr 100px 100px 80px',
+            display: 'grid', gridTemplateColumns: '110px 1fr 100px 100px 80px 40px',
             padding: '0 0 8px', fontSize: 10, color: 'var(--text-tertiary)',
             fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.08em',
             borderBottom: '1px solid var(--border-default)',
           }}>
             <span>Date</span><span>Description</span><span>Category</span>
-            <span style={{ textAlign: 'right' }}>Amount</span><span style={{ textAlign: 'right' }}>Status</span>
+            <span style={{ textAlign: 'right' }}>Amount</span><span style={{ textAlign: 'right' }}>Status</span><span />
           </div>
           {filtered.length === 0 ? (
             <div style={{ padding: '20px 0', color: 'var(--text-tertiary)', fontSize: 13 }}>No transactions yet. Click "+ Add Transaction" to log one.</div>
           ) : filtered.map(tx => (
             <div key={tx.id} style={{
-              display: 'grid', gridTemplateColumns: '110px 1fr 100px 100px 80px',
+              display: 'grid', gridTemplateColumns: '110px 1fr 100px 100px 80px 40px',
               padding: '12px 0', borderBottom: '1px solid var(--border-subtle)',
               fontSize: 12, alignItems: 'center',
             }} className="member-row">
@@ -3046,6 +3062,7 @@ const FinancePage = ({ onNavigate }) => {
                 textAlign: 'right', fontSize: 10, fontFamily: 'var(--font-mono)', fontWeight: 600,
                 color: tx.status === 'completed' ? 'var(--mint)' : 'var(--gold)',
               }}>{tx.status === 'completed' ? 'Done' : 'Pending'}</span>
+              <button onClick={() => handleRemoveTx(tx)} title="Delete this cost" style={{ justifySelf: 'end', background: 'transparent', border: '1px solid var(--border-subtle)', color: 'var(--text-tertiary)', borderRadius: 'var(--radius-sm)', width: 26, height: 26, fontSize: 13, lineHeight: 1, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }} onMouseEnter={e => { e.currentTarget.style.color = 'var(--danger)'; e.currentTarget.style.borderColor = 'var(--danger)'; }} onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-tertiary)'; e.currentTarget.style.borderColor = 'var(--border-subtle)'; }}>×</button>
             </div>
           ))}
         </div>
@@ -5525,7 +5542,7 @@ You: "'We help you get more done with less stress.' Nine plain words beat the ja
               fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 14,
             }}>N</div>
             <div>
-              <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', letterSpacing: 1.5, color: 'var(--text-tertiary)' }}>NIA'S WATCH <span style={{ color: 'var(--mint)', marginLeft: 6 }}>· LIVE v25</span></div>
+              <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', letterSpacing: 1.5, color: 'var(--text-tertiary)' }}>NIA'S WATCH <span style={{ color: 'var(--mint)', marginLeft: 6 }}>· LIVE v26</span></div>
               <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)' }}>
                 What happened while you were away
               </div>
