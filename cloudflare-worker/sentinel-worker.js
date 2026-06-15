@@ -1427,8 +1427,11 @@ async function handleSyllabusGenerate(request, env, cors) {
   const klass = String(b.class || b.klass || '').trim();
   const subject = String(b.subject || '').trim();
   const level = String(b.level || 'primary').trim();
-  let lessons = parseInt(b.lessons, 10) || 0;
-  if (lessons < 6) lessons = 6; if (lessons > 120) lessons = 120;
+  let periods = parseInt(b.lessons, 10) || 0;
+  if (periods < 6) periods = 6; if (periods > 400) periods = 400;
+  // A real scheme of work is 20-45 distinct lessons (each may span several periods) — keep within model output limits.
+  let target = Math.round(periods / 3);
+  if (target < 14) target = 14; if (target > 40) target = 40;
   if (!klass || !subject) return J({ error: 'class and subject required' }, 400);
   const levelWord = level === 'tertiary' ? 'university/college' : (level === 'secondary' ? 'secondary school' : 'primary school');
   const isSecondary = (level === 'secondary' || level === 'tertiary');
@@ -1442,9 +1445,9 @@ async function handleSyllabusGenerate(request, env, cors) {
     extra = ' This is a secondary science/technical subject. Include hands-on PRACTICAL lessons interleaved with theory (Ugandan UNEB practical examinations are compulsory). Mark practical lessons with "kind":"practical" and theory lessons with "kind":"theory". Aim for roughly one practical for every three or four theory lessons, placed after the relevant theory.';
   }
   const sys = 'You are a Ugandan curriculum planner who knows the National Curriculum Development Centre (NCDC) syllabi for ' + levelWord + '. You break a class subject syllabus into a sequenced term scheme of work, one teachable lesson per period, in the correct teaching order (foundational topics first).';
-  const user = 'Class: ' + klass + '. Subject: ' + subject + '. The teacher has exactly ' + lessons + ' lesson periods this term. Produce EXACTLY ' + lessons + ' lessons that together cover the term\'s NCDC syllabus for this class and subject, paced so the syllabus finishes within the ' + lessons + ' periods.' + extra + ' Return ONLY a JSON array (no prose, no markdown). Each element: {"topic":"<broad topic/theme>","title":"<specific lesson title>","objective":"<one-sentence objective starting with a verb>","kind":"theory|practical","paper":"<Paper 1|Paper 2|empty>"}. Order them in proper teaching sequence.';
+  const user = 'Class: ' + klass + '. Subject: ' + subject + '. The class gets about ' + periods + ' lesson periods this term. Produce a COMPLETE sequenced scheme of work of ' + target + ' lessons that together cover the term\'s NCDC syllabus for this class and subject (a single lesson may span several periods; do not pad). Pace it so the whole syllabus is covered within the term.' + extra + ' Return ONLY a JSON array (no prose, no markdown, no code fences). Each element: {"topic":"<broad topic/theme>","title":"<specific lesson title>","objective":"<one-sentence objective starting with a verb>","kind":"theory or practical","paper":"Paper 1 or Paper 2 or empty"}. Order them in proper teaching sequence.';
   let raw = '';
-  try { raw = await niaGenerate(env, sys, user, 3500, 0.3); } catch (e) { return J({ error: 'generation failed: ' + String(e && e.message || e) }, 200); }
+  try { raw = await niaGenerate(env, sys, user, 2600, 0.3); } catch (e) { return J({ error: 'generation failed: ' + String(e && e.message || e) }, 200); }
   if (!raw || !raw.trim()) return J({ error: 'Nia could not generate a plan right now. Try again.' }, 200);
   // Extract JSON array defensively
   let arr = null;
