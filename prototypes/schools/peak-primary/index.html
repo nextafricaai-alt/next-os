@@ -214,7 +214,7 @@
     <div style="min-height:100vh;display:grid;place-items:center;color:#8a91b0;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px;letter-spacing:0.08em;">
       <div style="text-align:center">
         <div id="nx-loading-text">LOADING · NEXT SCHOOL OS</div>
-        <div style="margin-top:12px;font-size:10px;opacity:0.5">build b65</div>
+        <div style="margin-top:12px;font-size:10px;opacity:0.5">build b66</div>
       </div>
     </div>
   </div>
@@ -3570,6 +3570,85 @@ const V4 = (function () {
   }
 
   // ─── AI assistant card ────────────────────────────────────────────────────
+  // Live "who is in school vs who is teaching right now" — Nia spots idle staff + uncovered classes.
+  function StaffNowCard() {
+    const WK = 'https://nextos-sentinel.nextafricaai.workers.dev';
+    const tn = (window.PEAK_ROLE && window.PEAK_ROLE.getProfile && window.PEAK_ROLE.getProfile().tenantId) || 'peak-primary';
+    const [tt, setTt] = React.useState(null);
+    const [staff, setStaff] = React.useState(null);
+    const [teachers, setTeachers] = React.useState([]);
+    const [, force] = React.useReducer(n => n + 1, 0);
+    React.useEffect(() => {
+      const load = () => {
+        fetch(WK + '/os-data?kind=timetable&tenant=' + encodeURIComponent(tn)).then(r => r.json()).then(d => { const rec = ((d && d.records) || [])[0]; setTt((rec && rec.payload) || { periods: [], grid: {} }); }).catch(() => setTt({ periods: [], grid: {} }));
+        fetch(WK + '/staff-status?tenant=' + encodeURIComponent(tn)).then(r => r.json()).then(d => setStaff((d && d.staff) || [])).catch(() => setStaff([]));
+        fetch(WK + '/teachers?tenant=' + encodeURIComponent(tn)).then(r => r.ok ? r.json() : null).then(d => setTeachers((d && d.teachers) || [])).catch(() => {});
+      };
+      load(); const iv = setInterval(() => force(), 60000); const lv = setInterval(load, 300000); return () => { clearInterval(iv); clearInterval(lv); };
+    }, []);
+    if (tt === null || staff === null) return null;
+    const DN = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']; const day = DN[new Date().getDay()];
+    const toM = (h) => { const m = String(h || '').match(/(\d{1,2}):(\d{2})/); return m ? (parseInt(m[1], 10) * 60 + parseInt(m[2], 10)) : null; };
+    const nowM = (new Date()).getHours() * 60 + (new Date()).getMinutes();
+    const periods = (tt && tt.periods) || [];
+    let curIdx = -1, curPeriod = null;
+    periods.forEach((p, i) => { const a = toM(p.s), b = toM(p.e); if (a != null && b != null && nowM >= a && nowM < b) { curIdx = i; curPeriod = p; } });
+    const presentNames = new Set((staff || []).filter(s => /in at/i.test(s.status || '') && !/checked out/i.test(s.status || '')).map(s => (s.name || '').toLowerCase()));
+    let uncovered = [], idle = [], teachingNow = 0;
+    const weekday = day !== 'Sat' && day !== 'Sun';
+    if (curIdx >= 0 && tt && tt.grid && weekday) {
+      const teachingEmails = new Set();
+      Object.keys(tt.grid).forEach(cls => { const cell = ((tt.grid[cls] || {})[day] || [])[curIdx]; if (cell && cell.subject && cell.teacherEmail) {
+        teachingEmails.add((cell.teacherEmail || '').toLowerCase());
+        const tName = ((teachers || []).find(t => (t.email || '').toLowerCase() === (cell.teacherEmail || '').toLowerCase()) || {}).full_name || '';
+        const present = tName && presentNames.has(tName.toLowerCase());
+        if (!present) uncovered.push({ cls: cls, subject: cell.subject, teacher: tName || cell.teacherEmail });
+      } });
+      (teachers || []).forEach(t => { const nm = (t.full_name || '').toLowerCase(); const em = (t.email || '').toLowerCase(); if (presentNames.has(nm)) { if (teachingEmails.has(em)) teachingNow++; else idle.push(t.full_name); } });
+    }
+    const hasTT = periods.length > 0 && Object.keys((tt && tt.grid) || {}).length > 0;
+    return (
+      <Card pad={0} style={{ marginTop: 14 }}>
+        <div style={{ padding: 18 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+            <span style={{ width: 26, height: 26, borderRadius: 7, background: T.red, color: '#fff', display: 'grid', placeItems: 'center', fontFamily: T.mono, fontSize: 10.5, fontWeight: 700 }}>AI</span>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 13.5, fontWeight: 600 }}>Staff right now {curPeriod ? <span style={{ color: T.ink3, fontWeight: 400 }}>· Period {curPeriod.l} ({curPeriod.s}–{curPeriod.e})</span> : null}</div>
+              <div style={{ fontSize: 10.5, color: T.ink3, fontFamily: T.mono }}>live · check-ins vs timetable</div>
+            </div>
+          </div>
+          {!hasTT ? (
+            <div style={{ fontSize: 12.5, color: T.ink3, lineHeight: 1.5 }}>Build the timetable (Timetable → Generate) so Nia can tell who should be teaching each period.</div>
+          ) : !weekday ? (
+            <div style={{ fontSize: 12.5, color: T.ink3 }}>Weekend — no lessons scheduled.</div>
+          ) : curIdx < 0 ? (
+            <div style={{ fontSize: 12.5, color: T.ink3 }}>No lesson period in session right now (break or before/after school).</div>
+          ) : (
+            <div style={{ display: 'grid', gap: 10 }}>
+              <div style={{ display: 'flex', gap: 16, fontSize: 12, color: T.ink2 }}>
+                <span><b style={{ color: T.good }}>{teachingNow}</b> teaching now</span>
+                <span><b style={{ color: idle.length ? T.warn : T.ink }}>{idle.length}</b> in school, free</span>
+                <span><b style={{ color: uncovered.length ? T.red : T.ink }}>{uncovered.length}</b> classes uncovered</span>
+              </div>
+              {uncovered.length > 0 && (
+                <div style={{ background: 'rgba(226,58,82,0.08)', border: '1px solid rgba(226,58,82,0.3)', borderRadius: 9, padding: '9px 12px', fontSize: 12.5, color: T.ink2, lineHeight: 1.5 }}>
+                  <b style={{ color: T.ink }}>Uncovered now:</b> {uncovered.slice(0, 3).map(u => u.cls + ' ' + u.subject + ' (' + (u.teacher || '?') + ' not in)').join('; ')}{uncovered.length > 3 ? '…' : ''}.
+                  {idle.length > 0 ? <span> <b style={{ color: T.ink }}>{idle.slice(0, 2).join(', ')}</b> {idle.length === 1 ? 'is' : 'are'} in school and free — reassign to cover?</span> : null}
+                </div>
+              )}
+              {uncovered.length === 0 && idle.length > 0 && (
+                <div style={{ fontSize: 12.5, color: T.ink3, lineHeight: 1.5 }}><b style={{ color: T.ink }}>{idle.join(', ')}</b> {idle.length === 1 ? 'is' : 'are'} in school but not teaching this period (free).</div>
+              )}
+              {uncovered.length === 0 && idle.length === 0 && (
+                <div style={{ fontSize: 12.5, color: T.good }}>✓ Every scheduled class has its teacher in. Nothing to action.</div>
+              )}
+            </div>
+          )}
+        </div>
+      </Card>
+    );
+  }
+
   function AICard() {
     return (
       <Card pad={0} style={{
@@ -3707,6 +3786,7 @@ const V4 = (function () {
             </div>
 
             <AICard />
+            <StaffNowCard />
 
             <div style={{ marginTop: 28, fontSize: 11, color: T.ink4, textAlign: 'center', fontFamily: T.mono, letterSpacing: '0.05em' }}>
               NEXT SCHOOL OS · POWERED BY NEXT · PEAK PRIMARY PILOT · MULTI-TENANT SAAS
