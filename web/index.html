@@ -5525,7 +5525,7 @@ You: "'We help you get more done with less stress.' Nine plain words beat the ja
               fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 14,
             }}>N</div>
             <div>
-              <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', letterSpacing: 1.5, color: 'var(--text-tertiary)' }}>NIA'S WATCH <span style={{ color: 'var(--mint)', marginLeft: 6 }}>· LIVE v23</span></div>
+              <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', letterSpacing: 1.5, color: 'var(--text-tertiary)' }}>NIA'S WATCH <span style={{ color: 'var(--mint)', marginLeft: 6 }}>· LIVE v24</span></div>
               <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)' }}>
                 What happened while you were away
               </div>
@@ -6767,10 +6767,17 @@ const OSIcon = ({ name, size = 20 }) => {
 const AnalyticsPage = ({ onNavigate }) => {
   const WK = (typeof window !== 'undefined' && window.NEXT_OS_SENTINEL_ENDPOINT) || 'https://nextos-sentinel.nextafricaai.workers.dev';
   const sites = React.useMemo(() => {
+    const all = [].concat(window.PROJECT_DATA || []);
+    try { if (window.OS_DATA && window.OS_DATA.getProjects) { (window.OS_DATA.getProjects() || []).forEach(p => all.push(p)); } } catch (e) {}
     const seen = {}, out = [];
-    (window.PROJECT_DATA || []).forEach(p => {
-      const d = (p.domain || '').trim().replace(/^www\./, '');
-      if (d && !seen[d]) { seen[d] = 1; out.push({ domain: d, name: p.name }); }
+    all.forEach(p => {
+      if (!p) return;
+      let d = (p.domain || p.url || '').trim().replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/.*$/, '');
+      if (!d || seen[d]) return;
+      // websites only — skip planned projects with no live site
+      if (p.planned && !p.url && !p.domain) return;
+      seen[d] = 1;
+      out.push({ domain: d, name: p.name || d, url: (p.url && /^https?:/.test(p.url)) ? p.url : ('https://' + d) });
     });
     return out;
   }, []);
@@ -6782,9 +6789,24 @@ const AnalyticsPage = ({ onNavigate }) => {
   const [seoLoading, setSeoLoading] = React.useState(false);
   const runSeo = React.useCallback(() => {
     if (!sites.length) return; setSeoLoading(true);
-    Promise.all(sites.map(s => fetch(WK + '/seo-audit?url=' + encodeURIComponent('https://' + s.domain)).then(r => r.json()).then(d => ({ s, d })).catch(e => ({ s, d: { error: String(e) } }))))
+    Promise.all(sites.map(s => fetch(WK + '/seo-audit?url=' + encodeURIComponent(s.url || ('https://' + s.domain))).then(r => r.json()).then(d => ({ s, d })).catch(e => ({ s, d: { error: String(e) } }))))
       .then(res => { const m = {}; res.forEach(x => { m[x.s.domain] = x.d; }); setSeo(m); setSeoLoading(false); });
   }, [sites, WK]);
+  const [tips, setTips] = React.useState('');
+  const [tipsLoading, setTipsLoading] = React.useState(false);
+  const [siteTips, setSiteTips] = React.useState({});
+  const askNiaFleet = () => {
+    const fleet = sites.map(s => ({ site: s.domain, audit: seo[s.domain] })).filter(x => x.audit && !x.audit.error);
+    if (!fleet.length) return; setTipsLoading(true);
+    fetch(WK + '/seo-tips', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fleet }) })
+      .then(r => r.json()).then(d => { setTips(d.tips || ('(' + (d.error || 'no tips') + ')')); setTipsLoading(false); }).catch(e => { setTips(String(e)); setTipsLoading(false); });
+  };
+  const askNiaSite = (s) => {
+    setSiteTips(p => Object.assign({}, p, { [s.domain]: { loading: true } }));
+    fetch(WK + '/seo-tips', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ site: s.domain, audit: seo[s.domain] }) })
+      .then(r => r.json()).then(d => setSiteTips(p => Object.assign({}, p, { [s.domain]: { text: d.tips || ('(' + (d.error || 'no tips') + ')') } })))
+      .catch(e => setSiteTips(p => Object.assign({}, p, { [s.domain]: { text: String(e) } })));
+  };
   React.useEffect(() => { setTimeout(() => setMounted(true), 40); }, []);
   const load = React.useCallback(() => {
     setLoading(true);
@@ -6904,13 +6926,19 @@ const AnalyticsPage = ({ onNavigate }) => {
             <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 12 }}>
               <div style={{ fontSize: 40, fontFamily: 'var(--font-display)', fontWeight: 700, color: seoColor(avgSeo), lineHeight: 1 }}>{avgSeo}<span style={{ fontSize: 15, color: 'var(--text-tertiary)' }}>/100</span></div>
               <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Average across {seoVals.length} site{seoVals.length === 1 ? '' : 's'}</div>
+              <button onClick={askNiaFleet} disabled={tipsLoading} style={{ marginLeft: 'auto', background: 'var(--bg-deep)', color: 'var(--mint)', border: '1px solid var(--mint)', borderRadius: 'var(--radius-sm)', padding: '7px 12px', fontSize: 12, fontWeight: 600, cursor: tipsLoading ? 'wait' : 'pointer' }}>{tipsLoading ? 'Nia is thinking…' : '✦ Ask Nia for a fleet SEO plan'}</button>
             </div>
           )}
+          {tips && <div style={{ background: 'var(--bg-deep)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-sm)', padding: 14, marginBottom: 12, fontSize: 12.5, color: 'var(--text-secondary)', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}><div style={{ ...mono, marginBottom: 8, color: 'var(--mint)' }}>Nia's SEO action plan</div>{tips}</div>}
           {sites.map(s => { const d = seo[s.domain]; if (!d) return null; if (d.error) return <div key={s.domain} style={{ fontSize: 12, padding: '8px 0', borderTop: '1px solid var(--border-subtle)', color: 'var(--text-tertiary)' }}>{s.domain} <span style={{ color: 'var(--danger)' }}>· could not audit</span></div>;
-            const issue = (d.issues && d.issues[0]) || 'No major issues'; return (
-              <div key={s.domain} style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: 12, alignItems: 'center', padding: '9px 0', borderTop: '1px solid var(--border-subtle)' }}>
-                <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 15, color: seoColor(d.score || 0), minWidth: 34 }}>{d.score}</span>
-                <div style={{ minWidth: 0 }}><div style={{ fontSize: 12.5, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.domain}</div><div style={{ fontSize: 11, color: (d.issues && d.issues.length) ? 'var(--gold)' : 'var(--mint)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{issue}{(d.issues && d.issues.length > 1) ? ' · +' + (d.issues.length - 1) + ' more' : ''}</div></div>
+            const issue = (d.issues && d.issues[0]) || 'No major issues'; const st = siteTips[s.domain]; return (
+              <div key={s.domain} style={{ padding: '9px 0', borderTop: '1px solid var(--border-subtle)' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr auto', gap: 12, alignItems: 'center' }}>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 15, color: seoColor(d.score || 0), minWidth: 34 }}>{d.score}</span>
+                  <div style={{ minWidth: 0 }}><div style={{ fontSize: 12.5, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.domain}</div><div style={{ fontSize: 11, color: (d.issues && d.issues.length) ? 'var(--gold)' : 'var(--mint)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{issue}{(d.issues && d.issues.length > 1) ? ' · +' + (d.issues.length - 1) + ' more' : ''}</div></div>
+                  <button onClick={() => askNiaSite(s)} disabled={st && st.loading} style={{ background: 'transparent', color: 'var(--mint)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-sm)', padding: '5px 9px', fontSize: 11, cursor: 'pointer', whiteSpace: 'nowrap' }}>{st && st.loading ? '…' : '✦ Nia fixes'}</button>
+                </div>
+                {st && st.text && <div style={{ background: 'var(--bg-deep)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-sm)', padding: 12, marginTop: 8, fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{st.text}</div>}
               </div>
             ); })}
         </div>

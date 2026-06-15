@@ -383,6 +383,7 @@ export default {
     if (url.pathname === '/os-data/save')       return handleOsDataSave(request, env, cors);
     if (url.pathname === '/translate')          return handleTranslate(request, env, cors);
     if (url.pathname === '/syllabus/generate')  return handleSyllabusGenerate(request, env, cors);
+    if (url.pathname === '/seo-tips')           return handleSeoTips(request, env, cors);
     if (url.pathname === '/push/vapid-public')  return new Response(JSON.stringify({ key: env.VAPID_PUBLIC || '' }), { status: 200, headers: { ...cors, 'Content-Type': 'application/json' } });
     if (url.pathname === '/push/subscribe')     return handlePushSubscribe(request, env, cors);
     if (url.pathname === '/push/notify')        return handlePushNotify(request, env, cors);
@@ -1418,6 +1419,28 @@ async function handleFeesImport(request, env, cors) {
     let imported = 0;
     for (let i = 0; i < inserts.length; i += 500) { await sbWrite(env, '/fees', inserts.slice(i, i + 500), 'POST', 'return=minimal'); imported += Math.min(500, inserts.length - i); }
     return J({ ok: true, imported, matched: matchedIds.size, students: matchedIds.size, term, unmatched });
+  } catch (e) { return J({ error: String((e && e.message) || e) }, 200); }
+}
+
+async function handleSeoTips(request, env, cors) {
+  const J = (oo, st) => new Response(JSON.stringify(oo), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
+  let b; try { b = await request.json(); } catch (e) { return J({ error: 'bad body' }, 400); }
+  // b can be a single audit {site, audit} or a fleet {fleet:[{site, audit}]}
+  const sys = 'You are an SEO consultant advising a Ugandan digital agency. You turn raw SEO audit findings into a short, prioritised, plain-English action plan. Be concrete and specific to the findings — name the exact change and why it helps ranking or traffic. No fluff, no generic advice, no markdown headers.';
+  function describe(site, a) {
+    if (!a) return site + ': no audit data.';
+    return site + ' — score ' + (a.score != null ? a.score + '/100' : '?') + '. Title ' + (a.titleLen || 0) + ' chars, meta description ' + (a.metaDescLen || 0) + ' chars, ' + (a.h1s || 0) + ' H1, ' + (a.words || 0) + ' words, ' + (a.https ? 'HTTPS ok' : 'NO HTTPS') + ', ' + (a.viewport ? 'mobile-ready' : 'NOT mobile-ready') + ', loads in ' + (a.ms || '?') + 'ms. Issues: ' + (((a.issues || []).join('; ')) || 'none flagged') + '.';
+  }
+  let userMsg = '';
+  if (Array.isArray(b.fleet)) {
+    userMsg = 'Here are SEO audits for ' + b.fleet.length + ' websites:\n' + b.fleet.map(x => '- ' + describe(x.site, x.audit)).join('\n') + '\n\nGive a prioritised fleet action plan: the 5 most impactful fixes across these sites, each as one line "SITE — do X because Y". Put the lowest-scoring / highest-impact first.';
+  } else {
+    userMsg = 'SEO audit for ' + describe(b.site || 'this site', b.audit) + '\n\nGive 3 to 5 concrete fixes for THIS page, most impactful first, each one line "Do X because Y". Reference the actual findings above.';
+  }
+  try {
+    const out = await niaGenerate(env, sys, userMsg, 700, 0.3);
+    if (!out || !out.trim()) return J({ error: 'Nia could not produce tips right now. Try again.' }, 200);
+    return J({ ok: true, tips: out.trim() });
   } catch (e) { return J({ error: String((e && e.message) || e) }, 200); }
 }
 
