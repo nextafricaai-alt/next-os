@@ -5525,7 +5525,7 @@ You: "'We help you get more done with less stress.' Nine plain words beat the ja
               fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 14,
             }}>N</div>
             <div>
-              <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', letterSpacing: 1.5, color: 'var(--text-tertiary)' }}>NIA'S WATCH <span style={{ color: 'var(--mint)', marginLeft: 6 }}>· LIVE v22</span></div>
+              <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', letterSpacing: 1.5, color: 'var(--text-tertiary)' }}>NIA'S WATCH <span style={{ color: 'var(--mint)', marginLeft: 6 }}>· LIVE v23</span></div>
               <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)' }}>
                 What happened while you were away
               </div>
@@ -6778,6 +6778,13 @@ const AnalyticsPage = ({ onNavigate }) => {
   const [rows, setRows] = React.useState({});
   const [loading, setLoading] = React.useState(false);
   const [mounted, setMounted] = React.useState(false);
+  const [seo, setSeo] = React.useState({});
+  const [seoLoading, setSeoLoading] = React.useState(false);
+  const runSeo = React.useCallback(() => {
+    if (!sites.length) return; setSeoLoading(true);
+    Promise.all(sites.map(s => fetch(WK + '/seo-audit?url=' + encodeURIComponent('https://' + s.domain)).then(r => r.json()).then(d => ({ s, d })).catch(e => ({ s, d: { error: String(e) } }))))
+      .then(res => { const m = {}; res.forEach(x => { m[x.s.domain] = x.d; }); setSeo(m); setSeoLoading(false); });
+  }, [sites, WK]);
   React.useEffect(() => { setTimeout(() => setMounted(true), 40); }, []);
   const load = React.useCallback(() => {
     setLoading(true);
@@ -6802,6 +6809,12 @@ const AnalyticsPage = ({ onNavigate }) => {
   const pageMap = {};
   valid.forEach(x => (x.d.topPages || []).forEach(pg => { pageMap[pg.name] = (pageMap[pg.name] || 0) + (pg.count || 0); }));
   const topPages = Object.keys(pageMap).map(name => ({ name, count: pageMap[name] })).sort((a, b) => b.count - a.count).slice(0, 10);
+  const refMap = {};
+  valid.forEach(x => (x.d.topReferrers || []).forEach(rr => { refMap[rr.name] = (refMap[rr.name] || 0) + (rr.count || 0); }));
+  const topRefs = Object.keys(refMap).map(name => ({ name, count: refMap[name] })).sort((a, b) => b.count - a.count).slice(0, 8);
+  const seoVals = sites.map(s => seo[s.domain]).filter(d => d && !d.error && typeof d.score === 'number');
+  const avgSeo = seoVals.length ? Math.round(seoVals.reduce((a, d) => a + d.score, 0) / seoVals.length) : null;
+  const seoColor = (sc) => sc >= 80 ? 'var(--mint)' : sc >= 55 ? 'var(--gold)' : 'var(--danger)';
 
   const card = { background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: 20 };
   const mono = { fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.1em' };
@@ -6868,6 +6881,38 @@ const AnalyticsPage = ({ onNavigate }) => {
               <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-primary)' }}>{p.count}</span>
             </div>
           ))}
+        </div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.3fr', gap: 16, marginTop: 16 }} className="niahq-cols">
+        <div style={card}>
+          <div style={{ ...mono, marginBottom: 12 }}>Traffic sources (all sites)</div>
+          {topRefs.length === 0 ? <div style={{ fontSize: 13, color: 'var(--text-tertiary)' }}>No referrer data yet — sources appear once visitors arrive from Google, social or other sites.</div> : topRefs.map((r, i) => (
+            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', gap: 10, fontSize: 12.5, padding: '8px 0', borderBottom: '1px solid var(--border-subtle)' }}>
+              <span style={{ color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '78%' }}>{r.name === '(none)' ? '(direct / typed in)' : r.name}</span>
+              <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-primary)' }}>{r.count}</span>
+            </div>
+          ))}
+        </div>
+        <div style={card}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, gap: 10, flexWrap: 'wrap' }}>
+            <div style={mono}>SEO health (fleet)</div>
+            <button onClick={runSeo} disabled={seoLoading || !sites.length} style={{ background: 'var(--mint)', color: '#062b18', border: 'none', borderRadius: 'var(--radius-sm)', padding: '7px 12px', fontSize: 12, fontWeight: 600, cursor: (seoLoading || !sites.length) ? 'not-allowed' : 'pointer', opacity: sites.length ? 1 : 0.5 }}>{seoLoading ? 'Auditing…' : (seoVals.length ? 'Re-audit' : 'Run SEO audit')}</button>
+          </div>
+          {seoVals.length === 0 && !seoLoading && <div style={{ fontSize: 13, color: 'var(--text-tertiary)' }}>Click <b>Run SEO audit</b> to score every site's homepage — title, meta, headings, mobile, HTTPS, speed — and see who needs work.</div>}
+          {avgSeo != null && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 12 }}>
+              <div style={{ fontSize: 40, fontFamily: 'var(--font-display)', fontWeight: 700, color: seoColor(avgSeo), lineHeight: 1 }}>{avgSeo}<span style={{ fontSize: 15, color: 'var(--text-tertiary)' }}>/100</span></div>
+              <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Average across {seoVals.length} site{seoVals.length === 1 ? '' : 's'}</div>
+            </div>
+          )}
+          {sites.map(s => { const d = seo[s.domain]; if (!d) return null; if (d.error) return <div key={s.domain} style={{ fontSize: 12, padding: '8px 0', borderTop: '1px solid var(--border-subtle)', color: 'var(--text-tertiary)' }}>{s.domain} <span style={{ color: 'var(--danger)' }}>· could not audit</span></div>;
+            const issue = (d.issues && d.issues[0]) || 'No major issues'; return (
+              <div key={s.domain} style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: 12, alignItems: 'center', padding: '9px 0', borderTop: '1px solid var(--border-subtle)' }}>
+                <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 15, color: seoColor(d.score || 0), minWidth: 34 }}>{d.score}</span>
+                <div style={{ minWidth: 0 }}><div style={{ fontSize: 12.5, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.domain}</div><div style={{ fontSize: 11, color: (d.issues && d.issues.length) ? 'var(--gold)' : 'var(--mint)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{issue}{(d.issues && d.issues.length > 1) ? ' · +' + (d.issues.length - 1) + ' more' : ''}</div></div>
+              </div>
+            ); })}
         </div>
       </div>
 
