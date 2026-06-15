@@ -1762,7 +1762,7 @@
 
     const signOut = async () => {
       if (window.NextSession && window.NextSession.signOut) await window.NextSession.signOut();
-      else { var _t=''; try{var _p=JSON.parse(localStorage.getItem('nextos.profile')||'null'); _t=(_p&&_p.tenantId)||localStorage.getItem('nextos.lastTenant')||'';}catch(e){} window.location.href = 'login.html'+(_t?('?t='+encodeURIComponent(_t)):''); }
+      else { var _t=''; try{var _p=JSON.parse(localStorage.getItem('nextos.profile')||'null'); _t=(_p&&_p.tenantId)||localStorage.getItem('nextos.lastTenant')||'';}catch(e){} window.location.href = _t ? ('/school/'+encodeURIComponent(_t)+'/login') : 'login.html'; }
     };
 
     const onCheckedIn = (checkin) => setData(prev => ({ ...prev, checkin }));
@@ -9511,7 +9511,7 @@ window.PEAK_STAFF = (function () {
                 </div>
                 <span onClick={async () => {
                   if (window.NextSession && window.NextSession.signOut) await window.NextSession.signOut();
-                  else { var _t=''; try{var _p=JSON.parse(localStorage.getItem('nextos.profile')||'null'); _t=(_p&&_p.tenantId)||localStorage.getItem('nextos.lastTenant')||'';}catch(e){} window.location.href = 'login.html'+(_t?('?t='+encodeURIComponent(_t)):''); }
+                  else { var _t=''; try{var _p=JSON.parse(localStorage.getItem('nextos.profile')||'null'); _t=(_p&&_p.tenantId)||localStorage.getItem('nextos.lastTenant')||'';}catch(e){} window.location.href = _t ? ('/school/'+encodeURIComponent(_t)+'/login') : 'login.html'; }
                 }} title="Sign out" style={{ color: T.ink3, fontSize: 14, cursor: 'pointer' }}>⎋</span>
               </>
             );
@@ -10008,7 +10008,7 @@ window.PEAK_STAFF = (function () {
               <div style={{ fontSize: 15, fontWeight: 700, color: T.ink, letterSpacing: '-0.01em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{(typeof window !== 'undefined' && window.__BRAND_NAME) || 'Peak Primary'}</div>
               <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
                 <PushBell compact />
-                <span style={{ fontSize: 9, color: T.ink4, fontFamily: T.mono }}>b44</span>
+                <span style={{ fontSize: 9, color: T.ink4, fontFamily: T.mono }}>b45</span>
               </div>
             </div>
           )}

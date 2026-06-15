@@ -29,8 +29,8 @@
     var t = '';
     try { var p = JSON.parse(localStorage.getItem('nextos.profile') || 'null'); t = (p && p.tenantId) || ''; } catch (e) {}
     if (!t) { try { t = localStorage.getItem('nextos.lastTenant') || ''; } catch (e) {} }
-    if (!t) { try { t = new URLSearchParams(location.search).get('t') || new URLSearchParams(location.search).get('s') || (location.pathname.match(/\/s\/([A-Za-z0-9_-]+)/) || [])[1] || ''; } catch (e) {} }
-    return t ? ('/s/' + encodeURIComponent(t)) : '/prototypes/schools/peak-primary/login.html';
+    if (!t) { try { t = new URLSearchParams(location.search).get('t') || new URLSearchParams(location.search).get('s') || (location.pathname.match(/\/(?:s|school)\/([A-Za-z0-9_-]+)/) || [])[1] || ''; } catch (e) {} }
+    return t ? ('/school/' + encodeURIComponent(t) + '/login') : '/prototypes/schools/peak-primary/login.html';
   }
 
   // Load cached profile (set by login.html on successful sign-in)
