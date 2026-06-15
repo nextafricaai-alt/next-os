@@ -8003,10 +8003,10 @@ window.PEAK_FINANCE = (function () {
   function tenant() { const p = (window.PEAK_ROLE && window.PEAK_ROLE.getProfile && window.PEAK_ROLE.getProfile()); return (p && p.tenantId) || 'peak-primary'; }
   function me() { const p = (window.PEAK_ROLE && window.PEAK_ROLE.getProfile && window.PEAK_ROLE.getProfile()); return (p && (p.fullName || p.email)) || ''; }
   const fmt = n => 'UGX ' + (Number(n) || 0).toLocaleString();
-  const EXP_CATS = ['salaries', 'food', 'maintenance', 'utilities', 'supplies', 'transport', 'events', 'other'];
+  const EXP_CATS = ['salaries', 'allowances', 'food', 'maintenance', 'utilities', 'supplies', 'transport', 'events', 'other'];
   const INC_CATS = ['donation', 'grant', 'events', 'other'];
   const ASSET_CATS = ['building', 'vehicle', 'equipment', 'furniture', 'land', 'it', 'other'];
-  const CAT_LABEL = { salaries: 'Salaries & wages', food: 'Food & meals', maintenance: 'Maintenance & repairs', utilities: 'Utilities (water/power)', supplies: 'Supplies & materials', transport: 'Transport & fuel', events: 'Events facilitation', donation: 'Donation', grant: 'Grant', other: 'Other' };
+  const CAT_LABEL = { salaries: 'Salaries & wages', allowances: 'Allowances', food: 'Food & meals', maintenance: 'Maintenance & repairs', utilities: 'Utilities (water/power)', supplies: 'Supplies & materials', transport: 'Transport & fuel', events: 'Events facilitation', donation: 'Donation', grant: 'Grant', other: 'Other' };
 
   function _vchNo() { const y = new Date().getFullYear(); return 'PV-' + y + '-' + String(Date.now()).slice(-6); }
   function payReceiptPdf(rec) {
@@ -8043,6 +8043,19 @@ window.PEAK_FINANCE = (function () {
       </div>
     );
   }
+  function SupportAdder({ onAdd, T, card }) {
+    const [n, setN] = useState(''); const [r, setR] = useState(''); const [m, setM] = useState('');
+    const inp = { background: T.bg, border: '1px solid ' + T.border, borderRadius: 8, padding: '8px 10px', fontSize: 12.5, color: T.ink, outline: 'none' };
+    return (
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+        <input value={n} onChange={e => setN(e.target.value)} placeholder="Name" style={{ ...inp, flex: '1 1 150px' }} />
+        <input value={r} onChange={e => setR(e.target.value)} placeholder="Role (e.g. Cook)" style={{ ...inp, flex: '1 1 130px' }} />
+        <input value={m} onChange={e => setM(e.target.value)} placeholder="Monthly UGX" style={{ ...inp, width: 120 }} />
+        <button onClick={() => { onAdd(n, r, m); setN(''); setR(''); setM(''); }} style={{ background: T.green || '#00c389', color: '#062b18', border: 'none', borderRadius: 8, padding: '8px 16px', fontSize: 12.5, fontWeight: 700, cursor: 'pointer' }}>+ Add</button>
+      </div>
+    );
+  }
+
   function Finance() {
     const [txns, setTxns] = useState([]);
     const [assets, setAssets] = useState([]);
@@ -8051,10 +8064,12 @@ window.PEAK_FINANCE = (function () {
     const [busy, setBusy] = useState(false);
     const [teachers, setTeachers] = useState([]);
     const [vouchers, setVouchers] = useState([]);
+    const [staffPay, setStaffPay] = useState({ map: {}, recs: [] });
     const reload = () => {
       fetch(WK + '/finance?tenant=' + encodeURIComponent(tenant())).then(r => r.json()).then(d => { if (d && d.transactions) setTxns(d.transactions); }).catch(() => {});
       fetch(WK + '/assets?tenant=' + encodeURIComponent(tenant())).then(r => r.json()).then(d => { if (d && d.assets) setAssets(d.assets); }).catch(() => {});
       fetch(WK + '/os-data?kind=pay_voucher&tenant=' + encodeURIComponent(tenant())).then(r => r.json()).then(d => { setVouchers(((d && d.records) || []).map(x => Object.assign({ _id: x.id }, x.payload)).sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')))); }).catch(() => {});
+      fetch(WK + '/os-data?kind=staff_pay&tenant=' + encodeURIComponent(tenant())).then(r => r.json()).then(d => { const recs = ((d && d.records) || []).map(x => Object.assign({ _id: x.id }, x.payload)); const map = {}; recs.forEach(r => { if (r.key) map[r.key] = r; }); setStaffPay({ map: map, recs: recs }); }).catch(() => {});
     };
     useEffect(reload, []);
     useEffect(() => { fetch(WK + '/teachers?tenant=' + encodeURIComponent(tenant())).then(r => r.ok ? r.json() : null).then(d => { if (d && Array.isArray(d.teachers)) setTeachers(d.teachers.filter(x => x.full_name || x.email)); }).catch(() => {}); }, []);
@@ -8101,6 +8116,33 @@ window.PEAK_FINANCE = (function () {
       fetch(WK + '/os-data/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind: 'pay_voucher', tenant: tenant(), record: rec, id: v._id }) })
         .then(r => r.json()).then(() => { payReceiptPdf(rec); reload(); window.peakToast && window.peakToast('Marked paid · receipt generated', 'success', v.payee); }).catch(() => {});
     };
+    const ym = new Date().toISOString().slice(0, 7);
+    const monthLabel = new Date().toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+    const savePay = (rec, id) => fetch(WK + '/os-data/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(id ? { kind: 'staff_pay', tenant: tenant(), record: rec, id: id } : { kind: 'staff_pay', tenant: tenant(), record: rec }) }).then(r => r.json());
+    const setMonthly = (st, amount) => {
+      const amt = Number(String(amount).replace(/[^0-9]/g, '')) || 0;
+      const existing = staffPay.map[st.key];
+      const rec = { key: st.key, name: st.name, role: st.role, type: st.type, email: st.email || '', monthly: amt };
+      savePay(rec, existing && existing._id).then(() => reload());
+    };
+    const addSupport = (name, role, monthly) => {
+      if (!name.trim()) { window.peakToast && window.peakToast('Enter a name', 'info'); return; }
+      const rec = { key: 'sup-' + Date.now(), name: name.trim(), role: role.trim() || 'Support staff', type: 'support', email: '', monthly: Number(String(monthly).replace(/[^0-9]/g, '')) || 0 };
+      savePay(rec).then(() => reload());
+    };
+    const payStaff = (st, monthly) => {
+      setForm({ kind: 'expense', category: 'salaries', payeeName: st.name, payeeEmail: st.email || '', amount: String(monthly), date: new Date().toISOString().slice(0, 10), payType: 'instant', description: monthLabel + ' pay' });
+    };
+    const paidThisMonth = (name) => vouchers.some(v => (v.payee || '').toLowerCase() === (name || '').toLowerCase() && String(v.date || '').slice(0, 7) === ym);
+    const payrollList = (function () {
+      const teaching = (teachers || []).map(t => ({ key: (t.email || t.full_name), name: t.full_name || t.email, email: t.email || '', role: ((t.subjects && t.subjects.length) ? ('Teacher · ' + t.subjects.join('/')) : 'Teacher'), type: 'teaching' }));
+      const support = (staffPay.recs || []).filter(r => r.type === 'support').map(r => ({ key: r.key, name: r.name, email: '', role: r.role || 'Support staff', type: 'support' }));
+      return teaching.concat(support).map(st => { const p = staffPay.map[st.key]; return Object.assign({}, st, { monthly: (p && p.monthly) || 0, paid: paidThisMonth(st.name) }); });
+    })();
+    const payrollTotal = payrollList.reduce((a, s) => a + (s.monthly || 0), 0);
+    const paidTotal = payrollList.filter(s => s.paid).reduce((a, s) => a + (s.monthly || 0), 0);
+    const needSalary = payrollList.filter(s => !s.monthly).length;
+    const unpaidCount = payrollList.filter(s => s.monthly > 0 && !s.paid).length;
     const saveAsset = (f) => {
       if (!f.name) { window.peakToast && window.peakToast('Enter a name', 'info'); return; } setBusy(true);
       fetch(WK + '/assets/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tenant_id: tenant(), asset: { name: f.name, category: f.category, value: Number(String(f.value).replace(/[^0-9]/g, '')) || 0, condition: f.condition, acquired: f.acquired, notes: f.notes } }) })
@@ -8137,7 +8179,7 @@ window.PEAK_FINANCE = (function () {
           </div>
 
           <div style={{ display: 'flex', gap: 6, marginBottom: 16 }}>
-            {[['flow', 'Cash flow'], ['expenses', 'Expenses'], ['vouchers', 'Receipts & statement'], ['assets', 'Assets']].map(o => (
+            {[['flow', 'Cash flow'], ['expenses', 'Expenses'], ['payroll', 'Payroll'], ['vouchers', 'Receipts & statement'], ['assets', 'Assets']].map(o => (
               <button key={o[0]} onClick={() => setTab(o[0])} style={{ border: 'none', background: tab === o[0] ? T.surface2 : 'transparent', color: tab === o[0] ? T.ink : T.ink3, padding: '8px 16px', borderRadius: 8, fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }}>{o[1]}</button>
             ))}
           </div>
@@ -8208,6 +8250,57 @@ window.PEAK_FINANCE = (function () {
               </div>
             );
           })()}
+
+          {tab === 'payroll' && (
+            <div style={{ display: 'grid', gap: 16 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12 }}>
+                {SummaryCard('Monthly payroll', payrollTotal, T.ink)}
+                {SummaryCard('Paid · ' + monthLabel, paidTotal, T.good)}
+                {SummaryCard('Still to pay', payrollTotal - paidTotal, (payrollTotal - paidTotal) > 0 ? T.redInk : T.good)}
+              </div>
+
+              {(needSalary > 0 || unpaidCount > 0) && (
+                <div style={{ ...card, display: 'flex', gap: 12, alignItems: 'flex-start', borderColor: T.warn }}>
+                  <span style={{ width: 26, height: 26, borderRadius: 7, background: T.red, color: '#fff', display: 'grid', placeItems: 'center', fontFamily: 'ui-monospace,monospace', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>AI</span>
+                  <div style={{ fontSize: 12.5, color: T.ink2, lineHeight: 1.55 }}>
+                    {needSalary > 0 ? <div><b style={{ color: T.ink }}>{needSalary} staff have no salary set.</b> Set their monthly pay below so payroll and the budget reflect the real wage bill.</div> : null}
+                    {unpaidCount > 0 ? <div style={{ marginTop: needSalary > 0 ? 6 : 0 }}><b style={{ color: T.ink }}>{unpaidCount} staff are unpaid for {monthLabel}.</b> Tap Pay to record it — it deducts from finances and issues a receipt.</div> : null}
+                    {(teachers || []).length === 0 ? <div style={{ marginTop: 6 }}>No teachers are in the system yet — import your teaching staff first so they appear on payroll.</div> : null}
+                  </div>
+                </div>
+              )}
+
+              <div style={card}>
+                <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4 }}>Staff payments · {monthLabel}</div>
+                <div style={{ fontSize: 11.5, color: T.ink3, marginBottom: 12 }}>Teaching and non-teaching staff. Set each monthly pay or allowance; paying records the expense and a receipt.</div>
+                {payrollList.length === 0 ? <div style={{ color: T.ink4, fontSize: 13 }}>No staff yet. Import teachers, or add support staff below.</div> : (
+                  <div style={{ border: '1px solid ' + T.border, borderRadius: 10, overflow: 'hidden' }}>
+                    {payrollList.map((st, i) => (
+                      <div key={st.key} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', borderBottom: i < payrollList.length - 1 ? '1px solid ' + T.border : 'none', flexWrap: 'wrap' }}>
+                        <div style={{ flex: 1, minWidth: 160 }}>
+                          <div style={{ fontSize: 13, color: T.ink, fontWeight: 600 }}>{st.name} {st.type === 'support' ? <span style={{ fontSize: 9.5, color: T.ink3, border: '1px solid ' + T.border, borderRadius: 5, padding: '1px 6px', marginLeft: 6 }}>NON-TEACHING</span> : null}</div>
+                          <div style={{ fontSize: 11, color: T.ink3 }}>{st.role}</div>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span style={{ fontSize: 11, color: T.ink4, fontFamily: 'ui-monospace,monospace' }}>UGX</span>
+                          <input defaultValue={st.monthly || ''} placeholder="monthly" onBlur={e => { const v = Number(String(e.target.value).replace(/[^0-9]/g, '')) || 0; if (v !== st.monthly) setMonthly(st, v); }} style={{ width: 110, background: T.bg, border: '1px solid ' + T.border, borderRadius: 8, padding: '7px 9px', fontSize: 12.5, color: T.ink, fontFamily: 'ui-monospace,monospace', outline: 'none' }} />
+                        </div>
+                        {st.paid
+                          ? <span style={{ fontSize: 11.5, color: T.good, fontFamily: 'ui-monospace,monospace', minWidth: 90, textAlign: 'right' }}>✓ Paid</span>
+                          : <button onClick={() => payStaff(st, st.monthly)} disabled={!st.monthly} style={{ background: st.monthly ? T.red : 'transparent', color: st.monthly ? '#fff' : T.ink4, border: st.monthly ? 'none' : '1px solid ' + T.border, borderRadius: 8, padding: '7px 14px', fontSize: 12, fontWeight: 600, cursor: st.monthly ? 'pointer' : 'not-allowed', minWidth: 90 }}>Pay</button>}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid ' + T.border }}>
+                  <div style={{ fontSize: 11.5, color: T.ink3, fontFamily: 'ui-monospace,monospace', marginBottom: 8 }}>ADD NON-TEACHING STAFF (cook, guard, driver, cleaner…)</div>
+                  {(function () {
+                    return <SupportAdder onAdd={addSupport} T={T} card={card} />;
+                  })()}
+                </div>
+              </div>
+            </div>
+          )}
 
           {tab === 'assets' && (
             <div style={card}>
@@ -10022,7 +10115,7 @@ window.PEAK_STAFF = (function () {
               <div style={{ fontSize: 15, fontWeight: 700, color: T.ink, letterSpacing: '-0.01em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{(typeof window !== 'undefined' && window.__BRAND_NAME) || 'Peak Primary'}</div>
               <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
                 <PushBell compact />
-                <span style={{ fontSize: 9, color: T.ink4, fontFamily: T.mono }}>b60</span>
+                <span style={{ fontSize: 9, color: T.ink4, fontFamily: T.mono }}>b61</span>
               </div>
             </div>
           )}
