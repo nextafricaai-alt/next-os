@@ -254,7 +254,7 @@
         // 4. Brand from the user's OWN tenant (authoritative), not the link params
         var _brand = { name: userRow.full_name, color: null };
         try { const { data: _t } = await sb.from('tenants').select('name, primary_color').eq('id', userRow.tenant_id).single(); if (_t) _brand = { name: _t.name, color: _t.primary_color }; } catch(e){}
-        try { localStorage.setItem('nextos.brand', JSON.stringify(_brand)); } catch(e){}
+        try { localStorage.setItem('nextos.brand', JSON.stringify(_brand)); localStorage.setItem('nextos.brand.' + userRow.tenant_id, JSON.stringify(_brand)); } catch(e){}
         try { if (window.nxTrack) window.nxTrack('signin', 'school:' + userRow.tenant_id); } catch (e) {}
         try { sessionStorage.setItem('nextos.welcome', '1'); } catch (e) {}
         window.location.href = '/school/' + encodeURIComponent(userRow.tenant_id || '');
