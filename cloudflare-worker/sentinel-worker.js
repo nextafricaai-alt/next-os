@@ -1429,7 +1429,7 @@ async function handleSeoTips(request, env, cors) {
   const sys = 'You are an SEO consultant advising a Ugandan digital agency. You turn raw SEO audit findings into a short, prioritised, plain-English action plan. Be concrete and specific to the findings — name the exact change and why it helps ranking or traffic. No fluff, no generic advice, no markdown headers.';
   function describe(site, a) {
     if (!a) return site + ': no audit data.';
-    return site + ' — score ' + (a.score != null ? a.score + '/100' : '?') + '. Title ' + (a.titleLen || 0) + ' chars, meta description ' + (a.metaDescLen || 0) + ' chars, ' + (a.h1s || 0) + ' H1, ' + (a.words || 0) + ' words, ' + (a.https ? 'HTTPS ok' : 'NO HTTPS') + ', ' + (a.viewport ? 'mobile-ready' : 'NOT mobile-ready') + ', loads in ' + (a.ms || '?') + 'ms. Issues: ' + (((a.issues || []).join('; ')) || 'none flagged') + '.';
+    return site + ' — score ' + (a.score != null ? a.score + '/100' : '?') + '. Title ' + (a.titleLen || 0) + ' chars, meta description ' + (a.metaDescLen || 0) + ' chars, ' + (a.h1s || 0) + ' H1, ' + (a.words || 0) + ' words, ' + (a.https ? 'HTTPS ok' : 'NO HTTPS') + ', ' + (a.viewport ? 'mobile-ready' : 'NOT mobile-ready') + ', loads in ' + (a.ms || '?') + 'ms. Issues: ' + (((a.issues || []).map(function (it) { return (typeof it === 'string') ? it : ((it && (it.msg || it.message)) || ''); }).filter(Boolean).join('; ')) || 'none flagged') + '.';
   }
   let userMsg = '';
   if (Array.isArray(b.fleet)) {
