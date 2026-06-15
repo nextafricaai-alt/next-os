@@ -212,7 +212,7 @@
   <script>
     /* Build self-heal: if this cached HTML is older than what the server now serves,
        reload ONCE with a cache-buster so no school is ever stuck on a stale build. */
-    window.__BUILD = 'b75';
+    window.__BUILD = 'b76';
     (function () {
       try {
         fetch('/build.txt?ts=' + Date.now(), { cache: 'no-store' })
@@ -233,7 +233,7 @@
     <div style="min-height:100vh;display:grid;place-items:center;color:#8a91b0;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px;letter-spacing:0.08em;">
       <div style="text-align:center">
         <div id="nx-loading-text">LOADING · NEXT SCHOOL OS</div>
-        <div style="margin-top:12px;font-size:10px;opacity:0.5">build b75</div>
+        <div style="margin-top:12px;font-size:10px;opacity:0.5">build b76</div>
       </div>
     </div>
   </div>
@@ -8561,7 +8561,7 @@ window.PEAK_LEARNING = (function () {
           <div><div style={{ fontSize: 10, color: T.ink4, fontFamily: T.mono, marginBottom: 4 }}>TERM ENDS</div><input type="date" value={term.end} onChange={e => setTerm({ ...term, end: e.target.value })} style={{ background: T.bg, border: '1px solid ' + T.border, borderRadius: 8, padding: '8px 10px', color: T.ink, fontSize: 13, outline: 'none' }} /></div>
           <button onClick={saveTerm} style={{ background: T.red, color: '#fff', border: 'none', borderRadius: 9, padding: '9px 16px', fontSize: 12.5, fontWeight: 700, cursor: 'pointer' }}>Save term</button>
           <div style={{ fontSize: 12, color: T.ink3 }}>{term.start && term.end ? weeks + ' teaching weeks' : 'No dates set — Nia assumes a standard 13-week term'}</div>
-          {overallTotal > 0 && <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 10 }}><span style={{ fontSize: 10, color: T.ink4, fontFamily: T.mono }}>SCHOOL<br/>COVERAGE</span><Gauge pct={overallDone / overallTotal * 100} size={72} /></div>}
+          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 10 }}><span style={{ fontSize: 10, color: T.ink4, fontFamily: T.mono }}>SCHOOL<br/>COVERAGE</span><Gauge pct={overallTotal ? (overallDone / overallTotal * 100) : 0} size={72} /></div>
         </div>
 
         {rows.length === 0 ? <div style={{ ...card, color: T.ink3 }}>No timetable yet. Build the class timetable first (Timetable → Auto-generate) so Nia knows each class's subjects and how many periods they get a week.</div> : (
@@ -8577,7 +8577,7 @@ window.PEAK_LEARNING = (function () {
                       <div style={{ fontSize: 11, color: T.ink3 }}>{tch.name || 'No teacher assigned'} · {perWk} period{perWk === 1 ? '' : 's'}/week</div>
                     </div>
                     <div style={{ width: 180 }}>
-                      {p ? <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}><Gauge pct={cov.pct} size={48} /><div style={{ fontSize: 10.5, color: T.ink3, fontFamily: T.mono }}>{cov.done}/{cov.total}<br/>lessons</div></div> : <div style={{ fontSize: 11.5, color: T.ink4 }}>Not generated · ~{target} lessons needed</div>}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}><Gauge pct={p ? cov.pct : 0} size={48} /><div style={{ fontSize: 10.5, color: T.ink3, fontFamily: T.mono }}>{p ? (cov.done + '/' + cov.total + ' lessons') : ('not generated\u00b7 ~' + target + ' lessons')}</div></div>
                     </div>
                     <button onClick={() => generate(r.cls, r.subj)} disabled={busyKey === r.k} style={{ background: p ? 'transparent' : T.red, color: p ? T.ink2 : '#fff', border: p ? '1px solid ' + T.border : 'none', borderRadius: 8, padding: '8px 13px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>{busyKey === r.k ? 'Nia is planning…' : (p ? 'Regenerate' : 'Generate with Nia')}</button>
                     {p && <button onClick={() => setOpen(isOpen ? '' : r.k)} style={{ background: 'transparent', border: '1px solid ' + T.border, color: T.ink3, borderRadius: 8, padding: '8px 12px', fontSize: 12, cursor: 'pointer' }}>{isOpen ? 'Hide' : 'View'}</button>}
