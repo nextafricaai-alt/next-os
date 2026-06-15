@@ -5542,7 +5542,7 @@ You: "'We help you get more done with less stress.' Nine plain words beat the ja
               fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 14,
             }}>N</div>
             <div>
-              <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', letterSpacing: 1.5, color: 'var(--text-tertiary)' }}>NIA'S WATCH <span style={{ color: 'var(--mint)', marginLeft: 6 }}>· LIVE v27</span></div>
+              <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', letterSpacing: 1.5, color: 'var(--text-tertiary)' }}>NIA'S WATCH <span style={{ color: 'var(--mint)', marginLeft: 6 }}>· LIVE v28</span></div>
               <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)' }}>
                 What happened while you were away
               </div>
@@ -6561,7 +6561,17 @@ window.OnboardingPage = function OnboardingPage(props) {
       if (!ids.length) return;
       setBusy(true);
       fetch(WK + '/os-data/delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids: ids }) })
-        .then(r => r.json()).then(() => { setBusy(false); setForm(null); reload(); after && after(); }).catch(() => setBusy(false));
+        .then(async r => {
+          let d = {}; try { d = await r.json(); } catch (e) {}
+          if (!r.ok || d.error || d.deleted === 0) {
+            setBusy(false);
+            if (d.deleted === 0 && r.ok) { alert('Nothing was deleted — the rows may already be gone. Refreshing.'); reload(); return; }
+            alert('Could not delete: ' + (d.error || ('the Sentinel worker needs updating — its delete endpoint returned ' + r.status + '.')) + '\n\nPaste the latest sentinel-worker.js in Cloudflare and deploy, then try again.');
+            return;
+          }
+          setBusy(false); setForm(null); reload(); after && after();
+        })
+        .catch(e => { setBusy(false); alert('Delete failed: ' + (e && e.message || e)); });
     };
     const delOne = (r, e) => { if (e) e.stopPropagation(); if (!r._id) return; if (!window.confirm('Delete this ' + (r.type === 'cost' ? 'cost' : 'income') + '?\n\n' + (r.label || '(blank)') + (r.amount ? ' — ' + fmt(r.amount) : '') + '\n\nThis removes it from your monthly totals.')) return; delRows([r._id]); };
     const removeDuplicates = () => {
