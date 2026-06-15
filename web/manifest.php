@@ -25,7 +25,7 @@ if ($s !== '') {
 
 $icon  = $logo !== '' ? $logo : ('https://nextos-sentinel.nextafricaai.workers.dev/icon?s=' . urlencode($s));
 $itype = $logo !== '' ? 'image/png' : 'image/svg+xml';
-$start = 'https://nextos.nextafrica.ai/s/' . $s;
+$start = 'https://nextos.nextafrica.ai/school/' . $s;
 
 $short = (function($n){ return (function_exists('mb_substr') ? mb_substr($n,0,12) : substr($n,0,12)); })($name);
 
@@ -34,8 +34,8 @@ echo json_encode([
   'short_name'       => $short,
   'description'      => $name . ' — school operating system, powered by NEXT OS.',
   'start_url'        => $start,
-  'id'               => '/s/' . $s,
-  'scope'            => 'https://nextos.nextafrica.ai/',
+  'id'               => '/school/' . $s,
+  'scope'            => 'https://nextos.nextafrica.ai/school/' . $s,
   'display'          => 'standalone',
   'orientation'      => 'portrait',
   'background_color' => '#0a1029',
