@@ -4572,6 +4572,20 @@ const PD_Profile = (function () {
       { s: 'Reading',          mid: 80, end: 78, trend: 'flat', tone: T.good },
     ];
 
+    // The REAL child this profile is for (looked up by id) — never the demo.
+    const _all = (window.__TEACHER_STUDENTS && window.__TEACHER_STUDENTS.length) ? window.__TEACHER_STUDENTS : ((window.PEAK && window.PEAK.students) || []);
+    const stu = _all.find(x => String(x.id) === String(studentId)) || {};
+    const stuName = stu.name || 'Student';
+    const stuStream = stu.stream || '';
+    const stuGuardian = stu.guardian || '—';
+    const stuPhone = stu.guardianPhone || '';
+    const stuInitials = (stuName.match(/\b[A-Za-z]/g) || ['S']).slice(0, 2).join('').toUpperCase();
+    const stuBalance = Number(stu.balance) || 0;
+    const stuAttWk = (stu.attendanceWk == null) ? null : stu.attendanceWk;
+    const stuLastSeen = stu.lastSeen || '—';
+    const isRisk = stu.flag === 'risk';
+    const isTop = stu.flag === 'top';
+
     return (
       <div style={{
         width: embed ? '100%' : 1440, height: embed ? '100%' : 900,
@@ -4585,9 +4599,9 @@ const PD_Profile = (function () {
           <div style={{ padding: '16px 32px 0', display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: T.ink3 }}>
             <span style={{ cursor: 'pointer' }} onClick={() => onBack ? onBack() : (onNav && onNav('stud'))}>Students</span>
             <span style={{ color: T.ink4 }}>›</span>
-            <span style={{ cursor: 'pointer' }}>P5 Vigilant</span>
+            <span style={{ cursor: 'pointer' }}>{stuStream}</span>
             <span style={{ color: T.ink4 }}>›</span>
-            <span style={{ color: T.ink }}>Brian Mugisha</span>
+            <span style={{ color: T.ink }}>{stuName}</span>
           </div>
 
           {/* hero header */}
@@ -4601,33 +4615,32 @@ const PD_Profile = (function () {
                 width: 84, height: 84, borderRadius: 18, background: 'linear-gradient(135deg, ' + T.navyLite + ' 0%, ' + T.surface3 + ' 100%)',
                 color: '#fff', display: 'grid', placeItems: 'center', fontSize: 26, fontWeight: 700, letterSpacing: '-0.02em',
                 border: '1px solid ' + T.borderStr, flexShrink: 0,
-              }}>BM</div>
+              }}>{stuInitials}</div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginBottom: 6 }}>
-                  <div style={{ fontSize: 30, fontWeight: 700, color: T.ink, letterSpacing: '-0.025em' }}>Brian Mugisha</div>
-                  <Pill tone="bad">● AT-RISK · TIER 2</Pill>
-                  <Pill tone="brand">P5 VIGILANT</Pill>
+                  <div style={{ fontSize: 30, fontWeight: 700, color: T.ink, letterSpacing: '-0.025em' }}>{stuName}</div>
+                  {isRisk ? <Pill tone="bad">● AT-RISK</Pill> : isTop ? <Pill tone="good">● TOP</Pill> : null}
+                  {stuStream ? <Pill tone="brand">{stuStream}</Pill> : null}
                 </div>
-                <div style={{ display: 'flex', gap: 18, fontSize: 12.5, color: T.ink3, fontFamily: T.mono }}>
-                  <span>ID PK-004</span>
-                  <span>Born 14 Aug 2014 · age 11</span>
-                  <span>Guardian: Mr. Robert Mugisha</span>
-                  <span>+256 70 234 1017</span>
+                <div style={{ display: 'flex', gap: 18, fontSize: 12.5, color: T.ink3, fontFamily: T.mono, flexWrap: 'wrap' }}>
+                  <span>ID #{stu.id != null ? stu.id : '—'}</span>
+                  <span>Guardian: {stuGuardian}</span>
+                  <span>{stuPhone || 'no phone on file'}</span>
                 </div>
                 <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
-                  <button onClick={() => window.peakToast && window.peakToast('Director call scheduled', 'success', 'Mr. Robert Mugisha · Thursday 21 May at 16:30 · WhatsApp invite sent.')} style={{ background: T.red, color: '#fff', border: 'none', padding: '9px 16px', borderRadius: 9, fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }}>Schedule director call</button>
-                  <button onClick={() => window.peakWhatsApp(((window.peakFindStudent('Brian Mugisha') || {}).guardianPhone) || '+256702341017', 'Hello Mr. Robert Mugisha, a message from ' + window.peakSchoolName() + ' regarding Brian.')} style={{ background: 'transparent', color: T.ink, border: '1px solid ' + T.borderStr, padding: '9px 16px', borderRadius: 9, fontSize: 12.5, fontWeight: 500, cursor: 'pointer' }}>WhatsApp guardian</button>
-                  <button onClick={() => window.peakStudentReport && window.peakStudentReport(window.peakFindStudent('Brian Mugisha') || { name: 'Brian Mugisha', stream: 'P5V', guardian: 'Mr. Robert Mugisha', guardianPhone: '+256 70 234 1017', fees: 'overdue', flag: 'risk' })} style={{ background: 'transparent', color: T.ink2, border: '1px solid ' + T.border, padding: '9px 14px', borderRadius: 9, fontSize: 12.5, cursor: 'pointer' }}>Generate report</button>
+                  <button onClick={() => window.peakToast && window.peakToast('Reminder noted', 'success', 'Follow up with ' + stuGuardian + ' regarding ' + stuName.split(' ')[0] + '.')} style={{ background: T.red, color: '#fff', border: 'none', padding: '9px 16px', borderRadius: 9, fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }}>Schedule director call</button>
+                  <button onClick={() => window.peakWhatsApp((stuPhone || '').replace(/[^0-9]/g,''), 'Hello ' + stuGuardian + ', a message from ' + window.peakSchoolName() + ' regarding ' + stuName.split(' ')[0] + '.')} style={{ background: 'transparent', color: T.ink, border: '1px solid ' + T.borderStr, padding: '9px 16px', borderRadius: 9, fontSize: 12.5, fontWeight: 500, cursor: 'pointer' }}>WhatsApp guardian</button>
+                  <button onClick={() => window.peakStudentReport && window.peakStudentReport(stu && stu.id != null ? stu : { name: stuName })} style={{ background: 'transparent', color: T.ink2, border: '1px solid ' + T.border, padding: '9px 14px', borderRadius: 9, fontSize: 12.5, cursor: 'pointer' }}>Generate report</button>
                   <button onClick={() => window.peakToast && window.peakToast('More actions', 'info', 'Edit · transfer stream · archive · suspend')} style={{ background: 'transparent', color: T.ink3, border: 'none', padding: '9px 12px', fontSize: 14, cursor: 'pointer' }}>⋯</button>
                 </div>
               </div>
               {/* right-side score stack */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10, width: 260, flexShrink: 0 }}>
                 {[
-                  { l: 'Attend · wk', v: '60%',  c: T.red },
-                  { l: 'Attend · term', v: '78%', c: T.warn },
-                  { l: 'Fees balance', v: 'UGX 340K', c: T.red },
-                  { l: 'Last seen', v: 'Yesterday', c: T.ink },
+                  { l: 'Attend · wk', v: (stuAttWk == null ? '—' : stuAttWk + '%'), c: (stuAttWk == null ? T.ink3 : (stuAttWk >= 90 ? T.good : stuAttWk >= 70 ? T.warn : T.red)) },
+                  { l: 'Standing', v: (isRisk ? 'At-risk' : isTop ? 'Top' : 'OK'), c: (isRisk ? T.red : isTop ? T.good : T.ink) },
+                  { l: 'Fees balance', v: (stuBalance > 0 ? ('UGX ' + stuBalance.toLocaleString()) : 'Cleared'), c: (stuBalance > 0 ? T.red : T.good) },
+                  { l: 'Last seen', v: stuLastSeen, c: T.ink },
                 ].map(k => (
                   <div key={k.l} style={{ background: T.surface, border: '1px solid ' + T.border, borderRadius: 10, padding: 12 }}>
                     <div style={{ fontSize: 10, color: T.ink3, fontFamily: T.mono, letterSpacing: '0.05em', fontWeight: 600, marginBottom: 6 }}>{k.l.toUpperCase()}</div>
@@ -10038,7 +10051,7 @@ window.PEAK_STAFF = (function () {
               <div style={{ fontSize: 15, fontWeight: 700, color: T.ink, letterSpacing: '-0.01em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{(typeof window !== 'undefined' && window.__BRAND_NAME) || 'Peak Primary'}</div>
               <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
                 <PushBell compact />
-                <span style={{ fontSize: 9, color: T.ink4, fontFamily: T.mono }}>b53</span>
+                <span style={{ fontSize: 9, color: T.ink4, fontFamily: T.mono }}>b54</span>
               </div>
             </div>
           )}
