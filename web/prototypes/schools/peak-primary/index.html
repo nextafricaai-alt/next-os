@@ -295,7 +295,8 @@
     var _urlslug=_bp.get('s')||_bp.get('t')||(location.pathname.match(/\/(?:s|school)\/([A-Za-z0-9_-]+)/)||[])[1]||'';
     // Brand must match the DATA we'll show: that's the logged-in tenant. Fall back to URL slug only when not signed in.
     var _prof=null; try{ _prof=JSON.parse(localStorage.getItem('nextos.profile')||'null'); }catch(e){}
-    var _bslug=(_prof && _prof.tenantId) ? _prof.tenantId : _urlslug;
+    // This app IS a specific school (from the URL). Brand by that; the session guard makes the login match.
+    var _bslug=_urlslug || ((_prof && _prof.tenantId) || '');
     var b=null; try{ b=JSON.parse(localStorage.getItem('nextos.brand.'+_bslug)||'null'); }catch(e){}
     // Fetch the authoritative brand for THIS slug; cache per-slug; reload once if we painted the wrong one.
     function _paintName(nm){ try{ window.__BRAND_NAME=nm; document.title=nm+' \u00b7 NEXT School OS'; var _ld=document.querySelector('#root div'); if(_ld) _ld.textContent='LOADING '+String(nm).toUpperCase()+' \u00b7 NEXT SCHOOL OS'; }catch(e){} }
@@ -10034,7 +10035,7 @@ window.PEAK_STAFF = (function () {
               <div style={{ fontSize: 15, fontWeight: 700, color: T.ink, letterSpacing: '-0.01em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{(typeof window !== 'undefined' && window.__BRAND_NAME) || 'Peak Primary'}</div>
               <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
                 <PushBell compact />
-                <span style={{ fontSize: 9, color: T.ink4, fontFamily: T.mono }}>b49</span>
+                <span style={{ fontSize: 9, color: T.ink4, fontFamily: T.mono }}>b50</span>
               </div>
             </div>
           )}

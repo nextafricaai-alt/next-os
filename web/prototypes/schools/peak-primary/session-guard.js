@@ -25,11 +25,14 @@
   const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
   // Always return to the SAME school's login (keep the tenant slug), not the default Peak one.
+  function appSlug() {
+    try { return new URLSearchParams(location.search).get('t') || new URLSearchParams(location.search).get('s') || (location.pathname.match(/\/(?:s|school)\/([A-Za-z0-9_-]+)/) || [])[1] || ''; } catch (e) { return ''; }
+  }
   function loginUrl() {
-    var t = '';
-    try { var p = JSON.parse(localStorage.getItem('nextos.profile') || 'null'); t = (p && p.tenantId) || ''; } catch (e) {}
+    // The login must belong to THIS app's school (from the URL), not whoever logged in last.
+    var t = appSlug();
+    if (!t) { try { var p = JSON.parse(localStorage.getItem('nextos.profile') || 'null'); t = (p && p.tenantId) || ''; } catch (e) {} }
     if (!t) { try { t = localStorage.getItem('nextos.lastTenant') || ''; } catch (e) {} }
-    if (!t) { try { t = new URLSearchParams(location.search).get('t') || new URLSearchParams(location.search).get('s') || (location.pathname.match(/\/(?:s|school)\/([A-Za-z0-9_-]+)/) || [])[1] || ''; } catch (e) {} }
     return t ? ('/school/' + encodeURIComponent(t) + '/login') : '/prototypes/schools/peak-primary/login.html';
   }
 
@@ -79,6 +82,14 @@
     // Session exists. Make sure profile is fresh.
     if (!profile || profile.email !== session.user.email) {
       await window.NextSession.refresh();
+    }
+
+    // Tenant guard: this installed app belongs to ONE school. If the signed-in
+    // user is from a different school, send them to THIS school's login.
+    var _slug = appSlug();
+    if (_slug && window.NextSession.profile && window.NextSession.profile.tenantId && window.NextSession.profile.tenantId !== _slug) {
+      window.location.href = '/school/' + encodeURIComponent(_slug) + '/login';
+      return;
     }
 
     // Listen for session changes (e.g. token expires) and bounce to login
