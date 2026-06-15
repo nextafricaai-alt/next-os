@@ -1,7 +1,7 @@
 RewriteEngine On
-RewriteRule ^s/([A-Za-z0-9_-]+)/?$ prototypes/schools/peak-primary/login.html?s=$1 [L,QSA]
-RewriteRule ^school/([A-Za-z0-9_-]+)/login/?$ prototypes/schools/peak-primary/login.html?s=$1 [L,QSA]
-RewriteRule ^school/([A-Za-z0-9_-]+)/?$ prototypes/schools/peak-primary/index.html?s=$1 [L,QSA]
+RewriteRule ^s/([A-Za-z0-9_-]+)/?$ school.php?s=$1&login=1 [L,QSA]
+RewriteRule ^school/([A-Za-z0-9_-]+)/login/?$ school.php?s=$1&login=1 [L,QSA]
+RewriteRule ^school/([A-Za-z0-9_-]+)/?$ school.php?s=$1 [L,QSA]
 
 # Service worker must always be fresh.
 <Files "sw.js">
@@ -23,4 +23,5 @@ RewriteRule ^school/([A-Za-z0-9_-]+)/?$ prototypes/schools/peak-primary/index.ht
   RewriteEngine On
   RewriteRule \.html$ - [E=Cache-Control:no-cache]
   RewriteRule ^$ - [E=Cache-Control:no-cache]
+  RewriteRule ^(s|school)/ - [E=Cache-Control:no-cache]
 </IfModule>
