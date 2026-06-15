@@ -7,7 +7,7 @@
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
   <meta name="theme-color" content="#0a1029" />
-  <title>Peak Primary · NEXT School OS — Prototype Spec</title>
+  <title>NEXT School OS</title>
   <link rel="icon" type="image/png" href="/prototypes/schools/peak-primary/assets/peak-logo.png" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="mobile-web-app-capable" content="yes" />
@@ -205,7 +205,7 @@
   <div id="root">
     <!-- Loading state (replaced once React mounts) -->
     <div style="min-height:100vh;display:grid;place-items:center;color:#8a91b0;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px;letter-spacing:0.08em;">
-      LOADING PEAK PRIMARY · NEXT SCHOOL OS
+      LOADING · NEXT SCHOOL OS
     </div>
   </div>
 
@@ -292,14 +292,19 @@
   (function(){
     // Resolve the school we're ACTUALLY opening (never inherit the last login's brand).
     var _bp=new URLSearchParams(location.search);
-    var _bslug=_bp.get('s')||_bp.get('t')||(location.pathname.match(/\/(?:s|school)\/([A-Za-z0-9_-]+)/)||[])[1]||'';
+    var _urlslug=_bp.get('s')||_bp.get('t')||(location.pathname.match(/\/(?:s|school)\/([A-Za-z0-9_-]+)/)||[])[1]||'';
+    // Brand must match the DATA we'll show: that's the logged-in tenant. Fall back to URL slug only when not signed in.
+    var _prof=null; try{ _prof=JSON.parse(localStorage.getItem('nextos.profile')||'null'); }catch(e){}
+    var _bslug=(_prof && _prof.tenantId) ? _prof.tenantId : _urlslug;
     var b=null; try{ b=JSON.parse(localStorage.getItem('nextos.brand.'+_bslug)||'null'); }catch(e){}
     // Fetch the authoritative brand for THIS slug; cache per-slug; reload once if we painted the wrong one.
+    function _paintName(nm){ try{ window.__BRAND_NAME=nm; document.title=nm+' \u00b7 NEXT School OS'; var _ld=document.querySelector('#root div'); if(_ld) _ld.textContent='LOADING '+String(nm).toUpperCase()+' \u00b7 NEXT SCHOOL OS'; }catch(e){} }
     if(_bslug){ try{ fetch('https://nextos-sentinel.nextafricaai.workers.dev/brand?s='+encodeURIComponent(_bslug)).then(function(r){return r.ok?r.json():null;}).then(function(nb){
       if(nb && nb.name){ var fresh={name:nb.name,color:nb.primary_color||null,logo:nb.logo_url||null};
         try{ localStorage.setItem('nextos.brand.'+_bslug, JSON.stringify(fresh)); }catch(e){}
-        var changed = !b || b.name!==fresh.name || (b.color||'')!==(fresh.color||'');
-        if(changed && !sessionStorage.getItem('nx-rebrand-'+_bslug)){ try{ sessionStorage.setItem('nx-rebrand-'+_bslug,'1'); }catch(e){} location.reload(); }
+        if(fresh.logo) window.__BRAND_LOGO=fresh.logo;
+        _paintName(fresh.name);
+        try{ if(fresh.color){ var _c=String(fresh.color); if(_c[0]!=='#')_c='#'+_c; if(/^#[0-9a-fA-F]{6}$/.test(_c)){ document.documentElement.style.setProperty('--brand', _c); } } }catch(e){}
       }
     }).catch(function(){}); }catch(e){} }
     if(b && b.color){ var c=String(b.color); if(c[0]!=='#') c='#'+c;
@@ -318,10 +323,8 @@
     } else {
       // No school record for this slug — never fall back to another school's identity.
       try {
-        var _pp=new URLSearchParams(location.search);
-        var _slug=_pp.get('s')||_pp.get('t')||(location.pathname.match(/\/(?:s|school)\/([A-Za-z0-9_-]+)/)||[])[1]||'';
-        if(_slug && _slug!=='peak-primary'){
-          var _nm=_slug.replace(/[-_]+/g,' ').replace(/\b\w/g,function(m){return m.toUpperCase();});
+        if(_bslug && _bslug!=='peak-primary'){
+          var _nm=_bslug.replace(/[-_]+/g,' ').replace(/\b\w/g,function(m){return m.toUpperCase();});
           window.__BRAND_NAME=_nm;
           try{ document.title=_nm+' \u00b7 NEXT School OS'; }catch(e){}
         }
@@ -10031,7 +10034,7 @@ window.PEAK_STAFF = (function () {
               <div style={{ fontSize: 15, fontWeight: 700, color: T.ink, letterSpacing: '-0.01em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{(typeof window !== 'undefined' && window.__BRAND_NAME) || 'Peak Primary'}</div>
               <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
                 <PushBell compact />
-                <span style={{ fontSize: 9, color: T.ink4, fontFamily: T.mono }}>b47</span>
+                <span style={{ fontSize: 9, color: T.ink4, fontFamily: T.mono }}>b49</span>
               </div>
             </div>
           )}
