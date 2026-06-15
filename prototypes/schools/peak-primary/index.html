@@ -4558,8 +4558,112 @@ const PD_Profile = (function () {
     );
   }
 
+  // ── More actions: transfer class/stream, change combination (A-level), edit ──
+  function StudentActionsMenu({ stu, onUpdated }) {
+    const [open, setOpen] = React.useState(false);
+    const [modal, setModal] = React.useState(null);   // 'transfer' | 'combo' | 'edit'
+    const [busy, setBusy] = React.useState(false);
+    const cfg = window.SCHOOL_CONFIG || {};
+    const classes = cfg.classes || [];
+    const combos = cfg.combinations || [];
+    const vocab = cfg.vocab || {};
+    const unit = (vocab.unit || 'Class');
+    const isALevel = combos.length > 0 && /s5|s6|year|senior\s*5|senior\s*6/i.test(stu.stream || '');
+    const sb = window.NextSession && window.NextSession.sb;
+    const [val, setVal] = React.useState({ stream: stu.stream || '', combination: stu.combination || '', name: stu.name || '', guardian: stu.guardian || '', phone: stu.guardianPhone || '' });
+    React.useEffect(() => { setVal({ stream: stu.stream || '', combination: stu.combination || '', name: stu.name || '', guardian: stu.guardian || '', phone: stu.guardianPhone || '' }); }, [stu.id]);
+
+    const apply = async (dbFields, localApply, label) => {
+      if (!sb || stu.id == null) { window.peakToast && window.peakToast('Not connected to the database', 'info', 'Sign in to the school to make changes.'); return; }
+      setBusy(true);
+      try {
+        const r = await sb.from('students').update(dbFields).eq('id', stu.id);
+        if (r && r.error) throw r.error;
+        localApply();
+        if (window.peakStore && window.peakStore.notify) { try { window.peakStore.notify(); } catch (e) {} }
+        window.peakToast && window.peakToast(label, 'success', stu.name);
+        setModal(null); setOpen(false);
+        if (onUpdated) onUpdated();
+      } catch (e) { window.peakToast && window.peakToast('Could not update', 'info', String((e && e.message) || e)); }
+      setBusy(false);
+    };
+
+    const ov = { position: 'fixed', inset: 0, zIndex: 9200, background: 'rgba(5,8,22,0.72)', backdropFilter: 'blur(6px)', display: 'grid', placeItems: 'center', padding: 20 };
+    const card = { width: '100%', maxWidth: 440, background: T.surface, border: '1px solid ' + T.border, borderRadius: 16, padding: 22, color: T.ink, fontFamily: T.font };
+    const inp = { width: '100%', background: T.bg, border: '1px solid ' + T.border, borderRadius: 9, padding: '10px 12px', fontSize: 13, color: T.ink, fontFamily: T.font, outline: 'none', boxSizing: 'border-box' };
+    const lbl = { fontSize: 11, color: T.ink3, fontFamily: T.mono, marginBottom: 5 };
+    const item = (label, sub, fn) => <button onClick={fn} style={{ display: 'block', width: '100%', textAlign: 'left', background: 'transparent', border: 'none', borderBottom: '1px solid ' + T.border, padding: '11px 14px', cursor: 'pointer', color: T.ink }}><div style={{ fontSize: 13, fontWeight: 600 }}>{label}</div><div style={{ fontSize: 11, color: T.ink3, marginTop: 2 }}>{sub}</div></button>;
+
+    return (
+      <div style={{ position: 'relative', display: 'inline-block' }}>
+        <button onClick={() => setOpen(v => !v)} style={{ background: 'transparent', color: T.ink3, border: 'none', padding: '9px 12px', fontSize: 16, cursor: 'pointer' }}>{'\u22EF'}</button>
+        {open && (
+          <div style={{ position: 'absolute', right: 0, top: '100%', marginTop: 4, width: 250, background: T.surface, border: '1px solid ' + T.border, borderRadius: 12, boxShadow: '0 14px 34px rgba(0,0,0,0.5)', zIndex: 50, overflow: 'hidden' }}>
+            {item('Transfer ' + unit.toLowerCase(), 'Move to another ' + unit.toLowerCase() + ' / stream', () => { setVal(v => ({ ...v, stream: stu.stream || (classes[0] || '') })); setModal('transfer'); })}
+            {isALevel && item('Change combination', 'A-Level subject combination', () => { setVal(v => ({ ...v, combination: stu.combination || '' })); setModal('combo'); })}
+            {item('Edit details', 'Name, guardian, phone', () => { setVal({ stream: stu.stream || '', combination: stu.combination || '', name: stu.name || '', guardian: stu.guardian || '', phone: stu.guardianPhone || '' }); setModal('edit'); })}
+            <button onClick={() => setOpen(false)} style={{ display: 'block', width: '100%', textAlign: 'left', background: 'transparent', border: 'none', padding: '10px 14px', cursor: 'pointer', color: T.ink3, fontSize: 12.5 }}>Cancel</button>
+          </div>
+        )}
+
+        {modal === 'transfer' && (
+          <div style={ov} onClick={() => setModal(null)}>
+            <div style={card} onClick={e => e.stopPropagation()}>
+              <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 4 }}>Transfer {stu.name}</div>
+              <div style={{ fontSize: 12.5, color: T.ink3, marginBottom: 16 }}>Currently in <b>{stu.stream || '—'}</b>. Choose the new {unit.toLowerCase()}.</div>
+              <div style={lbl}>{unit.toUpperCase()} / STREAM</div>
+              <select style={inp} value={val.stream} onChange={e => setVal(v => ({ ...v, stream: e.target.value }))}>
+                {(classes.length ? classes : [stu.stream]).map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 18 }}>
+                <button onClick={() => setModal(null)} style={{ background: 'transparent', border: '1px solid ' + T.border, color: T.ink2, borderRadius: 9, padding: '9px 16px', fontSize: 13, cursor: 'pointer' }}>Cancel</button>
+                <button onClick={() => apply({ stream: val.stream }, () => { stu.stream = val.stream; }, 'Transferred to ' + val.stream)} disabled={busy || val.stream === stu.stream} style={{ background: T.red, color: '#fff', border: 'none', borderRadius: 9, padding: '9px 18px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>{busy ? 'Saving…' : 'Transfer'}</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {modal === 'combo' && (
+          <div style={ov} onClick={() => setModal(null)}>
+            <div style={card} onClick={e => e.stopPropagation()}>
+              <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 4 }}>Change combination</div>
+              <div style={{ fontSize: 12.5, color: T.ink3, marginBottom: 16 }}>{stu.name} · {stu.stream}. Current: <b>{stu.combination || '— none —'}</b></div>
+              <div style={lbl}>A-LEVEL COMBINATION</div>
+              <select style={inp} value={val.combination} onChange={e => setVal(v => ({ ...v, combination: e.target.value }))}>
+                <option value="">— none —</option>
+                {combos.map(c => <option key={c.name} value={c.name}>{c.name}{(c.subjects && c.subjects.length) ? (' · ' + c.subjects.join('/')) : ''}</option>)}
+              </select>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 18 }}>
+                <button onClick={() => setModal(null)} style={{ background: 'transparent', border: '1px solid ' + T.border, color: T.ink2, borderRadius: 9, padding: '9px 16px', fontSize: 13, cursor: 'pointer' }}>Cancel</button>
+                <button onClick={() => apply({ combination: val.combination || null }, () => { stu.combination = val.combination; }, 'Combination set to ' + (val.combination || 'none'))} disabled={busy} style={{ background: T.red, color: '#fff', border: 'none', borderRadius: 9, padding: '9px 18px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>{busy ? 'Saving…' : 'Save'}</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {modal === 'edit' && (
+          <div style={ov} onClick={() => setModal(null)}>
+            <div style={card} onClick={e => e.stopPropagation()}>
+              <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 16 }}>Edit {stu.name}</div>
+              <div style={{ display: 'grid', gap: 12 }}>
+                <label><div style={lbl}>FULL NAME</div><input style={inp} value={val.name} onChange={e => setVal(v => ({ ...v, name: e.target.value }))} /></label>
+                <label><div style={lbl}>GUARDIAN NAME</div><input style={inp} value={val.guardian} onChange={e => setVal(v => ({ ...v, guardian: e.target.value }))} /></label>
+                <label><div style={lbl}>GUARDIAN PHONE</div><input style={inp} value={val.phone} onChange={e => setVal(v => ({ ...v, phone: e.target.value }))} placeholder="+256 7..." /></label>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 18 }}>
+                <button onClick={() => setModal(null)} style={{ background: 'transparent', border: '1px solid ' + T.border, color: T.ink2, borderRadius: 9, padding: '9px 16px', fontSize: 13, cursor: 'pointer' }}>Cancel</button>
+                <button onClick={() => apply({ name: val.name.trim(), guardian_name: val.guardian.trim(), guardian_phone: val.phone.replace(/[^0-9+]/g, '') }, () => { stu.name = val.name.trim(); stu.guardian = val.guardian.trim(); stu.guardianPhone = val.phone.trim(); }, 'Details updated')} disabled={busy || !val.name.trim()} style={{ background: T.red, color: '#fff', border: 'none', borderRadius: 9, padding: '9px 18px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>{busy ? 'Saving…' : 'Save changes'}</button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   function Profile({ embed = false, onNav, onBack, studentId } = {}) {
     const [tab, setTab] = useState('Overview');
+    const [, _forceP] = React.useReducer(n => n + 1, 0);
     const tabs = ['Overview','Attendance','Academics','Behaviour','Fees','Comms'];
 
     // The REAL child this profile is for (looked up by id) — never the demo.
@@ -4621,7 +4725,7 @@ const PD_Profile = (function () {
                   <button onClick={() => window.peakToast && window.peakToast('Reminder noted', 'success', 'Follow up with ' + stuGuardian + ' regarding ' + stuName.split(' ')[0] + '.')} style={{ background: T.red, color: '#fff', border: 'none', padding: '9px 16px', borderRadius: 9, fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }}>Schedule director call</button>
                   <button onClick={() => window.peakWhatsApp((stuPhone || '').replace(/[^0-9]/g,''), 'Hello ' + stuGuardian + ', a message from ' + window.peakSchoolName() + ' regarding ' + stuName.split(' ')[0] + '.')} style={{ background: 'transparent', color: T.ink, border: '1px solid ' + T.borderStr, padding: '9px 16px', borderRadius: 9, fontSize: 12.5, fontWeight: 500, cursor: 'pointer' }}>WhatsApp guardian</button>
                   <button onClick={() => window.peakStudentReport && window.peakStudentReport(stu && stu.id != null ? stu : { name: stuName })} style={{ background: 'transparent', color: T.ink2, border: '1px solid ' + T.border, padding: '9px 14px', borderRadius: 9, fontSize: 12.5, cursor: 'pointer' }}>Generate report</button>
-                  <button onClick={() => window.peakToast && window.peakToast('More actions', 'info', 'Edit · transfer stream · archive · suspend')} style={{ background: 'transparent', color: T.ink3, border: 'none', padding: '9px 12px', fontSize: 14, cursor: 'pointer' }}>⋯</button>
+                  <StudentActionsMenu stu={stu} onUpdated={_forceP} />
                 </div>
               </div>
               {/* right-side score stack */}
@@ -9916,7 +10020,7 @@ window.PEAK_STAFF = (function () {
               <div style={{ fontSize: 15, fontWeight: 700, color: T.ink, letterSpacing: '-0.01em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{(typeof window !== 'undefined' && window.__BRAND_NAME) || 'Peak Primary'}</div>
               <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
                 <PushBell compact />
-                <span style={{ fontSize: 9, color: T.ink4, fontFamily: T.mono }}>b58</span>
+                <span style={{ fontSize: 9, color: T.ink4, fontFamily: T.mono }}>b59</span>
               </div>
             </div>
           )}
