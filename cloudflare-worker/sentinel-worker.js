@@ -381,6 +381,7 @@ export default {
     if (url.pathname === '/school-config/save') return handleConfigSave(request, env, cors);
     if (url.pathname === '/os-data')            return handleOsDataList(url.searchParams.get('tenant') || 'next', url.searchParams.get('kind') || '', env, cors);
     if (url.pathname === '/os-data/save')       return handleOsDataSave(request, env, cors);
+    if (url.pathname === '/os-data/delete')     return handleOsDataDelete(request, env, cors);
     if (url.pathname === '/translate')          return handleTranslate(request, env, cors);
     if (url.pathname === '/syllabus/generate')  return handleSyllabusGenerate(request, env, cors);
     if (url.pathname === '/seo-tips')           return handleSeoTips(request, env, cors);
@@ -1504,6 +1505,19 @@ async function handleOsDataList(tenant, kind, env, cors) {
   try { const rows = await sbFetch(env, '/os_records?tenant=eq.' + encodeURIComponent(tenant || 'next') + '&kind=eq.' + encodeURIComponent(kind) + '&select=id,payload,created_at&order=created_at.desc&limit=1000'); return J({ tenant: tenant || 'next', kind, records: rows || [] }); }
   catch (e) { return J({ error: String((e && e.message) || e) }, 200); }
 }
+async function handleOsDataDelete(request, env, cors) {
+  const J = (oo, st) => new Response(JSON.stringify(oo), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
+  if (!env.SUPABASE_URL || !env.SUPABASE_KEY) return J({ error: 'Supabase not configured.' }, 500);
+  let b; try { b = await request.json(); } catch (e) { return J({ error: 'bad body' }, 400); }
+  const ids = Array.isArray(b.ids) ? b.ids : (b.id != null ? [b.id] : []);
+  if (!ids.length) return J({ error: 'id or ids required' }, 400);
+  let deleted = 0;
+  for (const id of ids) {
+    try { const r = await fetch(env.SUPABASE_URL + '/rest/v1/os_records?id=eq.' + encodeURIComponent(id), { method: 'DELETE', headers: sbHeaders(env, 'return=minimal') }); if (r.ok) deleted++; } catch (e) {}
+  }
+  return J({ ok: true, deleted: deleted });
+}
+
 async function handleOsDataSave(request, env, cors) {
   const J = (oo, st) => new Response(JSON.stringify(oo), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
   if (!env.SUPABASE_URL || !env.SUPABASE_KEY) return J({ error: 'Supabase not configured.' }, 500);
