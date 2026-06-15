@@ -408,6 +408,32 @@ async function handleAgent(request, env, cors) {
   if (!Array.isArray(messages) || messages.length === 0) {
     return jsonError('messages[] is required', 400, cors);
   }
+
+  // ─── Latest Claude brain (when an Anthropic key is configured) ───
+  // The client already speaks the Anthropic shape, so we forward directly and
+  // return Claude's native response (content[] + stop_reason) untouched.
+  if (env.ANTHROPIC_API_KEY) {
+    try {
+      const payload = {
+        model: env.ANTHROPIC_MODEL || 'claude-sonnet-4-6',
+        max_tokens: 4096,
+        messages: messages,
+      };
+      if (system) payload.system = system;
+      if (Array.isArray(tools) && tools.length) payload.tools = tools;
+      const r = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-api-key': env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
+        body: JSON.stringify(payload),
+      });
+      if (r.ok) {
+        const d = await r.json();
+        return new Response(JSON.stringify(d), { status: 200, headers: { ...cors, 'Content-Type': 'application/json' } });
+      }
+      // On Anthropic error (rate limit, bad key, etc.) fall through to the free Llama brain.
+    } catch (e) { /* fall through to Llama */ }
+  }
+
   const llamaMessages = [];
   if (system) llamaMessages.push({ role: 'system', content: system });
   llamaMessages.push(...anthropicMessagesToOpenAI(messages));
@@ -618,7 +644,7 @@ async function niaGenerate(env, system, user, maxTokens, temperature) {
       const r = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-api-key': env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
-        body: JSON.stringify({ model: env.ANTHROPIC_MODEL || 'claude-3-5-sonnet-20241022', max_tokens: maxTokens, temperature: temperature, system: system, messages: [{ role: 'user', content: user }] }),
+        body: JSON.stringify({ model: env.ANTHROPIC_MODEL || 'claude-sonnet-4-6', max_tokens: maxTokens, temperature: temperature, system: system, messages: [{ role: 'user', content: user }] }),
       });
       if (r.ok) { const d = await r.json(); const t = (d.content && d.content[0] && d.content[0].text) || ''; if (t && t.trim()) return t.trim(); }
     } catch (e) {}
