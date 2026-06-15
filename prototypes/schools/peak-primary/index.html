@@ -212,7 +212,7 @@
   <script>
     /* Build self-heal: if this cached HTML is older than what the server now serves,
        reload ONCE with a cache-buster so no school is ever stuck on a stale build. */
-    window.__BUILD = 'b74';
+    window.__BUILD = 'b75';
     (function () {
       try {
         fetch('/build.txt?ts=' + Date.now(), { cache: 'no-store' })
@@ -233,7 +233,7 @@
     <div style="min-height:100vh;display:grid;place-items:center;color:#8a91b0;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px;letter-spacing:0.08em;">
       <div style="text-align:center">
         <div id="nx-loading-text">LOADING · NEXT SCHOOL OS</div>
-        <div style="margin-top:12px;font-size:10px;opacity:0.5">build b74</div>
+        <div style="margin-top:12px;font-size:10px;opacity:0.5">build b75</div>
       </div>
     </div>
   </div>
@@ -8482,7 +8482,27 @@ window.PEAK_LEARNING = (function () {
     return out;
   }
   const coverageOf = (plan) => { const ls = (plan && plan.lessons) || []; const done = ls.filter(l => l.done).length; return { done, total: ls.length, pct: ls.length ? Math.round(done / ls.length * 100) : 0 }; };
+  function LessonTags({ L }) {
+    const tag = (txt, bg, fg) => <span style={{ fontSize: 8.5, fontFamily: T.mono, fontWeight: 700, letterSpacing: '0.04em', background: bg, color: fg, borderRadius: 5, padding: '1px 6px', marginLeft: 6, verticalAlign: 'middle' }}>{txt}</span>;
+    return <>{L.kind === 'practical' ? tag('PRACTICAL', 'rgba(46,160,67,0.18)', T.good) : null}{L.paper ? tag(String(L.paper).toUpperCase(), 'rgba(58,79,156,0.22)', '#a8b4e8') : null}</>;
+  }
   function Bar({ pct, color }) { return <div style={{ height: 7, background: T.border, borderRadius: 999, overflow: 'hidden' }}><div style={{ width: (pct || 0) + '%', height: '100%', background: color || T.good, transition: 'width .3s' }} /></div>; }
+  function Gauge({ pct, size, label }) {
+    pct = Math.max(0, Math.min(100, Math.round(pct || 0)));
+    size = size || 78; const r = (size / 2) - 7; const circ = 2 * Math.PI * r; const off = circ * (1 - pct / 100);
+    const col = pct >= 80 ? T.good : pct >= 40 ? (T.gold || '#d8a200') : (pct > 0 ? T.warn : T.ink4);
+    return (
+      <div style={{ position: 'relative', width: size, height: size, flexShrink: 0 }}>
+        <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
+          <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={T.border} strokeWidth="7" />
+          <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={col} strokeWidth="7" strokeLinecap="round" strokeDasharray={circ} strokeDashoffset={off} style={{ transition: 'stroke-dashoffset .5s' }} />
+        </svg>
+        <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', textAlign: 'center' }}>
+          <div><div style={{ fontSize: size * 0.26, fontWeight: 800, color: T.ink, lineHeight: 1 }}>{pct}%</div>{label && <div style={{ fontSize: size * 0.11, color: T.ink3, fontFamily: T.mono, marginTop: 2, letterSpacing: '0.04em' }}>{label}</div>}</div>
+        </div>
+      </div>
+    );
+  }
 
   // ───────────────────────── HEAD CONSOLE ─────────────────────────
   function HeadLearning() {
@@ -8541,7 +8561,7 @@ window.PEAK_LEARNING = (function () {
           <div><div style={{ fontSize: 10, color: T.ink4, fontFamily: T.mono, marginBottom: 4 }}>TERM ENDS</div><input type="date" value={term.end} onChange={e => setTerm({ ...term, end: e.target.value })} style={{ background: T.bg, border: '1px solid ' + T.border, borderRadius: 8, padding: '8px 10px', color: T.ink, fontSize: 13, outline: 'none' }} /></div>
           <button onClick={saveTerm} style={{ background: T.red, color: '#fff', border: 'none', borderRadius: 9, padding: '9px 16px', fontSize: 12.5, fontWeight: 700, cursor: 'pointer' }}>Save term</button>
           <div style={{ fontSize: 12, color: T.ink3 }}>{term.start && term.end ? weeks + ' teaching weeks' : 'No dates set — Nia assumes a standard 13-week term'}</div>
-          {overallTotal > 0 && <div style={{ marginLeft: 'auto', textAlign: 'right' }}><div style={{ fontSize: 10, color: T.ink4, fontFamily: T.mono }}>SCHOOL COVERAGE</div><div style={{ fontSize: 20, fontWeight: 700, color: T.good }}>{Math.round(overallDone / overallTotal * 100)}%</div></div>}
+          {overallTotal > 0 && <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 10 }}><span style={{ fontSize: 10, color: T.ink4, fontFamily: T.mono }}>SCHOOL<br/>COVERAGE</span><Gauge pct={overallDone / overallTotal * 100} size={72} /></div>}
         </div>
 
         {rows.length === 0 ? <div style={{ ...card, color: T.ink3 }}>No timetable yet. Build the class timetable first (Timetable → Auto-generate) so Nia knows each class's subjects and how many periods they get a week.</div> : (
@@ -8557,7 +8577,7 @@ window.PEAK_LEARNING = (function () {
                       <div style={{ fontSize: 11, color: T.ink3 }}>{tch.name || 'No teacher assigned'} · {perWk} period{perWk === 1 ? '' : 's'}/week</div>
                     </div>
                     <div style={{ width: 180 }}>
-                      {p ? <><Bar pct={cov.pct} color={cov.pct >= 80 ? T.good : cov.pct >= 40 ? T.gold : T.warn} /><div style={{ fontSize: 10.5, color: T.ink3, fontFamily: T.mono, marginTop: 4 }}>{cov.done}/{cov.total} lessons · {cov.pct}%</div></> : <div style={{ fontSize: 11.5, color: T.ink4 }}>Not generated · ~{target} lessons needed</div>}
+                      {p ? <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}><Gauge pct={cov.pct} size={48} /><div style={{ fontSize: 10.5, color: T.ink3, fontFamily: T.mono }}>{cov.done}/{cov.total}<br/>lessons</div></div> : <div style={{ fontSize: 11.5, color: T.ink4 }}>Not generated · ~{target} lessons needed</div>}
                     </div>
                     <button onClick={() => generate(r.cls, r.subj)} disabled={busyKey === r.k} style={{ background: p ? 'transparent' : T.red, color: p ? T.ink2 : '#fff', border: p ? '1px solid ' + T.border : 'none', borderRadius: 8, padding: '8px 13px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>{busyKey === r.k ? 'Nia is planning…' : (p ? 'Regenerate' : 'Generate with Nia')}</button>
                     {p && <button onClick={() => setOpen(isOpen ? '' : r.k)} style={{ background: 'transparent', border: '1px solid ' + T.border, color: T.ink3, borderRadius: 8, padding: '8px 12px', fontSize: 12, cursor: 'pointer' }}>{isOpen ? 'Hide' : 'View'}</button>}
@@ -8567,7 +8587,7 @@ window.PEAK_LEARNING = (function () {
                       {(p.lessons || []).map((L, j) => (
                         <div key={j} style={{ display: 'flex', gap: 10, padding: '7px 0', borderTop: '1px solid ' + T.border, opacity: L.done ? 0.6 : 1 }}>
                           <span style={{ fontSize: 11, color: L.done ? T.good : T.ink4, fontFamily: T.mono, minWidth: 26 }}>{L.done ? '✓' : (j + 1)}</span>
-                          <div><div style={{ fontSize: 12.5, fontWeight: 600, textDecoration: L.done ? 'line-through' : 'none' }}>{L.title}</div><div style={{ fontSize: 11, color: T.ink3 }}>{L.topic}{L.objective ? ' — ' + L.objective : ''}</div></div>
+                          <div><div style={{ fontSize: 12.5, fontWeight: 600, textDecoration: L.done ? 'line-through' : 'none' }}>{L.title}<LessonTags L={L} /></div><div style={{ fontSize: 11, color: T.ink3 }}>{L.topic}{L.objective ? ' — ' + L.objective : ''}</div></div>
                         </div>
                       ))}
                     </div>
@@ -8610,15 +8630,14 @@ window.PEAK_LEARNING = (function () {
           const cov = coverageOf(plan); const curIdx = plan.lessons.findIndex(l => !l.done); const current = curIdx >= 0 ? plan.lessons[curIdx] : null;
           return (
             <div key={plan._id} style={card}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 10 }}>
-                <div style={{ fontSize: 15, fontWeight: 700 }}>{plan.class} · {plan.subject}</div>
-                <div style={{ fontSize: 12, color: T.ink3, fontFamily: T.mono }}>{cov.done}/{cov.total} · {cov.pct}% covered</div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 14, flexWrap: 'wrap', marginBottom: 4 }}>
+                <div><div style={{ fontSize: 16, fontWeight: 700 }}>{plan.class} · {plan.subject}</div><div style={{ fontSize: 12, color: T.ink3, fontFamily: T.mono, marginTop: 2 }}>{cov.done}/{cov.total} lessons taught</div></div>
+                <Gauge pct={cov.pct} size={84} label="COVERED" />
               </div>
-              <Bar pct={cov.pct} color={cov.pct >= 80 ? T.good : cov.pct >= 40 ? T.gold : T.warn} />
               {current ? (
                 <div style={{ marginTop: 14, background: 'rgba(226,58,82,0.06)', border: '1px solid ' + T.red, borderRadius: 10, padding: 14 }}>
                   <div style={{ fontSize: 10, color: T.red, fontFamily: T.mono, fontWeight: 700, letterSpacing: '0.05em', marginBottom: 4 }}>TODAY'S LESSON · #{curIdx + 1}</div>
-                  <div style={{ fontSize: 14, fontWeight: 700 }}>{current.title}</div>
+                  <div style={{ fontSize: 14, fontWeight: 700 }}>{current.title}<LessonTags L={current} /></div>
                   <div style={{ fontSize: 12, color: T.ink2, marginTop: 3 }}>{current.topic}{current.objective ? ' — ' + current.objective : ''}</div>
                   <div style={{ display: 'flex', gap: 8, marginTop: 12, alignItems: 'center', flexWrap: 'wrap' }}>
                     <button onClick={() => toggle(plan, curIdx)} style={{ background: T.green || '#00c389', color: '#062b18', border: 'none', borderRadius: 9, padding: '9px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>✓ Mark taught</button>
@@ -8633,7 +8652,7 @@ window.PEAK_LEARNING = (function () {
                   {plan.lessons.map((L, j) => (
                     <label key={j} style={{ display: 'flex', gap: 10, padding: '7px 0', borderTop: '1px solid ' + T.border, cursor: 'pointer', alignItems: 'flex-start' }}>
                       <input type="checkbox" checked={!!L.done} onChange={() => toggle(plan, j)} style={{ marginTop: 3 }} />
-                      <div><div style={{ fontSize: 12.5, fontWeight: 600, textDecoration: L.done ? 'line-through' : 'none', color: L.done ? T.ink3 : T.ink }}>{j + 1}. {L.title}</div><div style={{ fontSize: 11, color: T.ink3 }}>{L.topic}{L.objective ? ' — ' + L.objective : ''}</div></div>
+                      <div><div style={{ fontSize: 12.5, fontWeight: 600, textDecoration: L.done ? 'line-through' : 'none', color: L.done ? T.ink3 : T.ink }}>{j + 1}. {L.title}<LessonTags L={L} /></div><div style={{ fontSize: 11, color: T.ink3 }}>{L.topic}{L.objective ? ' — ' + L.objective : ''}</div></div>
                     </label>
                   ))}
                 </div>
@@ -8677,7 +8696,7 @@ window.PEAK_SETUP = (function () {
 
   const PRESETS = {
     primary: { classes: ['P1V', 'P1P', 'P2V', 'P2P', 'P3V', 'P3P', 'P4V', 'P4P', 'P5V', 'P5P', 'P6V', 'P6P', 'P7V', 'P7P'], subjects: ['English', 'Mathematics', 'Science', 'Social Studies'], combinations: [] },
-    secondary: { classes: ['S1', 'S2', 'S3', 'S4', 'S5', 'S6'], subjects: ['English', 'Mathematics', 'Physics', 'Chemistry', 'Biology', 'Geography', 'History', 'CRE', 'Literature', 'Economics', 'Entrepreneurship', 'ICT', 'Agriculture', 'Fine Art'], combinations: [
+    secondary: { classes: ['S1', 'S2', 'S3', 'S4', 'S5', 'S6'], subjects: ['English', 'Mathematics 1', 'Mathematics 2', 'Physics', 'Chemistry', 'Biology', 'Geography', 'History', 'CRE', 'Literature', 'Economics', 'Entrepreneurship', 'ICT', 'Agriculture', 'Fine Art'], combinations: [
       { name: 'PCM', subjects: ['Physics', 'Chemistry', 'Mathematics'] }, { name: 'PCB', subjects: ['Physics', 'Chemistry', 'Biology'] }, { name: 'BCM', subjects: ['Biology', 'Chemistry', 'Mathematics'] },
       { name: 'PEM', subjects: ['Physics', 'Economics', 'Mathematics'] }, { name: 'HEG', subjects: ['History', 'Economics', 'Geography'] }, { name: 'MEG', subjects: ['Mathematics', 'Economics', 'Geography'] }, { name: 'HEL', subjects: ['History', 'Economics', 'Literature'] },
     ] },
@@ -8830,13 +8849,26 @@ window.PEAK_TIMETABLE = (function () {
     classes.forEach(c => { g[c] = {}; DAYS.forEach(d => { g[c][d] = periods.map(p => p.brk ? { brk: true } : { subject: '', teacher: '', teacherEmail: '' }); }); });
     return g;
   }
-  function distribute(grid, classes, subjects, periods) {
+  function subjectsForClass(c, subjects, cfg) {
+    // A-level (S5/S6) follows the school's combinations: timetable those subjects + core, not the whole junior list.
+    const combos = (cfg && cfg.combinations) || [];
+    const isALevel = combos.length > 0 && /(^|[^0-9])(s\.?\s*5|s\.?\s*6|senior\s*5|senior\s*6|year\s*5|year\s*6)([^0-9]|$)/i.test(String(c));
+    if (!isALevel) return subjects;
+    const set = {};
+    combos.forEach(cb => (cb.subjects || []).forEach(x => { set[x] = true; }));
+    // A-level cores every combination sits: General Paper, Subsidiary ICT, Subsidiary Maths
+    ['General Paper', 'Subsidiary ICT', 'Subsidiary Maths'].forEach(x => { set[x] = true; });
+    const list = Object.keys(set);
+    return list.length ? list : subjects;
+  }
+  function distribute(grid, classes, subjects, periods, cfg) {
     classes.forEach(c => {
+      const subj = subjectsForClass(c, subjects, cfg);
       // round-robin subjects across teaching slots, offset per class so it varies
-      let si = (c.charCodeAt(0) + c.length) % subjects.length;
+      let si = (c.charCodeAt(0) + c.length) % subj.length;
       DAYS.forEach(d => periods.forEach((p, pi) => {
         if (p.brk) return;
-        grid[c][d][pi] = { subject: subjects[si % subjects.length], teacher: '', teacherEmail: '' };
+        grid[c][d][pi] = { subject: subj[si % subj.length], teacher: '', teacherEmail: '' };
         si++;
       }));
     });
@@ -8912,7 +8944,7 @@ window.PEAK_TIMETABLE = (function () {
       setBusy(true); setMsg('');
       let tch = teachers; if (!tch.length) tch = await loadTeachers();
       const g = buildEmpty(classes, periods);
-      distribute(g, classes, subjects, periods);
+      distribute(g, classes, subjects, periods, cfg);
       allocate(g, classes, periods, tch);
       setGrid(g); setBusy(false);
       const unfilled = countUnfilled(g);
