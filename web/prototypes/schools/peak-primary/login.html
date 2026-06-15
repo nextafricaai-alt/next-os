@@ -169,7 +169,7 @@
     try {
       var WK='https://nextos-sentinel.nextafricaai.workers.dev';
       if(sslug){
-        /* manifest baked in server-side by school.php */
+        var _ml=document.createElement('link'); _ml.rel='manifest'; _ml.href='/manifest.php?s='+encodeURIComponent(sslug); document.head.appendChild(_ml);
         var _ai=document.getElementById('nx-apple-icon'); if(_ai) _ai.href=WK+'/icon?s='+encodeURIComponent(sslug);
       }
       if('serviceWorker' in navigator){ navigator.serviceWorker.register('/sw.js').catch(function(){}); }
