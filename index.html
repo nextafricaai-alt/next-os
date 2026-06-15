@@ -5542,7 +5542,7 @@ You: "'We help you get more done with less stress.' Nine plain words beat the ja
               fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 14,
             }}>N</div>
             <div>
-              <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', letterSpacing: 1.5, color: 'var(--text-tertiary)' }}>NIA'S WATCH <span style={{ color: 'var(--mint)', marginLeft: 6 }}>· LIVE v26</span></div>
+              <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', letterSpacing: 1.5, color: 'var(--text-tertiary)' }}>NIA'S WATCH <span style={{ color: 'var(--mint)', marginLeft: 6 }}>· LIVE v27</span></div>
               <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)' }}>
                 What happened while you were away
               </div>
@@ -6557,6 +6557,25 @@ window.OnboardingPage = function OnboardingPage(props) {
       setBusy(true);
       Promise.all(toAdd.map(rec => fetch(WK + '/os-data/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind: 'finance', record: rec }) }))).then(() => { setBusy(false); reload(); }).catch(() => setBusy(false));
     };
+    const delRows = (ids, after) => {
+      if (!ids.length) return;
+      setBusy(true);
+      fetch(WK + '/os-data/delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids: ids }) })
+        .then(r => r.json()).then(() => { setBusy(false); setForm(null); reload(); after && after(); }).catch(() => setBusy(false));
+    };
+    const delOne = (r, e) => { if (e) e.stopPropagation(); if (!r._id) return; if (!window.confirm('Delete this ' + (r.type === 'cost' ? 'cost' : 'income') + '?\n\n' + (r.label || '(blank)') + (r.amount ? ' — ' + fmt(r.amount) : '') + '\n\nThis removes it from your monthly totals.')) return; delRows([r._id]); };
+    const removeDuplicates = () => {
+      const seen = {}; const dupIds = []; const blankIds = [];
+      rows.forEach(r => {
+        const key = (r.type || '') + '|' + ((r.label || '').trim().toLowerCase());
+        if (!(r.label || '').trim()) { if (r._id) blankIds.push(r._id); return; }
+        if (seen[key]) { if (r._id) dupIds.push(r._id); } else { seen[key] = r; }
+      });
+      const ids = dupIds.concat(blankIds);
+      if (!ids.length) { alert('No duplicates or blank rows found — your finance list is clean.'); return; }
+      if (!window.confirm('Remove ' + ids.length + ' row' + (ids.length === 1 ? '' : 's') + ' (' + dupIds.length + ' duplicate' + (dupIds.length === 1 ? '' : 's') + ', ' + blankIds.length + ' blank)? Kept one of each.')) return;
+      delRows(ids);
+    };
     const statement = () => {
       const J = window.jspdf && window.jspdf.jsPDF; if (!J) { alert('Report engine loading — try again.'); return; }
       const doc = new J(); const W = 210; let y = 20;
@@ -6593,6 +6612,7 @@ window.OnboardingPage = function OnboardingPage(props) {
             <button style={btn(false)} onClick={() => setForm({ type: 'income', category: INCOME_CATS[0], frequency: 'Monthly' })}>+ Income</button>
             <button style={btn(false)} onClick={() => setForm({ type: 'cost', category: COST_CATS[0], frequency: 'Monthly' })}>+ Cost</button>
             <button style={btn(false)} onClick={seedFromPortfolio} disabled={busy}>Seed from portfolio</button>
+            <button style={btn(false)} onClick={removeDuplicates} disabled={busy}>Remove duplicates</button>
             <button style={btn(true)} onClick={statement}>Print statement</button>
           </div>
         </div>
@@ -6612,7 +6632,7 @@ window.OnboardingPage = function OnboardingPage(props) {
             {grp[1].length === 0 ? <div style={{ color: 'var(--text-tertiary)', fontSize: 13 }}>None yet. Use the buttons above to add {grp[0].toLowerCase()}.</div> : (
               <div style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-                  <thead><tr style={{ borderBottom: '1px solid var(--border-default)' }}>{['Category', 'Item', 'Party', 'Amount', 'Frequency', 'Per month'].map((h, i) => <th key={i} style={{ textAlign: i > 2 ? 'right' : 'left', padding: '7px 8px', fontSize: 10.5, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>{h}</th>)}</tr></thead>
+                  <thead><tr style={{ borderBottom: '1px solid var(--border-default)' }}>{['Category', 'Item', 'Party', 'Amount', 'Frequency', 'Per month', ''].map((h, i) => <th key={i} style={{ textAlign: (i > 2 && i < 6) ? 'right' : 'left', padding: '7px 8px', fontSize: 10.5, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>{h}</th>)}</tr></thead>
                   <tbody>{grp[1].map((r, i) => (<tr key={i} onClick={() => setForm(Object.assign({}, r))} style={{ borderBottom: '1px solid var(--border-subtle)', cursor: 'pointer' }}>
                     <td style={{ padding: '9px 8px', color: 'var(--text-secondary)' }}>{r.category}</td>
                     <td style={{ padding: '9px 8px', color: 'var(--text-primary)', fontWeight: 600 }}>{r.label || '—'}</td>
@@ -6620,6 +6640,7 @@ window.OnboardingPage = function OnboardingPage(props) {
                     <td style={{ padding: '9px 8px', color: 'var(--text-primary)', textAlign: 'right' }}>{fmt(r.amount)}</td>
                     <td style={{ padding: '9px 8px', color: 'var(--text-tertiary)', textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: 11 }}>{r.frequency}</td>
                     <td style={{ padding: '9px 8px', color: grp[2], textAlign: 'right', fontWeight: 600 }}>{fmt(monthly(r))}</td>
+                    <td style={{ padding: '9px 8px', textAlign: 'right' }}><button onClick={(e) => delOne(r, e)} title="Delete this row" style={{ background: 'transparent', border: '1px solid var(--border-subtle)', color: 'var(--text-tertiary)', borderRadius: 6, width: 24, height: 24, fontSize: 13, lineHeight: 1, cursor: 'pointer' }} onMouseEnter={ev => { ev.currentTarget.style.color = 'var(--danger)'; ev.currentTarget.style.borderColor = 'var(--danger)'; }} onMouseLeave={ev => { ev.currentTarget.style.color = 'var(--text-tertiary)'; ev.currentTarget.style.borderColor = 'var(--border-subtle)'; }}>×</button></td>
                   </tr>))}</tbody>
                 </table>
               </div>
@@ -6643,9 +6664,12 @@ window.OnboardingPage = function OnboardingPage(props) {
                 <label><div style={{ fontSize: 11, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', marginBottom: 5 }}>AMOUNT (UGX)</div>
                   <input style={inp} value={form.amount || ''} onChange={e => setForm(f => ({ ...f, amount: e.target.value.replace(/[^0-9]/g, '') }))} placeholder="150000" /></label>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 18 }}>
-                <button style={btn(false)} onClick={() => setForm(null)}>Cancel</button>
-                <button style={btn(true)} onClick={save} disabled={busy}>{busy ? 'Saving…' : 'Save'}</button>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginTop: 18, alignItems: 'center' }}>
+                {form._id ? <button onClick={() => delOne(form)} disabled={busy} style={{ background: 'transparent', border: '1px solid var(--danger)', color: 'var(--danger)', borderRadius: 'var(--radius-sm)', padding: '10px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Delete</button> : <span />}
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button style={btn(false)} onClick={() => setForm(null)}>Cancel</button>
+                  <button style={btn(true)} onClick={save} disabled={busy}>{busy ? 'Saving…' : 'Save'}</button>
+                </div>
               </div>
             </div>
           </div>
