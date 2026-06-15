@@ -212,7 +212,7 @@
   <script>
     /* Build self-heal: if this cached HTML is older than what the server now serves,
        reload ONCE with a cache-buster so no school is ever stuck on a stale build. */
-    window.__BUILD = 'b71';
+    window.__BUILD = 'b72';
     (function () {
       try {
         fetch('/build.txt?ts=' + Date.now(), { cache: 'no-store' })
@@ -233,7 +233,7 @@
     <div style="min-height:100vh;display:grid;place-items:center;color:#8a91b0;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px;letter-spacing:0.08em;">
       <div style="text-align:center">
         <div id="nx-loading-text">LOADING · NEXT SCHOOL OS</div>
-        <div style="margin-top:12px;font-size:10px;opacity:0.5">build b71</div>
+        <div style="margin-top:12px;font-size:10px;opacity:0.5">build b72</div>
       </div>
     </div>
   </div>
@@ -5359,274 +5359,172 @@ const PD_Broadcast = (function () {
   }
 
   function Broadcast({ embed = false, onNav } = {}) {
-    const [audience, setAudience] = useState('overdue'); // template
-    const [lang, setLang] = useState('both'); // en, lg, both
-    const [scheduleNow, setScheduleNow] = useState(false);
-    const [tone, setTone] = useState('warm'); // direct, warm, formal
+    const { useState, useMemo } = React;
+    const school = (window.peakSchoolName && window.peakSchoolName()) || 'the school';
+    const studs = (window.PEAK && window.PEAK.students) || [];
+    const streams = Array.from(new Set(studs.map(s => s.stream).filter(Boolean))).sort();
 
-    const message = audience === 'overdue'
-      ? "Webale Mukulu. Just a friendly reminder that Term 2 fees for {{child_name}} have a balance of UGX {{balance}} due by 31 May. You can pay via MTN Mobile Money *165*3# acct PEAK001 — or visit the bursar. We are here to help. — Peak Primary"
-      : audience === 'absent'
-      ? "Good morning {{guardian_name}}. {{child_name}} has not yet been marked at school today. Please let us know if they are well. — Peak Primary"
-      : "Dear {{guardian_name}}, Term 2 mid-term reports for {{child_name}} are now available in your parent portal. Their class teacher Mrs. {{teacher}} has added a note. — Peak Primary";
+    const [aud, setAud] = useState('overdue');
+    const [stream, setStream] = useState(streams[0] || '');
+    const [tpl, setTpl] = useState('overdue');
+    const [edited, setEdited] = useState(null); // null = use template
+    const [idx, setIdx] = useState(0);
+    const [started, setStarted] = useState(false);
+    const [logged, setLogged] = useState(false);
 
-    const lgVersion = audience === 'overdue'
-      ? "Webale Mukulu. Ekiteeso ku ssente za Term 2 eza {{child_name}} kya UGX {{balance}} kirina okusasulwa nga May 31. Osobola okusasula nga okozesa MTN Mobile Money *165*3# acct PEAK001."
-      : audience === 'absent'
-      ? "Olutiibwa {{guardian_name}}. {{child_name}} talabikiddwa ku ssomero leero. Tulabule oba ali bulungi."
-      : "Mukulu {{guardian_name}}, lipoota ya {{child_name}} eya Term 2 enkalanga eweereddwayo ku poota yo.";
+    const phoneOk = (s) => (String(s.guardianPhone || '').replace(/[^0-9]/g, '').length >= 9);
 
-    const audiences = [
-      { k: 'overdue', l: 'Fees overdue 30+ days', n: 3, c: T.red, sub: 'UGX 1.08M outstanding' },
-      { k: 'partial', l: 'Term 2 balance > UGX 100K', n: 28, c: T.warn, sub: 'soft reminder' },
-      { k: 'absent',  l: 'Absent today · no reply', n: 12, c: T.red, sub: 'urgent welfare check' },
-      { k: 'p5v',     l: 'P5 Vigilant guardians', n: 47, c: T.navyLite, sub: 'class-specific' },
-      { k: 'all',     l: 'All guardians', n: 842, c: T.ink3, sub: 'whole school' },
-      { k: 'reports', l: 'Term 2 mid-term ready', n: 842, c: T.good, sub: 'reports published' },
+    const recipients = useMemo(() => {
+      if (aud === 'overdue') return studs.filter(s => (Number(s.balance) || 0) > 0);
+      if (aud === 'risk') return studs.filter(s => s.flag === 'risk' || (s.attendanceWk != null && s.attendanceWk < 70));
+      if (aud === 'stream') return studs.filter(s => s.stream === stream);
+      return studs.slice();
+    }, [aud, stream, studs]);
+    const reachable = recipients.filter(phoneOk);
+    const noPhone = recipients.filter(s => !phoneOk(s));
+
+    const AUDIENCES = [
+      { k: 'overdue', l: 'Fees outstanding', sub: 'guardians whose child owes a balance' },
+      { k: 'risk', l: 'At-risk learners', sub: 'low attendance or flagged' },
+      { k: 'stream', l: 'One class', sub: 'pick a stream below' },
+      { k: 'all', l: 'All guardians', sub: 'whole school' },
     ];
-    const audMeta = audiences.find(a => a.k === audience);
+    const TEMPLATES = {
+      overdue: 'Dear {{guardian}}, a gentle reminder that {{child}} ({{class}}) has a school-fees balance of UGX {{balance}}. Kindly clear it when you are able. Webale nnyo. — {{school}}',
+      absent: 'Good morning {{guardian}}. {{child}} ({{class}}) has not been marked present today. Please let us know if all is well. — {{school}}',
+      notice: 'Dear {{guardian}}, a notice from {{school}} regarding {{child}} ({{class}}): ',
+      reports: 'Dear {{guardian}}, {{child}}’s ({{class}}) report is ready. Kindly visit the school to collect it. — {{school}}',
+    };
+    const baseMsg = (edited != null) ? edited : (TEMPLATES[tpl] || TEMPLATES.overdue);
+    const fill = (s) => baseMsg
+      .replace(/{{\s*guardian\s*}}/g, s.guardian || 'Parent')
+      .replace(/{{\s*child\s*}}/g, (String(s.name || '').split(' ')[0]) || s.name || 'your child')
+      .replace(/{{\s*class\s*}}/g, s.stream || '')
+      .replace(/{{\s*balance\s*}}/g, (Number(s.balance) || 0).toLocaleString())
+      .replace(/{{\s*school\s*}}/g, school);
+
+    const logBroadcast = (n) => {
+      if (logged) return; setLogged(true);
+      try {
+        const WK = 'https://nextos-sentinel.nextafricaai.workers.dev';
+        const prof = (window.PEAK_ROLE && window.PEAK_ROLE.getProfile && window.PEAK_ROLE.getProfile()) || {};
+        fetch(WK + '/os-data/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind: 'comm_log', tenant: prof.tenantId || '', record: { audience: aud, stream: aud === 'stream' ? stream : null, count: n, channel: 'whatsapp', message: baseMsg, by: (prof.fullName || prof.email || ''), at: new Date().toISOString() } }) }).catch(() => {});
+      } catch (e) {}
+    };
+    const sendNext = () => {
+      if (idx >= reachable.length) return;
+      const s = reachable[idx];
+      const ph = String(s.guardianPhone || '').replace(/[^0-9]/g, '');
+      if (ph) window.peakWhatsApp(ph, fill(s));
+      if (idx === 0) logBroadcast(reachable.length);
+      setStarted(true); setIdx(idx + 1);
+    };
+    const copyNumbers = () => {
+      const nums = reachable.map(s => String(s.guardianPhone || '').replace(/[^0-9]/g, '')).filter(Boolean).join(', ');
+      try { navigator.clipboard.writeText(nums); window.peakToast && window.peakToast('Numbers copied', 'success', reachable.length + ' guardian numbers · paste into a WhatsApp broadcast list'); } catch (e) { window.prompt('Copy these numbers:', nums); }
+    };
+    const resetRun = () => { setIdx(0); setStarted(false); setLogged(false); };
+
+    const card = { background: T.surface, border: '1px solid ' + T.border, borderRadius: 12, padding: 18 };
+    const done = started && idx >= reachable.length;
+    const current = reachable[idx];
 
     return (
-      <div style={{
-        width: embed ? '100%' : 1440, height: embed ? '100%' : 900,
-        display: 'flex', background: T.bg, color: T.ink,
-        fontFamily: T.font, fontSize: 13, overflow: 'hidden',
-      }}>
-        {!embed && <Rail active="comm" onNav={onNav} />}
+      <div style={{ width: embed ? '100%' : 1200, height: embed ? '100%' : 900, display: 'flex', flexDirection: 'column', background: T.bg, color: T.ink, fontFamily: T.font, fontSize: 13, overflow: 'auto' }}>
+        <header style={{ padding: '22px 28px 16px', borderBottom: '1px solid ' + T.border }}>
+          <div style={{ fontSize: 11, color: T.ink3, fontFamily: T.mono, letterSpacing: '0.08em', fontWeight: 600, marginBottom: 8 }}>COMMUNICATIONS</div>
+          <div style={{ fontSize: 24, fontWeight: 700, letterSpacing: '-0.02em' }}>Message guardians</div>
+          <div style={{ fontSize: 13, color: T.ink3, marginTop: 4, maxWidth: 640 }}>Pick who to reach, write the message once, and send each guardian a personalised WhatsApp. Numbers come straight from your real student roster.</div>
+        </header>
 
-        <main style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-          {/* header */}
-          <header style={{ padding: '22px 28px 18px', borderBottom: '1px solid ' + T.border, display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 12, color: T.ink3, marginBottom: 8 }}>
-                <span style={{ cursor: 'pointer' }}>Communications</span>
-                <span style={{ color: T.ink4 }}>›</span>
-                <span style={{ color: T.ink }}>New broadcast</span>
-                <span style={{ marginLeft: 8, fontFamily: T.mono, fontSize: 10, color: T.ink4, letterSpacing: '0.05em' }}>DRAFT · AUTOSAVED 08:24</span>
-              </div>
-              <div style={{ fontSize: 24, fontWeight: 700, letterSpacing: '-0.02em' }}>Compose a parent broadcast</div>
-            </div>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button onClick={() => window.peakToast && window.peakToast('Draft saved', 'info', audMeta.l + ' · ' + audMeta.n + ' recipients · resumable from Communications.')} style={{ background: 'transparent', color: T.ink2, border: '1px solid ' + T.border, padding: '8px 14px', borderRadius: 9, fontSize: 12.5, cursor: 'pointer' }}>Save draft</button>
-              <button onClick={() => window.peakToast && window.peakToast('Test message sent', 'success', 'WhatsApp test sent to Sarah Muyingo · +256 752 ··· 901')} style={{ background: 'transparent', color: T.ink, border: '1px solid ' + T.borderStr, padding: '8px 14px', borderRadius: 9, fontSize: 12.5, cursor: 'pointer' }}>Send test to me</button>
-              <button onClick={() => {
-                window.peakToast && window.peakToast('Broadcast queued · ' + audMeta.n + ' guardians', 'success', scheduleNow ? 'Scheduled for Friday 16 May, 16:00.' : 'Sending now via WhatsApp · est. cost UGX ' + (audMeta.n * 18).toLocaleString());
-              }} style={{ background: T.red, color: '#fff', border: 'none', padding: '9px 18px', borderRadius: 9, fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }}>{scheduleNow ? 'Schedule for Friday 16 May →' : 'Send to ' + audMeta.n + ' now →'}</button>
-            </div>
-          </header>
-
-          {/* split: composer / preview */}
-          <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '1fr 460px', minHeight: 0 }}>
-            <div style={{ overflow: 'auto', padding: '24px 32px 40px', display: 'flex', flexDirection: 'column', gap: 22 }}>
-              {/* AI start */}
-              <div style={{
-                background: 'linear-gradient(150deg, ' + T.surface3 + ' 0%, ' + T.surface + ' 70%)',
-                border: '1px solid ' + T.borderStr, borderRadius: 12, padding: 18,
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-                  <div style={{ width: 26, height: 26, borderRadius: 7, background: T.red, color: '#fff', display: 'grid', placeItems: 'center', fontFamily: T.mono, fontSize: 11, fontWeight: 700 }}>AI</div>
-                  <div style={{ fontSize: 13, fontWeight: 600 }}>Start from intent — I'll handle audience and draft</div>
-                </div>
-                <div style={{
-                  display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px',
-                  background: T.bg, border: '1px solid ' + T.border, borderRadius: 10,
-                }}>
-                  <input defaultValue={'Remind parents of children with overdue fees about Term 2 balance, warmly'} style={{
-                    border: 'none', outline: 'none', background: 'transparent', flex: 1, fontSize: 13.5, color: T.ink, fontFamily: T.font,
-                  }} />
-                  <button onClick={() => window.peakToast && window.peakToast('AI drafted message', 'success', 'English + Luganda versions ready · review below.')} style={{ background: T.red, color: '#fff', border: 'none', borderRadius: 7, padding: '6px 12px', fontSize: 11.5, fontWeight: 600, cursor: 'pointer' }}>Draft →</button>
-                </div>
-              </div>
-
-              {/* audience picker */}
-              <div>
-                <div style={{ fontSize: 10.5, color: T.ink3, fontFamily: T.mono, letterSpacing: '0.08em', fontWeight: 600, marginBottom: 10 }}>1 · AUDIENCE</div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
-                  {audiences.map(a => {
-                    const sel = audience === a.k;
-                    return (
-                      <button key={a.k} onClick={() => setAudience(a.k)} style={{
-                        display: 'flex', flexDirection: 'column', alignItems: 'flex-start', textAlign: 'left',
-                        padding: 14, borderRadius: 10, cursor: 'pointer',
-                        background: sel ? 'rgba(226,58,82,0.10)' : T.surface,
-                        border: '1px solid ' + (sel ? 'rgba(226,58,82,0.40)' : T.border),
-                        color: T.ink, fontFamily: T.font,
-                      }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%' }}>
-                          <span style={{ width: 8, height: 8, borderRadius: 999, background: a.c, flexShrink: 0 }} />
-                          <span style={{ fontSize: 13, fontWeight: 600, flex: 1 }}>{a.l}</span>
-                          <span style={{ fontFamily: T.mono, fontSize: 12, fontWeight: 700, color: sel ? T.red : T.ink2 }}>{a.n}</span>
-                        </div>
-                        <div style={{ fontSize: 10.5, color: T.ink3, marginTop: 6, fontFamily: T.mono }}>{a.sub}</div>
-                      </button>
-                    );
-                  })}
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12, fontSize: 11.5, color: T.ink3 }}>
-                  <span>or</span>
-                  <button onClick={() => window.peakToast && window.peakToast('Segment builder — Phase 2', 'info', 'Combine attendance, fees, and stream filters to define a custom audience.')} style={{ background: 'transparent', color: T.ink, border: '1px dashed ' + T.borderStr, padding: '6px 12px', borderRadius: 8, fontSize: 11.5, cursor: 'pointer' }}>+ Build custom segment</button>
-                </div>
-              </div>
-
-              {/* message composer */}
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                  <div style={{ fontSize: 10.5, color: T.ink3, fontFamily: T.mono, letterSpacing: '0.08em', fontWeight: 600 }}>2 · MESSAGE</div>
-                  <div style={{ display: 'flex', gap: 4, padding: 3, background: T.surface, border: '1px solid ' + T.border, borderRadius: 7 }}>
-                    {[['direct','Direct'],['warm','Warm'],['formal','Formal']].map(([k, l]) => (
-                      <button key={k} onClick={() => setTone(k)} style={{
-                        padding: '4px 11px', borderRadius: 5, border: 'none',
-                        background: tone === k ? T.red : 'transparent', color: tone === k ? '#fff' : T.ink2,
-                        fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: T.font,
-                      }}>{l}</button>
-                    ))}
-                  </div>
-                </div>
-                <div style={{ background: T.surface, border: '1px solid ' + T.border, borderRadius: 12, overflow: 'hidden' }}>
-                  <div style={{ display: 'flex', borderBottom: '1px solid ' + T.border, background: T.surface }}>
-                    {[['en','English'],['lg','Luganda'],['both','Both (auto-pair)']].map(([k, l]) => (
-                      <button key={k} onClick={() => setLang(k)} style={{
-                        flex: 1, padding: '10px 14px', border: 'none', background: lang === k ? T.bg : 'transparent',
-                        color: lang === k ? T.ink : T.ink3, fontSize: 12.5, fontWeight: lang === k ? 600 : 500, cursor: 'pointer',
-                        borderBottom: lang === k ? '2px solid ' + T.red : '2px solid transparent', marginBottom: -1,
-                      }}>{l}</button>
-                    ))}
-                  </div>
-                  <div style={{ padding: 16, fontSize: 13.5, color: T.ink, lineHeight: 1.6, minHeight: 120, fontFamily: T.font }}>
-                    {message}
-                  </div>
-                  {(lang === 'lg' || lang === 'both') && (
-                    <>
-                      <div style={{ borderTop: '1px solid ' + T.border, padding: '8px 16px', background: T.surface2, fontSize: 10.5, fontFamily: T.mono, color: T.ink3, letterSpacing: '0.05em', fontWeight: 600 }}>LUGANDA</div>
-                      <div style={{ padding: '14px 16px', fontSize: 13.5, color: T.ink, lineHeight: 1.6 }}>
-                        {lgVersion}
-                      </div>
-                    </>
-                  )}
-                  <div style={{
-                    padding: '10px 16px', background: T.bg, borderTop: '1px solid ' + T.border,
-                    display: 'flex', alignItems: 'center', gap: 12, fontSize: 11, color: T.ink3, fontFamily: T.mono,
-                  }}>
-                    <span>{message.length} chars · 1 WhatsApp segment</span>
-                    <span>•</span>
-                    <span>4 personalisation tokens: child_name, balance, guardian_name, teacher</span>
-                    <div style={{ flex: 1 }} />
-                    <button onClick={() => window.peakToast && window.peakToast('Tokens available', 'info', '{{guardian_name}} · {{child_name}} · {{balance}} · {{stream}}')} style={{ background: 'transparent', color: T.ink, border: '1px solid ' + T.border, padding: '5px 10px', borderRadius: 6, fontSize: 11, cursor: 'pointer' }}>+ Token</button>
-                    <button onClick={() => window.peakToast && window.peakToast('Receipt PDF attached', 'success', 'Generated from latest payment per child.')} style={{ background: 'transparent', color: T.ink, border: '1px solid ' + T.border, padding: '5px 10px', borderRadius: 6, fontSize: 11, cursor: 'pointer' }}>+ Attach receipt</button>
-                  </div>
-                </div>
-              </div>
-
-              {/* delivery options */}
-              <div>
-                <div style={{ fontSize: 10.5, color: T.ink3, fontFamily: T.mono, letterSpacing: '0.08em', fontWeight: 600, marginBottom: 10 }}>3 · DELIVERY</div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                  <div style={{ background: T.surface, border: '1px solid ' + T.border, borderRadius: 11, padding: 14 }}>
-                    <div style={{ fontSize: 11, color: T.ink3, fontFamily: T.mono, fontWeight: 600, letterSpacing: '0.05em', marginBottom: 10 }}>CHANNELS</div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                      <Toggle on={true}  onChange={() => {}} label="WhatsApp Business · primary" />
-                      <Toggle on={true}  onChange={() => {}} label="SMS fallback if WA fails 5m+" />
-                      <Toggle on={false} onChange={() => {}} label="In-app push (parent portal)" />
-                    </div>
-                  </div>
-                  <div style={{ background: T.surface, border: '1px solid ' + T.border, borderRadius: 11, padding: 14 }}>
-                    <div style={{ fontSize: 11, color: T.ink3, fontFamily: T.mono, fontWeight: 600, letterSpacing: '0.05em', marginBottom: 10 }}>WHEN</div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                      <Toggle on={!scheduleNow} onChange={(v) => setScheduleNow(!v)} label="Send now" />
-                      <Toggle on={scheduleNow}  onChange={(v) => setScheduleNow(v)} label="Schedule · Friday 16 May at 16:00" />
-                      <div style={{ fontSize: 11, color: T.ink3, fontFamily: T.mono, lineHeight: 1.4, marginTop: 4 }}>
-                        AI suggests Friday 16:00 — historic best open-rate window for Peak parents.
-                      </div>
-                    </div>
-                  </div>
-                </div>
+        <div style={{ padding: 24, display: 'grid', gridTemplateColumns: embed ? '1fr 1fr' : '1fr 1fr', gap: 18, alignItems: 'start' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div style={card}>
+              <div style={{ fontSize: 12.5, fontWeight: 700, marginBottom: 10 }}>1 &middot; Who are you reaching?</div>
+              <div style={{ display: 'grid', gap: 8 }}>
+                {AUDIENCES.map(a => {
+                  const on = aud === a.k;
+                  return (
+                    <button key={a.k} onClick={() => { setAud(a.k); resetRun(); }} style={{ textAlign: 'left', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 10, border: '1px solid ' + (on ? T.red : T.border), background: on ? 'rgba(226,58,82,0.08)' : 'transparent', color: T.ink, cursor: 'pointer' }}>
+                      <span><span style={{ fontSize: 13, fontWeight: 600 }}>{a.l}</span><span style={{ display: 'block', fontSize: 11, color: T.ink3 }}>{a.sub}</span></span>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: on ? T.red : T.ink3, fontFamily: 'ui-monospace,monospace' }}>{a.k === 'stream' ? (studs.filter(s => s.stream === stream).length) : (a.k === 'overdue' ? studs.filter(s => (Number(s.balance) || 0) > 0).length : a.k === 'risk' ? studs.filter(s => s.flag === 'risk' || (s.attendanceWk != null && s.attendanceWk < 70)).length : studs.length)}</span>
+                    </button>
+                  );
+                })}
+                {aud === 'stream' && (
+                  <select value={stream} onChange={e => { setStream(e.target.value); resetRun(); }} style={{ marginTop: 4, width: '100%', background: T.bg, border: '1px solid ' + T.border, borderRadius: 9, padding: '9px 11px', fontSize: 13, color: T.ink, outline: 'none' }}>
+                    {streams.length === 0 ? <option value="">No classes yet</option> : streams.map(st => <option key={st} value={st}>{st} ({studs.filter(s => s.stream === st).length})</option>)}
+                  </select>
+                )}
               </div>
             </div>
 
-            {/* right: preview phone */}
-            <aside style={{
-              background: T.surface, borderLeft: '1px solid ' + T.border, display: 'flex', flexDirection: 'column', minHeight: 0,
-            }}>
-              <div style={{ padding: '16px 22px', borderBottom: '1px solid ' + T.border, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div>
-                  <div style={{ fontSize: 11, color: T.ink3, fontFamily: T.mono, letterSpacing: '0.05em', fontWeight: 600 }}>PREVIEW</div>
-                  <div style={{ fontSize: 13, color: T.ink, marginTop: 2 }}>As Mrs. Sarah Nakato will see it</div>
-                </div>
-                <select style={{
-                  background: T.bg, border: '1px solid ' + T.border, color: T.ink, padding: '6px 10px',
-                  borderRadius: 7, fontSize: 11.5, fontFamily: T.font, cursor: 'pointer',
-                }}>
-                  <option>Mrs. Sarah Nakato · P4V</option>
-                  <option>Mr. Robert Mugisha · P5V</option>
-                  <option>Mrs. Grace Asiimwe · P3P</option>
-                </select>
+            <div style={card}>
+              <div style={{ fontSize: 12.5, fontWeight: 700, marginBottom: 10 }}>2 &middot; The message</div>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
+                {[['overdue', 'Fee reminder'], ['absent', 'Absent today'], ['notice', 'Notice'], ['reports', 'Report ready']].map(o => (
+                  <button key={o[0]} onClick={() => { setTpl(o[0]); setEdited(null); }} style={{ border: '1px solid ' + (tpl === o[0] && edited == null ? T.red : T.border), background: 'transparent', color: tpl === o[0] && edited == null ? T.red : T.ink2, borderRadius: 999, padding: '5px 11px', fontSize: 12, cursor: 'pointer' }}>{o[1]}</button>
+                ))}
               </div>
-
-              <div style={{ flex: 1, padding: 22, background: T.bg, overflow: 'auto', display: 'flex', justifyContent: 'center' }}>
-                {/* whatsapp-like preview */}
-                <div style={{ width: 280, background: '#0a0e14', borderRadius: 22, padding: 8, boxShadow: '0 16px 36px rgba(0,0,0,0.40)' }}>
-                  <div style={{ background: '#0b1418', borderRadius: 16, overflow: 'hidden' }}>
-                    {/* WA header */}
-                    <div style={{ background: '#1f2c33', padding: '10px 12px', display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <div style={{ width: 30, height: 30, borderRadius: 999, background: '#fff', display: 'grid', placeItems: 'center' }}>
-                        <img src="/prototypes/schools/peak-primary/assets/peak-logo.png" alt="" style={{ width: 24, height: 24, objectFit: 'contain' }} />
-                      </div>
-                      <div style={{ lineHeight: 1.1, flex: 1 }}>
-                        <div style={{ fontSize: 12, fontWeight: 600, color: '#fff' }}>{(typeof window!=='undefined'&&window.__BRAND_NAME)||'Peak Primary'}</div>
-                        <div style={{ fontSize: 9.5, color: '#8696a0' }}>Business · online</div>
-                      </div>
-                      <span style={{ color: '#8696a0', fontSize: 13 }}>⋮</span>
-                    </div>
-                    {/* WA body */}
-                    <div style={{ padding: 14, minHeight: 240, background: '#0b1418', backgroundImage: 'radial-gradient(circle at 50% 0, #15252e 0%, #0b1418 60%)' }}>
-                      <div style={{ textAlign: 'center', fontSize: 10, color: '#8696a0', marginBottom: 14 }}>TODAY</div>
-                      <div style={{ background: '#202c33', color: '#e9edef', padding: '8px 10px 10px', borderRadius: 8, borderTopLeftRadius: 2, maxWidth: '90%', position: 'relative' }}>
-                        <div style={{ fontSize: 11, lineHeight: 1.5 }}>
-                          {message.replace('{{child_name}}', 'Mirembe').replace('{{balance}}', '180,000').replace('{{guardian_name}}', 'Mrs. Nakato').replace('{{teacher}}', 'Namugga')}
-                        </div>
-                        {(lang === 'lg' || lang === 'both') && (
-                          <>
-                            <div style={{ height: 1, background: '#2a3942', margin: '8px 0' }} />
-                            <div style={{ fontSize: 11, lineHeight: 1.5, opacity: 0.92 }}>
-                              {lgVersion.replace('{{child_name}}', 'Mirembe').replace('{{balance}}', '180,000').replace('{{guardian_name}}', 'Mrs. Nakato')}
-                            </div>
-                          </>
-                        )}
-                        <div style={{ textAlign: 'right', fontSize: 9, color: '#8696a0', marginTop: 4 }}>
-                          {scheduleNow ? 'Fri 16:00' : '08:24'} ✓✓
-                        </div>
-                      </div>
-                    </div>
-                    {/* WA composer line */}
-                    <div style={{ background: '#1f2c33', padding: '8px 10px', display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <div style={{ flex: 1, background: '#2a3942', borderRadius: 999, padding: '6px 10px', fontSize: 10, color: '#8696a0' }}>Type a message</div>
-                      <div style={{ width: 28, height: 28, borderRadius: 999, background: '#00a884', display: 'grid', placeItems: 'center', color: '#fff', fontSize: 13 }}>🎙</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* delivery forecast */}
-              <div style={{ padding: '16px 22px', borderTop: '1px solid ' + T.border }}>
-                <div style={{ fontSize: 10.5, color: T.ink3, fontFamily: T.mono, letterSpacing: '0.05em', fontWeight: 600, marginBottom: 10 }}>FORECAST</div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                  {[
-                    { l: 'Recipients',  v: audMeta.n,         c: T.ink },
-                    { l: 'Will receive', v: Math.round(audMeta.n * 0.984), c: T.good, sub: '98.4% historical' },
-                    { l: 'Likely read · 1h', v: Math.round(audMeta.n * 0.74), c: T.gold },
-                    { l: 'Cost',         v: 'UGX ' + (audMeta.n * 8).toLocaleString(), c: T.ink2, sub: '@ UGX 8/msg' },
-                  ].map(k => (
-                    <div key={k.l} style={{ background: T.bg, border: '1px solid ' + T.border, borderRadius: 9, padding: 10 }}>
-                      <div style={{ fontSize: 9.5, color: T.ink3, fontFamily: T.mono, letterSpacing: '0.05em', fontWeight: 600 }}>{k.l.toUpperCase()}</div>
-                      <div style={{ fontSize: 16, fontWeight: 700, color: k.c, fontVariantNumeric: 'tabular-nums', marginTop: 4 }}>{k.v}</div>
-                      {k.sub && <div style={{ fontSize: 10, color: T.ink3, fontFamily: T.mono, marginTop: 2 }}>{k.sub}</div>}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </aside>
+              <textarea value={baseMsg} onChange={e => setEdited(e.target.value)} style={{ width: '100%', minHeight: 120, background: T.bg, border: '1px solid ' + T.border, borderRadius: 9, padding: 11, fontSize: 13, color: T.ink, fontFamily: T.font, outline: 'none', lineHeight: 1.5 }} />
+              <div style={{ fontSize: 10.5, color: T.ink4, fontFamily: T.mono, marginTop: 6 }}>Variables: {'{{guardian}} {{child}} {{class}} {{balance}} {{school}}'} — filled per guardian.</div>
+            </div>
           </div>
-        </main>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div style={card}>
+              <div style={{ fontSize: 12.5, fontWeight: 700, marginBottom: 10 }}>3 &middot; Send</div>
+              <div style={{ display: 'flex', gap: 16, marginBottom: 14, flexWrap: 'wrap' }}>
+                <div><div style={{ fontSize: 9.5, color: T.ink4, fontFamily: T.mono }}>RECIPIENTS</div><div style={{ fontSize: 20, fontWeight: 700 }}>{recipients.length}</div></div>
+                <div><div style={{ fontSize: 9.5, color: T.ink4, fontFamily: T.mono }}>REACHABLE ON WHATSAPP</div><div style={{ fontSize: 20, fontWeight: 700, color: T.good }}>{reachable.length}</div></div>
+                <div><div style={{ fontSize: 9.5, color: T.ink4, fontFamily: T.mono }}>NO PHONE ON FILE</div><div style={{ fontSize: 20, fontWeight: 700, color: noPhone.length ? T.warn : T.ink3 }}>{noPhone.length}</div></div>
+              </div>
+
+              {reachable.length === 0 ? (
+                <div style={{ fontSize: 12.5, color: T.ink3 }}>No guardians with a phone number in this group yet. Add guardian phones under Students, then come back.</div>
+              ) : done ? (
+                <div style={{ textAlign: 'center', padding: '8px 0' }}>
+                  <div style={{ fontSize: 28 }}>{'✓'}</div>
+                  <div style={{ fontSize: 14, fontWeight: 700, marginTop: 4 }}>All {reachable.length} opened in WhatsApp</div>
+                  <div style={{ fontSize: 12, color: T.ink3, marginTop: 4 }}>Each guardian got a personalised message. Logged to your message history.</div>
+                  <button onClick={resetRun} style={{ marginTop: 12, background: 'transparent', border: '1px solid ' + T.border, color: T.ink2, borderRadius: 9, padding: '8px 16px', fontSize: 12.5, cursor: 'pointer' }}>Start again</button>
+                </div>
+              ) : (
+                <div>
+                  <div style={{ fontSize: 12, color: T.ink3, marginBottom: 8 }}>WhatsApp opens one chat at a time. Tap below for each guardian {'—'} the message is pre-filled, just press send in WhatsApp.</div>
+                  {current && (
+                    <div style={{ background: T.bg, border: '1px solid ' + T.border, borderRadius: 10, padding: 12, marginBottom: 10 }}>
+                      <div style={{ fontSize: 12.5, fontWeight: 600 }}>{current.guardian || 'Parent'} <span style={{ color: T.ink3, fontWeight: 400 }}>{'·'} guardian of {current.name} ({current.stream})</span></div>
+                      <div style={{ fontSize: 11.5, color: T.ink2, marginTop: 6, lineHeight: 1.5 }}>{fill(current)}</div>
+                    </div>
+                  )}
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                    <button onClick={sendNext} style={{ background: '#00a884', color: '#fff', border: 'none', borderRadius: 9, padding: '10px 18px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>Open WhatsApp → {current ? (current.guardian || current.name) : ''} ({idx + 1}/{reachable.length})</button>
+                    {started && idx < reachable.length && <button onClick={() => setIdx(idx + 1)} style={{ background: 'transparent', border: '1px solid ' + T.border, color: T.ink3, borderRadius: 9, padding: '10px 14px', fontSize: 12.5, cursor: 'pointer' }}>Skip</button>}
+                    <button onClick={copyNumbers} style={{ background: 'transparent', border: '1px solid ' + T.border, color: T.ink2, borderRadius: 9, padding: '10px 14px', fontSize: 12.5, cursor: 'pointer' }}>Copy all numbers</button>
+                  </div>
+                  <div style={{ height: 5, background: T.border, borderRadius: 999, marginTop: 12, overflow: 'hidden' }}><div style={{ width: (reachable.length ? (idx / reachable.length * 100) : 0) + '%', height: '100%', background: T.good }} /></div>
+                </div>
+              )}
+            </div>
+
+            <div style={card}>
+              <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 8 }}>Recipients</div>
+              <div style={{ maxHeight: 220, overflow: 'auto', border: '1px solid ' + T.border, borderRadius: 9 }}>
+                {recipients.length === 0 ? <div style={{ padding: 12, color: T.ink4, fontSize: 12.5 }}>No one in this group.</div> : recipients.map((s, i) => {
+                  const ok = phoneOk(s);
+                  return (
+                    <div key={s.id || i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, padding: '8px 11px', borderBottom: i < recipients.length - 1 ? '1px solid ' + T.border : 'none' }}>
+                      <div style={{ minWidth: 0 }}><div style={{ fontSize: 12.5, color: T.ink, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.guardian || 'Parent'} <span style={{ color: T.ink4 }}>{'·'} {s.name}</span></div><div style={{ fontSize: 10.5, color: T.ink4, fontFamily: 'ui-monospace,monospace' }}>{s.stream || ''} {ok ? ('· ' + s.guardianPhone) : '· no phone'}</div></div>
+                      {ok ? <button onClick={() => window.peakWhatsApp(String(s.guardianPhone || '').replace(/[^0-9]/g, ''), fill(s))} style={{ background: 'transparent', border: '1px solid ' + T.border, color: T.ink2, borderRadius: 7, padding: '4px 10px', fontSize: 11, cursor: 'pointer', flexShrink: 0 }}>Open</button> : <span style={{ fontSize: 10.5, color: T.warn, flexShrink: 0 }}>add phone</span>}
+                    </div>
+                  );
+                })}
+              </div>
+              {noPhone.length > 0 && <div style={{ fontSize: 11, color: T.warn, marginTop: 8 }}>{noPhone.length} guardian{noPhone.length === 1 ? '' : 's'} in this group have no phone on file {'—'} add their number under Students to reach them.</div>}
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
