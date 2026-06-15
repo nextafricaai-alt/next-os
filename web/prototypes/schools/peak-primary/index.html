@@ -212,7 +212,7 @@
   <script>
     /* Build self-heal: if this cached HTML is older than what the server now serves,
        reload ONCE with a cache-buster so no school is ever stuck on a stale build. */
-    window.__BUILD = 'b70';
+    window.__BUILD = 'b71';
     (function () {
       try {
         fetch('/build.txt?ts=' + Date.now(), { cache: 'no-store' })
@@ -233,7 +233,7 @@
     <div style="min-height:100vh;display:grid;place-items:center;color:#8a91b0;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px;letter-spacing:0.08em;">
       <div style="text-align:center">
         <div id="nx-loading-text">LOADING · NEXT SCHOOL OS</div>
-        <div style="margin-top:12px;font-size:10px;opacity:0.5">build b70</div>
+        <div style="margin-top:12px;font-size:10px;opacity:0.5">build b71</div>
       </div>
     </div>
   </div>
@@ -8189,8 +8189,9 @@ window.PEAK_FINANCE = (function () {
     const feesCollected = (window.PEAK && window.PEAK.kpis && window.PEAK.kpis.feesCollectedTerm) || 0;
     const otherIncome = txns.filter(t => t.kind === 'income').reduce((a, t) => a + Number(t.amount || 0), 0);
     const totalIn = feesCollected + otherIncome;
-    const totalOut = txns.filter(t => t.kind === 'expense').reduce((a, t) => a + Number(t.amount || 0), 0);
-    const net = totalIn - totalOut;
+    const recordedOut = txns.filter(t => t.kind === 'expense').reduce((a, t) => a + Number(t.amount || 0), 0);
+    // Operating spend = recorded expenses that are NOT salary/allowance (meals, maintenance, utilities, supplies, transport, events, other).
+    const operatingOut = txns.filter(t => t.kind === 'expense' && t.category !== 'salaries' && t.category !== 'allowances').reduce((a, t) => a + Number(t.amount || 0), 0);
     const assetsValue = assets.reduce((a, x) => a + Number(x.value || 0), 0);
     const byCat = {}; txns.filter(t => t.kind === 'expense').forEach(t => { byCat[t.category || 'other'] = (byCat[t.category || 'other'] || 0) + Number(t.amount || 0); });
     const catRows = Object.keys(byCat).map(k => ({ k, v: byCat[k] })).sort((a, b) => b.v - a.v);
@@ -8234,7 +8235,13 @@ window.PEAK_FINANCE = (function () {
     const setMonthly = (st, amount) => {
       const amt = Number(String(amount).replace(/[^0-9]/g, '')) || 0;
       const existing = staffPay.map[st.key];
-      const rec = { key: st.key, name: st.name, role: st.role, type: st.type, email: st.email || '', monthly: amt };
+      const rec = { key: st.key, name: st.name, role: st.role, type: st.type, email: st.email || '', monthly: amt, allowance: (existing && existing.allowance) || st.allowance || 0 };
+      savePay(rec, existing && existing._id).then(() => reload());
+    };
+    const setAllowance = (st, amount) => {
+      const amt = Number(String(amount).replace(/[^0-9]/g, '')) || 0;
+      const existing = staffPay.map[st.key];
+      const rec = { key: st.key, name: st.name, role: st.role, type: st.type, email: st.email || '', monthly: (existing && existing.monthly) || st.monthly || 0, allowance: amt };
       savePay(rec, existing && existing._id).then(() => reload());
     };
     const addSupport = (name, role, monthly) => {
@@ -8242,19 +8249,25 @@ window.PEAK_FINANCE = (function () {
       const rec = { key: 'sup-' + Date.now(), name: name.trim(), role: role.trim() || 'Support staff', type: 'support', email: '', monthly: Number(String(monthly).replace(/[^0-9]/g, '')) || 0 };
       savePay(rec).then(() => reload());
     };
-    const payStaff = (st, monthly) => {
-      setForm({ kind: 'expense', category: 'salaries', payeeName: st.name, payeeEmail: st.email || '', amount: String(monthly), date: new Date().toISOString().slice(0, 10), payType: 'instant', description: monthLabel + ' pay' });
+    const payStaff = (st) => {
+      const due = (st.monthly || 0) + (st.allowance || 0);
+      setForm({ kind: 'expense', category: 'salaries', payeeName: st.name, payeeEmail: st.email || '', amount: String(due), date: new Date().toISOString().slice(0, 10), payType: 'instant', description: monthLabel + ' pay' + (st.allowance ? ' (salary ' + fmt(st.monthly || 0) + ' + allowance ' + fmt(st.allowance) + ')' : '') });
     };
     const paidThisMonth = (name) => vouchers.some(v => (v.payee || '').toLowerCase() === (name || '').toLowerCase() && String(v.date || '').slice(0, 7) === ym);
     const payrollList = (function () {
       const teaching = (teachers || []).map(t => ({ key: (t.email || t.full_name), name: t.full_name || t.email, email: t.email || '', role: ((t.subjects && t.subjects.length) ? ('Teacher · ' + t.subjects.join('/')) : 'Teacher'), type: 'teaching' }));
       const support = (staffPay.recs || []).filter(r => r.type === 'support').map(r => ({ key: r.key, name: r.name, email: '', role: r.role || 'Support staff', type: 'support' }));
-      return teaching.concat(support).map(st => { const p = staffPay.map[st.key]; return Object.assign({}, st, { monthly: (p && p.monthly) || 0, paid: paidThisMonth(st.name) }); });
+      return teaching.concat(support).map(st => { const p = staffPay.map[st.key]; return Object.assign({}, st, { monthly: (p && p.monthly) || 0, allowance: (p && p.allowance) || 0, paid: paidThisMonth(st.name) }); });
     })();
     const payrollTotal = payrollList.reduce((a, s) => a + (s.monthly || 0), 0);
-    const paidTotal = payrollList.filter(s => s.paid).reduce((a, s) => a + (s.monthly || 0), 0);
+    const allowanceTotal = payrollList.reduce((a, s) => a + (s.allowance || 0), 0);
+    const wageBill = payrollTotal + allowanceTotal;
+    const paidTotal = payrollList.filter(s => s.paid).reduce((a, s) => a + (s.monthly || 0) + (s.allowance || 0), 0);
     const needSalary = payrollList.filter(s => !s.monthly).length;
     const unpaidCount = payrollList.filter(s => s.monthly > 0 && !s.paid).length;
+    // ── Total outflow = full monthly wage bill (all salaries + allowances, teaching + non-teaching) + operating spend (meals & other operations). ──
+    const totalOut = wageBill + operatingOut;
+    const net = totalIn - totalOut;
     const saveAsset = (f) => {
       if (!f.name) { window.peakToast && window.peakToast('Enter a name', 'info'); return; } setBusy(true);
       fetch(WK + '/assets/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tenant_id: tenant(), asset: { name: f.name, category: f.category, value: Number(String(f.value).replace(/[^0-9]/g, '')) || 0, condition: f.condition, acquired: f.acquired, notes: f.notes } }) })
@@ -8285,7 +8298,11 @@ window.PEAK_FINANCE = (function () {
         <div style={{ padding: 24 }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 18 }}>
             {SummaryCard('Total inflow', totalIn, T.good)}
-            {SummaryCard('Total outflow', totalOut, T.redInk)}
+            <div style={{ ...card, padding: 16 }} title="Salaries + allowances for all staff, plus meals and other operating spend">
+              <div style={{ fontSize: 10.5, color: T.ink3, fontFamily: T.mono, letterSpacing: '0.05em', fontWeight: 600 }}>TOTAL OUTFLOW</div>
+              <div style={{ fontSize: 21, fontWeight: 700, color: T.redInk, marginTop: 6, fontVariantNumeric: 'tabular-nums' }}>{fmt(totalOut)}</div>
+              <div style={{ fontSize: 10, color: T.ink4, fontFamily: T.mono, marginTop: 6, lineHeight: 1.5 }}>Salaries {fmt(payrollTotal)} · Allowances {fmt(allowanceTotal)}<br/>Operations {fmt(operatingOut)}</div>
+            </div>
             {SummaryCard('Net surplus', net, net >= 0 ? T.good : T.redInk)}
             {SummaryCard('Assets value', assetsValue, T.ink)}
           </div>
@@ -8366,9 +8383,9 @@ window.PEAK_FINANCE = (function () {
           {tab === 'payroll' && (
             <div style={{ display: 'grid', gap: 16 }}>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12 }}>
-                {SummaryCard('Monthly payroll', payrollTotal, T.ink)}
+                {SummaryCard('Wage bill / month', wageBill, T.ink)}
                 {SummaryCard('Paid · ' + monthLabel, paidTotal, T.good)}
-                {SummaryCard('Still to pay', payrollTotal - paidTotal, (payrollTotal - paidTotal) > 0 ? T.redInk : T.good)}
+                {SummaryCard('Still to pay', wageBill - paidTotal, (wageBill - paidTotal) > 0 ? T.redInk : T.good)}
               </div>
 
               {(needSalary > 0 || unpaidCount > 0) && (
@@ -8393,13 +8410,15 @@ window.PEAK_FINANCE = (function () {
                           <div style={{ fontSize: 13, color: T.ink, fontWeight: 600 }}>{st.name} {st.type === 'support' ? <span style={{ fontSize: 9.5, color: T.ink3, border: '1px solid ' + T.border, borderRadius: 5, padding: '1px 6px', marginLeft: 6 }}>NON-TEACHING</span> : null}</div>
                           <div style={{ fontSize: 11, color: T.ink3 }}>{st.role}</div>
                         </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <span style={{ fontSize: 11, color: T.ink4, fontFamily: 'ui-monospace,monospace' }}>UGX</span>
-                          <input defaultValue={st.monthly || ''} placeholder="monthly" onBlur={e => { const v = Number(String(e.target.value).replace(/[^0-9]/g, '')) || 0; if (v !== st.monthly) setMonthly(st, v); }} style={{ width: 110, background: T.bg, border: '1px solid ' + T.border, borderRadius: 8, padding: '7px 9px', fontSize: 12.5, color: T.ink, fontFamily: 'ui-monospace,monospace', outline: 'none' }} />
+                        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 10, flexWrap: 'wrap' }}>
+                          <label style={{ display: 'block' }}><div style={{ fontSize: 9, color: T.ink4, fontFamily: 'ui-monospace,monospace', marginBottom: 2 }}>SALARY</div>
+                            <input defaultValue={st.monthly || ''} placeholder="monthly" onBlur={e => { const v = Number(String(e.target.value).replace(/[^0-9]/g, '')) || 0; if (v !== st.monthly) setMonthly(st, v); }} style={{ width: 100, background: T.bg, border: '1px solid ' + T.border, borderRadius: 8, padding: '7px 9px', fontSize: 12.5, color: T.ink, fontFamily: 'ui-monospace,monospace', outline: 'none' }} /></label>
+                          <label style={{ display: 'block' }}><div style={{ fontSize: 9, color: T.ink4, fontFamily: 'ui-monospace,monospace', marginBottom: 2 }}>ALLOWANCE</div>
+                            <input defaultValue={st.allowance || ''} placeholder="allowance" onBlur={e => { const v = Number(String(e.target.value).replace(/[^0-9]/g, '')) || 0; if (v !== st.allowance) setAllowance(st, v); }} style={{ width: 100, background: T.bg, border: '1px solid ' + T.border, borderRadius: 8, padding: '7px 9px', fontSize: 12.5, color: T.ink, fontFamily: 'ui-monospace,monospace', outline: 'none' }} /></label>
                         </div>
                         {st.paid
-                          ? <span style={{ fontSize: 11.5, color: T.good, fontFamily: 'ui-monospace,monospace', minWidth: 90, textAlign: 'right' }}>✓ Paid</span>
-                          : <button onClick={() => payStaff(st, st.monthly)} disabled={!st.monthly} style={{ background: st.monthly ? T.red : 'transparent', color: st.monthly ? '#fff' : T.ink4, border: st.monthly ? 'none' : '1px solid ' + T.border, borderRadius: 8, padding: '7px 14px', fontSize: 12, fontWeight: 600, cursor: st.monthly ? 'pointer' : 'not-allowed', minWidth: 90 }}>Pay</button>}
+                          ? <span style={{ fontSize: 11.5, color: T.good, fontFamily: 'ui-monospace,monospace', minWidth: 96, textAlign: 'right' }}>✓ Paid {fmt((st.monthly||0)+(st.allowance||0))}</span>
+                          : <button onClick={() => payStaff(st)} disabled={!((st.monthly||0)+(st.allowance||0))} style={{ background: ((st.monthly||0)+(st.allowance||0)) ? T.red : 'transparent', color: ((st.monthly||0)+(st.allowance||0)) ? '#fff' : T.ink4, border: ((st.monthly||0)+(st.allowance||0)) ? 'none' : '1px solid ' + T.border, borderRadius: 8, padding: '7px 14px', fontSize: 12, fontWeight: 600, cursor: ((st.monthly||0)+(st.allowance||0)) ? 'pointer' : 'not-allowed', minWidth: 96 }}>Pay {fmt((st.monthly||0)+(st.allowance||0))}</button>}
                       </div>
                     ))}
                   </div>
@@ -8912,13 +8931,17 @@ window.PEAK_STAFF = (function () {
     const [groups, setGroups] = useState([]);
     const [meta, setMeta] = useState({});      // email -> {classes:[]}
     const [tasks, setTasks] = useState([]);
+    const [pay, setPay] = useState({});        // key(email) -> {_id, monthly, allowance}
+    const [status, setStatus] = useState({});  // lower(name) -> status string
     const [loading, setLoading] = useState(true);
 
     const loadTeachers = useCallback(() => fetch(WK + '/teachers?tenant=' + encodeURIComponent(tenant())).then(r => r.json()).then(d => setTeachers((d && d.teachers) || [])).catch(() => {}), []);
     const loadGroups = useCallback(() => osGet('staff_group').then(rs => setGroups(rs.map(x => Object.assign({ _id: x.id }, x.payload)))), []);
     const loadMeta = useCallback(() => osGet('staff_meta').then(rs => { const m = {}; rs.forEach(x => { const p = x.payload || {}; if (p.email) m[p.email.toLowerCase()] = { _id: x.id, classes: p.classes || [] }; }); setMeta(m); }), []);
     const loadTasks = useCallback(() => osGet('staff_task').then(rs => setTasks(rs.map(x => Object.assign({ _id: x.id }, x.payload)).sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || ''))))), []);
-    useEffect(() => { Promise.all([loadTeachers(), loadGroups(), loadMeta(), loadTasks()]).then(() => setLoading(false)); }, [loadTeachers, loadGroups, loadMeta, loadTasks]);
+    const loadPay = useCallback(() => osGet('staff_pay').then(rs => { const m = {}; rs.forEach(x => { const p = x.payload || {}; if (p.key) m[p.key.toLowerCase()] = Object.assign({ _id: x.id }, p); }); setPay(m); }), []);
+    const loadStatus = useCallback(() => fetch(WK + '/staff-status?tenant=' + encodeURIComponent(tenant())).then(r => r.json()).then(d => { const m = {}; ((d && d.staff) || []).forEach(s => { m[(s.name || '').toLowerCase()] = s.status || ''; }); setStatus(m); }).catch(() => {}), []);
+    useEffect(() => { Promise.all([loadTeachers(), loadGroups(), loadMeta(), loadTasks(), loadPay(), loadStatus()]).then(() => setLoading(false)); }, [loadTeachers, loadGroups, loadMeta, loadTasks, loadPay, loadStatus]);
 
     const tabBtn = (k, label) => <button onClick={() => setTab(k)} style={{ background: tab === k ? T.surface : 'transparent', color: tab === k ? T.ink : T.ink3, border: '1px solid ' + (tab === k ? T.border : 'transparent'), borderRadius: 9, padding: '8px 14px', fontSize: 13, fontWeight: tab === k ? 700 : 500, cursor: 'pointer' }}>{label}</button>;
 
@@ -8936,7 +8959,7 @@ window.PEAK_STAFF = (function () {
         </div>
         {loading ? <div style={{ color: T.ink3 }}>Loading staff…</div> : (
           <div>
-            {tab === 'roster' && <Roster teachers={teachers} meta={meta} reload={() => { loadTeachers(); loadMeta(); }} />}
+            {tab === 'roster' && <Roster teachers={teachers} meta={meta} tasks={tasks} pay={pay} status={status} reload={() => { loadTeachers(); loadMeta(); loadPay(); loadStatus(); }} />}
             {tab === 'groups' && <Groups teachers={teachers} groups={groups} reload={loadGroups} />}
             {tab === 'tasks' && <Tasks teachers={teachers} groups={groups} meta={meta} tasks={tasks} reload={loadTasks} />}
           </div>
@@ -8946,9 +8969,10 @@ window.PEAK_STAFF = (function () {
   }
 
   /* ---- Roster ---- */
-  function Roster({ teachers, meta, reload }) {
+  function Roster({ teachers, meta, tasks, pay, status, reload }) {
     const [adding, setAdding] = useState(false);
     const [importing, setImporting] = useState(false);
+    const [profile, setProfile] = useState(null);
     const resetLogin = async (t) => {
       if (!window.confirm('Reset login for ' + (t.full_name || t.email) + '? A new temporary password will be generated.')) return;
       const token = await headToken();
@@ -8987,7 +9011,7 @@ window.PEAK_STAFF = (function () {
                 <thead><tr style={{ borderBottom: '1px solid ' + T.border }}>{['Name', 'Email', vocab().subs || 'Subjects', vocab().unit + 'es', 'Login'].map((h, i) => <th key={i} style={{ textAlign: 'left', padding: '8px 10px', fontSize: 10.5, fontFamily: T.mono, color: T.ink3, textTransform: 'uppercase' }}>{h}</th>)}</tr></thead>
                 <tbody>{teachers.map((t, i) => { const m = meta[(t.email || '').toLowerCase()] || {}; return (
                   <tr key={i} style={{ borderBottom: '1px solid ' + T.border }}>
-                    <td style={{ padding: '10px', color: T.ink, fontWeight: 600 }}>{t.full_name}</td>
+                    <td style={{ padding: '10px' }}><button onClick={() => setProfile(t)} style={{ background: 'transparent', border: 'none', color: T.ink, fontWeight: 600, fontSize: 13, cursor: 'pointer', padding: 0, textAlign: 'left', textDecoration: 'underline', textDecorationColor: T.border }}>{t.full_name}</button></td>
                     <td style={{ padding: '10px', color: T.ink2 }}>{t.email || '—'}</td>
                     <td style={{ padding: '10px', color: T.ink2 }}>{(t.subjects || []).join(', ') || '—'}</td>
                     <td style={{ padding: '10px', color: T.ink2 }}>{(m.classes || []).join(', ') || '—'}</td>
@@ -8995,6 +9019,7 @@ window.PEAK_STAFF = (function () {
                       {t.user_id ? <span style={{ color: T.good, fontSize: 12 }}>● active</span> : <span style={{ color: T.ink3, fontSize: 12 }}>not set</span>}
                       {t.email ? <button onClick={() => remind(t)} title="Push a reminder to their phone" style={{ marginLeft: 8, background: 'transparent', border: '1px solid ' + T.border, color: T.ink2, borderRadius: 6, padding: '3px 8px', fontSize: 10.5, cursor: 'pointer' }}>🔔 Remind</button> : null}
                       {t.email ? <button onClick={() => resetLogin(t)} style={{ marginLeft: 6, background: 'transparent', border: '1px solid ' + T.border, color: T.ink3, borderRadius: 6, padding: '3px 8px', fontSize: 10.5, cursor: 'pointer' }}>Reset login</button> : null}
+                      <button onClick={() => setProfile(t)} style={{ marginLeft: 6, background: 'transparent', border: '1px solid ' + T.border, color: T.ink2, borderRadius: 6, padding: '3px 8px', fontSize: 10.5, cursor: 'pointer' }}>Profile →</button>
                     </td>
                   </tr>
                 ); })}</tbody>
@@ -9004,6 +9029,83 @@ window.PEAK_STAFF = (function () {
         </div>
         {adding && <AddTeacherReal onClose={() => setAdding(false)} onDone={() => { setAdding(false); reload(); }} />}
         {importing && <ImportTeachers onClose={() => setImporting(false)} onDone={() => { setImporting(false); reload(); }} />}
+        {profile && <TeacherProfile t={profile} meta={meta} tasks={tasks} pay={pay} status={status} onClose={() => setProfile(null)} reload={reload} onRemind={() => remind(profile)} onReset={() => resetLogin(profile)} />}
+      </div>
+    );
+  }
+
+  /* ---- Teacher profile ---- */
+  function TeacherProfile({ t, meta, tasks, pay, status, onClose, reload, onRemind, onReset }) {
+    const email = (t.email || '').toLowerCase();
+    const key = (t.email || t.full_name || '').toLowerCase();
+    const m = meta[email] || {};
+    const p = pay[key] || {};
+    const [salary, setSalary] = useState(p.monthly || 0);
+    const [allow, setAllow] = useState(p.allowance || 0);
+    const [saving, setSaving] = useState(false);
+    const myTasks = (tasks || []).filter(x => {
+      const to = x.assignTo || x.to || {};
+      if (Array.isArray(x.emails)) return x.emails.map(e => String(e).toLowerCase()).indexOf(email) >= 0;
+      if (x.email) return String(x.email).toLowerCase() === email;
+      if (x.scope === 'all') return true;
+      return false;
+    });
+    const st = status[(t.full_name || '').toLowerCase()] || '';
+    const inSchool = /in at/i.test(st) && !/checked out/i.test(st);
+    const savePayRec = () => {
+      setSaving(true);
+      const rec = { key: (t.email || t.full_name), name: t.full_name || t.email, role: ((t.subjects && t.subjects.length) ? ('Teacher · ' + t.subjects.join('/')) : 'Teacher'), type: 'teaching', email: t.email || '', monthly: Number(salary) || 0, allowance: Number(allow) || 0 };
+      osSave('staff_pay', rec, p._id).then(() => { setSaving(false); window.peakToast && window.peakToast('Saved', 'success', (t.full_name || '') + ' · pay updated'); reload && reload(); }).catch(() => setSaving(false));
+    };
+    const row = (label, val) => (
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '9px 0', borderBottom: '1px solid ' + T.border }}>
+        <div style={{ fontSize: 11.5, color: T.ink3, fontFamily: T.mono, letterSpacing: '0.03em' }}>{label}</div>
+        <div style={{ fontSize: 13, color: T.ink, textAlign: 'right', maxWidth: '60%' }}>{val}</div>
+      </div>
+    );
+    const fmt = (n) => 'UGX ' + (Number(n) || 0).toLocaleString();
+    const lblS = { fontSize: 9.5, color: T.ink4, fontFamily: T.mono, marginBottom: 3 };
+    const inpS = { width: 130, background: T.bg, border: '1px solid ' + T.border, borderRadius: 8, padding: '8px 10px', fontSize: 13, color: T.ink, fontFamily: 'ui-monospace,monospace', outline: 'none' };
+    return (
+      <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', display: 'grid', placeItems: 'center', zIndex: 1000, padding: 16 }}>
+        <div onClick={e => e.stopPropagation()} style={{ width: 'min(560px, 96vw)', maxHeight: '90vh', overflow: 'auto', background: T.surface, border: '1px solid ' + T.border, borderRadius: 16, padding: 22 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 16 }}>
+            <div style={{ width: 52, height: 52, borderRadius: '50%', background: T.red, color: '#fff', display: 'grid', placeItems: 'center', fontSize: 20, fontWeight: 700, flexShrink: 0 }}>{(t.full_name || '?').trim().charAt(0).toUpperCase()}</div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 19, fontWeight: 700 }}>{t.full_name}</div>
+              <div style={{ fontSize: 12.5, color: T.ink3 }}>{(t.subjects || []).join(', ') || 'Teacher'}{(m.classes || []).length ? ' · ' + (m.classes || []).join(', ') : ''}</div>
+            </div>
+            <span style={{ fontSize: 11, fontWeight: 700, color: inSchool ? T.good : T.ink3, border: '1px solid ' + (inSchool ? T.good : T.border), borderRadius: 999, padding: '4px 10px' }}>{inSchool ? '● In school' : (st ? 'Not in' : 'No check-in')}</span>
+            <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: T.ink3, fontSize: 22, cursor: 'pointer', lineHeight: 1 }}>×</button>
+          </div>
+
+          <div style={{ ...card, marginBottom: 14 }}>
+            {row('Email', t.email || '—')}
+            {row('Phone', t.phone || '—')}
+            {row(vocab().sub + 's', (t.subjects || []).join(', ') || '—')}
+            {row('Classes', (m.classes || []).join(', ') || '—')}
+            {row('Login', t.user_id ? 'Active' : 'Not set')}
+            {row('Today', st || 'No check-in recorded')}
+            {row('Open tasks', String(myTasks.length))}
+          </div>
+
+          <div style={{ ...card, marginBottom: 14 }}>
+            <div style={{ fontSize: 12.5, fontWeight: 700, marginBottom: 4 }}>Pay</div>
+            <div style={{ fontSize: 11, color: T.ink3, marginBottom: 12 }}>Adjust this {vocab().staff.toLowerCase()}'s monthly salary and allowance. This feeds straight into Finance → payroll and the school's total outflow.</div>
+            <div style={{ display: 'flex', gap: 14, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+              <label><div style={lblS}>SALARY / MONTH (UGX)</div><input value={salary || ''} onChange={e => setSalary(Number(String(e.target.value).replace(/[^0-9]/g, '')) || 0)} placeholder="0" style={inpS} /></label>
+              <label><div style={lblS}>ALLOWANCE / MONTH (UGX)</div><input value={allow || ''} onChange={e => setAllow(Number(String(e.target.value).replace(/[^0-9]/g, '')) || 0)} placeholder="0" style={inpS} /></label>
+              <div style={{ flex: 1, minWidth: 120 }}><div style={lblS}>TOTAL / MONTH</div><div style={{ fontSize: 16, fontWeight: 700, color: T.ink, fontFamily: 'ui-monospace,monospace' }}>{fmt((Number(salary) || 0) + (Number(allow) || 0))}</div></div>
+            </div>
+            <button onClick={savePayRec} disabled={saving} style={{ ...btnP, marginTop: 14 }}>{saving ? 'Saving…' : 'Save pay'}</button>
+          </div>
+
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+            {t.email ? <button onClick={onRemind} style={btnG}>🔔 Remind</button> : null}
+            {t.email ? <button onClick={onReset} style={btnG}>Reset login</button> : null}
+            <button onClick={onClose} style={btnP}>Done</button>
+          </div>
+        </div>
       </div>
     );
   }
