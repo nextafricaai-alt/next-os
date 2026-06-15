@@ -303,6 +303,17 @@
     if(b && b.name){ window.__BRAND_NAME=b.name;
       try{ document.title = b.name + ' \u00b7 NEXT School OS'; }catch(e){}
       try{ var _ld=document.querySelector('#root div'); if(_ld) _ld.textContent='LOADING '+String(b.name).toUpperCase()+' \u00b7 NEXT SCHOOL OS'; }catch(e){}
+    } else {
+      // No school record for this slug — never fall back to another school's identity.
+      try {
+        var _pp=new URLSearchParams(location.search);
+        var _slug=_pp.get('s')||_pp.get('t')||(location.pathname.match(/\/(?:s|school)\/([A-Za-z0-9_-]+)/)||[])[1]||'';
+        if(_slug && _slug!=='peak-primary'){
+          var _nm=_slug.replace(/[-_]+/g,' ').replace(/\b\w/g,function(m){return m.toUpperCase();});
+          window.__BRAND_NAME=_nm;
+          try{ document.title=_nm+' \u00b7 NEXT School OS'; }catch(e){}
+        }
+      } catch(e){}
     }
   })();
   </script>
@@ -10008,7 +10019,7 @@ window.PEAK_STAFF = (function () {
               <div style={{ fontSize: 15, fontWeight: 700, color: T.ink, letterSpacing: '-0.01em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{(typeof window !== 'undefined' && window.__BRAND_NAME) || 'Peak Primary'}</div>
               <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
                 <PushBell compact />
-                <span style={{ fontSize: 9, color: T.ink4, fontFamily: T.mono }}>b45</span>
+                <span style={{ fontSize: 9, color: T.ink4, fontFamily: T.mono }}>b46</span>
               </div>
             </div>
           )}
