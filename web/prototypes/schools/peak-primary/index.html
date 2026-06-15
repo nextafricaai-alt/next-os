@@ -214,7 +214,7 @@
     <div style="min-height:100vh;display:grid;place-items:center;color:#8a91b0;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px;letter-spacing:0.08em;">
       <div style="text-align:center">
         <div id="nx-loading-text">LOADING · NEXT SCHOOL OS</div>
-        <div style="margin-top:12px;font-size:10px;opacity:0.5">build b64</div>
+        <div style="margin-top:12px;font-size:10px;opacity:0.5">build b65</div>
       </div>
     </div>
   </div>
@@ -3289,6 +3289,13 @@ const V4 = (function () {
 
   // ─── hero KPIs (the 3 big ones) ───────────────────────────────────────────
   function HeroKPIs() {
+    const k = D.kpis || {};
+    const att = Number(k.attendancePct) || 0;
+    const present = Math.min(Number(k.presentToday) || 0, Number(k.students) || 0);
+    const collected = Number(k.feesCollectedTerm) || 0;
+    const target = Number(k.feesTargetTerm) || 0;
+    const feePct = target ? Math.round(100 * collected / target) : 0;
+    const outstanding = (D.students || []).reduce((a, s) => a + (Number(s.balance) || 0), 0);
     return (
       <div style={{ display: 'grid', gridTemplateColumns: '1.1fr 1fr 1fr', gap: 14, marginBottom: 16 }}>
         {/* Attendance — featured with Peak red accent */}
@@ -3310,11 +3317,11 @@ const V4 = (function () {
           </div>
           <div style={{ display: 'flex', alignItems: 'flex-end', gap: 12, marginBottom: 10 }}>
             <div style={{ fontFamily: T.font, fontSize: 56, fontWeight: 700, color: '#fff', lineHeight: 0.95, letterSpacing: '-0.035em', fontVariantNumeric: 'tabular-nums' }}>
-              {D.kpis.attendancePct}<span style={{ fontSize: 28, color: '#a8b4e8' }}>%</span>
+              {att > 0 ? att : '\u2014'}<span style={{ fontSize: 28, color: '#a8b4e8' }}>%</span>
             </div>
-            <Pill tone="good">▲ +2.4 vs avg</Pill>
+            {att > 0 ? <Pill tone={att >= 90 ? 'good' : 'warn'}>{att >= 90 ? 'strong' : 'watch'}</Pill> : null}
           </div>
-          <div style={{ fontSize: 13, color: '#c8d0ea' }}>{D.kpis.presentToday} of {D.kpis.students} children marked in · register closes 08:30</div>
+          <div style={{ fontSize: 13, color: '#c8d0ea' }}>{att > 0 ? (present + ' of ' + (k.students || 0) + ' children marked in today') : ((k.students || 0) + ' enrolled · register not taken yet')}</div>
           {/* tiny dotted line */}
           <svg viewBox="0 0 320 36" style={{ width: '100%', height: 36, marginTop: 18, display: 'block' }}>
             <path d="M0,28 L40,22 L80,26 L120,18 L160,14 L200,20 L240,12 L280,8 L320,6"
@@ -3335,17 +3342,15 @@ const V4 = (function () {
         <Card pad={24}>
           <div style={{ fontSize: 11, color: T.ink3, fontFamily: T.mono, letterSpacing: '0.08em', fontWeight: 600, marginBottom: 14 }}>FEES · TERM 2</div>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
-            <span style={{ fontSize: 13, color: T.ink3, fontFamily: T.mono, marginRight: 4 }}>UGX</span>
-            <div style={{ fontSize: 44, fontWeight: 700, color: T.ink, lineHeight: 1, letterSpacing: '-0.03em', fontVariantNumeric: 'tabular-nums' }}>412.5</div>
-            <span style={{ fontSize: 22, color: T.ink3, fontWeight: 600 }}>M</span>
+            <div style={{ fontSize: 40, fontWeight: 700, color: T.ink, lineHeight: 1, letterSpacing: '-0.03em', fontVariantNumeric: 'tabular-nums' }}>{collected > 0 ? D.fmtUGXshort(collected) : 'UGX 0'}</div>
           </div>
-          <div style={{ fontSize: 12, color: T.ink3, marginTop: 8, fontFamily: T.mono }}>of UGX 580M target · <span style={{ color: T.good, fontWeight: 600 }}>+18% wk</span></div>
+          <div style={{ fontSize: 12, color: T.ink3, marginTop: 8, fontFamily: T.mono }}>{target > 0 ? ('of ' + D.fmtUGXshort(target) + ' target · ' + feePct + '%') : 'collected this term'}</div>
           <div style={{ position: 'relative', height: 10, borderRadius: 999, background: T.surface2, marginTop: 18, overflow: 'hidden' }}>
-            <div style={{ height: '100%', width: '71%', background: 'linear-gradient(90deg, ' + T.red + ' 0%, ' + T.gold + ' 100%)', borderRadius: 999 }} />
+            <div style={{ height: '100%', width: (target ? feePct : 0) + '%', background: 'linear-gradient(90deg, ' + T.red + ' 0%, ' + T.gold + ' 100%)', borderRadius: 999 }} />
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10.5, color: T.ink3, fontFamily: T.mono, marginTop: 6 }}>
-            <span>71% collected</span>
-            <span>29 days remaining</span>
+            <span>{target ? (feePct + '% collected') : (collected > 0 ? 'collected' : 'no fees recorded')}</span>
+            <span>{outstanding > 0 ? (D.fmtUGXshort(outstanding) + ' outstanding') : 'cleared'}</span>
           </div>
         </Card>
 
@@ -3375,8 +3380,8 @@ const V4 = (function () {
     const items = [
       { l: 'Absent today',  v: String(D.kpis.absentToday || 0),  sub: (D.kpis.students ? Math.round(100*(D.kpis.absentToday||0)/D.kpis.students)+'% of roll' : 'no roster'), tone: 'warn' },
       { l: 'Overdue accounts', v: String(D.kpis.feesOutstandingStudents || 0), sub: D.fmtUGXshort(Math.max(0,(D.kpis.feesTargetTerm||0)-(D.kpis.feesCollectedTerm||0))) + ' due', tone: 'bad' },
-      { l: 'Buses in service', v: '4/4', sub: '1 delayed · Kireka', tone: 'warn' },
-      { l: 'Open alerts', v: '5', sub: '2 high · need action', tone: 'bad' },
+      { l: 'Fees collected', v: D.fmtUGXshort(D.kpis.feesCollectedTerm || 0), sub: 'this term', tone: 'good' },
+      { l: 'At-risk learners', v: String((D.students || []).filter(s => s.flag === 'risk' || (s.attendanceWk != null && s.attendanceWk < 70)).length), sub: 'need follow-up', tone: 'bad' },
     ];
     return (
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 16 }}>
