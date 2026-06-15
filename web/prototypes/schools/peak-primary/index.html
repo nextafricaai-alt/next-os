@@ -214,7 +214,7 @@
     <div style="min-height:100vh;display:grid;place-items:center;color:#8a91b0;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px;letter-spacing:0.08em;">
       <div style="text-align:center">
         <div id="nx-loading-text">LOADING · NEXT SCHOOL OS</div>
-        <div style="margin-top:12px;font-size:10px;opacity:0.5">build b67</div>
+        <div style="margin-top:12px;font-size:10px;opacity:0.5">build b68</div>
       </div>
     </div>
   </div>
@@ -3583,6 +3583,8 @@ const V4 = (function () {
         fetch(WK + '/os-data?kind=timetable&tenant=' + encodeURIComponent(tn)).then(r => r.json()).then(d => { const rec = ((d && d.records) || [])[0]; setTt((rec && rec.payload) || { periods: [], grid: {} }); }).catch(() => setTt({ periods: [], grid: {} }));
         fetch(WK + '/staff-status?tenant=' + encodeURIComponent(tn)).then(r => r.json()).then(d => setStaff((d && d.staff) || [])).catch(() => setStaff([]));
         fetch(WK + '/teachers?tenant=' + encodeURIComponent(tn)).then(r => r.ok ? r.json() : null).then(d => setTeachers((d && d.teachers) || [])).catch(() => {});
+        // Fire a live no-show check (server dedups one alert per period) so the head gets pushed even before the cron runs.
+        fetch(WK + '/attendance-watch?tenant=' + encodeURIComponent(tn)).catch(() => {});
       };
       load(); const iv = setInterval(() => force(), 60000); const lv = setInterval(load, 300000); return () => { clearInterval(iv); clearInterval(lv); };
     }, []);
@@ -8650,10 +8652,19 @@ window.PEAK_TIMETABLE = (function () {
     const load = {}; const busy = {}; // busy[email][d+'|'+pi]=true
     const isBusy = (em, d, pi) => busy[em] && busy[em][d + '|' + pi];
     const mark = (em, d, pi) => { (busy[em] = busy[em] || {})[d + '|' + pi] = true; load[em] = (load[em] || 0) + 1; };
+    const pickFrom = (cands) => { if (!cands.length) return null; cands.sort((a, b) => (load[a.email] || 0) - (load[b.email] || 0)); return cands[0]; };
     classes.forEach(c => DAYS.forEach(d => periods.forEach((p, pi) => {
       if (p.brk) return; const cell = grid[c][d][pi]; if (!cell || !cell.subject) return;
-      const cands = teachers.filter(t => (t.subjects || []).some(x => norm(x) === norm(cell.subject)) && (t.classes || []).indexOf(c) >= 0 && !isBusy(t.email, d, pi));
-      if (cands.length) { cands.sort((a, b) => (load[a.email] || 0) - (load[b.email] || 0)); const pick = cands[0]; cell.teacher = pick.name; cell.teacherEmail = pick.email; mark(pick.email, d, pi); }
+      if (cell.teacher) return; // keep any manual / earlier assignment
+      const free = teachers.filter(t => t.email && !isBusy(t.email, d, pi));
+      const teachesSubject = free.filter(t => (t.subjects || []).some(x => norm(x) === norm(cell.subject)));
+      // Tier 1: teaches the subject AND assigned to this class. Tier 2: teaches the subject (any class).
+      // Tier 3 (cover-up): any free teacher, so the slot is never left uncovered.
+      let pick = pickFrom(teachesSubject.filter(t => (t.classes || []).indexOf(c) >= 0));
+      let cover = false;
+      if (!pick) pick = pickFrom(teachesSubject);
+      if (!pick) { pick = pickFrom(free); cover = true; }
+      if (pick) { cell.teacher = pick.name; cell.teacherEmail = pick.email; cell.cover = cover; mark(pick.email, d, pi); }
     })));
   }
 
@@ -8721,7 +8732,8 @@ window.PEAK_TIMETABLE = (function () {
       allocate(g, classes, periods, teachers);
       setGrid(g); setBusy(false);
       const unfilled = countUnfilled(g);
-      setMsg('Teachers re-balanced across your staff list' + (unfilled ? ' — ' + unfilled + ' slot' + (unfilled === 1 ? '' : 's') + ' still need a teacher (no subject match).' : ' — every slot covered.') + ' Review, then Save.');
+      let cov = 0; classes.forEach(c => DAYS.forEach(d => ((g[c] && g[c][d]) || []).forEach(cell => { if (cell && cell.cover) cov++; })));
+      setMsg('Teachers re-balanced across your staff list' + (unfilled ? ' — ' + unfilled + ' slot' + (unfilled === 1 ? '' : 's') + ' still empty (no free teacher).' : ' — every slot covered.') + (cov ? ' ' + cov + ' filled as cover (no subject specialist free — marked \u201ccover\u201d).' : '') + ' Review, then Save.');
     };
 
     const save = () => { if (!grid) return; setBusy(true); osSave('timetable', { level, periods, grid, updatedAt: new Date().toISOString() }, recId).then(res => { setBusy(false); if (res && res.error) { setMsg('Could not save: ' + res.error); return; } if (res && res.record && res.record.id) setRecId(res.record.id); window.peakToast && window.peakToast('Timetable saved', 'success', classes.length + ' classes stored.'); setMsg('Saved.'); }); };
@@ -8784,7 +8796,7 @@ window.PEAK_TIMETABLE = (function () {
                           <button onClick={() => setEdit({ day: d, pi })} style={{ width: '100%', minHeight: 46, textAlign: 'left', background: bg, border: '1px solid ' + bd, boxShadow: isNow && cell.subject ? '0 0 0 1px ' + bd : 'none', borderRadius: 8, padding: '6px 8px', cursor: 'pointer', color: T.ink, position: 'relative' }}>
                             {isNow && cell.subject && <span style={{ position: 'absolute', top: 5, right: 6, fontSize: 8.5, fontFamily: T.mono, fontWeight: 700, letterSpacing: '0.05em', color: teacherActive ? T.green : T.warn }}>{teacherActive ? '\u25CF NOW' : '\u25CB NOW'}</span>}
                             <div style={{ fontSize: 11.5, fontWeight: 700 }}>{cell.subject || '\u2014'}</div>
-                            <div style={{ fontSize: 10.5, color: cell.teacher ? (isNow ? (teacherActive ? T.green : T.warn) : T.ink3) : T.warn, marginTop: 2 }}>{cell.teacher || (cell.subject ? 'assign teacher' : '')}{isNow && cell.teacher && !teacherActive ? ' \u00b7 not in' : ''}</div>
+                            <div style={{ fontSize: 10.5, color: cell.teacher ? (isNow ? (teacherActive ? T.green : T.warn) : T.ink3) : T.warn, marginTop: 2 }}>{cell.teacher || (cell.subject ? 'assign teacher' : '')}{cell.cover ? ' \u00b7 cover' : ''}{isNow && cell.teacher && !teacherActive ? ' \u00b7 not in' : ''}</div>
                           </button>
                         </td>
                       ); })}

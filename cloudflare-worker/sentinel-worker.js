@@ -229,7 +229,7 @@ export default {
     }
 
     // GET-allowed routes (read-only endpoints live below this gate)
-    const GET_OK = ['/check-project', '/seo-audit', '/px.js', '/analytics', '/gsc', '/ga4', '/fetch-page', '/site-pages', '/cms/collections', '/cms/items', '/students', '/exams', '/exam-results', '/fees-balances', '/attendance-summary', '/staff-status', '/student-health', '/events', '/finance', '/assets', '/school-config', '/os-data', '/teachers', '/hosting-report', '/watch/status', '/push/vapid-public', '/push/debug'];
+    const GET_OK = ['/check-project', '/seo-audit', '/px.js', '/analytics', '/gsc', '/ga4', '/fetch-page', '/site-pages', '/cms/collections', '/cms/items', '/students', '/exams', '/exam-results', '/fees-balances', '/attendance-summary', '/staff-status', '/attendance-watch', '/student-health', '/events', '/finance', '/assets', '/school-config', '/os-data', '/teachers', '/hosting-report', '/watch/status', '/push/vapid-public', '/push/debug'];
     if (request.method !== 'POST' && !GET_OK.includes(url.pathname)) {
       return new Response('Method not allowed', { status: 405, headers: cors });
     }
@@ -369,6 +369,7 @@ export default {
     if (url.pathname === '/fees-balances')      return handleFeesBalances(url.searchParams.get('tenant') || '', env, cors);
     if (url.pathname === '/attendance-summary') return handleAttendanceSummary(url.searchParams.get('tenant') || '', url.searchParams.get('days') || '7', env, cors);
     if (url.pathname === '/staff-status')       return handleStaffStatus(url.searchParams.get('tenant') || '', env, cors);
+    if (url.pathname === '/attendance-watch')   return handleAttendanceWatch(url.searchParams.get('tenant') || '', env, cors);
     if (url.pathname === '/student-health')     return handleStudentHealth(url.searchParams.get('tenant') || '', env, cors);
     if (url.pathname === '/events')             return handleEventsList(url.searchParams.get('tenant') || '', env, cors);
     if (url.pathname === '/events/save')        return handleEventSave(request, env, cors);
@@ -891,10 +892,88 @@ async function handleBriefsMarkRead(request, env, cors) {
   });
 }
 
+// ──────────────────────────────────────────────────────────────────────
+// TEACHER NO-SHOW WATCH — when an assigned teacher hasn't checked in for
+// their LIVE period, push the head a real alert. Dedup one alert per
+// school per period (school day, 10-min grace). Reuses the push pipeline.
+// ──────────────────────────────────────────────────────────────────────
+const _NS_DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+function _nsToMin(hhmm) { const m = String(hhmm || '').split(':'); return (parseInt(m[0], 10) || 0) * 60 + (parseInt(m[1], 10) || 0); }
+
+async function checkTenantAttendance(env, tenantId) {
+  const out = { tenant: tenantId, day: null, period: null, noShows: [], alerted: false, reason: '' };
+  // EAT now
+  const eat = new Date(Date.now() + 3 * 3600000);
+  const day = _NS_DAYS[eat.getUTCDay()];
+  out.day = day;
+  if (day === 'Sat' || day === 'Sun') { out.reason = 'weekend'; return out; }
+  const nowMin = eat.getUTCHours() * 60 + eat.getUTCMinutes();
+
+  // Timetable (has periods + grid)
+  const ttRows = await sbFetch(env, '/os_records?tenant=eq.' + encodeURIComponent(tenantId) + '&kind=eq.timetable&select=payload&order=updated_at.desc&limit=1');
+  const tt = (ttRows && ttRows[0] && ttRows[0].payload) || null;
+  if (!tt || !tt.periods || !tt.grid) { out.reason = 'no timetable'; return out; }
+
+  // Current period index (10-min grace so we don't ping a teacher who is just arriving)
+  let pi = -1;
+  for (let i = 0; i < tt.periods.length; i++) { const p = tt.periods[i]; if (p.brk) continue; const sM = _nsToMin(p.s), eM = _nsToMin(p.e); if (nowMin >= sM + 10 && nowMin < eM) { pi = i; break; } }
+  if (pi < 0) { out.reason = 'no live period'; return out; }
+  const period = tt.periods[pi];
+  out.period = period.l;
+
+  // Who is present right now (checked in today, not checked out)
+  const teachers = await sbFetch(env, '/teachers?tenant_id=eq.' + encodeURIComponent(tenantId) + '&select=id,full_name&limit=400');
+  const today = eat.toISOString().slice(0, 10);
+  const checkins = await sbFetch(env, '/teacher_checkins?tenant_id=eq.' + encodeURIComponent(tenantId) + '&checked_in_at=gte.' + today + 'T00:00:00&select=teacher_id,checked_in_at,checked_out_at&order=checked_in_at.desc&limit=800');
+  const latest = {}; (checkins || []).forEach(c => { if (!latest[c.teacher_id]) latest[c.teacher_id] = c; });
+  const present = new Set();
+  (teachers || []).forEach(t => { const c = latest[t.id]; if (c && !c.checked_out_at) present.add(String(t.full_name || '').toLowerCase().trim()); });
+
+  // Cross-ref the grid for this day+period across all classes
+  const grid = tt.grid;
+  Object.keys(grid).forEach(cls => {
+    const cell = grid[cls] && grid[cls][day] && grid[cls][day][pi];
+    if (!cell || !cell.subject || !cell.teacher) return;
+    if (!present.has(String(cell.teacher).toLowerCase().trim())) {
+      out.noShows.push({ cls: cls, subject: cell.subject, teacher: cell.teacher, cover: !!cell.cover });
+    }
+  });
+  if (!out.noShows.length) { out.reason = 'all covered'; return out; }
+
+  // Dedup: one alert per school per (date|period)
+  const key = today + '|' + pi;
+  const seen = await sbFetch(env, '/os_records?tenant=eq.' + encodeURIComponent(tenantId) + "&kind=eq.attendance_alert&select=id,payload&order=created_at.desc&limit=50");
+  const already = (seen || []).some(r => r.payload && r.payload.key === key);
+  if (already) { out.reason = 'already alerted this period'; return out; }
+
+  // Build a friendly summary and push the head
+  const names = out.noShows.slice(0, 3).map(n => 'Tr ' + n.teacher.split(' ')[0] + ' — ' + n.subject + ' (' + n.cls + ')');
+  const more = out.noShows.length > 3 ? ' +' + (out.noShows.length - 3) + ' more' : '';
+  const title = out.noShows.length === 1 ? (out.noShows[0].cls + ' is uncovered now') : (out.noShows.length + ' classes uncovered now');
+  const body = period.l + ' (' + period.s + '): ' + names.join('; ') + more + '. Not checked in — tap to reassign.';
+  let push = { matched: 0, ok: 0 };
+  try { push = await deliverPush(env, tenantId, [], 'head', { title: title, body: body, url: '/', tag: 'noshow-' + key }); } catch (e) {}
+
+  // Record the alert (dedup + audit), even if no head device is subscribed yet
+  try { await sbWrite(env, '/os_records', { tenant: tenantId, kind: 'attendance_alert', payload: { key: key, day: day, period: period.l, at: new Date().toISOString(), noShows: out.noShows, pushed: push.ok || 0 } }, 'POST', 'return=minimal'); } catch (e) {}
+  out.alerted = true; out.pushed = push.ok || 0; out.matched = push.matched || 0;
+  return out;
+}
+
+async function runAttendanceWatch(env) {
+  let tenants = [];
+  try { tenants = await sbFetch(env, '/tenants?select=id'); } catch (e) { return { error: String(e && e.message || e) }; }
+  const results = [];
+  for (const t of (tenants || [])) { try { results.push(await checkTenantAttendance(env, t.id)); } catch (e) { results.push({ tenant: t.id, error: String(e && e.message || e) }); } }
+  return { ran: results.length, results: results };
+}
+
 // Cloudflare cron entry point.
 export const scheduledHandler = async (event, env, ctx) => {
   // event.cron tells us which schedule fired; default to "pulse" if unknown.
   const cron = event.cron || '';
+  // School-hours teacher no-show watch (every 15 min, 08:00-15:00 EAT, Mon-Fri)
+  if (cron === '*/15 5-12 * * 1-5') { await runAttendanceWatch(env); return; }
   let kind = 'pulse';
   if (cron === '30 3 * * *') kind = 'morning';      // 6:30am EAT = 03:30 UTC
   else if (cron === '0 15 * * 5') kind = 'weekly';  // Fri 6pm EAT = 15:00 UTC
@@ -1451,6 +1530,15 @@ async function handleStaffStatus(tenant, env, cors) {
     return J({ tenant, today, staff });
   } catch (e) { return J({ error: String((e && e.message) || e), tenant }, 200); }
 }
+async function handleAttendanceWatch(tenant, env, cors) {
+  const J = (oo, st) => new Response(JSON.stringify(oo), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
+  if (!env.SUPABASE_URL || !env.SUPABASE_KEY) return J({ error: 'Supabase not configured.' }, 500);
+  try {
+    if (tenant) return J(await checkTenantAttendance(env, tenant));
+    return J(await runAttendanceWatch(env));
+  } catch (e) { return J({ error: String((e && e.message) || e) }, 200); }
+}
+
 async function handleStudentHealth(tenant, env, cors) {
   const J = (oo, st) => new Response(JSON.stringify(oo), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
   if (!tenant) return J({ error: 'tenant required' }, 400);

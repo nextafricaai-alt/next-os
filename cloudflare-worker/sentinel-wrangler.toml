@@ -10,6 +10,7 @@ binding = "AI"
 crons = [
   "30 3 * * *",     # Morning brief: 6:30 AM EAT (Mon-Sun)
   "0 6,9,12 * * 1-5",  # Pulse checks: 9am, noon, 3pm EAT, Mon-Fri
+  "*/15 5-12 * * 1-5", # Teacher no-show watch: every 15 min, 8am-3pm EAT, Mon-Fri
   "0 15 * * 5",     # Weekly wrap: Friday 6pm EAT
 ]
 
