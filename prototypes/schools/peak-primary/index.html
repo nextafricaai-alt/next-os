@@ -4937,7 +4937,7 @@ const PD_Fees = (function () {
                 <button onClick={() => window.peakModal && window.peakModal.open(React.createElement(window.PEAK_FORMS.Receipts))} style={{ border: '1px solid ' + T.borderStr, background: 'transparent', color: T.ink2, padding: '8px 14px', borderRadius: 9, fontSize: 12.5, cursor: 'pointer' }}>Receipts</button>
                 <button onClick={() => window.peakExportLedger && window.peakExportLedger()} style={{ border: '1px solid ' + T.borderStr, background: 'transparent', color: T.ink2, padding: '8px 14px', borderRadius: 9, fontSize: 12.5, cursor: 'pointer' }}>Export ledger</button>
                 <button onClick={() => window.peakToast && window.peakToast('Fees settings — coming in Phase 2', 'info')} style={{ border: '1px solid ' + T.borderStr, background: 'transparent', color: T.ink, padding: '8px 14px', borderRadius: 9, fontSize: 12.5, cursor: 'pointer' }}>Settings</button>
-                <button onClick={() => onRecordPayment ? onRecordPayment() : (window.peakModal && window.peakModal.open(window.PEAK_FORMS.RecordPayment({})))} style={{ border: 'none', background: T.red, color: '#fff', padding: '9px 16px', borderRadius: 9, fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }}>+ Record cash payment</button>
+                <button onClick={() => onRecordPayment ? onRecordPayment() : (window.peakModal && window.peakModal.open(React.createElement(window.PEAK_FORMS.RecordPayment, { store: window.peakStore })))} style={{ border: 'none', background: T.red, color: '#fff', padding: '9px 16px', borderRadius: 9, fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }}>+ Record cash payment</button>
               </div>
             </div>
 
@@ -5139,12 +5139,14 @@ const PD_Fees = (function () {
 
                 <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
                   <button onClick={() => {
+                    const mMap = { MTN: 'mtn', Airtel: 'airtel', Stanbic: 'bank', Bank: 'bank', Cash: 'cash' };
+                    const guess = (sel.match && sel.match !== 'unclear') ? (window.peakFindStudent && window.peakFindStudent(String(sel.match).split(',')[0])) : null;
                     setConfirmed(cur => new Set([...cur, sel.id]));
-                    window.peakToast && window.peakToast('Payment confirmed', 'success', sel.match + ' · ' + (sel.amt/1000).toFixed(0) + 'K posted to ledger · WhatsApp receipt sent.');
+                    window.peakModal && window.peakModal.open(React.createElement(window.PEAK_FORMS.RecordPayment, { store: window.peakStore, defaultStudentId: guess ? guess.id : undefined, defaultAmount: sel.amt, defaultMethod: mMap[sel.ch] || 'mtn' }));
                   }} style={{ flex: 1, background: confirmed.has(sel.id) ? T.good : T.red, color: '#fff', border: 'none', padding: '10px 14px', borderRadius: 9, fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }}>
-                    {confirmed.has(sel.id) ? '✓ Confirmed' : 'Confirm match →'}
+                    {confirmed.has(sel.id) ? '✓ Posted' : 'Confirm & post →'}
                   </button>
-                  <button onClick={() => window.peakToast && window.peakToast('Pick another student', 'info', 'Manual override flow — pick the correct student from the ledger.')} style={{ background: 'transparent', color: T.ink, border: '1px solid ' + T.borderStr, padding: '10px 14px', borderRadius: 9, fontSize: 12.5, cursor: 'pointer' }}>Match elsewhere</button>
+                  <button onClick={() => { const mMap = { MTN: 'mtn', Airtel: 'airtel', Stanbic: 'bank', Bank: 'bank', Cash: 'cash' }; window.peakModal && window.peakModal.open(React.createElement(window.PEAK_FORMS.RecordPayment, { store: window.peakStore, defaultAmount: sel.amt, defaultMethod: mMap[sel.ch] || 'mtn' })); }} style={{ background: 'transparent', color: T.ink, border: '1px solid ' + T.borderStr, padding: '10px 14px', borderRadius: 9, fontSize: 12.5, cursor: 'pointer' }}>Match elsewhere</button>
                 </div>
                 <button onClick={() => window.peakToast && window.peakToast('Flagged for review', 'warn', 'Bursar notified · transaction held for verification.')} style={{ background: 'transparent', color: T.ink3, border: 'none', padding: '4px 0', fontSize: 11.5, cursor: 'pointer', textAlign: 'left' }}>
                   ↑ Flag as suspicious / refund
@@ -6836,11 +6838,11 @@ window.PEAK_FORMS = (function () {
   }
 
   // ─── Record Payment ───────────────────────────────────────────────────────
-  function RecordPayment({ store, defaultStudentId }) {
+  function RecordPayment({ store, defaultStudentId, defaultAmount, defaultMethod }) {
     const owing = D.students.filter(s => s.balance > 0);
-    const [studentId, setStudentId] = useState(defaultStudentId || (owing[0] && owing[0].id) || D.students[0].id);
-    const [amount, setAmount] = useState('');
-    const [method, setMethod] = useState('mtn');
+    const [studentId, setStudentId] = useState(defaultStudentId || (owing[0] && owing[0].id) || (D.students[0] && D.students[0].id));
+    const [amount, setAmount] = useState(defaultAmount ? String(defaultAmount) : '');
+    const [method, setMethod] = useState(defaultMethod || 'mtn');
     const [ref, setRef] = useState('');
     const [phone, setPhone] = useState('');
     const student = D.students.find(s => s.id === Number(studentId));
@@ -10020,7 +10022,7 @@ window.PEAK_STAFF = (function () {
               <div style={{ fontSize: 15, fontWeight: 700, color: T.ink, letterSpacing: '-0.01em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{(typeof window !== 'undefined' && window.__BRAND_NAME) || 'Peak Primary'}</div>
               <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
                 <PushBell compact />
-                <span style={{ fontSize: 9, color: T.ink4, fontFamily: T.mono }}>b59</span>
+                <span style={{ fontSize: 9, color: T.ink4, fontFamily: T.mono }}>b60</span>
               </div>
             </div>
           )}
