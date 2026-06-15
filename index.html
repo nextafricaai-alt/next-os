@@ -4167,6 +4167,8 @@ You: "'We help you get more done with less stress.' Nine plain words beat the ja
       input_schema: { type: 'object', properties: { site: { type: 'string', description: 'GSC property, e.g. sc-domain:fathersarize.org (use sc-domain: + the bare domain)' }, days: { type: 'number', description: 'Days back (default 28)' } }, required: ['site'] } },
     { name: 'read_ga4', description: 'Google Analytics 4 for a site: users, sessions, pageviews, conversions broken down by channel (organic, direct, social, referral). Use for deeper traffic questions. property is the numeric GA4 property id.',
       input_schema: { type: 'object', properties: { property: { type: 'string', description: 'Numeric GA4 property id, e.g. 480123456' }, days: { type: 'number', description: 'Days back (default 28)' } }, required: ['property'] } },
+    { name: 'remember', description: 'Save a durable fact, preference or decision to your long-term memory so you recall it in future conversations (e.g. how Hudson likes things done, a person, a recurring number, a standing instruction). Use proactively whenever you learn something worth keeping. Keep each memory one clear sentence.',
+      input_schema: { type: 'object', properties: { fact: { type: 'string', description: 'The single fact/preference to remember, written so it makes sense later out of context.' } }, required: ['fact'] } },
   ];
 
 
@@ -4389,6 +4391,13 @@ You: "'We help you get more done with less stress.' Nine plain words beat the ja
             return JSON.stringify(Object.assign({ instruction: 'Summarize users/sessions/pageviews/conversions and which channel drives the most. Give 1 growth tip.' }, data));
           } catch (e) { return JSON.stringify({ error: String(e.message || e) }); }
         }
+        case 'remember': {
+          const fact = (input.fact || '').toString().trim();
+          if (!fact) return JSON.stringify({ error: 'fact required' });
+          try { await saveNiaMemory(fact); } catch (e) { return JSON.stringify({ error: 'could not save: ' + (e && e.message || e) }); }
+          try { window.dispatchEvent(new CustomEvent('nia:memory-updated')); } catch (e) {}
+          return JSON.stringify({ ok: true, remembered: fact });
+        }
         default: return JSON.stringify({ error: 'Unknown tool: ' + name });
       }
     } catch (e) { return JSON.stringify({ error: String(e.message || e) }); }
@@ -4453,7 +4462,7 @@ You: "'We help you get more done with less stress.' Nine plain words beat the ja
   function useConversation() {
     const [messages, setMessages] = React.useState(() => loadConvo());
     const [memory, setMemory] = React.useState([]);
-    React.useEffect(() => { loadNiaMemory().then(setMemory); }, []);
+    React.useEffect(() => { loadNiaMemory().then(setMemory); const h = () => loadNiaMemory().then(setMemory); window.addEventListener('nia:memory-updated', h); return () => window.removeEventListener('nia:memory-updated', h); }, []);
     const [pending, setPending] = React.useState(false);
     const [error, setError] = React.useState(null);
     const [apiKey, setApiKey] = React.useState(() => safeGet(KEY_API_KEY, ''));
@@ -5542,7 +5551,7 @@ You: "'We help you get more done with less stress.' Nine plain words beat the ja
               fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 14,
             }}>N</div>
             <div>
-              <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', letterSpacing: 1.5, color: 'var(--text-tertiary)' }}>NIA'S WATCH <span style={{ color: 'var(--mint)', marginLeft: 6 }}>· LIVE v28</span></div>
+              <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', letterSpacing: 1.5, color: 'var(--text-tertiary)' }}>NIA'S WATCH <span style={{ color: 'var(--mint)', marginLeft: 6 }}>· LIVE v29</span></div>
               <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)' }}>
                 What happened while you were away
               </div>
