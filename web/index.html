@@ -3870,6 +3870,18 @@ const FleetPage = ({ onNavigate }) => {
   const [filter, setFilter] = React.useState('all');
   const [showAddModal, setShowAddModal] = React.useState(false);
 
+  // Pull the LIVE fleet (Supabase) and re-render the moment it arrives — no more
+  // "demo data until I reload again".
+  React.useEffect(() => {
+    let alive = true;
+    const sync = () => { try { if (alive && window.OS_DATA && window.OS_DATA.getTenants) setTenants(window.OS_DATA.getTenants().slice()); } catch (e) {} };
+    window.addEventListener('osdata:fleet', sync);
+    try { if (window.OS_DATA && window.OS_DATA.refreshFleet) window.OS_DATA.refreshFleet().then(sync).catch(function(){}); } catch (e) {}
+    const t1 = setTimeout(sync, 800);
+    const t2 = setTimeout(sync, 2000);
+    return () => { alive = false; window.removeEventListener('osdata:fleet', sync); clearTimeout(t1); clearTimeout(t2); };
+  }, []);
+
   const filtered = filter === 'all' ? tenants : tenants.filter(t => t.vertical === filter);
 
   const counts = {
@@ -5513,7 +5525,7 @@ You: "'We help you get more done with less stress.' Nine plain words beat the ja
               fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 14,
             }}>N</div>
             <div>
-              <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', letterSpacing: 1.5, color: 'var(--text-tertiary)' }}>NIA'S WATCH <span style={{ color: 'var(--mint)', marginLeft: 6 }}>· LIVE v21</span></div>
+              <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', letterSpacing: 1.5, color: 'var(--text-tertiary)' }}>NIA'S WATCH <span style={{ color: 'var(--mint)', marginLeft: 6 }}>· LIVE v22</span></div>
               <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)' }}>
                 What happened while you were away
               </div>
