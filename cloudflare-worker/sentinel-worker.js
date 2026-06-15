@@ -382,6 +382,7 @@ export default {
     if (url.pathname === '/os-data')            return handleOsDataList(url.searchParams.get('tenant') || 'next', url.searchParams.get('kind') || '', env, cors);
     if (url.pathname === '/os-data/save')       return handleOsDataSave(request, env, cors);
     if (url.pathname === '/translate')          return handleTranslate(request, env, cors);
+    if (url.pathname === '/syllabus/generate')  return handleSyllabusGenerate(request, env, cors);
     if (url.pathname === '/push/vapid-public')  return new Response(JSON.stringify({ key: env.VAPID_PUBLIC || '' }), { status: 200, headers: { ...cors, 'Content-Type': 'application/json' } });
     if (url.pathname === '/push/subscribe')     return handlePushSubscribe(request, env, cors);
     if (url.pathname === '/push/notify')        return handlePushNotify(request, env, cors);
@@ -1418,6 +1419,32 @@ async function handleFeesImport(request, env, cors) {
     for (let i = 0; i < inserts.length; i += 500) { await sbWrite(env, '/fees', inserts.slice(i, i + 500), 'POST', 'return=minimal'); imported += Math.min(500, inserts.length - i); }
     return J({ ok: true, imported, matched: matchedIds.size, students: matchedIds.size, term, unmatched });
   } catch (e) { return J({ error: String((e && e.message) || e) }, 200); }
+}
+
+async function handleSyllabusGenerate(request, env, cors) {
+  const J = (oo, st) => new Response(JSON.stringify(oo), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
+  let b; try { b = await request.json(); } catch (e) { return J({ error: 'bad body' }, 400); }
+  const klass = String(b.class || b.klass || '').trim();
+  const subject = String(b.subject || '').trim();
+  const level = String(b.level || 'primary').trim();
+  let lessons = parseInt(b.lessons, 10) || 0;
+  if (lessons < 6) lessons = 6; if (lessons > 120) lessons = 120;
+  if (!klass || !subject) return J({ error: 'class and subject required' }, 400);
+  const levelWord = level === 'tertiary' ? 'university/college' : (level === 'secondary' ? 'secondary school' : 'primary school');
+  const sys = 'You are a Ugandan curriculum planner who knows the National Curriculum Development Centre (NCDC) syllabi for ' + levelWord + '. You break a class subject syllabus into a sequenced term scheme of work, one teachable lesson per period, in the correct teaching order (foundational topics first).';
+  const user = 'Class: ' + klass + '. Subject: ' + subject + '. The teacher has exactly ' + lessons + ' lesson periods this term. Produce EXACTLY ' + lessons + ' lessons that together cover the term\'s NCDC syllabus for this class and subject, paced so the syllabus finishes within the ' + lessons + ' periods. Return ONLY a JSON array (no prose, no markdown). Each element: {"topic":"<broad topic/theme>","title":"<specific lesson title>","objective":"<one-sentence learning objective starting with a verb>"}. Order them in proper teaching sequence.';
+  let raw = '';
+  try { raw = await niaGenerate(env, sys, user, 3500, 0.3); } catch (e) { return J({ error: 'generation failed: ' + String(e && e.message || e) }, 200); }
+  if (!raw || !raw.trim()) return J({ error: 'Nia could not generate a plan right now. Try again.' }, 200);
+  // Extract JSON array defensively
+  let arr = null;
+  try { arr = JSON.parse(raw); } catch (e) {
+    const m = raw.match(/\[[\s\S]*\]/);
+    if (m) { try { arr = JSON.parse(m[0]); } catch (e2) {} }
+  }
+  if (!Array.isArray(arr) || !arr.length) return J({ error: 'Could not parse the generated plan. Try again.', raw: raw.slice(0, 400) }, 200);
+  const clean = arr.filter(x => x && (x.title || x.topic)).map((x, i) => ({ seq: i + 1, topic: String(x.topic || x.title || '').slice(0, 120), title: String(x.title || x.topic || '').slice(0, 160), objective: String(x.objective || '').slice(0, 240), done: false, doneAt: null }));
+  return J({ ok: true, class: klass, subject: subject, count: clean.length, lessons: clean });
 }
 
 async function handleTranslate(request, env, cors) {
