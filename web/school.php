@@ -14,7 +14,7 @@ if ($html === false) { http_response_code(404); echo 'Not found'; exit; }
 if ($s !== '') {
   $sx = htmlspecialchars($s, ENT_QUOTES);
   $inject = '<link rel="manifest" href="/manifest.php?s=' . $sx . '">'
-          . '<link rel="apple-touch-icon" href="https://nextos-sentinel.nextafricaai.workers.dev/icon?s=' . $sx . '">';
+          . '<link rel="apple-touch-icon" href="https://nextos-sentinel.nextafricaai.workers.dev/icon.png?s=' . $sx . '">';
   // Place immediately after <head> so the manifest is the first thing the browser sees.
   $html = preg_replace('/<head([^>]*)>/i', '<head$1>' . $inject, $html, 1);
 }

@@ -202,6 +202,17 @@ export default {
       return new Response(svg, { headers: { ...cors, 'Content-Type': 'image/svg+xml', 'Cache-Control': 'public, max-age=300' } });
     }
 
+    // Per-school PNG icon (real raster — works on desktop taskbars + iOS home screen).
+    if (request.method === 'GET' && url.pathname === '/icon.png') {
+      const slug = url.searchParams.get('s') || '';
+      let nm = 'NEXT', col = '#00FC8F';
+      try { const rows = await sbFetch(env, '/tenants?id=eq.' + encodeURIComponent(slug) + '&select=name,primary_color'); if (rows && rows[0]) { nm = rows[0].name || nm; col = rows[0].primary_color || col; } } catch (e) {}
+      let init = String(nm).split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase().replace(/[^A-Z0-9]/g, '');
+      if (!init) init = 'N';
+      const png = makeIconPng(init, col, 512);
+      return new Response(png, { headers: { ...cors, 'Content-Type': 'image/png', 'Cache-Control': 'public, max-age=3600' } });
+    }
+
     // ─── Route: GET /fleet — live tenant fleet for the OS + Nia chat ──────
     if (request.method === 'GET' && url.pathname === '/fleet') {
       try {
@@ -2312,4 +2323,66 @@ async function handleSTT(request, env, cors) {
     catch (e) { return J({ error: 'stt failed: ' + String((e && e.message) || e) }, 200); }
     return J({ ok: true, text: String(text).trim() });
   } catch (e) { return J({ error: String((e && e.message) || e) }, 200); }
+}
+
+// ─── Tiny PNG icon generator (brand colour square + initials) ───────────────
+const _PNG_FONT = {
+  A:[0x7E,0x11,0x11,0x11,0x7E],B:[0x7F,0x49,0x49,0x49,0x36],C:[0x3E,0x41,0x41,0x41,0x22],
+  D:[0x7F,0x41,0x41,0x41,0x3E],E:[0x7F,0x49,0x49,0x49,0x41],F:[0x7F,0x09,0x09,0x09,0x01],
+  G:[0x3E,0x41,0x49,0x49,0x7A],H:[0x7F,0x08,0x08,0x08,0x7F],I:[0x00,0x41,0x7F,0x41,0x00],
+  J:[0x20,0x40,0x41,0x3F,0x01],K:[0x7F,0x08,0x14,0x22,0x41],L:[0x7F,0x40,0x40,0x40,0x40],
+  M:[0x7F,0x02,0x0C,0x02,0x7F],N:[0x7F,0x04,0x08,0x10,0x7F],O:[0x3E,0x41,0x41,0x41,0x3E],
+  P:[0x7F,0x09,0x09,0x09,0x06],Q:[0x3E,0x41,0x51,0x21,0x5E],R:[0x7F,0x09,0x19,0x29,0x46],
+  S:[0x46,0x49,0x49,0x49,0x31],T:[0x01,0x01,0x7F,0x01,0x01],U:[0x3F,0x40,0x40,0x40,0x3F],
+  V:[0x1F,0x20,0x40,0x20,0x1F],W:[0x7F,0x20,0x18,0x20,0x7F],X:[0x63,0x14,0x08,0x14,0x63],
+  Y:[0x07,0x08,0x70,0x08,0x07],Z:[0x61,0x51,0x49,0x45,0x43],
+  '0':[0x3E,0x51,0x49,0x45,0x3E],'1':[0x00,0x42,0x7F,0x40,0x00],'2':[0x42,0x61,0x51,0x49,0x46],
+  '3':[0x21,0x41,0x45,0x4B,0x31],'4':[0x18,0x14,0x12,0x7F,0x10],'5':[0x27,0x45,0x45,0x45,0x39],
+  '6':[0x3C,0x4A,0x49,0x49,0x30],'7':[0x01,0x71,0x09,0x05,0x03],'8':[0x36,0x49,0x49,0x49,0x36],
+  '9':[0x06,0x49,0x49,0x29,0x1E],' ':[0,0,0,0,0]
+};
+function _pHexRgb(h){ h=(h||'#00FC8F').replace('#',''); if(h.length===3)h=h.split('').map(c=>c+c).join(''); return [parseInt(h.slice(0,2),16)||0,parseInt(h.slice(2,4),16)||200,parseInt(h.slice(4,6),16)||140]; }
+function _pU32(n){ return new Uint8Array([(n>>>24)&255,(n>>>16)&255,(n>>>8)&255,n&255]); }
+function _pCat(arrs){ let len=0; for(const a of arrs)len+=a.length; const o=new Uint8Array(len); let p=0; for(const a of arrs){ o.set(a,p); p+=a.length; } return o; }
+function _pCrc(buf){ let c=~0; for(let i=0;i<buf.length;i++){ c^=buf[i]; for(let k=0;k<8;k++) c=(c>>>1)^(0xEDB88320&-(c&1)); } return (~c)>>>0; }
+function _pAdler(buf){ let a=1,b=0; for(let i=0;i<buf.length;i++){ a=(a+buf[i])%65521; b=(b+a)%65521; } return ((b<<16)|a)>>>0; }
+function _pChunk(type,data){ const t=new Uint8Array([type.charCodeAt(0),type.charCodeAt(1),type.charCodeAt(2),type.charCodeAt(3)]); const body=_pCat([t,data]); return _pCat([_pU32(data.length),body,_pU32(_pCrc(body))]); }
+function _pZlib(raw){ const parts=[new Uint8Array([0x78,0x01])]; let off=0; while(off<raw.length){ const len=Math.min(65535,raw.length-off); const last=(off+len>=raw.length)?1:0; parts.push(new Uint8Array([last,len&255,(len>>8)&255,(~len)&255,((~len)>>8)&255])); parts.push(raw.subarray(off,off+len)); off+=len; } parts.push(_pU32(_pAdler(raw))); return _pCat(parts); }
+function makeIconPng(letters, color, size) {
+  size = size || 512;
+  const rgb = _pHexRgb(color); const br=rgb[0],bg=rgb[1],bb=rgb[2];
+  const lum = 0.299*br+0.587*bg+0.114*bb;
+  const fg = lum>150 ? [15,18,30] : [255,255,255];
+  const px = new Uint8Array(size*size*3);
+  for (let i=0;i<size*size;i++){ px[i*3]=br; px[i*3+1]=bg; px[i*3+2]=bb; }
+  letters = String(letters||'N').toUpperCase().slice(0,2);
+  const n=letters.length, gw=5, gh=7;
+  const scale=Math.floor((size*0.5)/gh);
+  const charW=gw*scale, gap=Math.floor(scale*1.4);
+  const totalW=n*charW+(n-1)*gap;
+  const startX=Math.floor((size-totalW)/2);
+  const startY=Math.floor((size-gh*scale)/2);
+  for (let ci=0; ci<n; ci++){
+    const glyph=_PNG_FONT[letters[ci]]||_PNG_FONT['N'];
+    const ox=startX+ci*(charW+gap);
+    for (let col=0; col<gw; col++){
+      const bits=glyph[col];
+      for (let row=0; row<gh; row++){
+        if (!(bits & (1<<row))) continue;
+        for (let sx=0; sx<scale; sx++){
+          for (let sy=0; sy<scale; sy++){
+            const x=ox+col*scale+sx, y=startY+row*scale+sy;
+            if (x<0||x>=size||y<0||y>=size) continue;
+            const idx=(y*size+x)*3;
+            px[idx]=fg[0]; px[idx+1]=fg[1]; px[idx+2]=fg[2];
+          }
+        }
+      }
+    }
+  }
+  const stride=size*3+1;
+  const raw=new Uint8Array(size*stride);
+  for (let y=0;y<size;y++){ raw[y*stride]=0; raw.set(px.subarray(y*size*3,(y+1)*size*3), y*stride+1); }
+  const ihdr=_pCat([_pU32(size),_pU32(size),new Uint8Array([8,2,0,0,0])]);
+  return _pCat([new Uint8Array([137,80,78,71,13,10,26,10]), _pChunk('IHDR',ihdr), _pChunk('IDAT',_pZlib(raw)), _pChunk('IEND',new Uint8Array(0))]);
 }
