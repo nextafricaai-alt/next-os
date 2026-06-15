@@ -5525,7 +5525,7 @@ You: "'We help you get more done with less stress.' Nine plain words beat the ja
               fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 14,
             }}>N</div>
             <div>
-              <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', letterSpacing: 1.5, color: 'var(--text-tertiary)' }}>NIA'S WATCH <span style={{ color: 'var(--mint)', marginLeft: 6 }}>· LIVE v24</span></div>
+              <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', letterSpacing: 1.5, color: 'var(--text-tertiary)' }}>NIA'S WATCH <span style={{ color: 'var(--mint)', marginLeft: 6 }}>· LIVE v25</span></div>
               <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)' }}>
                 What happened while you were away
               </div>
@@ -6936,7 +6936,10 @@ const AnalyticsPage = ({ onNavigate }) => {
                 <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr auto', gap: 12, alignItems: 'center' }}>
                   <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 15, color: seoColor(d.score || 0), minWidth: 34 }}>{d.score}</span>
                   <div style={{ minWidth: 0 }}><div style={{ fontSize: 12.5, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.domain}</div><div style={{ fontSize: 11, color: (d.issues && d.issues.length) ? 'var(--gold)' : 'var(--mint)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{issue}{(d.issues && d.issues.length > 1) ? ' · +' + (d.issues.length - 1) + ' more' : ''}</div></div>
-                  <button onClick={() => askNiaSite(s)} disabled={st && st.loading} style={{ background: 'transparent', color: 'var(--mint)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-sm)', padding: '5px 9px', fontSize: 11, cursor: 'pointer', whiteSpace: 'nowrap' }}>{st && st.loading ? '…' : '✦ Nia fixes'}</button>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <button onClick={() => askNiaSite(s)} disabled={st && st.loading} style={{ background: 'transparent', color: 'var(--mint)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-sm)', padding: '5px 9px', fontSize: 11, cursor: 'pointer', whiteSpace: 'nowrap' }}>{st && st.loading ? '…' : '✦ Nia fixes'}</button>
+                    <a href={'/studio.html?url=' + encodeURIComponent(s.url || ('https://' + s.domain)) + '&seo=1'} target="_blank" rel="noopener" style={{ background: 'var(--mint)', color: '#062b18', border: 'none', borderRadius: 'var(--radius-sm)', padding: '5px 9px', fontSize: 11, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', textDecoration: 'none' }}>Fix in Studio →</a>
+                  </div>
                 </div>
                 {st && st.text && <div style={{ background: 'var(--bg-deep)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-sm)', padding: 12, marginTop: 8, fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{st.text}</div>}
               </div>
