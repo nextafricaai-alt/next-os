@@ -214,7 +214,7 @@
     <div style="min-height:100vh;display:grid;place-items:center;color:#8a91b0;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px;letter-spacing:0.08em;">
       <div style="text-align:center">
         <div id="nx-loading-text">LOADING · NEXT SCHOOL OS</div>
-        <div style="margin-top:12px;font-size:10px;opacity:0.5">build b62</div>
+        <div style="margin-top:12px;font-size:10px;opacity:0.5">build b63</div>
       </div>
     </div>
   </div>
@@ -2893,7 +2893,7 @@ window.PEAK = (function () {
     students: 842,
     teachers: 38,
     streams: 14,
-    presentToday: 793,
+    presentToday: 0,
     absentToday: 49,
     attendancePct: 94.2,
     attendancePrev: 91.8,
@@ -3966,6 +3966,32 @@ const PD_Today = (function () {
   }
 
   function Today({ embed = false, onNav } = {}) {
+    const _D = window.PEAK || {}; const _k = _D.kpis || {}; const _studs = _D.students || [];
+    const _overdue = _studs.filter(s => (Number(s.balance) || 0) > 0);
+    const _overdueTot = _overdue.reduce((a, s) => a + (Number(s.balance) || 0), 0);
+    const _atRisk = _studs.filter(s => s.flag === 'risk' || (s.attendanceWk != null && s.attendanceWk < 70));
+    const _noPhone = _studs.filter(s => !s.guardianPhone);
+    const _present = Math.min(Number(_k.presentToday) || 0, _studs.length);
+    const _absent = Number(_k.absentToday) || 0;
+    const _feesToday = Number(_k.feesCollectedToday) || 0;
+    const _firstName = (function () { var p = (window.PEAK_ROLE && window.PEAK_ROLE.getProfile && window.PEAK_ROLE.getProfile()) || {}; return ((p.fullName || '').trim().split(' ')[0]) || 'there'; })();
+    const _brief = (function () {
+      const out = [];
+      if (!_studs.length) { out.push({ tag: 'SETUP', t: 'No students imported yet.', d: 'Import your roster (Students → Import CSV) to bring this dashboard to life.', c: T.warn }); return out; }
+      if (_overdue.length) out.push({ tag: 'FEES', t: _overdue.length + ' fee account' + (_overdue.length === 1 ? '' : 's') + ' outstanding.', d: 'UGX ' + _overdueTot.toLocaleString() + ' due in total. Send gentle reminders from Fees.', c: T.red });
+      if (_atRisk.length) out.push({ tag: 'WATCH', t: _atRisk.length + ' learner' + (_atRisk.length === 1 ? '' : 's') + ' need a check-in.', d: _atRisk.slice(0, 3).map(s => s.name).join(', ') + (_atRisk.length > 3 ? '…' : '') + '. Low attendance or flagged at-risk.', c: T.warn });
+      if (_present > 0) out.push({ tag: 'GOOD', t: _present + ' of ' + _studs.length + ' marked present today.', d: 'Register is being taken. Follow up the ' + _absent + ' not yet in.', c: T.good });
+      if (!out.length) out.push({ tag: 'GOOD', t: 'All clear — ' + _studs.length + ' students on the roll.', d: 'No overdue fees or at-risk flags right now.', c: T.good });
+      return out.slice(0, 3);
+    })();
+    const _suggest = (function () {
+      const out = [];
+      if (_overdue.length) out.push('Send fee reminders to ' + _overdue.length + ' guardian' + (_overdue.length === 1 ? '' : 's'));
+      if (_atRisk.length) out.push('Follow up on ' + _atRisk.length + ' at-risk learner' + (_atRisk.length === 1 ? '' : 's'));
+      if (_noPhone.length) out.push('Add phone numbers for ' + _noPhone.length + ' guardian' + (_noPhone.length === 1 ? '' : 's'));
+      if (!out.length) out.push('Take today\u2019s register');
+      return out.slice(0, 4);
+    })();
     return (
       <div style={{
         width: embed ? '100%' : 1440, height: embed ? '100%' : 900,
@@ -3995,10 +4021,10 @@ const PD_Today = (function () {
               border: '1px solid ' + T.border, borderRadius: 12, overflow: 'hidden', background: T.border,
             }}>
               {[
-                { l: 'Children on campus',  v: String(window.PEAK.kpis.presentToday||0), s: 'of ' + (window.PEAK.kpis.students||0) + ' · ' + (window.PEAK.kpis.attendancePct||0) + '%', c: T.good },
-                { l: 'Teachers signed in',  v: '36',  s: 'of 38 · 2 late',          c: T.warn },
-                { l: 'Fees collected today',v: 'UGX 18.24M', s: 'as of 08:24',      c: T.good },
-                { l: 'Items waiting',       v: '5',   s: '2 high priority',         c: T.red  },
+                { l: 'Children on campus',  v: _present > 0 ? String(_present) : '\u2014', s: _present > 0 ? ('of ' + _studs.length + ' · ' + (_k.attendancePct || 0) + '%') : (_studs.length + ' enrolled · register not taken'), c: T.good },
+                { l: 'Students enrolled',   v: String(_studs.length), s: (_atRisk.length ? (_atRisk.length + ' at-risk') : 'all steady'), c: T.ink },
+                { l: 'Fees collected today',v: _feesToday > 0 ? D.fmtUGXshort(_feesToday) : '\u2014', s: _feesToday > 0 ? 'recorded today' : 'none recorded yet', c: T.good },
+                { l: 'Need attention',      v: String(_overdue.length + _atRisk.length), s: _overdue.length + ' owing · ' + _atRisk.length + ' at-risk', c: (_overdue.length + _atRisk.length) ? T.red : T.good },
               ].map(k => (
                 <div key={k.l} style={{ background: T.surface, padding: '16px 18px' }}>
                   <div style={{ fontSize: 10.5, color: T.ink3, fontFamily: T.mono, letterSpacing: '0.05em', fontWeight: 600, marginBottom: 8 }}>{k.l.toUpperCase()}</div>
@@ -4023,7 +4049,7 @@ const PD_Today = (function () {
                 <div style={{ width: 30, height: 30, borderRadius: 8, background: T.red, color: '#fff', display: 'grid', placeItems: 'center', fontFamily: T.mono, fontSize: 12, fontWeight: 700 }}>AI</div>
                 <div style={{ flex: 1, lineHeight: 1.15 }}>
                   <div style={{ fontSize: 13.5, fontWeight: 600 }}>NEXT · today briefing</div>
-                  <div style={{ fontSize: 10.5, color: T.ink3, fontFamily: T.mono }}>understands Peak · live</div>
+                  <div style={{ fontSize: 10.5, color: T.ink3, fontFamily: T.mono }}>live · from your school data</div>
                 </div>
               </div>
               <div style={{
@@ -4035,26 +4061,7 @@ const PD_Today = (function () {
             </div>
 
             <div className="today-aside-scroll" style={{ padding: 18, flex: 1, overflow: 'auto', display: 'flex', flexDirection: 'column', gap: 12 }}>
-              {[
-                {
-                  tag: 'TREND',
-                  t: 'P5 Vigilant attendance has dipped 8 points this week.',
-                  d: 'Likely driven by 3 children — Mugisha, Lubega, one new. I have prepared talking points for their guardians.',
-                  c: T.warn,
-                },
-                {
-                  tag: 'GOOD',
-                  t: 'Fee collection is 18% ahead of week 6 last term.',
-                  d: 'Strong response to the new MTN payment shortcode. Most parents now pay via *165*3# directly.',
-                  c: T.good,
-                },
-                {
-                  tag: 'WATCH',
-                  t: 'Brian Mugisha (P5V) — risk signal escalated.',
-                  d: '60% attendance + UGX 340k overdue + no parent reply in 4 days. I suggest a director call today.',
-                  c: T.red,
-                },
-              ].map((s, i) => (
+              {_brief.map((s, i) => (
                 <div key={i} style={{
                   background: T.surface2, borderRadius: 12, padding: 14,
                   border: '1px solid ' + T.border, borderLeft: '3px solid ' + s.c,
@@ -4068,11 +4075,7 @@ const PD_Today = (function () {
               ))}
 
               <div style={{ marginTop: 4, fontSize: 11, color: T.ink3, fontFamily: T.mono, letterSpacing: '0.05em' }}>SUGGESTED FOR YOU</div>
-              {[
-                'Call Mr. Mugisha (Brian, P5V)',
-                'Recognise P7 Prudent in assembly',
-                'Update the bursar on Lubega family situation',
-              ].map(s => (
+              {_suggest.map(s => (
                 <button key={s} onClick={() => window.peakToast && window.peakToast(s, 'info', 'Added to your daily checklist · 16:00 reminder set.')} style={{
                   textAlign: 'left', padding: '11px 13px', borderRadius: 10, background: 'transparent',
                   border: '1px solid ' + T.border, color: T.ink2, fontSize: 12.5, cursor: 'pointer',
