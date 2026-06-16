@@ -385,6 +385,8 @@ export default {
     if (url.pathname === '/translate')          return handleTranslate(request, env, cors);
     if (url.pathname === '/syllabus/generate')  return handleSyllabusGenerate(request, env, cors);
     if (url.pathname === '/seo-tips')           return handleSeoTips(request, env, cors);
+    if (url.pathname === '/exam/scan-mark')     return handleExamScanMark(request, env, cors);
+    if (url.pathname === '/exam/care-plan')     return handleExamCarePlan(request, env, cors);
     if (url.pathname === '/push/vapid-public')  return new Response(JSON.stringify({ key: env.VAPID_PUBLIC || '' }), { status: 200, headers: { ...cors, 'Content-Type': 'application/json' } });
     if (url.pathname === '/push/subscribe')     return handlePushSubscribe(request, env, cors);
     if (url.pathname === '/push/notify')        return handlePushNotify(request, env, cors);
@@ -1446,6 +1448,62 @@ async function handleFeesImport(request, env, cors) {
     let imported = 0;
     for (let i = 0; i < inserts.length; i += 500) { await sbWrite(env, '/fees', inserts.slice(i, i + 500), 'POST', 'return=minimal'); imported += Math.min(500, inserts.length - i); }
     return J({ ok: true, imported, matched: matchedIds.size, students: matchedIds.size, term, unmatched });
+  } catch (e) { return J({ error: String((e && e.message) || e) }, 200); }
+}
+
+async function handleExamScanMark(request, env, cors) {
+  const J = (oo, st) => new Response(JSON.stringify(oo), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
+  let b; try { b = await request.json(); } catch (e) { return J({ error: 'bad body' }, 400); }
+  let img = String(b.image || '');
+  const subject = String(b.subject || '').trim();
+  const klass = String(b.class || b.klass || '').trim();
+  const level = String(b.level || 'primary').trim();
+  const examName = String(b.examName || '').trim();
+  const guide = String(b.markGuide || '').trim();
+  if (!img) return J({ error: 'image required' }, 400);
+  if (!env.ANTHROPIC_API_KEY) return J({ error: 'Reading handwriting needs Claude vision. Add your ANTHROPIC_API_KEY secret to the worker, then this works.' }, 200);
+  // accept data URL or raw base64
+  let media = 'image/jpeg'; let data = img;
+  const m = img.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.*)$/);
+  if (m) { media = m[1]; data = m[2]; } else { data = img.replace(/^base64,/, ''); }
+  const levelWord = level === 'secondary' ? 'Ugandan secondary (UNEB UCE/UACE)' : (level === 'tertiary' ? 'Ugandan tertiary' : 'Ugandan primary (UNEB PLE)');
+  const sys = 'You are a meticulous, fair ' + levelWord + ' examiner who knows the NCDC syllabus and UNEB marking schemes for both theory and practical papers. You read a photographed exam script, identify the learner, and mark each answer the way a UNEB examiner would — awarding method marks, accuracy marks and follow-through, and never inventing marks for blank or illegible answers. You also notice HOW the learner reasons.';
+  const user = 'This is a photo of a learner\'s ' + (subject ? subject + ' ' : '') + 'exam script' + (klass ? ' for class ' + klass : '') + (examName ? ' (' + examName + ')' : '') + '.' + (guide ? ' Mark against this marking guide: ' + guide : ' Mark each answer against the correct UNEB answer for this subject and level.') + '\n\nReturn ONLY valid JSON (no prose, no markdown): {"studentName":"<as written on the script, or empty if unreadable>","subject":"' + (subject || '<detected>') + '","perQuestion":[{"q":"<number/label>","given":"<short summary of the learner\'s answer>","marks":<number>,"max":<number>,"note":"<one short marking note>"}],"total":<number>,"max":<number>,"percent":<number 0-100>,"grade":"<UNEB grade e.g. D1..F9 or A..F>","feedback":"<2-3 warm sentences to the learner>","reasoningNotes":"<1-2 sentences on how this learner thinks — what they grasp and where the reasoning breaks down>","confidence":"<high|medium|low — your confidence in reading this script>"}. If the script is too blurry to mark, return total 0 and confidence "low" with a note asking for a clearer photo.';
+  try {
+    const r = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
+      body: JSON.stringify({ model: env.ANTHROPIC_MODEL || 'claude-sonnet-4-6', max_tokens: 2000, system: sys, messages: [{ role: 'user', content: [{ type: 'image', source: { type: 'base64', media_type: media, data: data } }, { type: 'text', text: user }] }] }),
+    });
+    if (!r.ok) { const t = await r.text(); return J({ error: 'Claude vision error: ' + t.slice(0, 200) }, 200); }
+    const d = await r.json();
+    let txt = ((d.content || []).filter(c => c.type === 'text').map(c => c.text).join('')) || '';
+    let parsed = null; try { parsed = JSON.parse(txt); } catch (e) { const mm = txt.match(/\{[\s\S]*\}/); if (mm) { try { parsed = JSON.parse(mm[0]); } catch (e2) {} } }
+    if (!parsed) return J({ error: 'Could not parse the marking. Try a clearer photo.', raw: txt.slice(0, 300) }, 200);
+    return J({ ok: true, marking: parsed });
+  } catch (e) { return J({ error: String((e && e.message) || e) }, 200); }
+}
+
+async function handleExamCarePlan(request, env, cors) {
+  const J = (oo, st) => new Response(JSON.stringify(oo), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
+  let b; try { b = await request.json(); } catch (e) { return J({ error: 'bad body' }, 400); }
+  const learner = b.learner || {};
+  if (!learner.name && !(learner.exams && learner.exams.length)) return J({ error: 'learner data required' }, 400);
+  const sys = 'You are Nia, a wise, caring Ugandan head-of-studies who knows the NCDC syllabus and UNEB answering tactics for every subject (theory and practical). You read a learner\'s full picture — marks across several exams, how they reason, attendance, behaviour, family background and fee status — and form a holistic, compassionate, practical judgement. You write for a head teacher: specific, kind, never labelling a child as a failure, always actionable.';
+  const ex = (learner.exams || []).map(e => '- ' + (e.subject || 'Subject') + ' (' + (e.examName || 'exam') + '): ' + (e.percent != null ? e.percent + '%' : (e.total + '/' + e.max)) + (e.grade ? ' grade ' + e.grade : '') + (e.reasoningNotes ? ' — reasoning: ' + e.reasoningNotes : '')).join('\n');
+  const user = 'Learner: ' + (learner.name || '?') + (learner.stream ? ' (' + learner.stream + ')' : '') + '.\n'
+    + 'Exams marked so far:\n' + (ex || '(none yet)') + '\n'
+    + 'Attendance: ' + (learner.attendancePct != null ? learner.attendancePct + '%' : 'unknown') + '.\n'
+    + 'Behaviour notes: ' + ((learner.behaviour && learner.behaviour.length) ? learner.behaviour.join('; ') : 'none recorded') + '.\n'
+    + 'Family background: ' + (learner.family || 'not recorded') + '.\n'
+    + 'Fees: ' + (learner.feesBalance != null ? ('balance UGX ' + Number(learner.feesBalance).toLocaleString()) : 'unknown') + '.\n\n'
+    + 'Give ONLY valid JSON (no markdown): {"reasoningCapacity":"<2-3 sentences: how this child thinks across subjects — recall vs understanding vs application, where it breaks>","strengths":["..."],"gaps":["..."],"unebTactics":["<specific UNEB answering tactic this learner must practise, per their weak pattern>"],"howToHelp":["<concrete teaching/parenting action>"],"carePlan":["<step the school will take, e.g. pairing, remedial, counselling, fees conversation>"],"summary":"<one warm paragraph a head could read to a parent>"}. Tie observations to the real data above (e.g. if attendance is low or fees stress is present, address it in the care plan).';
+  try {
+    const out = await niaGenerate(env, sys, user, 1500, 0.4);
+    if (!out || !out.trim()) return J({ error: 'Nia could not produce a plan right now. Try again.' }, 200);
+    let parsed = null; try { parsed = JSON.parse(out); } catch (e) { const mm = out.match(/\{[\s\S]*\}/); if (mm) { try { parsed = JSON.parse(mm[0]); } catch (e2) {} } }
+    if (!parsed) return J({ ok: true, plan: { summary: out.trim() } });
+    return J({ ok: true, plan: parsed });
   } catch (e) { return J({ error: String((e && e.message) || e) }, 200); }
 }
 
