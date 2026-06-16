@@ -4807,6 +4807,8 @@ You: "'We help you get more done with less stress.' Nine plain words beat the ja
   const NiaHQPage = ({ onNavigate }) => {
     const [mounted, setMounted] = React.useState(false);
     const [online, setOnline] = React.useState(null);
+    const [health, setHealth] = React.useState(null);
+    React.useEffect(() => { let ok = true; var WKh = (window.NEXT_OS_SENTINEL_ENDPOINT) || 'https://nextos-sentinel.nextafricaai.workers.dev'; const run = () => fetch(WKh + '/health').then(r => r.json()).then(d => { if (ok) setHealth(d); }).catch(() => {}); run(); const iv = setInterval(run, 60000); return () => { ok = false; clearInterval(iv); }; }, []);
     const [prefs, setPrefs] = React.useState(() => { try { return Object.assign({ tone: 'Advisory', length: 'balanced', language: 'English', monitoring: true }, JSON.parse(localStorage.getItem('nextos.nia.prefs') || '{}')); } catch (e) { return { tone: 'Advisory', length: 'balanced', language: 'English', monitoring: true }; } });
     const [saved, setSaved] = React.useState(false);
     React.useEffect(() => { setTimeout(() => setMounted(true), 50); }, []);
@@ -4889,6 +4891,15 @@ You: "'We help you get more done with less stress.' Nine plain words beat the ja
             <div style={{ display: 'flex', justifyContent: 'space-between', padding: '9px 0', fontSize: 12.5 }}>
               <span style={{ color: 'var(--text-tertiary)' }}>Worker</span>
               <span style={{ color: online === false ? 'var(--gold)' : 'var(--mint)' }}>{online === null ? 'checking…' : online ? '● online' : '● unreachable'}</span>
+            </div>
+            <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--border-subtle)' }}>
+              <div style={{ fontSize: 10.5, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)', letterSpacing: '0.06em', marginBottom: 6, display: 'flex', justifyContent: 'space-between' }}><span>SYSTEM HEALTH</span>{health && <span style={{ color: health.status === 'ok' ? 'var(--mint)' : health.status === 'warn' ? 'var(--gold)' : 'var(--danger)' }}>{(health.status || '').toUpperCase()}</span>}</div>
+              {!health ? <div style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>checking vital signs…</div> : (health.checks || []).map(c => (
+                <div key={c.name} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '6px 0', fontSize: 12 }}>
+                  <span style={{ color: 'var(--text-secondary)' }}>{c.status === 'ok' ? '●' : c.status === 'warn' ? '◐' : '○'} {c.name}</span>
+                  <span style={{ color: c.status === 'ok' ? 'var(--mint)' : c.status === 'warn' ? 'var(--gold)' : 'var(--danger)', textAlign: 'right', fontSize: 11 }}>{c.detail}</span>
+                </div>
+              ))}
             </div>
             <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '12px', background: 'var(--bg-base)', borderRadius: 'var(--radius-sm)' }}>
               <div>
@@ -5552,7 +5563,7 @@ You: "'We help you get more done with less stress.' Nine plain words beat the ja
               fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 14,
             }}>N</div>
             <div>
-              <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', letterSpacing: 1.5, color: 'var(--text-tertiary)' }}>NIA'S WATCH <span style={{ color: 'var(--mint)', marginLeft: 6 }}>· LIVE v32</span></div>
+              <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', letterSpacing: 1.5, color: 'var(--text-tertiary)' }}>NIA'S WATCH <span style={{ color: 'var(--mint)', marginLeft: 6 }}>· LIVE v33</span></div>
               <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)' }}>
                 What happened while you were away
               </div>

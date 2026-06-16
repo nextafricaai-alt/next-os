@@ -213,7 +213,7 @@
   <script>
     /* Build self-heal: if this cached HTML is older than what the server now serves,
        reload ONCE with a cache-buster so no school is ever stuck on a stale build. */
-    window.__BUILD = 'b86';
+    window.__BUILD = 'b87';
     (function () {
       try {
         fetch('/build.txt?ts=' + Date.now(), { cache: 'no-store' })
@@ -234,7 +234,7 @@
     <div style="min-height:100vh;display:grid;place-items:center;color:#8a91b0;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px;letter-spacing:0.08em;">
       <div style="text-align:center">
         <div id="nx-loading-text">LOADING · NEXT SCHOOL OS</div>
-        <div style="margin-top:12px;font-size:10px;opacity:0.5">build b86</div>
+        <div style="margin-top:12px;font-size:10px;opacity:0.5">build b87</div>
       </div>
     </div>
   </div>
@@ -8388,6 +8388,9 @@ window.PEAK_WATCH = (function () {
         if (parts.length) setChange('Since your last check: ' + parts.join(', ') + '.');
       }
       osSave('watch_snapshot', Object.assign({ at: new Date().toISOString() }, nowSnap), snapRows[0] && snapRows[0].id);
+
+      // ── System health: is the OS itself healthy? ──
+      try { const h = await fetch(WK + '/health').then(r => r.json()); if (h && h.status === 'down') { const bad = (h.checks || []).filter(c => c.status === 'down').map(c => c.name).join(', '); add('high', 'System', 'A core system is down (' + (bad || 'unknown') + ') — Nia flagged it for repair. Operations may be affected.', null); } else if (h && h.status === 'warn') { const w = (h.checks || []).filter(c => c.status === 'warn').map(c => c.name).join(', '); add('low', 'System', 'Optional systems not set up: ' + (w || '') + '.', null); } } catch (e) {}
 
       const order = { high: 0, med: 1, low: 2 };
       out.sort((a, b) => order[a.sev] - order[b.sev]);
