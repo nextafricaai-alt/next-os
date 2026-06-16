@@ -1,0 +1,12 @@
+{
+  "name": "NEXT Gate · Attendance Kiosk",
+  "short_name": "Gate",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#070b1a",
+  "theme_color": "#070b1a",
+  "start_url": "./gate.html",
+  "icons": [
+    { "src": "https://nextos-sentinel.nextafricaai.workers.dev/icon.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
