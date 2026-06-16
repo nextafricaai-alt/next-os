@@ -212,7 +212,7 @@
   <script>
     /* Build self-heal: if this cached HTML is older than what the server now serves,
        reload ONCE with a cache-buster so no school is ever stuck on a stale build. */
-    window.__BUILD = 'b83';
+    window.__BUILD = 'b84';
     (function () {
       try {
         fetch('/build.txt?ts=' + Date.now(), { cache: 'no-store' })
@@ -233,7 +233,7 @@
     <div style="min-height:100vh;display:grid;place-items:center;color:#8a91b0;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px;letter-spacing:0.08em;">
       <div style="text-align:center">
         <div id="nx-loading-text">LOADING · NEXT SCHOOL OS</div>
-        <div style="margin-top:12px;font-size:10px;opacity:0.5">build b83</div>
+        <div style="margin-top:12px;font-size:10px;opacity:0.5">build b84</div>
       </div>
     </div>
   </div>
@@ -10725,6 +10725,20 @@ window.PEAK_STAFF = (function () {
     const [voice, setVoice] = React.useState(() => { try { return localStorage.getItem('peak.nia.voice') === '1'; } catch (e) { return false; } });
     const [tut, setTut] = React.useState(() => { try { return localStorage.getItem('nextos.schooltutorial') !== '0'; } catch (e) { return true; } });
     React.useEffect(() => { fetch(WK + '/os-data?kind=school_profile&tenant=' + encodeURIComponent(ten)).then(r => r.json()).then(d => { const rec = ((d && d.records) || [])[0]; if (rec) { setRecId(rec.id); setMd((rec.payload && rec.payload.markdown) || ''); } }).catch(() => {}); }, []);
+    const SWATCHES = ['#00FC8F', '#e23a52', '#3a4f9c', '#f5b53d', '#7c3aed', '#0ea5e9', '#16a34a', '#db2777', '#ea580c', '#0d9488'];
+    const curColor = (function () { try { var b = JSON.parse(localStorage.getItem('nextos.brand.' + ten) || localStorage.getItem('nextos.brand') || 'null'); if (b && b.color) { var c = String(b.color); return c[0] === '#' ? c : '#' + c; } } catch (e) {} return (window.__ACCENT) || '#00FC8F'; })();
+    const [color, setColor] = React.useState(curColor);
+    const [savingColor, setSavingColor] = React.useState(false);
+    const applyColorLive = (c) => { try { document.documentElement.style.setProperty('--brand', c); window.__ACCENT = c; } catch (e) {} };
+    const saveColor = () => {
+      var c = color; if (c[0] !== '#') c = '#' + c; if (!/^#[0-9a-fA-F]{6}$/.test(c)) { window.peakToast && window.peakToast('Enter a valid colour', 'info'); return; }
+      setSavingColor(true);
+      try { var prev = JSON.parse(localStorage.getItem('nextos.brand.' + ten) || 'null') || {}; prev.color = c; localStorage.setItem('nextos.brand.' + ten, JSON.stringify(prev)); var g = JSON.parse(localStorage.getItem('nextos.brand') || 'null') || {}; g.color = c; localStorage.setItem('nextos.brand', JSON.stringify(g)); } catch (e) {}
+      applyColorLive(c);
+      fetch(WK + '/brand/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tenant: ten, primary_color: c }) })
+        .then(r => r.json()).then(() => { setSavingColor(false); window.peakToast && window.peakToast('Theme colour saved', 'success', 'Reload to apply it across the whole OS.'); })
+        .catch(() => { setSavingColor(false); window.peakToast && window.peakToast('Saved on this device', 'info', 'Could not sync to the server.'); });
+    };
     const TEMPLATE = '# About ' + ((window.__BRAND_NAME) || 'our school') + '\n\n## The school\n- Full name:\n- Location / district:\n- Founded:\n- Motto / vision:\n- Core values:\n- Levels we run (e.g. P1\u2013P7 / O-level / A-level):\n- Approx. number of learners:\n- Our story / what makes us special:\n\n## The head teacher\n- Name:\n- Years leading this school:\n- Background & training:\n- Leadership style & top priorities this term:\n\n## How we work\n- Term structure & key dates:\n- Our biggest challenges right now:\n- What we most want Nia to help us with:';
     const save = () => { setBusy(true); const rec = { markdown: md, by: (prof.fullName || prof.email || ''), updatedAt: new Date().toISOString() }; fetch(WK + '/os-data/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(recId ? { kind: 'school_profile', tenant: ten, record: rec, id: recId } : { kind: 'school_profile', tenant: ten, record: rec }) }).then(r => r.json()).then(res => { setBusy(false); if (res && res.record && res.record.id) setRecId(res.record.id); window.__SCHOOL_PROFILE = md; setSaved(true); setTimeout(() => setSaved(false), 1800); window.peakToast && window.peakToast('Saved', 'success', 'Nia now understands your school.'); }).catch(() => setBusy(false)); };
     const toggleVoice = () => setVoice(p => { const n = !p; try { localStorage.setItem('peak.nia.voice', n ? '1' : '0'); } catch (e) {} try { window.dispatchEvent(new CustomEvent('peakVoiceToggle', { detail: n })); } catch (e) {} return n; });
@@ -10759,6 +10773,17 @@ window.PEAK_STAFF = (function () {
             </div>
           ) : (
             <div>
+              <div style={{ paddingBottom: 14, borderBottom: '1px solid ' + T.border, marginBottom: 4 }}>
+                <div style={{ fontSize: 13.5, fontWeight: 600 }}>Theme colour</div>
+                <div style={{ fontSize: 12, color: T.ink3, marginTop: 2, marginBottom: 10 }}>Your school's accent colour across the whole OS.</div>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                  {SWATCHES.map(sw => <button key={sw} onClick={() => { setColor(sw); applyColorLive(sw); }} title={sw} style={{ width: 28, height: 28, borderRadius: '50%', background: sw, border: '2px solid ' + ((color || '').toLowerCase() === sw.toLowerCase() ? '#fff' : 'transparent'), cursor: 'pointer', boxShadow: '0 0 0 1px ' + T.border }} />)}
+                  <input type="color" value={/^#[0-9a-fA-F]{6}$/.test(color) ? color : '#00fc8f'} onChange={e => { setColor(e.target.value); applyColorLive(e.target.value); }} style={{ width: 34, height: 30, background: 'transparent', border: '1px solid ' + T.border, borderRadius: 7, cursor: 'pointer', padding: 0 }} />
+                  <input value={color} onChange={e => setColor(e.target.value)} placeholder="#00FC8F" style={{ width: 96, background: T.bg, border: '1px solid ' + T.border, borderRadius: 7, padding: '7px 9px', fontSize: 12.5, color: T.ink, fontFamily: 'ui-monospace,monospace', outline: 'none' }} />
+                  <button onClick={saveColor} disabled={savingColor} style={{ background: T.red, color: '#fff', border: 'none', borderRadius: 8, padding: '8px 14px', fontSize: 12.5, fontWeight: 700, cursor: 'pointer' }}>{savingColor ? 'Saving…' : 'Save'}</button>
+                  <button onClick={() => location.reload()} style={{ background: 'transparent', border: '1px solid ' + T.border, color: T.ink2, borderRadius: 8, padding: '8px 12px', fontSize: 12.5, cursor: 'pointer' }}>Apply (reload)</button>
+                </div>
+              </div>
               <Toggle on={voice} onTap={toggleVoice} title="Nia voice assistant" sub="Talk to Nia hands-free (computer/Android) or tap-to-talk (iPhone)." />
               <Toggle on={tut} onTap={toggleTut} title="Tutorial tips" sub="Show hover hints around the OS." />
               <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid ' + T.border }}>
