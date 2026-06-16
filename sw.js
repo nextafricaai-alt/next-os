@@ -1,4 +1,4 @@
-// NEXT OS service worker — installability + Web Push notifications.  [v3-push]
+// NEXT OS service worker — installability + Web Push notifications.  [v4-push]
 // Network-first passthrough; no aggressive caching so school data stays live.
 self.addEventListener('install', function (e) { self.skipWaiting(); });
 self.addEventListener('message', function (e) { if (e.data === 'skipWaiting') self.skipWaiting(); });
@@ -14,16 +14,20 @@ self.addEventListener('push', function (event) {
   try { if (event.data) { data = Object.assign(data, event.data.json()); } } catch (e) {
     try { data.body = event.data ? event.data.text() : ''; } catch (e2) {}
   }
+  var ICON = data.icon || 'https://nextos-sentinel.nextafricaai.workers.dev/icon.png' + (data.s ? ('?s=' + encodeURIComponent(data.s)) : '');
   var opts = {
     body: data.body || '',
-    tag: data.tag || 'nx',
+    tag: data.tag || ('nx-' + Date.now()),
     renotify: true,
+    icon: ICON,
+    badge: ICON,
+    image: data.image || undefined,
     data: { url: data.url || '/' },
-    vibrate: [120, 60, 120],
-    requireInteraction: false,
+    vibrate: [200, 80, 200],
+    requireInteraction: !!data.urgent,
+    silent: false,
+    timestamp: Date.now(),
   };
-  if (data.icon) opts.icon = data.icon;
-  if (data.badge) opts.badge = data.badge;
   event.waitUntil(self.registration.showNotification(data.title || 'NEXT OS', opts));
 });
 
