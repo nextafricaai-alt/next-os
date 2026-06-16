@@ -5563,7 +5563,7 @@ You: "'We help you get more done with less stress.' Nine plain words beat the ja
               fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 14,
             }}>N</div>
             <div>
-              <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', letterSpacing: 1.5, color: 'var(--text-tertiary)' }}>NIA'S WATCH <span style={{ color: 'var(--mint)', marginLeft: 6 }}>· LIVE v35</span></div>
+              <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', letterSpacing: 1.5, color: 'var(--text-tertiary)' }}>NIA'S WATCH <span style={{ color: 'var(--mint)', marginLeft: 6 }}>· LIVE v36</span></div>
               <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)' }}>
                 What happened while you were away
               </div>
@@ -6730,7 +6730,9 @@ window.OnboardingPage = function OnboardingPage(props) {
       if (isIOS && !standalone) { alert('On iPhone, install NEXT OS first: Safari → Share → Add to Home Screen, then open it from the home screen and turn this on.'); return; }
       try { await window.NX_PUSH.enable({ tenant: 'next', email: emailN, role: 'owner' }); setPushSt('on'); window.NX_PUSH.test({ tenant: 'next', email: emailN }); } catch (e) { alert(String(e && e.message || e)); }
     };
-    const testPush = () => { window.NX_PUSH && window.NX_PUSH.test({ tenant: 'next', email: emailN }).then(r => { var matched = (r && r.matched) || 0, sent = (r && r.sent) || 0; if (sent > 0) alert('Test sent — check your lock screen.'); else if (matched > 0) alert('Your device IS registered (' + matched + '), but the worker could not deliver it — the worker\'s VAPID push keys are missing or mismatched. Open https://nextos-sentinel.nextafricaai.workers.dev/push/debug to confirm.'); else alert('No subscription saved on the server. Turn alerts on first (and on iPhone, install the app). If it persists, paste the latest sentinel-worker.js.'); }); };
+    const testPush = async () => {
+      try { await window.NX_PUSH.enable({ tenant: 'next', email: emailN, role: 'owner' }); setPushSt('on'); } catch (e) { alert('Could not register this device: ' + (e && e.message || e)); return; }
+      window.NX_PUSH.test({ tenant: 'next', email: emailN }).then(r => { var matched = (r && r.matched) || 0, sent = (r && r.sent) || 0; if (sent > 0) alert('Test sent — check your lock screen.'); else if (matched > 0) alert('Device registered but not delivered — paste the latest sentinel-worker.js and retry.'); else alert('Not registered yet — allow notifications, then tap again.'); }); };
     const toggleVoice = () => setVoice(v => { const n = !v; try { localStorage.setItem('nextos.nia.voice', n ? '1' : '0'); } catch (e) {} try { window.dispatchEvent(new CustomEvent('niaVoiceToggle', { detail: n })); } catch (e) {} return n; });
     const email = (window.NEXT_OS_USER && window.NEXT_OS_USER()) || '';
     const card = { background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: 20, marginBottom: 16 };
