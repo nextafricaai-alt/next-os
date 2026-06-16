@@ -5552,7 +5552,7 @@ You: "'We help you get more done with less stress.' Nine plain words beat the ja
               fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 14,
             }}>N</div>
             <div>
-              <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', letterSpacing: 1.5, color: 'var(--text-tertiary)' }}>NIA'S WATCH <span style={{ color: 'var(--mint)', marginLeft: 6 }}>· LIVE v31</span></div>
+              <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', letterSpacing: 1.5, color: 'var(--text-tertiary)' }}>NIA'S WATCH <span style={{ color: 'var(--mint)', marginLeft: 6 }}>· LIVE v32</span></div>
               <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)' }}>
                 What happened while you were away
               </div>
@@ -7865,7 +7865,7 @@ Object.assign(window, { AppShell, Sidebar, Topbar, OSIcon, PlaceholderPage });
       b.onclick = function () { if (!deferred) return; deferred.prompt(); deferred.userChoice.then(function () { deferred = null; b.style.display = 'none'; }); };
       document.body.appendChild(b); return b;
     }
-    window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); deferred = e; var b = makeBtn(); b.style.display = 'block'; });
+    window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); deferred = e; /* install lives in Settings, not a floating button */ });
     window.addEventListener('appinstalled', function () { var b = document.getElementById('nx-os-install'); if (b) b.style.display = 'none'; });
     window.NEXT_OS_INSTALL = function () { if (deferred) { deferred.prompt(); deferred.userChoice.then(function () { deferred = null; var b = document.getElementById('nx-os-install'); if (b) b.style.display = 'none'; }); } else { alert('To install: open your browser menu and choose "Install app" / "Add to Home Screen".'); } };
     window.NEXT_OS_CAN_INSTALL = function () { return !!deferred; };
