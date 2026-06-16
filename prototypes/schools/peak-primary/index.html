@@ -213,7 +213,7 @@
   <script>
     /* Build self-heal: if this cached HTML is older than what the server now serves,
        reload ONCE with a cache-buster so no school is ever stuck on a stale build. */
-    window.__BUILD = 'b89';
+    window.__BUILD = 'b90';
     (function () {
       try {
         fetch('/build.txt?ts=' + Date.now(), { cache: 'no-store' })
@@ -234,7 +234,7 @@
     <div style="min-height:100vh;display:grid;place-items:center;color:#8a91b0;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px;letter-spacing:0.08em;">
       <div style="text-align:center">
         <div id="nx-loading-text">LOADING · NEXT SCHOOL OS</div>
-        <div style="margin-top:12px;font-size:10px;opacity:0.5">build b89</div>
+        <div style="margin-top:12px;font-size:10px;opacity:0.5">build b90</div>
       </div>
     </div>
   </div>
@@ -10965,7 +10965,7 @@ window.PEAK_STAFF = (function () {
       try { await window.NX_PUSH.enable({ tenant: ten, email: prof.email, role: prof.role, s: ten }); setPushSt('on'); window.peakToast && window.peakToast('Lock-screen alerts on 🔔', 'success', 'Sending a test now…'); setTimeout(() => { window.NX_PUSH.test({ tenant: ten, email: prof.email }).catch(() => {}); }, 800); }
       catch (e) { window.peakToast && window.peakToast('Could not enable', 'info', String(e && e.message || e)); }
     };
-    const testPush = () => { window.NX_PUSH && window.NX_PUSH.test({ tenant: ten, email: prof.email }).then(r => window.peakToast && window.peakToast('Test sent', (r && r.sent > 0) ? 'success' : 'info', (r && r.sent > 0) ? 'Check your lock screen.' : 'No device reached — enable alerts first.')); };
+    const testPush = () => { window.NX_PUSH && window.NX_PUSH.test({ tenant: ten, email: prof.email }).then(r => { var matched = (r && r.matched) || 0, sent = (r && r.sent) || 0; if (sent > 0) window.peakToast && window.peakToast('Test sent ✓', 'success', 'Check your lock screen.'); else if (matched > 0) window.peakToast && window.peakToast('Device registered, but not delivered', 'info', 'Your device is saved (' + matched + ') but the worker could not send — its VAPID push keys are missing/mismatched. Open /push/debug.'); else window.peakToast && window.peakToast('No subscription on the server', 'info', 'Re-tap Turn on. If it persists, the deployed worker is outdated — paste the latest sentinel-worker.js.'); }); };
     const applyColorLive = (c) => { try { document.documentElement.style.setProperty('--brand', c); window.__ACCENT = c; } catch (e) {} };
     const saveColor = () => {
       var c = color; if (c[0] !== '#') c = '#' + c; if (!/^#[0-9a-fA-F]{6}$/.test(c)) { window.peakToast && window.peakToast('Enter a valid colour', 'info'); return; }
