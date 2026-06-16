@@ -1025,6 +1025,8 @@ export const scheduledHandler = async (event, env, ctx) => {
   const cron = event.cron || '';
   // School-hours teacher no-show watch (every 15 min, 08:00-15:00 EAT, Mon-Fri)
   if (cron === '*/15 5-12 * * 1-5') { await runAttendanceWatch(env); return; }
+  // System health heartbeat (every 30 min, 24/7)
+  if (cron === '*/30 * * * *') { await runHealthHeartbeat(env); return; }
   let kind = 'pulse';
   if (cron === '30 3 * * *') kind = 'morning';      // 6:30am EAT = 03:30 UTC
   else if (cron === '0 15 * * 5') kind = 'weekly';  // Fri 6pm EAT = 15:00 UTC
@@ -1474,27 +1476,40 @@ async function handleFeesImport(request, env, cors) {
 const PLAN_PRICES = { foundation: 400000, momentum: 1200000, mastery: 3000000 }; // UGX / term
 const PLAN_NAME = { foundation: 'Foundation', momentum: 'Momentum', mastery: 'Mastery' };
 
-async function handleHealth(env, cors) {
-  const J = (oo, st) => new Response(JSON.stringify(oo), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
-  const t0 = Date.now();
+async function computeHealth(env) {
   const checks = [];
   checks.push({ name: 'Worker', status: 'ok', detail: 'responding' });
-  // Database
   if (env.SUPABASE_URL && env.SUPABASE_KEY) {
     try { const r = await fetch(env.SUPABASE_URL + '/rest/v1/tenants?select=id&limit=1', { headers: sbHeaders(env, 'count=none') }); checks.push({ name: 'Database', status: r.ok ? 'ok' : 'warn', detail: r.ok ? 'reachable' : ('HTTP ' + r.status) }); }
     catch (e) { checks.push({ name: 'Database', status: 'down', detail: String((e && e.message) || e).slice(0, 80) }); }
   } else checks.push({ name: 'Database', status: 'down', detail: 'not configured' });
-  // AI brain
   if (env.ANTHROPIC_API_KEY) checks.push({ name: 'AI brain', status: 'ok', detail: 'Claude · ' + (env.ANTHROPIC_MODEL || 'claude-sonnet-4-6') });
   else if (env.AI) checks.push({ name: 'AI brain', status: 'ok', detail: 'Llama (free fallback) — add ANTHROPIC_API_KEY for Claude' });
   else checks.push({ name: 'AI brain', status: 'down', detail: 'no AI bound' });
-  // Push
   let jwkOk = false; try { const j = JSON.parse(env.VAPID_JWK || '{}'); jwkOk = !!(j && j.d); } catch (e) {}
   checks.push({ name: 'Push notifications', status: (env.VAPID_PUBLIC && jwkOk) ? 'ok' : 'warn', detail: (env.VAPID_PUBLIC && jwkOk) ? 'configured' : 'VAPID keys missing' });
-  // Billing
   checks.push({ name: 'Billing', status: env.FLW_SECRET_KEY ? 'ok' : 'warn', detail: env.FLW_SECRET_KEY ? 'Flutterwave connected' : 'not connected' });
   const worst = checks.some(c => c.status === 'down') ? 'down' : checks.some(c => c.status === 'warn') ? 'warn' : 'ok';
-  return J({ ok: worst !== 'down', status: worst, ms: Date.now() - t0, checks: checks });
+  return { ok: worst !== 'down', status: worst, checks: checks };
+}
+async function handleHealth(env, cors) {
+  const J = (oo, st) => new Response(JSON.stringify(oo), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
+  const t0 = Date.now(); const h = await computeHealth(env);
+  return J(Object.assign({ ms: Date.now() - t0 }, h));
+}
+// Cron heartbeat: alert the operator only when health CHANGES (down / recovered) — never spam.
+async function runHealthHeartbeat(env) {
+  const h = await computeHealth(env);
+  let prev = null, prevId = null;
+  try { const rows = await sbFetch(env, '/os_records?tenant=eq.next&kind=eq.health_state&select=id,payload&order=created_at.desc&limit=1'); if (rows && rows[0]) { prev = (rows[0].payload || {}).status; prevId = rows[0].id; } } catch (e) {}
+  if (h.status === 'down' && prev !== 'down') {
+    const bad = h.checks.filter(c => c.status === 'down').map(c => c.name).join(', ');
+    try { await deliverPush(env, 'next', [], 'operator', { title: '⚠ NEXT OS — system DOWN', body: (bad || 'A core system') + ' is down. Nia flagged it; the OS may be affected.', url: '/', tag: 'health-down' }); } catch (e) {}
+  } else if (h.status !== 'down' && prev === 'down') {
+    try { await deliverPush(env, 'next', [], 'operator', { title: '✓ NEXT OS — systems recovered', body: 'All core systems are healthy again.', url: '/', tag: 'health-ok' }); } catch (e) {}
+  }
+  try { const rec = { status: h.status, checks: h.checks, at: new Date().toISOString() }; if (prevId) { await fetch(env.SUPABASE_URL + '/rest/v1/os_records?id=eq.' + prevId, { method: 'PATCH', headers: sbHeaders(env, 'return=minimal'), body: JSON.stringify({ payload: rec }) }); } else { await sbWrite(env, '/os_records', { tenant: 'next', kind: 'health_state', payload: rec }, 'POST', 'return=minimal'); } } catch (e) {}
+  return h;
 }
 
 async function handleBillingCheckout(request, env, cors) {
