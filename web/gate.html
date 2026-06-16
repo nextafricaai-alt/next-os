@@ -168,7 +168,7 @@
     if(!faceReady||!enrolled.length){ matcher=null; return; }
     try{
       var labeled=enrolled.map(function(e){ return new faceapi.LabeledFaceDescriptors(String(e.studentId), [new Float32Array(e.descriptor)]); });
-      matcher=new faceapi.FaceMatcher(labeled, 0.52);
+      matcher=new faceapi.FaceMatcher(labeled, 0.45);
     }catch(e){ matcher=null; }
   }
   function studentById(id){ for(var i=0;i<students.length;i++){ if(String(students[i].id)===String(id)) return students[i]; } return null; }
@@ -197,18 +197,35 @@
 
   // ── main loop ──
   var faceOpts=null;
+  var confLabel='', confCount=0;     // require several consecutive frames of the SAME child
+  var NEED=4;                        // consecutive confirmations before approving
+  var MIN_SCORE=0.62;               // detection confidence — a hand/non-face won't pass
+  var MIN_FACE=0.16;                // face must fill at least this fraction of the frame width
+  function resetConf(){ confLabel=''; confCount=0; }
   function loop(){
     if(busyCard){ requestAnimationFrame(loop); return; }
     if(mode==='face' && faceReady && matcher){
-      faceOpts=faceOpts||new faceapi.TinyFaceDetectorOptions({ inputSize:320, scoreThreshold:0.5 });
+      faceOpts=faceOpts||new faceapi.TinyFaceDetectorOptions({ inputSize:416, scoreThreshold:0.6 });
       faceapi.detectSingleFace(video, faceOpts).withFaceLandmarks().withFaceDescriptor().then(function(res){
         octx.clearRect(0,0,overlay.width,overlay.height);
-        if(res){
-          var best=matcher.findBestMatch(res.descriptor);
-          var box=res.detection.box;
-          octx.strokeStyle=best.label!=='unknown'?'#00d68f':'#f5b53d'; octx.lineWidth=4;
-          octx.strokeRect(box.x,box.y,box.width,box.height);
-          if(best.label!=='unknown'){ identify(best.label,'face'); return; }
+        // No real, confident, large-enough face? Treat as nothing — don't match a hand.
+        if(!res || res.detection.score < MIN_SCORE || res.detection.box.width < overlay.width*MIN_FACE){
+          resetConf();
+          if(res){ var b0=res.detection.box; octx.strokeStyle='#6b76a6'; octx.lineWidth=3; octx.strokeRect(b0.x,b0.y,b0.width,b0.height); }
+          status('Look straight at the camera');
+          requestAnimationFrame(loop); return;
+        }
+        var best=matcher.findBestMatch(res.descriptor);
+        var box=res.detection.box;
+        var ok = best.label!=='unknown' && best.distance <= 0.45;
+        octx.strokeStyle = ok ? '#00d68f' : '#f5b53d'; octx.lineWidth=4; octx.strokeRect(box.x,box.y,box.width,box.height);
+        if(ok){
+          if(best.label===confLabel){ confCount++; } else { confLabel=best.label; confCount=1; }
+          if(confCount>=NEED){ var who=confLabel; resetConf(); identify(who,'face'); return; }
+          status('Hold still… ' + confCount + '/' + NEED);
+        } else {
+          resetConf();
+          status('Face not recognised — try ID/QR or Manual');
         }
         requestAnimationFrame(loop);
       }).catch(function(){ requestAnimationFrame(loop); });
@@ -287,9 +304,9 @@
   $('captureBtn').onclick=function(){
     if(!enrollFor){ return; }
     $('enrollMsg').textContent='Capturing…';
-    var opts=new faceapi.TinyFaceDetectorOptions({ inputSize:416, scoreThreshold:0.5 });
+    var opts=new faceapi.TinyFaceDetectorOptions({ inputSize:416, scoreThreshold:0.6 });
     faceapi.detectSingleFace(video,opts).withFaceLandmarks().withFaceDescriptor().then(function(res){
-      if(!res){ $('enrollMsg').textContent='No face detected — face the camera and try again.'; return; }
+      if(!res || res.detection.score < 0.7 || res.detection.box.width < overlay.width*0.18){ $('enrollMsg').textContent='No clear face — fill the frame with the child\'s face, good light, look straight, try again.'; return; }
       var desc=Array.from(res.descriptor);
       fetch(WK+'/os-data/save',{ method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ kind:'face_enroll', tenant:TENANT, record:{ studentId:enrollFor.id, name:enrollFor.name, descriptor:desc, at:new Date().toISOString() } }) })
         .then(function(){ enrolled.push({ studentId:enrollFor.id, descriptor:desc }); buildMatcher(); $('enrollMsg').textContent='✓ '+enrollFor.name+' enrolled. The gate now recognises them.'; $('sideFoot').textContent=students.length+' learners · '+enrolled.length+' faces enrolled'; })
