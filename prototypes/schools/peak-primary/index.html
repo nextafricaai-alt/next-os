@@ -213,7 +213,7 @@
   <script>
     /* Build self-heal: if this cached HTML is older than what the server now serves,
        reload ONCE with a cache-buster so no school is ever stuck on a stale build. */
-    window.__BUILD = 'b87';
+    window.__BUILD = 'b88';
     (function () {
       try {
         fetch('/build.txt?ts=' + Date.now(), { cache: 'no-store' })
@@ -234,7 +234,7 @@
     <div style="min-height:100vh;display:grid;place-items:center;color:#8a91b0;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px;letter-spacing:0.08em;">
       <div style="text-align:center">
         <div id="nx-loading-text">LOADING · NEXT SCHOOL OS</div>
-        <div style="margin-top:12px;font-size:10px;opacity:0.5">build b87</div>
+        <div style="margin-top:12px;font-size:10px;opacity:0.5">build b88</div>
       </div>
     </div>
   </div>
@@ -3161,10 +3161,11 @@ const V4 = (function () {
           }}>
             <img src="/prototypes/schools/peak-primary/assets/peak-logo.png" alt="Peak" style={{ width: 32, height: 32, objectFit: 'contain' }} />
           </div>
-          <div style={{ lineHeight: 1.15, minWidth: 0 }}>
-            <div style={{ fontSize: 14, fontWeight: 600, color: T.ink, letterSpacing: '-0.01em' }}>{(typeof window!=='undefined'&&window.__BRAND_NAME)||'Peak Primary'}</div>
+          <div style={{ lineHeight: 1.15, minWidth: 0, flex: 1 }}>
+            <div style={{ fontSize: 14, fontWeight: 600, color: T.ink, letterSpacing: '-0.01em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{(typeof window!=='undefined'&&window.__BRAND_NAME)||'Peak Primary'}</div>
             <div style={{ fontSize: 10.5, color: T.ink3, fontFamily: T.mono, letterSpacing: '0.04em' }}>NEXT · T2 · WK6</div>
           </div>
+          {window.NiaBell ? React.createElement(window.NiaBell) : null}
         </div>
 
         {/* nav */}
@@ -8395,6 +8396,25 @@ window.PEAK_WATCH = (function () {
       const order = { high: 0, med: 1, low: 2 };
       out.sort((a, b) => order[a.sev] - order[b.sev]);
       setIssues(out);
+
+      // ── Nia speaks: warm, encouraging, suggestive notifications into the in-OS feed ──
+      try {
+        const F = window.NIA_FEED; if (F) {
+          // celebrate positive change
+          if (prevSnap) {
+            if (nowSnap.students > prevSnap.students) { var dn = nowSnap.students - prevSnap.students; F.post({ key: 'win-students-' + nowSnap.students, level: 'win', icon: '🎉', title: 'Great work!', body: 'You added ' + dn + ' learner' + (dn === 1 ? '' : 's') + ' — your school is growing. Want every parent reachable? Add their phone numbers next.', cta: { label: 'Open Students', route: 'stud' } }); }
+            if (nowSnap.teachers > prevSnap.teachers) { F.post({ key: 'win-teachers-' + nowSnap.teachers, level: 'win', icon: '👏', title: 'Nice momentum', body: 'Your teaching team just grew. Generate the timetable and Nia will auto-assign everyone by subject.', cta: { label: 'Open Timetable', route: 'timetable' } }); }
+            if (nowSnap.events > prevSnap.events) { F.post({ key: 'win-events-' + nowSnap.events, level: 'win', icon: '📅', title: 'Term is taking shape', body: "Love it — you're planning ahead. Assign a coordinator to each event so nothing falls through.", cta: { label: 'Open Events', route: 'events' } }); }
+          }
+          // one gentle, marketing-smart suggestion from the top issue
+          var topTip = out.find(x => x.k && x.sev !== 'low') || out.find(x => x.k);
+          if (topTip) F.post({ key: 'tip-' + topTip.cat + '-' + topTip.text.slice(0, 24), level: 'tip', icon: '💡', title: 'What about this?', body: topTip.text + ' Tap to sort it in a moment.', cta: { label: 'Fix it', route: topTip.k }, toast: false });
+          // package nudge (sell the dream, gently)
+          try { var tier = window.PEAK_PACKAGES && window.PEAK_PACKAGES.currentTier(); if (tier === 'foundation') F.post({ key: 'pkg-momentum', level: 'tip', icon: '🚀', title: 'Ready to grow?', body: 'Schools your size love Momentum — WhatsApp to every parent, a parent portal, full finance. Want to see what it unlocks?', cta: { label: 'See plans', route: 'plan' }, toast: false }); else if (tier === 'momentum') F.post({ key: 'pkg-mastery', level: 'tip', icon: '✨', title: 'Go further with Mastery', body: 'Unlock AI exam marking and care plans — Nia at full power for your learners. Worth a look?', cta: { label: 'See plans', route: 'plan' }, toast: false }); } catch (e) {}
+          // a warm hello if the feed is empty and all is well
+          if (out.length === 0 && !prevSnap) F.post({ key: 'hello', level: 'win', icon: '💚', title: 'I\'m watching for you', body: "Everything looks in order. As you add, change or remove things, I'll celebrate the wins and quietly flag anything that needs you.", toast: false });
+        }
+      } catch (e) {}
     }, []);
     useEffect(() => { scan(); }, [scan]);
 
@@ -8425,6 +8445,72 @@ window.PEAK_WATCH = (function () {
     );
   }
   return { Card };
+})();
+  </script>
+
+  <script type="text/babel" data-src="src/nia-feed.jsx">
+/* NIA_FEED + NiaBell — reliable in-OS notification centre (localStorage, no push dependency) with Nia's friendly, encouraging, suggestive messages. */
+(function () {
+  const T = window.V4.T;
+  function tenant() { try { return (window.PEAK_ROLE && window.PEAK_ROLE.getProfile && window.PEAK_ROLE.getProfile().tenantId) || 'peak-primary'; } catch (e) { return 'peak-primary'; } }
+  function KEY() { return 'nia.feed.' + tenant(); }
+  function load() { try { return JSON.parse(localStorage.getItem(KEY()) || '[]'); } catch (e) { return []; } }
+  function save(list) { try { localStorage.setItem(KEY(), JSON.stringify(list.slice(0, 60))); } catch (e) {} }
+  const FEED = {
+    list: load,
+    unread: function () { return load().filter(n => !n.read).length; },
+    markAllRead: function () { var l = load().map(n => Object.assign({}, n, { read: true })); save(l); try { window.dispatchEvent(new CustomEvent('nia:feed')); } catch (e) {} },
+    post: function (item) {
+      var l = load();
+      if (item.key) { var now = Date.now(); var dup = l.find(n => n.key === item.key && (now - (n.ts || 0)) < 20 * 3600 * 1000); if (dup) return; }
+      l.unshift(Object.assign({ id: 'n' + Date.now() + Math.random().toString(36).slice(2, 6), ts: Date.now(), read: false }, item));
+      save(l);
+      try { window.dispatchEvent(new CustomEvent('nia:feed')); } catch (e) {}
+      if (item.toast !== false && window.peakToast) window.peakToast(item.title, item.level === 'alert' ? 'info' : 'success', item.body);
+    }
+  };
+  window.NIA_FEED = FEED;
+
+  const { useState, useEffect } = React;
+  function NiaBell() {
+    const [open, setOpen] = useState(false);
+    const [, force] = useState(0);
+    useEffect(() => { const h = () => force(x => x + 1); window.addEventListener('nia:feed', h); return () => window.removeEventListener('nia:feed', h); }, []);
+    const items = FEED.list();
+    const unread = items.filter(n => !n.read).length;
+    const toggle = () => { const nx = !open; setOpen(nx); if (nx && unread) setTimeout(() => FEED.markAllRead(), 600); };
+    const levelColor = (lv) => lv === 'win' ? (T.green || '#00c389') : lv === 'alert' ? T.warn : (T.gold || '#d8a200');
+    const ago = (ts) => { const m = Math.round((Date.now() - ts) / 60000); if (m < 1) return 'now'; if (m < 60) return m + 'm'; const h = Math.round(m / 60); if (h < 24) return h + 'h'; return Math.round(h / 24) + 'd'; };
+    return (
+      <div style={{ position: 'relative' }}>
+        <button onClick={toggle} title="Nia's notifications" style={{ width: 34, height: 34, borderRadius: 9, background: T.surface, border: '1px solid ' + T.border, color: T.ink2, fontSize: 15, cursor: 'pointer', position: 'relative' }}>
+          🔔{unread > 0 && <span style={{ position: 'absolute', top: -5, right: -5, minWidth: 16, height: 16, padding: '0 4px', borderRadius: 999, background: T.red, color: '#fff', fontSize: 10, fontWeight: 800, display: 'grid', placeItems: 'center', fontFamily: T.mono }}>{unread > 9 ? '9+' : unread}</span>}
+        </button>
+        {open && (
+          <>
+            <div onClick={() => setOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 600 }} />
+            <div style={{ position: 'absolute', right: 0, top: 42, width: 340, maxHeight: 460, overflow: 'auto', background: T.surface, border: '1px solid ' + T.border, borderRadius: 14, boxShadow: '0 20px 50px rgba(0,0,0,0.5)', zIndex: 601 }}>
+              <div style={{ padding: '13px 16px', borderBottom: '1px solid ' + T.border, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ fontSize: 13.5, fontWeight: 700 }}>Nia</div>
+                <div style={{ fontSize: 11, color: T.ink3 }}>{items.length} update{items.length === 1 ? '' : 's'}</div>
+              </div>
+              {items.length === 0 ? <div style={{ padding: 22, fontSize: 13, color: T.ink3, textAlign: 'center' }}>Nia will post here as you work — wins, tips and things to look at.</div> : items.map(n => (
+                <div key={n.id} style={{ padding: '12px 16px', borderBottom: '1px solid ' + T.border, display: 'flex', gap: 11 }}>
+                  <div style={{ width: 30, height: 30, borderRadius: 9, background: T.bg, border: '1px solid ' + T.border, display: 'grid', placeItems: 'center', fontSize: 15, flexShrink: 0 }}>{n.icon || '💚'}</div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}><span style={{ fontSize: 13, fontWeight: 700, color: levelColor(n.level) }}>{n.title}</span><span style={{ fontSize: 10, color: T.ink4, fontFamily: T.mono, flexShrink: 0 }}>{ago(n.ts)}</span></div>
+                    <div style={{ fontSize: 12.5, color: T.ink2, lineHeight: 1.5, marginTop: 3 }}>{n.body}</div>
+                    {n.cta && n.cta.route && <button onClick={() => { setOpen(false); window.peakNav && window.peakNav(n.cta.route); }} style={{ marginTop: 8, background: 'transparent', border: '1px solid ' + (T.green || '#00c389'), color: (T.green || '#00c389'), borderRadius: 7, padding: '5px 11px', fontSize: 11.5, fontWeight: 700, cursor: 'pointer' }}>{n.cta.label} →</button>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+    );
+  }
+  window.NiaBell = NiaBell;
 })();
   </script>
 
@@ -10958,10 +11044,11 @@ window.PEAK_STAFF = (function () {
           }}>
             <img src="/prototypes/schools/peak-primary/assets/peak-logo.png" alt="Peak" style={{ width: 32, height: 32, objectFit: 'contain' }} />
           </div>
-          <div style={{ lineHeight: 1.15, minWidth: 0 }}>
-            <div style={{ fontSize: 14, fontWeight: 600, color: T.ink, letterSpacing: '-0.01em' }}>{(typeof window!=='undefined'&&window.__BRAND_NAME)||'Peak Primary'}</div>
+          <div style={{ lineHeight: 1.15, minWidth: 0, flex: 1 }}>
+            <div style={{ fontSize: 14, fontWeight: 600, color: T.ink, letterSpacing: '-0.01em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{(typeof window!=='undefined'&&window.__BRAND_NAME)||'Peak Primary'}</div>
             <div style={{ fontSize: 10.5, color: T.ink3, fontFamily: T.mono, letterSpacing: '0.04em' }}>NEXT · T2 · WK6</div>
           </div>
+          {window.NiaBell ? React.createElement(window.NiaBell) : null}
         </div>
 
         <div style={{ padding: '8px 12px', borderBottom: '1px solid ' + T.border }}>
