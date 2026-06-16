@@ -229,7 +229,7 @@ export default {
     }
 
     // GET-allowed routes (read-only endpoints live below this gate)
-    const GET_OK = ['/check-project', '/seo-audit', '/px.js', '/analytics', '/gsc', '/ga4', '/fetch-page', '/site-pages', '/cms/collections', '/cms/items', '/students', '/exams', '/exam-results', '/fees-balances', '/attendance-summary', '/staff-status', '/attendance-watch', '/student-health', '/events', '/finance', '/assets', '/school-config', '/os-data', '/teachers', '/hosting-report', '/watch/status', '/push/vapid-public', '/push/debug'];
+    const GET_OK = ['/check-project', '/seo-audit', '/px.js', '/analytics', '/gsc', '/ga4', '/fetch-page', '/site-pages', '/cms/collections', '/cms/items', '/students', '/exams', '/exam-results', '/fees-balances', '/attendance-summary', '/staff-status', '/attendance-watch', '/student-health', '/billing/verify', '/billing/subscriptions', '/events', '/finance', '/assets', '/school-config', '/os-data', '/teachers', '/hosting-report', '/watch/status', '/push/vapid-public', '/push/debug'];
     if (request.method !== 'POST' && !GET_OK.includes(url.pathname)) {
       return new Response('Method not allowed', { status: 405, headers: cors });
     }
@@ -387,6 +387,10 @@ export default {
     if (url.pathname === '/seo-tips')           return handleSeoTips(request, env, cors);
     if (url.pathname === '/exam/scan-mark')     return handleExamScanMark(request, env, cors);
     if (url.pathname === '/exam/care-plan')     return handleExamCarePlan(request, env, cors);
+    if (url.pathname === '/billing/checkout')   return handleBillingCheckout(request, env, cors);
+    if (url.pathname === '/billing/webhook')    return handleBillingWebhook(request, env, cors);
+    if (url.pathname === '/billing/verify')     return handleBillingVerify(url.searchParams.get('tx') || url.searchParams.get('transaction_id') || '', url.searchParams.get('tenant') || '', env, cors);
+    if (url.pathname === '/billing/subscriptions') return handleBillingList(url.searchParams.get('tenant') || '', env, cors);
     if (url.pathname === '/push/vapid-public')  return new Response(JSON.stringify({ key: env.VAPID_PUBLIC || '' }), { status: 200, headers: { ...cors, 'Content-Type': 'application/json' } });
     if (url.pathname === '/push/subscribe')     return handlePushSubscribe(request, env, cors);
     if (url.pathname === '/push/notify')        return handlePushNotify(request, env, cors);
@@ -1448,6 +1452,96 @@ async function handleFeesImport(request, env, cors) {
     let imported = 0;
     for (let i = 0; i < inserts.length; i += 500) { await sbWrite(env, '/fees', inserts.slice(i, i + 500), 'POST', 'return=minimal'); imported += Math.min(500, inserts.length - i); }
     return J({ ok: true, imported, matched: matchedIds.size, students: matchedIds.size, term, unmatched });
+  } catch (e) { return J({ error: String((e && e.message) || e) }, 200); }
+}
+
+// ─── Billing / subscriptions (Flutterwave) ───────────────────────────────
+const PLAN_PRICES = { foundation: 400000, momentum: 1200000, mastery: 3000000 }; // UGX / term
+const PLAN_NAME = { foundation: 'Foundation', momentum: 'Momentum', mastery: 'Mastery' };
+
+async function handleBillingCheckout(request, env, cors) {
+  const J = (oo, st) => new Response(JSON.stringify(oo), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
+  let b; try { b = await request.json(); } catch (e) { return J({ error: 'bad body' }, 400); }
+  const tenant = String(b.tenant || '').trim();
+  const plan = String(b.plan || '').trim().toLowerCase();
+  const email = String(b.email || '').trim();
+  if (!tenant || !PLAN_PRICES[plan]) return J({ error: 'tenant and a valid plan required' }, 400);
+  if (!env.FLW_SECRET_KEY) return J({ error: 'Billing not configured yet — add FLW_SECRET_KEY to the worker to take real payments.' }, 200);
+  const amount = PLAN_PRICES[plan];
+  const tx_ref = 'NX-' + tenant + '-' + plan + '-' + Date.now();
+  const redirect = String(b.redirect || ('https://nextos.nextafrica.ai/school/' + encodeURIComponent(tenant) + '?billing=return'));
+  try {
+    const r = await fetch('https://api.flutterwave.com/v3/payments', {
+      method: 'POST', headers: { 'Authorization': 'Bearer ' + env.FLW_SECRET_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tx_ref: tx_ref, amount: amount, currency: 'UGX', redirect_url: redirect, payment_options: 'card,mobilemoneyuganda,ussd', customer: { email: email || (tenant + '@school.ug'), name: tenant }, customizations: { title: 'NEXT Schools OS — ' + (PLAN_NAME[plan] || plan), description: (PLAN_NAME[plan] || plan) + ' subscription (per term)' } }),
+    });
+    const d = await r.json();
+    if (d && d.status === 'success' && d.data && d.data.link) {
+      // store a pending subscription
+      try { await sbWrite(env, '/os_records', { tenant: tenant, kind: 'subscription', payload: { tenant: tenant, plan: plan, amount: amount, currency: 'UGX', email: email, tx_ref: tx_ref, status: 'pending', createdAt: new Date().toISOString() } }, 'POST', 'return=minimal'); } catch (e) {}
+      return J({ ok: true, link: d.data.link, tx_ref: tx_ref });
+    }
+    return J({ error: 'Flutterwave: ' + ((d && d.message) || 'could not start payment') }, 200);
+  } catch (e) { return J({ error: String((e && e.message) || e) }, 200); }
+}
+
+async function billingFulfil(env, txId) {
+  // Verify the transaction with Flutterwave and, if successful + not already done, fulfil it.
+  if (!env.FLW_SECRET_KEY || !txId) return { ok: false, why: 'no key/tx' };
+  let v; try { const r = await fetch('https://api.flutterwave.com/v3/transactions/' + encodeURIComponent(txId) + '/verify', { headers: { 'Authorization': 'Bearer ' + env.FLW_SECRET_KEY } }); v = await r.json(); } catch (e) { return { ok: false, why: String(e) }; }
+  const d = v && v.data;
+  if (!d || v.status !== 'success' || String(d.status).toLowerCase() !== 'successful') return { ok: false, why: 'not successful' };
+  const tx_ref = d.tx_ref || '';
+  const m = String(tx_ref).match(/^NX-(.+)-(foundation|momentum|mastery)-\d+$/);
+  const tenant = m ? m[1] : (d.meta && d.meta.tenant) || '';
+  const plan = m ? m[2] : (d.meta && d.meta.plan) || '';
+  if (!tenant || !plan) return { ok: false, why: 'cannot map tenant/plan' };
+  // Idempotency: already fulfilled for this tx_ref?
+  try { const ex = await sbFetch(env, '/os_records?tenant=eq.' + encodeURIComponent(tenant) + "&kind=eq.subscription&select=id,payload&limit=200"); if ((ex || []).some(x => x.payload && x.payload.tx_ref === tx_ref && x.payload.status === 'active')) return { ok: true, already: true, tenant, plan }; } catch (e) {}
+  const amount = d.amount || PLAN_PRICES[plan] || 0;
+  const now = new Date().toISOString();
+  // 1) active subscription
+  try { await sbWrite(env, '/os_records', { tenant: tenant, kind: 'subscription', payload: { tenant: tenant, plan: plan, amount: amount, currency: d.currency || 'UGX', email: (d.customer && d.customer.email) || '', tx_ref: tx_ref, txId: String(txId), status: 'active', paidAt: now } }, 'POST', 'return=minimal'); } catch (e) {}
+  // 2) auto-record income into NEXT finance
+  try { await sbWrite(env, '/os_records', { tenant: 'next', kind: 'finance', payload: { type: 'income', category: 'OS revenue', label: (PLAN_NAME[plan] || plan) + ' subscription · ' + tenant, party: tenant, amount: amount, frequency: 'Monthly', source: 'flutterwave', tx_ref: tx_ref, at: now } }, 'POST', 'return=minimal'); } catch (e) {}
+  // 3) activate the school's package
+  try { const pk = await sbFetch(env, '/os_records?tenant=eq.' + encodeURIComponent(tenant) + '&kind=eq.school_package&select=id&limit=1'); const body = { tier: plan, addons: [], paidVia: 'flutterwave', at: now }; if (pk && pk[0]) { await fetch(env.SUPABASE_URL + '/rest/v1/os_records?id=eq.' + pk[0].id, { method: 'PATCH', headers: sbHeaders(env, 'return=minimal'), body: JSON.stringify({ payload: body }) }); } else { await sbWrite(env, '/os_records', { tenant: tenant, kind: 'school_package', payload: body }, 'POST', 'return=minimal'); } } catch (e) {}
+  // 4) notification in our system + push to operator
+  try { await sbWrite(env, '/os_records', { tenant: 'next', kind: 'billing_notice', payload: { tenant: tenant, plan: plan, amount: amount, currency: d.currency || 'UGX', at: now, read: false } }, 'POST', 'return=minimal'); } catch (e) {}
+  try { await deliverPush(env, 'next', [], 'operator', { title: 'New subscription · ' + tenant, body: (PLAN_NAME[plan] || plan) + ' — UGX ' + Number(amount).toLocaleString() + ' received.', url: '/', tag: 'sub-' + tx_ref }); } catch (e) {}
+  return { ok: true, tenant: tenant, plan: plan, amount: amount };
+}
+
+async function handleBillingWebhook(request, env, cors) {
+  const J = (oo, st) => new Response(JSON.stringify(oo), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
+  // Verify Flutterwave signature
+  const sig = request.headers.get('verif-hash') || '';
+  if (!env.FLW_WEBHOOK_HASH || sig !== env.FLW_WEBHOOK_HASH) return J({ error: 'bad signature' }, 401);
+  let b; try { b = await request.json(); } catch (e) { return J({ error: 'bad body' }, 400); }
+  const data = b && (b.data || b);
+  const txId = data && (data.id || data.transaction_id);
+  const status = data && String(data.status || '').toLowerCase();
+  if (status === 'successful' && txId) { const r = await billingFulfil(env, txId); return J({ ok: true, fulfilled: r.ok }); }
+  return J({ ok: true, ignored: true });
+}
+
+async function handleBillingVerify(txId, tenant, env, cors) {
+  const J = (oo, st) => new Response(JSON.stringify(oo), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
+  if (!txId) return J({ error: 'tx required' }, 400);
+  const r = await billingFulfil(env, txId);
+  return J(r);
+}
+
+async function handleBillingList(tenant, env, cors) {
+  const J = (oo, st) => new Response(JSON.stringify(oo), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
+  try {
+    const q = tenant ? ('/os_records?tenant=eq.' + encodeURIComponent(tenant) + '&kind=eq.subscription&select=id,payload,created_at&order=created_at.desc&limit=200')
+                     : ('/os_records?kind=eq.subscription&select=id,payload,created_at&order=created_at.desc&limit=300');
+    const rows = await sbFetch(env, q);
+    const subs = (rows || []).map(x => Object.assign({ id: x.id, created_at: x.created_at }, x.payload));
+    let notices = [];
+    try { notices = (await sbFetch(env, '/os_records?tenant=eq.next&kind=eq.billing_notice&select=id,payload&order=created_at.desc&limit=100') || []).map(x => Object.assign({ id: x.id }, x.payload)); } catch (e) {}
+    return J({ subscriptions: subs, notices: notices });
   } catch (e) { return J({ error: String((e && e.message) || e) }, 200); }
 }
 

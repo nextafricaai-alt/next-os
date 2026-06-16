@@ -212,7 +212,7 @@
   <script>
     /* Build self-heal: if this cached HTML is older than what the server now serves,
        reload ONCE with a cache-buster so no school is ever stuck on a stale build. */
-    window.__BUILD = 'b82';
+    window.__BUILD = 'b83';
     (function () {
       try {
         fetch('/build.txt?ts=' + Date.now(), { cache: 'no-store' })
@@ -233,7 +233,7 @@
     <div style="min-height:100vh;display:grid;place-items:center;color:#8a91b0;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px;letter-spacing:0.08em;">
       <div style="text-align:center">
         <div id="nx-loading-text">LOADING · NEXT SCHOOL OS</div>
-        <div style="margin-top:12px;font-size:10px;opacity:0.5">build b82</div>
+        <div style="margin-top:12px;font-size:10px;opacity:0.5">build b83</div>
       </div>
     </div>
   </div>
@@ -7856,11 +7856,11 @@ window.PEAK_PACKAGES = (function () {
 
   // ── Tiers ──
   const TIERS = [
-    { id: 'foundation', name: 'Foundation', tagline: 'Run the school', price: 'UGX 300–500K / term', order: 1,
+    { id: 'foundation', name: 'Foundation', tagline: 'Run the school', price: 'UGX 400K / term', amount: 400000, order: 1,
       modules: ['today', 'dash', 'stud', 'attn', 'fees', 'exam', 'timetable', 'setup', 'teach', 'staff', 'rep', 'trans', 'plan'] },
-    { id: 'momentum', name: 'Momentum', tagline: 'Grow the school', price: 'UGX 1.2M / term', order: 2, popular: true,
+    { id: 'momentum', name: 'Momentum', tagline: 'Grow the school', price: 'UGX 1.2M / term', amount: 1200000, order: 2, popular: true,
       modules: ['finance', 'comm', 'learn'], addons: ['parent_portal'] },
-    { id: 'mastery', name: 'Mastery', tagline: 'Transform the school', price: 'UGX 3M+ / term', order: 3,
+    { id: 'mastery', name: 'Mastery', tagline: 'Transform the school', price: 'UGX 3M / term', amount: 3000000, order: 3,
       modules: ['marking'], addons: ['predictive', 'ai_tutor', 'library', 'multibranch', 'whitelabel', 'biometric', 'emis'] },
   ];
   // À-la-carte add-ons available on any tier
@@ -7924,7 +7924,29 @@ window.PEAK_PACKAGES = (function () {
     const tObj = tierObj(tier);
     const isOperator = /head|admin|operator|owner/i.test(prof().role || '');
     const setTier = (id) => { setBusy(true); const rec = Object.assign({}, _pkgCache || {}, { tier: id, addons: currentAddons(), at: new Date().toISOString() }); osSave('school_package', rec, _pkgId).then(r => { if (r && r.record && r.record.id) _pkgId = r.record.id; _pkgCache = rec; setBusy(false); force(); window.peakToast && window.peakToast('Plan set to ' + tierObj(id).name, 'success', 'Modules updated.'); }); };
-    const upgradeMsg = (need) => { const ph = '256700000000'; const txt = encodeURIComponent('Hello NEXT, ' + ((window.__BRAND_NAME) || 'our school') + ' would like to upgrade to the ' + need.name + ' package.'); window.open('https://wa.me/' + ph + '?text=' + txt, '_blank'); };
+    const [paying, setPaying] = useState('');
+    const subscribe = (need) => {
+      setPaying(need.id);
+      const prof2 = prof();
+      fetch(WK + '/billing/checkout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tenant: tenant(), plan: need.id, email: (prof2.email || ''), redirect: location.origin + location.pathname + '?billing=return' }) })
+        .then(r => r.json()).then(d => { setPaying(''); if (d && d.link) { window.location.href = d.link; } else { window.peakToast && window.peakToast('Could not start payment', 'info', (d && d.error) || 'Billing not set up yet.'); } })
+        .catch(e => { setPaying(''); window.peakToast && window.peakToast('Payment error', 'info', String(e && e.message || e)); });
+    };
+    const upgradeMsg = subscribe;
+    React.useEffect(() => {
+      try {
+        const qp = new URLSearchParams(location.search);
+        const txid = qp.get('transaction_id'); const st = qp.get('status');
+        if (qp.get('billing') === 'return' && txid) {
+          window.peakToast && window.peakToast('Confirming payment…', 'info');
+          fetch(WK + '/billing/verify?tx=' + encodeURIComponent(txid) + '&tenant=' + encodeURIComponent(tenant())).then(r => r.json()).then(res => {
+            if (res && res.ok) { window.PEAK_PACKAGES.loadPackage().then(() => force()); window.peakToast && window.peakToast('Subscription active 🎉', 'success', 'Your plan is now ' + (res.plan ? tierObj(res.plan).name : 'updated') + '.'); }
+            else window.peakToast && window.peakToast('Payment not confirmed', 'info', (res && res.why) || st || '');
+            try { history.replaceState(null, '', location.pathname); } catch (e) {}
+          }).catch(() => {});
+        }
+      } catch (e) {}
+    }, []);
 
     return (
       <div style={{ height: '100%', overflow: 'auto', background: T.bg, color: T.ink, fontFamily: T.font, fontSize: 13, padding: '26px 28px 60px' }}>
@@ -7946,7 +7968,7 @@ window.PEAK_PACKAGES = (function () {
                 <div style={{ marginTop: 10 }}>
                   {on ? <div style={{ fontSize: 12, color: T.good, fontWeight: 700 }}>● Your plan</div>
                     : owned ? <div style={{ fontSize: 12, color: T.ink4 }}>Included</div>
-                    : <button onClick={() => upgradeMsg(t)} style={{ background: T.red, color: '#fff', border: 'none', borderRadius: 8, padding: '7px 13px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>Upgrade →</button>}
+                    : <button onClick={() => subscribe(t)} disabled={paying === t.id} style={{ background: T.red, color: '#fff', border: 'none', borderRadius: 8, padding: '7px 13px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>{paying === t.id ? 'Opening…' : 'Subscribe / Pay →'}</button>}
                 </div>
               </div>
             );

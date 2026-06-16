@@ -5552,7 +5552,7 @@ You: "'We help you get more done with less stress.' Nine plain words beat the ja
               fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 14,
             }}>N</div>
             <div>
-              <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', letterSpacing: 1.5, color: 'var(--text-tertiary)' }}>NIA'S WATCH <span style={{ color: 'var(--mint)', marginLeft: 6 }}>· LIVE v30</span></div>
+              <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', letterSpacing: 1.5, color: 'var(--text-tertiary)' }}>NIA'S WATCH <span style={{ color: 'var(--mint)', marginLeft: 6 }}>· LIVE v31</span></div>
               <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)' }}>
                 What happened while you were away
               </div>
@@ -7016,6 +7016,51 @@ const AnalyticsPage = ({ onNavigate }) => {
   );
 };
 
+const SubscriptionsPage = ({ onNavigate }) => {
+  const WK = (typeof window !== 'undefined' && window.NEXT_OS_SENTINEL_ENDPOINT) || 'https://nextos-sentinel.nextafricaai.workers.dev';
+  const [subs, setSubs] = React.useState([]); const [notices, setNotices] = React.useState([]); const [loading, setLoading] = React.useState(true);
+  const load = React.useCallback(() => { setLoading(true); fetch(WK + '/billing/subscriptions').then(r => r.json()).then(d => { setSubs(d.subscriptions || []); setNotices(d.notices || []); setLoading(false); }).catch(() => setLoading(false)); }, []);
+  React.useEffect(() => { load(); }, [load]);
+  const card = { background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: 18 };
+  const mono = { fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.1em' };
+  const fmt = n => 'UGX ' + Math.round(Number(n) || 0).toLocaleString();
+  const active = subs.filter(s => s.status === 'active');
+  const mrr = active.reduce((a, s) => a + (Number(s.amount) || 0), 0);
+  return (
+    <div>
+      <div style={{ marginBottom: 22 }}>
+        <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', letterSpacing: 2, color: 'var(--text-tertiary)', marginBottom: 6 }}>BILLING · SUBSCRIPTIONS</div>
+        <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 30, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>Subscriptions</h1>
+        <p style={{ fontSize: 14, color: 'var(--text-secondary)', margin: '6px 0 0', maxWidth: 640 }}>Every paid subscription lands here the moment Flutterwave confirms it — and the income is auto-recorded in Finance. No manual approval.</p>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 1, background: 'var(--border-subtle)', borderRadius: 'var(--radius-md)', overflow: 'hidden', marginBottom: 16 }} className="niahq-cols">
+        {[['Active subscriptions', active.length], ['Revenue / term', fmt(mrr)], ['Recent payments', notices.length]].map((k, i) => (
+          <div key={i} style={{ background: 'var(--bg-elevated)', padding: 18 }}><div style={mono}>{k[0]}</div><div style={{ fontSize: 24, fontFamily: 'var(--font-display)', fontWeight: 700, color: 'var(--text-primary)', marginTop: 4 }}>{k[1]}</div></div>
+        ))}
+      </div>
+      <div style={{ ...card }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+          <div style={mono}>Incoming subscriptions</div>
+          <button onClick={load} style={{ background: 'var(--bg-deep)', color: 'var(--text-primary)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-sm)', padding: '6px 12px', fontSize: 12, cursor: 'pointer' }}>{loading ? 'Loading…' : 'Refresh'}</button>
+        </div>
+        {subs.length === 0 ? <div style={{ fontSize: 13, color: 'var(--text-tertiary)' }}>No subscriptions yet. When a school pays from its Plan screen, it appears here automatically.</div> : (
+          <div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto auto', gap: 10, fontSize: 11, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', paddingBottom: 8, borderBottom: '1px solid var(--border-subtle)' }}><span>School</span><span>Plan</span><span style={{ textAlign: 'right' }}>Amount</span><span style={{ textAlign: 'right' }}>Status</span></div>
+            {subs.map((s, i) => (
+              <div key={s.id || i} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto auto', gap: 10, fontSize: 12.5, padding: '10px 0', borderBottom: '1px solid var(--border-subtle)', alignItems: 'center' }}>
+                <span style={{ color: 'var(--text-primary)' }}>{s.tenant}</span>
+                <span style={{ color: 'var(--text-secondary)', textTransform: 'capitalize' }}>{s.plan}</span>
+                <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-primary)', textAlign: 'right' }}>{fmt(s.amount)}</span>
+                <span style={{ textAlign: 'right', fontSize: 11, fontWeight: 700, color: s.status === 'active' ? 'var(--mint)' : 'var(--gold)' }}>{(s.status || '').toUpperCase()}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 const GatePage = ({ onNavigate }) => {
   const tenants = (window.OS_DATA && window.OS_DATA.getTenants) ? window.OS_DATA.getTenants() : [];
   const card = { background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: 18 };
@@ -7066,6 +7111,7 @@ const NAV_SECTIONS = [
   ]},
   { id: 'system', label: 'System', items: [
     { id: 'gate', label: 'Gate Kiosk · beta', icon: 'ai' },
+    { id: 'subs', label: 'Subscriptions', icon: 'billing' },
     { id: 'billing', label: 'Finance', icon: 'billing' },
     { id: 'sentinel', label: 'Nia HQ', icon: 'sentinel' },
     { id: 'vault', label: 'Fleet Vault', icon: 'vault' },
@@ -7690,6 +7736,8 @@ const AppShell = () => {
         return <AnalyticsPage onNavigate={setActiveTab} />;
       case 'gate':
         return <GatePage onNavigate={setActiveTab} />;
+      case 'subs':
+        return <SubscriptionsPage onNavigate={setActiveTab} />;
       case 'ai-tools':
         return <AIToolsPage onNavigate={setActiveTab} />;
       case 'billing':
