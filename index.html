@@ -7015,6 +7015,39 @@ const AnalyticsPage = ({ onNavigate }) => {
   );
 };
 
+const GatePage = ({ onNavigate }) => {
+  const tenants = (window.OS_DATA && window.OS_DATA.getTenants) ? window.OS_DATA.getTenants() : [];
+  const card = { background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: 18 };
+  const mono = { fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.1em' };
+  return (
+    <div>
+      <div style={{ marginBottom: 22 }}>
+        <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', letterSpacing: 2, color: 'var(--text-tertiary)', marginBottom: 6 }}>GATE KIOSK · BETA (NEXT-ONLY)</div>
+        <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 30, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>Gate Attendance Kiosk</h1>
+        <p style={{ fontSize: 14, color: 'var(--text-secondary)', margin: '6px 0 0', maxWidth: 640 }}>Face recognition + ID/QR check-in for a school tablet at the gate. You're testing it here first — it stays hidden from schools (shows "in testing" on their plan) until you roll it out. Open a school's kiosk below to test, then enrol a few faces and try a check-in.</p>
+      </div>
+      <div style={{ ...card }}>
+        <div style={{ ...mono, marginBottom: 12 }}>Open the kiosk for a school</div>
+        {tenants.length === 0 ? <div style={{ fontSize: 13, color: 'var(--text-tertiary)' }}>No schools found.</div> : tenants.map(t => {
+          const url = '/gate.html?s=' + encodeURIComponent(t.id);
+          return (
+            <div key={t.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, padding: '11px 0', borderBottom: '1px solid var(--border-subtle)' }}>
+              <div><div style={{ fontSize: 14, color: 'var(--text-primary)', fontWeight: 600 }}>{t.name}</div><div style={{ fontSize: 11, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)' }}>{t.id}{t.vertical ? ' · ' + t.vertical : ''}</div></div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <a href={url} target="_blank" rel="noopener" style={{ background: 'var(--mint)', color: '#042', border: 'none', borderRadius: 'var(--radius-sm)', padding: '8px 14px', fontSize: 12.5, fontWeight: 700, textDecoration: 'none' }}>Open kiosk →</a>
+                <button onClick={() => { try { navigator.clipboard.writeText(location.origin + url); } catch (e) {} }} style={{ background: 'transparent', border: '1px solid var(--border-subtle)', color: 'var(--text-secondary)', borderRadius: 'var(--radius-sm)', padding: '8px 12px', fontSize: 12, cursor: 'pointer' }}>Copy link</button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <div style={{ ...card, marginTop: 16, fontSize: 12.5, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+        <b style={{ color: 'var(--text-primary)' }}>Roll-out plan:</b> once it's proven, flip the Gate add-on from "in testing" to live in the Schools OS and it appears on Mastery-tier schools' Plan screen. Until then only you (NEXT) can open it.
+      </div>
+    </div>
+  );
+};
+
 const NAV_SECTIONS = [
   { id: 'main', label: 'Main', items: [
     { id: 'dashboard', label: 'Dashboard', icon: 'dashboard' },
@@ -7031,6 +7064,7 @@ const NAV_SECTIONS = [
     { id: 'comms', label: 'Communications', icon: 'comms' },
   ]},
   { id: 'system', label: 'System', items: [
+    { id: 'gate', label: 'Gate Kiosk · beta', icon: 'ai' },
     { id: 'billing', label: 'Finance', icon: 'billing' },
     { id: 'sentinel', label: 'Nia HQ', icon: 'sentinel' },
     { id: 'vault', label: 'Fleet Vault', icon: 'vault' },
@@ -7653,6 +7687,8 @@ const AppShell = () => {
         return <ProjectsPage onNavigate={setActiveTab} />;
       case 'analytics':
         return <AnalyticsPage onNavigate={setActiveTab} />;
+      case 'gate':
+        return <GatePage onNavigate={setActiveTab} />;
       case 'ai-tools':
         return <AIToolsPage onNavigate={setActiveTab} />;
       case 'billing':

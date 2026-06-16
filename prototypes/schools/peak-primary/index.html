@@ -7860,7 +7860,7 @@ window.PEAK_PACKAGES = (function () {
     library:       { name: 'Library & Inventory', glyph: '▦', live: true, blurb: 'Track books, equipment and assets — who has what, what is due back.', tier: 'mastery' },
     multibranch:   { name: 'Multi-branch Console', glyph: '⊞', live: false, blurb: 'One view across every school in a foundation/network.', tier: 'mastery', needs: 'NEXT OS fleet link' },
     whitelabel:    { name: 'White-label + Domain', glyph: '◈', live: false, blurb: 'Your brand and your own domain on the whole OS.', tier: 'mastery', needs: 'a domain + brand assets' },
-    biometric:     { name: 'Gate Attendance Kiosk', glyph: '⊡', live: true, blurb: 'Face recognition + ID/QR check-in on a school tablet at the gate. Fingerprint slots in with optional hardware.', tier: 'mastery' },
+    biometric:     { name: 'Gate Attendance Kiosk', glyph: '⊡', live: false, testing: true, blurb: 'Face recognition + ID/QR check-in on a school tablet at the gate. Currently being tested by NEXT — it will be enabled for your school once proven.', tier: 'mastery' },
     emis:          { name: 'Board / Ministry Reports', glyph: '⊜', live: false, blurb: 'Compliance-ready EMIS export packs for the board and Ministry.', tier: 'mastery' },
     sms:           { name: 'SMS Fallback', glyph: '✉', live: false, blurb: 'Reach guardians without WhatsApp by SMS.', alacarte: true, needs: 'an SMS gateway' },
   };
@@ -7961,10 +7961,12 @@ window.PEAK_PACKAGES = (function () {
                 <div key={k} style={{ border: '1px solid ' + (avail ? T.border : T.border), borderRadius: 10, padding: 12, opacity: avail ? 1 : 0.85 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span style={{ fontSize: 13, fontWeight: 700 }}>{a.glyph} {a.name}</span>
-                    {avail ? <span style={{ fontSize: 9.5, fontFamily: T.mono, color: T.good }}>{a.live ? 'ACTIVE' : 'INCLUDED'}</span> : <span style={{ fontSize: 14 }}>🔒</span>}
+                    {a.testing ? <span style={{ fontSize: 9.5, fontFamily: T.mono, color: T.gold || '#d8a200' }}>SOON</span> : avail ? <span style={{ fontSize: 9.5, fontFamily: T.mono, color: T.good }}>{a.live ? 'ACTIVE' : 'INCLUDED'}</span> : <span style={{ fontSize: 14 }}>🔒</span>}
                   </div>
                   <div style={{ fontSize: 11.5, color: T.ink3, marginTop: 6, lineHeight: 1.5 }}>{a.blurb}</div>
-                  {avail
+                  {a.testing
+                    ? <div style={{ marginTop: 8, fontSize: 11, color: T.gold || '#d8a200' }}>🧪 In testing by NEXT — coming soon</div>
+                    : avail
                     ? (a.live ? <button onClick={() => onNav && onNav('addon:' + k)} style={{ marginTop: 8, background: 'transparent', border: '1px solid ' + T.border, color: T.ink2, borderRadius: 7, padding: '5px 11px', fontSize: 11.5, cursor: 'pointer' }}>Open →</button>
                        : <div style={{ marginTop: 8, fontSize: 11, color: T.gold || '#d8a200' }}>{a.needs ? 'Set up: needs ' + a.needs : 'Ready to set up'}</div>)
                     : <div style={{ marginTop: 8, fontSize: 11, color: T.ink4, fontFamily: T.mono }}>{a.alacarte ? 'Add-on' : 'On ' + tierObj(a.tier).name}</div>}
@@ -8121,7 +8123,14 @@ window.PEAK_PACKAGES = (function () {
     if (addonKey === 'library') return <Library />;
     if (addonKey === 'predictive') return <Predictive />;
     if (addonKey === 'ai_tutor') return <AITutor />;
-    if (addonKey === 'biometric') return <GateLaunch />;
+    if (addonKey === 'biometric') return (
+      <Shell eyebrow="ADD-ON · GATE ATTENDANCE KIOSK" title="Gate Attendance Kiosk">
+        <div style={{ ...card, maxWidth: 560 }}>
+          <div style={{ fontSize: 38 }}>🧪</div>
+          <div style={{ fontSize: 14, color: T.ink2, marginTop: 10, lineHeight: 1.6 }}>Face-recognition + ID/QR gate check-in on a school tablet. NEXT is testing this now — once it's proven, we'll switch it on for your school. You'll be among the first to know.</div>
+        </div>
+      </Shell>
+    );
     return <Activate addonKey={addonKey} />;
   }
 
