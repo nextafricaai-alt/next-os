@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="theme-color" content="#070b1a" />
+<link rel="manifest" href="/gate-manifest.json" />
+<title>NEXT Gate · Attendance Kiosk</title>
+<style>
+  :root{ --bg:#070b1a; --panel:#0e152e; --line:rgba(255,255,255,.10); --ink:#eef1fb; --ink2:#aab2d5; --ink3:#6b76a6; --mint:#00d68f; --red:#e23a52; --gold:#f5b53d; }
+  *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body{ margin:0; height:100%; background:var(--bg); color:var(--ink); font-family:'Inter',system-ui,-apple-system,sans-serif; overflow:hidden; }
+  #app{ height:100%; display:flex; flex-direction:column; }
+  header{ display:flex; align-items:center; gap:12px; padding:14px 20px; border-bottom:1px solid var(--line); }
+  header .logo{ width:38px;height:38px;border-radius:9px;background:#fff;display:grid;place-items:center;overflow:hidden;flex-shrink:0; }
+  header .logo img{ width:32px;height:32px;object-fit:contain; }
+  header h1{ font-size:16px; margin:0; font-weight:700; letter-spacing:-.01em; }
+  header .sub{ font-size:11px; color:var(--ink3); font-family:ui-monospace,monospace; }
+  header .right{ margin-left:auto; display:flex; align-items:center; gap:10px; }
+  .btn{ background:transparent;border:1px solid var(--line);color:var(--ink2);border-radius:9px;padding:8px 13px;font-size:13px;cursor:pointer; }
+  .btn.solid{ background:var(--mint); color:#042; border:none; font-weight:700; }
+  main{ flex:1; display:grid; grid-template-columns:1fr 360px; min-height:0; }
+  @media(max-width:820px){ main{ grid-template-columns:1fr; } #side{ display:none; } }
+  #stage{ position:relative; display:grid; place-items:center; background:#000; overflow:hidden; }
+  video{ width:100%; height:100%; object-fit:cover; transform:scaleX(-1); }
+  canvas#overlay{ position:absolute; inset:0; width:100%; height:100%; transform:scaleX(-1); pointer-events:none; }
+  #status{ position:absolute; bottom:18px; left:50%; transform:translateX(-50%); background:rgba(7,11,26,.78); backdrop-filter:blur(8px); border:1px solid var(--line); border-radius:999px; padding:11px 22px; font-size:15px; font-weight:600; display:flex; align-items:center; gap:10px; }
+  #status .dot{ width:10px;height:10px;border-radius:50%; background:var(--gold); }
+  #modes{ position:absolute; top:16px; left:50%; transform:translateX(-50%); display:flex; gap:6px; background:rgba(7,11,26,.7); border:1px solid var(--line); border-radius:999px; padding:5px; }
+  #modes button{ background:transparent;border:none;color:var(--ink2);padding:7px 16px;border-radius:999px;font-size:13px;cursor:pointer; }
+  #modes button.on{ background:var(--mint); color:#042; font-weight:700; }
+  /* learner card overlay */
+  #card{ position:absolute; inset:0; display:none; place-items:center; background:rgba(7,11,26,.86); backdrop-filter:blur(10px); }
+  #card.show{ display:grid; animation:pop .25s ease; }
+  @keyframes pop{ from{ transform:scale(.94); opacity:0; } to{ transform:none; opacity:1; } }
+  .lcard{ width:min(440px,90vw); background:var(--panel); border:1px solid var(--line); border-radius:20px; padding:26px; text-align:center; box-shadow:0 30px 80px rgba(0,0,0,.5); }
+  .lcard .pic{ width:120px;height:120px;border-radius:50%; margin:0 auto 14px; background:#1a233f; display:grid; place-items:center; overflow:hidden; border:3px solid var(--mint); font-size:42px; font-weight:800; color:var(--mint); }
+  .lcard .pic img{ width:100%;height:100%;object-fit:cover; }
+  .lcard h2{ margin:0; font-size:24px; }
+  .lcard .meta{ color:var(--ink2); font-size:14px; margin-top:4px; }
+  .lcard .row{ display:flex; justify-content:space-between; padding:10px 0; border-top:1px solid var(--line); font-size:14px; margin-top:6px; }
+  .lcard .row .k{ color:var(--ink3); font-family:ui-monospace,monospace; font-size:12px; }
+  .lcard .greet{ margin-top:14px; font-size:15px; color:var(--mint); font-weight:600; }
+  .lcard .via{ margin-top:6px; font-size:11px; color:var(--ink3); font-family:ui-monospace,monospace; }
+  #side{ border-left:1px solid var(--line); display:flex; flex-direction:column; min-height:0; }
+  #side h3{ font-size:11px; color:var(--ink3); font-family:ui-monospace,monospace; letter-spacing:.08em; margin:0; padding:16px 18px 8px; }
+  #arrivals{ flex:1; overflow:auto; padding:0 12px 12px; }
+  .arr{ display:flex; align-items:center; gap:10px; padding:9px 8px; border-radius:10px; }
+  .arr .av{ width:34px;height:34px;border-radius:50%;background:#1a233f;display:grid;place-items:center;font-size:13px;font-weight:700;color:var(--mint);overflow:hidden;flex-shrink:0; }
+  .arr .av img{width:100%;height:100%;object-fit:cover;}
+  .arr .nm{ font-size:13.5px; font-weight:600; }
+  .arr .tm{ margin-left:auto; font-size:11px; color:var(--ink3); font-family:ui-monospace,monospace; }
+  #side .foot{ border-top:1px solid var(--line); padding:12px 16px; font-size:11px; color:var(--ink3); }
+  /* manual / enroll panels */
+  .panel{ position:absolute; inset:0; display:none; place-items:start center; background:rgba(7,11,26,.92); overflow:auto; padding:24px; }
+  .panel.show{ display:grid; }
+  .panel .box{ width:min(520px,94vw); background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:20px; }
+  .panel input{ width:100%; background:var(--bg); border:1px solid var(--line); color:var(--ink); border-radius:10px; padding:11px 13px; font-size:15px; outline:none; }
+  .srow{ display:flex; align-items:center; gap:10px; padding:9px; border-radius:10px; cursor:pointer; }
+  .srow:hover{ background:rgba(255,255,255,.04); }
+  .hidden{ display:none !important; }
+  .toast{ position:fixed; bottom:20px; left:50%; transform:translateX(-50%); background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:12px 18px; font-size:14px; z-index:50; }
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div class="logo"><img id="brandLogo" alt="" /></div>
+    <div>
+      <h1 id="brandName">School Gate</h1>
+      <div class="sub" id="clock">—</div>
+    </div>
+    <div class="right">
+      <button class="btn" id="enrollBtn">Enrol faces</button>
+      <button class="btn" id="manualBtn">Manual</button>
+      <button class="btn" id="fsBtn">Full screen</button>
+    </div>
+  </header>
+  <main>
+    <div id="stage">
+      <video id="video" autoplay muted playsinline></video>
+      <canvas id="overlay"></canvas>
+      <div id="modes">
+        <button data-mode="face" class="on">Face</button>
+        <button data-mode="qr">ID / QR</button>
+      </div>
+      <div id="status"><span class="dot"></span><span id="statusText">Starting camera…</span></div>
+      <div id="card"><div class="lcard" id="lcard"></div></div>
+      <!-- manual -->
+      <div class="panel" id="manualPanel">
+        <div class="box">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><b style="font-size:16px">Find a learner</b><button class="btn" onclick="closePanels()">Close</button></div>
+          <input id="manualSearch" placeholder="Type a name…" autocomplete="off" />
+          <div id="manualResults" style="margin-top:10px;max-height:50vh;overflow:auto"></div>
+        </div>
+      </div>
+      <!-- enroll -->
+      <div class="panel" id="enrollPanel">
+        <div class="box">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><b style="font-size:16px">Enrol a face</b><button class="btn" onclick="closePanels()">Close</button></div>
+          <div style="font-size:13px;color:var(--ink2);margin-bottom:10px">Pick a learner, have them look at the camera, then tap <b>Capture</b>. This stores their face signature (not the photo) so the gate recognises them. Do this once per learner.</div>
+          <input id="enrollSearch" placeholder="Search learner to enrol…" autocomplete="off" />
+          <div id="enrollResults" style="margin-top:10px;max-height:34vh;overflow:auto"></div>
+          <div id="enrollActive" class="hidden" style="margin-top:12px;border-top:1px solid var(--line);padding-top:12px">
+            <div id="enrollName" style="font-weight:700;margin-bottom:8px"></div>
+            <button class="btn solid" id="captureBtn" style="width:100%">Capture face</button>
+            <div id="enrollMsg" style="font-size:12px;color:var(--ink3);margin-top:8px"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="side">
+      <h3>RECENT ARRIVALS · TODAY</h3>
+      <div id="arrivals"></div>
+      <div class="foot" id="sideFoot">—</div>
+    </div>
+  </main>
+</div>
+<div id="toast" class="toast hidden"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.13/dist/face-api.js"></script>
+<script>
+(function(){
+  'use strict';
+  var WK='https://nextos-sentinel.nextafricaai.workers.dev';
+  var params=new URLSearchParams(location.search);
+  var TENANT=params.get('s')||params.get('t')||params.get('tenant')||(location.pathname.match(/\/(?:s|school)\/([A-Za-z0-9_-]+)/)||[])[1]||'';
+  if(!TENANT){ try{ TENANT=localStorage.getItem('nextos.gate.tenant')||''; }catch(e){} }
+  if(TENANT){ try{ localStorage.setItem('nextos.gate.tenant',TENANT); }catch(e){} }
+  var MODELS='https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.13/model';
+
+  var $=function(id){ return document.getElementById(id); };
+  var video=$('video'), overlay=$('overlay'), octx=overlay.getContext('2d');
+  var students=[], balances={}, enrolled=[], arrivals=[], lastSeen={};
+  var faceReady=false, matcher=null, mode='face', busyCard=false, enrollFor=null;
+
+  function toast(t){ var el=$('toast'); el.textContent=t; el.classList.remove('hidden'); clearTimeout(el._t); el._t=setTimeout(function(){ el.classList.add('hidden'); },2600); }
+  function status(t){ $('statusText').textContent=t; }
+  function fmt(n){ return 'UGX '+(Number(n)||0).toLocaleString(); }
+  function initials(n){ return ((String(n||'').match(/[A-Za-z]+/g)||['?']).slice(0,2).map(function(x){return x[0];}).join('')).toUpperCase(); }
+  function clock(){ var d=new Date(); $('clock').textContent=d.toLocaleDateString(undefined,{weekday:'long',day:'numeric',month:'short'})+' · '+d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}); }
+  setInterval(clock,1000); clock();
+
+  // ── brand ──
+  fetch(WK+'/brand?tenant='+encodeURIComponent(TENANT)).then(function(r){return r.json();}).then(function(b){ if(b&&b.name){ $('brandName').textContent=b.name+' · Gate'; document.title=b.name+' · Gate'; } $('brandLogo').src=WK+'/icon.png?s='+encodeURIComponent(TENANT); }).catch(function(){ $('brandLogo').src=WK+'/icon.png?s='+encodeURIComponent(TENANT); });
+
+  // ── data ──
+  function loadData(){
+    return Promise.all([
+      fetch(WK+'/students?tenant='+encodeURIComponent(TENANT)).then(function(r){return r.json();}).catch(function(){return{};}),
+      fetch(WK+'/fees-balances?tenant='+encodeURIComponent(TENANT)).then(function(r){return r.json();}).catch(function(){return{};}),
+      fetch(WK+'/os-data?kind=face_enroll&tenant='+encodeURIComponent(TENANT)).then(function(r){return r.json();}).catch(function(){return{};}),
+      fetch(WK+'/os-data?kind=gate_checkin&tenant='+encodeURIComponent(TENANT)).then(function(r){return r.json();}).catch(function(){return{};})
+    ]).then(function(res){
+      students=(res[0]&&res[0].students)||[];
+      balances=(res[1]&&res[1].balances)||{};
+      enrolled=((res[2]&&res[2].records)||[]).map(function(x){ return x.payload; }).filter(function(p){ return p&&p.descriptor; });
+      var today=new Date().toISOString().slice(0,10);
+      arrivals=((res[3]&&res[3].records)||[]).map(function(x){ return x.payload; }).filter(function(p){ return p&&String(p.at||'').slice(0,10)===today; }).sort(function(a,b){ return String(b.at).localeCompare(String(a.at)); });
+      arrivals.forEach(function(a){ lastSeen[a.studentId]=a.at; });
+      buildMatcher(); renderArrivals();
+      $('sideFoot').textContent=students.length+' learners · '+enrolled.length+' faces enrolled';
+    });
+  }
+  function buildMatcher(){
+    if(!faceReady||!enrolled.length){ matcher=null; return; }
+    try{
+      var labeled=enrolled.map(function(e){ return new faceapi.LabeledFaceDescriptors(String(e.studentId), [new Float32Array(e.descriptor)]); });
+      matcher=new faceapi.FaceMatcher(labeled, 0.52);
+    }catch(e){ matcher=null; }
+  }
+  function studentById(id){ for(var i=0;i<students.length;i++){ if(String(students[i].id)===String(id)) return students[i]; } return null; }
+
+  // ── camera ──
+  function startCamera(){
+    navigator.mediaDevices.getUserMedia({ video:{ facingMode:'user', width:{ideal:1280}, height:{ideal:720} }, audio:false })
+      .then(function(stream){ video.srcObject=stream; video.onloadedmetadata=function(){ overlay.width=video.videoWidth; overlay.height=video.videoHeight; status(mode==='face'?'Look at the camera':'Show your ID / QR'); loop(); }; })
+      .catch(function(e){ status('Camera blocked — allow camera access on this device.'); });
+  }
+
+  // ── face models ──
+  function loadModels(){
+    if(typeof faceapi==='undefined'){ status('Face engine unavailable — use ID/QR or Manual.'); return Promise.resolve(); }
+    status('Loading face engine…');
+    return Promise.all([
+      faceapi.nets.tinyFaceDetector.loadFromUri(MODELS),
+      faceapi.nets.faceLandmark68Net.loadFromUri(MODELS),
+      faceapi.nets.faceRecognitionNet.loadFromUri(MODELS)
+    ]).then(function(){ faceReady=true; buildMatcher(); status('Look at the camera'); }).catch(function(e){ status('Face engine failed to load — use ID/QR or Manual.'); });
+  }
+
+  // ── QR via BarcodeDetector ──
+  var barcodeDet=null;
+  if('BarcodeDetector' in window){ try{ barcodeDet=new window.BarcodeDetector({ formats:['qr_code','code_128','code_39','ean_13'] }); }catch(e){} }
+
+  // ── main loop ──
+  var faceOpts=null;
+  function loop(){
+    if(busyCard){ requestAnimationFrame(loop); return; }
+    if(mode==='face' && faceReady && matcher){
+      faceOpts=faceOpts||new faceapi.TinyFaceDetectorOptions({ inputSize:320, scoreThreshold:0.5 });
+      faceapi.detectSingleFace(video, faceOpts).withFaceLandmarks().withFaceDescriptor().then(function(res){
+        octx.clearRect(0,0,overlay.width,overlay.height);
+        if(res){
+          var best=matcher.findBestMatch(res.descriptor);
+          var box=res.detection.box;
+          octx.strokeStyle=best.label!=='unknown'?'#00d68f':'#f5b53d'; octx.lineWidth=4;
+          octx.strokeRect(box.x,box.y,box.width,box.height);
+          if(best.label!=='unknown'){ identify(best.label,'face'); return; }
+        }
+        requestAnimationFrame(loop);
+      }).catch(function(){ requestAnimationFrame(loop); });
+      return;
+    }
+    if(mode==='qr' && barcodeDet){
+      barcodeDet.detect(video).then(function(codes){
+        if(codes&&codes.length){ var raw=codes[0].rawValue||''; var id=parseId(raw); if(id){ identify(id,'id'); return; } }
+        requestAnimationFrame(loop);
+      }).catch(function(){ requestAnimationFrame(loop); });
+      return;
+    }
+    requestAnimationFrame(loop);
+  }
+  function parseId(raw){
+    raw=String(raw||'').trim();
+    var m=raw.match(/(?:nx:|student:|id:)?(\d{1,9})$/i); if(m) return m[1];
+    var s=students.find(function(x){ return String(x.id)===raw || (x.name&&x.name.toLowerCase()===raw.toLowerCase()); });
+    return s?String(s.id):'';
+  }
+
+  // ── identify + card ──
+  function identify(id, via){
+    var s=studentById(id); if(!s){ return; }
+    busyCard=true;
+    var bal=Number(balances[s.id]||0);
+    var last=lastSeen[s.id];
+    var pic=s.photo||s.photo_url||'';
+    var firstSeenToday=!last;
+    var greet=(new Date().getHours()<12?'Good morning':'Welcome')+', '+(String(s.name).split(' ')[0])+'!';
+    $('lcard').innerHTML=''+
+      '<div class="pic">'+(pic?'<img src="'+pic+'">':initials(s.name))+'</div>'+
+      '<h2>'+s.name+'</h2>'+
+      '<div class="meta">'+(s.stream||'')+(s.guardian_name?(' · '+s.guardian_name):'')+'</div>'+
+      '<div class="row"><span class="k">SCHOOL FEES</span><span style="color:'+(bal>0?'#f5b53d':'#00d68f')+';font-weight:700">'+(bal>0?(fmt(bal)+' due'):'Cleared ✓')+'</span></div>'+
+      '<div class="row"><span class="k">ARRIVAL</span><span>'+new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})+(firstSeenToday?'':' · already in')+'</span></div>'+
+      '<div class="greet">'+greet+'</div>'+
+      '<div class="via">checked in by '+(via==='face'?'face recognition':via==='id'?'ID card':'manual')+'</div>';
+    $('card').classList.add('show');
+    octx.clearRect(0,0,overlay.width,overlay.height);
+    if(firstSeenToday){ logCheckin(s, via); }
+    setTimeout(function(){ $('card').classList.remove('show'); busyCard=false; status(mode==='face'?'Look at the camera':'Show your ID / QR'); requestAnimationFrame(loop); }, 3200);
+  }
+  function logCheckin(s, via){
+    var at=new Date().toISOString();
+    lastSeen[s.id]=at;
+    arrivals.unshift({ studentId:s.id, name:s.name, stream:s.stream, at:at, via:via, photo:s.photo||'' });
+    renderArrivals();
+    fetch(WK+'/os-data/save',{ method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ kind:'gate_checkin', tenant:TENANT, record:{ studentId:s.id, name:s.name, stream:s.stream, at:at, via:via } }) }).catch(function(){});
+  }
+  function renderArrivals(){
+    var html=arrivals.slice(0,40).map(function(a){
+      return '<div class="arr"><div class="av">'+(a.photo?'<img src="'+a.photo+'">':initials(a.name))+'</div><div class="nm">'+a.name+'<div style="font-size:11px;color:var(--ink3)">'+(a.stream||'')+'</div></div><div class="tm">'+new Date(a.at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})+'</div></div>';
+    }).join('');
+    $('arrivals').innerHTML=html||'<div style="padding:14px;color:var(--ink3);font-size:13px">No arrivals logged yet today.</div>';
+  }
+
+  // ── modes ──
+  document.querySelectorAll('#modes button').forEach(function(b){ b.onclick=function(){ document.querySelectorAll('#modes button').forEach(function(x){x.classList.remove('on');}); b.classList.add('on'); mode=b.getAttribute('data-mode'); status(mode==='face'?'Look at the camera':'Show your ID / QR'); if(mode==='qr'&&!barcodeDet){ toast('This tablet has no barcode scanner API — use Face or Manual.'); } }; });
+
+  // ── manual ──
+  $('manualBtn').onclick=function(){ closePanels(); $('manualPanel').classList.add('show'); $('manualSearch').focus(); renderSearch('manualSearch','manualResults',function(s){ closePanels(); identify(s.id,'manual'); }); };
+  function renderSearch(inputId, outId, onPick){
+    var inp=$(inputId), out=$(outId);
+    function draw(){ var q=(inp.value||'').toLowerCase().trim(); var list=q?students.filter(function(s){ return String(s.name||'').toLowerCase().indexOf(q)>=0; }).slice(0,30):students.slice(0,30);
+      out.innerHTML=list.map(function(s,i){ return '<div class="srow" data-i="'+i+'"><div class="av" style="width:30px;height:30px;border-radius:50%;background:#1a233f;display:grid;place-items:center;font-size:12px;font-weight:700;color:var(--mint)">'+initials(s.name)+'</div><div><div style="font-weight:600">'+s.name+'</div><div style="font-size:11px;color:var(--ink3)">'+(s.stream||'')+'</div></div></div>'; }).join('');
+      Array.prototype.forEach.call(out.querySelectorAll('.srow'),function(el){ el.onclick=function(){ onPick(list[+el.getAttribute('data-i')]); }; });
+    }
+    inp.value=''; inp.oninput=draw; draw();
+  }
+  function closePanels(){ document.querySelectorAll('.panel').forEach(function(p){ p.classList.remove('show'); }); enrollFor=null; $('enrollActive').classList.add('hidden'); }
+  window.closePanels=closePanels;
+
+  // ── enrol faces ──
+  $('enrollBtn').onclick=function(){ if(!faceReady){ toast('Face engine not ready yet — give it a moment.'); return; } closePanels(); $('enrollPanel').classList.add('show'); $('enrollSearch').focus(); renderSearch('enrollSearch','enrollResults',function(s){ enrollFor=s; $('enrollActive').classList.remove('hidden'); $('enrollName').textContent='Enrolling: '+s.name+' ('+(s.stream||'')+')'; $('enrollMsg').textContent=''; }); };
+  $('captureBtn').onclick=function(){
+    if(!enrollFor){ return; }
+    $('enrollMsg').textContent='Capturing…';
+    var opts=new faceapi.TinyFaceDetectorOptions({ inputSize:416, scoreThreshold:0.5 });
+    faceapi.detectSingleFace(video,opts).withFaceLandmarks().withFaceDescriptor().then(function(res){
+      if(!res){ $('enrollMsg').textContent='No face detected — face the camera and try again.'; return; }
+      var desc=Array.from(res.descriptor);
+      fetch(WK+'/os-data/save',{ method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ kind:'face_enroll', tenant:TENANT, record:{ studentId:enrollFor.id, name:enrollFor.name, descriptor:desc, at:new Date().toISOString() } }) })
+        .then(function(){ enrolled.push({ studentId:enrollFor.id, descriptor:desc }); buildMatcher(); $('enrollMsg').textContent='✓ '+enrollFor.name+' enrolled. The gate now recognises them.'; $('sideFoot').textContent=students.length+' learners · '+enrolled.length+' faces enrolled'; })
+        .catch(function(){ $('enrollMsg').textContent='Could not save — check connection.'; });
+    }).catch(function(){ $('enrollMsg').textContent='Capture failed, try again.'; });
+  };
+
+  // ── full screen ──
+  $('fsBtn').onclick=function(){ if(document.fullscreenElement){ document.exitFullscreen(); } else { document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen(); } };
+
+  // ── go ──
+  if(!TENANT){ status('No school set. Open this from your OS → Plan → Gate, or add ?s=your-school-id to the link.'); }
+  loadData().then(loadModels).then(startCamera);
+})();
+</script>
+</body>
+</html>

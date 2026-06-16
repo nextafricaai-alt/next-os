@@ -212,7 +212,7 @@
   <script>
     /* Build self-heal: if this cached HTML is older than what the server now serves,
        reload ONCE with a cache-buster so no school is ever stuck on a stale build. */
-    window.__BUILD = 'b78';
+    window.__BUILD = 'b79';
     (function () {
       try {
         fetch('/build.txt?ts=' + Date.now(), { cache: 'no-store' })
@@ -233,7 +233,7 @@
     <div style="min-height:100vh;display:grid;place-items:center;color:#8a91b0;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px;letter-spacing:0.08em;">
       <div style="text-align:center">
         <div id="nx-loading-text">LOADING · NEXT SCHOOL OS</div>
-        <div style="margin-top:12px;font-size:10px;opacity:0.5">build b78</div>
+        <div style="margin-top:12px;font-size:10px;opacity:0.5">build b79</div>
       </div>
     </div>
   </div>
@@ -7860,7 +7860,7 @@ window.PEAK_PACKAGES = (function () {
     library:       { name: 'Library & Inventory', glyph: '▦', live: true, blurb: 'Track books, equipment and assets — who has what, what is due back.', tier: 'mastery' },
     multibranch:   { name: 'Multi-branch Console', glyph: '⊞', live: false, blurb: 'One view across every school in a foundation/network.', tier: 'mastery', needs: 'NEXT OS fleet link' },
     whitelabel:    { name: 'White-label + Domain', glyph: '◈', live: false, blurb: 'Your brand and your own domain on the whole OS.', tier: 'mastery', needs: 'a domain + brand assets' },
-    biometric:     { name: 'Biometric / RFID Gate', glyph: '⊡', live: false, blurb: 'Fingerprint or card check-in at the gate, straight into attendance.', tier: 'mastery', needs: 'gate hardware' },
+    biometric:     { name: 'Gate Attendance Kiosk', glyph: '⊡', live: true, blurb: 'Face recognition + ID/QR check-in on a school tablet at the gate. Fingerprint slots in with optional hardware.', tier: 'mastery' },
     emis:          { name: 'Board / Ministry Reports', glyph: '⊜', live: false, blurb: 'Compliance-ready EMIS export packs for the board and Ministry.', tier: 'mastery' },
     sms:           { name: 'SMS Fallback', glyph: '✉', live: false, blurb: 'Reach guardians without WhatsApp by SMS.', alacarte: true, needs: 'an SMS gateway' },
   };
@@ -8097,10 +8097,31 @@ window.PEAK_PACKAGES = (function () {
     );
   }
 
+  function GateLaunch() {
+    const url = '/gate.html?s=' + encodeURIComponent(tenant());
+    return (
+      <Shell eyebrow="ADD-ON · GATE ATTENDANCE KIOSK" title="Gate Attendance Kiosk">
+        <div style={{ ...card, maxWidth: 640 }}>
+          <div style={{ fontSize: 38 }}>⊡</div>
+          <div style={{ fontSize: 14, color: T.ink2, marginTop: 10, lineHeight: 1.6 }}>A separate full-screen app for a tablet at your gate. A learner faces it → Nia recognises them, logs their arrival, and shows their fees and greeting. If the face isn't recognised, scan their ID/QR card; if all else fails, look them up by name.</div>
+          <div style={{ marginTop: 14, padding: 12, background: T.bg, border: '1px solid ' + T.border, borderRadius: 9, fontSize: 12.5, color: T.ink3, lineHeight: 1.6 }}>
+            <b style={{ color: T.ink }}>Set up once:</b> open it on the school tablet, tap <b>Enrol faces</b>, and capture each learner's face (stores a signature, not the photo). After that the gate recognises them automatically.<br /><br />
+            <b style={{ color: T.ink }}>Fingerprint</b> needs a USB/Bluetooth scanner + bridge — face &amp; ID work on any tablet today.
+          </div>
+          <div style={{ display: 'flex', gap: 10, marginTop: 14, flexWrap: 'wrap' }}>
+            <a href={url} target="_blank" rel="noopener" style={{ background: T.red, color: '#fff', border: 'none', borderRadius: 9, padding: '11px 20px', fontSize: 13.5, fontWeight: 700, cursor: 'pointer', textDecoration: 'none' }}>Open the Gate kiosk →</a>
+            <button onClick={() => { try { navigator.clipboard.writeText(location.origin + url); window.peakToast && window.peakToast('Kiosk link copied', 'success', 'Open it on the school tablet & add to home screen.'); } catch (e) {} }} style={{ background: 'transparent', border: '1px solid ' + T.border, color: T.ink2, borderRadius: 9, padding: '11px 16px', fontSize: 13, cursor: 'pointer' }}>Copy tablet link</button>
+          </div>
+          <div style={{ fontSize: 11, color: T.ink4, marginTop: 10 }}>On the tablet, open the link in Chrome → menu → "Add to Home screen" to install it as its own kiosk app.</div>
+        </div>
+      </Shell>
+    );
+  }
   function Addon({ addonKey }) {
     if (addonKey === 'library') return <Library />;
     if (addonKey === 'predictive') return <Predictive />;
     if (addonKey === 'ai_tutor') return <AITutor />;
+    if (addonKey === 'biometric') return <GateLaunch />;
     return <Activate addonKey={addonKey} />;
   }
 
