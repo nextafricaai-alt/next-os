@@ -243,7 +243,7 @@ export default {
     }
 
     // GET-allowed routes (read-only endpoints live below this gate)
-    const GET_OK = ['/check-project', '/seo-audit', '/px.js', '/analytics', '/gsc', '/ga4', '/fetch-page', '/site-pages', '/cms/collections', '/cms/items', '/students', '/exams', '/exam-results', '/fees-balances', '/attendance-summary', '/staff-status', '/attendance-watch', '/student-health', '/billing/verify', '/billing/subscriptions', '/events', '/finance', '/assets', '/school-config', '/os-data', '/teachers', '/hosting-report', '/watch/status', '/push/vapid-public', '/push/debug'];
+    const GET_OK = ['/check-project', '/seo-audit', '/px.js', '/analytics', '/gsc', '/ga4', '/fetch-page', '/site-pages', '/cms/collections', '/cms/items', '/students', '/exams', '/exam-results', '/fees-balances', '/attendance-summary', '/staff-status', '/attendance-watch', '/student-health', '/billing/verify', '/billing/subscriptions', '/health', '/events', '/finance', '/assets', '/school-config', '/os-data', '/teachers', '/hosting-report', '/watch/status', '/push/vapid-public', '/push/debug'];
     if (request.method !== 'POST' && !GET_OK.includes(url.pathname)) {
       return new Response('Method not allowed', { status: 405, headers: cors });
     }
@@ -405,6 +405,7 @@ export default {
     if (url.pathname === '/billing/webhook')    return handleBillingWebhook(request, env, cors);
     if (url.pathname === '/billing/verify')     return handleBillingVerify(url.searchParams.get('tx') || url.searchParams.get('transaction_id') || '', url.searchParams.get('tenant') || '', env, cors);
     if (url.pathname === '/billing/subscriptions') return handleBillingList(url.searchParams.get('tenant') || '', env, cors);
+    if (url.pathname === '/health')             return handleHealth(env, cors);
     if (url.pathname === '/push/vapid-public')  return new Response(JSON.stringify({ key: env.VAPID_PUBLIC || '' }), { status: 200, headers: { ...cors, 'Content-Type': 'application/json' } });
     if (url.pathname === '/push/subscribe')     return handlePushSubscribe(request, env, cors);
     if (url.pathname === '/push/notify')        return handlePushNotify(request, env, cors);
@@ -1472,6 +1473,29 @@ async function handleFeesImport(request, env, cors) {
 // ─── Billing / subscriptions (Flutterwave) ───────────────────────────────
 const PLAN_PRICES = { foundation: 400000, momentum: 1200000, mastery: 3000000 }; // UGX / term
 const PLAN_NAME = { foundation: 'Foundation', momentum: 'Momentum', mastery: 'Mastery' };
+
+async function handleHealth(env, cors) {
+  const J = (oo, st) => new Response(JSON.stringify(oo), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
+  const t0 = Date.now();
+  const checks = [];
+  checks.push({ name: 'Worker', status: 'ok', detail: 'responding' });
+  // Database
+  if (env.SUPABASE_URL && env.SUPABASE_KEY) {
+    try { const r = await fetch(env.SUPABASE_URL + '/rest/v1/tenants?select=id&limit=1', { headers: sbHeaders(env, 'count=none') }); checks.push({ name: 'Database', status: r.ok ? 'ok' : 'warn', detail: r.ok ? 'reachable' : ('HTTP ' + r.status) }); }
+    catch (e) { checks.push({ name: 'Database', status: 'down', detail: String((e && e.message) || e).slice(0, 80) }); }
+  } else checks.push({ name: 'Database', status: 'down', detail: 'not configured' });
+  // AI brain
+  if (env.ANTHROPIC_API_KEY) checks.push({ name: 'AI brain', status: 'ok', detail: 'Claude · ' + (env.ANTHROPIC_MODEL || 'claude-sonnet-4-6') });
+  else if (env.AI) checks.push({ name: 'AI brain', status: 'ok', detail: 'Llama (free fallback) — add ANTHROPIC_API_KEY for Claude' });
+  else checks.push({ name: 'AI brain', status: 'down', detail: 'no AI bound' });
+  // Push
+  let jwkOk = false; try { const j = JSON.parse(env.VAPID_JWK || '{}'); jwkOk = !!(j && j.d); } catch (e) {}
+  checks.push({ name: 'Push notifications', status: (env.VAPID_PUBLIC && jwkOk) ? 'ok' : 'warn', detail: (env.VAPID_PUBLIC && jwkOk) ? 'configured' : 'VAPID keys missing' });
+  // Billing
+  checks.push({ name: 'Billing', status: env.FLW_SECRET_KEY ? 'ok' : 'warn', detail: env.FLW_SECRET_KEY ? 'Flutterwave connected' : 'not connected' });
+  const worst = checks.some(c => c.status === 'down') ? 'down' : checks.some(c => c.status === 'warn') ? 'warn' : 'ok';
+  return J({ ok: worst !== 'down', status: worst, ms: Date.now() - t0, checks: checks });
+}
 
 async function handleBillingCheckout(request, env, cors) {
   const J = (oo, st) => new Response(JSON.stringify(oo), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
