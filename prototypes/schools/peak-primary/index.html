@@ -234,7 +234,7 @@
     <div style="min-height:100vh;display:grid;place-items:center;color:#8a91b0;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px;letter-spacing:0.08em;">
       <div style="text-align:center">
         <div id="nx-loading-text">LOADING · NEXT SCHOOL OS</div>
-        <div style="margin-top:12px;font-size:10px;opacity:0.5">build b91</div>
+        <div style="margin-top:12px;font-size:10px;opacity:0.5">build b92</div>
       </div>
     </div>
   </div>
@@ -8481,15 +8481,29 @@ window.PEAK_WATCH = (function () {
     const toggle = () => { const nx = !open; setOpen(nx); if (nx && unread) setTimeout(() => FEED.markAllRead(), 600); };
     const levelColor = (lv) => lv === 'win' ? (T.green || '#00c389') : lv === 'alert' ? T.warn : (T.gold || '#d8a200');
     const ago = (ts) => { const m = Math.round((Date.now() - ts) / 60000); if (m < 1) return 'now'; if (m < 60) return m + 'm'; const h = Math.round(m / 60); if (h < 24) return h + 'h'; return Math.round(h / 24) + 'd'; };
+    const btnRef = React.useRef(null);
+    const [pos, setPos] = useState(null);
+    useEffect(() => {
+      if (!open) return;
+      const place = () => {
+        const r = btnRef.current && btnRef.current.getBoundingClientRect(); if (!r) return;
+        const vw = window.innerWidth, vh = window.innerHeight, W = Math.min(340, vw - 20);
+        let left = r.left; if (left + W > vw - 10) left = r.right - W; if (left < 10) left = 10;
+        const top = Math.min(r.bottom + 8, vh - 80);
+        setPos({ left: Math.round(left), top: Math.round(top), width: W, maxHeight: Math.round(vh - top - 16) });
+      };
+      place(); window.addEventListener('resize', place); window.addEventListener('scroll', place, true);
+      return () => { window.removeEventListener('resize', place); window.removeEventListener('scroll', place, true); };
+    }, [open]);
     return (
       <div style={{ position: 'relative' }}>
-        <button onClick={toggle} title="Nia's notifications" style={{ width: 34, height: 34, borderRadius: 9, background: T.surface, border: '1px solid ' + T.border, color: T.ink2, fontSize: 15, cursor: 'pointer', position: 'relative' }}>
+        <button ref={btnRef} onClick={toggle} title="Nia's notifications" style={{ width: 34, height: 34, borderRadius: 9, background: T.surface, border: '1px solid ' + T.border, color: T.ink2, fontSize: 15, cursor: 'pointer', position: 'relative' }}>
           🔔{unread > 0 && <span style={{ position: 'absolute', top: -5, right: -5, minWidth: 16, height: 16, padding: '0 4px', borderRadius: 999, background: T.red, color: '#fff', fontSize: 10, fontWeight: 800, display: 'grid', placeItems: 'center', fontFamily: T.mono }}>{unread > 9 ? '9+' : unread}</span>}
         </button>
-        {open && (
+        {open && pos && (
           <>
             <div onClick={() => setOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 600 }} />
-            <div style={{ position: 'absolute', right: 0, top: 42, width: 340, maxHeight: 460, overflow: 'auto', background: T.surface, border: '1px solid ' + T.border, borderRadius: 14, boxShadow: '0 20px 50px rgba(0,0,0,0.5)', zIndex: 601 }}>
+            <div style={{ position: 'fixed', left: pos.left, top: pos.top, width: pos.width, maxHeight: pos.maxHeight, overflow: 'auto', background: T.surface, border: '1px solid ' + T.border, borderRadius: 14, boxShadow: '0 20px 50px rgba(0,0,0,0.5)', zIndex: 601 }}>
               <div style={{ padding: '13px 16px', borderBottom: '1px solid ' + T.border, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div style={{ fontSize: 13.5, fontWeight: 700 }}>Nia</div>
                 <div style={{ fontSize: 11, color: T.ink3 }}>{items.length} update{items.length === 1 ? '' : 's'}</div>
