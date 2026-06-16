@@ -4821,6 +4821,7 @@ You: "'We help you get more done with less stress.' Nine plain words beat the ja
       { icon: '\u{1F9E0}', name: 'Nia Intelligence', tag: 'Analyze & build', desc: 'Study a website, blueprint its CMS/OS, and auto-scaffold the admin.', go: () => window.open('/studio.html?mode=intel', '_blank') },
       { icon: '\u{1F6E1}', name: 'Nia Sentinel', tag: 'Monitoring', desc: 'Watches your projects — uptime, domain expiry, SEO — and flags issues.', go: () => onNavigate && onNavigate('projects') },
       { icon: '\u{1F9FE}', name: 'Receipts & Comms', tag: 'Communications', desc: 'Issue receipts (PDF + WhatsApp) and run the messaging layer.', go: () => onNavigate && onNavigate('comms') },
+      { icon: '\u{1F6AA}', name: 'Gate Kiosk', tag: 'Beta · attendance', desc: 'Face recognition + ID/QR check-in at the school gate. Test it per school before roll-out.', go: () => onNavigate && onNavigate('gate') },
     ];
     const sel = { background: 'var(--bg-base)', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-sm)', color: 'var(--text-primary)', padding: '8px 10px', fontSize: 13, width: '100%' };
     const lbl = { fontSize: 11, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 6, display: 'block' };
@@ -5551,7 +5552,7 @@ You: "'We help you get more done with less stress.' Nine plain words beat the ja
               fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 14,
             }}>N</div>
             <div>
-              <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', letterSpacing: 1.5, color: 'var(--text-tertiary)' }}>NIA'S WATCH <span style={{ color: 'var(--mint)', marginLeft: 6 }}>· LIVE v29</span></div>
+              <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', letterSpacing: 1.5, color: 'var(--text-tertiary)' }}>NIA'S WATCH <span style={{ color: 'var(--mint)', marginLeft: 6 }}>· LIVE v30</span></div>
               <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)' }}>
                 What happened while you were away
               </div>
