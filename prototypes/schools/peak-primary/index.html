@@ -41,7 +41,8 @@
       }
       var deferred = null;
       function makeBtn() { if (document.getElementById('nx-os-install')) return document.getElementById('nx-os-install'); var b = document.createElement('button'); b.id = 'nx-os-install'; b.textContent = '\u2913 Install app'; b.style.cssText = 'position:fixed;right:16px;bottom:16px;z-index:99999;display:none;background:#00fc8f;color:#062b18;border:0;border-radius:999px;padding:11px 18px;font-family:Inter,system-ui,sans-serif;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 8px 26px rgba(0,252,143,.4)'; b.onclick = function () { if (!deferred) return; deferred.prompt(); deferred.userChoice.then(function () { deferred = null; b.style.display = 'none'; }); }; document.body.appendChild(b); return b; }
-      window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); deferred = e; makeBtn().style.display = 'block'; });
+      window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); deferred = e; window.__PEAK_CAN_INSTALL = true; });
+      window.__PEAK_INSTALL = function () { if (deferred) { deferred.prompt(); deferred.userChoice.then(function () { deferred = null; window.__PEAK_CAN_INSTALL = false; }); } else { alert('To install: open your browser menu and choose "Install app" / "Add to Home Screen".'); } };
       window.addEventListener('appinstalled', function () { var b = document.getElementById('nx-os-install'); if (b) b.style.display = 'none'; });
     } catch (e) {}
   })();
@@ -212,7 +213,7 @@
   <script>
     /* Build self-heal: if this cached HTML is older than what the server now serves,
        reload ONCE with a cache-buster so no school is ever stuck on a stale build. */
-    window.__BUILD = 'b84';
+    window.__BUILD = 'b85';
     (function () {
       try {
         fetch('/build.txt?ts=' + Date.now(), { cache: 'no-store' })
@@ -233,7 +234,7 @@
     <div style="min-height:100vh;display:grid;place-items:center;color:#8a91b0;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px;letter-spacing:0.08em;">
       <div style="text-align:center">
         <div id="nx-loading-text">LOADING · NEXT SCHOOL OS</div>
-        <div style="margin-top:12px;font-size:10px;opacity:0.5">build b84</div>
+        <div style="margin-top:12px;font-size:10px;opacity:0.5">build b85</div>
       </div>
     </div>
   </div>
@@ -10786,6 +10787,10 @@ window.PEAK_STAFF = (function () {
               </div>
               <Toggle on={voice} onTap={toggleVoice} title="Nia voice assistant" sub="Talk to Nia hands-free (computer/Android) or tap-to-talk (iPhone)." />
               <Toggle on={tut} onTap={toggleTut} title="Tutorial tips" sub="Show hover hints around the OS." />
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '12px 0', borderBottom: '1px solid ' + T.border }}>
+                <div><div style={{ fontSize: 13.5, fontWeight: 600 }}>Install app</div><div style={{ fontSize: 12, color: T.ink3, marginTop: 2 }}>Add this school's OS to your device's home screen.</div></div>
+                <button onClick={() => window.__PEAK_INSTALL && window.__PEAK_INSTALL()} style={{ background: T.red, color: '#fff', border: 'none', borderRadius: 9, padding: '9px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>⤓ Install</button>
+              </div>
               <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid ' + T.border }}>
                 <button onClick={signOut} style={{ background: 'transparent', border: '1px solid ' + T.border, color: T.ink2, borderRadius: 9, padding: '10px 18px', fontSize: 13, cursor: 'pointer' }}>Sign out</button>
               </div>
@@ -11548,7 +11553,7 @@ window.PEAK_STAFF = (function () {
       var prof = (window.PEAK_ROLE && window.PEAK_ROLE.getProfile && window.PEAK_ROLE.getProfile()) || (sess && sess.profile) || null;
       if(!document.body){ return setTimeout(init,300); }
       if(!prof || !prof.tenantId){ return setTimeout(init,500); }
-      if(document.getElementById('nx-theme-ctrl')) return;
+      return; /* theme colour now lives in Account -> Settings */
       var cur=(window.__ACCENT)||'#00FC8F';
       var mob = window.matchMedia('(max-width:640px)').matches;
       var wrap=document.createElement('div'); wrap.id='nx-theme-ctrl';
