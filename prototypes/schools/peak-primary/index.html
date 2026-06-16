@@ -212,7 +212,7 @@
   <script>
     /* Build self-heal: if this cached HTML is older than what the server now serves,
        reload ONCE with a cache-buster so no school is ever stuck on a stale build. */
-    window.__BUILD = 'b79';
+    window.__BUILD = 'b80';
     (function () {
       try {
         fetch('/build.txt?ts=' + Date.now(), { cache: 'no-store' })
@@ -233,7 +233,7 @@
     <div style="min-height:100vh;display:grid;place-items:center;color:#8a91b0;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px;letter-spacing:0.08em;">
       <div style="text-align:center">
         <div id="nx-loading-text">LOADING · NEXT SCHOOL OS</div>
-        <div style="margin-top:12px;font-size:10px;opacity:0.5">build b79</div>
+        <div style="margin-top:12px;font-size:10px;opacity:0.5">build b80</div>
       </div>
     </div>
   </div>
@@ -8320,7 +8320,7 @@ window.PEAK_ASKNEXT = (function () {
       + '{"action":"propose_tasks","tasks":[{"title":"...","details":"...","due":"...","emails":["teacher@email"],"why":"short reason this teacher"}]}\n'
       + '\nASSIGNING WORK (important): when the head asks you to assign, give out, delegate, or distribute a task (or several), DO NOT just describe it — emit a propose_tasks action. CHOOSE the assignee yourself from ASSIGNABLE TEACHERS using, in order: (1) subject match, (2) class they teach, (3) who is CHECKED IN today, (4) the one with the FEWEST open tasks (fair load). To split several tasks across a group, output multiple task objects, balancing the load. Use ONLY real emails from ASSIGNABLE TEACHERS. In your text, briefly say who you picked and why. The head will see an Approve button — nothing is sent until they approve. Never invent an email.\n'
       + 'For report cards, navigate to "exam" (reports are issued there, fee-gated).'
-      + mem + '\n\nLIVE SCHOOL DATA:\n' + buildContext();
+      + mem + (window.__SCHOOL_PROFILE ? ('\n\nABOUT THIS SCHOOL (written by the head teacher \u2014 use it to understand the school\u2019s identity, values, priorities and the head\u2019s context; weave it in naturally, never recite it back):\n' + window.__SCHOOL_PROFILE) : '') + '\n\nLIVE SCHOOL DATA:\n' + buildContext();
   }
   function runAction(a) {
     try {
@@ -10530,6 +10530,66 @@ window.PEAK_STAFF = (function () {
     rep: "Reports - compiled summaries you can export and share with the board.",
   };
 
+  function AccountPanel() {
+    const prof = (window.PEAK_ROLE && window.PEAK_ROLE.getProfile && window.PEAK_ROLE.getProfile()) || {};
+    const WK = 'https://nextos-sentinel.nextafricaai.workers.dev';
+    const ten = prof.tenantId || 'peak-primary';
+    const label = (window.PEAK_ROLE && window.PEAK_ROLE.roleLabel && window.PEAK_ROLE.roleLabel()) || 'Head Teacher';
+    const initials = (window.PEAK_ROLE && window.PEAK_ROLE.initials && window.PEAK_ROLE.initials()) || 'HT';
+    const [tab, setTab] = React.useState('about');
+    const [md, setMd] = React.useState('');
+    const [recId, setRecId] = React.useState(null);
+    const [busy, setBusy] = React.useState(false);
+    const [saved, setSaved] = React.useState(false);
+    const [voice, setVoice] = React.useState(() => { try { return localStorage.getItem('peak.nia.voice') === '1'; } catch (e) { return false; } });
+    const [tut, setTut] = React.useState(() => { try { return localStorage.getItem('nextos.schooltutorial') !== '0'; } catch (e) { return true; } });
+    React.useEffect(() => { fetch(WK + '/os-data?kind=school_profile&tenant=' + encodeURIComponent(ten)).then(r => r.json()).then(d => { const rec = ((d && d.records) || [])[0]; if (rec) { setRecId(rec.id); setMd((rec.payload && rec.payload.markdown) || ''); } }).catch(() => {}); }, []);
+    const TEMPLATE = '# About ' + ((window.__BRAND_NAME) || 'our school') + '\n\n## The school\n- Full name:\n- Location / district:\n- Founded:\n- Motto / vision:\n- Core values:\n- Levels we run (e.g. P1\u2013P7 / O-level / A-level):\n- Approx. number of learners:\n- Our story / what makes us special:\n\n## The head teacher\n- Name:\n- Years leading this school:\n- Background & training:\n- Leadership style & top priorities this term:\n\n## How we work\n- Term structure & key dates:\n- Our biggest challenges right now:\n- What we most want Nia to help us with:';
+    const save = () => { setBusy(true); const rec = { markdown: md, by: (prof.fullName || prof.email || ''), updatedAt: new Date().toISOString() }; fetch(WK + '/os-data/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(recId ? { kind: 'school_profile', tenant: ten, record: rec, id: recId } : { kind: 'school_profile', tenant: ten, record: rec }) }).then(r => r.json()).then(res => { setBusy(false); if (res && res.record && res.record.id) setRecId(res.record.id); window.__SCHOOL_PROFILE = md; setSaved(true); setTimeout(() => setSaved(false), 1800); window.peakToast && window.peakToast('Saved', 'success', 'Nia now understands your school.'); }).catch(() => setBusy(false)); };
+    const toggleVoice = () => setVoice(p => { const n = !p; try { localStorage.setItem('peak.nia.voice', n ? '1' : '0'); } catch (e) {} try { window.dispatchEvent(new CustomEvent('peakVoiceToggle', { detail: n })); } catch (e) {} return n; });
+    const toggleTut = () => setTut(p => { const n = !p; try { localStorage.setItem('nextos.schooltutorial', n ? '1' : '0'); } catch (e) {} return n; });
+    const signOut = async () => { try { if (window.NextSession && window.NextSession.signOut) { await window.NextSession.signOut(); return; } } catch (e) {} var _t = ''; try { var _p = JSON.parse(localStorage.getItem('nextos.profile') || 'null'); _t = (_p && _p.tenantId) || localStorage.getItem('nextos.lastTenant') || ''; } catch (e) {} window.location.href = _t ? ('/school/' + encodeURIComponent(_t) + '/login') : 'login.html'; };
+    const Toggle = ({ on, onTap, title, sub }) => (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '12px 0', borderBottom: '1px solid ' + T.border }}>
+        <div><div style={{ fontSize: 13.5, fontWeight: 600 }}>{title}</div><div style={{ fontSize: 12, color: T.ink3, marginTop: 2 }}>{sub}</div></div>
+        <button onClick={onTap} style={{ width: 48, height: 27, borderRadius: 14, border: 'none', cursor: 'pointer', background: on ? T.green : T.border, position: 'relative', flexShrink: 0 }}><span style={{ position: 'absolute', top: 3, left: on ? 24 : 3, width: 21, height: 21, borderRadius: '50%', background: '#fff', transition: 'left .15s' }} /></button>
+      </div>
+    );
+    return (
+      <div style={{ width: 'min(640px, 96vw)', maxHeight: '88vh', overflow: 'auto', background: T.surface, color: T.ink, fontFamily: T.font, borderRadius: 16 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '20px 22px', borderBottom: '1px solid ' + T.border }}>
+          <div style={{ width: 44, height: 44, borderRadius: '50%', background: T.gold, color: T.bg, display: 'grid', placeItems: 'center', fontSize: 16, fontWeight: 800 }}>{initials}</div>
+          <div style={{ flex: 1 }}><div style={{ fontSize: 17, fontWeight: 700 }}>{prof.fullName || 'Head Teacher'}</div><div style={{ fontSize: 12.5, color: T.ink3 }}>{label} · {(window.__BRAND_NAME) || 'your school'}</div></div>
+          <button onClick={() => window.peakModal && window.peakModal.close()} style={{ background: 'transparent', border: 'none', color: T.ink3, fontSize: 22, cursor: 'pointer' }}>×</button>
+        </div>
+        <div style={{ display: 'flex', gap: 6, padding: '12px 22px 0' }}>
+          {[['about', 'About the school'], ['settings', 'Settings']].map(t => <button key={t[0]} onClick={() => setTab(t[0])} style={{ background: tab === t[0] ? T.surface2 : 'transparent', color: tab === t[0] ? T.ink : T.ink3, border: '1px solid ' + (tab === t[0] ? T.border : 'transparent'), borderRadius: 9, padding: '8px 14px', fontSize: 13, fontWeight: tab === t[0] ? 700 : 500, cursor: 'pointer' }}>{t[1]}</button>)}
+        </div>
+        <div style={{ padding: 22 }}>
+          {tab === 'about' ? (
+            <div>
+              <div style={{ fontSize: 13, color: T.ink3, lineHeight: 1.6, marginBottom: 12 }}>Tell Nia about your school and yourself. She reads this to understand your context, values and priorities — so her advice fits <i>your</i> school, not a generic one. Write it like a short briefing (markdown is fine).</div>
+              {!md && <button onClick={() => setMd(TEMPLATE)} style={{ marginBottom: 10, background: 'transparent', border: '1px solid ' + T.border, color: T.ink2, borderRadius: 8, padding: '7px 12px', fontSize: 12.5, cursor: 'pointer' }}>Start from a template</button>}
+              <textarea value={md} onChange={e => setMd(e.target.value)} placeholder="# About our school&#10;&#10;The school is…" style={{ width: '100%', minHeight: 280, background: T.bg, border: '1px solid ' + T.border, borderRadius: 10, padding: 13, fontSize: 13.5, color: T.ink, fontFamily: T.mono, lineHeight: 1.6, outline: 'none' }} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 12 }}>
+                <button onClick={save} disabled={busy} style={{ background: T.red, color: '#fff', border: 'none', borderRadius: 9, padding: '10px 20px', fontSize: 13.5, fontWeight: 700, cursor: 'pointer' }}>{busy ? 'Saving…' : 'Save · teach Nia'}</button>
+                {saved && <span style={{ fontSize: 12.5, color: T.green }}>✓ Saved — Nia understands your school now.</span>}
+              </div>
+            </div>
+          ) : (
+            <div>
+              <Toggle on={voice} onTap={toggleVoice} title="Nia voice assistant" sub="Talk to Nia hands-free (computer/Android) or tap-to-talk (iPhone)." />
+              <Toggle on={tut} onTap={toggleTut} title="Tutorial tips" sub="Show hover hints around the OS." />
+              <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid ' + T.border }}>
+                <button onClick={signOut} style={{ background: 'transparent', border: '1px solid ' + T.border, color: T.ink2, borderRadius: 9, padding: '10px 18px', fontSize: 13, cursor: 'pointer' }}>Sign out</button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   function Sidebar({ route, onNav }) {
     const [tut, setTut] = React.useState(() => { try { return localStorage.getItem('nextos.schooltutorial') !== '0'; } catch (e) { return true; } });
     const [tip, setTip] = React.useState(null);
@@ -10620,10 +10680,12 @@ window.PEAK_STAFF = (function () {
             const label = window.PEAK_ROLE ? window.PEAK_ROLE.roleLabel() : 'Director';
             return (
               <>
-                <div style={{ width: 30, height: 30, borderRadius: 999, background: T.gold, color: T.bg, display: 'grid', placeItems: 'center', fontSize: 11, fontWeight: 700 }}>{initials}</div>
-                <div style={{ lineHeight: 1.2, flex: 1, minWidth: 0 }}>
-                  <div style={{ color: T.ink, fontWeight: 600, fontSize: 12.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{prof.fullName || 'User'}</div>
-                  <div style={{ fontSize: 10.5, color: T.ink3 }}>{label}</div>
+                <div onClick={() => window.peakModal && window.peakModal.open(React.createElement(AccountPanel))} title="Account, school profile & settings" style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0, cursor: 'pointer' }}>
+                  <div style={{ width: 30, height: 30, borderRadius: 999, background: T.gold, color: T.bg, display: 'grid', placeItems: 'center', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>{initials}</div>
+                  <div style={{ lineHeight: 1.2, flex: 1, minWidth: 0 }}>
+                    <div style={{ color: T.ink, fontWeight: 600, fontSize: 12.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{prof.fullName || 'User'}</div>
+                    <div style={{ fontSize: 10.5, color: T.ink3 }}>{label} · settings</div>
+                  </div>
                 </div>
                 <span onClick={async () => {
                   if (window.NextSession && window.NextSession.signOut) await window.NextSession.signOut();
@@ -11071,6 +11133,7 @@ window.PEAK_STAFF = (function () {
     const [profileStudentId, setProfileStudentId] = useState(4);
     const [, _pkgBump] = useReducer(x => x + 1, 0);
     useEffect(() => { if (window.PEAK_PACKAGES) window.PEAK_PACKAGES.loadPackage().then(() => _pkgBump()); }, []);
+    useEffect(() => { try { const tn = (window.PEAK_ROLE && window.PEAK_ROLE.getProfile && window.PEAK_ROLE.getProfile().tenantId) || 'peak-primary'; fetch('https://nextos-sentinel.nextafricaai.workers.dev/os-data?kind=school_profile&tenant=' + encodeURIComponent(tn)).then(r => r.json()).then(d => { const rec = ((d && d.records) || [])[0]; if (rec && rec.payload && rec.payload.markdown) window.__SCHOOL_PROFILE = rec.payload.markdown; }).catch(() => {}); } catch (e) {} }, []);
 
     const navigate = (k) => setRoute(k);
     const openProfile = (s) => { if (s) setProfileStudentId(s.id); setRoute('profile'); };
