@@ -192,6 +192,20 @@ export default {
       }
     }
 
+    // ─── Route: POST /brand/save — head updates their school's theme colour / name / logo ──
+    if (request.method === 'POST' && url.pathname === '/brand/save') {
+      let bb; try { bb = await request.json(); } catch (e) { return new Response(JSON.stringify({ error: 'bad body' }), { status: 400, headers: { ...cors, 'Content-Type': 'application/json' } }); }
+      const slug = String(bb.tenant || bb.slug || bb.s || '').trim();
+      if (!slug) return new Response(JSON.stringify({ error: 'tenant required' }), { status: 400, headers: { ...cors, 'Content-Type': 'application/json' } });
+      const patch = {};
+      if (bb.primary_color && /^#?[0-9a-fA-F]{6}$/.test(String(bb.primary_color))) { let c = String(bb.primary_color); if (c[0] !== '#') c = '#' + c; patch.primary_color = c; }
+      if (bb.name) patch.name = String(bb.name).slice(0, 80);
+      if (bb.logo_url) patch.logo_url = String(bb.logo_url).slice(0, 400);
+      if (!Object.keys(patch).length) return new Response(JSON.stringify({ error: 'nothing valid to update' }), { status: 400, headers: { ...cors, 'Content-Type': 'application/json' } });
+      try { const r = await fetch(env.SUPABASE_URL + '/rest/v1/tenants?id=eq.' + encodeURIComponent(slug), { method: 'PATCH', headers: sbHeaders(env, 'return=representation'), body: JSON.stringify(patch) }); const d = await r.json(); return new Response(JSON.stringify({ ok: true, brand: (d && d[0]) || patch }), { headers: { ...cors, 'Content-Type': 'application/json' } }); }
+      catch (e) { return new Response(JSON.stringify({ error: String((e && e.message) || e) }), { headers: { ...cors, 'Content-Type': 'application/json' } }); }
+    }
+
     // ─── Route: GET /icon?s=slug — per-school app icon (SVG) ─────────────
     if (request.method === 'GET' && url.pathname === '/icon') {
       const slug = url.searchParams.get('s') || '';
