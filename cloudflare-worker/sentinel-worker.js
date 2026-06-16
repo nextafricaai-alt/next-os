@@ -2647,7 +2647,7 @@ async function deliverPush(env, tenant, emails, role, payload) {
   const targets = (rows || []).filter(r => {
     const p = r.payload || {};
     if (emailSet.length) return emailSet.indexOf((p.email || '').toLowerCase()) >= 0;
-    if (role) return (p.role || '') === role;
+    if (role) { const OPS = ['operator', 'owner', 'admin', 'director']; if (OPS.indexOf(role) >= 0) return OPS.indexOf(p.role || '') >= 0; return (p.role || '') === role; }
     return false;
   });
   let ok = 0, gone = 0;
