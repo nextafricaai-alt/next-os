@@ -234,7 +234,7 @@
     <div style="min-height:100vh;display:grid;place-items:center;color:#8a91b0;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px;letter-spacing:0.08em;">
       <div style="text-align:center">
         <div id="nx-loading-text">LOADING · NEXT SCHOOL OS</div>
-        <div style="margin-top:12px;font-size:10px;opacity:0.5">build b94</div>
+        <div style="margin-top:12px;font-size:10px;opacity:0.5">build b95</div>
       </div>
     </div>
   </div>
@@ -366,6 +366,35 @@
         }
       } catch(e){}
     }
+  })();
+  </script>
+
+  <script>
+  /* Nia's identity guard — notices if THIS page is branded for the wrong school and reports it.
+     This is the watcher Hudson asked for: "I'm seeing the bare-foot app but a Peak login." */
+  (function(){
+    try {
+      var bp = new URLSearchParams(location.search);
+      var slug = bp.get('s') || bp.get('t') || (location.pathname.match(/\/(?:s|school)\/([A-Za-z0-9_-]+)/)||[])[1] || '';
+      if(!slug){ try{ var pf=JSON.parse(localStorage.getItem('nextos.profile')||'null'); slug=(pf&&pf.tenantId)||''; }catch(e){} }
+      if(!slug){ try{ slug=localStorage.getItem('nextos.lastTenant')||''; }catch(e){} }
+      if(!slug) return;
+      var WK='https://nextos-sentinel.nextafricaai.workers.dev';
+      // After the UI has had time to paint, compare the authoritative brand with what's shown.
+      setTimeout(function(){
+        fetch(WK+'/brand?s='+encodeURIComponent(slug)).then(function(r){return r.ok?r.json():null;}).then(function(b){
+          if(!b || !b.name) return;
+          var want = String(b.name).toLowerCase().replace(/[^a-z0-9]+/g,'');
+          var shown = String(window.__BRAND_NAME||'').toLowerCase().replace(/[^a-z0-9]+/g,'');
+          if(shown && want && shown.indexOf(want)<0 && want.indexOf(shown)<0){
+            // Mismatch: auto-correct the view first, then tell Nia.
+            try{ window.__BRAND_NAME=b.name; document.title=b.name+' \u00b7 NEXT School OS'; }catch(e){}
+            try{ fetch(WK+'/watch/signal',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ tenant:slug, type:'brand_mismatch', severity:'high', page:location.pathname, detail:'Page showed "'+(window.__BRAND_NAME||'')+'" but this is '+b.name+'. Likely a stale cached file — purge cache.' })}); }catch(e){}
+            try{ if(window.NIA_FEED) window.NIA_FEED.push({ level:'alert', icon:'\uD83D\uDEE1\uFE0F', title:'Identity fixed', body:'This page was showing the wrong school\'s name. I corrected it to '+b.name+'. If it keeps happening, the live site is serving an old cached version.', cta:null }); }catch(e){}
+          }
+        }).catch(function(){});
+      }, 2600);
+    } catch(e){}
   })();
   </script>
 
