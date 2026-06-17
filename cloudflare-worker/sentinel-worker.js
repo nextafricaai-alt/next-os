@@ -405,6 +405,7 @@ export default {
     if (url.pathname === '/syllabus/generate')  return handleSyllabusGenerate(request, env, cors);
     if (url.pathname === '/seo-tips')           return handleSeoTips(request, env, cors);
     if (url.pathname === '/camera/analyze')     return handleCameraAnalyze(request, env, cors);
+    if (url.pathname === '/camera/frame')       return handleCameraFrame(request, env, cors);
     if (url.pathname === '/exam/scan-mark')     return handleExamScanMark(request, env, cors);
     if (url.pathname === '/exam/care-plan')     return handleExamCarePlan(request, env, cors);
     if (url.pathname === '/attendance/today')   return handleAttendanceToday(url.searchParams.get('tenant') || '', env, cors);
@@ -1827,6 +1828,19 @@ async function handleBillingList(tenant, env, cors) {
     try { notices = (await sbFetch(env, '/os_records?tenant=eq.next&kind=eq.billing_notice&select=id,payload&order=created_at.desc&limit=100') || []).map(x => Object.assign({ id: x.id }, x.payload)); } catch (e) {}
     return J({ subscriptions: subs, notices: notices });
   } catch (e) { return J({ error: String((e && e.message) || e) }, 200); }
+}
+
+async function handleCameraFrame(request, env, cors) {
+  const J = (oo, st) => new Response(JSON.stringify(oo), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
+  let b; try { b = await request.json(); } catch (e) { return J({ error: 'bad body' }, 400); }
+  if (!b.imageUrl) return J({ error: 'imageUrl required' }, 400);
+  try {
+    const ir = await fetch(String(b.imageUrl));
+    if (!ir.ok) return J({ ok: false, error: 'HTTP ' + ir.status }, 200);
+    let media = ir.headers.get('content-type') || 'image/jpeg'; if (media.indexOf('image') !== 0) media = 'image/jpeg';
+    const buf = await ir.arrayBuffer(); const bytes = new Uint8Array(buf); let bin = ''; for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+    return J({ ok: true, frame: 'data:' + media + ';base64,' + btoa(bin) });
+  } catch (e) { return J({ ok: false, error: String((e && e.message) || e) }, 200); }
 }
 
 async function handleCameraAnalyze(request, env, cors) {

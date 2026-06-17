@@ -234,7 +234,7 @@
     <div style="min-height:100vh;display:grid;place-items:center;color:#8a91b0;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px;letter-spacing:0.08em;">
       <div style="text-align:center">
         <div id="nx-loading-text">LOADING · NEXT SCHOOL OS</div>
-        <div style="margin-top:12px;font-size:10px;opacity:0.5">build b105</div>
+        <div style="margin-top:12px;font-size:10px;opacity:0.5">build b106</div>
       </div>
     </div>
   </div>
@@ -9558,6 +9558,27 @@ window.PEAK_CAMPUS = (function () {
       } catch (e) { return { error: 'Could not read faces in this frame (the camera image may block cross-origin access).' }; }
     };
     const markPresent = (matched) => { Promise.all((matched || []).map(m => fetch(WK + '/os-data/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind: 'gate_checkin', tenant: tenant(), record: { studentId: Number(m.id), name: m.name, via: 'camera', at: new Date().toISOString() } }) }))).then(() => window.peakToast && window.peakToast('Marked ' + (matched || []).length + ' present', 'success', 'Counts toward school attendance.')); };
+    const getFrame = (cam) => { if (!cam.snapshotUrl) return Promise.resolve(null); return fetch(WK + '/camera/frame', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tenant: tenant(), imageUrl: cam.snapshotUrl }) }).then(r => r.json()).then(d => (d && d.ok) ? d.frame : null).catch(() => null); };
+    const [watch, setWatch] = useState(false);
+    useEffect(() => {
+      if (!watch) return; let alive = true;
+      const tick = () => { cams.filter(c => c.snapshotUrl).forEach(cam => { getFrame(cam).then(fr => { if (!alive || !fr) return; setRes(rr => Object.assign({}, rr, { [cam._id]: Object.assign({}, rr[cam._id] || {}, { frame: fr }) })); if (matcher) matchFrame(fr).then(fm => { if (alive && fm) setRes(rr => Object.assign({}, rr, { [cam._id]: Object.assign({}, rr[cam._id] || {}, { face: fm }) })); }); }); }); };
+      tick(); const iv = setInterval(tick, 20000); return () => { alive = false; clearInterval(iv); };
+    }, [watch, cams, matcher]);
+    const [findId, setFindId] = useState('');
+    const [finding, setFinding] = useState(false);
+    const [sightings, setSightings] = useState(null);
+    const findLearner = async () => {
+      if (!findId) return;
+      if (!matcher) { window.peakToast && window.peakToast('Face engine not ready', 'info', enrolledCount ? 'Give it a moment.' : 'No learners enrolled yet — enrol faces at the gate.'); return; }
+      const withUrl = cams.filter(c => c.snapshotUrl);
+      if (!withUrl.length) { window.peakToast && window.peakToast('No live cameras to sweep', 'info', 'Add a camera with a snapshot URL first.'); return; }
+      setFinding(true); setSightings(null); const found = [];
+      for (const cam of withUrl) { const fr = await getFrame(cam); if (!fr) continue; const fm = await matchFrame(fr); if (fm && fm.matched) { const hit = fm.matched.find(m => String(m.id) === String(findId)); if (hit) found.push({ camera: cam.name, zone: cam.zone, conf: hit.conf, frame: fr, at: new Date() }); } }
+      setFinding(false); setSightings(found);
+      const stu = roster.find(s => String(s.id) === String(findId));
+      if (found.length) window.peakToast && window.peakToast((stu && stu.name) + ' located', 'success', 'Seen on ' + found.length + ' camera' + (found.length === 1 ? '' : 's') + '.'); else window.peakToast && window.peakToast('Not seen right now', 'info', 'No camera currently sees ' + ((stu && stu.name) || 'them') + '.');
+    };
 
     const loadCams = () => fetch(WK + '/os-data?kind=camera&tenant=' + encodeURIComponent(tenant())).then(r => r.json()).then(d => setCams(((d && d.records) || []).map(x => Object.assign({ _id: x.id }, x.payload)))).catch(() => {});
     const loadInc = () => fetch(WK + '/os-data?kind=campus_incident&tenant=' + encodeURIComponent(tenant())).then(r => r.json()).then(d => setIncidents(((d && d.records) || []).map(x => Object.assign({ _id: x.id }, x.payload)).sort((a, b) => String(b.at || '').localeCompare(String(a.at || ''))))).catch(() => {});
@@ -9585,6 +9606,7 @@ window.PEAK_CAMPUS = (function () {
             loadInc();
             if (d.incidents) window.peakToast && window.peakToast('Nia flagged ' + d.incidents + ' concern' + (d.incidents === 1 ? '' : 's'), 'info', 'See Incidents.');
             const src = image || d.frame;
+            if (src) setRes(rr => Object.assign({}, rr, { [key]: Object.assign({}, rr[key] || base, { frame: src }) }));
             if (src && matcher) matchFrame(src).then(fm => { if (fm) setRes(rr => Object.assign({}, rr, { [key]: Object.assign({}, rr[key] || base, { face: fm }) })); });
           } else window.peakToast && window.peakToast('Nia couldn’t read it', 'info', (d && d.error) || 'Try again');
         }).catch(() => setBusy(b => Object.assign({}, b, { [key]: false })));
@@ -9621,6 +9643,26 @@ window.PEAK_CAMPUS = (function () {
         <div style={{ padding: 24 }}>
           {tab === 'live' && (
             <div style={{ display: 'grid', gap: 16 }}>
+              <div style={{ ...card }}>
+                <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 10 }}>Find a learner on campus</div>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                  <select value={findId} onChange={e => setFindId(e.target.value)} style={{ ...inp, width: 240, flex: '0 1 240px' }}><option value="">— choose learner —</option>{roster.map(s => <option key={s.id} value={s.id}>{s.name}{s.stream ? ' · ' + s.stream : ''}</option>)}</select>
+                  <button onClick={findLearner} disabled={finding} style={btn(true)}>{finding ? 'Searching cameras…' : '🔍 Find them'}</button>
+                  <div style={{ flex: 1 }} />
+                  <button onClick={() => setWatch(w => !w)} style={{ ...btn(false), borderColor: watch ? (T.green || '#00c389') : T.borderStr, color: watch ? (T.green || '#00c389') : T.ink2 }}>{watch ? '● Auto-watch ON' : '○ Auto-watch'}</button>
+                </div>
+                <div style={{ fontSize: 11, color: T.ink4, marginTop: 8 }}>Nia sweeps every connected camera, runs face recognition, and tells you where she sees them. Needs cameras with a snapshot URL + the learner enrolled.</div>
+                {sightings ? (sightings.length ? (
+                  <div style={{ marginTop: 12, display: 'grid', gap: 10 }}>
+                    {sightings.map((sg, i) => (
+                      <div key={i} style={{ display: 'flex', gap: 12, alignItems: 'center', padding: 10, background: T.bg, border: '1px solid ' + (T.green || '#00c389'), borderRadius: 10 }}>
+                        <img src={sg.frame} alt="" style={{ width: 90, height: 64, objectFit: 'cover', borderRadius: 8, flexShrink: 0 }} />
+                        <div><div style={{ fontSize: 13.5, fontWeight: 700 }}>Seen at {sg.camera}{sg.zone ? ' · ' + sg.zone : ''}</div><div style={{ fontSize: 12, color: T.ink3 }}>{sg.conf}% match · {sg.at.toLocaleTimeString()}</div></div>
+                      </div>
+                    ))}
+                  </div>
+                ) : <div style={{ marginTop: 12, padding: 12, background: T.bg, borderRadius: 10, fontSize: 13, color: T.ink3 }}>No camera currently sees this learner. They may be indoors, off-camera, or not on campus.</div>) : null}
+              </div>
               <div style={{ ...card, display: 'flex', gap: 22, alignItems: 'center' }}>
                 <div><div style={{ fontSize: 10.5, color: T.ink3, fontFamily: T.mono }}>CHILDREN SEEN (latest reads)</div><div style={{ fontSize: 26, fontWeight: 700, color: T.green || '#00c389', marginTop: 4 }}>{totalHeads || '—'}</div></div>
                 <div style={{ width: 1, height: 36, background: T.border }} />
@@ -9635,6 +9677,7 @@ window.PEAK_CAMPUS = (function () {
                       <label style={{ ...btn(false), cursor: 'pointer' }}>Upload frame<input type="file" accept="image/*" style={{ display: 'none' }} onChange={e => { if (e.target.files[0]) onUpload(cam, e.target.files[0]); }} /></label>
                     </div>
                   </div>
+                  {res[cam._id] && res[cam._id].frame ? <img src={res[cam._id].frame} alt="" style={{ width: '100%', maxHeight: 300, objectFit: 'cover', borderRadius: 10, marginBottom: 10, border: '1px solid ' + T.border }} /> : null}
                   {res[cam._id] ? (
                     <div style={{ background: T.bg, border: '1px solid ' + T.border, borderRadius: 10, padding: 13 }}>
                       <div style={{ fontSize: 13, color: T.ink }}>{res[cam._id].summary}</div>
