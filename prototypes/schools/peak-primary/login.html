@@ -118,9 +118,9 @@
 
   <div class="card">
     <div class="brand">
-      <div class="brand-logo">P</div>
+      <div class="brand-logo">●</div>
       <div class="brand-text">
-        <span class="brand-name">PEAK PRIMARY</span>
+        <span class="brand-name">NEXT SCHOOL OS</span>
         <span class="brand-sub">NEXT SCHOOL OS</span>
       </div>
     </div>
@@ -163,6 +163,10 @@
       if(logo){ var bl2=document.querySelector('.brand-logo'); if(bl2){ bl2.textContent=''; bl2.style.background='#fff'; var img=document.createElement('img'); img.src=decodeURIComponent(logo); img.style.cssText='width:100%;height:100%;object-fit:cover;border-radius:8px;'; bl2.appendChild(img); } }
     }
     var n=p.get('n'), c=p.get('c'), l=p.get('l'), sslug=p.get('s')||p.get('t')||(location.pathname.match(/\/(?:s|school)\/([A-Za-z0-9_-]+)/)||[])[1];
+    if(!sslug){ try{ sslug=localStorage.getItem('nextos.lastTenant')||''; }catch(e){} }       // recover the school this device belongs to
+    if(sslug){ try{ localStorage.setItem('nextos.lastTenant', sslug); }catch(e){} }
+    // Paint a neutral, slug-derived name immediately so we NEVER flash another school's name.
+    if(sslug && !n){ try{ var _dn=sslug.replace(/[-_]+/g,' ').replace(/\b\w/g,function(m){return m.toUpperCase();}); applyBrand(_dn,null,null); }catch(e){} }
     if(n||c){ applyBrand(n,c,l); }
     else if(sslug){ fetch('https://nextos-sentinel.nextafricaai.workers.dev/brand?s='+encodeURIComponent(sslug)).then(function(r){return r.ok?r.json():null;}).then(function(b){ if(b) applyBrand(b.name, b.primary_color, b.logo_url); }).catch(function(){}); }
     // PWA: per-school installable app (manifest + icon + service worker)
