@@ -234,7 +234,7 @@
     <div style="min-height:100vh;display:grid;place-items:center;color:#8a91b0;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px;letter-spacing:0.08em;">
       <div style="text-align:center">
         <div id="nx-loading-text">LOADING · NEXT SCHOOL OS</div>
-        <div style="margin-top:12px;font-size:10px;opacity:0.5">build b100</div>
+        <div style="margin-top:12px;font-size:10px;opacity:0.5">build b101</div>
       </div>
     </div>
   </div>
@@ -8911,6 +8911,12 @@ window.PEAK_FINANCE = (function () {
   const INC_CATS = ['donation', 'grant', 'events', 'other'];
   const ASSET_CATS = ['building', 'vehicle', 'equipment', 'furniture', 'land', 'it', 'other'];
   const CAT_LABEL = { salaries: 'Salaries & wages', allowances: 'Allowances', food: 'Food & meals', maintenance: 'Maintenance & repairs', utilities: 'Utilities (water/power)', supplies: 'Supplies & materials', transport: 'Transport & fuel', events: 'Events facilitation', donation: 'Donation', grant: 'Grant', other: 'Other' };
+  // The unavoidable running costs every school carries. They sit in the budget waiting for the head/bursar to fund them.
+  const ESSENTIALS = [
+    { key: 'food', label: 'Food & meals' }, { key: 'water', label: 'Water' }, { key: 'utilities', label: 'Electricity / power' },
+    { key: 'internet', label: 'Internet / WiFi' }, { key: 'security', label: 'Security' }, { key: 'cleaning', label: 'Cleaning & sanitation' },
+    { key: 'supplies', label: 'Stationery & supplies' }, { key: 'transport', label: 'Transport & fuel' }, { key: 'maintenance', label: 'Maintenance & repairs' },
+  ];
 
   function _vchNo() { const y = new Date().getFullYear(); return 'PV-' + y + '-' + String(Date.now()).slice(-6); }
   function payReceiptPdf(rec) {
@@ -9001,12 +9007,17 @@ window.PEAK_FINANCE = (function () {
     const [busy, setBusy] = useState(false);
     const [teachers, setTeachers] = useState([]);
     const [vouchers, setVouchers] = useState([]);
+    const [budget, setBudget] = useState(null);
+    const [budgetId, setBudgetId] = useState(null);
+    const [budgetBusy, setBudgetBusy] = useState(false);
+    const [del, setDel] = useState(null);
     const [staffPay, setStaffPay] = useState({ map: {}, recs: [] });
     const reload = () => {
       fetch(WK + '/finance?tenant=' + encodeURIComponent(tenant())).then(r => r.json()).then(d => { if (d && d.transactions) setTxns(d.transactions); }).catch(() => {});
       fetch(WK + '/assets?tenant=' + encodeURIComponent(tenant())).then(r => r.json()).then(d => { if (d && d.assets) setAssets(d.assets); }).catch(() => {});
       fetch(WK + '/os-data?kind=pay_voucher&tenant=' + encodeURIComponent(tenant())).then(r => r.json()).then(d => { setVouchers(((d && d.records) || []).map(x => Object.assign({ _id: x.id }, x.payload)).sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')))); }).catch(() => {});
       fetch(WK + '/os-data?kind=staff_pay&tenant=' + encodeURIComponent(tenant())).then(r => r.json()).then(d => { const recs = ((d && d.records) || []).map(x => Object.assign({ _id: x.id }, x.payload)); const map = {}; recs.forEach(r => { if (r.key) map[r.key] = r; }); setStaffPay({ map: map, recs: recs }); }).catch(() => {});
+      fetch(WK + '/os-data?kind=budget_plan&tenant=' + encodeURIComponent(tenant())).then(r => r.json()).then(d => { const rec = ((d && d.records) || [])[0]; if (rec) { setBudgetId(rec.id); setBudget((rec.payload && rec.payload.lines) || {}); } else setBudget({}); }).catch(() => {});
     };
     useEffect(reload, []);
     useEffect(() => { fetch(WK + '/teachers?tenant=' + encodeURIComponent(tenant())).then(r => r.ok ? r.json() : null).then(d => { if (d && Array.isArray(d.teachers)) setTeachers(d.teachers.filter(x => x.full_name || x.email)); }).catch(() => {}); }, []);
@@ -9062,6 +9073,12 @@ window.PEAK_FINANCE = (function () {
     };
     const commitTxn = (f) => {
       const amt = Number(String(f.amount).replace(/[^0-9]/g, '')); if (!amt) { window.peakToast && window.peakToast('Enter an amount', 'info'); return; }
+      if (f.id) {
+        setBusy(true);
+        fetch(WK + '/finance/update', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tenant_id: tenant(), id: f.id, txn: { kind: f.kind, category: f.category, description: (f.description || ''), amount: amt, method: f.method, occurred_at: f.date } }) })
+          .then(r => r.json()).then(res => { setBusy(false); setForm(null); reload(); if (res && res.error) window.peakToast && window.peakToast('Could not update', 'info', res.error); else window.peakToast && window.peakToast('Transaction updated', 'success', fmt(amt)); }).catch(() => setBusy(false));
+        return;
+      }
       const isExpense = f.kind === 'expense';
       const payee = (f.payeeName || '').trim();
       if (isExpense && f.category === 'salaries' && !payee) { window.peakToast && window.peakToast('Choose who is being paid', 'info'); return; }
@@ -9082,6 +9099,40 @@ window.PEAK_FINANCE = (function () {
               else { window.peakToast && window.peakToast('Recorded to bank statement', 'success', payee + ' · ' + fmt(amt) + ' · pending'); }
             }).catch(() => { setBusy(false); setForm(null); reload(); });
         }).catch(() => setBusy(false));
+    };
+    const doDeleteTxn = (t) => {
+      fetch(WK + '/finance/delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tenant_id: tenant(), id: t.id }) })
+        .then(r => r.json()).then(res => { setDel(null); reload(); if (res && res.error) window.peakToast && window.peakToast('Could not delete', 'info', res.error); else window.peakToast && window.peakToast('Transaction deleted', 'success', (CAT_LABEL[t.category] || t.category)); }).catch(() => setDel(null));
+    };
+    const setBudgetLine = (key, val) => { const v = Number(String(val).replace(/[^0-9]/g, '')) || 0; setBudget(Object.assign({}, budget || {}, { [key]: v })); };
+    const saveBudget = () => {
+      setBudgetBusy(true);
+      const payload = { lines: budget || {}, period: 'term', updatedAt: new Date().toISOString(), by: me() };
+      const body = budgetId ? { kind: 'budget_plan', tenant: tenant(), record: payload, id: budgetId } : { kind: 'budget_plan', tenant: tenant(), record: payload };
+      fetch(WK + '/os-data/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+        .then(r => r.json()).then(res => { setBudgetBusy(false); if (res && res.record && res.record.id) setBudgetId(res.record.id); try { window.__BUDGET_PLAN = payload; } catch (e) {} window.peakToast && window.peakToast('Budget saved', 'success', 'Nia will hold spending against it.'); }).catch(() => setBudgetBusy(false));
+    };
+    const budgetReview = () => {
+      const plan = budget || {};
+      const essentialsBudget = ESSENTIALS.reduce((a, e) => a + (Number(plan[e.key]) || 0), 0);
+      const planned = essentialsBudget + wageBill;
+      const remaining = totalIn - planned;
+      const unfunded = ESSENTIALS.filter(e => !(Number(plan[e.key]) > 0));
+      const insights = [];
+      if (unfunded.length) insights.push({ tone: 'warn', text: 'These running costs have no budget yet: ' + unfunded.map(e => e.label).join(', ') + '.', sug: 'They are unavoidable — fund them before any one-off spending.' });
+      if (totalIn > 0 && planned > totalIn) insights.push({ tone: 'bad', text: 'Your plan spends ' + fmt(planned) + ' but only ' + fmt(totalIn) + ' has come in — ' + fmt(planned - totalIn) + ' short.', sug: 'On a fixed income that is a deficit. Trim the biggest controllable lines, or collect outstanding fees before you commit.' });
+      const funded = ESSENTIALS.map(e => ({ label: e.label, v: Number(plan[e.key]) || 0 })).filter(x => x.v > 0).sort((a, b) => b.v - a.v);
+      if (funded[0] && essentialsBudget > 0) { const top = funded[0]; const pc = Math.round(top.v / essentialsBudget * 100); insights.push({ tone: 'tip', text: top.label + ' is ' + pc + '% of your running costs (' + fmt(top.v) + ').', sug: 'Your biggest lever — a 10% supplier deal saves about ' + fmt(Math.round(top.v * 0.1)) + ' a term.' }); }
+      const discCats = Object.keys(byCat).filter(k => k !== 'salaries' && k !== 'allowances' && !ESSENTIALS.some(e => e.key === k));
+      const disc = discCats.reduce((a, k) => a + byCat[k], 0);
+      if (disc > 0) insights.push({ tone: 'warn', text: 'You have already spent ' + fmt(disc) + ' on one-off / discretionary items this term.', sug: 'On a fixed income every extra cost competes with salaries and meals — question each one.' });
+      const studs = (window.PEAK && window.PEAK.students) || [];
+      const outstanding = studs.reduce((a, x) => a + Math.max(0, Number(x.balance) || 0), 0);
+      if (outstanding > 0) insights.push({ tone: 'tip', text: fmt(outstanding) + ' in fees is still uncollected.', sug: 'Collecting it funds this whole budget without cutting a thing — start with the biggest balances.' });
+      if (remaining > 0 && planned > 0) insights.push({ tone: 'good', text: 'You have ' + fmt(remaining) + ' unallocated after essentials and salaries.', sug: 'Keep 5–10% as a buffer — a fixed income has no safety net.' });
+      // proactively nudge once a day when the plan is over income
+      try { if (window.NIA_FEED && totalIn > 0 && planned > totalIn) window.NIA_FEED.post({ key: 'budget-deficit-' + new Date().toISOString().slice(0,10), level: 'alert', icon: '\uD83D\uDCCA', title: 'Budget runs over income', body: 'Your planned spend is ' + fmt(planned - totalIn) + ' more than your income. On a fixed income that bites — want to review where to trim?', cta: { label: 'Open budget', route: 'finance' }, toast: false }); } catch (e) {}
+      return { essentialsBudget, planned, remaining, unfunded, insights };
     };
     const markVoucherPaid = (v) => {
       const rec = Object.assign({}, v, { status: 'paid', paidAt: new Date().toISOString(), payType: 'instant' }); delete rec._id;
@@ -9167,7 +9218,7 @@ window.PEAK_FINANCE = (function () {
           </div>
 
           <div style={{ display: 'flex', gap: 6, marginBottom: 16 }}>
-            {[['flow', 'Cash flow'], ['expenses', 'Expenses'], ['payroll', 'Payroll'], ['vouchers', 'Receipts & statement'], ['assets', 'Assets']].map(o => (
+            {[['flow', 'Cash flow'], ['budget', 'Budget'], ['expenses', 'Expenses'], ['payroll', 'Payroll'], ['vouchers', 'Receipts & statement'], ['assets', 'Assets']].map(o => (
               <button key={o[0]} onClick={() => setTab(o[0])} style={{ border: 'none', background: tab === o[0] ? T.surface2 : 'transparent', color: tab === o[0] ? T.ink : T.ink3, padding: '8px 16px', borderRadius: 8, fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }}>{o[1]}</button>
             ))}
           </div>
@@ -9185,12 +9236,58 @@ window.PEAK_FINANCE = (function () {
                         <div style={{ fontSize: 11, color: T.ink4, fontFamily: T.mono }}>{t.occurred_at}{t.method ? (' · ' + t.method) : ''}{t.created_by ? (' · ' + t.created_by) : ''}</div>
                       </div>
                       <div style={{ fontSize: 14, fontWeight: 700, color: t.kind === 'income' ? T.good : T.redInk, fontVariantNumeric: 'tabular-nums' }}>{t.kind === 'income' ? '+' : '−'}{fmt(t.amount)}</div>
+                      {t.id ? <button title="Edit" onClick={() => setForm({ id: t.id, kind: t.kind, category: t.category, amount: String(t.amount), date: t.occurred_at, method: t.method || 'cash', description: t.description || '', payType: 'instant' })} style={{ background: 'transparent', border: '1px solid ' + T.border, color: T.ink3, borderRadius: 7, padding: '5px 9px', fontSize: 11, cursor: 'pointer' }}>Edit</button> : null}
+                      {t.id ? <button title="Delete" onClick={() => setDel(t)} style={{ background: 'transparent', border: '1px solid ' + T.border, color: T.ink3, borderRadius: 7, padding: '5px 8px', fontSize: 12, cursor: 'pointer' }}>✕</button> : null}
                     </div>
                   ))}
                 </div>
               )}
             </div>
           )}
+
+          {tab === 'budget' && (() => {
+            const rv = budgetReview();
+            const toneC = (t) => t === 'bad' ? '#ff5a72' : t === 'warn' ? (T.warn || '#e8a23a') : t === 'good' ? (T.green || '#00c389') : (T.gold || '#d8a200');
+            return (
+              <div style={{ display: 'grid', gap: 16 }}>
+                <div style={{ ...card, border: '1px solid ' + (rv.planned > totalIn && totalIn > 0 ? '#7a2230' : T.border) }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+                    <span style={{ width: 28, height: 28, borderRadius: 8, background: T.red, color: '#fff', display: 'grid', placeItems: 'center', fontFamily: T.mono, fontSize: 10.5, fontWeight: 800 }}>AI</span>
+                    <div style={{ fontSize: 14, fontWeight: 700 }}>Nia’s budget review</div>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10, marginBottom: 14 }}>
+                    {[['Income (this term)', totalIn, T.green || '#00c389'], ['Planned (essentials + salaries)', rv.planned, T.ink], ['Left after plan', rv.remaining, rv.remaining < 0 ? '#ff5a72' : T.ink]].map((x, i) => (
+                      <div key={i} style={{ background: T.bg, border: '1px solid ' + T.border, borderRadius: 10, padding: '10px 12px' }}>
+                        <div style={{ fontSize: 10, color: T.ink3, fontFamily: T.mono, letterSpacing: '0.04em' }}>{String(x[0]).toUpperCase()}</div>
+                        <div style={{ fontSize: 16, fontWeight: 700, color: x[2], marginTop: 4, fontVariantNumeric: 'tabular-nums' }}>{fmt(x[1])}</div>
+                      </div>
+                    ))}
+                  </div>
+                  {rv.insights.length === 0 ? <div style={{ fontSize: 13, color: T.ink3 }}>Looking healthy — fund the essentials below and I’ll keep watch.</div> : rv.insights.map((ins, i) => (
+                    <div key={i} style={{ display: 'flex', gap: 10, padding: '10px 0', borderTop: i ? '1px solid ' + T.border : 'none' }}>
+                      <span style={{ width: 6, height: 6, borderRadius: 3, background: toneC(ins.tone), marginTop: 6, flexShrink: 0 }} />
+                      <div><div style={{ fontSize: 13, color: T.ink, lineHeight: 1.5 }}>{ins.text}</div><div style={{ fontSize: 12, color: T.ink3, marginTop: 2 }}>→ {ins.sug}</div></div>
+                    </div>
+                  ))}
+                </div>
+                <div style={card}>
+                  <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4 }}>The must-pay list — assign a budget</div>
+                  <div style={{ fontSize: 12, color: T.ink3, marginBottom: 14 }}>These costs are unavoidable. Set what each gets this term; Nia holds your spending against it.</div>
+                  {ESSENTIALS.map(e => { const spent = byCat[e.key] || 0; const b = Number((budget || {})[e.key]) || 0; const over = spent > b && b > 0; return (
+                    <div key={e.key} style={{ display: 'grid', gridTemplateColumns: '1fr 130px 120px', gap: 10, alignItems: 'center', padding: '8px 0', borderBottom: '1px solid ' + T.border }}>
+                      <div><div style={{ fontSize: 13, color: T.ink }}>{e.label}</div><div style={{ fontSize: 11, color: over ? '#ff5a72' : T.ink4, fontFamily: T.mono }}>{b > 0 ? ('spent ' + fmt(spent) + ' of ' + fmt(b) + (over ? ' · OVER' : '')) : 'not funded yet'}</div></div>
+                      <input value={b ? String(b) : ''} onChange={ev => setBudgetLine(e.key, ev.target.value)} placeholder="0" style={{ ...inp, fontFamily: T.mono }} />
+                      <div style={{ height: 7, background: T.surface2, borderRadius: 4, overflow: 'hidden' }}><div style={{ height: '100%', width: Math.min(100, b > 0 ? Math.round(spent / b * 100) : 0) + '%', background: over ? '#ff5a72' : (T.green || '#00c389') }} /></div>
+                    </div>
+                  ); })}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 14 }}>
+                    <div style={{ fontSize: 12.5, color: T.ink2 }}>Essentials total: <b style={{ color: T.ink }}>{fmt(rv.essentialsBudget)}</b></div>
+                    <button onClick={saveBudget} disabled={budgetBusy} style={btn(true)}>{budgetBusy ? 'Saving…' : 'Save budget'}</button>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
 
           {tab === 'expenses' && (
             <div style={card}>
@@ -9312,8 +9409,19 @@ window.PEAK_FINANCE = (function () {
           )}
         </div>
 
+        {del && (
+          <FModal title="Delete this transaction?" onClose={() => setDel(null)}>
+            <div style={{ padding: 22 }}>
+              <div style={{ fontSize: 13.5, color: T.ink2, lineHeight: 1.6, marginBottom: 16 }}>Remove <b>{CAT_LABEL[del.category] || del.category}</b> · {fmt(del.amount)}{del.description ? (' · ' + del.description) : ''}? This can’t be undone.</div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+                <button style={btn(false)} onClick={() => setDel(null)}>Cancel</button>
+                <button style={btn(true)} onClick={() => doDeleteTxn(del)}>Delete</button>
+              </div>
+            </div>
+          </FModal>
+        )}
         {form && !form.asset && (
-          <FModal title={(form.kind === 'income' ? 'Record income' : 'Record expense')} onClose={() => setForm(null)}>
+          <FModal title={form.id ? 'Edit transaction' : (form.kind === 'income' ? 'Record income' : 'Record expense')} onClose={() => setForm(null)}>
             <div style={{ padding: 22, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
               <label style={{ gridColumn: 'span 2' }}><div style={{ fontSize: 11, color: T.ink2, marginBottom: 5, fontFamily: T.mono }}>CATEGORY</div>
                 <select style={inp} value={form.category} onChange={e => setForm({ ...form, category: e.target.value })}>{(form.kind === 'income' ? INC_CATS : EXP_CATS).map(c => <option key={c} value={c}>{CAT_LABEL[c] || c}</option>)}</select></label>
@@ -9344,7 +9452,7 @@ window.PEAK_FINANCE = (function () {
             </div>
             <div style={{ padding: '0 22px 18px', display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
               <button style={btn(false)} onClick={() => setForm(null)}>Cancel</button>
-              <button style={btn(true)} onClick={() => saveTxn(form)} disabled={busy}>{busy ? 'Saving...' : 'Record'}</button>
+              <button style={btn(true)} onClick={() => saveTxn(form)} disabled={busy}>{busy ? 'Saving...' : (form.id ? 'Save changes' : 'Record')}</button>
             </div>
           </FModal>
         )}
