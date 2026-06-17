@@ -234,7 +234,7 @@
     <div style="min-height:100vh;display:grid;place-items:center;color:#8a91b0;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px;letter-spacing:0.08em;">
       <div style="text-align:center">
         <div id="nx-loading-text">LOADING · NEXT SCHOOL OS</div>
-        <div style="margin-top:12px;font-size:10px;opacity:0.5">build b99</div>
+        <div style="margin-top:12px;font-size:10px;opacity:0.5">build b100</div>
       </div>
     </div>
   </div>
@@ -390,7 +390,7 @@
             // Mismatch: auto-correct the view first, then tell Nia.
             try{ window.__BRAND_NAME=b.name; document.title=b.name+' \u00b7 NEXT School OS'; }catch(e){}
             try{ fetch(WK+'/watch/signal',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ tenant:slug, type:'brand_mismatch', severity:'high', page:location.pathname, detail:'Page showed "'+(window.__BRAND_NAME||'')+'" but this is '+b.name+'. Likely a stale cached file — purge cache.' })}); }catch(e){}
-            try{ if(window.NIA_FEED) window.NIA_FEED.push({ level:'alert', icon:'\uD83D\uDEE1\uFE0F', title:'Identity fixed', body:'This page was showing the wrong school\'s name. I corrected it to '+b.name+'. If it keeps happening, the live site is serving an old cached version.', cta:null }); }catch(e){}
+            try{ if(window.NIA_FEED) window.NIA_FEED.post({ key:'idfix', level:'alert', icon:'\uD83D\uDEE1\uFE0F', title:'Identity fixed', body:'This page was showing the wrong school\'s name. I corrected it to '+b.name+'. If it keeps happening, the live site is serving an old cached version.', cta:null }); }catch(e){}
           }
         }).catch(function(){});
       }, 2600);
@@ -8960,6 +8960,39 @@ window.PEAK_FINANCE = (function () {
     );
   }
 
+  function NiaExpenseGuard({ ctx, onCancel, onConfirm }) {
+    const [purpose, setPurpose] = useState('');
+    const inp = { background: T.bg, border: '1px solid ' + T.border, borderRadius: 8, padding: '10px 12px', fontSize: 13.5, color: T.ink, fontFamily: T.font, outline: 'none', width: '100%' };
+    const tone = ctx.level === 'bankrupt' ? '#ff5a72' : ctx.level === 'deficit' ? (T.warn || '#e8a23a') : (T.gold || '#d8a200');
+    const canGo = !ctx.needPurpose || purpose.trim().length > 1;
+    const Row = (l, v, c) => (<div style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 0', borderBottom: '1px solid ' + T.border }}><span style={{ fontSize: 12.5, color: T.ink3 }}>{l}</span><span style={{ fontSize: 13, fontWeight: 700, color: c || T.ink, fontVariantNumeric: 'tabular-nums' }}>{v}</span></div>);
+    return (
+      <FModal title="Nia — let me flag this first" onClose={onCancel}>
+        <div style={{ padding: '18px 22px' }}>
+          <div style={{ display: 'flex', gap: 11, marginBottom: 14, alignItems: 'flex-start' }}>
+            <span style={{ width: 30, height: 30, borderRadius: 8, background: tone, color: '#1a0a0e', display: 'grid', placeItems: 'center', fontFamily: T.mono, fontSize: 11, fontWeight: 800, flexShrink: 0 }}>AI</span>
+            <div style={{ fontSize: 13.5, lineHeight: 1.6, color: T.ink }}>{ctx.message}</div>
+          </div>
+          <div style={{ background: T.bg, border: '1px solid ' + T.border, borderRadius: 10, padding: '4px 14px', marginBottom: 14 }}>
+            {Row('Money in this term', fmt(ctx.totalIn), T.green || '#00c389')}
+            {Row('This expense', '− ' + fmt(ctx.amt), tone)}
+            {Row('Balance after', fmt(ctx.newNet), ctx.newNet < 0 ? '#ff5a72' : T.ink)}
+          </div>
+          {ctx.needPurpose && (
+            <div style={{ marginBottom: 14 }}>
+              <div style={{ fontSize: 12.5, color: T.ink2, marginBottom: 6 }}>This is going under <b>“Other”</b>. What exactly is the {fmt(ctx.amt)} for — and which event or activity does it belong to?</div>
+              <input autoFocus value={purpose} onChange={e => setPurpose(e.target.value)} placeholder="e.g. Sports Gala transport & meals" style={inp} />
+            </div>
+          )}
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+            <button onClick={onCancel} style={{ background: 'transparent', border: '1px solid ' + T.border, color: T.ink2, borderRadius: 9, padding: '10px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Cancel</button>
+            <button disabled={!canGo} onClick={() => onConfirm(purpose.trim())} style={{ background: canGo ? tone : T.border, color: canGo ? '#1a0a0e' : T.ink3, border: 'none', borderRadius: 9, padding: '10px 18px', fontSize: 13, fontWeight: 700, cursor: canGo ? 'pointer' : 'default' }}>{ctx.level === 'bankrupt' ? 'Record anyway' : 'Yes, record it'}</button>
+          </div>
+        </div>
+      </FModal>
+    );
+  }
+
   function Finance() {
     const [txns, setTxns] = useState([]);
     const [assets, setAssets] = useState([]);
@@ -8993,7 +9026,41 @@ window.PEAK_FINANCE = (function () {
     const btn = (p) => ({ border: p ? 'none' : '1px solid ' + T.borderStr, background: p ? T.red : 'transparent', color: p ? '#fff' : T.ink2, padding: '8px 14px', borderRadius: 9, fontSize: 12.5, fontWeight: 600, cursor: 'pointer' });
     const inp = { background: T.bg, border: '1px solid ' + T.border, borderRadius: 8, padding: '9px 11px', fontSize: 13, color: T.ink, fontFamily: T.font, outline: 'none', width: '100%' };
 
+    const advise = (f, amt) => {
+      const newNet = net - amt;
+      const pct = totalIn > 0 ? Math.round(amt / totalIn * 100) : 999;
+      const needPurpose = (f.category === 'other') && !(f.description || '').trim();
+      let level = null, message = '';
+      if (amt > totalIn || newNet <= -Math.max(totalIn * 0.5, 1)) { level = 'bankrupt'; message = 'This is more than the school can afford right now. Total money in this term is ' + fmt(totalIn) + ', so a ' + fmt(amt) + ' expense pulls your balance to ' + fmt(newNet) + '. That risks not covering salaries and daily operations — it could put the school in the red. Please double-check this is correct.'; }
+      else if (newNet < 0) { level = 'deficit'; message = 'Careful — this tips the school into a deficit. You have ' + fmt(net) + ' available, and this ' + fmt(amt) + ' expense leaves ' + fmt(newNet) + '. Where will the shortfall be covered from?'; }
+      else if (pct >= 30) { level = 'large'; message = 'That is a large expense — ' + fmt(amt) + ' is about ' + pct + '% of everything collected so far. You would still have ' + fmt(newNet) + ' left, but it is worth a second look.'; }
+      if (!level && !needPurpose) return null;
+      if (!message) message = 'Quick check before I record this so the books stay clear.';
+      return { f, amt, totalIn, net, newNet, level, message, needPurpose };
+    };
     const saveTxn = (f) => {
+      if (f.kind === 'expense') {
+        const amt0 = Number(String(f.amount).replace(/[^0-9]/g, ''));
+        if (amt0) {
+          const adv = advise(f, amt0);
+          if (adv) {
+            window.peakModal && window.peakModal.open(React.createElement(NiaExpenseGuard, {
+              ctx: adv,
+              onCancel: () => window.peakModal && window.peakModal.close(),
+              onConfirm: (purpose) => {
+                window.peakModal && window.peakModal.close();
+                const f2 = purpose ? Object.assign({}, f, { description: ((f.description || '') + (f.description ? ' · ' : '') + purpose), category: f.category }) : f;
+                try { if (window.NIA_FEED && (adv.level === 'bankrupt' || adv.level === 'deficit')) window.NIA_FEED.post({ key: 'bigexp-' + Date.now(), level: 'alert', icon: '\uD83D\uDCB8', title: 'Big expense recorded', body: 'You approved a ' + fmt(amt0) + ' expense I flagged \u2014 balance is now ' + fmt(adv.newNet) + '. I\'ll keep watch on the budget.', cta: { label: 'Open Finance', route: 'finance' } }); } catch (e) {}
+                commitTxn(f2);
+              }
+            }));
+            return;
+          }
+        }
+      }
+      commitTxn(f);
+    };
+    const commitTxn = (f) => {
       const amt = Number(String(f.amount).replace(/[^0-9]/g, '')); if (!amt) { window.peakToast && window.peakToast('Enter an amount', 'info'); return; }
       const isExpense = f.kind === 'expense';
       const payee = (f.payeeName || '').trim();
