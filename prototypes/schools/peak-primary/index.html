@@ -234,7 +234,7 @@
     <div style="min-height:100vh;display:grid;place-items:center;color:#8a91b0;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px;letter-spacing:0.08em;">
       <div style="text-align:center">
         <div id="nx-loading-text">LOADING · NEXT SCHOOL OS</div>
-        <div style="margin-top:12px;font-size:10px;opacity:0.5">build b97</div>
+        <div style="margin-top:12px;font-size:10px;opacity:0.5">build b98</div>
       </div>
     </div>
   </div>
@@ -5062,263 +5062,159 @@ const PD_Fees = (function () {
   }
 
   function Fees({ embed = false, onNav, onRecordPayment } = {}) {
-    const [selected, setSelected] = useState('p3');
-    const [confirmed, setConfirmed] = useState(new Set());
+    const { useState, useEffect } = React;
+    const [, force] = useState(0);
+    const [tab, setTab] = useState('accounts');
+    const WK = 'https://nextos-sentinel.nextafricaai.workers.dev';
+    const tenant = (window.PEAK_ROLE && window.PEAK_ROLE.getProfile && window.PEAK_ROLE.getProfile().tenantId) || 'peak-primary';
 
-    const incoming = [
-      { id: 'p1', t: '08:24', ch: 'MTN', from: '+256 70 ··· 412', amt: 280_000, status: 'auto', match: 'Mukasa, P. · P6V', conf: 99 },
-      { id: 'p2', t: '08:23', ch: 'Airtel', from: '+256 75 ··· 098', amt: 180_000, status: 'auto', match: 'Asiimwe, R. · P3P', conf: 97 },
-      { id: 'p3', t: '08:22', ch: 'MTN', from: '+256 70 ··· 117', amt: 340_000, status: 'review', match: 'Mugisha, B. · P5V', conf: 78, note: 'Phone number does not match guardian on file. AI flag for review.' },
-      { id: 'p4', t: '08:21', ch: 'Stanbic', from: 'ROBERT M.', amt: 460_000, status: 'auto', match: 'Nansubuga, F. · P5P', conf: 95 },
-      { id: 'p5', t: '08:18', ch: 'MTN', from: '+256 70 ··· 802', amt: 50_000,  status: 'review', match: 'unclear', conf: 32, note: 'Amount unusual. Possible part-payment or wrong recipient.' },
-      { id: 'p6', t: '08:14', ch: 'MTN', from: '+256 78 ··· 200', amt: 220_000, status: 'auto', match: 'Birungi, J. · P5V', conf: 92 },
-      { id: 'p7', t: '08:11', ch: 'Airtel', from: '+256 75 ··· 651', amt: 95_000,  status: 'auto', match: 'Atim, P. · P3V', conf: 96 },
-      { id: 'p8', t: '08:07', ch: 'Stanbic', from: 'AMOS LUBEGA', amt: 150_000, status: 'review', match: 'Lubega, I. · P4P', conf: 71, note: 'Amount less than expected (460K balance). Treat as partial?' },
-    ];
+    // Live store: real students + balances
+    useEffect(() => { if (window.peakStore && window.peakStore.subscribe) return window.peakStore.subscribe(() => force(x => x + 1)); }, []);
+    useEffect(() => { try { if (window.peakStore && window.peakStore.loadStudents && !(window.PEAK && window.PEAK.studentsLive)) window.peakStore.loadStudents(tenant); } catch (e) {} }, []);
 
-    const sel = incoming.find(p => p.id === selected);
+    // Fee structure (per-class termly fee + requirements) — saved per school
+    const [fs, setFs] = useState(null);
+    const [fsId, setFsId] = useState(null);
+    const [fsBusy, setFsBusy] = useState(false);
+    const [fsSaved, setFsSaved] = useState(false);
+    useEffect(() => {
+      fetch(WK + '/os-data?kind=fee_structure&tenant=' + encodeURIComponent(tenant)).then(r => r.json()).then(d => {
+        const rec = ((d && d.records) || [])[0];
+        if (rec) { setFsId(rec.id); setFs((rec.payload && rec.payload.classes) || []); window.__FEE_STRUCTURE = rec.payload; }
+        else setFs([]);
+      }).catch(() => setFs([]));
+    }, []);
+
+    const students = (window.PEAK && window.PEAK.students) || [];
+    const live = !!(window.PEAK && window.PEAK.studentsLive);
+    const fmt = (n) => 'UGX ' + (Number(n) || 0).toLocaleString();
+    const classKey = (stream) => { const m = String(stream || '').match(/^([A-Za-z]*\s*\d+)/); return m ? m[1].replace(/\s+/g, '').toUpperCase() : String(stream || '').toUpperCase(); };
+    const feeForStream = (stream) => { if (!fs || !fs.length) return 0; const k = classKey(stream); const row = fs.find(r => classKey(r.name) === k); return row ? (Number(row.fee) || 0) : 0; };
+
+    const withBal = students.filter(s => Number(s.balance) > 0).sort((a, b) => (Number(b.balance) || 0) - (Number(a.balance) || 0));
+    const outstanding = students.reduce((a, s) => a + (Number(s.balance) || 0), 0);
+    const expected = (fs && fs.length) ? students.reduce((a, s) => a + feeForStream(s.stream), 0) : 0;
+    const collected = expected > 0 ? Math.max(0, expected - outstanding) : 0;
+    const collectionPct = expected > 0 ? Math.round((collected / expected) * 100) : null;
+    const arrears = withBal.length;
+
+    const remind = (s) => { const ph = String(s.guardianPhone || '').replace(/[^0-9]/g, ''); const msg = 'Dear ' + (s.guardian || 'Parent') + ', a gentle reminder regarding ' + (s.name || 'your child') + "'s school fees balance of " + fmt(s.balance) + ' at ' + ((window.__BRAND_NAME) || 'our school') + '. Thank you.'; if (ph) window.open('https://wa.me/' + ph + '?text=' + encodeURIComponent(msg), '_blank'); else window.peakToast && window.peakToast('No guardian phone on file', 'info', 'Add a phone number for ' + (s.name || 'this learner') + ' to send a reminder.'); };
+    const recordPay = (s) => { if (onRecordPayment) return onRecordPayment(s); window.peakModal && window.peakModal.open(React.createElement(window.PEAK_FORMS.RecordPayment, { store: window.peakStore, defaultStudentId: s && s.id, defaultAmount: s && s.balance })); };
+
+    // Fee-structure editing
+    const suggestClasses = () => {
+      const keys = []; students.forEach(s => { const k = classKey(s.stream); if (k && keys.indexOf(k) < 0) keys.push(k); });
+      keys.sort();
+      const rows = keys.map(k => { const ex = (fs || []).find(r => classKey(r.name) === k); return ex || { name: k, fee: '', requirements: '' }; });
+      setFs(rows.length ? rows : [{ name: '', fee: '', requirements: '' }]);
+    };
+    const setRow = (i, key, val) => { const next = (fs || []).slice(); next[i] = { ...next[i], [key]: val }; setFs(next); };
+    const addRow = () => setFs([...(fs || []), { name: '', fee: '', requirements: '' }]);
+    const delRow = (i) => setFs((fs || []).filter((_, j) => j !== i));
+    const saveFs = () => {
+      setFsBusy(true);
+      const clean = (fs || []).filter(r => String(r.name || '').trim()).map(r => ({ name: String(r.name).trim().toUpperCase(), fee: Number(r.fee) || 0, requirements: String(r.requirements || '').trim() }));
+      const payload = { classes: clean, currency: 'UGX', per: 'term', updatedAt: new Date().toISOString() };
+      const body = fsId ? { kind: 'fee_structure', tenant: tenant, record: payload, id: fsId } : { kind: 'fee_structure', tenant: tenant, record: payload };
+      fetch(WK + '/os-data/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then(r => r.json()).then(res => {
+        setFsBusy(false); if (res && res.record && res.record.id) setFsId(res.record.id);
+        window.__FEE_STRUCTURE = payload; setFs(clean.length ? clean : []); setFsSaved(true); setTimeout(() => setFsSaved(false), 1800);
+        window.peakToast && window.peakToast('Fee structure saved', 'success', 'Nia and the Fees view now use it.');
+      }).catch(() => setFsBusy(false));
+    };
+
+    const KPI = ({ l, v, s, c }) => (
+      <div style={{ background: T.surface, padding: '14px 16px' }}>
+        <div style={{ fontSize: 10, color: T.ink3, fontFamily: T.mono, letterSpacing: '0.05em', fontWeight: 600, marginBottom: 6 }}>{l.toUpperCase()}</div>
+        <div style={{ fontSize: 20, fontWeight: 700, color: c || T.ink, letterSpacing: '-0.02em', fontVariantNumeric: 'tabular-nums' }}>{v}</div>
+        <div style={{ fontSize: 10.5, color: T.ink3, marginTop: 3, fontFamily: T.mono }}>{s}</div>
+      </div>
+    );
 
     return (
-      <div style={{
-        width: embed ? '100%' : 1440, height: embed ? '100%' : 900,
-        display: 'flex', background: T.bg, color: T.ink,
-        fontFamily: T.font, fontSize: 13, overflow: 'hidden',
-      }}>
+      <div style={{ width: embed ? '100%' : 1440, height: embed ? '100%' : 900, display: 'flex', background: T.bg, color: T.ink, fontFamily: T.font, fontSize: 13, overflow: 'hidden' }}>
         {!embed && <Rail active="fees" onNav={onNav} />}
-
         <main style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-          {/* header */}
-          <header style={{ padding: '22px 28px 18px', borderBottom: '1px solid ' + T.border }}>
-            <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 18 }}>
+          <header style={{ padding: '22px 28px 0', borderBottom: '1px solid ' + T.border }}>
+            <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
               <div>
-                <div style={{ fontSize: 11, color: T.ink3, fontFamily: T.mono, letterSpacing: '0.08em', fontWeight: 600, marginBottom: 8 }}>FEES · TERM 2 · WEEK 6</div>
-                <div style={{ fontSize: 24, fontWeight: 700, letterSpacing: '-0.02em', lineHeight: 1.05 }}>Reconciliation · today's payments</div>
-                <div style={{ fontSize: 13, color: T.ink3, marginTop: 4 }}>
-                  <span style={{ color: T.good }}>6 auto-matched</span> · <span style={{ color: T.warn }}>2 need your review</span> · <span style={{ color: T.ink3 }}>11 since 06:00</span>
-                </div>
+                <div style={{ fontSize: 11, color: T.ink3, fontFamily: T.mono, letterSpacing: '0.08em', fontWeight: 600, marginBottom: 8 }}>FEES &amp; SCHOOL DUES</div>
+                <div style={{ fontSize: 24, fontWeight: 700, letterSpacing: '-0.02em', lineHeight: 1.05 }}>Fees</div>
+                <div style={{ fontSize: 13, color: T.ink3, marginTop: 4 }}>{live ? (students.length + ' learners · ' + arrears + ' with a balance') : 'Import students & fees to see real accounts'}</div>
               </div>
-              <div style={{ display: 'flex', gap: 8 }}>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 <button onClick={() => window.peakModal && window.peakModal.open(React.createElement(window.PEAK_FORMS.FeesImport))} style={{ border: '1px solid ' + T.borderStr, background: 'transparent', color: T.ink2, padding: '8px 14px', borderRadius: 9, fontSize: 12.5, cursor: 'pointer' }}>Import fees</button>
                 <button onClick={() => window.peakModal && window.peakModal.open(React.createElement(window.PEAK_FORMS.Receipts))} style={{ border: '1px solid ' + T.borderStr, background: 'transparent', color: T.ink2, padding: '8px 14px', borderRadius: 9, fontSize: 12.5, cursor: 'pointer' }}>Receipts</button>
-                <button onClick={() => window.peakExportLedger && window.peakExportLedger()} style={{ border: '1px solid ' + T.borderStr, background: 'transparent', color: T.ink2, padding: '8px 14px', borderRadius: 9, fontSize: 12.5, cursor: 'pointer' }}>Export ledger</button>
-                <button onClick={() => window.peakToast && window.peakToast('Fees settings — coming in Phase 2', 'info')} style={{ border: '1px solid ' + T.borderStr, background: 'transparent', color: T.ink, padding: '8px 14px', borderRadius: 9, fontSize: 12.5, cursor: 'pointer' }}>Settings</button>
-                <button onClick={() => onRecordPayment ? onRecordPayment() : (window.peakModal && window.peakModal.open(React.createElement(window.PEAK_FORMS.RecordPayment, { store: window.peakStore })))} style={{ border: 'none', background: T.red, color: '#fff', padding: '9px 16px', borderRadius: 9, fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }}>+ Record cash payment</button>
+                <button onClick={() => recordPay(null)} style={{ border: 'none', background: T.red, color: '#fff', padding: '9px 16px', borderRadius: 9, fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }}>+ Record payment</button>
               </div>
             </div>
-
-            {/* KPI strip */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 1, background: T.border, borderRadius: 12, overflow: 'hidden', border: '1px solid ' + T.border }}>
-              {[
-                { l: 'Collected · today',  v: 'UGX 18.24M', s: '+18% vs avg', c: T.good },
-                { l: 'Collected · term',   v: 'UGX 412.5M', s: '71% of target', c: T.ink },
-                { l: 'Outstanding',         v: 'UGX 167.5M', s: '67 accounts',  c: T.redInk },
-                { l: 'Overdue · 30d+',     v: 'UGX 1.08M',  s: '3 accounts',   c: T.red },
-                { l: 'Need reconciliation', v: '2',           s: 'in queue',     c: T.warn },
-              ].map(k => (
-                <div key={k.l} style={{ background: T.surface, padding: '14px 16px' }}>
-                  <div style={{ fontSize: 10, color: T.ink3, fontFamily: T.mono, letterSpacing: '0.05em', fontWeight: 600, marginBottom: 6 }}>{k.l.toUpperCase()}</div>
-                  <div style={{ fontSize: 20, fontWeight: 700, color: k.c, letterSpacing: '-0.02em', fontVariantNumeric: 'tabular-nums' }}>{k.v}</div>
-                  <div style={{ fontSize: 10.5, color: T.ink3, marginTop: 3, fontFamily: T.mono }}>{k.s}</div>
-                </div>
+            <div style={{ display: 'flex', gap: 6 }}>
+              {[['accounts', 'Accounts'], ['structure', 'Fee structure']].map(t => (
+                <button key={t[0]} onClick={() => setTab(t[0])} style={{ background: 'transparent', border: 'none', borderBottom: '2px solid ' + (tab === t[0] ? T.red : 'transparent'), color: tab === t[0] ? T.ink : T.ink3, padding: '10px 6px', marginRight: 10, fontSize: 13.5, fontWeight: tab === t[0] ? 700 : 500, cursor: 'pointer' }}>{t[1]}</button>
               ))}
             </div>
           </header>
 
-          {/* main split */}
-          <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '1fr 420px', minHeight: 0 }}>
-            {/* incoming queue */}
-            <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, borderRight: '1px solid ' + T.border }}>
-              {/* filter row */}
-              <div style={{
-                padding: '12px 28px', borderBottom: '1px solid ' + T.border,
-                display: 'flex', alignItems: 'center', gap: 12, background: T.bg,
-              }}>
-                <div style={{ display: 'flex', gap: 4, padding: 3, background: T.surface, border: '1px solid ' + T.border, borderRadius: 8 }}>
-                  {[['all','All',11],['review','Needs review',2],['auto','Auto-matched',6],['cash','Cash',3]].map(([k, l, n]) => (
-                    <button key={k} style={{
-                      padding: '5px 12px', borderRadius: 6, border: 'none',
-                      background: k === 'review' ? T.red : 'transparent', color: k === 'review' ? '#fff' : T.ink2,
-                      fontSize: 11.5, fontWeight: 600, cursor: 'pointer', fontFamily: T.font,
-                      display: 'flex', alignItems: 'center', gap: 6,
-                    }}>
-                      <span>{l}</span>
-                      <span style={{ fontSize: 10, color: k === 'review' ? 'rgba(255,255,255,0.7)' : T.ink3, fontFamily: T.mono }}>{n}</span>
-                    </button>
-                  ))}
+          {tab === 'accounts' ? (
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+              <div style={{ padding: '16px 28px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 1, background: T.border, borderRadius: 12, overflow: 'hidden', border: '1px solid ' + T.border }}>
+                  <KPI l="Outstanding" v={fmt(outstanding)} s={arrears + ' account' + (arrears === 1 ? '' : 's')} c={outstanding > 0 ? T.redInk : T.good} />
+                  <KPI l="Expected · term" v={expected > 0 ? fmt(expected) : '—'} s={expected > 0 ? 'from fee structure' : 'set fee structure'} c={T.ink} />
+                  <KPI l="Collected · term" v={expected > 0 ? fmt(collected) : '—'} s={collectionPct != null ? (collectionPct + '% of expected') : 'needs fee structure'} c={T.good} />
+                  <KPI l="Learners" v={live ? students.length : '—'} s={live ? 'live roster' : 'not imported yet'} c={T.ink} />
                 </div>
-                <div style={{ flex: 1 }} />
-                <span style={{ fontSize: 11, color: T.ink3, fontFamily: T.mono }}>Last refresh 08:24 · auto-poll every 30s</span>
               </div>
-
-              {/* table */}
-              <div style={{
-                display: 'grid', gridTemplateColumns: '50px 60px 80px 1.2fr 100px 1.4fr 100px 80px',
-                gap: 12, padding: '10px 28px', borderBottom: '1px solid ' + T.border, background: T.surface,
-                color: T.ink3, fontSize: 10.5, fontFamily: T.mono, fontWeight: 600, letterSpacing: '0.05em',
-              }}>
-                <div>STATUS</div>
-                <div>TIME</div>
-                <div>CHANNEL</div>
-                <div>FROM</div>
-                <div style={{ textAlign: 'right' }}>AMOUNT</div>
-                <div>SUGGESTED MATCH</div>
-                <div style={{ textAlign: 'right' }}>CONFIDENCE</div>
-                <div style={{ textAlign: 'right' }}>ACTION</div>
-              </div>
-              <div style={{ flex: 1, overflow: 'auto' }}>
-                {incoming.map((p, i) => {
-                  const isSel = p.id === selected;
-                  const statusColour = p.status === 'auto' ? T.good : T.warn;
-                  return (
-                    <div key={p.id} onClick={() => setSelected(p.id)} style={{
-                      display: 'grid', gridTemplateColumns: '50px 60px 80px 1.2fr 100px 1.4fr 100px 80px',
-                      gap: 12, padding: '11px 28px', alignItems: 'center', cursor: 'pointer',
-                      background: isSel ? 'rgba(226,58,82,0.10)' : (i % 2 ? T.surface : T.bg),
-                      borderBottom: '1px solid ' + T.border,
-                      borderLeft: isSel ? '3px solid ' + T.red : '3px solid transparent',
-                    }}>
-                      <Pill tone={p.status === 'auto' ? 'good' : 'warn'}>{p.status === 'auto' ? 'AUTO' : 'REVIEW'}</Pill>
-                      <span style={{ fontFamily: T.mono, fontSize: 11.5, color: T.ink3 }}>{p.t}</span>
-                      <span style={{
-                        fontFamily: T.mono, fontSize: 11, fontWeight: 700,
-                        padding: '3px 8px', borderRadius: 4, background: T.surface2, color: T.ink,
-                      }}>{p.ch}</span>
-                      <span style={{ fontFamily: T.mono, fontSize: 12, color: T.ink2 }}>{p.from}</span>
-                      <span style={{ textAlign: 'right', fontFamily: T.mono, fontWeight: 700, color: T.ink, fontSize: 13, fontVariantNumeric: 'tabular-nums' }}>
-                        {D.fmtUGXshort(p.amt)}
-                      </span>
-                      <span style={{ fontSize: 12.5, color: p.match === 'unclear' ? T.ink3 : T.ink, fontStyle: p.match === 'unclear' ? 'italic' : 'normal' }}>{p.match}</span>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'flex-end' }}>
-                        <div style={{ width: 50, height: 5, background: T.surface2, borderRadius: 999 }}>
-                          <div style={{ width: p.conf + '%', height: '100%', background: p.conf >= 90 ? T.good : p.conf >= 70 ? T.warn : T.red, borderRadius: 999 }} />
-                        </div>
-                        <span style={{ fontSize: 11, color: p.conf >= 90 ? T.good : p.conf >= 70 ? T.warn : T.red, fontFamily: T.mono, fontWeight: 600 }}>{p.conf}%</span>
-                      </div>
-                      <button style={{
-                        background: 'transparent', color: T.ink, border: '1px solid ' + T.borderStr,
-                        padding: '4px 9px', borderRadius: 6, fontSize: 10.5, fontFamily: T.mono, fontWeight: 600, cursor: 'pointer',
-                        justifySelf: 'end',
-                      }}>{p.status === 'auto' ? 'POSTED' : 'OPEN'}</button>
+              <div style={{ padding: '0 28px 8px', fontSize: 11, color: T.ink3, fontFamily: T.mono, letterSpacing: '0.04em' }}>ACCOUNTS IN ARREARS</div>
+              <div style={{ flex: 1, overflow: 'auto', padding: '0 28px 28px' }}>
+                {!live ? (
+                  <div style={{ padding: 40, textAlign: 'center', color: T.ink3 }}>No live fee data yet. Use <b>Import fees</b> to load real balances, then they appear here.</div>
+                ) : withBal.length === 0 ? (
+                  <div style={{ padding: 40, textAlign: 'center', color: T.good }}>✓ Every learner is fully paid. Nothing outstanding.</div>
+                ) : withBal.map((s, i) => (
+                  <div key={s.id || i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 10, background: i % 2 ? T.surface : T.bg, border: '1px solid ' + T.border, marginBottom: 6 }}>
+                    <div style={{ width: 34, height: 34, borderRadius: '50%', background: T.surface2, display: 'grid', placeItems: 'center', fontSize: 12, fontWeight: 700, color: T.ink2, flexShrink: 0 }}>{String(s.name || '?').split(' ').map(w => w[0]).slice(0, 2).join('')}</div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13.5, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.name}</div>
+                      <div style={{ fontSize: 11.5, color: T.ink3 }}>{s.stream || '—'}{s.guardian ? (' · ' + s.guardian) : ''}{feeForStream(s.stream) > 0 ? (' · class fee ' + fmt(feeForStream(s.stream))) : ''}</div>
                     </div>
-                  );
-                })}
-              </div>
-
-              {/* footer / channel mix */}
-              <div style={{
-                padding: '14px 28px', borderTop: '1px solid ' + T.border, background: T.surface,
-                display: 'flex', alignItems: 'center', gap: 16,
-              }}>
-                <div style={{ fontSize: 10.5, color: T.ink3, fontFamily: T.mono, letterSpacing: '0.05em', fontWeight: 600 }}>TERM 2 BY CHANNEL</div>
-                <div style={{ flex: 1, height: 8, borderRadius: 999, background: T.surface2, display: 'flex', overflow: 'hidden' }}>
-                  <div style={{ width: '60%', background: T.gold }} title="MTN 60%" />
-                  <div style={{ width: '24%', background: T.red }} title="Airtel 24%" />
-                  <div style={{ width: '10%', background: T.navyLite }} title="Stanbic 10%" />
-                  <div style={{ width: '6%',  background: '#7e88b8' }} title="Cash 6%" />
-                </div>
-                <div style={{ display: 'flex', gap: 14, fontSize: 11, color: T.ink3, fontFamily: T.mono }}>
-                  <span><span style={{ display: 'inline-block', width: 8, height: 8, background: T.gold, marginRight: 5 }} />MTN 60%</span>
-                  <span><span style={{ display: 'inline-block', width: 8, height: 8, background: T.red, marginRight: 5 }} />Airtel 24%</span>
-                  <span><span style={{ display: 'inline-block', width: 8, height: 8, background: T.navyLite, marginRight: 5 }} />Stanbic 10%</span>
-                  <span><span style={{ display: 'inline-block', width: 8, height: 8, background: '#7e88b8', marginRight: 5 }} />Cash 6%</span>
-                </div>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: T.redInk, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>{fmt(s.balance)}</div>
+                    <button onClick={() => remind(s)} style={{ border: '1px solid ' + T.borderStr, background: 'transparent', color: T.ink2, padding: '7px 12px', borderRadius: 8, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap' }}>Remind</button>
+                    <button onClick={() => recordPay(s)} style={{ border: 'none', background: T.red, color: '#fff', padding: '7px 12px', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>Record</button>
+                  </div>
+                ))}
               </div>
             </div>
-
-            {/* right side: selected payment expanded */}
-            <aside style={{ background: T.surface, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-              <div style={{ padding: '18px 22px', borderBottom: '1px solid ' + T.border }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                  <div>
-                    <div style={{ fontSize: 10.5, color: T.ink3, fontFamily: T.mono, letterSpacing: '0.08em', fontWeight: 600, marginBottom: 6 }}>INCOMING PAYMENT · {sel.id.toUpperCase()}</div>
-                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-                      <span style={{ fontSize: 13, color: T.ink3, fontFamily: T.mono }}>UGX</span>
-                      <div style={{ fontSize: 32, fontWeight: 700, color: T.ink, letterSpacing: '-0.02em', fontVariantNumeric: 'tabular-nums' }}>
-                        {sel.amt.toLocaleString()}
-                      </div>
-                    </div>
-                    <div style={{ fontSize: 12, color: T.ink3, fontFamily: T.mono, marginTop: 4 }}>{sel.ch} · {sel.from} · today {sel.t}</div>
-                  </div>
-                  <Pill tone={sel.status === 'auto' ? 'good' : 'warn'}>{sel.status === 'auto' ? '● AUTO-MATCHED' : '● NEEDS REVIEW'}</Pill>
-                </div>
+          ) : (
+            <div style={{ flex: 1, overflow: 'auto', padding: '20px 28px 28px' }}>
+              <div style={{ fontSize: 13, color: T.ink3, lineHeight: 1.6, marginBottom: 14, maxWidth: 640 }}>Set what each class pays per term and any requirements (uniform, books, lunch, etc.). This drives the collection figures above, the parent reminders, and what Nia knows about your fees.</div>
+              <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
+                <button onClick={suggestClasses} style={{ border: '1px solid ' + T.borderStr, background: 'transparent', color: T.ink2, padding: '8px 14px', borderRadius: 9, fontSize: 12.5, cursor: 'pointer' }}>↺ Suggest from my classes</button>
+                <button onClick={addRow} style={{ border: '1px solid ' + T.borderStr, background: 'transparent', color: T.ink2, padding: '8px 14px', borderRadius: 9, fontSize: 12.5, cursor: 'pointer' }}>+ Add class</button>
               </div>
-
-              <div style={{ padding: '18px 22px', flex: 1, overflow: 'auto', display: 'flex', flexDirection: 'column', gap: 18 }}>
-                {/* AI match panel */}
-                <div style={{
-                  background: 'linear-gradient(150deg, ' + T.surface3 + ' 0%, ' + T.surface + ' 70%)',
-                  border: '1px solid ' + T.borderStr, borderRadius: 12, padding: 16,
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-                    <span style={{ width: 22, height: 22, borderRadius: 6, background: T.red, color: '#fff', display: 'grid', placeItems: 'center', fontFamily: T.mono, fontSize: 10, fontWeight: 700 }}>AI</span>
-                    <span style={{ fontSize: 12, fontWeight: 600 }}>Suggested match · {sel.conf}% confidence</span>
-                  </div>
-                  <div style={{ fontSize: 12.5, color: T.ink2, lineHeight: 1.5 }}>
-                    {sel.note || 'High confidence match. Phone number and amount align with the student\u2019s expected payment. Click \u201cConfirm match\u201d to post to the ledger.'}
-                  </div>
-                </div>
-
-                {/* matched student card */}
-                {sel.match !== 'unclear' && (
-                  <div>
-                    <div style={{ fontSize: 10.5, color: T.ink3, fontFamily: T.mono, letterSpacing: '0.05em', fontWeight: 600, marginBottom: 8 }}>MATCHES TO</div>
-                    <div style={{ background: T.bg, border: '1px solid ' + T.border, borderRadius: 12, padding: 14, display: 'flex', alignItems: 'center', gap: 12 }}>
-                      <div style={{ width: 44, height: 44, borderRadius: 999, background: T.surface3, color: '#fff', display: 'grid', placeItems: 'center', fontSize: 13, fontWeight: 700 }}>BM</div>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 14, fontWeight: 600 }}>Brian Mugisha</div>
-                        <div style={{ fontSize: 11, color: T.ink3, fontFamily: T.mono }}>P5 Vigilant · PK-004 · Mr. Robert Mugisha</div>
-                      </div>
-                      <span style={{ color: T.ink3, fontSize: 16 }}>↗</span>
-                    </div>
-                  </div>
-                )}
-
-                {/* ledger preview */}
+              {(!fs || !fs.length) ? (
+                <div style={{ padding: 30, textAlign: 'center', color: T.ink3, border: '1px dashed ' + T.border, borderRadius: 12 }}>No fee structure yet. Tap <b>Suggest from my classes</b> to start from your real classes, then enter each termly fee.</div>
+              ) : (
                 <div>
-                  <div style={{ fontSize: 10.5, color: T.ink3, fontFamily: T.mono, letterSpacing: '0.05em', fontWeight: 600, marginBottom: 8 }}>LEDGER PREVIEW · TERM 2</div>
-                  <div style={{ background: T.bg, border: '1px solid ' + T.border, borderRadius: 12, overflow: 'hidden' }}>
-                    {[
-                      { d: '08 Feb', desc: 'Term 1 final',         amt: 850_000, dir: '+', faded: true },
-                      { d: '14 Mar', desc: 'Term 2 deposit · MTN', amt: 510_000, dir: '+' },
-                      { d: 'Today',  desc: 'This payment · MTN',    amt: sel.amt, dir: '+', pending: true },
-                    ].map((l, i) => (
-                      <div key={i} style={{
-                        display: 'grid', gridTemplateColumns: '60px 1fr auto', gap: 10,
-                        padding: '10px 14px', borderBottom: i < 2 ? '1px solid ' + T.border : 'none',
-                        opacity: l.faded ? 0.55 : 1, background: l.pending ? 'rgba(226,58,82,0.10)' : 'transparent',
-                      }}>
-                        <span style={{ fontSize: 11, color: T.ink3, fontFamily: T.mono }}>{l.d}</span>
-                        <span style={{ fontSize: 12, color: T.ink }}>{l.desc}{l.pending && <span style={{ marginLeft: 8, fontSize: 10, color: T.red, fontFamily: T.mono, fontWeight: 700 }}>PENDING</span>}</span>
-                        <span style={{ fontSize: 12, color: l.pending ? T.red : T.good, fontFamily: T.mono, fontWeight: 600 }}>{l.dir}{D.fmtUGXshort(l.amt)}</span>
-                      </div>
-                    ))}
-                    <div style={{
-                      padding: '10px 14px', background: T.surface2, display: 'flex', justifyContent: 'space-between',
-                      borderTop: '1px solid ' + T.border,
-                    }}>
-                      <span style={{ fontSize: 11.5, color: T.ink2, fontFamily: T.mono, fontWeight: 600 }}>Balance after</span>
-                      <span style={{ fontSize: 13, color: T.ink, fontFamily: T.mono, fontWeight: 700 }}>UGX 0 due</span>
+                  <div style={{ display: 'grid', gridTemplateColumns: '120px 150px 1fr 40px', gap: 10, padding: '0 2px 8px', fontSize: 10.5, color: T.ink3, fontFamily: T.mono, fontWeight: 600, letterSpacing: '0.05em' }}>
+                    <div>CLASS</div><div>FEE / TERM (UGX)</div><div>REQUIREMENTS</div><div></div>
+                  </div>
+                  {fs.map((r, i) => (
+                    <div key={i} style={{ display: 'grid', gridTemplateColumns: '120px 150px 1fr 40px', gap: 10, marginBottom: 8, alignItems: 'center' }}>
+                      <input value={r.name || ''} onChange={e => setRow(i, 'name', e.target.value)} placeholder="P4" style={{ background: T.bg, border: '1px solid ' + T.border, borderRadius: 8, padding: '9px 11px', fontSize: 13, color: T.ink, fontFamily: T.font, outline: 'none' }} />
+                      <input value={r.fee || ''} onChange={e => setRow(i, 'fee', e.target.value.replace(/[^0-9]/g, ''))} placeholder="350000" inputMode="numeric" style={{ background: T.bg, border: '1px solid ' + T.border, borderRadius: 8, padding: '9px 11px', fontSize: 13, color: T.ink, fontFamily: T.mono, outline: 'none' }} />
+                      <input value={r.requirements || ''} onChange={e => setRow(i, 'requirements', e.target.value)} placeholder="2 reams of paper, a broom, lunch UGX 60,000" style={{ background: T.bg, border: '1px solid ' + T.border, borderRadius: 8, padding: '9px 11px', fontSize: 13, color: T.ink, fontFamily: T.font, outline: 'none' }} />
+                      <button onClick={() => delRow(i)} title="Remove" style={{ background: 'transparent', border: '1px solid ' + T.border, color: T.ink3, borderRadius: 8, padding: '8px 0', fontSize: 14, cursor: 'pointer' }}>×</button>
                     </div>
+                  ))}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 16 }}>
+                    <button onClick={saveFs} disabled={fsBusy} style={{ background: T.red, color: '#fff', border: 'none', borderRadius: 9, padding: '10px 20px', fontSize: 13.5, fontWeight: 700, cursor: 'pointer' }}>{fsBusy ? 'Saving…' : 'Save fee structure'}</button>
+                    {fsSaved && <span style={{ fontSize: 12.5, color: T.green }}>✓ Saved</span>}
                   </div>
                 </div>
-
-                <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
-                  <button onClick={() => {
-                    const mMap = { MTN: 'mtn', Airtel: 'airtel', Stanbic: 'bank', Bank: 'bank', Cash: 'cash' };
-                    const guess = (sel.match && sel.match !== 'unclear') ? (window.peakFindStudent && window.peakFindStudent(String(sel.match).split(',')[0])) : null;
-                    setConfirmed(cur => new Set([...cur, sel.id]));
-                    window.peakModal && window.peakModal.open(React.createElement(window.PEAK_FORMS.RecordPayment, { store: window.peakStore, defaultStudentId: guess ? guess.id : undefined, defaultAmount: sel.amt, defaultMethod: mMap[sel.ch] || 'mtn' }));
-                  }} style={{ flex: 1, background: confirmed.has(sel.id) ? T.good : T.red, color: '#fff', border: 'none', padding: '10px 14px', borderRadius: 9, fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }}>
-                    {confirmed.has(sel.id) ? '✓ Posted' : 'Confirm & post →'}
-                  </button>
-                  <button onClick={() => { const mMap = { MTN: 'mtn', Airtel: 'airtel', Stanbic: 'bank', Bank: 'bank', Cash: 'cash' }; window.peakModal && window.peakModal.open(React.createElement(window.PEAK_FORMS.RecordPayment, { store: window.peakStore, defaultAmount: sel.amt, defaultMethod: mMap[sel.ch] || 'mtn' })); }} style={{ background: 'transparent', color: T.ink, border: '1px solid ' + T.borderStr, padding: '10px 14px', borderRadius: 9, fontSize: 12.5, cursor: 'pointer' }}>Match elsewhere</button>
-                </div>
-                <button onClick={() => window.peakToast && window.peakToast('Flagged for review', 'warn', 'Bursar notified · transaction held for verification.')} style={{ background: 'transparent', color: T.ink3, border: 'none', padding: '4px 0', fontSize: 11.5, cursor: 'pointer', textAlign: 'left' }}>
-                  ↑ Flag as suspicious / refund
-                </button>
-              </div>
-            </aside>
-          </div>
+              )}
+            </div>
+          )}
         </main>
       </div>
     );
@@ -8749,7 +8645,7 @@ window.PEAK_ASKNEXT = (function () {
       + 'For report cards, navigate to "exam" (reports are issued there, fee-gated).'
       + (window.__TERM && (window.__TERM.start || window.__TERM.end) ? ('\n\nTERM DATES: this term runs ' + (window.__TERM.start || '?') + ' to ' + (window.__TERM.end || '?') + '. Know when the term begins and ends; flag if today is near either.') : '')
       + ((window.__SCHOOL_EVENTS && window.__SCHOOL_EVENTS.length) ? ('\n\nSCHOOL EVENTS (with coordinators):\n' + window.__SCHOOL_EVENTS.map(function (e) { return '- ' + e.date + ': ' + e.title + (e.coordinator ? (' (coordinated by ' + e.coordinator + ')') : '') + (e.type ? ' [' + e.type + ']' : ''); }).join('\n')) : '')
-      + mem + (window.__SCHOOL_PROFILE ? ('\n\nABOUT THIS SCHOOL (written by the head teacher \u2014 use it to understand the school\u2019s identity, values, priorities and the head\u2019s context; weave it in naturally, never recite it back):\n' + window.__SCHOOL_PROFILE) : '') + '\n\nLIVE SCHOOL DATA:\n' + buildContext();
+      + mem + (window.__SCHOOL_PROFILE ? ('\n\nABOUT THIS SCHOOL (written by the head teacher \u2014 use it to understand the school\u2019s identity, values, priorities and the head\u2019s context; weave it in naturally, never recite it back):\n' + window.__SCHOOL_PROFILE) : '') + (function(){ try{ var fsx=window.__FEE_STRUCTURE; if(fsx && fsx.classes && fsx.classes.length){ return '\n\nFEE STRUCTURE (per term, set by the head \u2014 use for fee questions, reminders and planning):\n' + fsx.classes.map(function(c){ return '- ' + c.name + ': UGX ' + (Number(c.fee)||0).toLocaleString() + (c.requirements?(' \u00b7 requirements: '+c.requirements):''); }).join('\n'); } }catch(e){} return ''; })() + '\n\nLIVE SCHOOL DATA:\n' + buildContext();
   }
   function runAction(a) {
     try {
@@ -11029,7 +10925,7 @@ window.PEAK_STAFF = (function () {
         .then(r => r.json()).then(() => { setSavingColor(false); window.peakToast && window.peakToast('Theme colour saved', 'success', 'Reload to apply it across the whole OS.'); })
         .catch(() => { setSavingColor(false); window.peakToast && window.peakToast('Saved on this device', 'info', 'Could not sync to the server.'); });
     };
-    const TEMPLATE = '# About ' + ((window.__BRAND_NAME) || 'our school') + '\n\n## The school\n- Full name:\n- Location / district:\n- Founded:\n- Motto / vision:\n- Core values:\n- Levels we run (e.g. P1\u2013P7 / O-level / A-level):\n- Approx. number of learners:\n- Our story / what makes us special:\n\n## The head teacher\n- Name:\n- Years leading this school:\n- Background & training:\n- Leadership style & top priorities this term:\n\n## How we work\n- Term structure & key dates:\n- Our biggest challenges right now:\n- What we most want Nia to help us with:';
+    const TEMPLATE = '# About ' + ((window.__BRAND_NAME) || 'our school') + '\n\n## The school\n- Full name:\n- Location / district:\n- Founded:\n- Motto / vision:\n- Core values:\n- Levels we run (e.g. P1\u2013P7 / O-level / A-level):\n- Approx. number of learners:\n- Our story / what makes us special:\n\n## The head teacher\n- Name:\n- Years leading this school:\n- Background & training:\n- Leadership style & top priorities this term:\n\n## Fees & requirements\n- (Set the exact per-class fees in Fees \u2192 Fee structure \u2014 Nia reads those automatically.)\n- Payment terms (e.g. by start of term, instalments allowed?):\n- General requirements every learner brings (uniform, books, etc.):\n- Bursaries / discounts policy:\n\n## How we work\n- Term structure & key dates:\n- Our biggest challenges right now:\n- What we most want Nia to help us with:';
     const save = () => { setBusy(true); const rec = { markdown: md, by: (prof.fullName || prof.email || ''), updatedAt: new Date().toISOString() }; fetch(WK + '/os-data/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(recId ? { kind: 'school_profile', tenant: ten, record: rec, id: recId } : { kind: 'school_profile', tenant: ten, record: rec }) }).then(r => r.json()).then(res => { setBusy(false); if (res && res.record && res.record.id) setRecId(res.record.id); window.__SCHOOL_PROFILE = md; setSaved(true); setTimeout(() => setSaved(false), 1800); window.peakToast && window.peakToast('Saved', 'success', 'Nia now understands your school.'); }).catch(() => setBusy(false)); };
     const toggleVoice = () => setVoice(p => { const n = !p; try { localStorage.setItem('peak.nia.voice', n ? '1' : '0'); } catch (e) {} try { window.dispatchEvent(new CustomEvent('peakVoiceToggle', { detail: n })); } catch (e) {} return n; });
     const toggleTut = () => setTut(p => { const n = !p; try { localStorage.setItem('nextos.schooltutorial', n ? '1' : '0'); } catch (e) {} return n; });
@@ -11646,7 +11542,7 @@ window.PEAK_STAFF = (function () {
     const [profileStudentId, setProfileStudentId] = useState(4);
     const [, _pkgBump] = useReducer(x => x + 1, 0);
     useEffect(() => { if (window.PEAK_PACKAGES) window.PEAK_PACKAGES.loadPackage().then(() => _pkgBump()); }, []);
-    useEffect(() => { try { const tn = (window.PEAK_ROLE && window.PEAK_ROLE.getProfile && window.PEAK_ROLE.getProfile().tenantId) || 'peak-primary'; fetch('https://nextos-sentinel.nextafricaai.workers.dev/os-data?kind=school_profile&tenant=' + encodeURIComponent(tn)).then(r => r.json()).then(d => { const rec = ((d && d.records) || [])[0]; if (rec && rec.payload && rec.payload.markdown) window.__SCHOOL_PROFILE = rec.payload.markdown; }).catch(() => {}); } catch (e) {} }, []);
+    useEffect(() => { try { const tn = (window.PEAK_ROLE && window.PEAK_ROLE.getProfile && window.PEAK_ROLE.getProfile().tenantId) || 'peak-primary'; fetch('https://nextos-sentinel.nextafricaai.workers.dev/os-data?kind=school_profile&tenant=' + encodeURIComponent(tn)).then(r => r.json()).then(d => { const rec = ((d && d.records) || [])[0]; if (rec && rec.payload && rec.payload.markdown) window.__SCHOOL_PROFILE = rec.payload.markdown; }).catch(() => {}); fetch('https://nextos-sentinel.nextafricaai.workers.dev/os-data?kind=fee_structure&tenant=' + encodeURIComponent(tn)).then(r => r.json()).then(d => { const rec = ((d && d.records) || [])[0]; if (rec && rec.payload) window.__FEE_STRUCTURE = rec.payload; }).catch(() => {}); } catch (e) {} }, []);
     useEffect(() => { try { const WKx = 'https://nextos-sentinel.nextafricaai.workers.dev'; const tn = (window.PEAK_ROLE && window.PEAK_ROLE.getProfile && window.PEAK_ROLE.getProfile().tenantId) || 'peak-primary';
       fetch(WKx + '/os-data?kind=term_config&tenant=' + encodeURIComponent(tn)).then(r => r.json()).then(d => { const rec = ((d && d.records) || [])[0]; if (rec && rec.payload) window.__TERM = rec.payload; }).catch(() => {});
       fetch(WKx + '/os-data?kind=school_event&tenant=' + encodeURIComponent(tn)).then(r => r.json()).then(d => { window.__SCHOOL_EVENTS = ((d && d.records) || []).map(x => x.payload).sort((a, b) => String(a.date).localeCompare(String(b.date))).slice(0, 30); }).catch(() => {});
