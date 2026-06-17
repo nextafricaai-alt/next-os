@@ -275,6 +275,8 @@
     arrivals.unshift({ studentId:s.id, name:s.name, stream:s.stream, at:at, via:via, photo:s.photo||'' });
     renderArrivals();
     fetch(WK+'/os-data/save',{ method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ kind:'gate_checkin', tenant:TENANT, record:{ studentId:s.id, name:s.name, stream:s.stream, at:at, via:via } }) }).catch(function(){});
+    // Mark the learner PRESENT on the head teacher's attendance (turns the cell green live).
+    fetch(WK+'/attendance/gate-mark',{ method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ tenant:TENANT, studentId:s.id, stream:s.stream, via:via }) }).catch(function(){});
   }
   function renderArrivals(){
     var html=arrivals.slice(0,40).map(function(a){
