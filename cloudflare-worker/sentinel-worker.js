@@ -406,6 +406,7 @@ export default {
     if (url.pathname === '/seo-tips')           return handleSeoTips(request, env, cors);
     if (url.pathname === '/exam/scan-mark')     return handleExamScanMark(request, env, cors);
     if (url.pathname === '/exam/care-plan')     return handleExamCarePlan(request, env, cors);
+    if (url.pathname === '/attendance/gate-mark') return handleGateMark(request, env, cors);
     if (url.pathname === '/fees/lookup')        return handleFeesLookup(url.searchParams.get('tenant') || '', url.searchParams.get('q') || '', env, cors);
     if (url.pathname === '/fees/checkout')      return handleFeesCheckout(request, env, cors);
     if (url.pathname === '/fees/verify')        return (async()=>{ const J=(o,st)=>new Response(JSON.stringify(o),{status:st||200,headers:{...cors,'Content-Type':'application/json'}}); return J(await feePayFulfil(env, url.searchParams.get('tx') || url.searchParams.get('transaction_id') || '')); })();
@@ -1679,6 +1680,27 @@ async function billingFulfil(env, txId) {
   try { await sbWrite(env, '/os_records', { tenant: 'next', kind: 'billing_notice', payload: { tenant: tenant, plan: plan, amount: amount, currency: d.currency || 'UGX', at: now, read: false } }, 'POST', 'return=minimal'); } catch (e) {}
   try { await deliverPush(env, 'next', [], 'operator', { title: 'New subscription · ' + tenant, body: (PLAN_NAME[plan] || plan) + ' — UGX ' + Number(amount).toLocaleString() + ' received.', url: '/', tag: 'sub-' + tx_ref }); } catch (e) {}
   return { ok: true, tenant: tenant, plan: plan, amount: amount };
+}
+
+async function handleGateMark(request, env, cors) {
+  const J = (oo, st) => new Response(JSON.stringify(oo), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
+  if (!env.SUPABASE_URL || !env.SUPABASE_KEY) return J({ error: 'Supabase not configured.' }, 500);
+  let b; try { b = await request.json(); } catch (e) { return J({ error: 'bad body' }, 400); }
+  const tenant = String(b.tenant || b.tenant_id || '').trim();
+  const studentId = b.studentId != null ? b.studentId : b.student_id;
+  if (!tenant || studentId == null) return J({ error: 'tenant and studentId required' }, 400);
+  const eat = new Date(Date.now() + 3 * 3600000);
+  const today = eat.toISOString().slice(0, 10);
+  const nowMin = eat.getUTCHours() * 60 + eat.getUTCMinutes();
+  const via = String(b.via || 'gate');
+  // Arrival = present. After 08:00 EAT it's still attended; we keep it green as 'present' and note the time.
+  const row = { tenant_id: tenant, student_id: Number(studentId), stream: b.stream || null, status: 'present', roll_date: today, taken_at: new Date().toISOString(), notes: 'Gate · ' + via + ' · ' + eat.toISOString().slice(11, 16) + (nowMin > 8 * 60 ? ' (late)' : '') };
+  try {
+    const r = await fetch(env.SUPABASE_URL + '/rest/v1/student_roll_call?on_conflict=student_id,roll_date', { method: 'POST', headers: sbHeaders(env, 'resolution=merge-duplicates,return=representation'), body: JSON.stringify(row) });
+    const d = await r.json();
+    if (!r.ok) return J({ ok: false, error: (d && (d.message || d.hint)) || ('HTTP ' + r.status), detail: d }, 200);
+    return J({ ok: true, marked: 'present', student_id: studentId, roll_date: today });
+  } catch (e) { return J({ ok: false, error: String((e && e.message) || e) }, 200); }
 }
 
 async function handleFeesLookup(tenant, q, env, cors) {
