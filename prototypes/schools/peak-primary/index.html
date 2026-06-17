@@ -234,7 +234,7 @@
     <div style="min-height:100vh;display:grid;place-items:center;color:#8a91b0;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px;letter-spacing:0.08em;">
       <div style="text-align:center">
         <div id="nx-loading-text">LOADING · NEXT SCHOOL OS</div>
-        <div style="margin-top:12px;font-size:10px;opacity:0.5">build b96</div>
+        <div style="margin-top:12px;font-size:10px;opacity:0.5">build b97</div>
       </div>
     </div>
   </div>
@@ -7884,6 +7884,8 @@ window.PEAK_MARKING = (function () {
 /* PEAK_PACKAGES — entitlement engine: tiers, add-ons, gating, Plan screen, and add-on modules. */
 window.PEAK_PACKAGES = (function () {
   const { useState, useEffect, useCallback, useRef } = React;
+  // ── PRESENTATION MODE ── unlock every module + add-on for demos. Set to false to restore real tier gating.
+  if (typeof window.__UNLOCK_ALL === 'undefined') window.__UNLOCK_ALL = true;
   const T = window.V4.T;
   const WK = 'https://nextos-sentinel.nextafricaai.workers.dev';
   function prof() { return (window.PEAK_ROLE && window.PEAK_ROLE.getProfile && window.PEAK_ROLE.getProfile()) || { tenantId: 'peak-primary' }; }
@@ -7925,10 +7927,11 @@ window.PEAK_PACKAGES = (function () {
   function currentAddons() { return (_pkgCache && _pkgCache.addons) || []; }
   function tierObj(id) { return TIERS.find(t => t.id === id) || TIERS[TIERS.length - 1]; }
   function includedModules(tierId) { const o = tierObj(tierId); let mods = []; TIERS.forEach(t => { if (t.order <= o.order) mods = mods.concat(t.modules || []); }); return mods; }
-  function entitled(moduleKey) { return includedModules(currentTier()).indexOf(moduleKey) >= 0; }
+  function entitled(moduleKey) { if (window.__UNLOCK_ALL) return true; return includedModules(currentTier()).indexOf(moduleKey) >= 0; }
   function requiredTierFor(moduleKey) { const t = TIERS.find(t => (t.modules || []).indexOf(moduleKey) >= 0); return t ? t.id : 'mastery'; }
   function addonAvailable(key) {
     const a = ADDONS[key]; if (!a) return false;
+    if (window.__UNLOCK_ALL) return true;
     if (currentAddons().indexOf(key) >= 0) return true; // explicitly purchased
     if (a.alacarte) return false; // à-la-carte must be purchased
     const o = tierObj(currentTier()); const need = tierObj(a.tier); return o.order >= need.order;
