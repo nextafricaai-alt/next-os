@@ -4824,6 +4824,7 @@ You: "'We help you get more done with less stress.' Nine plain words beat the ja
       { icon: '\u{1F6E1}', name: 'Nia Sentinel', tag: 'Monitoring', desc: 'Watches your projects — uptime, domain expiry, SEO — and flags issues.', go: () => onNavigate && onNavigate('projects') },
       { icon: '\u{1F9FE}', name: 'Receipts & Comms', tag: 'Communications', desc: 'Issue receipts (PDF + WhatsApp) and run the messaging layer.', go: () => onNavigate && onNavigate('comms') },
       { icon: '\u{1F6AA}', name: 'Gate Kiosk', tag: 'Beta · attendance', desc: 'Face recognition + ID/QR check-in at the school gate. Test it per school before roll-out.', go: () => onNavigate && onNavigate('gate') },
+      { icon: '\u{1F4F9}', name: 'Smart Campus', tag: 'Add-on \u00b7 AI cameras', desc: 'Connect campus cameras and Nia watches them \u2014 headcount, fights/falls/escapes, face-matches learners to profiles, and locates a child across cameras.', go: () => onNavigate && onNavigate('smartcampus') },
     ];
     const sel = { background: 'var(--bg-base)', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-sm)', color: 'var(--text-primary)', padding: '8px 10px', fontSize: 13, width: '100%' };
     const lbl = { fontSize: 11, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 6, display: 'block' };
@@ -5563,7 +5564,7 @@ You: "'We help you get more done with less stress.' Nine plain words beat the ja
               fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 14,
             }}>N</div>
             <div>
-              <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', letterSpacing: 1.5, color: 'var(--text-tertiary)' }}>NIA'S WATCH <span style={{ color: 'var(--mint)', marginLeft: 6 }}>· LIVE v36</span></div>
+              <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', letterSpacing: 1.5, color: 'var(--text-tertiary)' }}>NIA'S WATCH <span style={{ color: 'var(--mint)', marginLeft: 6 }}>· LIVE v37</span></div>
               <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)' }}>
                 What happened while you were away
               </div>
@@ -7125,6 +7126,60 @@ const GatePage = ({ onNavigate }) => {
   );
 };
 
+const SmartCampusPage = ({ onNavigate }) => {
+  const tenants = (window.OS_DATA && window.OS_DATA.getTenants) ? window.OS_DATA.getTenants() : [];
+  const card = { background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: 18 };
+  const mono = { fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.1em' };
+  const feat = [
+    ['\u{1F465}', 'Headcount & who\u2019s on campus', 'Nia counts children per camera and names the ones enrolled.'],
+    ['\u{1F3C3}', 'Escape & perimeter alerts', 'Flags a child at the fence/gate during class time and alerts the head.'],
+    ['\u26A0\uFE0F', 'Fights & falls', 'Spots a scuffle or a hurt child, logs the frame, head confirms identity.'],
+    ['\u{1F50D}', 'Find a learner', 'Sweeps every camera and reports where a specific child is, right now.'],
+    ['\u{1F9E0}', 'Face-match to profiles', 'On-device recognition links faces to the learner\u2019s real profile.'],
+    ['\u{1F4F9}', 'Live auto-watch board', 'Refreshing camera grid with Nia\u2019s read on each \u2014 not a dumb video wall.'],
+  ];
+  return (
+    <div>
+      <div style={{ marginBottom: 22 }}>
+        <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', letterSpacing: 2, color: 'var(--text-tertiary)', marginBottom: 6 }}>SMART CAMPUS \u00b7 AI CAMERAS (ADD-ON)</div>
+        <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 30, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>Smart Campus</h1>
+        <p style={{ fontSize: 14, color: 'var(--text-secondary)', margin: '6px 0 0', maxWidth: 660 }}>Connect a school\u2019s cameras and Nia becomes the eyes of the campus \u2014 she counts who arrived, recognises learners against their profiles, finds a specific child across cameras, and flags safety incidents (fights, falls, escapes) for the head to confirm. Sold as a premium add-on; the head-only console lives inside each school\u2019s OS.</p>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 12, marginBottom: 16 }}>
+        {feat.map((ft, i) => (
+          <div key={i} style={{ ...card }}>
+            <div style={{ fontSize: 22, marginBottom: 6 }}>{ft[0]}</div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>{ft[1]}</div>
+            <div style={{ fontSize: 12.5, color: 'var(--text-secondary)', marginTop: 4, lineHeight: 1.5 }}>{ft[2]}</div>
+          </div>
+        ))}
+      </div>
+      <div style={{ ...card, marginBottom: 16 }}>
+        <div style={{ ...mono, marginBottom: 6 }}>Suggested pricing</div>
+        <div style={{ fontSize: 13.5, color: 'var(--text-secondary)', lineHeight: 1.7 }}>Premium add-on on top of any plan: <b style={{ color: 'var(--text-primary)' }}>setup fee</b> (cameras + install, billed at cost or with margin) + a <b style={{ color: 'var(--text-primary)' }}>recurring software licence per term</b> (e.g. UGX 600K\u20131.5M depending on camera count), since the AI scene-reading uses paid compute. Face-matching, find-a-learner and headcount run on-device (free to run) \u2014 only the safety scene-reading consumes credits, so price covers that.</div>
+      </div>
+      <div style={{ ...card }}>
+        <div style={{ ...mono, marginBottom: 12 }}>Open a school to set up cameras (head \u2192 Smart Campus)</div>
+        {tenants.length === 0 ? <div style={{ fontSize: 13, color: 'var(--text-tertiary)' }}>No schools found.</div> : tenants.map(t => {
+          const url = '/school/' + encodeURIComponent(t.id);
+          return (
+            <div key={t.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, padding: '11px 0', borderBottom: '1px solid var(--border-subtle)' }}>
+              <div><div style={{ fontSize: 14, color: 'var(--text-primary)', fontWeight: 600 }}>{t.name}</div><div style={{ fontSize: 11, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)' }}>{t.id}{t.vertical ? ' \u00b7 ' + t.vertical : ''}</div></div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <a href={url} target="_blank" rel="noopener" style={{ background: 'var(--mint)', color: '#042', border: 'none', borderRadius: 'var(--radius-sm)', padding: '8px 14px', fontSize: 12.5, fontWeight: 700, textDecoration: 'none' }}>Open school OS \u2192</a>
+                <button onClick={() => { try { navigator.clipboard.writeText(location.origin + url); } catch (e) {} }} style={{ background: 'transparent', border: '1px solid var(--border-subtle)', color: 'var(--text-secondary)', borderRadius: 'var(--radius-sm)', padding: '8px 12px', fontSize: 12, cursor: 'pointer' }}>Copy link</button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <div style={{ ...card, marginTop: 16, fontSize: 12.5, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+        <b style={{ color: 'var(--text-primary)' }}>To run live:</b> the school needs ONVIF IP cameras (Hikvision recommended) with internet-reachable snapshot URLs, learners enrolled at the gate, and the worker\u2019s ANTHROPIC_API_KEY set (for safety scene-reading). Recognition + find-a-learner run on-device. Children\u2019s images are sensitive personal data \u2014 keep parental consent on file and restrict the console to the head.
+      </div>
+    </div>
+  );
+};
+
 const NAV_SECTIONS = [
   { id: 'main', label: 'Main', items: [
     { id: 'dashboard', label: 'Dashboard', icon: 'dashboard' },
@@ -7142,6 +7197,7 @@ const NAV_SECTIONS = [
   ]},
   { id: 'system', label: 'System', items: [
     { id: 'gate', label: 'Gate Kiosk · beta', icon: 'ai' },
+    { id: 'smartcampus', label: 'Smart Campus', icon: 'ai' },
     { id: 'subs', label: 'Subscriptions', icon: 'billing' },
     { id: 'billing', label: 'Finance', icon: 'billing' },
     { id: 'sentinel', label: 'Nia HQ', icon: 'sentinel' },
@@ -7767,6 +7823,8 @@ const AppShell = () => {
         return <AnalyticsPage onNavigate={setActiveTab} />;
       case 'gate':
         return <GatePage onNavigate={setActiveTab} />;
+      case 'smartcampus':
+        return <SmartCampusPage onNavigate={setActiveTab} />;
       case 'subs':
         return <SubscriptionsPage onNavigate={setActiveTab} />;
       case 'ai-tools':
