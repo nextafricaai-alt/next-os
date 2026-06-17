@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#00FC8F" id="nx-theme-color" />
+<title>Pay school fees · NEXT OS</title>
+<style>
+  :root{ --accent:#00FC8F; --accent-dark:#00b366; --bg:#0a1029; --card:#121a3a; --line:rgba(255,255,255,0.10); --ink:#eef1fb; --ink2:#aab2d5; --ink3:#7d86ad; }
+  *{ box-sizing:border-box; }
+  body{ margin:0; background:radial-gradient(1100px 700px at 50% -10%, rgba(0,252,143,0.10), transparent), var(--bg); color:var(--ink); font-family:Inter,system-ui,-apple-system,sans-serif; min-height:100vh; display:flex; align-items:flex-start; justify-content:center; padding:26px 16px 60px; }
+  .wrap{ width:100%; max-width:440px; }
+  .brand{ display:flex; align-items:center; gap:11px; margin-bottom:20px; }
+  .logo{ width:42px; height:42px; border-radius:11px; background:#fff; color:#062b18; display:grid; place-items:center; font-weight:800; overflow:hidden; }
+  .logo img{ width:100%; height:100%; object-fit:cover; }
+  .bname{ font-weight:700; font-size:15px; letter-spacing:.01em; }
+  .bsub{ font-size:11px; color:var(--ink3); font-family:ui-monospace,monospace; letter-spacing:.08em; }
+  .card{ background:var(--card); border:1px solid var(--line); border-radius:16px; padding:20px; margin-bottom:14px; }
+  h1{ font-size:20px; margin:0 0 4px; letter-spacing:-.01em; }
+  p.sub{ color:var(--ink2); font-size:13.5px; margin:0 0 16px; line-height:1.5; }
+  label{ display:block; font-size:11px; color:var(--ink3); font-family:ui-monospace,monospace; letter-spacing:.08em; margin:0 0 6px; text-transform:uppercase; }
+  input{ width:100%; background:var(--bg); border:1px solid var(--line); border-radius:11px; padding:13px 14px; color:var(--ink); font-size:15px; font-family:inherit; outline:none; margin-bottom:14px; }
+  input:focus{ border-color:var(--accent); }
+  button.primary{ width:100%; background:var(--accent); color:#062b18; border:0; border-radius:12px; padding:14px; font-size:15px; font-weight:800; cursor:pointer; font-family:inherit; }
+  button.primary:disabled{ opacity:.55; cursor:default; }
+  button.ghost{ width:100%; background:transparent; color:var(--ink2); border:1px solid var(--line); border-radius:11px; padding:11px; font-size:13.5px; font-weight:600; cursor:pointer; font-family:inherit; margin-top:8px; }
+  .match{ display:flex; align-items:center; gap:11px; padding:12px; border:1px solid var(--line); border-radius:12px; cursor:pointer; margin-bottom:8px; background:var(--bg); }
+  .match:hover{ border-color:var(--accent); }
+  .av{ width:36px; height:36px; border-radius:50%; background:rgba(255,255,255,0.07); display:grid; place-items:center; font-weight:700; font-size:13px; color:var(--ink2); flex-shrink:0; }
+  .mname{ font-weight:600; font-size:14px; }
+  .mmeta{ font-size:12px; color:var(--ink3); }
+  .bal{ margin-left:auto; font-weight:700; font-size:13.5px; white-space:nowrap; }
+  .due{ color:#ff8da3; } .clear{ color:var(--accent); }
+  .err{ color:#ff8da3; font-size:13px; margin:6px 0 0; min-height:16px; }
+  .big{ text-align:center; padding:8px 0 4px; }
+  .big .amt{ font-size:30px; font-weight:800; letter-spacing:-.02em; }
+  .foot{ text-align:center; font-size:11.5px; color:var(--ink3); margin-top:8px; }
+  .ok{ text-align:center; }
+  .ok .tick{ width:58px; height:58px; border-radius:50%; background:rgba(0,252,143,0.14); color:var(--accent); display:grid; place-items:center; font-size:30px; margin:4px auto 12px; }
+  .spin{ display:inline-block; width:16px; height:16px; border:2px solid rgba(6,43,24,0.35); border-top-color:#062b18; border-radius:50%; animation:sp .7s linear infinite; vertical-align:-3px; }
+  @keyframes sp{ to{ transform:rotate(360deg); } }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="brand">
+      <div class="logo" id="logo">●</div>
+      <div><div class="bname" id="bname">NEXT School OS</div><div class="bsub">FEES PAYMENT</div></div>
+    </div>
+    <div id="root"></div>
+    <div class="foot">Secured by Flutterwave · Mobile Money &amp; card · Powered by NEXT OS</div>
+  </div>
+
+<script>
+(function(){
+  var WK='https://nextos-sentinel.nextafricaai.workers.dev';
+  var p=new URLSearchParams(location.search);
+  var slug=p.get('s')||p.get('t')||'';
+  try{ if(!slug) slug=localStorage.getItem('nextos.lastTenant')||''; }catch(e){}
+  var root=document.getElementById('root');
+  var state={ step:'find', q:'', matches:[], child:null, amount:'', phone:'', email:'', busy:false, err:'' };
+  function fmt(n){ return 'UGX ' + (Number(n)||0).toLocaleString(); }
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+
+  // brand
+  if(slug){
+    fetch(WK+'/brand?s='+encodeURIComponent(slug)).then(function(r){return r.ok?r.json():null;}).then(function(b){
+      if(!b) return;
+      if(b.name){ document.getElementById('bname').textContent=b.name; document.title='Pay fees · '+b.name; }
+      if(b.primary_color){ var c=String(b.primary_color); if(c[0]!=='#')c='#'+c; document.documentElement.style.setProperty('--accent',c); document.getElementById('nx-theme-color').setAttribute('content',c); }
+      var lg=document.getElementById('logo');
+      if(b.logo_url){ lg.innerHTML='<img src="'+esc(b.logo_url)+'" alt="">'; } else if(b.name){ lg.textContent=(b.name.trim()[0]||'N').toUpperCase(); }
+    }).catch(function(){});
+  }
+
+  // payment return
+  if(p.get('done')){
+    var tx=p.get('transaction_id')||p.get('tx')||'';
+    var st=(p.get('status')||'').toLowerCase();
+    if(tx && st!=='cancelled' && st!=='failed'){ state.step='verifying'; verify(tx); }
+    else { state.step='cancelled'; }
+  }
+
+  function verify(tx){
+    render();
+    fetch(WK+'/fees/verify?tx='+encodeURIComponent(tx)+'&tenant='+encodeURIComponent(slug)).then(function(r){return r.json();}).then(function(res){
+      if(res && res.ok){ state.step='done'; state.result=res; }
+      else { state.step='pending'; }
+      render();
+    }).catch(function(){ state.step='pending'; render(); });
+  }
+
+  function find(){
+    state.busy=true; state.err=''; render();
+    fetch(WK+'/fees/lookup?tenant='+encodeURIComponent(slug)+'&q='+encodeURIComponent(state.q.trim())).then(function(r){return r.json();}).then(function(d){
+      state.busy=false; state.matches=(d&&d.matches)||[];
+      if(!state.matches.length) state.err='No learner found by that name. Check the spelling, or ask the school office.';
+      render();
+    }).catch(function(){ state.busy=false; state.err='Could not search right now. Try again.'; render(); });
+  }
+
+  function pay(){
+    var amt=Math.round(Number(state.amount)||0);
+    if(!(amt>0)){ state.err='Enter an amount to pay.'; render(); return; }
+    state.busy=true; state.err=''; render();
+    fetch(WK+'/fees/checkout',{ method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ tenant:slug, studentId:state.child.id, amount:amt, phone:state.phone, email:state.email }) })
+      .then(function(r){return r.json();}).then(function(res){
+        if(res && res.link){ window.location.href=res.link; }
+        else { state.busy=false; state.err=(res&&res.error)||'Could not start the payment.'; render(); }
+      }).catch(function(){ state.busy=false; state.err='Could not start the payment. Try again.'; render(); });
+  }
+
+  function render(){
+    var h='';
+    if(state.step==='find'){
+      h+='<div class="card"><h1>Pay school fees</h1><p class="sub">Find your child, then pay by Mobile Money or card. The school’s records update automatically.</p>';
+      h+='<label>Child’s full name</label>';
+      h+='<input id="q" placeholder="e.g. Mirembe Nakato" value="'+esc(state.q)+'" />';
+      h+='<button class="primary" id="findBtn"'+(state.busy?' disabled':'')+'>'+(state.busy?'<span class="spin"></span> Searching…':'Find my child')+'</button>';
+      h+='<div class="err">'+esc(state.err)+'</div>';
+      if(state.matches.length){ h+='<div style="margin-top:6px">'; state.matches.forEach(function(m,i){
+        h+='<div class="match" data-i="'+i+'"><div class="av">'+esc((m.name||'?').split(" ").map(function(w){return w[0];}).slice(0,2).join(""))+'</div>'
+          +'<div><div class="mname">'+esc(m.name)+'</div><div class="mmeta">'+esc(m.stream||'—')+(m.guardian?(' · '+esc(m.guardian)):'')+'</div></div>'
+          +'<div class="bal '+(m.balance>0?'due':'clear')+'">'+(m.balance>0?fmt(m.balance):'Paid up')+'</div></div>';
+      }); h+='</div>'; }
+      h+='</div>';
+    } else if(state.step==='amount'){
+      var c=state.child;
+      h+='<div class="card"><h1>'+esc(c.name)+'</h1><p class="sub">'+esc(c.stream||'')+(c.balance>0?(' · balance '+fmt(c.balance)):' · fully paid')+'</p>';
+      h+='<label>Amount to pay (UGX)</label><input id="amt" inputmode="numeric" placeholder="'+(c.balance>0?c.balance:'50000')+'" value="'+esc(state.amount)+'" />';
+      h+='<label>Your phone (for the receipt)</label><input id="ph" inputmode="tel" placeholder="07xx xxx xxx" value="'+esc(state.phone)+'" />';
+      h+='<label>Email (optional)</label><input id="em" placeholder="you@email.com" value="'+esc(state.email)+'" />';
+      h+='<button class="primary" id="payBtn"'+(state.busy?' disabled':'')+'>'+(state.busy?'<span class="spin"></span> Opening payment…':'Pay '+ (Number(state.amount)>0?fmt(state.amount):'now'))+'</button>';
+      h+='<div class="err">'+esc(state.err)+'</div>';
+      h+='<button class="ghost" id="back">← Choose a different child</button></div>';
+    } else if(state.step==='verifying'){
+      h+='<div class="card ok"><div class="spin" style="width:30px;height:30px;border-width:3px;margin:10px auto"></div><h1>Confirming your payment…</h1><p class="sub">One moment — we’re updating the school’s records.</p></div>';
+    } else if(state.step==='done'){
+      var r=state.result||{};
+      h+='<div class="card ok"><div class="tick">✓</div><h1>Payment received</h1>'
+        +'<p class="sub">Thank you. '+esc(r.student_name||'Your child')+'’s fees have been updated at the school instantly.</p>'
+        +'<div class="big"><div class="amt">'+fmt(r.amount)+'</div></div>'
+        +(r.balance_after!=null?('<p class="sub" style="text-align:center">Remaining balance: <b>'+fmt(r.balance_after)+'</b></p>'):'')
+        +(r.receipt_no?('<p class="sub" style="text-align:center">Receipt '+esc(r.receipt_no)+'</p>'):'')
+        +'<button class="ghost" id="again">Pay for another child</button></div>';
+    } else if(state.step==='pending'){
+      h+='<div class="card ok"><h1>Payment processing</h1><p class="sub">If money left your account, the school will see it shortly. You can close this page — the receipt will follow.</p><button class="ghost" id="again">Back to start</button></div>';
+    } else if(state.step==='cancelled'){
+      h+='<div class="card ok"><h1>Payment not completed</h1><p class="sub">No money was taken. You can try again whenever you’re ready.</p><button class="primary" id="again">Try again</button></div>';
+    }
+    root.innerHTML=h;
+    var fb=document.getElementById('findBtn'); if(fb) fb.onclick=function(){ var q=document.getElementById('q'); state.q=q?q.value:''; if(state.q.trim().length<2){ state.err='Type at least 2 letters of the name.'; render(); return; } find(); };
+    var qi=document.getElementById('q'); if(qi){ qi.oninput=function(){ state.q=qi.value; }; qi.onkeydown=function(e){ if(e.key==='Enter'){ if(fb) fb.click(); } }; }
+    Array.prototype.forEach.call(document.querySelectorAll('.match'),function(el){ el.onclick=function(){ state.child=state.matches[+el.getAttribute('data-i')]; state.amount=state.child.balance>0?String(state.child.balance):''; state.err=''; state.step='amount'; render(); }; });
+    var amt=document.getElementById('amt'); if(amt) amt.oninput=function(){ state.amount=amt.value.replace(/[^0-9]/g,''); };
+    var ph=document.getElementById('ph'); if(ph) ph.oninput=function(){ state.phone=ph.value; };
+    var em=document.getElementById('em'); if(em) em.oninput=function(){ state.email=em.value; };
+    var pb=document.getElementById('payBtn'); if(pb) pb.onclick=pay;
+    var bk=document.getElementById('back'); if(bk) bk.onclick=function(){ state.step='find'; state.err=''; render(); };
+    var ag=document.getElementById('again'); if(ag) ag.onclick=function(){ location.href='/pay.html?s='+encodeURIComponent(slug); };
+  }
+  render();
+})();
+</script>
+</body>
+</html>

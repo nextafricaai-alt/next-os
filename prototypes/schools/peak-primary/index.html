@@ -234,7 +234,7 @@
     <div style="min-height:100vh;display:grid;place-items:center;color:#8a91b0;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px;letter-spacing:0.08em;">
       <div style="text-align:center">
         <div id="nx-loading-text">LOADING · NEXT SCHOOL OS</div>
-        <div style="margin-top:12px;font-size:10px;opacity:0.5">build b98</div>
+        <div style="margin-top:12px;font-size:10px;opacity:0.5">build b99</div>
       </div>
     </div>
   </div>
@@ -5145,6 +5145,7 @@ const PD_Fees = (function () {
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 <button onClick={() => window.peakModal && window.peakModal.open(React.createElement(window.PEAK_FORMS.FeesImport))} style={{ border: '1px solid ' + T.borderStr, background: 'transparent', color: T.ink2, padding: '8px 14px', borderRadius: 9, fontSize: 12.5, cursor: 'pointer' }}>Import fees</button>
                 <button onClick={() => window.peakModal && window.peakModal.open(React.createElement(window.PEAK_FORMS.Receipts))} style={{ border: '1px solid ' + T.borderStr, background: 'transparent', color: T.ink2, padding: '8px 14px', borderRadius: 9, fontSize: 12.5, cursor: 'pointer' }}>Receipts</button>
+                <button onClick={() => { const link = location.origin + '/pay.html?s=' + encodeURIComponent(tenant); const nm = (window.__BRAND_NAME) || 'our school'; const txt = 'Pay ' + nm + ' school fees securely (Mobile Money or card): ' + link; if (navigator.share) { navigator.share({ title: nm + ' — pay fees', text: txt, url: link }).catch(() => {}); } else { try { navigator.clipboard.writeText(link); window.peakToast && window.peakToast('Parent payment link copied', 'success', 'Share it with parents — payments auto-update here.'); } catch (e) { window.peakToast && window.peakToast('Parent link', 'info', link); } } }} style={{ border: '1px solid ' + (T.green || '#00c389'), background: 'transparent', color: (T.green || '#00c389'), padding: '8px 14px', borderRadius: 9, fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }}>⤤ Parent payment link</button>
                 <button onClick={() => recordPay(null)} style={{ border: 'none', background: T.red, color: '#fff', padding: '9px 16px', borderRadius: 9, fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }}>+ Record payment</button>
               </div>
             </div>
