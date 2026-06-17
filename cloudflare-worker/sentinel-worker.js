@@ -1877,7 +1877,7 @@ async function handleCameraAnalyze(request, env, cors) {
     const label = ({ fight: 'Possible fight', fall_injury: 'A child may be hurt', escape_perimeter: 'Possible escape at the perimeter', overcrowding: 'Dangerous crowding' })[top.type] || 'Campus safety flag';
     try { await deliverPush(env, tenant, [], 'head', { title: 'Nia (campus): ' + label, body: (cameraName + (zone ? ' · ' + zone : '') + ' — ' + (top.detail || parsed.summary || '') + ' Tap to review and confirm.').slice(0, 180), url: '/', tag: 'campus-' + top.type + '-' + Date.now(), urgent: true }); } catch (e) {}
   }
-  return J({ ok: true, analysis: parsed, incidents: serious.length, at: at });
+  return J({ ok: true, analysis: parsed, incidents: serious.length, at: at, frame: b.returnFrame ? ('data:' + media + ';base64,' + data) : undefined });
 }
 
 async function handleExamScanMark(request, env, cors) {
