@@ -697,6 +697,11 @@ async function probeSite(siteUrl, domain) {
     try {
       const r = await fetch(siteUrl, { method: 'GET', redirect: 'follow', headers: { 'User-Agent': 'NextOS-Sentinel/1.0' } });
       out.status = r.status; out.up = (r.status >= 200 && r.status < 500); out.ms = Date.now() - t0;
+      try {
+        const host = (function(){ try { return new URL(siteUrl).hostname.replace(/^www\./,''); } catch(e){ return ''; } })();
+        const isNextHost = /(^|\.)nextafrica\.ai$/i.test(host) || host.indexOf('nextos') === 0;
+        if (!isNextHost && out.up) { const body = (await r.text()).slice(0, 4000); if (/NEXT Digital OS|apple-mobile-web-app-title"\s*content="NEXT OS|<title>\s*NEXT (Digital )?OS/i.test(body)) out.wrongSite = true; }
+      } catch (e) {}
     } catch (e) { out.up = false; out.ms = Date.now() - t0; out.error = String((e && e.message) || e); }
   }
   if (domain) {
@@ -719,6 +724,7 @@ async function watchSites(env) {
     const nm = sct.name || sct.domain || sct.url;
     results.push(Object.assign({ name: nm }, probe));
     if (probe.up === false) concerns.push({ tenantId: '_site', name: nm, type: 'site_down', severity: 'warn', summary: nm + ' looks DOWN (' + (probe.status ? ('HTTP ' + probe.status) : 'no response') + ').' });
+    if (probe.wrongSite) concerns.push({ tenantId: '_site', name: nm, type: 'wrong_site', severity: 'warn', summary: nm + ' is serving the NEXT OS app instead of its own website — its document root is misconfigured.' });
     if (probe.daysLeft != null && probe.daysLeft <= 30) concerns.push({ tenantId: '_site', name: nm, type: 'domain_expiring', severity: probe.daysLeft <= 7 ? 'warn' : 'info', summary: (sct.domain || nm) + ' domain renews in ' + probe.daysLeft + ' day' + (probe.daysLeft === 1 ? '' : 's') + (probe.expiry ? (' (' + probe.expiry + ')') : '') + '.' });
   }
   try {
@@ -887,7 +893,7 @@ async function runSupervise(env, kind) {
 
   // Push to Hudson's phone (lock-screen) when there are real concerns or it's a scheduled brief.
   try {
-    const urgent = (siteConcerns || []).filter(c => c.type === 'site_down' || (c.type === 'domain_expiring' && c.severity === 'warn'));
+    const urgent = (siteConcerns || []).filter(c => c.type === 'site_down' || c.type === 'wrong_site' || (c.type === 'domain_expiring' && c.severity === 'warn'));
     let title = 'Nia · ' + (kind === 'morning' ? 'Morning brief' : kind === 'weekly' ? 'Weekly brief' : 'Update');
     let body = '';
     if (urgent.length) { title = 'Nia · needs your eye'; body = urgent[0].summary + (urgent.length > 1 ? (' (+' + (urgent.length - 1) + ' more)') : ''); }
@@ -2512,6 +2518,18 @@ async function handleCheckProject(target, domain, cors) {
       if (res.status >= 500) out.alerts.push({ type: 'critical', msg: 'Site returning ' + res.status + ' server error' });
       else if (res.status >= 400) out.alerts.push({ type: 'warning', msg: 'Site returning HTTP ' + res.status });
       else if (out.ms > 4000) out.alerts.push({ type: 'warning', msg: 'Slow response (' + out.ms + 'ms)' });
+      // Wrong-site detection: is this domain accidentally serving the NEXT OS app instead of its own website?
+      try {
+        const host = (function(){ try { return new URL(target).hostname.replace(/^www\./,''); } catch(e){ return ''; } })();
+        const isNextHost = /(^|\.)nextafrica\.ai$/i.test(host) || host.indexOf('nextos') === 0;
+        if (!isNextHost && res.status < 400) {
+          const body = (await res.text()).slice(0, 4000);
+          if (/NEXT Digital OS|apple-mobile-web-app-title"\s*content="NEXT OS|<title>\s*NEXT (Digital )?OS/i.test(body)) {
+            out.wrongSite = true;
+            out.alerts.push({ type: 'critical', msg: 'This domain is serving the NEXT OS app, not its own website — the document root is misconfigured (it was overwritten/shadowed).' });
+          }
+        }
+      } catch (e) {}
     } catch (e) { out.up = false; out.alerts.push({ type: 'critical', msg: 'Site unreachable: ' + String((e && e.message) || e).slice(0, 90) }); }
   }
   let dom = domain;
