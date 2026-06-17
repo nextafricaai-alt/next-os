@@ -234,7 +234,7 @@
     <div style="min-height:100vh;display:grid;place-items:center;color:#8a91b0;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px;letter-spacing:0.08em;">
       <div style="text-align:center">
         <div id="nx-loading-text">LOADING · NEXT SCHOOL OS</div>
-        <div style="margin-top:12px;font-size:10px;opacity:0.5">build b102</div>
+        <div style="margin-top:12px;font-size:10px;opacity:0.5">build b103</div>
       </div>
     </div>
   </div>
@@ -1247,6 +1247,15 @@
 
     const [statuses, setStatuses] = useState(initialStatuses);
     const [saving, setSaving] = useState(false);
+    // School attendance (the gate) seeds the register: a learner who never passed the gate is pre-marked ABSENT — the teacher just confirms.
+    const [gateIds, setGateIds] = useState(null);
+    useEffect(() => { fetch('https://nextos-sentinel.nextafricaai.workers.dev/attendance/today?tenant=' + encodeURIComponent((profile && profile.tenantId) || _tid)).then(r => r.json()).then(d => { const set = {}; ((d && d.gate) || []).forEach(id => { set[id] = 1; }); setGateIds(set); }).catch(() => setGateIds({})); }, []);
+    useEffect(() => {
+      if (!gateIds) return;
+      setStatuses(prev => { const next = Object.assign({}, prev); streamStudents.forEach(s => { const existing = existingRollCalls.find(rc => rc.student_id === s.id); if (!existing) next[s.id] = gateIds[s.id] ? 'present' : 'absent'; }); return next; });
+    }, [gateIds, streamStudents, existingRollCalls]);
+    const gateSeen = gateIds ? streamStudents.filter(s => gateIds[s.id]).length : null;
+    const notAtGate = gateIds ? streamStudents.length - gateSeen : null;
     // Timetable time-gate: only allow this class's roll call during its scheduled period.
     const _prof = profile || (window.PEAK_ROLE && window.PEAK_ROLE.getProfile && window.PEAK_ROLE.getProfile()) || {};
     const _email = ((_prof && _prof.email) || '').toLowerCase();
@@ -1335,6 +1344,14 @@
           <span><span style={{ color: T.blue }}>● {counts.excused}</span> excused</span>
           <span style={{ marginLeft: 'auto', color: T.ink3 }}>{streamStudents.length} students</span>
         </div>
+
+        {gateIds && notAtGate > 0 ? (
+          <div style={{ padding: '11px 13px', background: 'rgba(226,58,82,0.10)', border: '1px solid ' + T.red, borderRadius: 10, marginBottom: 14, fontSize: 12.5, color: T.ink2, lineHeight: 1.55 }}>
+            <b style={{ color: T.ink }}>{notAtGate}</b> of {streamStudents.length} did not pass the gate today — they are pre-marked <b style={{ color: T.red }}>absent</b>. {gateSeen} arrived at school. Confirm below: if a learner is here but skipped the gate, switch them to present.
+          </div>
+        ) : (gateIds && gateSeen === streamStudents.length && streamStudents.length > 0 ? (
+          <div style={{ padding: '11px 13px', background: 'rgba(0,195,137,0.10)', border: '1px solid ' + (T.green || '#00c389'), borderRadius: 10, marginBottom: 14, fontSize: 12.5, color: T.ink2 }}>All {streamStudents.length} passed the gate today — pre-marked present. Mark anyone who isn't physically in class.</div>
+        ) : null)}
 
         {streamStudents.length === 0 ? (
           <Empty text={`No students seeded for ${stream} yet.`} />
@@ -5955,6 +5972,8 @@ window.PEAK_SCREENS = (function () {
   // ═════════════════════════════════════════════════════════════════════════
   function Attendance({ store }) {
     const [streamId, setStreamId] = useState('P5V');
+    const [att, setAtt] = useState(null);
+    React.useEffect(() => { const tid = (window.PEAK_ROLE && window.PEAK_ROLE.getProfile && window.PEAK_ROLE.getProfile().tenantId) || 'peak-primary'; fetch('https://nextos-sentinel.nextafricaai.workers.dev/attendance/today?tenant=' + encodeURIComponent(tid)).then(r => r.json()).then(setAtt).catch(() => {}); }, []);
     const streamRoster = useMemo(() => D.students.filter(s => s.stream === streamId), [streamId]);
     // local register state — initialized as everyone-present
     const [marks, setMarks] = useState(() => {
@@ -6013,38 +6032,36 @@ window.PEAK_SCREENS = (function () {
           }
         />
 
-        {/* school-wide bar */}
+        {/* school + class attendance — two real gauges */}
         <div style={{ padding: '18px 28px 0' }}>
           <Card pad={18} style={{ marginBottom: 14 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-              <div>
-                <div style={{ fontSize: 11, color: T.ink3, fontFamily: T.mono, letterSpacing: '0.08em', fontWeight: 600 }}>SCHOOL-WIDE · TODAY</div>
-                <div style={{ fontSize: 28, fontWeight: 700, color: T.ink, marginTop: 4, fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.02em' }}>
-                  793 <span style={{ fontSize: 16, color: T.ink3, fontWeight: 600 }}>of 842 marked · 94.2%</span>
-                </div>
+            <div style={{ fontSize: 11, color: T.ink3, fontFamily: T.mono, letterSpacing: '0.08em', fontWeight: 600, marginBottom: 14 }}>TODAY · SCHOOL vs CLASS ATTENDANCE</div>
+            {!att ? <div style={{ color: T.ink3, fontSize: 13 }}>Loading today\u2019s attendance\u2026</div> : (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
+                {[['At school · the gate', att.gateCount || 0, (T.green || '#00c389'), 'passed through the gate today'], ['In class · roll call', att.classCount || 0, '#5b8def', 'marked present by a teacher']].map((g, i) => {
+                  const pct = att.total > 0 ? Math.round(g[1] / att.total * 100) : 0;
+                  return (
+                    <div key={i} style={{ background: T.surface2, border: '1px solid ' + T.border, borderRadius: 12, padding: 16 }}>
+                      <div style={{ fontSize: 12, color: T.ink3 }}>{g[0]}</div>
+                      <div style={{ fontSize: 26, fontWeight: 700, color: g[2], marginTop: 4, fontVariantNumeric: 'tabular-nums' }}>{g[1]} <span style={{ fontSize: 14, color: T.ink3, fontWeight: 600 }}>of {att.total} \u00b7 {pct}%</span></div>
+                      <div style={{ height: 8, background: T.surface3, borderRadius: 4, overflow: 'hidden', marginTop: 10 }}><div style={{ height: '100%', width: pct + '%', background: g[2] }} /></div>
+                      <div style={{ fontSize: 11, color: T.ink4, marginTop: 6 }}>{g[3]}</div>
+                    </div>
+                  );
+                })}
               </div>
-              <Pill tone="good">▲ +2.4 vs avg</Pill>
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(14, 1fr)', gap: 4 }}>
-              {D.streams.map(s => {
-                const pct = D.streamAttendance[s.id] || 90;
-                const isCur = s.id === streamId;
-                const tone = pct >= 95 ? T.good : pct >= 88 ? T.warn : T.red;
-                return (
-                  <button key={s.id} onClick={() => setStreamId(s.id)} style={{
-                    padding: '8px 4px', borderRadius: 8,
-                    background: isCur ? T.surface3 : T.surface2,
-                    border: '1px solid ' + (isCur ? T.navyLite : T.border),
-                    color: T.ink, cursor: 'pointer', textAlign: 'center',
-                    fontFamily: T.font,
-                  }}>
-                    <div style={{ fontSize: 10.5, fontFamily: T.mono, color: T.ink3, fontWeight: 600 }}>{s.id}</div>
-                    <div style={{ fontSize: 16, fontWeight: 700, color: tone, marginTop: 2, fontVariantNumeric: 'tabular-nums' }}>{pct}%</div>
-                  </button>
-                );
-              })}
-            </div>
+            )}
+            {att && att.dodgingCount > 0 ? (
+              <div style={{ marginTop: 14, padding: '11px 13px', background: 'rgba(216,162,0,0.12)', border: '1px solid ' + (T.gold || '#d8a200'), borderRadius: 10, fontSize: 12.5, color: T.ink2, lineHeight: 1.55 }}>
+                <b style={{ color: T.ink }}>{att.dodgingCount}</b> learner{att.dodgingCount === 1 ? '' : 's'} passed the gate but {att.dodgingCount === 1 ? 'is' : 'are'} not marked present in any class \u2014 possible class-skipping. Worth a check.
+              </div>
+            ) : null}
           </Card>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4, marginBottom: 14 }}>
+            {D.streams.map(st => { const isCur = st.id === streamId; return (
+              <button key={st.id} onClick={() => setStreamId(st.id)} style={{ padding: '8px 4px', borderRadius: 8, background: isCur ? T.surface3 : T.surface2, border: '1px solid ' + (isCur ? T.navyLite : T.border), color: T.ink, cursor: 'pointer', textAlign: 'center', fontFamily: T.mono, fontSize: 11 }}>{st.id}</button>
+            ); })}
+          </div>
         </div>
 
         {/* register table */}
