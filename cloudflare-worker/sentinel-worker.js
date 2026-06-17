@@ -392,6 +392,8 @@ export default {
     if (url.pathname === '/events/save')        return handleEventSave(request, env, cors);
     if (url.pathname === '/finance')            return handleFinanceList(url.searchParams.get('tenant') || '', env, cors);
     if (url.pathname === '/finance/save')       return handleFinanceSave(request, env, cors);
+    if (url.pathname === '/finance/update')     return handleFinanceUpdate(request, env, cors);
+    if (url.pathname === '/finance/delete')     return handleFinanceDelete(request, env, cors);
     if (url.pathname === '/assets')             return handleAssetsList(url.searchParams.get('tenant') || '', env, cors);
     if (url.pathname === '/assets/save')        return handleAssetSave(request, env, cors);
     if (url.pathname === '/school-config')      return handleConfigGet(url.searchParams.get('tenant') || '', env, cors);
@@ -2001,6 +2003,32 @@ async function handleFinanceSave(request, env, cors) {
   if (!tenant || !t.kind || !(Number(t.amount) > 0)) return J({ error: 'tenant_id, kind and amount required' }, 400);
   const row = { tenant_id: tenant, kind: t.kind, category: t.category || 'other', description: (t.description || '').slice(0, 200), amount: Number(t.amount), method: t.method || null, occurred_at: t.occurred_at || new Date().toISOString().slice(0, 10), created_by: t.created_by || null };
   try { const r = await fetch(env.SUPABASE_URL + '/rest/v1/school_finance', { method: 'POST', headers: sbHeaders(env, 'return=representation'), body: JSON.stringify(row) }); const d = await r.json(); return J({ ok: true, txn: (d && d[0]) || row }); }
+  catch (x) { return J({ error: String((x && x.message) || x) }, 200); }
+}
+async function handleFinanceUpdate(request, env, cors) {
+  const J = (oo, st) => new Response(JSON.stringify(oo), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
+  if (!env.SUPABASE_URL || !env.SUPABASE_KEY) return J({ error: 'Supabase not configured.' }, 500);
+  let b; try { b = await request.json(); } catch (e) { return J({ error: 'bad body' }, 400); }
+  const tenant = String(b.tenant_id || '').trim(); const id = String(b.id || '').trim();
+  const t = b.txn || b;
+  if (!tenant || !id) return J({ error: 'tenant_id and id required' }, 400);
+  const patch = {};
+  if (t.category != null) patch.category = t.category;
+  if (t.description != null) patch.description = String(t.description).slice(0, 200);
+  if (t.amount != null && Number(t.amount) > 0) patch.amount = Number(t.amount);
+  if (t.method != null) patch.method = t.method;
+  if (t.occurred_at != null) patch.occurred_at = t.occurred_at;
+  if (t.kind != null) patch.kind = t.kind;
+  try { const r = await fetch(env.SUPABASE_URL + '/rest/v1/school_finance?id=eq.' + encodeURIComponent(id) + '&tenant_id=eq.' + encodeURIComponent(tenant), { method: 'PATCH', headers: sbHeaders(env, 'return=representation'), body: JSON.stringify(patch) }); const d = await r.json(); return J({ ok: true, txn: (Array.isArray(d) && d[0]) || patch }); }
+  catch (x) { return J({ error: String((x && x.message) || x) }, 200); }
+}
+async function handleFinanceDelete(request, env, cors) {
+  const J = (oo, st) => new Response(JSON.stringify(oo), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
+  if (!env.SUPABASE_URL || !env.SUPABASE_KEY) return J({ error: 'Supabase not configured.' }, 500);
+  let b; try { b = await request.json(); } catch (e) { return J({ error: 'bad body' }, 400); }
+  const tenant = String(b.tenant_id || '').trim(); const id = String(b.id || '').trim();
+  if (!tenant || !id) return J({ error: 'tenant_id and id required' }, 400);
+  try { await fetch(env.SUPABASE_URL + '/rest/v1/school_finance?id=eq.' + encodeURIComponent(id) + '&tenant_id=eq.' + encodeURIComponent(tenant), { method: 'DELETE', headers: sbHeaders(env, 'return=minimal') }); return J({ ok: true, deleted: id }); }
   catch (x) { return J({ error: String((x && x.message) || x) }, 200); }
 }
 async function handleAssetsList(tenant, env, cors) {
