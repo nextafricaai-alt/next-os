@@ -243,7 +243,7 @@ export default {
     }
 
     // GET-allowed routes (read-only endpoints live below this gate)
-    const GET_OK = ['/check-project', '/seo-audit', '/px.js', '/analytics', '/gsc', '/ga4', '/fetch-page', '/site-pages', '/cms/collections', '/cms/items', '/students', '/exams', '/exam-results', '/fees-balances', '/attendance-summary', '/staff-status', '/attendance-watch', '/lessons-remind', '/student-health', '/billing/verify', '/billing/subscriptions', '/health', '/events', '/finance', '/assets', '/school-config', '/os-data', '/teachers', '/hosting-report', '/watch/status', '/push/vapid-public', '/push/debug'];
+    const GET_OK = ['/check-project', '/seo-audit', '/px.js', '/analytics', '/gsc', '/ga4', '/fetch-page', '/site-pages', '/cms/collections', '/cms/items', '/students', '/exams', '/exam-results', '/fees-balances', '/attendance-summary', '/staff-status', '/attendance-watch', '/lessons-remind', '/watch/deploy-check', '/student-health', '/billing/verify', '/billing/subscriptions', '/health', '/events', '/finance', '/assets', '/school-config', '/os-data', '/teachers', '/hosting-report', '/watch/status', '/push/vapid-public', '/push/debug'];
     if (request.method !== 'POST' && !GET_OK.includes(url.pathname)) {
       return new Response('Method not allowed', { status: 405, headers: cors });
     }
@@ -385,6 +385,8 @@ export default {
     if (url.pathname === '/staff-status')       return handleStaffStatus(url.searchParams.get('tenant') || '', env, cors);
     if (url.pathname === '/attendance-watch')   return handleAttendanceWatch(url.searchParams.get('tenant') || '', env, cors);
     if (url.pathname === '/lessons-remind')     return handleLessonRemind(url.searchParams.get('tenant') || '', env, cors);
+    if (url.pathname === '/watch/signal' && request.method === 'POST') return handleWatchSignal(request, env, cors);
+    if (url.pathname === '/watch/deploy-check') return (async()=>{ const J=(o,st)=>new Response(JSON.stringify(o),{status:st||200,headers:{...cors,'Content-Type':'application/json'}}); return J(await checkDeployFresh(env)); })();
     if (url.pathname === '/student-health')     return handleStudentHealth(url.searchParams.get('tenant') || '', env, cors);
     if (url.pathname === '/events')             return handleEventsList(url.searchParams.get('tenant') || '', env, cors);
     if (url.pathname === '/events/save')        return handleEventSave(request, env, cors);
@@ -1547,6 +1549,31 @@ async function handleFeesImport(request, env, cors) {
 const PLAN_PRICES = { foundation: 400000, momentum: 1200000, mastery: 3000000 }; // UGX / term
 const PLAN_NAME = { foundation: 'Foundation', momentum: 'Momentum', mastery: 'Mastery' };
 
+const NX_SITE = 'https://nextos.nextafrica.ai';
+function _buildNum(txt){ const m = String(txt||'').match(/b(\d+)/i); return m ? parseInt(m[1],10) : null; }
+// Detects the exact bug Hudson hit: the live server serving STALE files (one school's brand on another, old login),
+// by comparing the build the page reports against the build.txt the server hands out. Mismatch = stale cache/deploy.
+async function checkDeployFresh(env){
+  const out = { ok:true, indexBuild:null, fileBuild:null, mismatch:false, detail:'' };
+  try {
+    const [a,b] = await Promise.all([
+      fetch(NX_SITE + '/school/bare-foot', { cf:{ cacheTtl:0 } }).then(r=>r.text()).catch(()=>''),
+      fetch(NX_SITE + '/build.txt', { cf:{ cacheTtl:0 } }).then(r=>r.text()).catch(()=>'')
+    ]);
+    out.indexBuild = _buildNum(a);
+    out.fileBuild  = _buildNum(b);
+    if (out.indexBuild!=null && out.fileBuild!=null && out.indexBuild !== out.fileBuild){
+      out.ok=false; out.mismatch=true;
+      out.detail = 'Live site out of sync: page is b'+out.indexBuild+' but build.txt is b'+out.fileBuild+' — stale cache/deploy.';
+    } else if (out.indexBuild==null && out.fileBuild==null){
+      out.detail='could not read build markers';
+    } else {
+      out.detail='in sync (b'+(out.indexBuild!=null?out.indexBuild:out.fileBuild)+')';
+    }
+  } catch(e){ out.detail = String(e&&e.message||e).slice(0,80); }
+  return out;
+}
+
 async function computeHealth(env) {
   const checks = [];
   checks.push({ name: 'Worker', status: 'ok', detail: 'responding' });
@@ -1560,6 +1587,7 @@ async function computeHealth(env) {
   let jwkOk = false; try { const j = JSON.parse(env.VAPID_JWK || '{}'); jwkOk = !!(j && j.d); } catch (e) {}
   checks.push({ name: 'Push notifications', status: (env.VAPID_PUBLIC && jwkOk) ? 'ok' : 'warn', detail: (env.VAPID_PUBLIC && jwkOk) ? 'configured' : 'VAPID keys missing' });
   checks.push({ name: 'Billing', status: env.FLW_SECRET_KEY ? 'ok' : 'warn', detail: env.FLW_SECRET_KEY ? 'Flutterwave connected' : 'not connected' });
+  try { const df = await checkDeployFresh(env); checks.push({ name: 'Live site', status: df.mismatch ? 'warn' : 'ok', detail: df.detail || 'ok' }); } catch (e) {}
   const worst = checks.some(c => c.status === 'down') ? 'down' : checks.some(c => c.status === 'warn') ? 'warn' : 'ok';
   return { ok: worst !== 'down', status: worst, checks: checks };
 }
@@ -1571,6 +1599,18 @@ async function handleHealth(env, cors) {
 // Cron heartbeat: alert the operator only when health CHANGES (down / recovered) — never spam.
 async function runHealthHeartbeat(env) {
   const h = await computeHealth(env);
+  // Deploy-freshness: nudge the operator when the live site serves stale files (the wrong-brand/old-login bug).
+  try {
+    const live = h.checks.find(c => c.name === 'Live site');
+    if (live && live.status === 'warn') {
+      let prevStale = false;
+      try { const pr = await sbFetch(env, '/os_records?tenant=eq.next&kind=eq.deploy_state&select=id,payload&order=created_at.desc&limit=1'); if (pr && pr[0]) prevStale = !!(pr[0].payload && pr[0].payload.stale); } catch (e) {}
+      if (!prevStale) { try { await deliverPush(env, 'next', [], 'operator', { title: 'Nia: site serving an old version', body: live.detail + ' Purge the cache so users get the latest.', url: '/', tag: 'deploy-stale' }); } catch (e) {} }
+      try { await sbWrite(env, '/os_records', { tenant: 'next', kind: 'deploy_state', payload: { stale: true, detail: live.detail, at: new Date().toISOString() } }, 'POST', 'return=minimal'); } catch (e) {}
+    } else if (live && live.status === 'ok') {
+      try { await sbWrite(env, '/os_records', { tenant: 'next', kind: 'deploy_state', payload: { stale: false, at: new Date().toISOString() } }, 'POST', 'return=minimal'); } catch (e) {}
+    }
+  } catch (e) {}
   let prev = null, prevId = null;
   try { const rows = await sbFetch(env, '/os_records?tenant=eq.next&kind=eq.health_state&select=id,payload&order=created_at.desc&limit=1'); if (rows && rows[0]) { prev = (rows[0].payload || {}).status; prevId = rows[0].id; } } catch (e) {}
   if (h.status === 'down' && prev !== 'down') {
@@ -1940,6 +1980,35 @@ async function handleLessonRemind(tenant, env, cors) {
     if (tenant) return J(await remindTenantLessons(env, tenant));
     return J(await runLessonReminders(env));
   } catch (e) { return J({ error: String((e && e.message) || e) }, 200); }
+}
+
+// Nia's on-guard signal intake. The OS/login pages call this when they notice something off —
+// e.g. they are branded for one school but opened in another's context. Records it for Nia's Watch
+// and nudges the head + operator (deduped, so no spam).
+async function handleWatchSignal(request, env, cors) {
+  const J = (oo, st) => new Response(JSON.stringify(oo), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
+  let b; try { b = await request.json(); } catch (e) { return J({ error: 'bad body' }, 400); }
+  const tenant = String(b.tenant || 'next').trim();
+  const type = String(b.type || 'note').trim().slice(0, 40);
+  const detail = String(b.detail || '').slice(0, 300);
+  const page = String(b.page || '').slice(0, 200);
+  const severity = (b.severity === 'high' || b.severity === 'low') ? b.severity : 'med';
+  if (!env.SUPABASE_URL || !env.SUPABASE_KEY) return J({ ok: false, error: 'db not configured' }, 200);
+  // Dedup: same tenant+type within 6h -> just record, don't re-alert.
+  let recent = [];
+  try { recent = await sbFetch(env, '/os_records?tenant=eq.' + encodeURIComponent(tenant) + "&kind=eq.watch_signal&select=payload,created_at&order=created_at.desc&limit=20"); } catch (e) {}
+  const since = Date.now() - 6 * 3600000;
+  const dupe = (recent || []).some(r => r.payload && r.payload.type === type && new Date(r.created_at).getTime() > since);
+  try { await sbWrite(env, '/os_records', { tenant: tenant, kind: 'watch_signal', payload: { type: type, detail: detail, page: page, severity: severity, at: new Date().toISOString() } }, 'POST', 'return=minimal'); } catch (e) {}
+  let pushed = 0;
+  if (!dupe && severity !== 'low') {
+    const friendly = type === 'brand_mismatch'
+      ? { title: 'Nia spotted something off', body: detail || 'A page is showing the wrong school\'s branding. I\'ve corrected the view; worth a look.' }
+      : { title: 'Nia: heads up', body: detail || ('Noticed: ' + type) };
+    try { const r1 = await deliverPush(env, tenant, [], 'head', { ...friendly, url: '/', tag: 'watch-' + type }); pushed += (r1.ok || 0); } catch (e) {}
+    try { const r2 = await deliverPush(env, 'next', [], 'operator', { title: 'Nia (fleet): ' + type.replace(/_/g,' '), body: (tenant + ' — ' + (detail || type)), url: '/', tag: 'watch-' + tenant + '-' + type }); pushed += (r2.ok || 0); } catch (e) {}
+  }
+  return J({ ok: true, recorded: true, deduped: dupe, pushed: pushed });
 }
 
 async function handleStudentHealth(tenant, env, cors) {
