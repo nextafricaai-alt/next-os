@@ -234,7 +234,7 @@
     <div style="min-height:100vh;display:grid;place-items:center;color:#8a91b0;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px;letter-spacing:0.08em;">
       <div style="text-align:center">
         <div id="nx-loading-text">LOADING · NEXT SCHOOL OS</div>
-        <div style="margin-top:12px;font-size:10px;opacity:0.5">build b95</div>
+        <div style="margin-top:12px;font-size:10px;opacity:0.5">build b96</div>
       </div>
     </div>
   </div>
@@ -10967,7 +10967,6 @@ window.PEAK_STAFF = (function () {
     { k: 'learn', label: 'Learning',       glyph: '◬' },
     { k: 'events', label: 'Events',        glyph: '◷' },
     { k: 'rep',   label: 'Reports',        glyph: '⊜' },
-    { k: 'plan',  label: 'Plan & Add-ons', glyph: '◆' },
   ];
 
   const SCHOOL_TIPS = {
@@ -11085,6 +11084,10 @@ window.PEAK_STAFF = (function () {
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '12px 0', borderBottom: '1px solid ' + T.border }}>
                 <div><div style={{ fontSize: 13.5, fontWeight: 600 }}>Install app</div><div style={{ fontSize: 12, color: T.ink3, marginTop: 2 }}>Add this school's OS to your device's home screen.</div></div>
                 <button onClick={() => window.__PEAK_INSTALL && window.__PEAK_INSTALL()} style={{ background: T.red, color: '#fff', border: 'none', borderRadius: 9, padding: '9px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>⤓ Install</button>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '12px 0', borderBottom: '1px solid ' + T.border }}>
+                <div><div style={{ fontSize: 13.5, fontWeight: 600 }}>Plan &amp; Add-ons</div><div style={{ fontSize: 12, color: T.ink3, marginTop: 2 }}>Your package, what's unlocked, and add-ons you can switch on.</div></div>
+                <button onClick={() => { window.peakModal && window.peakModal.close && window.peakModal.close(); window.peakNav && window.peakNav('plan'); }} style={{ background: T.red, color: '#fff', border: 'none', borderRadius: 9, padding: '9px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>◆ Manage</button>
               </div>
               <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid ' + T.border }}>
                 <button onClick={signOut} style={{ background: 'transparent', border: '1px solid ' + T.border, color: T.ink2, borderRadius: 9, padding: '10px 18px', fontSize: 13, cursor: 'pointer' }}>Sign out</button>
