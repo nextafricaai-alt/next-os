@@ -243,7 +243,7 @@ export default {
     }
 
     // GET-allowed routes (read-only endpoints live below this gate)
-    const GET_OK = ['/check-project', '/seo-audit', '/px.js', '/analytics', '/gsc', '/ga4', '/fetch-page', '/site-pages', '/cms/collections', '/cms/items', '/students', '/exams', '/exam-results', '/fees-balances', '/attendance-summary', '/staff-status', '/attendance-watch', '/lessons-remind', '/watch/deploy-check', '/student-health', '/billing/verify', '/billing/subscriptions', '/health', '/events', '/finance', '/assets', '/school-config', '/os-data', '/teachers', '/hosting-report', '/watch/status', '/push/vapid-public', '/push/debug'];
+    const GET_OK = ['/check-project', '/seo-audit', '/px.js', '/analytics', '/gsc', '/ga4', '/fetch-page', '/site-pages', '/cms/collections', '/cms/items', '/students', '/exams', '/exam-results', '/fees-balances', '/attendance-summary', '/staff-status', '/attendance-watch', '/lessons-remind', '/watch/deploy-check', '/student-health', '/billing/verify', '/billing/subscriptions', '/fees/lookup', '/fees/verify', '/health', '/events', '/finance', '/assets', '/school-config', '/os-data', '/teachers', '/hosting-report', '/watch/status', '/push/vapid-public', '/push/debug'];
     if (request.method !== 'POST' && !GET_OK.includes(url.pathname)) {
       return new Response('Method not allowed', { status: 405, headers: cors });
     }
@@ -404,6 +404,9 @@ export default {
     if (url.pathname === '/seo-tips')           return handleSeoTips(request, env, cors);
     if (url.pathname === '/exam/scan-mark')     return handleExamScanMark(request, env, cors);
     if (url.pathname === '/exam/care-plan')     return handleExamCarePlan(request, env, cors);
+    if (url.pathname === '/fees/lookup')        return handleFeesLookup(url.searchParams.get('tenant') || '', url.searchParams.get('q') || '', env, cors);
+    if (url.pathname === '/fees/checkout')      return handleFeesCheckout(request, env, cors);
+    if (url.pathname === '/fees/verify')        return (async()=>{ const J=(o,st)=>new Response(JSON.stringify(o),{status:st||200,headers:{...cors,'Content-Type':'application/json'}}); return J(await feePayFulfil(env, url.searchParams.get('tx') || url.searchParams.get('transaction_id') || '')); })();
     if (url.pathname === '/billing/checkout')   return handleBillingCheckout(request, env, cors);
     if (url.pathname === '/billing/webhook')    return handleBillingWebhook(request, env, cors);
     if (url.pathname === '/billing/verify')     return handleBillingVerify(url.searchParams.get('tx') || url.searchParams.get('transaction_id') || '', url.searchParams.get('tenant') || '', env, cors);
@@ -1676,6 +1679,89 @@ async function billingFulfil(env, txId) {
   return { ok: true, tenant: tenant, plan: plan, amount: amount };
 }
 
+async function handleFeesLookup(tenant, q, env, cors) {
+  const J = (oo, st) => new Response(JSON.stringify(oo), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
+  if (!tenant) return J({ error: 'tenant required' }, 400);
+  q = String(q || '').trim();
+  if (q.length < 2) return J({ matches: [] });
+  if (!env.SUPABASE_URL || !env.SUPABASE_KEY) return J({ error: 'not configured' }, 500);
+  try {
+    const enc = encodeURIComponent('*' + q.replace(/[%*]/g, '') + '*');
+    const studs = await sbFetch(env, '/students?tenant_id=eq.' + encodeURIComponent(tenant) + '&name=ilike.' + enc + '&select=id,name,stream,guardian_name,guardian_phone&limit=25');
+    const ids = (studs || []).map(s => s.id);
+    const bal = {};
+    if (ids.length) { const rows = await sbFetch(env, '/fees?tenant_id=eq.' + encodeURIComponent(tenant) + '&student_id=in.(' + ids.join(',') + ')&select=student_id,amount&limit=20000'); (rows || []).forEach(r => { bal[r.student_id] = (bal[r.student_id] || 0) + Number(r.amount || 0); }); }
+    const matches = (studs || []).map(s => ({ id: s.id, name: s.name, stream: s.stream || '', guardian: s.guardian_name || '', balance: Math.max(0, Number(bal[s.id] || 0)) }));
+    return J({ tenant, matches });
+  } catch (e) { return J({ error: String((e && e.message) || e) }, 200); }
+}
+
+async function handleFeesCheckout(request, env, cors) {
+  const J = (oo, st) => new Response(JSON.stringify(oo), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
+  let b; try { b = await request.json(); } catch (e) { return J({ error: 'bad body' }, 400); }
+  const tenant = String(b.tenant || '').trim();
+  const studentId = String(b.studentId || b.student_id || '').trim();
+  const amount = Math.round(Number(b.amount || 0));
+  const email = String(b.email || '').trim();
+  const phone = String(b.phone || '').replace(/[^0-9+]/g, '');
+  if (!tenant || !studentId || !(amount > 0)) return J({ error: 'tenant, studentId and a positive amount are required' }, 400);
+  if (!env.FLW_SECRET_KEY) return J({ error: 'Online payment is not switched on yet. Add the school’s Flutterwave key to take real payments.' }, 200);
+  let sname = '';
+  try { const sr = await sbFetch(env, '/students?id=eq.' + encodeURIComponent(studentId) + '&select=name&limit=1'); sname = (sr && sr[0] && sr[0].name) || ''; } catch (e) {}
+  const tx_ref = 'FEE-' + tenant + '-' + studentId + '-' + Date.now();
+  const redirect = String(b.redirect || ('https://nextos.nextafrica.ai/pay.html?s=' + encodeURIComponent(tenant) + '&done=1'));
+  try {
+    const r = await fetch('https://api.flutterwave.com/v3/payments', {
+      method: 'POST', headers: { 'Authorization': 'Bearer ' + env.FLW_SECRET_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tx_ref: tx_ref, amount: amount, currency: 'UGX', redirect_url: redirect, payment_options: 'card,mobilemoneyuganda,ussd', customer: { email: email || (tenant + '@school.ug'), phonenumber: phone || undefined, name: sname || 'Parent' }, customizations: { title: 'School fees', description: 'Fees payment for ' + (sname || 'a learner') } }),
+    });
+    const d = await r.json();
+    if (d && d.status === 'success' && d.data && d.data.link) {
+      try { await sbWrite(env, '/os_records', { tenant: tenant, kind: 'fee_payment', payload: { tenant: tenant, studentId: studentId, studentName: sname, amount: amount, email: email, phone: phone, tx_ref: tx_ref, status: 'pending', createdAt: new Date().toISOString() } }, 'POST', 'return=minimal'); } catch (e) {}
+      return J({ ok: true, link: d.data.link, tx_ref: tx_ref });
+    }
+    return J({ error: 'Flutterwave: ' + ((d && d.message) || 'could not start payment') }, 200);
+  } catch (e) { return J({ error: String((e && e.message) || e) }, 200); }
+}
+
+// Fulfil a parent fee payment: insert the payment (so balances drop), write a receipt (so the live OS updates), notify the school.
+async function feePayFulfil(env, txId) {
+  if (!env.FLW_SECRET_KEY || !txId) return { ok: false, why: 'no key/tx' };
+  let v; try { const r = await fetch('https://api.flutterwave.com/v3/transactions/' + encodeURIComponent(txId) + '/verify', { headers: { 'Authorization': 'Bearer ' + env.FLW_SECRET_KEY } }); v = await r.json(); } catch (e) { return { ok: false, why: String(e) }; }
+  const d = v && v.data;
+  if (!d || v.status !== 'success' || String(d.status).toLowerCase() !== 'successful') return { ok: false, why: 'not successful' };
+  const tx_ref = String(d.tx_ref || '');
+  const m = tx_ref.match(/^FEE-(.+)-(\d+)-(\d+)$/);
+  if (!m) return { ok: false, why: 'not a fee tx' };
+  const tenant = m[1]; const studentId = m[2];
+  const amount = Math.round(Number(d.amount || 0));
+  if (!(amount > 0)) return { ok: false, why: 'no amount' };
+  // Idempotency: receipt already written for this tx_ref?
+  try { const ex = await sbFetch(env, '/receipts?tenant_id=eq.' + encodeURIComponent(tenant) + '&reference=eq.' + encodeURIComponent(tx_ref) + '&select=id,receipt_no,balance_after&limit=1'); if (ex && ex[0]) return { ok: true, already: true, tenant, receipt_no: ex[0].receipt_no, balance_after: ex[0].balance_after }; } catch (e) {}
+  // Student + tenant meta
+  let sname = '', guardian = '', gphone = '';
+  try { const sr = await sbFetch(env, '/students?id=eq.' + encodeURIComponent(studentId) + '&select=name,guardian_name,guardian_phone&limit=1'); if (sr && sr[0]) { sname = sr[0].name || ''; guardian = sr[0].guardian_name || ''; gphone = sr[0].guardian_phone || ''; } } catch (e) {}
+  let tname = tenant, currency = 'UGX';
+  try { const tr = await sbFetch(env, '/tenants?id=eq.' + encodeURIComponent(tenant) + '&select=name,currency'); if (tr && tr[0]) { tname = tr[0].name || tenant; currency = tr[0].currency || 'UGX'; } } catch (e) {}
+  // 1) record the payment (negative fees row) so balances recompute
+  try { await sbWrite(env, '/fees', { tenant_id: tenant, student_id: Number(studentId), term: null, kind: 'payment', amount: -Math.abs(amount), channel: 'online', notes: 'Parent portal' }, 'POST', 'return=minimal'); } catch (e) {}
+  // 2) balance after
+  let balAfter = null;
+  try { const fr = await sbFetch(env, '/fees?tenant_id=eq.' + encodeURIComponent(tenant) + '&student_id=eq.' + encodeURIComponent(studentId) + '&select=amount&limit=20000'); balAfter = Math.max(0, (fr || []).reduce((a, x) => a + Number(x.amount || 0), 0)); } catch (e) {}
+  // 3) receipt (fires the OS realtime listener -> live balance update + toast)
+  let receiptNo = '';
+  try {
+    const existing = (await sbFetch(env, '/receipts?tenant_id=eq.' + encodeURIComponent(tenant) + '&select=id')) || [];
+    const prefix = (String(tname).match(/[A-Za-z0-9]/g) || ['N']).slice(0, 2).join('').toUpperCase();
+    receiptNo = prefix + '-' + new Date().getFullYear() + '-' + String(existing.length + 1).padStart(5, '0');
+    await sbWrite(env, '/receipts', { tenant_id: tenant, receipt_no: receiptNo, student_name: sname || null, guardian_name: guardian || null, guardian_phone: (gphone || '').replace(/[^0-9]/g, '') || null, amount: amount, currency: currency, kind: 'fees', method: 'online', reference: tx_ref, balance_after: balAfter, term: null, issued_by: 'Parent portal' }, 'POST', 'return=minimal');
+  } catch (e) {}
+  // 4) mark pending record paid + notify the school
+  try { const pr = await sbFetch(env, '/os_records?tenant=eq.' + encodeURIComponent(tenant) + "&kind=eq.fee_payment&select=id,payload&order=created_at.desc&limit=50"); const hit = (pr || []).find(x => x.payload && x.payload.tx_ref === tx_ref); if (hit) await fetch(env.SUPABASE_URL + '/rest/v1/os_records?id=eq.' + hit.id, { method: 'PATCH', headers: sbHeaders(env, 'return=minimal'), body: JSON.stringify({ payload: Object.assign({}, hit.payload, { status: 'paid', paidAt: new Date().toISOString(), receipt_no: receiptNo, balance_after: balAfter }) }) }); } catch (e) {}
+  try { await deliverPush(env, tenant, [], 'head', { title: 'Fees paid online', body: (sname || 'A learner') + ' — ' + currency + ' ' + amount.toLocaleString() + (balAfter != null ? (' · balance now ' + currency + ' ' + Number(balAfter).toLocaleString()) : '') + '.', url: '/', tag: 'feepay-' + tx_ref }); } catch (e) {}
+  return { ok: true, tenant, studentId, amount, receipt_no: receiptNo, balance_after: balAfter, student_name: sname };
+}
+
 async function handleBillingWebhook(request, env, cors) {
   const J = (oo, st) => new Response(JSON.stringify(oo), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
   // Verify Flutterwave signature
@@ -1685,7 +1771,13 @@ async function handleBillingWebhook(request, env, cors) {
   const data = b && (b.data || b);
   const txId = data && (data.id || data.transaction_id);
   const status = data && String(data.status || '').toLowerCase();
-  if (status === 'successful' && txId) { const r = await billingFulfil(env, txId); return J({ ok: true, fulfilled: r.ok }); }
+  if (status === 'successful' && txId) {
+    const ref = String((data && (data.tx_ref || data.txRef)) || '');
+    if (ref.indexOf('FEE-') === 0) { const rf = await feePayFulfil(env, txId); return J({ ok: true, fulfilled: rf.ok, kind: 'fees' }); }
+    const r = await billingFulfil(env, txId);
+    if (!r.ok) { const rf = await feePayFulfil(env, txId); if (rf.ok) return J({ ok: true, fulfilled: true, kind: 'fees' }); }
+    return J({ ok: true, fulfilled: r.ok });
+  }
   return J({ ok: true, ignored: true });
 }
 
