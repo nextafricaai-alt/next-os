@@ -404,6 +404,7 @@ export default {
     if (url.pathname === '/translate')          return handleTranslate(request, env, cors);
     if (url.pathname === '/syllabus/generate')  return handleSyllabusGenerate(request, env, cors);
     if (url.pathname === '/seo-tips')           return handleSeoTips(request, env, cors);
+    if (url.pathname === '/camera/analyze')     return handleCameraAnalyze(request, env, cors);
     if (url.pathname === '/exam/scan-mark')     return handleExamScanMark(request, env, cors);
     if (url.pathname === '/exam/care-plan')     return handleExamCarePlan(request, env, cors);
     if (url.pathname === '/attendance/today')   return handleAttendanceToday(url.searchParams.get('tenant') || '', env, cors);
@@ -1826,6 +1827,57 @@ async function handleBillingList(tenant, env, cors) {
     try { notices = (await sbFetch(env, '/os_records?tenant=eq.next&kind=eq.billing_notice&select=id,payload&order=created_at.desc&limit=100') || []).map(x => Object.assign({ id: x.id }, x.payload)); } catch (e) {}
     return J({ subscriptions: subs, notices: notices });
   } catch (e) { return J({ error: String((e && e.message) || e) }, 200); }
+}
+
+async function handleCameraAnalyze(request, env, cors) {
+  const J = (oo, st) => new Response(JSON.stringify(oo), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
+  let b; try { b = await request.json(); } catch (e) { return J({ error: 'bad body' }, 400); }
+  const tenant = String(b.tenant || '').trim();
+  const cameraName = String(b.cameraName || 'Camera').trim();
+  const zone = String(b.zone || '').trim();
+  if (!tenant) return J({ error: 'tenant required' }, 400);
+  if (!env.ANTHROPIC_API_KEY) return J({ error: 'Nia\'s campus vision needs Claude. Add your ANTHROPIC_API_KEY secret to the worker, then this works on real frames.' }, 200);
+  // Get the frame: explicit base64, or fetch a snapshot URL.
+  let media = 'image/jpeg', data = '';
+  let img = String(b.image || '');
+  if (img) { const m = img.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.*)$/); if (m) { media = m[1]; data = m[2]; } else { data = img.replace(/^base64,/, ''); } }
+  else if (b.imageUrl) {
+    try {
+      const ir = await fetch(String(b.imageUrl));
+      if (!ir.ok) return J({ error: 'Could not fetch the camera snapshot (HTTP ' + ir.status + '). Check the snapshot URL is reachable.' }, 200);
+      media = ir.headers.get('content-type') || 'image/jpeg'; if (media.indexOf('image') !== 0) media = 'image/jpeg';
+      const buf = await ir.arrayBuffer(); const bytes = new Uint8Array(buf); let bin = ''; for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]); data = btoa(bin);
+    } catch (e) { return J({ error: 'Could not reach the camera snapshot URL: ' + String(e && e.message || e) }, 200); }
+  } else return J({ error: 'imageUrl or image (base64) required' }, 400);
+
+  const sys = 'You are Nia, the safety-aware eyes of a smart school campus. You look at a single still frame from a school CCTV camera and report calmly and factually what you see. You NEVER guess a specific child\'s name or identity from a wide shot — you describe people by what is visible (uniform, approximate age group, clothing, location) so a human can identify them. You flag genuine safety concerns: a physical fight or scuffle, a child who has fallen or appears hurt, a child climbing or crossing the perimeter fence or leaving through a gate/boundary (a possible escape), or dangerous crowding/stampede. You are careful not to over-alarm: ordinary play, sport and walking are NOT incidents.';
+  const user = 'Camera: "' + cameraName + '"' + (zone ? ' at ' + zone : '') + '. Look at this frame and return ONLY valid JSON (no prose, no markdown): {"childrenCount":<number of school-age children visible>,"adultsCount":<number of adults visible>,"summary":"<one calm sentence describing the scene>","flags":[{"type":"fight|fall_injury|escape_perimeter|overcrowding|other","severity":"low|medium|high","detail":"<what you see and where in the frame>","people":[{"description":"<uniform/age/clothing/where>"}]}],"confidence":"high|medium|low"}. If nothing is wrong, return an empty flags array. Be conservative — only flag clear concerns.';
+  let parsed = null, raw = '';
+  try {
+    const r = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'x-api-key': env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
+      body: JSON.stringify({ model: env.ANTHROPIC_MODEL || 'claude-sonnet-4-6', max_tokens: 1100, system: sys, messages: [{ role: 'user', content: [{ type: 'image', source: { type: 'base64', media_type: media, data: data } }, { type: 'text', text: user }] }] }),
+    });
+    if (!r.ok) { const t = await r.text(); return J({ error: 'Claude vision error: ' + t.slice(0, 200) }, 200); }
+    const d = await r.json();
+    raw = ((d.content || []).filter(c => c.type === 'text').map(c => c.text).join('')) || '';
+    try { parsed = JSON.parse(raw); } catch (e) { const mm = raw.match(/\{[\s\S]*\}/); if (mm) { try { parsed = JSON.parse(mm[0]); } catch (e2) {} } }
+  } catch (e) { return J({ error: String((e && e.message) || e) }, 200); }
+  if (!parsed) return J({ error: 'Could not read the frame. Try again or a clearer snapshot.', raw: raw.slice(0, 300) }, 200);
+
+  const flags = Array.isArray(parsed.flags) ? parsed.flags : [];
+  const serious = flags.filter(fl => fl && (fl.severity === 'high' || fl.severity === 'medium'));
+  const at = new Date().toISOString();
+  // Log an incident + alert the head for each serious flag (human confirms identity later).
+  if (serious.length) {
+    for (const fl of serious) {
+      try { await sbWrite(env, '/os_records', { tenant: tenant, kind: 'campus_incident', payload: { camera: cameraName, zone: zone, type: fl.type, severity: fl.severity, detail: fl.detail || '', people: fl.people || [], summary: parsed.summary || '', childrenCount: parsed.childrenCount || null, status: 'open', at: at, imageUrl: b.imageUrl || null } }, 'POST', 'return=minimal'); } catch (e) {}
+    }
+    const top = serious[0];
+    const label = ({ fight: 'Possible fight', fall_injury: 'A child may be hurt', escape_perimeter: 'Possible escape at the perimeter', overcrowding: 'Dangerous crowding' })[top.type] || 'Campus safety flag';
+    try { await deliverPush(env, tenant, [], 'head', { title: 'Nia (campus): ' + label, body: (cameraName + (zone ? ' · ' + zone : '') + ' — ' + (top.detail || parsed.summary || '') + ' Tap to review and confirm.').slice(0, 180), url: '/', tag: 'campus-' + top.type + '-' + Date.now(), urgent: true }); } catch (e) {}
+  }
+  return J({ ok: true, analysis: parsed, incidents: serious.length, at: at });
 }
 
 async function handleExamScanMark(request, env, cors) {
