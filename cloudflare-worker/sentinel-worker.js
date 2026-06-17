@@ -1088,8 +1088,14 @@ export const scheduledHandler = async (event, env, ctx) => {
   // event.cron tells us which schedule fired; default to "pulse" if unknown.
   const cron = event.cron || '';
   // School-hours teacher no-show watch (every 15 min, 08:00-15:00 EAT, Mon-Fri)
-  if (cron === '*/5 5-12 * * 1-5') { await runLessonReminders(env); return; }
-  if (cron === '*/15 5-12 * * 1-5') { await runAttendanceWatch(env); return; }
+  // School-hours combined watcher: lesson reminders every 5 min; no-show check every 15 min (one trigger, to fit the 5-cron limit).
+  if (cron === '*/5 5-12 * * 1-5') {
+    await runLessonReminders(env);
+    const _eat = new Date(Date.now() + 3 * 3600000);
+    if (_eat.getUTCMinutes() % 15 === 0) await runAttendanceWatch(env);
+    return;
+  }
+  if (cron === '*/15 5-12 * * 1-5') { await runAttendanceWatch(env); await runLessonReminders(env); return; } // legacy trigger fallback
   // System health heartbeat (every 30 min, 24/7)
   if (cron === '*/30 * * * *') { await runHealthHeartbeat(env); return; }
   let kind = 'pulse';
