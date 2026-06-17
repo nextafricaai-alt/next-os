@@ -234,7 +234,7 @@
     <div style="min-height:100vh;display:grid;place-items:center;color:#8a91b0;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px;letter-spacing:0.08em;">
       <div style="text-align:center">
         <div id="nx-loading-text">LOADING · NEXT SCHOOL OS</div>
-        <div style="margin-top:12px;font-size:10px;opacity:0.5">build b104</div>
+        <div style="margin-top:12px;font-size:10px;opacity:0.5">build b105</div>
       </div>
     </div>
   </div>
@@ -9508,6 +9508,22 @@ window.PEAK_CAMPUS = (function () {
   const btn = (p) => ({ border: p ? 'none' : '1px solid ' + T.borderStr, background: p ? T.red : 'transparent', color: p ? '#fff' : T.ink2, padding: '8px 14px', borderRadius: 9, fontSize: 12.5, fontWeight: 600, cursor: 'pointer' });
   const FLAG = { fight: { label: 'Possible fight', icon: '⚠️', c: '#ff5a72' }, fall_injury: { label: 'Child may be hurt', icon: '🚑', c: '#ff5a72' }, escape_perimeter: { label: 'Possible escape', icon: '🏃', c: '#e8a23a' }, overcrowding: { label: 'Crowding', icon: '👥', c: '#e8a23a' }, other: { label: 'Flag', icon: '🔍', c: '#d8a200' } };
 
+  // ── Face recognition (in-browser, same engine as the gate). Matches faces in a frame to enrolled profiles. ──
+  const FA_CDN = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.13/dist/face-api.js';
+  const FA_MODELS = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.13/model';
+  let _faPromise = null;
+  function loadFaceApi() {
+    if (window.faceapi && window.faceapi.nets && window.faceapi.nets.faceRecognitionNet && window.faceapi.nets.faceRecognitionNet.params) return Promise.resolve(true);
+    if (_faPromise) return _faPromise;
+    _faPromise = new Promise((resolve) => {
+      const loadModels = () => { Promise.all([window.faceapi.nets.tinyFaceDetector.loadFromUri(FA_MODELS), window.faceapi.nets.faceLandmark68Net.loadFromUri(FA_MODELS), window.faceapi.nets.faceRecognitionNet.loadFromUri(FA_MODELS)]).then(() => resolve(true)).catch(() => resolve(false)); };
+      if (window.faceapi) return loadModels();
+      const sc = document.createElement('script'); sc.src = FA_CDN; sc.onload = loadModels; sc.onerror = () => resolve(false); document.head.appendChild(sc);
+    });
+    return _faPromise;
+  }
+  function imgFromSrc(src) { return new Promise((res, rej) => { const im = new Image(); im.crossOrigin = 'anonymous'; im.onload = () => res(im); im.onerror = rej; im.src = src; }); }
+
   function SmartCampus() {
     const [cams, setCams] = useState([]);
     const [incidents, setIncidents] = useState([]);
@@ -9516,6 +9532,32 @@ window.PEAK_CAMPUS = (function () {
     const [res, setRes] = useState({});
     const [busy, setBusy] = useState({});
     const roster = (window.PEAK && window.PEAK.students) || [];
+    const [matcher, setMatcher] = useState(null);
+    const [faReady, setFaReady] = useState(null); // null=loading, true/false
+    const [enrolledCount, setEnrolledCount] = useState(0);
+    useEffect(() => {
+      loadFaceApi().then(ok => {
+        setFaReady(ok);
+        fetch(WK + '/os-data?kind=face_enroll&tenant=' + encodeURIComponent(tenant())).then(r => r.json()).then(d => {
+          const enr = ((d && d.records) || []).map(x => x.payload).filter(p => p && p.descriptor);
+          setEnrolledCount(enr.length);
+          if (ok && enr.length && window.faceapi) { try { const labeled = enr.map(e => new window.faceapi.LabeledFaceDescriptors(String(e.studentId), [new Float32Array(e.descriptor)])); setMatcher(new window.faceapi.FaceMatcher(labeled, 0.5)); } catch (e) {} }
+        }).catch(() => {});
+      });
+    }, []);
+    const nameById = {}; roster.forEach(s => { nameById[String(s.id)] = s.name; });
+    const matchFrame = async (src) => {
+      if (!window.faceapi || !matcher || !src) return null;
+      try {
+        const img = await imgFromSrc(src);
+        const opts = new window.faceapi.TinyFaceDetectorOptions({ inputSize: 512, scoreThreshold: 0.5 });
+        const dets = await window.faceapi.detectAllFaces(img, opts).withFaceLandmarks().withFaceDescriptors();
+        const byId = {}; let unknown = 0;
+        dets.forEach(dt => { const best = matcher.findBestMatch(dt.descriptor); if (best.label !== 'unknown' && best.distance <= 0.5) { const m = { id: best.label, name: nameById[best.label] || ('#' + best.label), distance: best.distance, conf: Math.max(0, Math.round((1 - best.distance) * 100)), strong: best.distance <= 0.4 }; if (!byId[m.id] || m.distance < byId[m.id].distance) byId[m.id] = m; } else unknown++; });
+        return { faces: dets.length, matched: Object.values(byId).sort((a, b) => a.distance - b.distance), unknown: unknown };
+      } catch (e) { return { error: 'Could not read faces in this frame (the camera image may block cross-origin access).' }; }
+    };
+    const markPresent = (matched) => { Promise.all((matched || []).map(m => fetch(WK + '/os-data/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind: 'gate_checkin', tenant: tenant(), record: { studentId: Number(m.id), name: m.name, via: 'camera', at: new Date().toISOString() } }) }))).then(() => window.peakToast && window.peakToast('Marked ' + (matched || []).length + ' present', 'success', 'Counts toward school attendance.')); };
 
     const loadCams = () => fetch(WK + '/os-data?kind=camera&tenant=' + encodeURIComponent(tenant())).then(r => r.json()).then(d => setCams(((d && d.records) || []).map(x => Object.assign({ _id: x.id }, x.payload)))).catch(() => {});
     const loadInc = () => fetch(WK + '/os-data?kind=campus_incident&tenant=' + encodeURIComponent(tenant())).then(r => r.json()).then(d => setIncidents(((d && d.records) || []).map(x => Object.assign({ _id: x.id }, x.payload)).sort((a, b) => String(b.at || '').localeCompare(String(a.at || ''))))).catch(() => {});
@@ -9532,13 +9574,19 @@ window.PEAK_CAMPUS = (function () {
     const runAnalyze = (cam, image) => {
       const key = cam._id || 'upload';
       setBusy(b => Object.assign({}, b, { [key]: true }));
-      const payload = { tenant: tenant(), cameraName: cam.name, zone: cam.zone || '' };
+      const payload = { tenant: tenant(), cameraName: cam.name, zone: cam.zone || '', returnFrame: true };
       if (image) payload.image = image; else payload.imageUrl = cam.snapshotUrl;
       fetch(WK + '/camera/analyze', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
         .then(r => r.json()).then(d => {
           setBusy(b => Object.assign({}, b, { [key]: false }));
-          if (d && d.ok) { setRes(rr => Object.assign({}, rr, { [key]: d.analysis })); loadInc(); if (d.incidents) window.peakToast && window.peakToast('Nia flagged ' + d.incidents + ' concern' + (d.incidents === 1 ? '' : 's'), 'info', 'See Incidents.'); }
-          else window.peakToast && window.peakToast('Nia couldn’t read it', 'info', (d && d.error) || 'Try again');
+          if (d && d.ok) {
+            const base = d.analysis || {};
+            setRes(rr => Object.assign({}, rr, { [key]: base }));
+            loadInc();
+            if (d.incidents) window.peakToast && window.peakToast('Nia flagged ' + d.incidents + ' concern' + (d.incidents === 1 ? '' : 's'), 'info', 'See Incidents.');
+            const src = image || d.frame;
+            if (src && matcher) matchFrame(src).then(fm => { if (fm) setRes(rr => Object.assign({}, rr, { [key]: Object.assign({}, rr[key] || base, { face: fm }) })); });
+          } else window.peakToast && window.peakToast('Nia couldn’t read it', 'info', (d && d.error) || 'Try again');
         }).catch(() => setBusy(b => Object.assign({}, b, { [key]: false })));
     };
     const onUpload = (cam, file) => { const rd = new FileReader(); rd.onload = () => runAnalyze(cam, rd.result); rd.readAsDataURL(file); };
@@ -9563,6 +9611,7 @@ window.PEAK_CAMPUS = (function () {
           <div style={{ fontSize: 11, color: T.ink3, fontFamily: T.mono, letterSpacing: '0.08em', fontWeight: 600, marginBottom: 8 }}>SMART CAMPUS · HEAD TEACHER ONLY</div>
           <div style={{ fontSize: 24, fontWeight: 700, letterSpacing: '-0.02em' }}>Campus cameras · Nia’s eyes</div>
           <div style={{ fontSize: 13, color: T.ink3, marginTop: 4 }}>Connect cameras and Nia watches for safety — fights, falls, escapes — counts who’s on campus, and flags it for you to confirm. She never names a child on her own; you confirm identity.</div>
+          <div style={{ fontSize: 12, color: T.ink3, marginTop: 8, fontFamily: T.mono }}>{faReady === null ? 'Loading face engine…' : faReady ? ('Face engine ready · ' + enrolledCount + ' learner' + (enrolledCount === 1 ? '' : 's') + ' enrolled' + (enrolledCount === 0 ? ' — enrol faces at the gate so Nia can name them' : '')) : 'Face engine unavailable on this device.'}</div>
           <div style={{ display: 'flex', gap: 6, marginTop: 14 }}>
             {[['live', 'Live'], ['cameras', 'Cameras'], ['incidents', 'Incidents' + (openIncidents.length ? ' (' + openIncidents.length + ')' : '')]].map(t => (
               <button key={t[0]} onClick={() => setTab(t[0])} style={{ background: 'transparent', border: 'none', borderBottom: '2px solid ' + (tab === t[0] ? T.red : 'transparent'), color: tab === t[0] ? T.ink : T.ink3, padding: '8px 4px', marginRight: 12, fontSize: 13.5, fontWeight: tab === t[0] ? 700 : 500, cursor: 'pointer' }}>{t[1]}</button>
@@ -9592,6 +9641,14 @@ window.PEAK_CAMPUS = (function () {
                       <div style={{ fontSize: 12, color: T.ink3, marginTop: 4, fontFamily: T.mono }}>{res[cam._id].childrenCount || 0} children · {res[cam._id].adultsCount || 0} adults · confidence {res[cam._id].confidence || '—'}</div>
                       {(res[cam._id].flags || []).map((fl, i) => { const F = FLAG[fl.type] || FLAG.other; return <div key={i} style={{ marginTop: 8, padding: '8px 10px', borderRadius: 8, background: 'rgba(255,90,114,0.08)', border: '1px solid ' + F.c, fontSize: 12.5, color: T.ink }}>{F.icon} <b style={{ color: F.c }}>{F.label}</b> — {fl.detail}</div>; })}
                       {(!res[cam._id].flags || res[cam._id].flags.length === 0) ? <div style={{ marginTop: 8, fontSize: 12, color: T.green || '#00c389' }}>✓ Nothing concerning in this frame.</div> : null}
+                      {res[cam._id].face ? (res[cam._id].face.error ? <div style={{ marginTop: 10, fontSize: 12, color: T.ink4 }}>{res[cam._id].face.error}</div> : (
+                        <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid ' + T.border }}>
+                          <div style={{ fontSize: 11, color: T.ink3, fontFamily: T.mono, marginBottom: 6 }}>NIA RECOGNISED {res[cam._id].face.matched.length} OF {res[cam._id].face.faces} FACE{res[cam._id].face.faces === 1 ? '' : 'S'}</div>
+                          {res[cam._id].face.matched.length ? <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>{res[cam._id].face.matched.map((m, i) => <span key={i} style={{ fontSize: 12, padding: '4px 9px', borderRadius: 999, background: m.strong ? 'rgba(0,195,137,0.14)' : 'rgba(216,162,0,0.14)', border: '1px solid ' + (m.strong ? (T.green || '#00c389') : (T.gold || '#d8a200')), color: T.ink }}>{m.name} · {m.conf}%{m.strong ? '' : ' (likely)'}</span>)}</div> : <div style={{ fontSize: 12, color: T.ink4 }}>No enrolled learner matched these faces.</div>}
+                          {res[cam._id].face.unknown ? <div style={{ fontSize: 11, color: T.ink4, marginTop: 6 }}>{res[cam._id].face.unknown} face{res[cam._id].face.unknown === 1 ? '' : 's'} not recognised (not enrolled).</div> : null}
+                          {res[cam._id].face.matched.length ? <button onClick={() => markPresent(res[cam._id].face.matched)} style={{ ...btn(false), marginTop: 10, fontSize: 11.5, padding: '6px 11px' }}>✓ Mark {res[cam._id].face.matched.length} present</button> : null}
+                        </div>
+                      )) : (matcher ? <div style={{ marginTop: 8, fontSize: 11, color: T.ink4 }}>Reading faces…</div> : null)}
                     </div>
                   ) : null}
                 </div>
