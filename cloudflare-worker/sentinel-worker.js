@@ -243,7 +243,7 @@ export default {
     }
 
     // GET-allowed routes (read-only endpoints live below this gate)
-    const GET_OK = ['/check-project', '/seo-audit', '/px.js', '/analytics', '/gsc', '/ga4', '/fetch-page', '/site-pages', '/cms/collections', '/cms/items', '/students', '/exams', '/exam-results', '/fees-balances', '/attendance-summary', '/staff-status', '/attendance-watch', '/student-health', '/billing/verify', '/billing/subscriptions', '/health', '/events', '/finance', '/assets', '/school-config', '/os-data', '/teachers', '/hosting-report', '/watch/status', '/push/vapid-public', '/push/debug'];
+    const GET_OK = ['/check-project', '/seo-audit', '/px.js', '/analytics', '/gsc', '/ga4', '/fetch-page', '/site-pages', '/cms/collections', '/cms/items', '/students', '/exams', '/exam-results', '/fees-balances', '/attendance-summary', '/staff-status', '/attendance-watch', '/lessons-remind', '/student-health', '/billing/verify', '/billing/subscriptions', '/health', '/events', '/finance', '/assets', '/school-config', '/os-data', '/teachers', '/hosting-report', '/watch/status', '/push/vapid-public', '/push/debug'];
     if (request.method !== 'POST' && !GET_OK.includes(url.pathname)) {
       return new Response('Method not allowed', { status: 405, headers: cors });
     }
@@ -384,6 +384,7 @@ export default {
     if (url.pathname === '/attendance-summary') return handleAttendanceSummary(url.searchParams.get('tenant') || '', url.searchParams.get('days') || '7', env, cors);
     if (url.pathname === '/staff-status')       return handleStaffStatus(url.searchParams.get('tenant') || '', env, cors);
     if (url.pathname === '/attendance-watch')   return handleAttendanceWatch(url.searchParams.get('tenant') || '', env, cors);
+    if (url.pathname === '/lessons-remind')     return handleLessonRemind(url.searchParams.get('tenant') || '', env, cors);
     if (url.pathname === '/student-health')     return handleStudentHealth(url.searchParams.get('tenant') || '', env, cors);
     if (url.pathname === '/events')             return handleEventsList(url.searchParams.get('tenant') || '', env, cors);
     if (url.pathname === '/events/save')        return handleEventSave(request, env, cors);
@@ -1011,6 +1012,69 @@ async function checkTenantAttendance(env, tenantId) {
   return out;
 }
 
+async function remindTenantLessons(env, tenantId) {
+  const out = { tenant: tenantId, reminded: 0, reason: '' };
+  const eat = new Date(Date.now() + 3 * 3600000);
+  const day = _NS_DAYS[eat.getUTCDay()];
+  if (day === 'Sat' || day === 'Sun') { out.reason = 'weekend'; return out; }
+  const nowMin = eat.getUTCHours() * 60 + eat.getUTCMinutes();
+  const today = eat.toISOString().slice(0, 10);
+
+  const ttRows = await sbFetch(env, '/os_records?tenant=eq.' + encodeURIComponent(tenantId) + '&kind=eq.timetable&select=payload&order=created_at.desc&limit=1');
+  const tt = (ttRows && ttRows[0] && ttRows[0].payload) || null;
+  if (!tt || !tt.periods || !tt.grid) { out.reason = 'no timetable'; return out; }
+
+  // Periods that START within the next 10 minutes (the lead reminder window).
+  const due = [];
+  for (let i = 0; i < tt.periods.length; i++) { const p = tt.periods[i]; if (p.brk) continue; const sM = _nsToMin(p.s); const mins = sM - nowMin; if (mins > 0 && mins <= 10) due.push({ pi: i, period: p, mins: mins }); }
+  if (!due.length) { out.reason = 'no lesson starting soon'; return out; }
+
+  // Teacher name -> email map.
+  const teachers = await sbFetch(env, '/teachers?tenant_id=eq.' + encodeURIComponent(tenantId) + '&select=full_name,email&limit=500');
+  const emailByName = {};
+  (teachers || []).forEach(t => { const n = String(t.full_name || '').toLowerCase().trim(); if (n && t.email) emailByName[n] = String(t.email).toLowerCase(); });
+
+  // Dedup: one reminder per (date|period|teacher) per day.
+  const seen = await sbFetch(env, '/os_records?tenant=eq.' + encodeURIComponent(tenantId) + "&kind=eq.lesson_reminder&select=payload&order=created_at.desc&limit=200");
+  const sentKeys = new Set(); (seen || []).forEach(r => { if (r.payload && r.payload.key) sentKeys.add(r.payload.key); });
+
+  const grid = tt.grid;
+  for (const d of due) {
+    // Group this period's lessons by teacher (a teacher may take two streams at once).
+    const byTeacher = {};
+    Object.keys(grid).forEach(cls => {
+      const cell = grid[cls] && grid[cls][day] && grid[cls][day][d.pi];
+      if (!cell || !cell.subject || !cell.teacher) return;
+      const tn = String(cell.teacher).toLowerCase().trim();
+      (byTeacher[tn] = byTeacher[tn] || []).push({ cls: cls, subject: cell.subject, room: cell.room || '' });
+    });
+    for (const tn of Object.keys(byTeacher)) {
+      const email = emailByName[tn]; if (!email) continue; // no login/email -> can't push them
+      const key = today + '|' + d.pi + '|' + email;
+      if (sentKeys.has(key)) continue;
+      const lessons = byTeacher[tn];
+      const first = lessons[0];
+      const where = lessons.map(L => L.subject + ' · ' + L.cls + (L.room ? ' (' + L.room + ')' : '')).join('  +  ');
+      const title = 'Class in ' + d.mins + ' min — ' + first.subject;
+      const body = d.period.l + ' at ' + d.period.s + ': ' + where + '. Head to class.';
+      let push = { matched: 0, ok: 0 };
+      try { push = await deliverPush(env, tenantId, [email], null, { title: title, body: body, url: '/', tag: 'lesson-' + key }); } catch (e) {}
+      try { await sbWrite(env, '/os_records', { tenant: tenantId, kind: 'lesson_reminder', payload: { key: key, email: email, period: d.period.l, at: new Date().toISOString(), pushed: push.ok || 0, matched: push.matched || 0 } }, 'POST', 'return=minimal'); } catch (e) {}
+      sentKeys.add(key); out.reminded++;
+    }
+  }
+  if (!out.reminded && !out.reason) out.reason = 'no matching teachers/subscriptions';
+  return out;
+}
+
+async function runLessonReminders(env) {
+  let tenants = [];
+  try { tenants = await sbFetch(env, '/tenants?select=id'); } catch (e) { return { error: String(e && e.message || e) }; }
+  const results = [];
+  for (const t of (tenants || [])) { try { results.push(await remindTenantLessons(env, t.id)); } catch (e) { results.push({ tenant: t.id, error: String(e && e.message || e) }); } }
+  return { ran: results.length, results: results };
+}
+
 async function runAttendanceWatch(env) {
   let tenants = [];
   try { tenants = await sbFetch(env, '/tenants?select=id'); } catch (e) { return { error: String(e && e.message || e) }; }
@@ -1024,6 +1088,7 @@ export const scheduledHandler = async (event, env, ctx) => {
   // event.cron tells us which schedule fired; default to "pulse" if unknown.
   const cron = event.cron || '';
   // School-hours teacher no-show watch (every 15 min, 08:00-15:00 EAT, Mon-Fri)
+  if (cron === '*/5 5-12 * * 1-5') { await runLessonReminders(env); return; }
   if (cron === '*/15 5-12 * * 1-5') { await runAttendanceWatch(env); return; }
   // System health heartbeat (every 30 min, 24/7)
   if (cron === '*/30 * * * *') { await runHealthHeartbeat(env); return; }
@@ -1859,6 +1924,15 @@ async function handleAttendanceWatch(tenant, env, cors) {
   try {
     if (tenant) return J(await checkTenantAttendance(env, tenant));
     return J(await runAttendanceWatch(env));
+  } catch (e) { return J({ error: String((e && e.message) || e) }, 200); }
+}
+
+async function handleLessonRemind(tenant, env, cors) {
+  const J = (oo, st) => new Response(JSON.stringify(oo), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
+  if (!env.SUPABASE_URL || !env.SUPABASE_KEY) return J({ error: 'Supabase not configured.' }, 500);
+  try {
+    if (tenant) return J(await remindTenantLessons(env, tenant));
+    return J(await runLessonReminders(env));
   } catch (e) { return J({ error: String((e && e.message) || e) }, 200); }
 }
 

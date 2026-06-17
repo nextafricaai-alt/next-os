@@ -234,7 +234,7 @@
     <div style="min-height:100vh;display:grid;place-items:center;color:#8a91b0;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px;letter-spacing:0.08em;">
       <div style="text-align:center">
         <div id="nx-loading-text">LOADING · NEXT SCHOOL OS</div>
-        <div style="margin-top:12px;font-size:10px;opacity:0.5">build b92</div>
+        <div style="margin-top:12px;font-size:10px;opacity:0.5">build b93</div>
       </div>
     </div>
   </div>
@@ -326,7 +326,12 @@
     // Brand must match the DATA we'll show: that's the logged-in tenant. Fall back to URL slug only when not signed in.
     var _prof=null; try{ _prof=JSON.parse(localStorage.getItem('nextos.profile')||'null'); }catch(e){}
     // This app IS a specific school (from the URL). Brand by that; the session guard makes the login match.
-    var _bslug=_urlslug || ((_prof && _prof.tenantId) || '');
+    var _lastT=''; try{ _lastT=localStorage.getItem('nextos.lastTenant')||''; }catch(e){}
+    var _bslug=_urlslug || ((_prof && _prof.tenantId) || '') || _lastT;
+    // Remember which school THIS install/tab is, so a slug-less reopen recovers the right one (never another school).
+    if(_urlslug){ try{ localStorage.setItem('nextos.lastTenant', _urlslug); }catch(e){} }
+    // Neutral fallback name — derived from the slug, else generic. NEVER another school's name.
+    try{ window.__BRAND_FALLBACK = _bslug ? _bslug.replace(/[-_]+/g,' ').replace(/\b\w/g,function(m){return m.toUpperCase();}) : 'NEXT School OS'; }catch(e){ window.__BRAND_FALLBACK='NEXT School OS'; }
     var b=null; try{ b=JSON.parse(localStorage.getItem('nextos.brand.'+_bslug)||'null'); }catch(e){}
     // Fetch the authoritative brand for THIS slug; cache per-slug; reload once if we painted the wrong one.
     function _paintName(nm){ try{ window.__BRAND_NAME=nm; document.title=nm+' \u00b7 NEXT School OS'; var _ld=document.getElementById('nx-loading-text'); if(_ld) _ld.textContent='LOADING '+String(nm).toUpperCase()+' \u00b7 NEXT SCHOOL OS'; }catch(e){} }
@@ -354,7 +359,7 @@
     } else {
       // No school record for this slug — never fall back to another school's identity.
       try {
-        if(_bslug && _bslug!=='peak-primary'){
+        if(_bslug){
           var _nm=_bslug.replace(/[-_]+/g,' ').replace(/\b\w/g,function(m){return m.toUpperCase();});
           window.__BRAND_NAME=_nm;
           try{ document.title=_nm+' \u00b7 NEXT School OS'; }catch(e){}
@@ -1851,7 +1856,7 @@
             fontFamily: T.serif, fontSize: 20, fontWeight: 700, color: T.bg,
           }}>P</div>
           <div style={{ flex: 1, lineHeight: 1.15, minWidth: 140 }}>
-            <div style={{ fontSize: 14, fontWeight: 600, color: T.ink }}>{(typeof window!=='undefined'&&window.__BRAND_NAME)||'Peak Primary'}</div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: T.ink }}>{(typeof window!=='undefined'&&(window.__BRAND_NAME||window.__BRAND_FALLBACK))||'NEXT School OS'}</div>
             <div style={{ fontSize: 10.5, color: T.ink3, fontFamily: T.mono, letterSpacing: 0.6 }}>TEACHER PORTAL · T2 · WK6</div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -1870,7 +1875,7 @@
             <h1 style={{ fontSize: 36, fontWeight: 400, margin: 0, fontFamily: T.serif, letterSpacing: '-0.01em' }}>
               {greeting}, {profile.fullName ? profile.fullName.split(' ')[0] : 'Teacher'}
             </h1>
-            <p style={{ margin: '8px 0 0', color: T.ink3, fontSize: 14 }}>{"Here's your day at " + ((typeof window!=='undefined'&&window.__BRAND_NAME)||'Peak Primary') + "."}</p>
+            <p style={{ margin: '8px 0 0', color: T.ink3, fontSize: 14 }}>{"Here's your day at " + ((typeof window!=='undefined'&&(window.__BRAND_NAME||window.__BRAND_FALLBACK))||'NEXT School OS') + "."}</p>
           </div>
 
           {data.loading ? (
@@ -3162,7 +3167,7 @@ const V4 = (function () {
             <img src="/prototypes/schools/peak-primary/assets/peak-logo.png" alt="Peak" style={{ width: 32, height: 32, objectFit: 'contain' }} />
           </div>
           <div style={{ lineHeight: 1.15, minWidth: 0, flex: 1 }}>
-            <div style={{ fontSize: 14, fontWeight: 600, color: T.ink, letterSpacing: '-0.01em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{(typeof window!=='undefined'&&window.__BRAND_NAME)||'Peak Primary'}</div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: T.ink, letterSpacing: '-0.01em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{(typeof window!=='undefined'&&(window.__BRAND_NAME||window.__BRAND_FALLBACK))||'NEXT School OS'}</div>
             <div style={{ fontSize: 10.5, color: T.ink3, fontFamily: T.mono, letterSpacing: '0.04em' }}>NEXT · T2 · WK6</div>
           </div>
           {window.NiaBell ? React.createElement(window.NiaBell) : null}
@@ -5650,7 +5655,7 @@ const PD_M = (function () {
               <img src="/prototypes/schools/peak-primary/assets/peak-logo.png" alt="" style={{ width: 32, height: 32, objectFit: 'contain' }} />
             </div>
             <div style={{ lineHeight: 1.15, flex: 1 }}>
-              <div style={{ fontSize: 13.5, fontWeight: 600 }}>{(typeof window!=='undefined'&&window.__BRAND_NAME)||'Peak Primary'}</div>
+              <div style={{ fontSize: 13.5, fontWeight: 600 }}>{(typeof window!=='undefined'&&(window.__BRAND_NAME||window.__BRAND_FALLBACK))||'NEXT School OS'}</div>
               <div style={{ fontSize: 10.5, color: T.ink3, fontFamily: T.mono, letterSpacing: '0.04em' }}>TERM 2 · WK 6</div>
             </div>
             <button style={{ width: 36, height: 36, borderRadius: 10, background: T.surface, border: '1px solid ' + T.border, color: T.ink2, fontSize: 14 }}>🔔</button>
@@ -11080,7 +11085,7 @@ window.PEAK_STAFF = (function () {
             <img src="/prototypes/schools/peak-primary/assets/peak-logo.png" alt="Peak" style={{ width: 32, height: 32, objectFit: 'contain' }} />
           </div>
           <div style={{ lineHeight: 1.15, minWidth: 0, flex: 1 }}>
-            <div style={{ fontSize: 14, fontWeight: 600, color: T.ink, letterSpacing: '-0.01em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{(typeof window!=='undefined'&&window.__BRAND_NAME)||'Peak Primary'}</div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: T.ink, letterSpacing: '-0.01em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{(typeof window!=='undefined'&&(window.__BRAND_NAME||window.__BRAND_FALLBACK))||'NEXT School OS'}</div>
             <div style={{ fontSize: 10.5, color: T.ink3, fontFamily: T.mono, letterSpacing: '0.04em' }}>NEXT · T2 · WK6</div>
           </div>
           {window.NiaBell ? React.createElement(window.NiaBell) : null}
@@ -11675,7 +11680,7 @@ window.PEAK_STAFF = (function () {
           {narrow && (
             <div className="peak-topbar" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 14px', borderBottom: '1px solid ' + T.border, background: T.bg, flexShrink: 0 }}>
               <button onClick={() => setNavOpen(true)} aria-label="Menu" style={{ background: 'transparent', border: '1px solid ' + T.border, borderRadius: 9, color: T.ink, width: 40, height: 40, fontSize: 19, lineHeight: 1, cursor: 'pointer', flexShrink: 0 }}>{'\u2630'}</button>
-              <div style={{ fontSize: 15, fontWeight: 700, color: T.ink, letterSpacing: '-0.01em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{(typeof window !== 'undefined' && window.__BRAND_NAME) || 'Peak Primary'}</div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: T.ink, letterSpacing: '-0.01em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{(typeof window !== 'undefined' && (window.__BRAND_NAME||window.__BRAND_FALLBACK)) || 'NEXT School OS'}</div>
               <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
                 <PushBell compact />
                 <span style={{ fontSize: 9, color: T.ink4, fontFamily: T.mono }}>b61</span>
