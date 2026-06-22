@@ -200,7 +200,7 @@ export default {
       const patch = {};
       if (bb.primary_color && /^#?[0-9a-fA-F]{6}$/.test(String(bb.primary_color))) { let c = String(bb.primary_color); if (c[0] !== '#') c = '#' + c; patch.primary_color = c; }
       if (bb.name) patch.name = String(bb.name).slice(0, 80);
-      if (bb.logo_url) patch.logo_url = String(bb.logo_url).slice(0, 400);
+      if (bb.logo_url) patch.logo_url = String(bb.logo_url).slice(0, 300000);
       if (!Object.keys(patch).length) return new Response(JSON.stringify({ error: 'nothing valid to update' }), { status: 400, headers: { ...cors, 'Content-Type': 'application/json' } });
       try { const r = await fetch(env.SUPABASE_URL + '/rest/v1/tenants?id=eq.' + encodeURIComponent(slug), { method: 'PATCH', headers: sbHeaders(env, 'return=representation'), body: JSON.stringify(patch) }); const d = await r.json(); return new Response(JSON.stringify({ ok: true, brand: (d && d[0]) || patch }), { headers: { ...cors, 'Content-Type': 'application/json' } }); }
       catch (e) { return new Response(JSON.stringify({ error: String((e && e.message) || e) }), { headers: { ...cors, 'Content-Type': 'application/json' } }); }
@@ -209,8 +209,9 @@ export default {
     // ─── Route: GET /icon?s=slug — per-school app icon (SVG) ─────────────
     if (request.method === 'GET' && url.pathname === '/icon') {
       const slug = url.searchParams.get('s') || '';
-      let nm = 'NEXT', col = '#00FC8F';
-      try { const rows = await sbFetch(env, '/tenants?id=eq.' + encodeURIComponent(slug) + '&select=name,primary_color'); if (rows && rows[0]) { nm = rows[0].name || nm; col = rows[0].primary_color || col; } } catch (e) {}
+      let nm = 'NEXT', col = '#00FC8F', logo = '';
+      try { const rows = await sbFetch(env, '/tenants?id=eq.' + encodeURIComponent(slug) + '&select=name,primary_color,logo_url'); if (rows && rows[0]) { nm = rows[0].name || nm; col = rows[0].primary_color || col; logo = rows[0].logo_url || ''; } } catch (e) {}
+      if (logo) { const lr = await logoIconResponse(logo, cors); if (lr) return lr; }
       const init = (String(nm).match(/[A-Za-z0-9]/g) || ['N']).slice(0, 2).join('').toUpperCase();
       const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512"><rect width="512" height="512" rx="110" fill="' + col + '"/><text x="50%" y="52%" font-family="Arial,Helvetica,sans-serif" font-size="230" font-weight="700" fill="#0a1029" text-anchor="middle" dominant-baseline="central">' + init + '</text></svg>';
       return new Response(svg, { headers: { ...cors, 'Content-Type': 'image/svg+xml', 'Cache-Control': 'public, max-age=300' } });
@@ -219,8 +220,9 @@ export default {
     // Per-school PNG icon (real raster — works on desktop taskbars + iOS home screen).
     if (request.method === 'GET' && url.pathname === '/icon.png') {
       const slug = url.searchParams.get('s') || '';
-      let nm = 'NEXT', col = '#00FC8F';
-      try { const rows = await sbFetch(env, '/tenants?id=eq.' + encodeURIComponent(slug) + '&select=name,primary_color'); if (rows && rows[0]) { nm = rows[0].name || nm; col = rows[0].primary_color || col; } } catch (e) {}
+      let nm = 'NEXT', col = '#00FC8F', logo = '';
+      try { const rows = await sbFetch(env, '/tenants?id=eq.' + encodeURIComponent(slug) + '&select=name,primary_color,logo_url'); if (rows && rows[0]) { nm = rows[0].name || nm; col = rows[0].primary_color || col; logo = rows[0].logo_url || ''; } } catch (e) {}
+      if (logo) { const lr = await logoIconResponse(logo, cors); if (lr) return lr; }
       let init = String(nm).split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase().replace(/[^A-Z0-9]/g, '');
       if (!init) init = 'N';
       const png = makeIconPng(init, col, 512);
@@ -3121,6 +3123,28 @@ async function handleSTT(request, env, cors) {
     catch (e) { return J({ error: 'stt failed: ' + String((e && e.message) || e) }, 200); }
     return J({ ok: true, text: String(text).trim() });
   } catch (e) { return J({ error: String((e && e.message) || e) }, 200); }
+}
+
+// ─── Serve a school's uploaded/linked logo as its icon (else null → initials) ─
+async function logoIconResponse(logoUrl, cors) {
+  try {
+    const u = String(logoUrl || '').trim();
+    if (!u) return null;
+    if (u.slice(0, 11).toLowerCase() === 'data:image/') {
+      const m = /^data:([^;,]+)?(;base64)?,([\s\S]*)$/.exec(u);
+      if (!m) return null;
+      const ctype = m[1] || 'image/png';
+      let bytes;
+      if (m[2]) { const bin = atob(m[3]); bytes = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i); }
+      else { bytes = new TextEncoder().encode(decodeURIComponent(m[3])); }
+      return new Response(bytes, { headers: { ...cors, 'Content-Type': ctype, 'Cache-Control': 'public, max-age=3600' } });
+    }
+    if (/^https?:\/\//i.test(u)) {
+      const r = await fetch(u, { cf: { cacheTtl: 3600 } });
+      if (r && r.ok) { const ct = r.headers.get('content-type') || 'image/png'; if (/^image\//.test(ct)) { const buf = await r.arrayBuffer(); return new Response(buf, { headers: { ...cors, 'Content-Type': ct, 'Cache-Control': 'public, max-age=3600' } }); } }
+    }
+  } catch (e) {}
+  return null;
 }
 
 // ─── Tiny PNG icon generator (brand colour square + initials) ───────────────
