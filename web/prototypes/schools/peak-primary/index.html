@@ -213,7 +213,7 @@
   <script>
     /* Build self-heal: if this cached HTML is older than what the server now serves,
        reload ONCE with a cache-buster so no school is ever stuck on a stale build. */
-    window.__BUILD = 'b109';
+    window.__BUILD = 'b110';
     (function () {
       try {
         fetch('/build.txt?ts=' + Date.now(), { cache: 'no-store' })
@@ -234,7 +234,7 @@
     <div style="min-height:100vh;display:grid;place-items:center;color:#8a91b0;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px;letter-spacing:0.08em;">
       <div style="text-align:center">
         <div id="nx-loading-text">LOADING · NEXT SCHOOL OS</div>
-        <div style="margin-top:12px;font-size:10px;opacity:0.5">build b109</div>
+        <div style="margin-top:12px;font-size:10px;opacity:0.5">build b110</div>
       </div>
     </div>
   </div>
@@ -3429,6 +3429,10 @@ const V4 = (function () {
         {/* Parent reach */}
         <Card pad={24}>
           <div style={{ fontSize: 11, color: T.ink3, fontFamily: T.mono, letterSpacing: '0.08em', fontWeight: 600, marginBottom: 14 }}>PARENT REACH · TODAY</div>
+          {(window.PEAK && window.PEAK.live) ? (
+            <div style={{ color: T.ink3, fontSize: 13, padding: '6px 0 2px', lineHeight: 1.5 }}>No messages sent yet. When you broadcast to guardians, delivery rate shows here.</div>
+          ) : (
+          <React.Fragment>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
             <div style={{ fontSize: 44, fontWeight: 700, color: T.ink, lineHeight: 1, letterSpacing: '-0.03em', fontVariantNumeric: 'tabular-nums' }}>98.4<span style={{ fontSize: 22, color: T.ink3 }}>%</span></div>
             <Pill tone="good">delivered</Pill>
@@ -3442,6 +3446,8 @@ const V4 = (function () {
               }} />
             ))}
           </div>
+          </React.Fragment>
+          )}
         </Card>
       </div>
     );
@@ -3478,46 +3484,44 @@ const V4 = (function () {
       if (pct >= 88) return { bg: 'rgba(255,181,61,0.16)', border: 'rgba(255,181,61,0.35)', fg: T.warn };
       return { bg: 'rgba(226,58,82,0.18)', border: 'rgba(226,58,82,0.40)', fg: T.redInk };
     };
+    const _studs = (window.PEAK && window.PEAK.students) || [];
+    const _cfg = window.SCHOOL_CONFIG || {};
+    const _cfgCls = (_cfg.classes && _cfg.classes.length) ? _cfg.classes.slice() : [];
+    const _studCls = Array.from(new Set(_studs.map(function (x) { return x.stream; }).filter(Boolean)));
+    const _classes = _cfgCls.length ? _cfgCls : _studCls;
+    const _hasRoster = _studs.length > 0;
+    const _rows = _classes.map(function (cls) {
+      const inC = _studs.filter(function (x) { return x.stream === cls; });
+      const wa = inC.filter(function (x) { return x.attendanceWk != null; });
+      const pct = wa.length ? Math.round(wa.reduce(function (a, x) { return a + x.attendanceWk; }, 0) / wa.length) : null;
+      return { cls: cls, total: inC.length, pct: pct };
+    });
     return (
-      <Card title="Attendance by stream" subtitle="14 streams · live · register closes 08:30" action={
+      <Card title="Attendance by class" subtitle={_hasRoster ? (_classes.length + ' classes · from your roster') : 'No roster yet'} action={
         <div style={{ display: 'flex', gap: 12, fontSize: 11, color: T.ink3, alignItems: 'center' }}>
-          <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-            <span style={{ width: 8, height: 8, borderRadius: 2, background: T.good }} /> 95%+
-          </span>
-          <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-            <span style={{ width: 8, height: 8, borderRadius: 2, background: T.warn }} /> 88-94%
-          </span>
-          <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-            <span style={{ width: 8, height: 8, borderRadius: 2, background: T.red }} /> &lt;88%
-          </span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}><span style={{ width: 8, height: 8, borderRadius: 2, background: T.good }} /> 95%+</span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}><span style={{ width: 8, height: 8, borderRadius: 2, background: T.warn }} /> 88-94%</span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}><span style={{ width: 8, height: 8, borderRadius: 2, background: T.red }} /> &lt;88%</span>
         </div>
       }>
-        <div style={{ display: 'grid', gridTemplateColumns: 'auto repeat(2, 1fr)', gap: 8, fontFamily: T.font }}>
-          <div></div>
-          <div style={{ fontSize: 10.5, color: T.ink3, fontFamily: T.mono, fontWeight: 600, letterSpacing: '0.05em', padding: '0 12px' }}>VIGILANT</div>
-          <div style={{ fontSize: 10.5, color: T.ink3, fontFamily: T.mono, fontWeight: 600, letterSpacing: '0.05em', padding: '0 12px' }}>PRUDENT</div>
-          {['P1','P2','P3','P4','P5','P6','P7'].map(g => (
-            <React.Fragment key={g}>
-              <div style={{
-                color: T.ink, padding: '12px 0', fontWeight: 700, fontSize: 14,
-                fontFamily: T.mono, alignSelf: 'center',
-              }}>{g}</div>
-              {['V','P'].map(s => {
-                const pct = D.streamAttendance[g + s];
-                const c = cellFor(pct);
-                return (
-                  <div key={s} style={{
-                    background: c.bg, border: '1px solid ' + c.border, borderRadius: 8,
-                    padding: '10px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                  }}>
-                    <span style={{ fontSize: 18, fontWeight: 700, color: c.fg, fontVariantNumeric: 'tabular-nums' }}>{pct}<span style={{ fontSize: 11, opacity: 0.7 }}>%</span></span>
-                    <span style={{ fontSize: 11, color: T.ink3, fontFamily: T.mono }}>{Math.round(60 * pct / 100)}/60</span>
-                  </div>
-                );
-              })}
-            </React.Fragment>
-          ))}
-        </div>
+        {!_hasRoster ? (
+          <div style={{ padding: '26px 22px', color: T.ink3, fontSize: 13, textAlign: 'center' }}>No students added yet. Import your roster (Students {'\u2192'} Import) and attendance by class shows up here.</div>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 8 }}>
+            {_rows.map(function (r) {
+              const c = (r.pct == null) ? { bg: T.surface2, border: T.border, fg: T.ink3 } : cellFor(r.pct);
+              return (
+                <div key={r.cls} style={{ background: c.bg, border: '1px solid ' + c.border, borderRadius: 8, padding: '10px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: T.ink, fontFamily: T.mono }}>{r.cls}</span>
+                  <span style={{ textAlign: 'right' }}>
+                    <span style={{ fontSize: 16, fontWeight: 700, color: c.fg, fontVariantNumeric: 'tabular-nums', display: 'block' }}>{r.pct == null ? '\u2014' : (r.pct + '%')}</span>
+                    <span style={{ fontSize: 10, color: T.ink3, fontFamily: T.mono }}>{r.total} learner{r.total === 1 ? '' : 's'}</span>
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </Card>
     );
   }
@@ -3768,10 +3772,18 @@ const V4 = (function () {
 
   // ─── parent threads compact ───────────────────────────────────────────────
   function ThreadsCard() {
+    const _threads = (window.PEAK && window.PEAK.live) ? [] : (D.threads || []);
+    if (_threads.length === 0) {
+      return (
+        <Card title="Parent threads" subtitle="No conversations yet" pad={0}>
+          <div style={{ padding: '22px', color: T.ink3, fontSize: 13, lineHeight: 1.5 }}>No parent conversations yet. When guardians reply to your WhatsApp broadcasts, their threads appear here.</div>
+        </Card>
+      );
+    }
     return (
-      <Card title="Parent threads" subtitle="WhatsApp · 12 unread · 186 replies today" pad={0}>
+      <Card title="Parent threads" subtitle="WhatsApp · recent replies" pad={0}>
         <div>
-          {D.threads.slice(0, 5).map((t, i) => (
+          {_threads.slice(0, 5).map((t, i) => (
             <div key={t.id} onClick={() => window.peakToast && window.peakToast('Thread with ' + t.name, 'info', t.child + ' · last: ' + t.last)} style={{
               display: 'grid', gridTemplateColumns: '38px 1fr auto', gap: 12,
               padding: '12px 22px', borderTop: i ? '1px solid ' + T.border : 'none', alignItems: 'center',
@@ -11047,7 +11059,9 @@ window.PEAK_STAFF = (function () {
         k.feesOutstandingStudents = v.accountsOverdue30d || 0;
         k.enrollmentInquiries = v.enrollmentInquiries || 0;
         const att = (typeof v.attendanceWeek === 'number') ? v.attendanceWeek : null;
-        if (att != null) {
+        if ((v.students || 0) <= 0) {
+          k.attendancePct = 0; k.presentToday = 0; k.absentToday = 0;
+        } else if (att != null) {
           k.attendancePct = Math.round(att * 1000) / 10;
           k.presentToday = Math.round((v.students || 0) * att);
           k.absentToday = Math.max(0, (v.students || 0) - k.presentToday);
