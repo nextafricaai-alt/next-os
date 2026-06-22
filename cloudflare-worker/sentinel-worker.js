@@ -1915,7 +1915,7 @@ async function handleExamScanMark(request, env, cors) {
   let media = 'image/jpeg'; let data = img;
   const m = img.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.*)$/);
   if (m) { media = m[1]; data = m[2]; } else { data = img.replace(/^base64,/, ''); }
-  const levelWord = level === 'secondary' ? 'Ugandan secondary (UNEB UCE/UACE)' : (level === 'tertiary' ? 'Ugandan tertiary' : 'Ugandan primary (UNEB PLE)');
+  const levelWord = level === 'secondary' ? 'Ugandan secondary (UNEB UCE/UACE)' : (level === 'tertiary' ? 'Ugandan tertiary' : ((level === 'nursery' || level === 'nursery-primary') ? 'Ugandan nursery/pre-primary (NCDC play-based, learning areas not exam subjects)' : 'Ugandan primary (UNEB PLE)'));
   const sys = 'You are a meticulous, fair ' + levelWord + ' examiner who knows the NCDC syllabus and UNEB marking schemes for both theory and practical papers. You read a photographed exam script, identify the learner, and mark each answer the way a UNEB examiner would — awarding method marks, accuracy marks and follow-through, and never inventing marks for blank or illegible answers. You also notice HOW the learner reasons.';
   const user = 'This is a photo of a learner\'s ' + (subject ? subject + ' ' : '') + 'exam script' + (klass ? ' for class ' + klass : '') + (examName ? ' (' + examName + ')' : '') + '.' + (guide ? ' Mark against this marking guide: ' + guide : ' Mark each answer against the correct UNEB answer for this subject and level.') + '\n\nReturn ONLY valid JSON (no prose, no markdown): {"studentName":"<as written on the script, or empty if unreadable>","subject":"' + (subject || '<detected>') + '","perQuestion":[{"q":"<number/label>","given":"<short summary of the learner\'s answer>","marks":<number>,"max":<number>,"note":"<one short marking note>"}],"total":<number>,"max":<number>,"percent":<number 0-100>,"grade":"<UNEB grade e.g. D1..F9 or A..F>","feedback":"<2-3 warm sentences to the learner>","reasoningNotes":"<1-2 sentences on how this learner thinks — what they grasp and where the reasoning breaks down>","confidence":"<high|medium|low — your confidence in reading this script>"}. If the script is too blurry to mark, return total 0 and confidence "low" with a note asking for a clearer photo.';
   try {
@@ -1990,7 +1990,7 @@ async function handleSyllabusGenerate(request, env, cors) {
   let target = Math.round(periods / 3);
   if (target < 14) target = 14; if (target > 40) target = 40;
   if (!klass || !subject) return J({ error: 'class and subject required' }, 400);
-  const levelWord = level === 'tertiary' ? 'university/college' : (level === 'secondary' ? 'secondary school' : 'primary school');
+  const levelWord = level === 'tertiary' ? 'university/college' : (level === 'secondary' ? 'secondary school' : ((level === 'nursery' || level === 'nursery-primary') ? 'nursery / pre-primary school' : 'primary school'));
   const isSecondary = (level === 'secondary' || level === 'tertiary');
   const subjLc = subject.toLowerCase();
   const isMath = /math/.test(subjLc);
@@ -2594,7 +2594,11 @@ async function handleIssueReceipt(request, env, cors) {
 }
 
 // Provision a new school: tenant row + admin auth user + users link + branded link.
+const NURSERY_CLASSES = ['Baby','Middle','Top'];
+const NURSERY_ACTIVITIES = ['Literacy','Numeracy','Reading','Writing','Art & Craft','Music & Movement','Storytime','Play & Physical','Life Skills'];
 const LEVEL_PRESETS = {
+  nursery:   { classes: NURSERY_CLASSES.slice(), subjects: NURSERY_ACTIVITIES.slice(), combinations: [] },
+  'nursery-primary': { classes: NURSERY_CLASSES.concat(['P1','P2','P3','P4','P5','P6','P7']), subjects: NURSERY_ACTIVITIES.concat(['English','Mathematics','Science','Social Studies']), combinations: [] },
   primary:   { classes: ['P1V','P1P','P2V','P2P','P3V','P3P','P4V','P4P','P5V','P5P','P6V','P6P','P7V','P7P'], subjects: ['English','Mathematics','Science','Social Studies'], combinations: [] },
   secondary: { classes: ['S1','S2','S3','S4','S5','S6'], subjects: ['English','Mathematics','Physics','Chemistry','Biology','Geography','History','CRE','Literature','Economics','Entrepreneurship','ICT','Agriculture','Fine Art'], combinations: [
     { name: 'PCM', subjects: ['Physics','Chemistry','Mathematics'], classes: ['S5','S6'] }, { name: 'PCB', subjects: ['Physics','Chemistry','Biology'], classes: ['S5','S6'] }, { name: 'BCM', subjects: ['Biology','Chemistry','Mathematics'], classes: ['S5','S6'] }, { name: 'HEG', subjects: ['History','Economics','Geography'], classes: ['S5','S6'] }, { name: 'HEL', subjects: ['History','Economics','Literature'], classes: ['S5','S6'] },
@@ -2605,6 +2609,10 @@ function detectLevel(name) {
   const n = String(name || '').toLowerCase();
   if (/universit|college|polytechnic|\binstitute\b|tertiary|campus|\bvocational\b/.test(n)) return 'tertiary';
   if (/secondary|\bhigh\b|seminary|\bs\.?s\.?s?\b|o.?level|a.?level/.test(n)) return 'secondary';
+  var hasN = /nursery|kindergarten|pre.?primary|day.?care|\bk\.?g\b|infant|baby class|pre.?school/.test(n);
+  var hasP = /primary|\bp\.?s\b|\bp\/s\b|junior/.test(n);
+  if (hasN && hasP) return 'nursery-primary';
+  if (hasN) return 'nursery';
   return 'primary';
 }
 
@@ -2829,7 +2837,7 @@ async function handleProvisionSchool(request, env, cors) {
     }, 'POST', 'resolution=merge-duplicates,return=minimal');
 
     // 1b. Seed the school structure (level) so the OS shows the right classes from first login
-    const lvl = (['primary','secondary','tertiary'].indexOf(String(level || type || '')) >= 0) ? String(level || type) : detectLevel(name);
+    const lvl = (['nursery','nursery-primary','primary','secondary','tertiary'].indexOf(String(level || type || '')) >= 0) ? String(level || type) : detectLevel(name);
     const preset = LEVEL_PRESETS[lvl] || LEVEL_PRESETS.primary;
     try {
       await sbWrite(env, '/school_config?on_conflict=tenant_id', {
