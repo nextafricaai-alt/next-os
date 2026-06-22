@@ -1,6 +1,8 @@
 name = "nextos-sentinel"
 main = "sentinel-worker.js"
 compatibility_date = "2025-01-01"
+account_id = "b5aecdced030bf84d0a1fb6dcec80e09"
+keep_vars = true   # do NOT delete dashboard vars/secrets on deploy
 
 [ai]
 binding = "AI"
