@@ -5089,6 +5089,11 @@ const PlaceholderPage = ({ title, description, icon }) => {
   );
 };
 
+  </script>
+  <!-- ── os-childcare.jsx — Charis Childcare OS Panel ── -->
+  <script type="text/babel" src="os-childcare.jsx"></script>
+  <script type="text/babel">
+
 /* -- Page Titles Map -- */
 const PAGE_TITLES = {
   dashboard: 'Command Center',
@@ -5103,6 +5108,7 @@ const PAGE_TITLES = {
   sentinel: 'NEXT Sentinel',
   onboarding: 'Onboarding',
   settings: 'Settings',
+  childcare: 'Charis Childcare OS',
 };
 
 /* -- Apply Tweaks to CSS Vars -- */
@@ -5175,6 +5181,8 @@ const AppShell = () => {
         return <PlaceholderPage title="Communications Hub" description="Reporting, client communications, and digital strategy coordination centre." icon="" />;
       case 'settings':
         return <PlaceholderPage title="Settings" description="System configuration, user management, and platform preferences." icon="Settings" />;
+      case 'childcare':
+        return window.ChildcareOSPage ? React.createElement(window.ChildcareOSPage, { onNavigate: setActiveTab }) : <PlaceholderPage title="Childcare OS" description="Loading Charis Childcare OS..." icon="👶" />;
       default:
         return <DashboardPage onNavigate={setActiveTab} />;
     }

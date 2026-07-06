@@ -20,7 +20,7 @@ Hudson: visionary, not a developer. Talks in CEO terms. Wants direct answers, no
 
 HARD RULES — VIOLATE NONE
 1. Tools first, words second. Never claim a tenant fact you didn't read via read_tenant or read_fleet.
-2. Tenant IDs are EXACT slugs. The only valid IDs are: peak-primary, st-marys-demo, grace-chapel-demo, hope-program-demo, next-services-demo, community-association-demo. Never invent or misspell ("pick-school" / "peakprimary" / "peak primary" are all WRONG — always use peak-primary).
+2. Tenant IDs are EXACT slugs. The only valid IDs are: peak-primary, st-marys-demo, grace-chapel-demo, hope-program-demo, next-services-demo, community-association-demo, charis-childcare. Never invent or misspell.
 3. NEVER use the word "sent" unless a tool returned {"sent": true}. After draft_message → say "Draft ready." After open_whatsapp → say "WhatsApp opened — tap Send to deliver." After send_whatsapp returning {sent:true} → only then say "Sent."
 4. You cannot move money, sign contracts, or send anything outside the OS without a tool. No fictional actions.
 5. NEVER narrate your own actions ("I'll call the tool", "I'm waiting for the response", "let me check"). Just call the tool silently, then respond with the answer when you have it. Hudson sees the tool chips automatically — he doesn't need a play-by-play.
@@ -31,6 +31,9 @@ Short. Direct. Warm. Money first, judgment second. African business context (UGX
 DEFAULTS
 - "How's the fleet?" → read_fleet → 3-line summary, names + flags only.
 - "What's at Peak Primary?" → read_tenant("peak-primary") → THEN evaluate_health("peak-primary") → reply with the verticalKpis (286 students, 71% collection, 3 overdue, 12 at-risk).
+- "What's happening at the childcare?" → read_tenant("charis-childcare") → THEN evaluate_health("charis-childcare") → reply with: enrolled count, today's attendance, invoice status, unread parent messages.
+- "Open the childcare" → open_childcare_os() → navigate Hudson to the Childcare OS panel.
+- "What's today's schedule at the childcare?" → read_childcare_schedule() → reply with activities.
 - "Draft / write a WhatsApp" → draft_message first → THEN write the draft in a code block. Stop. Ask Hudson if he wants you to open WhatsApp.
 - "Send a WhatsApp to <number>" → open_whatsapp(phone, message) (Path A). If Hudson says "actually send" or "use Cloud API", call send_whatsapp.
 - "Notify me about X" → notify(severity, title, body).
@@ -44,17 +47,30 @@ WHATSAPP TOOLS
 PEAK PRIMARY SCHOOL (your main wired client)
 286 students. 38 teachers. 14 streams (P1-P7 · Vigilant + Prudent). Term 2 Week 6. Currently: 71% fee collection, 3 accounts overdue 30+ days (1.08M UGX outstanding), 12 at-risk students, 4 enrollment inquiries waiting. Open the live prototype at prototypes/schools/peak-primary/index.html.
 
+CHARIS CHILDCARE OS (NEXT's newest wired vertical — Hudson's own program)
+24 enrolled children. 3 caretakers led by Ms. Maria L. Parents communicate via WhatsApp. July cohort active.
+Live signals: 21 present today (3 absent), 3 invoices due this month, 1 family (Nakamya) 30+ days overdue (UGX 300K), 5 unread parent messages (2 unanswered 24h+), 7 milestones logged this week, 4 activities scheduled today.
+Hudson is the Global Director of this program. Nia supervises it under the childcare vertical.
+To navigate Hudson to the childcare panel: open_childcare_os(). To see today's timetable: read_childcare_schedule().
+
 EXAMPLES — match these patterns
 
 User: "What's happening at Peak Primary?"
 You: [call read_tenant("peak-primary")] [call evaluate_health("peak-primary")] "Term 2 Week 6, three signals worth noting: (1) Fee collection at 71% — 3 accounts overdue more than 30 days (1.08M UGX). (2) Weekly attendance 88%, twelve students flagged at-risk. (3) Four new P1/P3 enrollment inquiries waiting in WhatsApp. Want me to draft the reminder to the three overdue guardians?"
 
+User: "What's happening at the childcare?"
+You: [call read_tenant("charis-childcare")] [call evaluate_health("charis-childcare")] "Childcare update: 21 of 24 children present today (87.5%). Two items need attention: (1) Nakamya family invoice overdue 30+ days — UGX 300K outstanding. (2) 2 parent messages unanswered for 24h+. Want me to draft a WhatsApp to the Nakamya family?"
+
 User: "Yes draft it."
-You: [call draft_message("whatsapp", "Guardian", "Gentle reminder of overdue Term 2 fees")] "Draft ready:" [code block with warm Luganda-English message] "Want me to open WhatsApp to send it to Mrs. Asiimwe?"
+You: [call draft_message("whatsapp", "Guardian", "Gentle reminder of overdue Term 2 fees")] "Draft ready:" [code block with warm message] "Want me to open WhatsApp to send it to the Nakamya family?"
 
 User: "Send a WhatsApp to 256772111222 saying we have a meeting at 4pm."
 You: [call open_whatsapp("256772111222", "Quick note — meeting at 4pm today. Confirm?")] "WhatsApp opened with the draft. Tap Send when ready."
+
+User: "Open the childcare"
+You: [call open_childcare_os()] "Childcare OS is open."
 `;
+
 
   const TOOLS = [
     { name: 'read_fleet', description: 'Returns current state of every tenant under supervision: id, name, vertical, health, KPIs, latest advisory.',
@@ -90,7 +106,12 @@ You: [call open_whatsapp("256772111222", "Quick note — meeting at 4pm today. C
         phone:   { type: 'string', description: 'International format, digits only, no + (e.g. 256772123456)' },
         message: { type: 'string', description: 'The message text to send' }
       }, required: ['phone', 'message'] } },
+    { name: 'open_childcare_os', description: 'Navigate Hudson to the Childcare OS panel inside NEXT OS. Use when Hudson asks to open, view, or switch to the childcare dashboard.',
+      input_schema: { type: 'object', properties: {}, required: [] } },
+    { name: 'read_childcare_schedule', description: "Returns today's activity schedule for the Charis Childcare program — what activities are planned, timings, and which caretaker leads each.",
+      input_schema: { type: 'object', properties: {}, required: [] } },
   ];
+
 
 
   // Llama often mishears tenant slugs ("peak-school" / "pick-primary" /
@@ -153,7 +174,7 @@ You: [call open_whatsapp("256772111222", "Quick note — meeting at 4pm today. C
           const gap = (k.expenses || 0) - (k.revenue || 0);
           if (gap > 0) concerns.push({ type: 'cash_flow', severity: 'warn', summary: 'Expenses exceed revenue by ' + gap + ' ' + t.currency });
           if (t.latest) concerns.push({ type: 'open_advisory', severity: t.latest.severity, summary: t.latest.title + ' - ' + t.latest.summary });
-          // Vertical-specific checks. Right now: school.
+          // Vertical-specific checks. Right now: school + childcare.
           if (t.vertical === 'school' && t.verticalKpis) {
             const v = t.verticalKpis;
             if (v.accountsOverdue30d && v.accountsOverdue30d > 0) {
@@ -177,6 +198,31 @@ You: [call open_whatsapp("256772111222", "Quick note — meeting at 4pm today. C
                 summary: v.enrollmentInquiries + ' new enrollment inquiries waiting in WhatsApp queue.' });
             }
           }
+          // Childcare-specific health checks
+          if (t.vertical === 'childcare' && t.verticalKpis) {
+            const v = t.verticalKpis;
+            if (typeof v.attendanceRate === 'number' && v.attendanceRate < 0.85) {
+              concerns.push({ type: 'childcare_attendance', severity: 'warn',
+                summary: 'Today\'s attendance at ' + Math.round(v.attendanceRate * 100) + '% (' + v.absentToday + ' children absent). Consider parent check-in message.' });
+            }
+            if (v.invoicesOverdue30d && v.invoicesOverdue30d > 0) {
+              concerns.push({ type: 'childcare_invoice_overdue', severity: 'critical',
+                summary: v.invoicesOverdue30d + ' family invoice(s) overdue 30+ days — UGX ' + Math.round((v.overdueAmount || 0) / 1000) + 'K outstanding. Draft WhatsApp reminder.' });
+            }
+            if (v.invoicesDue && v.invoicesDue > 0) {
+              concerns.push({ type: 'childcare_invoices_due', severity: 'info',
+                summary: v.invoicesDue + ' invoice(s) due this month. Collection rate at ' + Math.round((v.collectionRate || 0) * 100) + '%.' });
+            }
+            if (v.unansweredMessages24h && v.unansweredMessages24h > 0) {
+              concerns.push({ type: 'childcare_messages', severity: 'warn',
+                summary: v.unansweredMessages24h + ' parent message(s) unanswered for 24h+. Caretaker inbox needs attention.' });
+            }
+            if (v.unreadParentMessages && v.unreadParentMessages > 0) {
+              concerns.push({ type: 'childcare_unread', severity: 'info',
+                summary: v.unreadParentMessages + ' unread parent messages across all threads.' });
+            }
+          }
+
           if (concerns.length === 0) concerns.push({ type: 'all_clear', severity: 'info', summary: 'No threshold breaches.' });
           return JSON.stringify({ tenant: t.name, vertical: t.vertical, currency: t.currency, concerns });
         }
@@ -236,7 +282,29 @@ You: [call open_whatsapp("256772111222", "Quick note — meeting at 4pm today. C
             return JSON.stringify({ sent: false, error: String(e.message || e), hint: 'Likely WhatsApp Cloud API not configured. Fall back to open_whatsapp.' });
           }
         }
+        case 'open_childcare_os': {
+          if (typeof window !== 'undefined' && typeof window.NEXT_OS_NAVIGATE === 'function') {
+            window.NEXT_OS_NAVIGATE('childcare');
+          }
+          return JSON.stringify({ navigated: true, panel: 'childcare', instruction: 'Hudson is now on the Childcare OS panel. Continue your reply.' });
+        }
+        case 'read_childcare_schedule': {
+          // Returns today's scheduled activities for the childcare program.
+          const schedule = [
+            { time: '07:30', activity: 'Arrival & Free Play', caretaker: 'Ms. Maria L.', notes: 'Outdoor play area' },
+            { time: '09:00', activity: 'Morning Circle & Songs', caretaker: 'Ms. Maria L.', notes: 'Full group, music instruments' },
+            { time: '09:30', activity: 'Structured Learning — Letters & Numbers', caretaker: 'Ms. Faith A.', notes: 'Toddler group (3-4yr)' },
+            { time: '10:30', activity: 'Snack Time', caretaker: 'All caretakers', notes: 'Fruit and juice provided' },
+            { time: '11:00', activity: 'Creative Arts & Craft', caretaker: 'Ms. Ruth K.', notes: 'Painting — theme: Animals' },
+            { time: '12:00', activity: 'Lunch', caretaker: 'All caretakers', notes: 'Posho, beans, and vegetables' },
+            { time: '12:45', activity: 'Nap Time', caretaker: 'Ms. Maria L.', notes: 'Infants and toddlers' },
+            { time: '14:00', activity: 'Outdoor Play & Story Time', caretaker: 'Ms. Faith A.', notes: 'Sensory garden' },
+            { time: '15:00', activity: 'Parent Pick-up Window', caretaker: 'All caretakers', notes: 'Parents to sign out' },
+          ];
+          return JSON.stringify({ date: new Date().toDateString(), activitiesCount: schedule.length, schedule });
+        }
         default: return JSON.stringify({ error: 'Unknown tool: ' + name });
+
       }
     } catch (e) { return JSON.stringify({ error: String(e.message || e) }); }
   }

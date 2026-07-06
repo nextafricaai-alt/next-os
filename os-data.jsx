@@ -17,6 +17,20 @@
       platform: 'Supabase + Next.js', domain: 'services.gov.ug',
       team: ['HT', 'AO', 'DM'], startDate: '2026-01-15', deadline: '2026-07-30',
       uptime: 99.7, lastDeploy: '2 days ago', errors24h: 0, warnings24h: 1 },
+    { id: 'proj-childcare', name: 'Charis Childcare OS', client: 'NEXT Internal · Charis Creations',
+      status: 'active', health: 'healthy', progress: 85, priority: 'high',
+      platform: 'Supabase + Vanilla JS', domain: 'childcare.nextafrica.ai',
+      team: ['HT'], startDate: '2026-06-01', deadline: '2026-08-01',
+      uptime: 99.9, lastDeploy: '1 hour ago', errors24h: 0, warnings24h: 0,
+      alerts: [],
+      milestones: [
+        { name: 'Phase 1 - Parent Portal & Auth', done: true },
+        { name: 'Phase 2 - Child Profiles & Attendance', done: true },
+        { name: 'Phase 3 - Timetable & Milestones', done: true },
+        { name: 'Phase 4 - Invoice & Payment System', done: true },
+        { name: 'Phase 5 - Nia Integration & Production', done: false },
+      ],
+    },
   ];
 
   // ─── FINANCE (seed) ──────────────────────────────────────────────────────
@@ -28,6 +42,9 @@
     unit: 'K',
   };
   const DEFAULT_TRANSACTIONS = [
+    { id: 'TXN-CC-001', date: '5 Jul 2026',  desc: 'Childcare OS - July Tuition Invoices (6 families)',   type: 'income',  amount: 1800,  category: 'Childcare',      status: 'completed' },
+    { id: 'TXN-CC-002', date: '4 Jul 2026',  desc: 'Childcare OS - Caretaker Payroll (Ms. Maria)',        type: 'expense', amount: 420,   category: 'Childcare',      status: 'completed' },
+    { id: 'TXN-CC-003', date: '3 Jul 2026',  desc: 'Childcare OS - Overdue Invoice (Nakamya family)',     type: 'income',  amount: 300,   category: 'Childcare',      status: 'pending'   },
     { id: 'TXN-001', date: '20 May 2026', desc: 'Architect Membership - Kenya Ministry of Digital', type: 'income',  amount: 2999,  category: 'Membership',     status: 'completed' },
     { id: 'TXN-002', date: '19 May 2026', desc: 'Safaricom - Process Automation Phase 2 Invoice',     type: 'income',  amount: 45000, category: 'Project',        status: 'completed' },
     { id: 'TXN-003', date: '19 May 2026', desc: 'AWS Infrastructure - May billing',                   type: 'expense', amount: 8420,  category: 'Infrastructure', status: 'completed' },
@@ -83,6 +100,30 @@
       health: 'advisory', lastSignalAt: '13m ago',
       kpis: { revenue: 20000000, expenses: 14500000 },
       latest: { severity: 'warn', title: 'Participation below threshold', summary: '430 active members vs. 500 target.' } },
+    // ─── Charis Childcare OS (wired vertical) ──────────────────────────────
+    { id: 'charis-childcare', name: 'Charis Childcare OS', vertical: 'childcare', country: 'Uganda', currency: 'UGX',
+      health: 'advisory', lastSignalAt: '12s ago',
+      prototypeUrl: '../index.html',
+      kpis: { revenue: 2100000, expenses: 840000 },
+      verticalKpis: {
+        enrolled: 24,
+        presentToday: 21,
+        absentToday: 3,
+        attendanceRate: 0.875,
+        caretakers: 3,
+        activeParents: 20,
+        invoicesDue: 3,
+        invoicesOverdue30d: 1,
+        overdueAmount: 300000,
+        totalInvoiced: 2100000,
+        collectionRate: 0.857,
+        unreadParentMessages: 5,
+        unansweredMessages24h: 2,
+        milestonesThisWeek: 7,
+        activitiesScheduledToday: 4,
+        lastSync: '12s ago',
+      },
+      latest: { severity: 'warn', title: '3 invoices due · 2 parent messages unanswered', summary: 'UGX 300K overdue (Nakamya family 30+ days). 2 parent messages have no reply in 24h.' } },
   ];
 
   // ─── Storage helpers ─────────────────────────────────────────────────────

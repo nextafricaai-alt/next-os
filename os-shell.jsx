@@ -19,6 +19,8 @@ const OSIcon = ({ name, size = 20 }) => {
     bell: <><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></>,
     chevronDown: <><polyline points="6 9 12 15 18 9"/></>,
     logout: <><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></>,
+    // Childcare OS icon — stylised child figure with a heart
+    childcare: <><circle cx="12" cy="5" r="2.5"/><path d="M12 9c-3 0-5 2-5 4v2h10v-2c0-2-2-4-5-4z"/><path d="M9 15v5"/><path d="M15 15v5"/><path d="M9 20h6"/><path d="M7 11c-1.5.5-2 1.5-2 2.5" strokeOpacity="0.5"/><path d="M17 11c1.5.5 2 1.5 2 2.5" strokeOpacity="0.5"/></>,
   };
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -35,6 +37,7 @@ const NAV_SECTIONS = [
     { id: 'fleet', label: 'Fleet', icon: 'fleet', badge: 5 },
     { id: 'projects', label: 'Projects', icon: 'projects', badge: 12 },
     { id: 'ai-tools', label: 'AI Tools', icon: 'ai' },
+    { id: 'childcare', label: 'Childcare OS', icon: 'childcare', badge: '●', badgeColor: '#FFB400' },
   ]},
   { id: 'manage', label: 'Manage', items: [
     { id: 'training', label: 'Training', icon: 'training' },
