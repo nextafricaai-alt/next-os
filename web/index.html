@@ -1990,6 +1990,21 @@ Object.assign(window, { MembersPage, MembershipCard, TIER_CONFIG });
 /* os-projects.jsx - Projects Dashboard: Status Monitoring, Credential Vault, System Health */
 
 const PROJECT_DATA = [
+  {
+    id: 'proj-childcare', name: 'Charis Childcare OS', client: 'Internal / Charis Creations', kind: 'os',
+    status: 'active', health: 'healthy', progress: 85, priority: 'high', planned: false,
+    platform: 'NEXT OS Vertical', domain: 'childcare.next', url: '',
+    builtDate: '2026-07', hosting: 'Local / OS Component', registrar: '',
+    team: ['HT', 'ML', 'FA'], startDate: '2026-07-01', deadline: '', runs: 'Childcare Operations', website: 'none',
+    uptime: 100, lastDeploy: 'just now', errors24h: 0, warnings24h: 1,
+    alerts: [{ type: 'warn', msg: '1 invoice overdue (Nakamya)' }],
+    milestones: [
+      { name: 'Initial wire-up with NEXT OS', done: true },
+      { name: 'Nia Context Integration', done: true },
+      { name: 'Billing automated tracking', done: false },
+    ],
+    credentials: { adminEmail: 'hudson@nextafrica.ai' },
+  },
   // ── OPERATING SYSTEMS (the engine room behind each website) ──
   {
     id: 'next-os', name: 'NEXT OS', client: 'NEXT · master operating system', kind: 'os',
