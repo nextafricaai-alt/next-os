@@ -490,7 +490,14 @@
     if (_patched || !window.OS_DATA) return;
     _patched = true;
     var _orig = window.OS_DATA.getTenants;
-    window.OS_DATA.getTenants = function(){ return (_live && _live.length) ? _live : _orig(); };
+    window.OS_DATA.getTenants = function(){ 
+      if (_live && _live.length) {
+        var defaultTenants = _orig();
+        var cc = defaultTenants.find(t => t.id === 'charis-childcare');
+        return cc ? _live.concat(cc) : _live;
+      }
+      return _orig(); 
+    };
     window.OS_DATA.fleetSource = function(){ return _live ? 'live' : 'seed'; };
     window.OS_DATA.refreshFleet = doFetch;
     doFetch();
