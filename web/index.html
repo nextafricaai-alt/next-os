@@ -7877,6 +7877,8 @@ const AppShell = () => {
         return window.NEXT_FINANCE ? React.createElement(window.NEXT_FINANCE) : <FinancePage onNavigate={setActiveTab} />;
       case 'sentinel':
         return window.NiaHQPage ? React.createElement(window.NiaHQPage, { onNavigate: setActiveTab }) : <PlaceholderPage title="Nia HQ" description="Loading." icon="" />;
+      case 'childcare':
+        return window.ChildcareOSPage ? React.createElement(window.ChildcareOSPage, { onNavigate: setActiveTab }) : <PlaceholderPage title="Charis Childcare OS" description="Loading childcare panel." icon="" />;
       case 'onboarding':
         return window.OnboardingPage ? React.createElement(window.OnboardingPage, { onNavigate: setActiveTab }) : <PlaceholderPage title="Onboarding" description="Template onboarding is loading." icon="" />;
       case 'training':
