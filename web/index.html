@@ -3947,9 +3947,10 @@ const FleetPage = ({ onNavigate }) => {
   tenants.forEach(t => { verticalCounts[t.vertical] = (verticalCounts[t.vertical] || 0) + 1; });
 
   const handleOpen = (tenant) => {
-    // Childcare OS opens in the local panel.
+    // Childcare OS opens its own standalone prototype login page
     if (tenant.vertical === 'childcare') {
-      if (typeof onNavigate === 'function') onNavigate('childcare');
+      var _c = 'prototypes/childcare/login.html?t=' + encodeURIComponent(tenant.id) + '&n=' + encodeURIComponent(tenant.name || '');
+      window.open(_c, '_blank', 'noopener,noreferrer');
       return;
     }
     // Schools open their own branded Schools OS (one template, branded per tenant).
