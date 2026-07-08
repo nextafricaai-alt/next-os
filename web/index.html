@@ -494,7 +494,7 @@
       if (_live && _live.length) {
         var defaultTenants = _orig();
         var cc = defaultTenants.find(t => t.id === 'charis-childcare');
-        return cc ? _live.concat(cc) : _live;
+        return (cc && !_live.find(t => t.id === 'charis-childcare')) ? _live.concat(cc) : _live;
       }
       return _orig(); 
     };
@@ -3947,6 +3947,11 @@ const FleetPage = ({ onNavigate }) => {
   tenants.forEach(t => { verticalCounts[t.vertical] = (verticalCounts[t.vertical] || 0) + 1; });
 
   const handleOpen = (tenant) => {
+    // Childcare OS opens in the local panel.
+    if (tenant.vertical === 'childcare') {
+      if (typeof onNavigate === 'function') onNavigate('childcare');
+      return;
+    }
     // Schools open their own branded Schools OS (one template, branded per tenant).
     if (tenant.vertical === 'school') {
       var _b = 'prototypes/schools/peak-primary/login.html?t=' + encodeURIComponent(tenant.id) + '&n=' + encodeURIComponent(tenant.name || '') + (tenant.primaryColor ? '&c=' + encodeURIComponent(tenant.primaryColor) : '') + (tenant.logoUrl ? '&l=' + encodeURIComponent(tenant.logoUrl) : '');
