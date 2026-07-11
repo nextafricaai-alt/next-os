@@ -338,7 +338,7 @@ MESSAGES FROM PARENTS: ${JSON.stringify(contextData.messages)}`;
             <div>
               <div style={{ fontSize: 13, color: 'var(--mint)', fontFamily: 'var(--font-mono)', marginBottom: 4 }}>{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</div>
               <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 28, fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
-                {tabs.find(t => t.id === activeTab)?.label}
+                {tabs.find(t => t.id === activeTab) ? tabs.find(t => t.id === activeTab).label : ''}
               </h2>
             </div>
             <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
