@@ -257,7 +257,7 @@ You have complete access to the current dashboard state. Answer the user's quest
 
 CURRENT DASHBOARD STATE:
 KPIs: ${JSON.stringify(contextData.kpi)}
-CHILDREN ROSTER: ${JSON.stringify(contextData.children.map(c => ({ name: c.name, age: c.age, present: c.present, nap: c.nap, milestone: c.milestone, invoice: c.invoiceStatus })))}
+CHILDREN ROSTER: ${JSON.stringify(contextData.children.map(c => ({ name: c.name, age: c.age, present: c.present, nap: c.nap, milestone: c.milestone, invoice: c.invoiceStatus, healthRecord: c.healthRecord, allergies: c.allergies, immunisation: c.immunisation, favouriteMeals: c.favouriteMeals, birthday: c.birthday, height: c.height, weight: c.weight, activeScore: c.activeScore, enrollmentDate: c.enrollmentDate })))}
 TODAY'S SCHEDULE: ${JSON.stringify(contextData.schedule.map(s => ({ time: s.time, activity: s.activity, caretaker: s.caretaker })))}
 MESSAGES FROM PARENTS: ${JSON.stringify(contextData.messages)}`;
 
@@ -326,6 +326,8 @@ MESSAGES FROM PARENTS: ${JSON.stringify(contextData.messages)}`;
     const [activeTab, setActiveTab] = React.useState('overview');
     const [selectedChild, setSelectedChild] = React.useState(null);
     const [niaOpen, setNiaOpen] = React.useState(false);
+    const [childrenData, setChildrenData] = React.useState(CHILDREN);
+    const [onboardingOpen, setOnboardingOpen] = React.useState(false);
     const kpi = CHILDCARE_KPIs;
     const currentSlot = getCurrentTimeSlot();
 
@@ -342,6 +344,7 @@ MESSAGES FROM PARENTS: ${JSON.stringify(contextData.messages)}`;
       { id: 'schedule',  label: 'Schedule', icon: '🗓️' },
       { id: 'messages',  label: 'Messages', icon: '💬', badge: kpi.unreadParentMessages },
       { id: 'invoices',  label: 'Invoices', icon: '💳' },
+      { id: 'cameras',   label: 'Live Cameras', icon: '🎥' },
     ];
 
     return (
@@ -487,7 +490,7 @@ MESSAGES FROM PARENTS: ${JSON.stringify(contextData.messages)}`;
             {/* Recent Milestones */}
             <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: 20 }}>
               <div style={{ fontSize: 12, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 16 }}>Recent Milestones</div>
-              {CHILDREN.filter(c => c.milestone).slice(0, 5).map(child => (
+              {childrenData.filter(c => c.milestone).slice(0, 5).map(child => (
                 <div key={child.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: '1px solid var(--border-subtle)' }}>
                   <span style={{ fontSize: 20 }}>{child.mood}</span>
                   <div>
@@ -521,27 +524,76 @@ MESSAGES FROM PARENTS: ${JSON.stringify(contextData.messages)}`;
         {/* ── CHILDREN TAB ── */}
         {activeTab === 'children' && !selectedChild && (
           <div style={{ animation: 'fadeIn 0.3s ease' }}>
-            <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
-              {[
-                { label: 'All',     val: CHILDREN.length,                       color: 'var(--text-secondary)' },
-                { label: 'Present', val: CHILDREN.filter(c => c.present).length, color: '#00FC8F' },
-                { label: 'Absent',  val: CHILDREN.filter(c => !c.present).length, color: '#FF4757' },
-                { label: 'Napping', val: CHILDREN.filter(c => c.nap).length,    color: '#A855F7' },
-              ].map(({ label, val, color }) => (
-                <div key={label} style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 10, padding: '10px 16px', fontSize: 12 }}>
-                  <span style={{ color, fontWeight: 700, fontFamily: 'var(--font-mono)' }}>{val}</span>
-                  <span style={{ color: 'var(--text-tertiary)', marginLeft: 6 }}>{label}</span>
-                </div>
-              ))}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <div style={{ display: 'flex', gap: 12 }}>
+                {[
+                  { label: 'All',     val: childrenData.length,                       color: 'var(--text-secondary)' },
+                  { label: 'Present', val: childrenData.filter(c => c.present).length, color: '#00FC8F' },
+                  { label: 'Absent',  val: childrenData.filter(c => !c.present).length, color: '#FF4757' },
+                  { label: 'Napping', val: childrenData.filter(c => c.nap).length,    color: '#A855F7' },
+                ].map(({ label, val, color }) => (
+                  <div key={label} style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 10, padding: '10px 16px', fontSize: 12 }}>
+                    <span style={{ color, fontWeight: 700, fontFamily: 'var(--font-mono)' }}>{val}</span>
+                    <span style={{ color: 'var(--text-tertiary)', marginLeft: 6 }}>{label}</span>
+                  </div>
+                ))}
+              </div>
+              <button onClick={() => setOnboardingOpen(true)} style={{ background: 'var(--mint)', color: '#060012', border: 'none', borderRadius: 8, padding: '10px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font-body)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span>➕</span> Onboard Child
+              </button>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 14 }}>
-              {CHILDREN.map(child => <ChildCard key={child.id} child={child} onSelect={setSelectedChild} onMessage={handleMessage} />)}
+              {childrenData.map(child => <ChildCard key={child.id} child={child} onSelect={setSelectedChild} onMessage={handleMessage} />)}
             </div>
           </div>
         )}
 
         {activeTab === 'children' && selectedChild && (
            <ChildProfileView child={selectedChild} onBack={() => setSelectedChild(null)} onMessage={handleMessage} />
+        )}
+
+        {/* ── CAMERAS TAB ── */}
+        {activeTab === 'cameras' && (
+          <div style={{ animation: 'fadeIn 0.3s ease' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+              <div style={{ fontSize: 14, color: 'var(--text-secondary)' }}>Live feeds from Charis Childcare center. AI Milestone tracking is currently active.</div>
+              <button style={{ background: 'transparent', border: '1px solid var(--border-default)', color: 'var(--text-secondary)', borderRadius: 8, padding: '8px 12px', fontSize: 12, cursor: 'pointer' }}>⚙️ Configure Video Sources</button>
+            </div>
+            
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: 24 }}>
+              {[
+                { id: 'cam1', name: 'Playroom A - North View', source: 'camera_mock_1', children: [{ name: 'Ivy Kyomuhendo', milestone: 'Puzzle (12 pieces)', x: 60, y: 40 }, { name: 'Aiden Nakamya', milestone: 'First full sentence', x: 20, y: 70 }] },
+                { id: 'cam2', name: 'Nap Area - East Wing', source: 'camera_mock_2', children: [{ name: 'Henry Kato', milestone: 'Sleeping calmly', x: 40, y: 50 }] },
+                { id: 'cam3', name: 'Outdoor Sandbox', source: 'camera_mock_3', children: [{ name: 'Ethan Lubega', milestone: 'Walking alone', x: 70, y: 30 }] }
+              ].map(cam => (
+                <div key={cam.id} style={{ background: 'var(--bg-elevated)', borderRadius: 16, overflow: 'hidden', border: '1px solid var(--border-subtle)', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}>
+                  {/* Camera Header */}
+                  <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#FF4757', animation: 'pulse 2s infinite' }}></div>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{cam.name}</span>
+                    </div>
+                    <span style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>1080p • 30fps</span>
+                  </div>
+                  {/* Camera Feed Mock */}
+                  <div style={{ position: 'relative', width: '100%', height: 220, background: '#111' }}>
+                    <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundImage: 'url(https://images.unsplash.com/photo-1594608661623-aa0bd3a0c1ea?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80)', backgroundSize: 'cover', backgroundPosition: 'center', opacity: 0.6 }}></div>
+                    {/* Bounding Boxes */}
+                    {cam.children.map((c, i) => (
+                      <div key={i} style={{ position: 'absolute', left: \`\${c.x}%\`, top: \`\${c.y}%\`, transform: 'translate(-50%, -50%)' }}>
+                        <div style={{ border: '2px solid var(--mint)', width: 60, height: 80, borderRadius: 8, boxShadow: '0 0 10px rgba(0,252,143,0.3)', position: 'relative' }}>
+                          <div style={{ position: 'absolute', top: -30, left: '50%', transform: 'translateX(-50%)', background: 'rgba(0,0,0,0.8)', border: '1px solid var(--mint)', borderRadius: 6, padding: '4px 8px', whiteSpace: 'nowrap', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                            <span style={{ fontSize: 10, color: '#fff', fontWeight: 700 }}>{c.name}</span>
+                            <span style={{ fontSize: 9, color: 'var(--mint)' }}>🏆 {c.milestone}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         )}
 
         {/* ── SCHEDULE TAB ── */}
@@ -658,7 +710,49 @@ MESSAGES FROM PARENTS: ${JSON.stringify(contextData.messages)}`;
         )}
         
         {/* Nia Overlay */}
-        <ChildcareNiaOverlay isOpen={niaOpen} onClose={() => setNiaOpen(false)} contextData={{ kpi: CHILDCARE_KPIs, children: CHILDREN, schedule: TODAY_SCHEDULE, messages: MESSAGES }} />
+        <ChildcareNiaOverlay 
+          isOpen={niaOpen} 
+          onClose={() => setNiaOpen(false)} 
+          contextData={{ kpi: CHILDCARE_KPIs, children: childrenData, schedule: TODAY_SCHEDULE, messages: MESSAGES }}
+        />
+
+        {/* Onboarding Drawer Modal */}
+        {onboardingOpen && (
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', animation: 'fadeIn 0.2s ease' }}>
+            <div style={{ background: 'var(--bg-elevated)', width: 500, borderRadius: 16, border: '1px solid var(--border-subtle)', padding: 32, position: 'relative' }}>
+              <button onClick={() => setOnboardingOpen(false)} style={{ position: 'absolute', top: 16, right: 16, background: 'none', border: 'none', color: 'var(--text-tertiary)', cursor: 'pointer', fontSize: 20 }}>×</button>
+              <h2 style={{ fontSize: 22, fontWeight: 800, margin: '0 0 24px', color: 'var(--text-primary)', fontFamily: 'var(--font-display)' }}>Onboard New Child</h2>
+              <form onSubmit={e => {
+                e.preventDefault();
+                const fd = new FormData(e.target);
+                const newChild = {
+                  id: 'child-new-' + Date.now(),
+                  name: fd.get('name'), age: fd.get('age') + ' yrs',
+                  parent: fd.get('parent'), parentPhone: '256700000000',
+                  mood: '😊', present: true, nap: false, milestone: '',
+                  invoiceStatus: 'paid', healthRecord: 'No current concerns.',
+                  allergies: fd.get('allergies') || 'None',
+                  immunisation: fd.get('immunisation') || 'Up to date',
+                  favouriteMeals: 'To be determined', birthday: fd.get('birthday') || 'TBD',
+                  height: '-', weight: '-', activeScore: 90, enrollmentDate: new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+                  photoUrl: 'https://images.unsplash.com/photo-1596461404969-9ae70f2830c1?ixlib=rb-4.0.3&auto=format&fit=crop&w=200&q=80'
+                };
+                setChildrenData([newChild, ...childrenData]);
+                setOnboardingOpen(false);
+              }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+                  <div><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Full Name</label><input required name="name" style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }} /></div>
+                  <div><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Age (years)</label><input required name="age" type="number" style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }} /></div>
+                  <div><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Parent / Guardian</label><input required name="parent" style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }} /></div>
+                  <div><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Birthday</label><input name="birthday" type="date" style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }} /></div>
+                  <div><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Allergies</label><input name="allergies" placeholder="e.g. Peanuts" style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }} /></div>
+                  <div><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Immunisation Status</label><input name="immunisation" defaultValue="Up to date" style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }} /></div>
+                </div>
+                <button type="submit" style={{ width: '100%', background: 'var(--mint)', color: '#060012', border: 'none', borderRadius: 8, padding: '12px', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font-body)', marginTop: 8 }}>Complete Onboarding</button>
+              </form>
+            </div>
+          </div>
+        )}
         
         </div>{/* End Main Content Area */}
       </div>
