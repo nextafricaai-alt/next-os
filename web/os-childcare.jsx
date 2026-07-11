@@ -4,7 +4,6 @@
 */
 
 console.log("os-childcare.jsx is executing!");
-alert("os-childcare.jsx is executing!");
 
 (function () {
 
@@ -372,17 +371,22 @@ alert("os-childcare.jsx is executing!");
       setInput('');
       setPending(true);
 
+      const rosterStr = JSON.stringify(contextData.children.map(c => {
+        const vac = typeof calculateVaccineStatus !== 'undefined' ? calculateVaccineStatus(c) : {};
+        return { name: c.name, age: c.age, present: c.present, nap: c.nap, milestone: c.milestone, invoice: c.invoiceStatus, healthRecord: c.healthRecord, allergies: c.allergies, overdueVaccines: vac.due || [], upcomingVaccines: vac.upcoming || [], completedVaccines: c.completedVaccines, favouriteMeals: c.favouriteMeals, birthday: c.birthday, height: c.height, weight: c.weight, activeScore: c.activeScore, enrollmentDate: c.enrollmentDate };
+      }));
+      const scheduleStr = JSON.stringify(contextData.schedule.map(s => ({ time: s.time, activity: s.activity, caretaker: s.caretaker })));
+      const messagesStr = JSON.stringify(contextData.messages);
+      const kpiStr = JSON.stringify(contextData.kpi);
+
       const systemPrompt = `You are Nia, the AI Chief of Staff for NEXT OS. You are currently viewing the Charis Childcare OS dashboard for Hudson Tumusiime (Global Director).
 You have complete access to the current dashboard state. Answer the user's questions based ONLY on this data. Be concise, direct, and helpful. Do not use markdown headers.
 
 CURRENT DASHBOARD STATE:
-KPIs: ${JSON.stringify(contextData.kpi)}
-CHILDREN ROSTER: ${JSON.stringify(contextData.children.map(c => {
-  const vac = typeof calculateVaccineStatus !== 'undefined' ? calculateVaccineStatus(c) : {};
-  return { name: c.name, age: c.age, present: c.present, nap: c.nap, milestone: c.milestone, invoice: c.invoiceStatus, healthRecord: c.healthRecord, allergies: c.allergies, overdueVaccines: vac.due || [], upcomingVaccines: vac.upcoming || [], completedVaccines: c.completedVaccines, favouriteMeals: c.favouriteMeals, birthday: c.birthday, height: c.height, weight: c.weight, activeScore: c.activeScore, enrollmentDate: c.enrollmentDate };
-}))}
-TODAY'S SCHEDULE: ${JSON.stringify(contextData.schedule.map(s => ({ time: s.time, activity: s.activity, caretaker: s.caretaker })))}
-MESSAGES FROM PARENTS: ${JSON.stringify(contextData.messages)}`;
+KPIs: ${kpiStr}
+CHILDREN ROSTER: ${rosterStr}
+TODAY'S SCHEDULE: ${scheduleStr}
+MESSAGES FROM PARENTS: ${messagesStr}`;
 
       try {
         const res = await fetch('https://nextos-sentinel.nextafricaai.workers.dev', {
