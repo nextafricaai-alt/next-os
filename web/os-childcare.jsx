@@ -413,6 +413,26 @@ MESSAGES FROM PARENTS: ${JSON.stringify(contextData.messages)}`;
     const kpi = CHILDCARE_KPIs;
     const currentSlot = getCurrentTimeSlot();
 
+    React.useEffect(() => {
+      if (activeTab === 'cameras' && typeof window !== 'undefined' && window.JSMpeg) {
+        let players = [];
+        const setupPlayer = (id, port) => {
+          const canvas = document.getElementById(id);
+          if (canvas) {
+            players.push(new window.JSMpeg.Player(`ws://127.0.0.1:${port}`, { canvas: canvas, autoplay: true, loop: true }));
+          }
+        };
+        const timer = setTimeout(() => {
+          setupPlayer('camera-canvas-1', 9999);
+          setupPlayer('camera-canvas-2', 9998);
+        }, 300);
+        return () => {
+          clearTimeout(timer);
+          players.forEach(p => p.destroy());
+        };
+      }
+    }, [activeTab]);
+
     function handleMessage(child) {
       const url = 'https://wa.me/' + child.parentPhone + '?text=' + encodeURIComponent(
         'Hello ' + child.parent + ', this is a message from the Charis Childcare team regarding ' + child.name + '. '
@@ -657,9 +677,9 @@ MESSAGES FROM PARENTS: ${JSON.stringify(contextData.messages)}`;
                     </div>
                     <span style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>1080p • 30fps</span>
                   </div>
-                  {/* Camera Feed Mock */}
+                  {/* Real Camera Feed (JSMpeg) */}
                   <div style={{ position: 'relative', width: '100%', height: 220, background: '#111' }}>
-                    <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundImage: 'url(https://images.unsplash.com/photo-1594608661623-aa0bd3a0c1ea?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80)', backgroundSize: 'cover', backgroundPosition: 'center', opacity: 0.6 }}></div>
+                    <canvas id={`camera-canvas-${cam.id}`} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: 0.8 }}></canvas>
                     {/* Bounding Boxes */}
                     {cam.children.map((c, i) => (
                       <div key={i} style={{ position: 'absolute', left: c.x + '%', top: c.y + '%', transform: 'translate(-50%, -50%)' }}>

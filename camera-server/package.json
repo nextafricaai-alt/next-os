@@ -1,0 +1,12 @@
+{
+  "name": "next-os-camera-server",
+  "version": "1.0.0",
+  "description": "Node.js RTSP to WebSocket Bridge using JSMpeg and FFmpeg",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "node-rtsp-stream": "^0.2.6"
+  }
+}

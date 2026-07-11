@@ -233,6 +233,28 @@ export default {
     if (request.method === 'GET' && url.pathname === '/fleet') {
       try {
         const tenants = await loadTenants(env);
+
+        tenants.push({
+          id: 'charis-childcare',
+          name: 'Charis Childcare',
+          vertical: 'childcare',
+          country: 'Uganda',
+          currency: 'UGX',
+          health: 'advisory',
+          lastSignalAt: 'just now',
+          prototypeUrl: '',
+          kpis: { revenue: 5000000, expenses: 1200000 },
+          verticalKpis: {
+            enrolled: 24, presentToday: 21, attendanceRate: 0.875,
+            invoicesOverdue: 1, unreadMessages: 5, milestonesLogged: 7,
+          },
+          latest: { 
+            severity: 'warn', 
+            title: '1 invoice overdue 30+ days', 
+            summary: 'Nakamya family is 30+ days overdue.' 
+          }
+        });
+
         return new Response(JSON.stringify({
           tenants,
           source: (env.SUPABASE_URL && env.SUPABASE_KEY) ? 'live' : 'seed',
