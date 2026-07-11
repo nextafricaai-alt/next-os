@@ -197,7 +197,8 @@ MESSAGES FROM PARENTS: ${JSON.stringify(contextData.messages)}`;
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Failed to fetch');
         
-        const textResp = (data.content || []).find(c => c.type === 'text')?.text || "I'm sorry, I couldn't process that.";
+        const textRespObj = (data.content || []).find(c => c.type === 'text');
+        const textResp = (textRespObj && textRespObj.text) || "I'm sorry, I couldn't process that.";
         setMessages(prev => [...prev, { role: 'assistant', content: textResp }]);
       } catch (err) {
         setMessages(prev => [...prev, { role: 'assistant', content: '⚠️ Error connecting to Nia: ' + err.message }]);
