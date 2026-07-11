@@ -260,34 +260,91 @@ MESSAGES FROM PARENTS: ${JSON.stringify(contextData.messages)}`;
     }
 
     const tabs = [
-      { id: 'overview',  label: 'Overview'  },
-      { id: 'children',  label: 'Children'  },
-      { id: 'schedule',  label: 'Schedule'  },
-      { id: 'messages',  label: 'Messages', badge: kpi.unreadParentMessages },
-      { id: 'invoices',  label: 'Invoices'  },
+      { id: 'overview',  label: 'Overview', icon: '📊' },
+      { id: 'children',  label: 'Children', icon: '🧒' },
+      { id: 'schedule',  label: 'Schedule', icon: '🗓️' },
+      { id: 'messages',  label: 'Messages', icon: '💬', badge: kpi.unreadParentMessages },
+      { id: 'invoices',  label: 'Invoices', icon: '💳' },
     ];
 
     return (
-      <div>
-        {/* Header */}
-        <div style={{ marginBottom: 28 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 6 }}>
+      <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-default)' }}>
+        {/* ── SIDEBAR ── */}
+        <div style={{
+          width: 260, background: 'var(--bg-elevated)', borderRight: '1px solid var(--border-subtle)',
+          padding: '32px 20px', display: 'flex', flexDirection: 'column',
+          position: 'fixed', top: 0, bottom: 0, left: 0, overflowY: 'auto', zIndex: 50
+        }}>
+          {/* Header */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 40, paddingLeft: 8 }}>
             <div style={{
-              width: 48, height: 48, borderRadius: 12,
+              width: 44, height: 44, borderRadius: 12,
               background: 'linear-gradient(135deg, #FFB400, #FF8C00)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 24, boxShadow: '0 4px 20px rgba(255,180,0,0.3)',
+              fontSize: 22, boxShadow: '0 4px 20px rgba(255,180,0,0.3)', flexShrink: 0
             }}>👶</div>
             <div>
-              <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 28, fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '0.01em', margin: 0 }}>
-                Charis Childcare OS
+              <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 800, color: 'var(--text-primary)', margin: 0, lineHeight: 1.2 }}>
+                Charis OS
               </h1>
-              <div style={{ fontSize: 12, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', marginTop: 2 }}>
-                Hudson Tumusiime · Global Director · July 2026
+              <div style={{ fontSize: 11, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', marginTop: 2 }}>
+                Global Director
               </div>
             </div>
           </div>
+
+          {/* Navigation Menu */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: 1 }}>
+            <div style={{ fontSize: 11, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10, paddingLeft: 12 }}>Menu</div>
+            {tabs.map(tab => (
+              <button key={tab.id} onClick={() => setActiveTab(tab.id)} style={{
+                background: activeTab === tab.id ? 'rgba(0,252,143,0.08)' : 'transparent',
+                border: 'none', cursor: 'pointer', padding: '12px 14px', fontSize: 14,
+                fontWeight: activeTab === tab.id ? 600 : 500,
+                color: activeTab === tab.id ? 'var(--mint)' : 'var(--text-secondary)',
+                borderRadius: 10, transition: 'all 0.15s', fontFamily: 'var(--font-body)',
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between', textAlign: 'left'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <span style={{ fontSize: 18 }}>{tab.icon}</span>
+                  {tab.label}
+                </div>
+                {tab.badge > 0 && (
+                  <span style={{ background: '#A855F7', color: '#fff', borderRadius: 10, padding: '2px 8px', fontSize: 10, fontWeight: 700 }}>
+                    {tab.badge}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+
+          <button onClick={() => setNiaOpen(true)} style={{
+            background: 'linear-gradient(135deg, rgba(0,252,143,0.1), rgba(0,252,143,0.02))',
+            border: '1px solid rgba(0,252,143,0.2)', borderRadius: 12, padding: '16px 20px',
+            display: 'flex', alignItems: 'center', gap: 12, marginTop: 40, cursor: 'pointer', transition: 'all 0.2s', width: '100%', textAlign: 'left'
+          }}>
+            <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'linear-gradient(135deg, #00FC8F, #1B9B6F)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>🛡️</div>
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--mint)' }}>Talk to Nia</div>
+              <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>AI Chief of Staff</div>
+            </div>
+          </button>
         </div>
+
+        {/* ── MAIN CONTENT AREA ── */}
+        <div style={{ flex: 1, padding: '40px 60px', marginLeft: 260, maxWidth: 1200 }}>
+          {/* Top Bar inside content */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 28 }}>
+            <div>
+              <div style={{ fontSize: 13, color: 'var(--mint)', fontFamily: 'var(--font-mono)', marginBottom: 4 }}>{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</div>
+              <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 28, fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
+                {tabs.find(t => t.id === activeTab)?.label}
+              </h2>
+            </div>
+            <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+              Welcome back, Hudson Tumusiime
+            </div>
+          </div>
 
         {/* Nia Banner */}
         <NiaAdvisoryBanner onTalkToNia={() => setNiaOpen(true)} />
@@ -302,26 +359,7 @@ MESSAGES FROM PARENTS: ${JSON.stringify(contextData.messages)}`;
           <CcKpiCard label="Milestones" value={kpi.milestonesThisWeek} sub="This week" accent="#FFB400" icon="🏆" />
         </div>
 
-        {/* Sub-tabs */}
-        <div style={{ display: 'flex', gap: 6, marginBottom: 24, borderBottom: '1px solid var(--border-subtle)', paddingBottom: 0 }}>
-          {tabs.map(tab => (
-            <button key={tab.id} onClick={() => setActiveTab(tab.id)} style={{
-              background: 'none', border: 'none', cursor: 'pointer',
-              padding: '10px 16px', fontSize: 13, fontWeight: activeTab === tab.id ? 600 : 400,
-              color: activeTab === tab.id ? 'var(--mint)' : 'var(--text-secondary)',
-              borderBottom: activeTab === tab.id ? '2px solid var(--mint)' : '2px solid transparent',
-              transition: 'all 0.15s', fontFamily: 'var(--font-body)',
-              display: 'flex', alignItems: 'center', gap: 6, position: 'relative', bottom: -1,
-            }}>
-              {tab.label}
-              {tab.badge > 0 && (
-                <span style={{ background: '#A855F7', color: '#fff', borderRadius: 10, padding: '1px 6px', fontSize: 10, fontWeight: 700 }}>
-                  {tab.badge}
-                </span>
-              )}
-            </button>
-          ))}
-        </div>
+
 
         {/* ── OVERVIEW TAB ── */}
         {activeTab === 'overview' && (
