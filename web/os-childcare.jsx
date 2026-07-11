@@ -137,12 +137,13 @@
 
 
   // ── Helper: current time highlight for schedule ──────────────────────────
-  function getCurrentTimeSlot() {
+  function getCurrentTimeSlot(schedule) {
+    if (!schedule || !schedule.length) return -1;
     const now = new Date();
     const hhmm = now.getHours() * 60 + now.getMinutes();
-    for (let i = 0; i < TODAY_SCHEDULE.length - 1; i++) {
-      const [ah, am] = TODAY_SCHEDULE[i].time.split(':').map(Number);
-      const [bh, bm] = TODAY_SCHEDULE[i + 1].time.split(':').map(Number);
+    for (let i = 0; i < schedule.length - 1; i++) {
+      const [ah, am] = schedule[i].time.split(':').map(Number);
+      const [bh, bm] = schedule[i + 1].time.split(':').map(Number);
       if (hhmm >= ah * 60 + am && hhmm < bh * 60 + bm) return i;
     }
     return -1;
@@ -497,7 +498,7 @@ MESSAGES FROM PARENTS: ${JSON.stringify(contextData.messages)}`;
       return centersData.find(c => c.id === selectedCenterId)?.cameras || [];
     }, [selectedCenterId, centersData]);
 
-    const currentSlot = getCurrentTimeSlot();
+    const currentSlot = getCurrentTimeSlot(TODAY_SCHEDULE);
 
     React.useEffect(() => {
       if (activeTab === 'cameras' && typeof window !== 'undefined' && window.JSMpeg) {
@@ -843,7 +844,7 @@ MESSAGES FROM PARENTS: ${JSON.stringify(contextData.messages)}`;
                   <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5 }}>{msg.text}</div>
                 </div>
                 <button onClick={() => {
-                  const child = CHILDREN.find(c => c.parent === msg.parent);
+                  const child = childrenData.find(c => c.parent === msg.parent);
                   if (child) handleMessage(child);
                 }} style={{
                   background: 'var(--mint)', color: '#060012', border: 'none', borderRadius: 8,
@@ -874,7 +875,7 @@ MESSAGES FROM PARENTS: ${JSON.stringify(contextData.messages)}`;
                 </tr>
               </thead>
               <tbody>
-                {CHILDREN.map(child => {
+                {childrenData.map(child => {
                   const statusColor = child.invoiceStatus === 'overdue' ? '#FF4757' : child.invoiceStatus === 'due' ? '#FFB400' : '#00FC8F';
                   const statusLabel = child.invoiceStatus === 'overdue' ? '⚠ OVERDUE 30d+' : child.invoiceStatus === 'due' ? '○ DUE' : '✓ PAID';
                   return (
@@ -905,7 +906,7 @@ MESSAGES FROM PARENTS: ${JSON.stringify(contextData.messages)}`;
         <ChildcareNiaOverlay 
           isOpen={niaOpen} 
           onClose={() => setNiaOpen(false)} 
-          contextData={{ kpi: CHILDCARE_KPIs, children: childrenData, schedule: TODAY_SCHEDULE, messages: MESSAGES }}
+          contextData={{ kpi: kpi, children: childrenData, schedule: TODAY_SCHEDULE, messages: MESSAGES }}
         />
 
         {/* Onboarding Drawer Modal */}
