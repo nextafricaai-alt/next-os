@@ -155,10 +155,99 @@
     </div>
   );
 
+  // ── Nia AI Chat Overlay ──────────────────────────────────────────────────
+  const ChildcareNiaOverlay = ({ isOpen, onClose, contextData }) => {
+    const [messages, setMessages] = React.useState([{ role: 'assistant', content: 'Hello Hudson. I am monitoring Charis Childcare OS. What do you need to know?' }]);
+    const [input, setInput] = React.useState('');
+    const [pending, setPending] = React.useState(false);
+    const messagesEndRef = React.useRef(null);
+
+    React.useEffect(() => {
+      if (messagesEndRef.current) messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }, [messages]);
+
+    if (!isOpen) return null;
+
+    const handleSend = async () => {
+      if (!input.trim() || pending) return;
+      const userMsg = { role: 'user', content: input.trim() };
+      setMessages(prev => [...prev, userMsg]);
+      setInput('');
+      setPending(true);
+
+      const systemPrompt = `You are Nia, the AI Chief of Staff for NEXT OS. You are currently viewing the Charis Childcare OS dashboard for Hudson Tumusiime (Global Director).
+You have complete access to the current dashboard state. Answer the user's questions based ONLY on this data. Be concise, direct, and helpful. Do not use markdown headers.
+
+CURRENT DASHBOARD STATE:
+KPIs: ${JSON.stringify(contextData.kpi)}
+CHILDREN ROSTER: ${JSON.stringify(contextData.children.map(c => ({ name: c.name, age: c.age, present: c.present, nap: c.nap, milestone: c.milestone, invoice: c.invoiceStatus })))}
+TODAY'S SCHEDULE: ${JSON.stringify(contextData.schedule.map(s => ({ time: s.time, activity: s.activity, caretaker: s.caretaker })))}
+MESSAGES FROM PARENTS: ${JSON.stringify(contextData.messages)}`;
+
+      try {
+        const res = await fetch('https://nextos-sentinel.nextafricaai.workers.dev', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            system: systemPrompt,
+            messages: [...messages, userMsg].map(m => ({ role: m.role, content: m.content })),
+            tools: []
+          })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to fetch');
+        
+        const textResp = (data.content || []).find(c => c.type === 'text')?.text || "I'm sorry, I couldn't process that.";
+        setMessages(prev => [...prev, { role: 'assistant', content: textResp }]);
+      } catch (err) {
+        setMessages(prev => [...prev, { role: 'assistant', content: '⚠️ Error connecting to Nia: ' + err.message }]);
+      } finally {
+        setPending(false);
+      }
+    };
+
+    return (
+      <div style={{ position: 'fixed', top: 0, right: 0, bottom: 0, width: 400, background: 'var(--bg-elevated)', borderLeft: '1px solid var(--border-default)', boxShadow: '-10px 0 30px rgba(0,0,0,0.5)', display: 'flex', flexDirection: 'column', zIndex: 1000 }}>
+        <div style={{ padding: '20px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'linear-gradient(135deg, #00FC8F, #1B9B6F)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>🛡️</div>
+            <div style={{ fontWeight: 700, color: 'var(--mint)' }}>Nia Advisory</div>
+          </div>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: 24, lineHeight: 1 }}>×</button>
+        </div>
+        <div style={{ flex: 1, overflowY: 'auto', padding: 20, display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {messages.map((m, i) => (
+            <div key={i} style={{ alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: '85%' }}>
+              <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginBottom: 4, textAlign: m.role === 'user' ? 'right' : 'left' }}>
+                {m.role === 'user' ? 'Hudson' : 'Nia'}
+              </div>
+              <div style={{ background: m.role === 'user' ? 'var(--mint)' : 'var(--bg-surface)', color: m.role === 'user' ? '#060012' : 'var(--text-primary)', padding: '10px 14px', borderRadius: 12, borderBottomRightRadius: m.role === 'user' ? 2 : 12, borderBottomLeftRadius: m.role === 'user' ? 12 : 2, fontSize: 13, lineHeight: 1.5 }}>
+                {m.content}
+              </div>
+            </div>
+          ))}
+          {pending && (
+            <div style={{ alignSelf: 'flex-start', background: 'var(--bg-surface)', padding: '10px 14px', borderRadius: 12, fontSize: 13, color: 'var(--text-tertiary)' }}>
+              Nia is thinking...
+            </div>
+          )}
+          <div ref={messagesEndRef} />
+        </div>
+        <div style={{ padding: 20, borderTop: '1px solid var(--border-subtle)' }}>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <input type="text" value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSend()} placeholder="Ask Nia about the dashboard..." style={{ flex: 1, background: 'var(--bg-deep)', border: '1px solid var(--border-default)', borderRadius: 8, padding: '10px 14px', color: 'var(--text-primary)', fontSize: 13, outline: 'none' }} />
+            <button onClick={handleSend} disabled={pending || !input.trim()} style={{ background: 'var(--mint)', color: '#060012', border: 'none', borderRadius: 8, padding: '0 16px', fontWeight: 700, cursor: (pending || !input.trim()) ? 'not-allowed' : 'pointer', opacity: (pending || !input.trim()) ? 0.5 : 1 }}>Send</button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   // ── Main Page Component ──────────────────────────────────────────────────
   const ChildcareOSPage = ({ onNavigate }) => {
     const [activeTab, setActiveTab] = React.useState('overview');
     const [selectedChild, setSelectedChild] = React.useState(null);
+    const [niaOpen, setNiaOpen] = React.useState(false);
     const kpi = CHILDCARE_KPIs;
     const currentSlot = getCurrentTimeSlot();
 
@@ -200,7 +289,7 @@
         </div>
 
         {/* Nia Banner */}
-        <NiaAdvisoryBanner onTalkToNia={() => onNavigate && onNavigate('talk')} />
+        <NiaAdvisoryBanner onTalkToNia={() => setNiaOpen(true)} />
 
         {/* KPI Strip */}
         <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginBottom: 28 }}>
@@ -300,7 +389,7 @@
                 { label: '📣 Broadcast to All Parents', action: () => { const url = 'https://wa.me/?text=' + encodeURIComponent('Hello from Charis Childcare! '); window.open(url, '_blank'); } },
                 { label: '💬 View Messages', action: () => setActiveTab('messages') },
                 { label: '📋 View Invoices', action: () => setActiveTab('invoices') },
-                { label: '🛡️ Ask Nia for Advisory', action: () => onNavigate && onNavigate('talk') },
+                { label: '🛡️ Ask Nia for Advisory', action: () => setNiaOpen(true) },
               ].map(({ label, action }) => (
                 <button key={label} onClick={action} style={{
                   display: 'block', width: '100%', background: 'transparent',
@@ -447,6 +536,9 @@
             </table>
           </div>
         )}
+        
+        {/* Nia Overlay */}
+        <ChildcareNiaOverlay isOpen={niaOpen} onClose={() => setNiaOpen(false)} contextData={{ kpi: CHILDCARE_KPIs, children: CHILDREN, schedule: TODAY_SCHEDULE, messages: MESSAGES }} />
 
       </div>
     );
