@@ -3,6 +3,9 @@
    Supervised by Nia. Data mirrors os-data.jsx charis-childcare tenant.
 */
 
+console.log("os-childcare.jsx is executing!");
+alert("os-childcare.jsx is executing!");
+
 (function () {
 
   // ── Childcare data seed (mirrors os-data.jsx verticalKpis) ──────────────
@@ -44,8 +47,8 @@
       ],
       messages: [
         { id: 1, parent: 'Mrs. Nakamya',  time: '8:42 AM',  text: 'Will pick up Aiden at 2pm today, please note.',          read: false, answered: false },
-        { id: 2, parent: 'Ms. Okello',    time: '9:15 AM',  text: 'Bella is feeling better, thanks for yesterday's care!', read: true,  answered: true  },
-        { id: 3, parent: 'Mr. Ssemanda',  time: '9:50 AM',  text: 'Can you share today's activity photos on WhatsApp?',    read: false, answered: false },
+        { id: 2, parent: 'Ms. Okello',    time: '9:15 AM',  text: 'Bella is feeling better, thanks for yesterday\'s care!', read: true,  answered: true  },
+        { id: 3, parent: 'Mr. Ssemanda',  time: '9:50 AM',  text: 'Can you share today\'s activity photos on WhatsApp?',    read: false, answered: false },
         { id: 4, parent: 'Mrs. Mutebe',   time: '10:20 AM', text: 'Daisy is home sick today, she has a mild fever.',        read: true,  answered: true  },
         { id: 5, parent: 'Mr. Lubega',    time: '11:05 AM', text: 'Please give Ethan his medication at 1pm. Thanks.',       read: false, answered: false },
       ],
@@ -377,7 +380,7 @@ KPIs: ${JSON.stringify(contextData.kpi)}
 CHILDREN ROSTER: ${JSON.stringify(contextData.children.map(c => {
   const vac = typeof calculateVaccineStatus !== 'undefined' ? calculateVaccineStatus(c) : {};
   return { name: c.name, age: c.age, present: c.present, nap: c.nap, milestone: c.milestone, invoice: c.invoiceStatus, healthRecord: c.healthRecord, allergies: c.allergies, overdueVaccines: vac.due || [], upcomingVaccines: vac.upcoming || [], completedVaccines: c.completedVaccines, favouriteMeals: c.favouriteMeals, birthday: c.birthday, height: c.height, weight: c.weight, activeScore: c.activeScore, enrollmentDate: c.enrollmentDate };
-})))}
+}))}
 TODAY'S SCHEDULE: ${JSON.stringify(contextData.schedule.map(s => ({ time: s.time, activity: s.activity, caretaker: s.caretaker })))}
 MESSAGES FROM PARENTS: ${JSON.stringify(contextData.messages)}`;
 
@@ -639,20 +642,19 @@ MESSAGES FROM PARENTS: ${JSON.stringify(contextData.messages)}`;
         {/* Nia Banner */}
         <NiaAdvisoryBanner onTalkToNia={() => setNiaOpen(true)} />
 
-        {/* KPI Strip */}
-        <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginBottom: 28 }}>
-          <CcKpiCard label="Enrolled" value={kpi.enrolled} sub="July cohort" accent="#00FC8F" icon="🧒" />
-          <CcKpiCard label="Present Today" value={kpi.presentToday} sub={`${kpi.absentToday} absent`} accent="#3B82F6" icon="✅" />
-          <CcKpiCard label="Attendance" value={Math.round(kpi.attendanceRate * 100) + '%'} sub="Target: 90%+" accent={kpi.attendanceRate >= 0.9 ? '#00FC8F' : '#FFB400'} icon="📊" />
-          <CcKpiCard label="Invoices Due" value={kpi.invoicesDue} sub={kpi.invoicesOverdue30d + ' overdue 30d+'} accent="#FF4757" icon="💳" />
-          <CcKpiCard label="Messages" value={kpi.unreadParentMessages} sub={kpi.unansweredMessages24h + ' need reply'} accent="#A855F7" icon="💬" />
-          <CcKpiCard label="Milestones" value={kpi.milestonesThisWeek} sub="This week" accent="#FFB400" icon="🏆" />
-        </div>
-
-
-
         {/* ── OVERVIEW TAB ── */}
         {activeTab === 'overview' && (
+          <>
+            {/* KPI Strip */}
+            <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginBottom: 28 }}>
+              <CcKpiCard label="Enrolled" value={kpi.enrolled} sub="July cohort" accent="#00FC8F" icon="🧒" />
+              <CcKpiCard label="Present Today" value={kpi.presentToday} sub={`${kpi.absentToday} absent`} accent="#3B82F6" icon="✅" />
+              <CcKpiCard label="Attendance" value={Math.round(kpi.attendanceRate * 100) + '%'} sub="Target: 90%+" accent={kpi.attendanceRate >= 0.9 ? '#00FC8F' : '#FFB400'} icon="📊" />
+              <CcKpiCard label="Invoices Due" value={kpi.invoicesDue} sub={kpi.invoicesOverdue30d + ' overdue 30d+'} accent="#FF4757" icon="💳" />
+              <CcKpiCard label="Messages" value={kpi.unreadParentMessages} sub={kpi.unansweredMessages24h + ' need reply'} accent="#A855F7" icon="💬" />
+              <CcKpiCard label="Milestones" value={kpi.milestonesThisWeek} sub="This week" accent="#FFB400" icon="🏆" />
+            </div>
+
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
             {/* Today's Pulse */}
             <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: 20 }}>
@@ -697,6 +699,26 @@ MESSAGES FROM PARENTS: ${JSON.stringify(contextData.messages)}`;
               </button>
             </div>
 
+            {/* Immunisation Alerts */}
+            <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: 20 }}>
+              <div style={{ fontSize: 12, color: '#FFB400', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 16 }}>⚠️ Immunisation Alerts</div>
+              {(() => {
+                const alerts = childrenData.map(c => ({ child: c, vac: calculateVaccineStatus(c) }))
+                  .filter(item => item.vac.due.length > 0)
+                  .slice(0, 5);
+                if (alerts.length === 0) return <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>All children are up to date!</div>;
+                return alerts.map((item, i) => (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: '1px solid var(--border-subtle)' }}>
+                    <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#FF4757' }} />
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)' }}>{item.child.name}</div>
+                      <div style={{ fontSize: 11, color: '#FFB400' }}>Overdue: {item.vac.due.join(', ')}</div>
+                    </div>
+                  </div>
+                ));
+              })()}
+            </div>
+
             {/* Recent Milestones */}
             <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: 20 }}>
               <div style={{ fontSize: 12, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 16 }}>Recent Milestones</div>
@@ -729,6 +751,7 @@ MESSAGES FROM PARENTS: ${JSON.stringify(contextData.messages)}`;
               ))}
             </div>
           </div>
+          </>
         )}
 
         {/* ── CHILDREN TAB ── */}
