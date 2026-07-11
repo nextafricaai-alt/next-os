@@ -649,7 +649,7 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
 
         {/* ── OVERVIEW TAB ── */}
         {activeTab === 'overview' && (
-          <>
+          <React.Fragment>
             {/* KPI Strip */}
             <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginBottom: 28 }}>
               <CcKpiCard label="Enrolled" value={kpi.enrolled} sub="July cohort" accent="#00FC8F" icon="🧒" />
@@ -756,7 +756,7 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
               ))}
             </div>
           </div>
-          </>
+          </React.Fragment>
         )}
 
         {/* ── CHILDREN TAB ── */}
