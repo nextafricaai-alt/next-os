@@ -863,7 +863,7 @@ MESSAGES FROM PARENTS: ${JSON.stringify(contextData.messages)}`;
             <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>Invoice Register — July 2026</span>
               <span style={{ fontSize: 12, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)' }}>
-                Collection: {Math.round(CHILDCARE_KPIs.collectionRate * 100)}%
+                Collection: {Math.round(kpi.collectionRate * 100)}%
               </span>
             </div>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
