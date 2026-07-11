@@ -459,7 +459,8 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
 
     const kpi = React.useMemo(() => {
       if (selectedCenterId !== 'all') {
-        return centersData.find(c => c.id === selectedCenterId)?.kpi || centersData[0].kpi;
+        const center = centersData.find(c => c.id === selectedCenterId);
+        return center ? center.kpi : centersData[0].kpi;
       }
       const agg = {
         enrolled: 0, presentToday: 0, absentToday: 0,
@@ -487,22 +488,22 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
 
     const childrenData = React.useMemo(() => {
       if (selectedCenterId === 'all') return centersData.flatMap(c => c.children);
-      return centersData.find(c => c.id === selectedCenterId)?.children || [];
+      const center = centersData.find(c => c.id === selectedCenterId); return center ? center.children : [];
     }, [selectedCenterId, centersData]);
 
     const TODAY_SCHEDULE = React.useMemo(() => {
       if (selectedCenterId === 'all') return centersData[0].schedule;
-      return centersData.find(c => c.id === selectedCenterId)?.schedule || [];
+      const center = centersData.find(c => c.id === selectedCenterId); return center ? center.schedule : [];
     }, [selectedCenterId, centersData]);
 
     const MESSAGES = React.useMemo(() => {
       if (selectedCenterId === 'all') return centersData.flatMap(c => c.messages);
-      return centersData.find(c => c.id === selectedCenterId)?.messages || [];
+      const center = centersData.find(c => c.id === selectedCenterId); return center ? center.messages : [];
     }, [selectedCenterId, centersData]);
 
     const CAMERAS = React.useMemo(() => {
       if (selectedCenterId === 'all') return centersData.flatMap(c => c.cameras);
-      return centersData.find(c => c.id === selectedCenterId)?.cameras || [];
+      const center = centersData.find(c => c.id === selectedCenterId); return center ? center.cameras : [];
     }, [selectedCenterId, centersData]);
 
     const currentSlot = getCurrentTimeSlot(TODAY_SCHEDULE);
