@@ -578,7 +578,8 @@ MESSAGES FROM PARENTS: ${JSON.stringify(contextData.messages)}`;
         
         {/* Nia Overlay */}
         <ChildcareNiaOverlay isOpen={niaOpen} onClose={() => setNiaOpen(false)} contextData={{ kpi: CHILDCARE_KPIs, children: CHILDREN, schedule: TODAY_SCHEDULE, messages: MESSAGES }} />
-
+        
+        </div>{/* End Main Content Area */}
       </div>
     );
   };
