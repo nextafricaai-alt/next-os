@@ -580,7 +580,7 @@ MESSAGES FROM PARENTS: ${JSON.stringify(contextData.messages)}`;
                     <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundImage: 'url(https://images.unsplash.com/photo-1594608661623-aa0bd3a0c1ea?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80)', backgroundSize: 'cover', backgroundPosition: 'center', opacity: 0.6 }}></div>
                     {/* Bounding Boxes */}
                     {cam.children.map((c, i) => (
-                      <div key={i} style={{ position: 'absolute', left: \`\${c.x}%\`, top: \`\${c.y}%\`, transform: 'translate(-50%, -50%)' }}>
+                      <div key={i} style={{ position: 'absolute', left: c.x + '%', top: c.y + '%', transform: 'translate(-50%, -50%)' }}>
                         <div style={{ border: '2px solid var(--mint)', width: 60, height: 80, borderRadius: 8, boxShadow: '0 0 10px rgba(0,252,143,0.3)', position: 'relative' }}>
                           <div style={{ position: 'absolute', top: -30, left: '50%', transform: 'translateX(-50%)', background: 'rgba(0,0,0,0.8)', border: '1px solid var(--mint)', borderRadius: 6, padding: '4px 8px', whiteSpace: 'nowrap', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                             <span style={{ fontSize: 10, color: '#fff', fontWeight: 700 }}>{c.name}</span>
