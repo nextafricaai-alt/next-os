@@ -537,6 +537,7 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
     const [niaOpen, setNiaOpen] = React.useState(false);
     const [centersData, setCentersData] = React.useState(CENTERS);
     const [onboardingOpen, setOnboardingOpen] = React.useState(false);
+    const [onboardingReport, setOnboardingReport] = React.useState(null);
 
     const kpi = React.useMemo(() => {
       if (selectedCenterId !== 'all') {
@@ -1127,37 +1128,92 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
         {/* Onboarding Drawer Modal */}
         {onboardingOpen && (
           <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', animation: 'fadeIn 0.2s ease' }}>
-            <div style={{ background: 'var(--bg-elevated)', width: 500, borderRadius: 16, border: '1px solid var(--border-subtle)', padding: 32, position: 'relative' }}>
-              <button onClick={() => setOnboardingOpen(false)} style={{ position: 'absolute', top: 16, right: 16, background: 'none', border: 'none', color: 'var(--text-tertiary)', cursor: 'pointer', fontSize: 20 }}>×</button>
-              <h2 style={{ fontSize: 22, fontWeight: 800, margin: '0 0 24px', color: 'var(--text-primary)', fontFamily: 'var(--font-display)' }}>Onboard New Child</h2>
-              <form onSubmit={e => {
-                e.preventDefault();
-                const fd = new FormData(e.target);
-                const newChild = {
-                  id: 'child-new-' + Date.now(),
-                  name: fd.get('name'), age: fd.get('age') + ' yrs',
-                  parent: fd.get('parent'), parentPhone: '256700000000',
-                  mood: '😊', present: true, nap: false, milestone: '',
-                  invoiceStatus: 'paid', healthRecord: 'No current concerns.',
-                  allergies: fd.get('allergies') || 'None',
-                  completedVaccines: (fd.get('completedVaccines') || '').split(',').map(s => s.trim()),
-                  favouriteMeals: 'To be determined', birthday: fd.get('birthday') || 'TBD',
-                  height: '-', weight: '-', activeScore: 90, enrollmentDate: new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
-                  photoUrl: 'https://images.unsplash.com/photo-1596461404969-9ae70f2830c1?ixlib=rb-4.0.3&auto=format&fit=crop&w=200&q=80'
-                };
-                setChildrenData([newChild, ...childrenData]);
-                setOnboardingOpen(false);
-              }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
-                  <div><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Full Name</label><input required name="name" style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }} /></div>
-                  <div><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Age (years)</label><input required name="age" type="number" style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }} /></div>
-                  <div><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Parent / Guardian</label><input required name="parent" style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }} /></div>
-                  <div><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Birthday</label><input name="birthday" type="date" style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }} /></div>
-                  <div><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Allergies</label><input name="allergies" placeholder="e.g. Peanuts" style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }} /></div>
-                  <div><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Completed Vaccines (comma separated)</label><input name="completedVaccines" defaultValue="BCG, Polio 0" style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }} /></div>
-                </div>
-                <button type="submit" style={{ width: '100%', background: 'var(--mint)', color: '#060012', border: 'none', borderRadius: 8, padding: '12px', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font-body)', marginTop: 8 }}>Complete Onboarding</button>
-              </form>
+            <div style={{ background: 'var(--bg-elevated)', width: onboardingReport ? 650 : 500, borderRadius: 16, border: '1px solid var(--border-subtle)', padding: 32, position: 'relative' }}>
+              <button onClick={() => { setOnboardingOpen(false); setOnboardingReport(null); }} style={{ position: 'absolute', top: 16, right: 16, background: 'none', border: 'none', color: 'var(--text-tertiary)', cursor: 'pointer', fontSize: 20 }}>×</button>
+              
+              {!onboardingReport ? (
+                <React.Fragment>
+                  <h2 style={{ fontSize: 22, fontWeight: 800, margin: '0 0 24px', color: 'var(--text-primary)', fontFamily: 'var(--font-display)' }}>Onboard New Child</h2>
+                  <form onSubmit={e => {
+                    e.preventDefault();
+                    const fd = new FormData(e.target);
+                    const newChild = {
+                      id: 'child-new-' + Date.now(),
+                      name: fd.get('name'), age: fd.get('age') + ' yrs',
+                      parent: fd.get('parent'), secondaryParent: fd.get('secondaryParent') || 'N/A',
+                      parentPhone: '256700000000',
+                      authorizedPickups: fd.get('authorizedPickups') || 'Parents Only',
+                      sports: fd.get('sports') || 'None',
+                      mood: '😊', present: true, nap: false, milestone: '',
+                      invoiceStatus: 'paid', healthRecord: 'No current concerns.',
+                      allergies: fd.get('allergies') || 'None',
+                      completedVaccines: (fd.get('completedVaccines') || '').split(',').map(s => s.trim()),
+                      favouriteMeals: 'To be determined', birthday: fd.get('birthday') || 'TBD',
+                      height: '-', weight: '-', activeScore: 90, enrollmentDate: new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+                      photoUrl: fd.get('photoUrl') || 'https://images.unsplash.com/photo-1596461404969-9ae70f2830c1?ixlib=rb-4.0.3&auto=format&fit=crop&w=200&q=80'
+                    };
+                    setChildrenData([newChild, ...childrenData]);
+                    setOnboardingReport(newChild);
+                  }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+                      <div style={{ gridColumn: '1 / -1' }}><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Digital Passport Photo URL</label><input name="photoUrl" placeholder="https://..." style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }} /></div>
+                      <div><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Full Name</label><input required name="name" style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }} /></div>
+                      <div><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Age (years)</label><input required name="age" type="number" style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }} /></div>
+                      <div><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Primary Parent</label><input required name="parent" style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }} /></div>
+                      <div><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Secondary Parent</label><input name="secondaryParent" placeholder="Optional" style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }} /></div>
+                      <div><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Birthday</label><input name="birthday" type="date" style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }} /></div>
+                      <div><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Kids Sports</label><input name="sports" placeholder="e.g. Swimming, Football" style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }} /></div>
+                      <div style={{ gridColumn: '1 / -1' }}><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Authorized Pick-ups</label><input name="authorizedPickups" placeholder="Names & Phone Numbers" style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }} /></div>
+                      <div style={{ gridColumn: '1 / -1' }}><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Allergies</label><input name="allergies" placeholder="e.g. Peanuts" style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }} /></div>
+                      <div style={{ gridColumn: '1 / -1' }}><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Completed Vaccines (comma separated)</label><input name="completedVaccines" defaultValue="BCG, Polio 0" style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }} /></div>
+                    </div>
+                    <button type="submit" style={{ width: '100%', background: 'var(--mint)', color: '#060012', border: 'none', borderRadius: 8, padding: '12px', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font-body)', marginTop: 8 }}>Complete Onboarding</button>
+                  </form>
+                </React.Fragment>
+              ) : (
+                <React.Fragment>
+                  <h2 style={{ fontSize: 22, fontWeight: 800, margin: '0 0 8px', color: 'var(--mint)', fontFamily: 'var(--font-display)' }}>Onboarding Complete! 🎉</h2>
+                  <p style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 24 }}>{onboardingReport.name} has been successfully added to the system.</p>
+                  
+                  <div style={{ display: 'flex', gap: 24, marginBottom: 24 }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ background: 'var(--bg-deepest)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: 16 }}>
+                        <div style={{ fontSize: 12, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12, fontWeight: 700 }}>Pickup QR Card</div>
+                        <div style={{ display: 'flex', justifyContent: 'center', background: '#fff', padding: 16, borderRadius: 8, marginBottom: 12 }}>
+                          <img src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${onboardingReport.id}`} alt="QR Code" style={{ width: 150, height: 150 }} />
+                        </div>
+                        <div style={{ fontSize: 11, color: 'var(--text-secondary)', textAlign: 'center' }}>Scan at gate for authorized pickup</div>
+                      </div>
+                    </div>
+                    
+                    <div style={{ flex: 2, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                      <div style={{ background: 'var(--bg-deepest)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: 16 }}>
+                        <div style={{ fontSize: 12, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12, fontWeight: 700 }}>Intake Summary</div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 16px', fontSize: 13 }}>
+                          <div><span style={{ color: 'var(--text-tertiary)' }}>Parents:</span> <span style={{ color: '#fff' }}>{onboardingReport.parent}, {onboardingReport.secondaryParent}</span></div>
+                          <div><span style={{ color: 'var(--text-tertiary)' }}>Auth Pickups:</span> <span style={{ color: '#fff' }}>{onboardingReport.authorizedPickups}</span></div>
+                          <div><span style={{ color: 'var(--text-tertiary)' }}>Allergies:</span> <span style={{ color: '#FF4757' }}>{onboardingReport.allergies}</span></div>
+                          <div><span style={{ color: 'var(--text-tertiary)' }}>Sports:</span> <span style={{ color: '#fff' }}>{onboardingReport.sports}</span></div>
+                          <div style={{ gridColumn: '1 / -1' }}><span style={{ color: 'var(--text-tertiary)' }}>Vaccines:</span> <span style={{ color: '#fff' }}>{onboardingReport.completedVaccines.join(', ')}</span></div>
+                        </div>
+                      </div>
+                      
+                      <div style={{ background: 'var(--bg-deepest)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: 16 }}>
+                        <div style={{ fontSize: 12, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8, fontWeight: 700 }}>Parent Portal Link</div>
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          <input readOnly value={`https://charis.app/parent/${onboardingReport.id}`} style={{ flex: 1, background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '8px 12px', borderRadius: 6, fontSize: 12 }} />
+                          <button onClick={() => alert('Link Copied!')} style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '8px 12px', borderRadius: 6, fontSize: 12, cursor: 'pointer' }}>Copy</button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div style={{ display: 'flex', gap: 12 }}>
+                    <button onClick={() => window.print()} style={{ flex: 1, background: 'transparent', color: 'var(--text-primary)', border: '1px solid var(--border-default)', borderRadius: 8, padding: '12px', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font-body)' }}>🖨️ Print Report</button>
+                    <button onClick={() => { setOnboardingOpen(false); setOnboardingReport(null); }} style={{ flex: 1, background: 'var(--mint)', color: '#060012', border: 'none', borderRadius: 8, padding: '12px', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font-body)' }}>Done</button>
+                  </div>
+                </React.Fragment>
+              )}
             </div>
           </div>
         )}
