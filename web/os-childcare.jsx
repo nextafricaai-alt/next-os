@@ -627,8 +627,9 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
       { id: 'schedule',  label: 'Schedule', icon: '🗓️' },
       { id: 'messages',  label: 'Messages', icon: '💬', badge: kpi.unreadParentMessages },
       { id: 'invoices',  label: selectedCenterId === 'all' ? 'Finances' : 'Invoices', icon: '💳' },
-      { id: 'cameras',   label: 'Live Cameras', icon: '🎥' },
     ];
+    if (selectedCenterId === 'all') tabs.push({ id: 'inventory', label: 'Inventory', icon: '📦' });
+    tabs.push({ id: 'cameras',   label: 'Live Cameras', icon: '🎥' });
 
     return (
       <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-default)' }}>
@@ -985,22 +986,44 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
               <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 12, overflow: 'hidden', padding: 20 }}>
                 <div style={{ fontSize: 18, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 20 }}>Global Finances Overview — July 2026</div>
                 
+                {/* Revenue Breakdown */}
+                <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 12 }}>Revenue Stream</div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, marginBottom: 24 }}>
                   <div style={{ background: 'var(--bg-deepest)', padding: 16, borderRadius: 8, border: '1px solid var(--border-subtle)' }}>
-                    <div style={{ fontSize: 11, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Estimated Revenue</div>
-                    <div style={{ fontSize: 24, fontWeight: 700, color: '#00FC8F' }}>UGX {(kpi.enrolled * 87500).toLocaleString()}</div>
-                    <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 4 }}>Based on {kpi.enrolled} enrolled students</div>
+                    <div style={{ fontSize: 11, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Monthly Enrollments</div>
+                    <div style={{ fontSize: 24, fontWeight: 700, color: '#00FC8F' }}>UGX {(Math.floor(kpi.enrolled * 0.7) * 87500).toLocaleString()}</div>
+                    <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 4 }}>Based on {Math.floor(kpi.enrolled * 0.7)} monthly kids</div>
                   </div>
                   <div style={{ background: 'var(--bg-deepest)', padding: 16, borderRadius: 8, border: '1px solid var(--border-subtle)' }}>
-                    <div style={{ fontSize: 11, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Estimated Staff Payment</div>
+                    <div style={{ fontSize: 11, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Daily Drop-ins</div>
+                    <div style={{ fontSize: 24, fontWeight: 700, color: '#00FC8F' }}>UGX {(Math.ceil(kpi.enrolled * 0.3) * 15000).toLocaleString()}</div>
+                    <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 4 }}>Based on {Math.ceil(kpi.enrolled * 0.3)} daily kids</div>
+                  </div>
+                </div>
+
+                {/* Expenses Breakdown */}
+                <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 12 }}>Expenditure</div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, marginBottom: 24 }}>
+                  <div style={{ background: 'var(--bg-deepest)', padding: 16, borderRadius: 8, border: '1px solid var(--border-subtle)' }}>
+                    <div style={{ fontSize: 11, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Staff Payment (Nannies/Workers)</div>
                     <div style={{ fontSize: 24, fontWeight: 700, color: '#FF4757' }}>UGX {((kpi.caretakers || 0) * 800000).toLocaleString()}</div>
                     <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 4 }}>Based on {kpi.caretakers || 0} active staff</div>
                   </div>
                   <div style={{ background: 'var(--bg-deepest)', padding: 16, borderRadius: 8, border: '1px solid var(--border-subtle)' }}>
-                    <div style={{ fontSize: 11, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Projected Gross Margin</div>
-                    <div style={{ fontSize: 24, fontWeight: 700, color: '#fff' }}>UGX {((kpi.enrolled * 87500) - ((kpi.caretakers || 0) * 800000)).toLocaleString()}</div>
-                    <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 4 }}>Before facility expenses</div>
+                    <div style={{ fontSize: 11, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Inventory / Toys</div>
+                    <div style={{ fontSize: 24, fontWeight: 700, color: '#FF4757' }}>UGX 2,170,000</div>
+                    <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 4 }}>Purchases this month</div>
                   </div>
+                  <div style={{ background: 'var(--bg-deepest)', padding: 16, borderRadius: 8, border: '1px solid var(--border-subtle)' }}>
+                    <div style={{ fontSize: 11, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Rent & Utilities</div>
+                    <div style={{ fontSize: 24, fontWeight: 700, color: '#FF4757' }}>UGX 1,200,000</div>
+                    <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 4 }}>Fixed monthly</div>
+                  </div>
+                </div>
+
+                <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+                    <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-primary)' }}>Projected Gross Margin</div>
+                    <div style={{ fontSize: 24, fontWeight: 700, color: '#fff' }}>UGX {(((Math.floor(kpi.enrolled * 0.7) * 87500) + (Math.ceil(kpi.enrolled * 0.3) * 15000)) - (((kpi.caretakers || 0) * 800000) + 2170000 + 1200000)).toLocaleString()}</div>
                 </div>
 
                 <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 12 }}>Attendance Impact</div>
@@ -1052,6 +1075,46 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
               </div>
             )}
           </React.Fragment>
+        )}
+
+        {/* ── INVENTORY TAB ── */}
+        {activeTab === 'inventory' && selectedCenterId === 'all' && (
+          <div style={{ animation: 'fadeIn 0.3s ease' }}>
+            <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 12, overflow: 'hidden' }}>
+              <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-primary)' }}>Global Inventory & Purchases</span>
+                <button style={{ background: 'var(--mint)', color: '#060012', border: 'none', borderRadius: 8, padding: '8px 16px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>+ Add Purchase</button>
+              </div>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                <thead>
+                  <tr style={{ borderBottom: '1px solid var(--border-subtle)', background: 'var(--bg-deepest)' }}>
+                    {['Item', 'Category', 'Supplier / Store', 'Quantity', 'Cost (UGX)', 'Date'].map(h => (
+                      <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontSize: 11, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600, fontFamily: 'var(--font-mono)' }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {[
+                    { item: 'Giant Sandbox (2m x 2m)', category: 'Playground', supplier: 'Game Stores Kampala', qty: 1, cost: 450000, date: '2026-07-15' },
+                    { item: 'Inflatable Mini Pool', category: 'Playground', supplier: 'Kikubo Importers', qty: 2, cost: 120000, date: '2026-07-12' },
+                    { item: 'Montessori Wooden Toys Set', category: 'Toys', supplier: 'Aristoc Booklex', qty: 5, cost: 250000, date: '2026-07-10' },
+                    { item: 'Play Mats (Interlocking foam)', category: 'Safety', supplier: 'Nina Interiors', qty: 20, cost: 300000, date: '2026-07-05' },
+                    { item: 'Diapers (Pampers Size 4)', category: 'Consumables', supplier: 'Capital Shoppers', qty: 10, cost: 450000, date: '2026-07-02' },
+                    { item: 'Posho (100kg)', category: 'Food', supplier: 'Nakawa Market', qty: 2, cost: 600000, date: '2026-07-01' },
+                  ].map((inv, idx) => (
+                    <tr key={idx} style={{ borderBottom: '1px solid var(--border-subtle)', transition: 'background 0.2s' }}>
+                      <td style={{ padding: '14px 16px', fontWeight: 500, color: 'var(--text-primary)' }}>{inv.item}</td>
+                      <td style={{ padding: '14px 16px' }}><span style={{ padding: '4px 8px', borderRadius: 4, background: 'rgba(255,255,255,0.05)', fontSize: 11, color: 'var(--text-secondary)' }}>{inv.category}</span></td>
+                      <td style={{ padding: '14px 16px', color: 'var(--text-secondary)' }}>{inv.supplier}</td>
+                      <td style={{ padding: '14px 16px', color: 'var(--text-primary)' }}>{inv.qty}</td>
+                      <td style={{ padding: '14px 16px', fontWeight: 600, color: '#FF4757' }}>{inv.cost.toLocaleString()}</td>
+                      <td style={{ padding: '14px 16px', color: 'var(--text-tertiary)' }}>{inv.date}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
         )}
         
         {/* Nia Overlay */}
