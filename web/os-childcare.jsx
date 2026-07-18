@@ -216,6 +216,86 @@ console.log("os-childcare.jsx is executing!");
     );
   };
 
+  // ── Nia Profile Brief Component ──────────────────────────────────────────
+  const NiaProfileBrief = ({ child }) => {
+    const [brief, setBrief] = React.useState(null);
+    const [loading, setLoading] = React.useState(true);
+    const [error, setError] = React.useState(null);
+
+    React.useEffect(() => {
+      let isMounted = true;
+      setLoading(true);
+      setError(null);
+
+      const fetchBrief = async () => {
+        try {
+          const vac = typeof calculateVaccineStatus !== 'undefined' ? calculateVaccineStatus(child) : {};
+          const systemPrompt = `You are Nia, the AI Chief of Staff for Charis Childcare. You are analyzing a child's profile to assist the childcare staff.
+Child Name: ${child.name}
+Age: ${child.age}
+Allergies: ${child.allergies}
+Health Record: ${child.healthRecord}
+Overdue Vaccines: ${vac.due ? vac.due.join(', ') : 'None'}
+Recent Milestone: ${child.milestone || 'None recorded recently'}
+Favorite Meals: ${child.favouriteMeals}
+
+Your task: Provide a brief, professional, and actionable 2-sentence assessment. Highlight critical things like allergies or missing vaccines immediately. Do not use markdown headers, just plain text or simple bullet points if necessary.`;
+
+          const res = await fetch('https://nextos-sentinel.nextafricaai.workers.dev', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              system: systemPrompt,
+              messages: [{ role: 'user', content: 'Provide the profile assessment for ' + child.name }],
+              tools: []
+            })
+          });
+          const apiData = await res.json();
+          if (!res.ok) throw new Error(apiData.error || 'Failed to fetch assessment');
+          
+          const textRespObj = (apiData.content || []).find(c => c.type === 'text');
+          const textResp = (textRespObj && textRespObj.text) || "Assessment unavailable.";
+          
+          if (isMounted) {
+            setBrief(textResp);
+            setLoading(false);
+          }
+        } catch (err) {
+          if (isMounted) {
+            setError(err.message);
+            setLoading(false);
+          }
+        }
+      };
+
+      fetchBrief();
+
+      return () => { isMounted = false; };
+    }, [child]);
+
+    return (
+      <div style={{ background: 'var(--bg-deepest)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: 20, marginBottom: 24, position: 'relative', overflow: 'hidden' }}>
+        <div style={{ position: 'absolute', top: 0, left: 0, bottom: 0, width: 4, background: 'var(--mint)' }}></div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+          <div style={{ width: 24, height: 24, borderRadius: '50%', background: 'linear-gradient(135deg, #00FC8F, #1B9B6F)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12 }}>🛡️</div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--mint)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Nia's Assessment</div>
+        </div>
+        
+        {loading ? (
+          <div style={{ fontSize: 14, color: 'var(--text-tertiary)', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ display: 'inline-block', animation: 'pulse 1.5s infinite opacity' }}>●</span> Analyzing profile data...
+          </div>
+        ) : error ? (
+          <div style={{ fontSize: 14, color: '#FF4757' }}>Unable to load Nia's assessment: {error}</div>
+        ) : (
+          <div style={{ fontSize: 14, color: 'var(--text-primary)', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
+            {brief}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   // ── Child Profile View Component ─────────────────────────────────────────
   const ChildProfileView = ({ child, onBack, onMessage }) => {
     return (
@@ -244,6 +324,7 @@ console.log("os-childcare.jsx is executing!");
           
           {/* Right Column: Detailed Vitals & Health */}
           <div style={{ flex: 1 }}>
+            <NiaProfileBrief child={child} />
             <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 18, color: 'var(--text-primary)', borderBottom: '1px solid var(--border-subtle)', paddingBottom: 12, marginBottom: 20, marginTop: 0 }}>Vital Information</h3>
             
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 24 }}>
