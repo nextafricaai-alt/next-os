@@ -532,8 +532,104 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
     );
   };
 
-  // ── Main Page Component ──────────────────────────────────────────────────
+  
+  const INITIAL_GLOBAL_MESSAGES = [
+    { id: 101, fromRole: 'parent', fromName: 'Mrs. Nakamya', toRole: 'manager', branchId: 'charis-kampala', text: 'Aiden will be late today.', time: '8:00 AM' },
+    { id: 102, fromRole: 'investor', fromName: 'Investor Group', toRole: 'director', branchId: null, text: 'When is the next quarterly report?', time: '9:00 AM' },
+    { id: 103, fromRole: 'parent', fromName: 'Ms. Okello', toRole: 'manager', branchId: 'charis-kampala', text: 'Bella is feeling better, thanks!', time: '9:15 AM' },
+  ];
+
+  // ── Parent App Component ──────────────────────────────────────────────────
+  const ParentApp = ({ user, childrenData, onLogout, globalMessages, setGlobalMessages }) => {
+    const child = childrenData.find(c => c.id === user.childId);
+    const [activeTab, setActiveTab] = React.useState('home');
+    const [msgText, setMsgText] = React.useState('');
+
+    const myMessages = globalMessages.filter(m => 
+      (m.fromRole === 'parent' && m.fromName === user.name) || 
+      (m.toRole === 'parent' && m.toName === user.name)
+    );
+
+    if (!child) return <div>Child not found</div>;
+
+    return (
+      <div style={{ width: '100%', height: '100vh', display: 'flex', justifyContent: 'center', background: '#000', fontFamily: 'var(--font-body)' }}>
+        <div style={{ width: '100%', maxWidth: 414, background: 'var(--bg-default)', height: '100%', position: 'relative', display: 'flex', flexDirection: 'column' }}>
+          
+          {/* Header */}
+          <div style={{ padding: '20px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ fontWeight: 700, fontSize: 18, color: 'var(--text-primary)' }}>Charis Parent</div>
+            <button onClick={onLogout} style={{ background: 'transparent', border: '1px solid var(--border-default)', color: 'var(--text-secondary)', padding: '6px 12px', borderRadius: 6, cursor: 'pointer' }}>Logout</button>
+          </div>
+
+          {/* Content */}
+          <div style={{ flex: 1, overflowY: 'auto', padding: '20px' }}>
+            {activeTab === 'home' && (
+              <div>
+                <div style={{ textAlign: 'center', marginBottom: 20 }}>
+                  <img src={child.photoUrl} style={{ width: 80, height: 80, borderRadius: '50%', border: '3px solid var(--mint)', marginBottom: 10 }} />
+                  <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--text-primary)' }}>{child.name}</div>
+                  <div style={{ fontSize: 14, color: 'var(--text-secondary)' }}>Status: {child.present ? 'Present' : 'Absent'} {child.nap ? ' (Napping)' : ''}</div>
+                </div>
+                
+                <div style={{ background: 'var(--bg-elevated)', padding: 16, borderRadius: 12, marginBottom: 16, border: '1px solid var(--border-subtle)' }}>
+                  <div style={{ fontSize: 12, textTransform: 'uppercase', color: 'var(--text-tertiary)', marginBottom: 8, letterSpacing: '0.05em' }}>Daily Update</div>
+                  <div style={{ fontSize: 14, color: 'var(--text-primary)' }}>Mood: {child.mood}</div>
+                  {child.milestone && <div style={{ fontSize: 14, color: 'var(--mint)', marginTop: 8 }}>🏆 Milestone: {child.milestone}</div>}
+                </div>
+
+                <div style={{ background: 'var(--bg-elevated)', padding: 16, borderRadius: 12, border: '1px solid var(--border-subtle)' }}>
+                  <div style={{ fontSize: 12, textTransform: 'uppercase', color: 'var(--text-tertiary)', marginBottom: 8, letterSpacing: '0.05em' }}>Recent Activity</div>
+                  <div style={{ fontSize: 14, color: 'var(--text-primary)' }}>Ate Lunch: Mac & Cheese</div>
+                  <div style={{ fontSize: 14, color: 'var(--text-primary)' }}>Participated in Art Class</div>
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'messages' && (
+              <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+                <div style={{ flex: 1, overflowY: 'auto', marginBottom: 16 }}>
+                  {myMessages.length === 0 ? <div style={{ color: 'var(--text-tertiary)' }}>No messages yet.</div> : null}
+                  {myMessages.map(m => (
+                    <div key={m.id} style={{ 
+                      marginBottom: 10, padding: 10, borderRadius: 8, 
+                      background: m.fromRole === 'parent' ? 'rgba(0, 252, 143, 0.1)' : 'var(--bg-elevated)',
+                      border: m.fromRole === 'parent' ? '1px solid rgba(0, 252, 143, 0.2)' : '1px solid var(--border-subtle)',
+                      alignSelf: m.fromRole === 'parent' ? 'flex-end' : 'flex-start'
+                    }}>
+                      <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginBottom: 4 }}>{m.fromName} • {m.time}</div>
+                      <div style={{ fontSize: 14, color: 'var(--text-primary)' }}>{m.text}</div>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <input value={msgText} onChange={e => setMsgText(e.target.value)} placeholder="Message the Manager..." style={{ flex: 1, background: 'var(--bg-elevated)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px', borderRadius: 8 }} />
+                  <button onClick={() => {
+                    if(!msgText.trim()) return;
+                    setGlobalMessages([...globalMessages, { id: Date.now(), fromRole: 'parent', fromName: user.name, toRole: 'manager', branchId: 'charis-kampala', text: msgText, time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) }]);
+                    setMsgText('');
+                  }} style={{ background: 'var(--mint)', color: '#000', border: 'none', padding: '10px 16px', borderRadius: 8, fontWeight: 700, cursor: 'pointer' }}>Send</button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Bottom Nav */}
+          <div style={{ display: 'flex', borderTop: '1px solid var(--border-subtle)', background: 'var(--bg-elevated)', padding: '10px 0', paddingBottom: 'calc(10px + env(safe-area-inset-bottom))' }}>
+            <div onClick={() => setActiveTab('home')} style={{ flex: 1, textAlign: 'center', color: activeTab === 'home' ? 'var(--mint)' : 'var(--text-secondary)', cursor: 'pointer', fontSize: 20 }}>🏠<div style={{ fontSize: 10, marginTop: 4 }}>Home</div></div>
+            <div onClick={() => setActiveTab('messages')} style={{ flex: 1, textAlign: 'center', color: activeTab === 'messages' ? 'var(--mint)' : 'var(--text-secondary)', cursor: 'pointer', fontSize: 20 }}>💬<div style={{ fontSize: 10, marginTop: 4 }}>Messages</div></div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+// ── Main Page Component ──────────────────────────────────────────────────
   const ChildcareOSPage = ({ onNavigate }) => {
+    
+    const [currentUser, setCurrentUser] = React.useState(null);
+    const [globalMessages, setGlobalMessages] = React.useState(INITIAL_GLOBAL_MESSAGES);
+
     const [activeTab, setActiveTab] = React.useState('overview');
     const [selectedCenterId, setSelectedCenterId] = React.useState('all');
     const [selectedChild, setSelectedChild] = React.useState(null);
@@ -579,6 +675,29 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
       if (selectedCenterId === 'all') return centersData.flatMap(c => c.children);
       const center = centersData.find(c => c.id === selectedCenterId); return center ? center.children : [];
     }, [selectedCenterId, centersData]);
+
+    if (!currentUser) {
+      return (
+        <div style={{ width: '100%', height: '100%', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-deepest)', fontFamily: 'var(--font-body)' }}>
+          <div style={{ background: 'var(--bg-default)', padding: 40, borderRadius: 16, border: '1px solid var(--border-subtle)', width: 400, textAlign: 'center', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }}>
+            <h1 style={{ fontFamily: 'var(--font-display)', color: 'var(--text-primary)', marginBottom: 8 }}>Charis Childcare</h1>
+            <p style={{ color: 'var(--text-secondary)', marginBottom: 32 }}>Select your role to continue</p>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <button onClick={() => setCurrentUser({ role: 'director', name: 'Global Director' })} style={{ padding: 14, background: 'var(--mint)', color: '#000', border: 'none', borderRadius: 8, fontWeight: 700, cursor: 'pointer', fontSize: 14 }}>Login as Global Director</button>
+              <button onClick={() => { setCurrentUser({ role: 'manager', name: 'Branch Manager', branchId: 'charis-kampala' }); setSelectedCenterId('charis-kampala'); }} style={{ padding: 14, background: 'var(--bg-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border-default)', borderRadius: 8, fontWeight: 600, cursor: 'pointer', fontSize: 14 }}>Login as Branch Manager (Kampala)</button>
+              <button onClick={() => setCurrentUser({ role: 'parent', name: 'Mrs. Nakamya', childId: 1 })} style={{ padding: 14, background: 'var(--bg-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border-default)', borderRadius: 8, fontWeight: 600, cursor: 'pointer', fontSize: 14 }}>Login as Parent (Mrs. Nakamya)</button>
+              <button onClick={() => setCurrentUser({ role: 'investor', name: 'Investor Group' })} style={{ padding: 14, background: 'var(--bg-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border-default)', borderRadius: 8, fontWeight: 600, cursor: 'pointer', fontSize: 14 }}>Login as Investor</button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    if (currentUser.role === 'parent') {
+      return <ParentApp user={currentUser} childrenData={childrenData} onLogout={() => setCurrentUser(null)} globalMessages={globalMessages} setGlobalMessages={setGlobalMessages} />;
+    }
+
 
     const TODAY_SCHEDULE = React.useMemo(() => {
       if (selectedCenterId === 'all') return centersData[0].schedule;
