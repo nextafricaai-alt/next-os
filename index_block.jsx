@@ -1,0 +1,8768 @@
+
+/* os-data.jsx — single source of truth for NEXT OS page data.
+   Wrapped in an IIFE. Only window.OS_DATA escapes. Demo seeds plus a
+   localStorage layer for user-added tenants / projects / transactions.
+   When Supabase is wired, only this file changes.
+*/
+
+(function () {
+  const OS_DATA_MODE = 'demo';
+  const KEY_TENANTS      = 'nextos.tenants.v1';
+  const KEY_PROJECTS     = 'nextos.projects.v1';
+  const KEY_TRANSACTIONS = 'nextos.transactions.v1';
+  const KEY_TX_HIDDEN = 'nextos.transactions.hidden.v1';
+
+  // ─── PROJECTS (seed) ─────────────────────────────────────────────────────
+  const DEFAULT_PROJECTS = [
+    { id: 'proj-childcare', name: 'Charis Childcare OS', client: 'Internal / Charis Creations',
+      status: 'active', health: 'healthy', progress: 85, priority: 'high',
+      platform: 'NEXT OS Vertical', domain: 'childcare.next',
+      team: ['HT', 'ML', 'FA'], startDate: '2026-07-01', deadline: '2026-12-31',
+      uptime: 100, lastDeploy: '1 hour ago', errors24h: 0, warnings24h: 1 },
+    { id: 'proj-001', name: 'Digital Services Platform', client: 'Ministry of ICT, Uganda',
+      status: 'active', health: 'healthy', progress: 67, priority: 'high',
+      platform: 'Supabase + Next.js', domain: 'services.gov.ug',
+      team: ['HT', 'AO', 'DM'], startDate: '2026-01-15', deadline: '2026-07-30',
+      uptime: 99.7, lastDeploy: '2 days ago', errors24h: 0, warnings24h: 1 },
+  ];
+
+  // ─── FINANCE (seed) ──────────────────────────────────────────────────────
+  const FINANCE = {
+    months: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+    revenueSeries: [186, 210, 245, 262, 284, 310],
+    expenseSeries: [92, 105, 118, 124, 131, 142],
+    currency: 'USD',
+    unit: 'K',
+  };
+  const DEFAULT_TRANSACTIONS = [
+    { id: 'TXN-CC-001', date: '25 Jun 2026', desc: 'Nakamya family fee payment', type: 'income', amount: 300000, category: 'Project', status: 'completed' },
+    { id: 'TXN-001', date: '20 May 2026', desc: 'Architect Membership - Kenya Ministry of Digital', type: 'income',  amount: 2999,  category: 'Membership',     status: 'completed' },
+    { id: 'TXN-002', date: '19 May 2026', desc: 'Safaricom - Process Automation Phase 2 Invoice',     type: 'income',  amount: 45000, category: 'Project',        status: 'completed' },
+    { id: 'TXN-003', date: '19 May 2026', desc: 'AWS Infrastructure - May billing',                   type: 'expense', amount: 8420,  category: 'Infrastructure', status: 'completed' },
+    { id: 'TXN-004', date: '18 May 2026', desc: 'Builder Membership x 4 - Monthly renewals',          type: 'income',  amount: 2996,  category: 'Membership',     status: 'completed' },
+    { id: 'TXN-005', date: '17 May 2026', desc: 'Supabase Pro Plan - 6 project instances',            type: 'expense', amount: 1500,  category: 'Infrastructure', status: 'completed' },
+    { id: 'TXN-006', date: '17 May 2026', desc: 'University of Lagos - Smart Campus milestone',       type: 'income',  amount: 32000, category: 'Project',        status: 'pending'   },
+    { id: 'TXN-007', date: '16 May 2026', desc: 'Team payroll - May cycle',                           type: 'expense', amount: 42000, category: 'Payroll',        status: 'completed' },
+    { id: 'TXN-008', date: '15 May 2026', desc: 'Catalyst Membership x 12 - Monthly renewals',        type: 'income',  amount: 1788,  category: 'Membership',     status: 'completed' },
+    { id: 'TXN-009', date: '15 May 2026', desc: 'Office lease - Kampala co-working space',            type: 'expense', amount: 3200,  category: 'Operations',     status: 'completed' },
+    { id: 'TXN-010', date: '14 May 2026', desc: 'KCCA Kampala - Citizen Portal retainer',             type: 'income',  amount: 15000, category: 'Project',        status: 'completed' },
+    { id: 'TXN-011', date: '13 May 2026', desc: 'Envato Elements - Annual subscription',              type: 'expense', amount: 198,   category: 'Tools',          status: 'completed' },
+    { id: 'TXN-012', date: '12 May 2026', desc: 'UBA Group - AI Operations consulting hours',         type: 'income',  amount: 8500,  category: 'Consulting',     status: 'completed' },
+  ];
+
+  // ─── AI TOOLS (seed) ─────────────────────────────────────────────────────
+  const AI_TOOLS = [
+    { id: 'doc-ai',       name: 'NEXT Docs',      usage: 847 },
+    { id: 'chat-ai',      name: 'NEXT Assistant', usage: 2340 },
+    { id: 'analytics-ai', name: 'NEXT Insights',  usage: 412 },
+    { id: 'auto-ai',      name: 'NEXT Flow',      usage: 658 },
+  ];
+
+  // ─── TENANT FLEET (seed) ─────────────────────────────────────────────────
+  const DEFAULT_TENANTS = [
+    { id: 'charis-childcare', name: 'Charis Childcare', vertical: 'childcare', country: 'Uganda', currency: 'UGX',
+      health: 'advisory', lastSignalAt: '10m ago',
+      prototypeUrl: '',
+      kpis: { revenue: 5000000, expenses: 1200000 },
+      verticalKpis: {
+        enrolled: 24, presentToday: 21, attendanceRate: 0.875,
+        invoicesOverdue: 1, unreadMessages: 5, milestonesLogged: 7,
+      },
+      latest: { severity: 'warn', title: '1 invoice overdue 30+ days', summary: 'Nakamya family is 30+ days overdue.' } },
+    { id: 'peak-primary',          name: 'Peak Primary School',    vertical: 'school',       country: 'Uganda', currency: 'UGX',
+      health: 'advisory', lastSignalAt: '38s ago',
+      prototypeUrl: 'prototypes/schools/peak-primary/index.html',
+      kpis: { revenue: 412500000, expenses: 384200000 },
+      // School-specific KPIs surfaced to the agent under `verticalKpis`
+      verticalKpis: {
+        students: 286, teachers: 38, streams: 14,
+        feesCollectedTerm: 412500000, feesCollectionRate: 0.71,
+        feesOutstanding: 168800000, accountsOverdue30d: 3, overdueAmount: 1080000,
+        attendanceWeek: 0.88, atRiskStudents: 12, topPerformers: 24,
+        enrollmentInquiries: 4, lastSync: '38s ago',
+      },
+      latest: { severity: 'warn', title: '3 fee accounts overdue 30+ days', summary: 'UGX 1.08M outstanding · WhatsApp gentle reminder draft is queued for your approval.' } },
+    { id: 'st-marys-demo',         name: "St. Mary's Demo School", vertical: 'school',       country: 'Uganda', currency: 'UGX',
+      health: 'advisory', lastSignalAt: '2m ago',
+      kpis: { revenue: 1584000000, expenses: 1880000000 },
+      latest: { severity: 'warn', title: 'Cash flow needs board attention', summary: 'Expenses exceed revenue by 296M UGX this term.' } },
+    { id: 'grace-chapel-demo',     name: 'Grace Chapel',           vertical: 'church',       country: 'Uganda', currency: 'UGX',
+      health: 'healthy',  lastSignalAt: '5m ago',
+      kpis: { revenue: 48000000, expenses: 42000000 }, latest: null },
+    { id: 'hope-program-demo',     name: 'Hope Program',           vertical: 'ngo',          country: 'Uganda', currency: 'UGX',
+      health: 'advisory', lastSignalAt: '7m ago',
+      kpis: { revenue: 92000000, expenses: 80000000 },
+      latest: { severity: 'warn', title: 'Participation below capacity', summary: '1,850 of 2,000 beneficiaries active. Outreach summary recommended.' } },
+    { id: 'next-services-demo',    name: 'NEXT Services',          vertical: 'company',      country: 'Uganda', currency: 'UGX',
+      health: 'healthy',  lastSignalAt: '11m ago',
+      kpis: { revenue: 150000000, expenses: 54500000 }, latest: null },
+    { id: 'community-association-demo', name: 'Community Association', vertical: 'organisation', country: 'Uganda', currency: 'UGX',
+      health: 'advisory', lastSignalAt: '13m ago',
+      kpis: { revenue: 20000000, expenses: 14500000 },
+      latest: { severity: 'warn', title: 'Participation below threshold', summary: '430 active members vs. 500 target.' } },
+  ];
+
+  // ─── Storage helpers ─────────────────────────────────────────────────────
+  function safeLoad(key) {
+    try {
+      const raw = window.localStorage && window.localStorage.getItem(key);
+      const parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (e) { return []; }
+  }
+  function safeSave(key, list) {
+    try {
+      if (window.localStorage) window.localStorage.setItem(key, JSON.stringify(list));
+    } catch (e) { /* ignore */ }
+  }
+  function makeSlug(name, prefix) {
+    const base = String(name || '').toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '').slice(0, 60);
+    return base || ((prefix || 'item') + '-' + Date.now());
+  }
+
+  // ─── Tenants CRUD ────────────────────────────────────────────────────────
+  let _tenantsCache = null;
+  function getTenants() {
+    if (_tenantsCache) return _tenantsCache;
+    _tenantsCache = DEFAULT_TENANTS.concat(safeLoad(KEY_TENANTS));
+    return _tenantsCache;
+  }
+  function addTenant(input) {
+    const tenant = {
+      id: input.id || makeSlug(input.name, 'tenant'),
+      name: input.name || 'Unnamed tenant',
+      vertical: input.vertical || 'organisation',
+      country: input.country || 'Uganda',
+      currency: input.currency || 'UGX',
+      health: input.health || 'unknown',
+      lastSignalAt: 'just added',
+      kpis: { revenue: Number(input.revenue) || 0, expenses: Number(input.expenses) || 0 },
+      latest: null,
+      addedByUser: true,
+      addedAt: new Date().toISOString(),
+    };
+    const added = safeLoad(KEY_TENANTS); added.push(tenant); safeSave(KEY_TENANTS, added);
+    _tenantsCache = DEFAULT_TENANTS.concat(added);
+    return _tenantsCache;
+  }
+  function removeTenant(id) {
+    const added = safeLoad(KEY_TENANTS).filter(t => t.id !== id);
+    safeSave(KEY_TENANTS, added);
+    _tenantsCache = DEFAULT_TENANTS.concat(added);
+    return _tenantsCache;
+  }
+
+  // ─── Projects CRUD ───────────────────────────────────────────────────────
+  let _projectsCache = null;
+  function getProjects() {
+    if (_projectsCache) return _projectsCache;
+    _projectsCache = DEFAULT_PROJECTS.concat(safeLoad(KEY_PROJECTS));
+    return _projectsCache;
+  }
+  function addProject(input) {
+    const project = {
+      id: input.id || makeSlug(input.name, 'proj'),
+      name: input.name || 'Unnamed project',
+      client: input.client || '',
+      status: input.status || 'active',
+      health: input.health || 'healthy',
+      progress: Number(input.progress) || 0,
+      priority: input.priority || 'medium',
+      platform: input.platform || '',
+      domain: input.domain || '',
+      url: input.url || '',
+      registrar: input.registrar || '',
+      renewalDate: input.renewalDate || '',
+      hosting: input.hosting || '',
+      registrarAccount: input.registrarAccount || '',
+      team: input.team || [],
+      startDate: input.startDate || new Date().toISOString().slice(0, 10),
+      deadline: input.deadline || '',
+      uptime: 100, lastDeploy: 'never', errors24h: 0, warnings24h: 0,
+      alerts: [], milestones: [],
+      credentials: { supabaseUrl: '', supabaseKey: '', adminEmail: '' },
+      addedByUser: true,
+      addedAt: new Date().toISOString(),
+    };
+    const added = safeLoad(KEY_PROJECTS); added.push(project); safeSave(KEY_PROJECTS, added);
+    _projectsCache = DEFAULT_PROJECTS.concat(added);
+    return _projectsCache;
+  }
+  function removeProject(id) {
+    const added = safeLoad(KEY_PROJECTS).filter(p => p.id !== id);
+    safeSave(KEY_PROJECTS, added);
+    _projectsCache = DEFAULT_PROJECTS.concat(added);
+    return _projectsCache;
+  }
+
+  // ─── Transactions CRUD ───────────────────────────────────────────────────
+  let _transactionsCache = null;
+  function getTransactions() {
+    if (_transactionsCache) return _transactionsCache;
+    const added = safeLoad(KEY_TRANSACTIONS);
+    const hidden = safeLoad(KEY_TX_HIDDEN) || [];
+    // Newest first. Demo defaults the user has deleted are filtered out.
+    _transactionsCache = added.concat(DEFAULT_TRANSACTIONS.filter(t => hidden.indexOf(t.id) < 0));
+    return _transactionsCache;
+  }
+  function addTransaction(input) {
+    const today = new Date();
+    const month = today.toLocaleString('en-US', { month: 'short' });
+    const tx = {
+      id: input.id || 'TXN-' + String(Date.now()).slice(-6),
+      date: input.date || (today.getDate() + ' ' + month + ' ' + today.getFullYear()),
+      desc: input.desc || 'Unnamed transaction',
+      type: input.type === 'expense' ? 'expense' : 'income',
+      amount: Number(input.amount) || 0,
+      category: input.category || 'Other',
+      status: input.status || 'completed',
+      addedByUser: true,
+      addedAt: new Date().toISOString(),
+    };
+    const added = safeLoad(KEY_TRANSACTIONS); added.unshift(tx); safeSave(KEY_TRANSACTIONS, added);
+    _transactionsCache = added.concat(DEFAULT_TRANSACTIONS);
+    return _transactionsCache;
+  }
+  function removeTransaction(id) {
+    const added = safeLoad(KEY_TRANSACTIONS).filter(t => t.id !== id);
+    safeSave(KEY_TRANSACTIONS, added);
+    // If it's a built-in default, remember it as hidden so it stays deleted.
+    if (DEFAULT_TRANSACTIONS.some(t => t.id === id)) {
+      const hidden = safeLoad(KEY_TX_HIDDEN) || [];
+      if (hidden.indexOf(id) < 0) { hidden.push(id); safeSave(KEY_TX_HIDDEN, hidden); }
+    }
+    const hidden2 = safeLoad(KEY_TX_HIDDEN) || [];
+    _transactionsCache = added.concat(DEFAULT_TRANSACTIONS.filter(t => hidden2.indexOf(t.id) < 0));
+    return _transactionsCache;
+  }
+
+  // ─── Finance object (legacy shape kept for existing FinancePage) ─────────
+  function getFinance() {
+    return Object.assign({}, FINANCE, { transactions: getTransactions() });
+  }
+
+  function rollups() {
+    const totalRevenue   = FINANCE.revenueSeries.reduce((a, b) => a + b, 0);
+    const totalExpenses  = FINANCE.expenseSeries.reduce((a, b) => a + b, 0);
+    const netCashflow    = totalRevenue - totalExpenses;
+    const activeProjects = getProjects().filter(p => p.status === 'active').length;
+    return { totalRevenue, totalExpenses, netCashflow, activeProjects, currency: FINANCE.currency, unit: FINANCE.unit };
+  }
+
+  window.OS_DATA = {
+    mode: OS_DATA_MODE,
+    isDemo: () => OS_DATA_MODE === 'demo',
+    getFinance:  getFinance,
+    getAiTools:  () => AI_TOOLS,
+    getRollups:  rollups,
+    getTenants:      getTenants,      addTenant,      removeTenant,
+    getProjects:     getProjects,     addProject,     removeProject,
+    getTransactions: getTransactions, addTransaction, removeTransaction,
+  };
+})();
+
+  
+
+
+/* nia-brain.jsx — AUTO-GENERATED by build-brain.py
+   Do NOT hand-edit. Edit the markdown files in nia-brain/ and re-run
+   the bundler. */
+
+(function () {
+  const DOCS = [
+  {
+    "id": "charis-playbook",
+    "title": "Charis Creations Playbook",
+    "body": "# Charis Creations Playbook\n\nCharis Creations is Hudson's media production and communications\ncompany. It runs alongside NEXT — Charis tells the stories, NEXT\nbuilds the systems.\n\n## What Charis does\n\n- Photography (events, portraits, lifestyle, documentary)\n- Videography (events, brand films, documentary, podcast production)\n- Digital storytelling (long-form content, social campaigns)\n- Media strategy (positioning, comms calendars, content systems)\n- Brand consulting (for mission-driven orgs)\n\n## Who Charis serves\n\n- Schools and educational institutions\n- Churches and faith-based organizations\n- NGOs and development programs\n- Mission-driven brands\n- Individuals — leaders, pastors, authors who need a media presence\n\nThe thread: organizations and individuals who have a real story but\ndon't have the media muscle to tell it well.\n\n## Notable engagements\n\n- **Fathers Arise** (under The Remnant Generation) — Hudson supports\n  this initiative with media strategy and storytelling. Faith-based\n  fatherhood movement.\n\n## Charis pricing approach\n\nCharis doesn't publish rates publicly. Every engagement gets a custom\nproposal because the deliverables vary wildly (one shoot vs. a\nsix-month brand build).\n\nThe three engagement shapes:\n\n1. **Project work** — discrete deliverable (a film, an event shoot, a\n   campaign). Quoted as a fixed fee.\n2. **Retainer** — ongoing media support, usually monthly. Best for\n   organizations with constant content needs (a growing church, an\n   NGO with regular reports).\n3. **Strategic consulting** — Hudson personally advising on\n   storytelling, positioning, comms architecture. Higher-touch, higher\n   fee.\n\n## Charis vs NEXT — when which one fits\n\n| Client need | Charis | NEXT |\n|---|---|---|\n| \"We need a brand film\" | YES | no |\n| \"We need a parent-facing portal\" | no | YES |\n| \"We need our story told better\" | YES | no |\n| \"We need our operations digitized\" | no | YES |\n| \"We need both — story AND systems\" | both | both |\n\nMany of Charis's strongest clients become NEXT clients because once\nthe story is clear, the systems gap becomes obvious.\n\n## Hudson's Charis voice\n\nCharis content is warm, cinematic, story-first. It avoids the\nslick-but-soulless aesthetic of generic agency work. Charis would\nrather a piece feel honest than perfect.\n\n## Gear Plug (Hudson's third venture)\n\nSide business: imports and resells tech gear and equipment, mostly\nserving Charis-adjacent creatives (cameras, lenses, audio kit).\nSmaller, more transactional. Worth knowing exists but not Nia's daily\ncontext.\n"
+  },
+  {
+    "id": "communication-templates/fee-reminder",
+    "title": "Fee Reminder Templates",
+    "body": "# Fee Reminder Templates\n\nUse these as the starting structure when drafting fee reminders for\nPeak Primary (or any school tenant). Always adapt — never send the\ntemplate raw.\n\n## The structure (every fee reminder)\n\n1. **Warm opening using the guardian's name** — Mrs. / Mr. + surname.\n   Never just \"Dear parent.\"\n2. **Acknowledgment of the relationship** — \"Thank you for your\n   continued partnership with Peak Primary.\"\n3. **The factual note** — the balance and term. No drama, no urgency\n   theatre.\n4. **An offering, not a demand** — installment options, contact for\n   discussion, payment channels.\n5. **Warm close** — signature, school name, optional Luganda phrase.\n\n## Three tone levels\n\n### Level 1 — First reminder (just past due, gentle)\n\n> Dear Mrs. Asiimwe,\n>\n> Thank you for your continued partnership with Peak Primary School.\n> This is a gentle reminder that Ruth's Term 2 fees of UGX 180,000\n> remain outstanding.\n>\n> If you would like to spread this across two installments, we are\n> happy to arrange. You can reach our bursar on +256... or reply to\n> this message.\n>\n> Webale nnyo for your understanding.\n>\n> Peak Primary School Office\n\n### Level 2 — Second reminder (15-30 days overdue, firmer)\n\n> Dear Mrs. Asiimwe,\n>\n> We hope Ruth is doing well at home. We're writing to follow up on\n> Term 2 fees of UGX 180,000, now outstanding for [X] weeks.\n>\n> We understand circumstances vary — please reach out so we can find\n> a workable arrangement together. We would much rather hear from you\n> than chase a number.\n>\n> The bursar is available on +256... weekdays 8am–4pm.\n>\n> With warm regards,\n> Peak Primary School Office\n\n### Level 3 — Third reminder (30+ days, serious but still warm)\n\n> Dear Mrs. Asiimwe,\n>\n> We are writing because Ruth's Term 2 fees (UGX 180,000) have now\n> been outstanding for over 30 days, and we have not yet been able to\n> reach you.\n>\n> Ruth is a valued part of our P3 Prudent stream, and we want to\n> continue supporting her education. Could we ask you to call the\n> bursar on +256... by Friday so we can discuss a way forward?\n>\n> If there are circumstances we should know about, please do tell us.\n> We are here to find a solution with you.\n>\n> With concern and respect,\n> [Head Teacher name]\n\n## What to never write\n\n- \"Failure to pay will result in...\" (cold, threatening)\n- \"Your child will be sent home if...\" (humiliating the child)\n- \"URGENT\" or excessive capitals (panicky, undignified)\n- Long paragraphs justifying the school's costs (defensive)\n\n## What Hudson would always do\n\n- Use first names when possible\n- Frame the school as a partner in the child's education, not a\n  service provider chasing payment\n- Offer a real path forward (installments, conversation, contact)\n- Sign off with warmth — Luganda phrase if the recipient speaks it\n"
+  },
+  {
+    "id": "frameworks",
+    "title": "NEXT Frameworks",
+    "body": "# NEXT Frameworks\n\nThe structural lenses Nia uses when thinking about clients, problems,\nand solutions.\n\n## The 8 NEXT services\n\nEvery client engagement maps to one or more of these:\n\n1. **AI Strategy & Transformation Roadmap** — where to start, what to\n   automate, what to leave manual.\n2. **Custom OS Build** — the vertical OS (Schools, Hospitals, NGOs,\n   etc.) tailored to the client's structure.\n3. **AI Tool Implementation** — Nia + supporting tools wired into the\n   client's workflows.\n4. **Process Automation** — repetitive admin work converted into\n   triggered flows.\n5. **Data & Dashboards** — turn raw data into decisions: enrollment,\n   fees, attendance, donations, impact.\n6. **Communications Architecture** — WhatsApp, email, SMS unified\n   under one signal layer.\n7. **Team Training** — capacity-building so the client's staff can run\n   the OS, not depend on NEXT forever.\n8. **Strategic Supervision** — ongoing Sentinel/Nia oversight at the\n   leadership level.\n\n## Client diagnosis framework\n\nWhen meeting a new prospect, run them through this in your head:\n\n1. **What's broken?** — the surface complaint (slow fees, missed\n   parent comms, no reporting)\n2. **What's actually broken?** — the system pattern beneath\n   (fragmented data, manual handoffs, no single source of truth)\n3. **What's the highest-leverage fix?** — usually NOT what they asked\n   for; one layer up\n4. **Which tier do they need?** — Catalyst, Builder, or Architect\n5. **What's the first 30-day win?** — the proof point that earns the\n   year\n\n## The transformation arc\n\nNEXT clients don't go from chaos to perfect in one move. The arc:\n\n```\nPhase 1: Chaos       — manual, reactive, fragmented\nPhase 2: Visibility  — dashboards exist, leadership can see\nPhase 3: Workflow    — repeating processes are automated\nPhase 4: Intelligence — Nia surfaces insights before humans see them\nPhase 5: Compounding — the OS gets sharper from every interaction\n```\n\nMost clients land in Phase 1. The first 90 days is Phase 1 → Phase 2.\nYear 1 ends in Phase 3. Year 2 enters Phase 4.\n\n## Pricing philosophy\n\nNEXT never publishes prices because every client is different. But\nthe structure:\n\n- **Catalyst — $149/mo** — for orgs in Phase 1 wanting Phase 2 quickly\n- **Builder — $749/mo** — for orgs reaching Phase 3\n- **Architect — Custom** — for Phase 4 / Phase 5 organizations and\n  networks\n\nAlways pair the tier recommendation with a clear ROI story:\n\"Catalyst will cut 12 hours of admin a week, which is ~50 hours a\nmonth at your bursar's rate — the system pays for itself in week 2.\"\n\n## The three constituencies in every client\n\nEvery client has three audiences NEXT serves:\n\n1. **Leadership** — wants visibility and time back\n2. **Staff** — wants their daily work to be less painful\n3. **End-users (parents, donors, beneficiaries)** — wants to be\n   informed without effort\n\nA successful OS serves all three. If any is angry after rollout, the\nproject is failing.\n"
+  },
+  {
+    "id": "hudson-voice",
+    "title": "Hudson's Voice",
+    "body": "# Hudson's Voice\n\nHudson Tumusiime is the founder of NEXT and Charis Creations. He is a\nvisionary builder, not a developer — but he uses technology, media,\nand AI as instruments of impact. His voice is the standard for how Nia\nspeaks.\n\n## How Hudson sounds\n\n- **Direct and concrete.** Says \"Let's build the system\" not \"We should\n  consider implementing a process.\" No corporate softening, no hedging.\n- **CEO-level abstraction.** Talks about systems, infrastructure,\n  scale — not tasks. Reads like someone running multiple ventures, not\n  a freelancer doing jobs.\n- **Strong analogies and metaphors.** \"Think of NEXT as the mothership\n  with each client OS as a fleet member.\" Always grounds the abstract\n  in a picture.\n- **Depth with simplicity.** Bishop T.D. Jakes is a reference point:\n  profound truth, accessible language. Never academic, never preachy.\n- **Action-oriented closing.** Most messages end with the next concrete\n  step, not a summary.\n\n## Words and phrases Hudson uses\n\n- \"Build\" (almost never \"create\" or \"develop\")\n- \"System\" (the unit of work he thinks in)\n- \"Scale\" (always the verb form)\n- \"Storytelling\" (core Charis word)\n- \"Move from where it is to where it needs to be\" (NEXT signature line)\n- \"Africa's intelligent future\" (NEXT thesis)\n- \"Mission-driven\" (how he describes the right kind of client)\n\n## Words and phrases Hudson AVOIDS\n\n- \"Innovate\" / \"disrupt\" / \"synergy\" / \"leverage\" (corporate jargon)\n- \"I think maybe...\" / \"Perhaps we could...\" (uncertainty hedging)\n- \"As you know\" / \"It's important to note\" (filler)\n- \"Touch base\" / \"circle back\" / \"ping me\" (consulting clichés)\n\n## When Hudson writes a message\n\nHe opens with the point, not the warm-up. He uses short sentences when\ndirection matters and longer ones when texture matters. He often\nstructures replies around 2–3 specific things, not a wall of prose.\n\n## When Nia writes on Hudson's behalf\n\n- Lead with the point.\n- Cut hedge words. \"I think\" → just say it.\n- Replace corporate verbs with concrete ones (\"implement\" → \"wire,\"\n  \"facilitate\" → \"run,\" \"leverage\" → \"use\").\n- Always close with the next step the recipient should take.\n- In Uganda/East Africa contexts: warm, never cold. Acknowledge the\n  person first, then the request. Use first names.\n\n## Three audiences Hudson speaks to differently\n\n1. **Clients (schools, NGOs, churches):** warm, simple, focused on\n   their pain. No NEXT jargon. He sounds like a thoughtful consultant\n   who understands their world.\n2. **Team and partners:** crisp, direction-setting. He sets the\n   playbook, they execute. He doesn't micromanage but he is precise.\n3. **Family and friends:** loose, warm, sometimes Luganda phrases\n   mixed in. Patience (his wife) is the inner circle.\n"
+  },
+  {
+    "id": "next-methodology",
+    "title": "NEXT Methodology",
+    "body": "# NEXT Methodology\n\nNEXT is an African AI transformation company. The thesis: Africa\nshouldn't fall behind in the intelligent age. NEXT helps organizations\ntransform — schools, hospitals, NGOs, churches, companies, governments —\nby building them custom operating systems powered by AI.\n\n## The mothership-fleet model\n\nNEXT is the mothership. Each client gets a vertical OS — a Schools OS,\na Hospitals OS, an NGOs OS, a Church OS. The mothership supervises the\nfleet through Sentinel (the agent layer, public face: Nia).\n\n```\nNEXT (mothership)\n ├── Sentinel (Nia) — supervises all client OSes\n ├── Schools OS  (Peak Primary School — live)\n ├── Hospitals OS (planned)\n ├── NGOs OS     (planned)\n ├── Churches OS (planned)\n ├── Homes OS    (planned)\n └── Companies OS (planned)\n```\n\nEvery client OS shares the same spine (auth, finance, comms, AI tools)\nbut has vertical-specific surfaces (a school sees students and\nattendance; an NGO sees beneficiaries and reports).\n\n## The three tiers\n\nNEXT clients buy one of three tiers:\n\n1. **Catalyst — $149 / month**\n   - For small organizations starting their digital journey\n   - Includes: core OS access, 3 AI tools, basic dashboards, monthly\n     check-ins\n   - Best for: small schools, single-location NGOs, growing churches\n\n2. **Builder — $749 / month**\n   - For established organizations ready to scale\n   - Includes: full vertical OS, custom integrations, advanced\n     dashboards, weekly Nia supervision, team training\n   - Best for: mid-size schools (200+ students), multi-program NGOs,\n     larger churches\n\n3. **Architect — Custom**\n   - For organizations operating at scale or with complex needs\n   - Includes: custom-built OS, dedicated NEXT engineer, advanced\n     fine-tuning, board-level reporting, white-label options\n   - Best for: networks (e.g. a foundation running 12 schools),\n     government departments, large NGOs\n\n## The promise\n\n\"Every investment in NEXT is designed to return more than it costs —\nin time saved, capacity gained, and impact amplified.\"\n\nNEXT never publishes fixed prices because every org is different. We\nalways provide a custom proposal showing the ROI math.\n\n## What NEXT is NOT\n\n- NEXT is not a generic software vendor. We don't sell licenses; we\n  build transformation.\n- NEXT is not a Western tech transplant. We're built for African\n  context — WhatsApp dominance, M-Pesa, multi-lingual (English,\n  Luganda, Swahili, Kinyarwanda), intermittent connectivity.\n- NEXT is not a development agency. We don't take \"build me a\n  website\" briefs. We take \"transform my organization\" briefs.\n\n## Operating context\n\n- East Africa, primarily Uganda\n- Currencies: UGX local, USD for international clients\n- Communication: WhatsApp first, email second, SMS for low-bandwidth\n- Payments: M-Pesa, mobile money, bank transfer, Stripe for international\n- Languages: English (default), Luganda (Uganda), Swahili (East Africa),\n  Kinyarwanda (Rwanda)\n"
+  },
+  {
+    "id": "peak-primary-context",
+    "title": "Peak Primary School — Deep Context",
+    "body": "# Peak Primary School — Deep Context\n\nPeak Primary is NEXT's first wired Schools OS tenant. Located in\nUganda. Live as of 2026. This is the school Nia knows most deeply.\n\n## The fundamentals\n\n- **Students:** 286 across all grades\n- **Teachers:** 38\n- **Streams:** 14 total — P1 through P7, two streams per grade\n  (\"Vigilant\" and \"Prudent\")\n- **Term:** Term 2 of the academic year, currently Week 6\n- **Currency:** UGX (Ugandan shillings)\n- **Tenant ID in the OS:** `peak-primary` (always this exact slug)\n\n## Current state (live signals)\n\n- **Fee collection: 71%** of expected Term 2 fees collected. Industry\n  benchmark target is 85%+. Gap is 168.8M UGX still expected.\n- **3 accounts overdue 30+ days** — 1.08M UGX outstanding combined.\n  These are the highest-priority follow-ups.\n- **Weekly attendance: 88%** — below the 92% target. 12 students\n  flagged as \"at-risk\" (attendance under 70% for 2+ weeks).\n- **4 new enrollment inquiries** waiting in the WhatsApp queue. P1 and\n  P3 intake.\n- **Revenue this term:** 412.5M UGX collected. Expected total: ~580M.\n- **Expenses this term:** 384.2M UGX (salaries, materials, facilities).\n\n## Stream structure\n\nEach grade has two streams that compete in healthy ways:\n\n- P1V (Vigilant) / P1P (Prudent)\n- P2V / P2P\n- P3V / P3P\n- P4V / P4P\n- P5V / P5P\n- P6V / P6P\n- P7V / P7P\n\nWhen referring to a student's class, always use the stream code (e.g.\n\"P4V\") not \"Primary 4.\"\n\n## Key relationships\n\n- **Head Teacher** — the school's day-to-day leader. First point of\n  contact for operational issues.\n- **Bursar** — handles fee collection, accounts, financial reporting.\n- **Guardians/Parents** — primary external audience. Most communication\n  happens via WhatsApp on personal phones. Mothers more responsive on\n  daytime messages; fathers reachable evenings.\n\n## How Peak Primary communicates\n\n- **WhatsApp dominant.** Almost every parent reachable via WhatsApp.\n- **English primary, Luganda for warmth.** Open in English; sign off\n  with a Luganda phrase when warmth matters (\"Webale nnyo\" = thank\n  you very much).\n- **Tone with guardians:** respectful, never demanding. Even on\n  overdue fees — frame as partnership, not collection.\n\n## Three live workflows Nia helps with\n\n1. **Overdue fee reminders** — 3 accounts right now. Draft warm\n   WhatsApp, Hudson approves, send via `open_whatsapp` or\n   `send_whatsapp`.\n2. **Attendance follow-ups** — when a student is at-risk (12 right\n   now), check in with the guardian: \"We noticed [name] hasn't been\n   in this week — is everything okay?\"\n3. **Enrollment pipeline** — 4 new inquiries waiting. First touch\n   should be within 24 hours. Acknowledge, share the info pack, book\n   a school visit.\n\n## The live prototype\n\nHudson can open the Peak Primary OS at:\n`prototypes/schools/peak-primary/index.html`\n\nIt's a fully wired React prototype with student lists, fee ledger,\nattendance dashboard, and live signal feed. Nia supervises it via\n`read_tenant(\"peak-primary\")` and `evaluate_health(\"peak-primary\")`.\n"
+  }
+];
+
+  // Simple bag-of-words retrieval. No external deps. Stopword-aware.
+  const STOP = new Set(['the','a','an','is','are','was','were','of','to','in','on','for','with','by','and','or','but','at','as','it','this','that','these','those','i','you','he','she','we','they','me','him','her','us','them','my','your','his','her','our','their','what','who','how','when','where','why','do','does','did','can','could','should','would','will','be','been','being','have','has','had']);
+
+  function tokenize(s) {
+    return String(s || '').toLowerCase()
+      .replace(/[^a-z0-9\s]/g, ' ')
+      .split(/\s+/)
+      .filter(w => w && !STOP.has(w) && w.length > 2);
+  }
+
+  // Pre-tokenize each doc once.
+  const docTokens = DOCS.map(d => {
+    const tokens = tokenize(d.title + ' ' + d.body);
+    const counts = {};
+    for (const t of tokens) counts[t] = (counts[t] || 0) + 1;
+    return counts;
+  });
+
+  function retrieve(query, k) {
+    const qTokens = tokenize(query);
+    if (qTokens.length === 0) return [];
+    const scored = DOCS.map((d, i) => {
+      const counts = docTokens[i];
+      let score = 0;
+      for (const t of qTokens) {
+        if (counts[t]) score += counts[t];
+      }
+      // Title boost
+      const titleTokens = tokenize(d.title);
+      for (const t of qTokens) {
+        if (titleTokens.includes(t)) score += 5;
+      }
+      return { doc: d, score };
+    });
+    scored.sort((a, b) => b.score - a.score);
+    return scored.filter(s => s.score > 0).slice(0, k || 3).map(s => s.doc);
+  }
+
+  // Build a system-prompt snippet to inject before each turn.
+  function systemPrompt(query, k) {
+    const hits = retrieve(query, k || 2);
+    if (hits.length === 0) return '';
+    return '\n\n=== NIA BRAIN (your knowledge — quote and reason from this) ===\n'
+      + hits.map(d => '## ' + d.title + '\n\n' + d.body).join('\n\n---\n\n')
+      + '\n=== END NIA BRAIN ===\n';
+  }
+
+  window.NIA_BRAIN = {
+    docs: DOCS,
+    retrieve: retrieve,
+    systemPrompt: systemPrompt,
+    count: DOCS.length,
+  };
+
+  console.log('[Nia Brain] ' + DOCS.length + ' documents loaded.');
+})();
+
+  
+
+
+
+// tweaks-panel.jsx
+// Reusable Tweaks shell + form-control helpers.
+//
+// Owns the host protocol (listens for __activate_edit_mode / __deactivate_edit_mode,
+// posts __edit_mode_available / __edit_mode_set_keys / __edit_mode_dismissed) so
+// individual prototypes don't re-roll it. Ships a consistent set of controls so you
+// don't hand-draw <input type="range">, segmented radios, steppers, etc.
+//
+// Usage (in an HTML file that loads React + Babel):
+//
+//   const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+//     "primaryColor": "#D97757",
+//     "palette": ["#D97757", "#29261b", "#f6f4ef"],
+//     "fontSize": 16,
+//     "density": "regular",
+//     "dark": false
+//   }/*EDITMODE-END*/;
+//
+//   function App() {
+//     const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
+//     return (
+//       <div style={{ fontSize: t.fontSize, color: t.primaryColor }}>
+//         Hello
+//         <TweaksPanel>
+//           <TweakSection label="Typography" />
+//           <TweakSlider label="Font size" value={t.fontSize} min={10} max={32} unit="px"
+//                        onChange={(v) => setTweak('fontSize', v)} />
+//           <TweakRadio  label="Density" value={t.density}
+//                        options={['compact', 'regular', 'comfy']}
+//                        onChange={(v) => setTweak('density', v)} />
+//           <TweakSection label="Theme" />
+//           <TweakColor  label="Primary" value={t.primaryColor}
+//                        options={['#D97757', '#2A6FDB', '#1F8A5B', '#7A5AE0']}
+//                        onChange={(v) => setTweak('primaryColor', v)} />
+//           <TweakColor  label="Palette" value={t.palette}
+//                        options={[['#D97757', '#29261b', '#f6f4ef'],
+//                                  ['#475569', '#0f172a', '#f1f5f9']]}
+//                        onChange={(v) => setTweak('palette', v)} />
+//           <TweakToggle label="Dark mode" value={t.dark}
+//                        onChange={(v) => setTweak('dark', v)} />
+//         </TweaksPanel>
+//       </div>
+//     );
+//   }
+//
+// -----------------------------------------------------------------------------
+
+const __TWEAKS_STYLE = `
+  .twk-panel{position:fixed;right:16px;bottom:16px;z-index:2147483646;width:280px;
+    max-height:calc(100vh - 32px);display:flex;flex-direction:column;
+    transform:scale(var(--dc-inv-zoom,1));transform-origin:bottom right;
+    background:rgba(250,249,247,.78);color:#29261b;
+    -webkit-backdrop-filter:blur(24px) saturate(160%);backdrop-filter:blur(24px) saturate(160%);
+    border:.5px solid rgba(255,255,255,.6);border-radius:14px;
+    box-shadow:0 1px 0 rgba(255,255,255,.5) inset,0 12px 40px rgba(0,0,0,.18);
+    font:11.5px/1.4 ui-sans-serif,system-ui,-apple-system,sans-serif;overflow:hidden}
+  .twk-hd{display:flex;align-items:center;justify-content:space-between;
+    padding:10px 8px 10px 14px;cursor:move;user-select:none}
+  .twk-hd b{font-size:12px;font-weight:600;letter-spacing:.01em}
+  .twk-x{appearance:none;border:0;background:transparent;color:rgba(41,38,27,.55);
+    width:22px;height:22px;border-radius:6px;cursor:default;font-size:13px;line-height:1}
+  .twk-x:hover{background:rgba(0,0,0,.06);color:#29261b}
+  .twk-body{padding:2px 14px 14px;display:flex;flex-direction:column;gap:10px;
+    overflow-y:auto;overflow-x:hidden;min-height:0;
+    scrollbar-width:thin;scrollbar-color:rgba(0,0,0,.15) transparent}
+  .twk-body::-webkit-scrollbar{width:8px}
+  .twk-body::-webkit-scrollbar-track{background:transparent;margin:2px}
+  .twk-body::-webkit-scrollbar-thumb{background:rgba(0,0,0,.15);border-radius:4px;
+    border:2px solid transparent;background-clip:content-box}
+  .twk-body::-webkit-scrollbar-thumb:hover{background:rgba(0,0,0,.25);
+    border:2px solid transparent;background-clip:content-box}
+  .twk-row{display:flex;flex-direction:column;gap:5px}
+  .twk-row-h{flex-direction:row;align-items:center;justify-content:space-between;gap:10px}
+  .twk-lbl{display:flex;justify-content:space-between;align-items:baseline;
+    color:rgba(41,38,27,.72)}
+  .twk-lbl>span:first-child{font-weight:500}
+  .twk-val{color:rgba(41,38,27,.5);font-variant-numeric:tabular-nums}
+
+  .twk-sect{font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;
+    color:rgba(41,38,27,.45);padding:10px 0 0}
+  .twk-sect:first-child{padding-top:0}
+
+  .twk-field{appearance:none;box-sizing:border-box;width:100%;min-width:0;height:26px;padding:0 8px;
+    border:.5px solid rgba(0,0,0,.1);border-radius:7px;
+    background:rgba(255,255,255,.6);color:inherit;font:inherit;outline:none}
+  .twk-field:focus{border-color:rgba(0,0,0,.25);background:rgba(255,255,255,.85)}
+  select.twk-field{padding-right:22px;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path fill='rgba(0,0,0,.5)' d='M0 0h10L5 6z'/></svg>");
+    background-repeat:no-repeat;background-position:right 8px center}
+
+  .twk-slider{appearance:none;-webkit-appearance:none;width:100%;height:4px;margin:6px 0;
+    border-radius:999px;background:rgba(0,0,0,.12);outline:none}
+  .twk-slider::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;
+    width:14px;height:14px;border-radius:50%;background:#fff;
+    border:.5px solid rgba(0,0,0,.12);box-shadow:0 1px 3px rgba(0,0,0,.2);cursor:default}
+  .twk-slider::-moz-range-thumb{width:14px;height:14px;border-radius:50%;
+    background:#fff;border:.5px solid rgba(0,0,0,.12);box-shadow:0 1px 3px rgba(0,0,0,.2);cursor:default}
+
+  .twk-seg{position:relative;display:flex;padding:2px;border-radius:8px;
+    background:rgba(0,0,0,.06);user-select:none}
+  .twk-seg-thumb{position:absolute;top:2px;bottom:2px;border-radius:6px;
+    background:rgba(255,255,255,.9);box-shadow:0 1px 2px rgba(0,0,0,.12);
+    transition:left .15s cubic-bezier(.3,.7,.4,1),width .15s}
+  .twk-seg.dragging .twk-seg-thumb{transition:none}
+  .twk-seg button{appearance:none;position:relative;z-index:1;flex:1;border:0;
+    background:transparent;color:inherit;font:inherit;font-weight:500;min-height:22px;
+    border-radius:6px;cursor:default;padding:4px 6px;line-height:1.2;
+    overflow-wrap:anywhere}
+
+  .twk-toggle{position:relative;width:32px;height:18px;border:0;border-radius:999px;
+    background:rgba(0,0,0,.15);transition:background .15s;cursor:default;padding:0}
+  .twk-toggle[data-on="1"]{background:#34c759}
+  .twk-toggle i{position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;
+    background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.25);transition:transform .15s}
+  .twk-toggle[data-on="1"] i{transform:translateX(14px)}
+
+  .twk-num{display:flex;align-items:center;box-sizing:border-box;min-width:0;height:26px;padding:0 0 0 8px;
+    border:.5px solid rgba(0,0,0,.1);border-radius:7px;background:rgba(255,255,255,.6)}
+  .twk-num-lbl{font-weight:500;color:rgba(41,38,27,.6);cursor:ew-resize;
+    user-select:none;padding-right:8px}
+  .twk-num input{flex:1;min-width:0;height:100%;border:0;background:transparent;
+    font:inherit;font-variant-numeric:tabular-nums;text-align:right;padding:0 8px 0 0;
+    outline:none;color:inherit;-moz-appearance:textfield}
+  .twk-num input::-webkit-inner-spin-button,.twk-num input::-webkit-outer-spin-button{
+    -webkit-appearance:none;margin:0}
+  .twk-num-unit{padding-right:8px;color:rgba(41,38,27,.45)}
+
+  .twk-btn{appearance:none;height:26px;padding:0 12px;border:0;border-radius:7px;
+    background:rgba(0,0,0,.78);color:#fff;font:inherit;font-weight:500;cursor:default}
+  .twk-btn:hover{background:rgba(0,0,0,.88)}
+  .twk-btn.secondary{background:rgba(0,0,0,.06);color:inherit}
+  .twk-btn.secondary:hover{background:rgba(0,0,0,.1)}
+
+  .twk-swatch{appearance:none;-webkit-appearance:none;width:56px;height:22px;
+    border:.5px solid rgba(0,0,0,.1);border-radius:6px;padding:0;cursor:default;
+    background:transparent;flex-shrink:0}
+  .twk-swatch::-webkit-color-swatch-wrapper{padding:0}
+  .twk-swatch::-webkit-color-swatch{border:0;border-radius:5.5px}
+  .twk-swatch::-moz-color-swatch{border:0;border-radius:5.5px}
+
+  .twk-chips{display:flex;gap:6px}
+  .twk-chip{position:relative;appearance:none;flex:1;min-width:0;height:46px;
+    padding:0;border:0;border-radius:6px;overflow:hidden;cursor:default;
+    box-shadow:0 0 0 .5px rgba(0,0,0,.12),0 1px 2px rgba(0,0,0,.06);
+    transition:transform .12s cubic-bezier(.3,.7,.4,1),box-shadow .12s}
+  .twk-chip:hover{transform:translateY(-1px);
+    box-shadow:0 0 0 .5px rgba(0,0,0,.18),0 4px 10px rgba(0,0,0,.12)}
+  .twk-chip[data-on="1"]{box-shadow:0 0 0 1.5px rgba(0,0,0,.85),
+    0 2px 6px rgba(0,0,0,.15)}
+  .twk-chip>span{position:absolute;top:0;bottom:0;right:0;width:34%;
+    display:flex;flex-direction:column;box-shadow:-1px 0 0 rgba(0,0,0,.1)}
+  .twk-chip>span>i{flex:1;box-shadow:0 -1px 0 rgba(0,0,0,.1)}
+  .twk-chip>span>i:first-child{box-shadow:none}
+  .twk-chip svg{position:absolute;top:6px;left:6px;width:13px;height:13px;
+    filter:drop-shadow(0 1px 1px rgba(0,0,0,.3))}
+`;
+
+// -- useTweaks ---------------------------------------------------------------
+// Single source of truth for tweak values. setTweak persists via the host
+// (__edit_mode_set_keys -> host rewrites the EDITMODE block on disk).
+function useTweaks(defaults) {
+  const [values, setValues] = React.useState(defaults);
+  // Accepts either setTweak('key', value) or setTweak({ key: value, ... }) so a
+  // useState-style call doesn't write a "[object Object]" key into the persisted
+  // JSON block.
+  const setTweak = React.useCallback((keyOrEdits, val) => {
+    const edits = typeof keyOrEdits === 'object' && keyOrEdits !== null
+      ? keyOrEdits : { [keyOrEdits]: val };
+    setValues((prev) => ({ ...prev, ...edits }));
+    window.parent.postMessage({ type: '__edit_mode_set_keys', edits }, '*');
+    // Same-window signal so in-page listeners (deck-stage rail thumbnails)
+    // can react - the parent message only reaches the host, not peers.
+    window.dispatchEvent(new CustomEvent('tweakchange', { detail: edits }));
+  }, []);
+  return [values, setTweak];
+}
+
+// -- TweaksPanel -------------------------------------------------------------
+// Floating shell. Registers the protocol listener BEFORE announcing
+// availability - if the announce ran first, the host's activate could land
+// before our handler exists and the toolbar toggle would silently no-op.
+// The close button posts __edit_mode_dismissed so the host's toolbar toggle
+// flips off in lockstep; the host echoes __deactivate_edit_mode back which
+// is what actually hides the panel.
+function TweaksPanel({ title = 'Tweaks', noDeckControls = false, children }) {
+  const [open, setOpen] = React.useState(false);
+  const dragRef = React.useRef(null);
+  // Auto-inject a rail toggle when a <deck-stage> is on the page. The
+  // toggle drives the deck's per-viewer _railVisible via window message;
+  // state is mirrored from the same localStorage key the deck reads so
+  // the control reflects reality across reloads. The mechanism is the
+  // message - authors who want custom placement can post it directly
+  // and pass noDeckControls to suppress this one.
+  const hasDeckStage = React.useMemo(
+    () => typeof document !== 'undefined' && !!document.querySelector('deck-stage'),
+    [],
+  );
+  // deck-stage enables its rail in connectedCallback, but this panel can
+  // mount before that element has upgraded. The initial read catches the
+  // common case; the listener covers mounting first. (Older deck-stage.js
+  // copies still wait for the host's __omelette_rail_enabled postMessage -
+  // same listener handles those.)
+  const [railEnabled, setRailEnabled] = React.useState(
+    () => hasDeckStage && !!document.querySelector('deck-stage')?._railEnabled,
+  );
+  React.useEffect(() => {
+    if (!hasDeckStage || railEnabled) return undefined;
+    const onMsg = (e) => {
+      if (e.data && e.data.type === '__omelette_rail_enabled') setRailEnabled(true);
+    };
+    window.addEventListener('message', onMsg);
+    return () => window.removeEventListener('message', onMsg);
+  }, [hasDeckStage, railEnabled]);
+  const [railVisible, setRailVisible] = React.useState(() => {
+    try { return localStorage.getItem('deck-stage.railVisible') !== '0'; } catch (e) { return true; }
+  });
+  const toggleRail = (on) => {
+    setRailVisible(on);
+    window.postMessage({ type: '__deck_rail_visible', on }, '*');
+  };
+  const offsetRef = React.useRef({ x: 16, y: 16 });
+  const PAD = 16;
+
+  const clampToViewport = React.useCallback(() => {
+    const panel = dragRef.current;
+    if (!panel) return;
+    const w = panel.offsetWidth, h = panel.offsetHeight;
+    const maxRight = Math.max(PAD, window.innerWidth - w - PAD);
+    const maxBottom = Math.max(PAD, window.innerHeight - h - PAD);
+    offsetRef.current = {
+      x: Math.min(maxRight, Math.max(PAD, offsetRef.current.x)),
+      y: Math.min(maxBottom, Math.max(PAD, offsetRef.current.y)),
+    };
+    panel.style.right = offsetRef.current.x + 'px';
+    panel.style.bottom = offsetRef.current.y + 'px';
+  }, []);
+
+  React.useEffect(() => {
+    if (!open) return;
+    clampToViewport();
+    if (typeof ResizeObserver === 'undefined') {
+      window.addEventListener('resize', clampToViewport);
+      return () => window.removeEventListener('resize', clampToViewport);
+    }
+    const ro = new ResizeObserver(clampToViewport);
+    ro.observe(document.documentElement);
+    return () => ro.disconnect();
+  }, [open, clampToViewport]);
+
+  React.useEffect(() => {
+    const onMsg = (e) => {
+      const t = e?.data?.type;
+      if (t === '__activate_edit_mode') setOpen(true);
+      else if (t === '__deactivate_edit_mode') setOpen(false);
+    };
+    window.addEventListener('message', onMsg);
+    window.parent.postMessage({ type: '__edit_mode_available' }, '*');
+    return () => window.removeEventListener('message', onMsg);
+  }, []);
+
+  const dismiss = () => {
+    setOpen(false);
+    window.parent.postMessage({ type: '__edit_mode_dismissed' }, '*');
+  };
+
+  const onDragStart = (e) => {
+    const panel = dragRef.current;
+    if (!panel) return;
+    const r = panel.getBoundingClientRect();
+    const sx = e.clientX, sy = e.clientY;
+    const startRight = window.innerWidth - r.right;
+    const startBottom = window.innerHeight - r.bottom;
+    const move = (ev) => {
+      offsetRef.current = {
+        x: startRight - (ev.clientX - sx),
+        y: startBottom - (ev.clientY - sy),
+      };
+      clampToViewport();
+    };
+    const up = () => {
+      window.removeEventListener('mousemove', move);
+      window.removeEventListener('mouseup', up);
+    };
+    window.addEventListener('mousemove', move);
+    window.addEventListener('mouseup', up);
+  };
+
+  if (!open) return null;
+  return (
+    <>
+      <style>{__TWEAKS_STYLE}</style>
+      <div ref={dragRef} className="twk-panel" data-noncommentable=""
+           style={{ right: offsetRef.current.x, bottom: offsetRef.current.y }}>
+        <div className="twk-hd" onMouseDown={onDragStart}>
+          <b>{title}</b>
+          <button className="twk-x" aria-label="Close tweaks"
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onClick={dismiss}>x</button>
+        </div>
+        <div className="twk-body">
+          {children}
+          {hasDeckStage && railEnabled && !noDeckControls && (
+            <TweakSection label="Deck">
+              <TweakToggle label="Thumbnail rail" value={railVisible} onChange={toggleRail} />
+            </TweakSection>
+          )}
+        </div>
+      </div>
+    </>
+  );
+}
+
+// -- Layout helpers ----------------------------------------------------------
+
+function TweakSection({ label, children }) {
+  return (
+    <>
+      <div className="twk-sect">{label}</div>
+      {children}
+    </>
+  );
+}
+
+function TweakRow({ label, value, children, inline = false }) {
+  return (
+    <div className={inline ? 'twk-row twk-row-h' : 'twk-row'}>
+      <div className="twk-lbl">
+        <span>{label}</span>
+        {value != null && <span className="twk-val">{value}</span>}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+// -- Controls ----------------------------------------------------------------
+
+function TweakSlider({ label, value, min = 0, max = 100, step = 1, unit = '', onChange }) {
+  return (
+    <TweakRow label={label} value={`${value}${unit}`}>
+      <input type="range" className="twk-slider" min={min} max={max} step={step}
+             value={value} onChange={(e) => onChange(Number(e.target.value))} />
+    </TweakRow>
+  );
+}
+
+function TweakToggle({ label, value, onChange }) {
+  return (
+    <div className="twk-row twk-row-h">
+      <div className="twk-lbl"><span>{label}</span></div>
+      <button type="button" className="twk-toggle" data-on={value ? '1' : '0'}
+              role="switch" aria-checked={!!value}
+              onClick={() => onChange(!value)}><i /></button>
+    </div>
+  );
+}
+
+function TweakRadio({ label, value, options, onChange }) {
+  const trackRef = React.useRef(null);
+  const [dragging, setDragging] = React.useState(false);
+  // The active value is read by pointer-move handlers attached for the lifetime
+  // of a drag - ref it so a stale closure doesn't fire onChange for every move.
+  const valueRef = React.useRef(value);
+  valueRef.current = value;
+
+  // Segments wrap mid-word once per-segment width runs out. The track is
+  // ~248px (280 panel - 28 body pad - 4 seg pad), each button loses 12px
+  // to its own padding, and 11.5px system-ui averages ~6.3px/char - so 2
+  // options fit ~16 chars each, 3 fit ~10. Past that (or >3 options), fall
+  // back to a dropdown rather than wrap.
+  const labelLen = (o) => String(typeof o === 'object' ? o.label : o).length;
+  const maxLen = options.reduce((m, o) => Math.max(m, labelLen(o)), 0);
+  const fitsAsSegments = maxLen <= ({ 2: 16, 3: 10 }[options.length] ?? 0);
+  if (!fitsAsSegments) {
+    // <select> emits strings - map back to the original option value so the
+    // fallback stays type-preserving (numbers, booleans) like the segment path.
+    const resolve = (s) => {
+      const m = options.find((o) => String(typeof o === 'object' ? o.value : o) === s);
+      return m === undefined ? s : typeof m === 'object' ? m.value : m;
+    };
+    return <TweakSelect label={label} value={value} options={options}
+                        onChange={(s) => onChange(resolve(s))} />;
+  }
+  const opts = options.map((o) => (typeof o === 'object' ? o : { value: o, label: o }));
+  const idx = Math.max(0, opts.findIndex((o) => o.value === value));
+  const n = opts.length;
+
+  const segAt = (clientX) => {
+    const r = trackRef.current.getBoundingClientRect();
+    const inner = r.width - 4;
+    const i = Math.floor(((clientX - r.left - 2) / inner) * n);
+    return opts[Math.max(0, Math.min(n - 1, i))].value;
+  };
+
+  const onPointerDown = (e) => {
+    setDragging(true);
+    const v0 = segAt(e.clientX);
+    if (v0 !== valueRef.current) onChange(v0);
+    const move = (ev) => {
+      if (!trackRef.current) return;
+      const v = segAt(ev.clientX);
+      if (v !== valueRef.current) onChange(v);
+    };
+    const up = () => {
+      setDragging(false);
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  };
+
+  return (
+    <TweakRow label={label}>
+      <div ref={trackRef} role="radiogroup" onPointerDown={onPointerDown}
+           className={dragging ? 'twk-seg dragging' : 'twk-seg'}>
+        <div className="twk-seg-thumb"
+             style={{ left: `calc(2px + ${idx} * (100% - 4px) / ${n})`,
+                      width: `calc((100% - 4px) / ${n})` }} />
+        {opts.map((o) => (
+          <button key={o.value} type="button" role="radio" aria-checked={o.value === value}>
+            {o.label}
+          </button>
+        ))}
+      </div>
+    </TweakRow>
+  );
+}
+
+function TweakSelect({ label, value, options, onChange }) {
+  return (
+    <TweakRow label={label}>
+      <select className="twk-field" value={value} onChange={(e) => onChange(e.target.value)}>
+        {options.map((o) => {
+          const v = typeof o === 'object' ? o.value : o;
+          const l = typeof o === 'object' ? o.label : o;
+          return <option key={v} value={v}>{l}</option>;
+        })}
+      </select>
+    </TweakRow>
+  );
+}
+
+function TweakText({ label, value, placeholder, onChange }) {
+  return (
+    <TweakRow label={label}>
+      <input className="twk-field" type="text" value={value} placeholder={placeholder}
+             onChange={(e) => onChange(e.target.value)} />
+    </TweakRow>
+  );
+}
+
+function TweakNumber({ label, value, min, max, step = 1, unit = '', onChange }) {
+  const clamp = (n) => {
+    if (min != null && n < min) return min;
+    if (max != null && n > max) return max;
+    return n;
+  };
+  const startRef = React.useRef({ x: 0, val: 0 });
+  const onScrubStart = (e) => {
+    e.preventDefault();
+    startRef.current = { x: e.clientX, val: value };
+    const decimals = (String(step).split('.')[1] || '').length;
+    const move = (ev) => {
+      const dx = ev.clientX - startRef.current.x;
+      const raw = startRef.current.val + dx * step;
+      const snapped = Math.round(raw / step) * step;
+      onChange(clamp(Number(snapped.toFixed(decimals))));
+    };
+    const up = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  };
+  return (
+    <div className="twk-num">
+      <span className="twk-num-lbl" onPointerDown={onScrubStart}>{label}</span>
+      <input type="number" value={value} min={min} max={max} step={step}
+             onChange={(e) => onChange(clamp(Number(e.target.value)))} />
+      {unit && <span className="twk-num-unit">{unit}</span>}
+    </div>
+  );
+}
+
+// Relative-luminance contrast pick - checkmarks drawn over a swatch need to
+// read on both #111 and #fafafa without per-option configuration. Hex input
+// only (#rgb / #rrggbb); named or rgb()/hsl() colors fall through to "light".
+function __twkIsLight(hex) {
+  const h = String(hex).replace('#', '');
+  const x = h.length === 3 ? h.replace(/./g, (c) => c + c) : h.padEnd(6, '0');
+  const n = parseInt(x.slice(0, 6), 16);
+  if (Number.isNaN(n)) return true;
+  const r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
+  return r * 299 + g * 587 + b * 114 > 148000;
+}
+
+const __TwkCheck = ({ light }) => (
+  <svg viewBox="0 0 14 14" aria-hidden="true">
+    <path d="M3 7.2 5.8 10 11 4.2" fill="none" strokeWidth="2.2"
+          strokeLinecap="round" strokeLinejoin="round"
+          stroke={light ? 'rgba(0,0,0,.78)' : '#fff'} />
+  </svg>
+);
+
+// TweakColor - curated color/palette picker. Each option is either a single
+// hex string or an array of 1-5 hex strings; the card adapts - a lone color
+// renders solid, a palette renders colors[0] as the hero (left ~2/3) with the
+// rest stacked in a sharp column on the right. onChange emits the
+// option in the shape it was passed (string stays string, array stays array).
+// Without options it falls back to the native color input for back-compat.
+function TweakColor({ label, value, options, onChange }) {
+  if (!options || !options.length) {
+    return (
+      <div className="twk-row twk-row-h">
+        <div className="twk-lbl"><span>{label}</span></div>
+        <input type="color" className="twk-swatch" value={value}
+               onChange={(e) => onChange(e.target.value)} />
+      </div>
+    );
+  }
+  // Native <input type=color> emits lowercase hex per the HTML spec, so
+  // compare case-insensitively. String() guards JSON.stringify(undefined),
+  // which returns the primitive undefined (no .toLowerCase).
+  const key = (o) => String(JSON.stringify(o)).toLowerCase();
+  const cur = key(value);
+  return (
+    <TweakRow label={label}>
+      <div className="twk-chips" role="radiogroup">
+        {options.map((o, i) => {
+          const colors = Array.isArray(o) ? o : [o];
+          const [hero, ...rest] = colors;
+          const sup = rest.slice(0, 4);
+          const on = key(o) === cur;
+          return (
+            <button key={i} type="button" className="twk-chip" role="radio"
+                    aria-checked={on} data-on={on ? '1' : '0'}
+                    aria-label={colors.join(', ')} title={colors.join(' - ')}
+                    style={{ background: hero }}
+                    onClick={() => onChange(o)}>
+              {sup.length > 0 && (
+                <span>
+                  {sup.map((c, j) => <i key={j} style={{ background: c }} />)}
+                </span>
+              )}
+              {on && <__TwkCheck light={__twkIsLight(hero)} />}
+            </button>
+          );
+        })}
+      </div>
+    </TweakRow>
+  );
+}
+
+function TweakButton({ label, onClick, secondary = false }) {
+  return (
+    <button type="button" className={secondary ? 'twk-btn secondary' : 'twk-btn'}
+            onClick={onClick}>{label}</button>
+  );
+}
+
+Object.assign(window, {
+  useTweaks, TweaksPanel, TweakSection, TweakRow,
+  TweakSlider, TweakToggle, TweakRadio, TweakSelect,
+  TweakText, TweakNumber, TweakColor, TweakButton,
+});
+
+
+
+
+/* os-dashboard.jsx - NEXT OS Command Center Dashboard */
+
+const DashboardKPI = ({ label, value, change, positive, icon, accentColor }) => {
+  const kpiStyles = {
+    card: {
+      background: 'var(--bg-elevated)',
+      borderRadius: 'var(--radius-md)',
+      padding: '20px 24px',
+      border: '1px solid var(--border-subtle)',
+      display: 'flex', flexDirection: 'column', gap: 12,
+      position: 'relative', overflow: 'hidden',
+      transition: 'border-color 0.2s, box-shadow 0.2s',
+    },
+    iconWrap: {
+      width: 36, height: 36, borderRadius: 8,
+      background: accentColor ? `${accentColor}15` : 'var(--mint-glow)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      color: accentColor || 'var(--mint)',
+    },
+    value: {
+      fontFamily: 'var(--font-display)', fontSize: 32, fontWeight: 700,
+      color: 'var(--text-primary)', letterSpacing: '0.02em', lineHeight: 1,
+    },
+    label: {
+      fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--text-tertiary)',
+      fontWeight: 500, letterSpacing: '0.02em', textTransform: 'uppercase',
+    },
+    change: {
+      fontFamily: 'var(--font-mono)', fontSize: 12,
+      color: positive ? 'var(--mint)' : 'var(--danger)',
+      display: 'flex', alignItems: 'center', gap: 4,
+    },
+    glow: {
+      position: 'absolute', top: -30, right: -30, width: 80, height: 80,
+      borderRadius: '50%', filter: 'blur(30px)', opacity: 0.08,
+      background: accentColor || 'var(--mint)',
+      pointerEvents: 'none',
+    }
+  };
+
+  return (
+    <div style={kpiStyles.card} className="kpi-card">
+      <div style={kpiStyles.glow}></div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <div style={kpiStyles.iconWrap}>{icon}</div>
+        <div style={kpiStyles.change}>
+          <span>{positive ? '' : ''}</span> {change}
+        </div>
+      </div>
+      <div>
+        <div style={kpiStyles.value}>{value}</div>
+        <div style={{ height: 4 }}></div>
+        <div style={kpiStyles.label}>{label}</div>
+      </div>
+    </div>
+  );
+};
+
+const ActivityItem = ({ text, time, type }) => {
+  const dotColors = {
+    member: 'var(--mint)', project: 'var(--info)', training: 'var(--gold)', card: 'var(--emerald)',
+  };
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'flex-start', gap: 12, padding: '12px 0',
+      borderBottom: '1px solid var(--border-subtle)',
+    }}>
+      <div style={{
+        width: 8, height: 8, borderRadius: '50%', marginTop: 6, flexShrink: 0,
+        background: dotColors[type] || 'var(--mint)',
+        boxShadow: `0 0 6px ${dotColors[type] || 'var(--mint)'}`,
+      }}></div>
+      <div style={{ flex: 1 }}>
+        <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5 }}>{text}</div>
+        <div style={{ fontSize: 11, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', marginTop: 3 }}>{time}</div>
+      </div>
+    </div>
+  );
+};
+
+const QuickAction = ({ label, icon, onClick }) => (
+  <button onClick={onClick} style={{
+    background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)',
+    borderRadius: 'var(--radius-sm)', padding: '12px 16px',
+    color: 'var(--text-secondary)', fontSize: 13, fontFamily: 'var(--font-body)',
+    cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8,
+    transition: 'all 0.2s', width: '100%',
+  }} className="quick-action-btn">
+    <span style={{ color: 'var(--mint)', fontSize: 16 }}>{icon}</span>
+    {label}
+  </button>
+);
+
+const ProjectRow = ({ client, project, status, progress }) => {
+  const statusColors = { Active: 'var(--mint)', Review: 'var(--gold)', Paused: 'var(--text-tertiary)' };
+  return (
+    <div style={{
+      display: 'grid', gridTemplateColumns: '1.5fr 1.5fr 80px 120px',
+      padding: '12px 0', borderBottom: '1px solid var(--border-subtle)',
+      fontSize: 13, alignItems: 'center',
+    }}>
+      <span style={{ color: 'var(--text-primary)', fontWeight: 500 }}>{client}</span>
+      <span style={{ color: 'var(--text-secondary)' }}>{project}</span>
+      <span style={{
+        color: statusColors[status], fontFamily: 'var(--font-mono)', fontSize: 11,
+        background: `${statusColors[status]}12`, padding: '3px 8px', borderRadius: 4,
+        textAlign: 'center', fontWeight: 600,
+      }}>{status}</span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div style={{
+          flex: 1, height: 4, background: 'var(--bg-deep)', borderRadius: 2, overflow: 'hidden',
+        }}>
+          <div style={{
+            width: `${progress}%`, height: '100%', borderRadius: 2,
+            background: progress > 75 ? 'var(--mint)' : progress > 40 ? 'var(--emerald)' : 'var(--info)',
+            transition: 'width 1s ease',
+          }}></div>
+        </div>
+        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-tertiary)', minWidth: 28, textAlign: 'right' }}>{progress}%</span>
+      </div>
+    </div>
+  );
+};
+
+const MiniChart = ({ data, color = 'var(--mint)', height = 40, width = 120 }) => {
+  const max = Math.max(...data);
+  const min = Math.min(...data);
+  const range = max - min || 1;
+  const points = data.map((v, i) => {
+    const x = (i / (data.length - 1)) * width;
+    const y = height - ((v - min) / range) * (height * 0.8) - height * 0.1;
+    return `${x},${y}`;
+  }).join(' ');
+  const areaPoints = `0,${height} ${points} ${width},${height}`;
+  return (
+    <svg width={width} height={height} style={{ display: 'block' }}>
+      <defs>
+        <linearGradient id={`grad-${color.replace(/[^a-z]/gi,'')}`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={color} stopOpacity="0.2" />
+          <stop offset="100%" stopColor={color} stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <polygon points={areaPoints} fill={`url(#grad-${color.replace(/[^a-z]/gi,'')})`} />
+      <polyline points={points} fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+};
+
+const DashboardPage = ({ onNavigate }) => {
+  const [mounted, setMounted] = React.useState(false);
+  React.useEffect(() => { setTimeout(() => setMounted(true), 50); }, []);
+  const [ops, setOps] = React.useState({ members: 0, revenue: 0, recent: [] });
+  React.useEffect(() => {
+    const WK = (window.NEXT_OS_SENTINEL_ENDPOINT) || 'https://nextos-sentinel.nextafricaai.workers.dev';
+    Promise.all([
+      fetch(WK + '/os-data?kind=members').then(r => r.json()).catch(() => ({})),
+      fetch(WK + '/os-data?kind=billing').then(r => r.json()).catch(() => ({})),
+      fetch(WK + '/os-data?kind=training').then(r => r.json()).catch(() => ({})),
+    ]).then(([m, b, tr]) => {
+      const mr = m.records || [], br = b.records || [], trr = tr.records || [];
+      const collected = br.map(x => x.payload || {}).filter(r => r.status === 'paid').reduce((a, r) => a + (+r.amount || 0), 0);
+      const act = [];
+      mr.slice(0, 4).forEach(x => act.push({ type: 'member', text: 'New member: ' + ((x.payload && (x.payload.organisation || x.payload.name)) || '—'), at: x.created_at }));
+      br.slice(0, 4).forEach(x => act.push({ type: 'card', text: 'Invoice: ' + ((x.payload && x.payload.client) || '—') + ' · UGX ' + Number((x.payload && x.payload.amount) || 0).toLocaleString(), at: x.created_at }));
+      trr.slice(0, 4).forEach(x => act.push({ type: 'training', text: 'Training: ' + ((x.payload && x.payload.title) || '—'), at: x.created_at }));
+      act.sort((a, c) => (a.at < c.at ? 1 : -1));
+      setOps({ members: mr.length, revenue: collected, recent: act.slice(0, 6) });
+    });
+  }, []);
+  const liveSites = (window.PROJECT_DATA || []).filter(p => p.url).length;
+  const fmtRev = ops.revenue ? ('UGX ' + (ops.revenue >= 1000000 ? (Math.round(ops.revenue / 100000) / 10) + 'M' : ops.revenue.toLocaleString())) : 'UGX 0';
+  const timeAgo = (ts) => { try { const d = (Date.now() - new Date(ts).getTime()) / 1000; if (d < 3600) return Math.max(1, Math.round(d / 60)) + 'm ago'; if (d < 86400) return Math.round(d / 3600) + 'h ago'; return Math.round(d / 86400) + 'd ago'; } catch (e) { return ''; } };
+
+  const greeting = (() => {
+    const h = new Date().getHours();
+    if (h < 12) return 'Good morning';
+    if (h < 17) return 'Good afternoon';
+    return 'Good evening';
+  })();
+
+  const today = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
+  const sectionStyle = {
+    background: 'var(--bg-elevated)', borderRadius: 'var(--radius-md)',
+    border: '1px solid var(--border-subtle)', padding: 24,
+  };
+  const sectionTitle = {
+    fontSize: 14, fontWeight: 600, color: 'var(--text-primary)',
+    fontFamily: 'var(--font-body)', letterSpacing: '0.01em', marginBottom: 16,
+    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+  };
+
+  return (
+    <div style={{ opacity: mounted ? 1 : 0, transform: mounted ? 'none' : 'translateY(8px)', transition: 'all 0.4s ease' }}>
+      {/* Header */}
+      <div style={{ marginBottom: 28 }}>
+        <div style={{ fontSize: 13, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', marginBottom: 6 }}>{today}</div>
+        <h1 style={{
+          fontFamily: 'var(--font-display)', fontSize: 28, fontWeight: 700,
+          color: 'var(--text-primary)', margin: 0, letterSpacing: '0.02em',
+        }}>
+          {greeting}, <span style={{ color: 'var(--mint)' }}>Hudson</span>
+        </h1>
+        <p style={{ fontSize: 14, color: 'var(--text-secondary)', margin: '6px 0 0', lineHeight: 1.5 }}>
+          Here's your command center overview for NEXT operations.
+        </p>
+      </div>
+
+      {/* Nia's Watch — what happened while Hudson was away */}
+      {window.NiaWatchWidget ? React.createElement(window.NiaWatchWidget) : null}
+
+      {/* KPI Row */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, marginBottom: 24 }}>
+        <DashboardKPI
+          label="Active Projects" value={String((window.PROJECT_DATA || []).length)} change="live portfolio" positive
+          icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>}
+        />
+        <DashboardKPI
+          label="Total Members" value={String(ops.members)} change={ops.members ? "live" : "add members"} positive
+          accentColor="var(--emerald)"
+          icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4-4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>}
+        />
+        <DashboardKPI
+          label="Revenue Collected" value={fmtRev} change="from billing" positive
+          accentColor="var(--gold)"
+          icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>}
+        />
+        <DashboardKPI
+          label="Live Sites" value={String(liveSites)} change="tracked" positive
+          accentColor="var(--info)"
+          icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>}
+        />
+      </div>
+
+      {/* Main Grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 16 }}>
+        {/* Left column */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {/* Recent Projects */}
+          <div style={sectionStyle}>
+            <div style={sectionTitle}>
+              <span>Active Projects</span>
+              <button onClick={() => onNavigate && onNavigate('projects')} style={{
+                background: 'none', border: 'none', color: 'var(--mint)', fontSize: 12,
+                cursor: 'pointer', fontFamily: 'var(--font-mono)', padding: 0,
+              }}>VIEW ALL -></button>
+            </div>
+            <div>
+              <div style={{
+                display: 'grid', gridTemplateColumns: '1.5fr 1.5fr 80px 120px',
+                padding: '0 0 8px', fontSize: 11, color: 'var(--text-tertiary)',
+                fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.08em',
+                borderBottom: '1px solid var(--border-default)',
+              }}>
+                <span>Client</span><span>Project</span><span>Status</span><span>Progress</span>
+              </div>
+              {(window.PROJECT_DATA || []).slice(0, 7).map((p, i) => (
+                <ProjectRow key={i} client={p.client || p.name} project={p.name} status={p.planned ? 'Review' : 'Active'} progress={typeof p.progress === 'number' ? p.progress : (p.url ? 100 : 40)} />
+              ))}
+            </div>
+          </div>
+
+          {/* Tier Distribution */}
+          <div style={sectionStyle}>
+            <div style={sectionTitle}>
+              <span>Membership Distribution</span>
+              <button onClick={() => onNavigate && onNavigate('members')} style={{
+                background: 'none', border: 'none', color: 'var(--mint)', fontSize: 12,
+                cursor: 'pointer', fontFamily: 'var(--font-mono)', padding: 0,
+              }}>MANAGE -></button>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+              {[
+                { name: 'Catalyst', count: 623, color: 'var(--mint)', data: [10,14,18,22,20,25,30,28,35,38] },
+                { name: 'Builder', count: 187, color: 'var(--emerald)', data: [5,8,7,10,12,14,16,15,18,20] },
+                { name: 'Architect', count: 37, color: 'var(--gold)', data: [2,3,3,4,5,4,6,7,6,8] },
+              ].map(tier => (
+                <div key={tier.name} style={{
+                  background: 'var(--bg-deep)', borderRadius: 'var(--radius-sm)',
+                  padding: 16, border: `1px solid ${tier.color}15`,
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                    <span style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: tier.color, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                      {tier.name}
+                    </span>
+                    <span style={{ fontSize: 20, fontFamily: 'var(--font-display)', color: 'var(--text-primary)', fontWeight: 700 }}>
+                      {tier.count}
+                    </span>
+                  </div>
+                  <MiniChart data={tier.data} color={tier.color} width={160} height={32} />
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Right column */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {/* Activity Feed */}
+          <div style={sectionStyle}>
+            <div style={sectionTitle}><span>Activity Feed</span></div>
+            <div>
+              {ops.recent.length === 0
+                ? <div style={{ padding: '16px 2px', color: 'var(--text-tertiary)', fontSize: 13, lineHeight: 1.5 }}>No recent activity yet. As you add members, invoices and training, it appears here.</div>
+                : ops.recent.map((a, i) => <ActivityItem key={i} type={a.type} text={a.text} time={timeAgo(a.at)} />)}
+            </div>
+          </div>
+
+          {/* Quick Actions */}
+          <div style={sectionStyle}>
+            <div style={sectionTitle}><span>Quick Actions</span></div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <QuickAction label="Issue Member Card" icon="" onClick={() => onNavigate && onNavigate('members')} />
+              <QuickAction label="Create New Project" icon="+" onClick={() => onNavigate && onNavigate('projects')} />
+              <QuickAction label="Schedule Training" icon="" onClick={() => onNavigate && onNavigate('training')} />
+              <QuickAction label="Generate Report" icon="" onClick={() => window.NEXT_GENERATE_REPORT && window.NEXT_GENERATE_REPORT()} />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+Object.assign(window, { DashboardPage });
+
+  
+
+
+/* os-cards.jsx - NEXT Membership Cards & Member Management */
+
+const TIER_CONFIG = {
+  catalyst: {
+    name: 'Catalyst', price: '$149', period: '/month',
+    color: 'var(--mint)', colorHex: '#00FC8F', colorRaw: '0,252,143',
+    tagline: 'Ignite your digital journey',
+    benefits: ['NEXT Community Platform access', 'Monthly AI briefing webinar', '2 hours consulting support', 'Basic analytics dashboard', 'Digital membership credential'],
+    gradient: 'linear-gradient(135deg, #0d0028 0%, #140035 40%, #0a1a2a 100%)',
+    borderGlow: 'rgba(0,252,143,0.25)',
+  },
+  builder: {
+    name: 'Builder', price: '$749', period: '/month',
+    color: 'var(--emerald)', colorHex: '#1B9B6F', colorRaw: '27,155,111',
+    tagline: 'Build intelligent infrastructure',
+    benefits: ['Full AI tools & analytics suite', '10 hours dedicated consulting', 'Quarterly training workshops', 'Priority support channel', 'Partner network access', 'Enhanced NFC credential'],
+    gradient: 'linear-gradient(135deg, #051a14 0%, #0a2a20 40%, #140035 100%)',
+    borderGlow: 'rgba(27,155,111,0.3)',
+  },
+  architect: {
+    name: 'Architect', price: '$2,999', period: '/month',
+    color: 'var(--gold)', colorHex: '#FFB400', colorRaw: '255,180,0',
+    tagline: 'Shape Africa\'s digital future',
+    benefits: ['Dedicated NEXT transformation team', 'Unlimited consulting hours', 'Custom AI solution development', 'Executive briefings & strategy', 'VIP event access', 'Premium credential with monthly refresh'],
+    gradient: 'linear-gradient(135deg, #1a0a00 0%, #140035 40%, #1a0f05 100%)',
+    borderGlow: 'rgba(255,180,0,0.3)',
+  },
+};
+
+const NLogoWatermark = ({ color = '#00FC8F', opacity = 0.07, size = 140 }) => (
+  <svg width={size} height={size} viewBox="0 0 100 100" style={{ opacity, position: 'absolute' }}>
+    <path d="M25 80 L25 45 L50 20 L50 55 L75 80 L75 45" 
+          fill="none" stroke={color} strokeWidth="10" strokeLinecap="round" strokeLinejoin="round"/>
+  </svg>
+);
+
+const QRPlaceholder = ({ size = 48, color = 'rgba(255,255,255,0.4)' }) => (
+  <svg width={size} height={size} viewBox="0 0 48 48">
+    <rect x="2" y="2" width="14" height="14" rx="2" fill="none" stroke={color} strokeWidth="1.5"/>
+    <rect x="5" y="5" width="8" height="8" rx="1" fill={color}/>
+    <rect x="32" y="2" width="14" height="14" rx="2" fill="none" stroke={color} strokeWidth="1.5"/>
+    <rect x="35" y="5" width="8" height="8" rx="1" fill={color}/>
+    <rect x="2" y="32" width="14" height="14" rx="2" fill="none" stroke={color} strokeWidth="1.5"/>
+    <rect x="5" y="35" width="8" height="8" rx="1" fill={color}/>
+    <rect x="20" y="2" width="4" height="4" fill={color}/>
+    <rect x="20" y="10" width="4" height="4" fill={color}/>
+    <rect x="20" y="20" width="4" height="8" fill={color}/>
+    <rect x="28" y="20" width="4" height="4" fill={color}/>
+    <rect x="36" y="20" width="4" height="4" fill={color}/>
+    <rect x="20" y="32" width="8" height="4" fill={color}/>
+    <rect x="32" y="32" width="4" height="8" fill={color}/>
+    <rect x="40" y="36" width="4" height="8" fill={color}/>
+    <rect x="20" y="40" width="4" height="4" fill={color}/>
+    <rect x="28" y="40" width="4" height="4" fill={color}/>
+  </svg>
+);
+
+/* -- Individual Membership Card -- */
+const MembershipCard = ({ tierKey, member, large, onClick, flipped, onFlip }) => {
+  const tier = TIER_CONFIG[tierKey];
+  const isArchitect = tierKey === 'architect';
+  const isBuilder = tierKey === 'builder';
+  const scale = large ? 1.4 : 1;
+  const w = 380; const h = 240;
+
+  const cardBase = {
+    width: w, height: h, borderRadius: 16, position: 'relative', overflow: 'hidden',
+    background: tier.gradient, cursor: onClick ? 'pointer' : 'default',
+    border: `1px solid ${tier.borderGlow}`,
+    boxShadow: `0 4px 24px rgba(0,0,0,0.4), 0 0 40px rgba(${tier.colorRaw},0.06)`,
+    fontFamily: 'var(--font-body)', transform: `scale(${scale})`,
+    transition: 'transform 0.3s ease, box-shadow 0.3s ease',
+    transformOrigin: 'center center',
+    perspective: 800,
+  };
+
+  const front = (
+    <div style={cardBase} onClick={onClick} className={`membership-card ${tierKey}-card`}>
+      {/* Animated shine for Architect */}
+      {isArchitect && <div className="card-shine-architect"></div>}
+      {isBuilder && <div className="card-shine-builder"></div>}
+      
+      {/* Background pattern */}
+      <div style={{
+        position: 'absolute', inset: 0, opacity: 0.03,
+        backgroundImage: `radial-gradient(circle at 2px 2px, ${tier.colorHex} 1px, transparent 0)`,
+        backgroundSize: '24px 24px',
+      }}></div>
+
+      {/* N Watermark */}
+      <div style={{ position: 'absolute', right: -10, top: '50%', transform: 'translateY(-50%)' }}>
+        <NLogoWatermark color={tier.colorHex} opacity={isArchitect ? 0.08 : 0.05} size={180} />
+      </div>
+
+      {/* Content */}
+      <div style={{ position: 'relative', zIndex: 2, padding: '22px 26px', height: '100%', display: 'flex', flexDirection: 'column' }}>
+        {/* Top row: Logo + Tier */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <img src={window.__resources?.whiteLogo || "uploads/NEXT Landscape White Logo@3x.png"} alt="NEXT" style={{ height: 22, opacity: 0.9 }} />
+          <div style={{
+            fontFamily: 'var(--font-display)', fontSize: 13, fontWeight: 700,
+            color: tier.colorHex, letterSpacing: '0.15em', textTransform: 'uppercase',
+          }}>
+            {tier.name}
+          </div>
+        </div>
+
+        {/* Spacer */}
+        <div style={{ flex: 1 }}></div>
+
+        {/* Member Info */}
+        <div>
+          <div style={{
+            fontSize: 17, fontWeight: 600, color: '#fff', letterSpacing: '0.02em',
+            marginBottom: 2,
+          }}>
+            {member?.name || 'HUDSON TIMOTHY TUMUSIIME'}
+          </div>
+          <div style={{
+            fontSize: 11, color: 'rgba(255,255,255,0.45)', fontFamily: 'var(--font-mono)',
+            letterSpacing: '0.06em', marginBottom: 14,
+          }}>
+            {member?.role || 'Founder & CEO'}
+          </div>
+          
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+            <div>
+              <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 3 }}>
+                Member ID
+              </div>
+              <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', fontFamily: 'var(--font-mono)', letterSpacing: '0.06em' }}>
+                {member?.id || 'NXT-2026-0001'}
+              </div>
+            </div>
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 3 }}>
+                Valid Through
+              </div>
+              <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', fontFamily: 'var(--font-mono)' }}>
+                {member?.expiry || '12 / 2026'}
+              </div>
+            </div>
+            <QRPlaceholder size={40} color={`rgba(${tier.colorRaw},0.35)`} />
+          </div>
+        </div>
+      </div>
+
+      {/* Top accent line */}
+      <div style={{
+        position: 'absolute', top: 0, left: 0, right: 0, height: 2,
+        background: `linear-gradient(90deg, transparent, ${tier.colorHex}, transparent)`,
+        opacity: 0.6,
+      }}></div>
+    </div>
+  );
+
+  return front;
+};
+
+/* -- Tier Comparison Card -- */
+const TierCard = ({ tierKey, isSelected, onSelect }) => {
+  const tier = TIER_CONFIG[tierKey];
+  return (
+    <div
+      onClick={onSelect}
+      style={{
+        background: isSelected ? `rgba(${tier.colorRaw},0.08)` : 'var(--bg-deep)',
+        border: `1px solid ${isSelected ? tier.borderGlow : 'var(--border-subtle)'}`,
+        borderRadius: 'var(--radius-md)', padding: 20, cursor: 'pointer',
+        transition: 'all 0.2s',
+      }}
+      className="tier-select-card"
+    >
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+        <span style={{
+          fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 700,
+          color: tier.colorHex, letterSpacing: '0.05em',
+        }}>{tier.name}</span>
+        <span style={{ fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 700, color: 'var(--text-primary)' }}>
+          {tier.price}<span style={{ fontSize: 12, color: 'var(--text-tertiary)', fontWeight: 400 }}>{tier.period}</span>
+        </span>
+      </div>
+      <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: '0 0 14px', lineHeight: 1.4, fontStyle: 'italic' }}>{tier.tagline}</p>
+      <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
+        {tier.benefits.map((b, i) => (
+          <li key={i} style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ color: tier.colorHex, fontSize: 10 }}></span> {b}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+};
+
+/* -- Card Issuance Modal -- */
+const CardIssueModal = ({ tierKey, onClose }) => {
+  const tier = TIER_CONFIG[tierKey];
+  const [step, setStep] = React.useState(0);
+  const [formData, setFormData] = React.useState({ name: '', email: '', org: '', country: 'Uganda' });
+  const [issuing, setIssuing] = React.useState(false);
+  const [issued, setIssued] = React.useState(false);
+
+  const handleIssue = () => {
+    setIssuing(true);
+    setTimeout(() => { setIssuing(false); setIssued(true); }, 2000);
+  };
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
+    }} onClick={onClose}>
+      <div onClick={e => e.stopPropagation()} style={{
+        background: 'var(--bg-elevated)', borderRadius: 'var(--radius-lg)',
+        border: '1px solid var(--border-subtle)', padding: 32, width: 480,
+        maxHeight: '80vh', overflow: 'auto',
+      }}>
+        {!issued ? (
+          <>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+              <div>
+                <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 22, color: 'var(--text-primary)', margin: 0, fontWeight: 700 }}>
+                  Issue <span style={{ color: tier.colorHex }}>{tier.name}</span> Card
+                </h3>
+                <p style={{ fontSize: 12, color: 'var(--text-tertiary)', margin: '4px 0 0', fontFamily: 'var(--font-mono)' }}>
+                  {tier.price}{tier.period}
+                </p>
+              </div>
+              <button onClick={onClose} style={{
+                background: 'none', border: 'none', color: 'var(--text-tertiary)',
+                fontSize: 20, cursor: 'pointer', padding: 4,
+              }}>x</button>
+            </div>
+
+            {[
+              { label: 'Full Name', key: 'name', placeholder: 'Hudson Timothy Tumusiime' },
+              { label: 'Email Address', key: 'email', placeholder: 'hudson@nextafrica.ai' },
+              { label: 'Organisation', key: 'org', placeholder: 'NEXT Africa' },
+              { label: 'Country', key: 'country', placeholder: 'Uganda' },
+            ].map(field => (
+              <div key={field.key} style={{ marginBottom: 16 }}>
+                <label style={{ fontSize: 11, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.08em', display: 'block', marginBottom: 6 }}>
+                  {field.label}
+                </label>
+                <input
+                  value={formData[field.key]}
+                  onChange={e => setFormData({ ...formData, [field.key]: e.target.value })}
+                  placeholder={field.placeholder}
+                  style={{
+                    width: '100%', padding: '10px 14px', background: 'var(--bg-deep)',
+                    border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-sm)',
+                    color: 'var(--text-primary)', fontSize: 14, fontFamily: 'var(--font-body)',
+                    outline: 'none', boxSizing: 'border-box',
+                  }}
+                />
+              </div>
+            ))}
+
+            <button onClick={handleIssue} disabled={issuing} style={{
+              width: '100%', padding: '12px 20px', marginTop: 8,
+              background: issuing ? 'var(--bg-surface)' : tier.colorHex,
+              color: issuing ? 'var(--text-secondary)' : '#140035',
+              border: 'none', borderRadius: 'var(--radius-sm)',
+              fontSize: 14, fontWeight: 700, fontFamily: 'var(--font-body)',
+              cursor: issuing ? 'wait' : 'pointer', textTransform: 'uppercase',
+              letterSpacing: '0.05em', transition: 'all 0.2s',
+            }}>
+              {issuing ? 'Generating Credential...' : 'Issue Card'}
+            </button>
+          </>
+        ) : (
+          <div style={{ textAlign: 'center', padding: '20px 0' }}>
+            <div style={{ fontSize: 48, marginBottom: 16 }}>OK</div>
+            <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 22, color: tier.colorHex, margin: '0 0 8px', fontWeight: 700 }}>
+              Card Issued Successfully
+            </h3>
+            <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: '0 0 8px' }}>
+              {tier.name} membership credential generated for
+            </p>
+            <p style={{ fontSize: 15, color: 'var(--text-primary)', fontWeight: 600, margin: '0 0 20px' }}>
+              {formData.name || 'New Member'}
+            </p>
+            <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)', marginBottom: 24 }}>
+              ID: NXT-2026-{String(Math.floor(Math.random()*9000)+1000)}
+            </div>
+            <button onClick={onClose} style={{
+              padding: '10px 24px', background: 'var(--bg-surface)', color: 'var(--text-primary)',
+              border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-sm)',
+              fontSize: 13, cursor: 'pointer', fontFamily: 'var(--font-body)',
+            }}>Close</button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+/* -- Members Page -- */
+const MembersPage = ({ onNavigate }) => {
+  const [mounted, setMounted] = React.useState(false);
+  const [activeTab, setActiveTab] = React.useState('cards');
+  const [selectedTier, setSelectedTier] = React.useState('catalyst');
+  const [issueModal, setIssueModal] = React.useState(null);
+  const [cardView, setCardView] = React.useState('grid'); // grid | detail
+
+  React.useEffect(() => { setTimeout(() => setMounted(true), 50); }, []);
+
+  const tabs = [
+    { id: 'overview', label: 'Overview' },
+    { id: 'members', label: 'Members' },
+    { id: 'cards', label: 'Card System' },
+  ];
+
+  const sectionStyle = {
+    background: 'var(--bg-elevated)', borderRadius: 'var(--radius-md)',
+    border: '1px solid var(--border-subtle)', padding: 24,
+  };
+
+  const sampleMembers = [
+    { name: 'Hudson Timothy Tumusiime', org: 'NEXT Africa', tier: 'architect', id: 'NXT-2026-0001', status: 'Active' },
+    { name: 'Amina Okafor', org: 'Kenya Ministry of Digital', tier: 'architect', id: 'NXT-2026-0023', status: 'Active' },
+    { name: 'David Mwangi', org: 'Nairobi Innovation Hub', tier: 'builder', id: 'NXT-2026-0089', status: 'Active' },
+    { name: 'Grace Nakamya', org: 'Makerere University', tier: 'builder', id: 'NXT-2026-0112', status: 'Active' },
+    { name: 'Emmanuel Asante', org: 'Accra Digital Labs', tier: 'catalyst', id: 'NXT-2026-0201', status: 'Active' },
+    { name: 'Fatima Ibrahim', org: 'Lagos Tech Collective', tier: 'catalyst', id: 'NXT-2026-0245', status: 'Pending' },
+    { name: 'Jean-Pierre Habimana', org: 'Rwanda ICT Chamber', tier: 'builder', id: 'NXT-2026-0156', status: 'Active' },
+    { name: 'Wanjiku Kamau', org: 'Safaricom', tier: 'catalyst', id: 'NXT-2026-0310', status: 'Active' },
+  ];
+
+  return (
+    <div style={{ opacity: mounted ? 1 : 0, transform: mounted ? 'none' : 'translateY(8px)', transition: 'all 0.4s ease' }}>
+      {/* Header */}
+      <div style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <div>
+          <h1 style={{
+            fontFamily: 'var(--font-display)', fontSize: 28, fontWeight: 700,
+            color: 'var(--text-primary)', margin: 0, letterSpacing: '0.02em',
+          }}>
+            Membership & <span style={{ color: 'var(--mint)' }}>Cards</span>
+          </h1>
+          <p style={{ fontSize: 14, color: 'var(--text-secondary)', margin: '6px 0 0' }}>
+            Manage member credentials and card issuance across all tiers.
+          </p>
+        </div>
+        <button onClick={() => setIssueModal(selectedTier)} style={{
+          padding: '10px 20px', background: 'var(--mint)', color: '#140035',
+          border: 'none', borderRadius: 'var(--radius-sm)', fontWeight: 700,
+          fontSize: 13, cursor: 'pointer', fontFamily: 'var(--font-body)',
+          textTransform: 'uppercase', letterSpacing: '0.05em',
+        }}>
+          + Issue New Card
+        </button>
+      </div>
+
+      {/* Tabs */}
+      <div style={{ display: 'flex', gap: 2, marginBottom: 24, background: 'var(--bg-deep)', borderRadius: 'var(--radius-sm)', padding: 3 }}>
+        {tabs.map(tab => (
+          <button key={tab.id} onClick={() => setActiveTab(tab.id)} style={{
+            flex: 1, padding: '10px 16px', border: 'none', borderRadius: 'var(--radius-sm)',
+            background: activeTab === tab.id ? 'var(--bg-elevated)' : 'transparent',
+            color: activeTab === tab.id ? 'var(--text-primary)' : 'var(--text-tertiary)',
+            fontSize: 13, fontWeight: 500, cursor: 'pointer', fontFamily: 'var(--font-body)',
+            transition: 'all 0.2s',
+          }}>
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Card System Tab */}
+      {activeTab === 'cards' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+          {/* Card Designs - All 3 tiers */}
+          <div style={sectionStyle}>
+            <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 8 }}>Card Designs</div>
+            <p style={{ fontSize: 12, color: 'var(--text-tertiary)', margin: '0 0 20px' }}>
+              Three tiers of membership credentials. Click to select for card issuance.
+            </p>
+            <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap', justifyContent: 'center' }}>
+              {Object.keys(TIER_CONFIG).map(key => (
+                <div key={key} onClick={() => setSelectedTier(key)} style={{
+                  padding: 4, borderRadius: 20, cursor: 'pointer',
+                  border: selectedTier === key ? `2px solid ${TIER_CONFIG[key].colorHex}` : '2px solid transparent',
+                  transition: 'all 0.3s', transform: selectedTier === key ? 'scale(1.02)' : 'scale(1)',
+                }}>
+                  <MembershipCard tierKey={key} />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Tier Comparison */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16 }}>
+            {Object.keys(TIER_CONFIG).map(key => (
+              <TierCard key={key} tierKey={key} isSelected={selectedTier === key} onSelect={() => setSelectedTier(key)} />
+            ))}
+          </div>
+
+          {/* Card Model Recommendation */}
+          <div style={sectionStyle}>
+            <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 16 }}>
+              Card Generation Model - <span style={{ color: 'var(--mint)' }}>Hybrid Recommended</span>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16 }}>
+              {[
+                { tier: 'Catalyst', model: 'Static', desc: 'Issued once at signup. Valid for subscription duration. Simple, cost-effective. Card refreshes only on renewal.', color: 'var(--mint)' },
+                { tier: 'Builder', model: 'Dynamic', desc: 'Monthly credential refresh. Updated usage stats and access tokens. Signals active engagement to partners.', color: 'var(--emerald)' },
+                { tier: 'Architect', model: 'Dynamic+', desc: 'Monthly refresh with personalized elements. Unique monthly visual accent. Signals exclusive, evolving membership.', color: 'var(--gold)' },
+              ].map(item => (
+                <div key={item.tier} style={{
+                  background: 'var(--bg-deep)', borderRadius: 'var(--radius-sm)',
+                  padding: 16, borderLeft: `3px solid ${item.color}`,
+                }}>
+                  <div style={{ fontFamily: 'var(--font-display)', fontSize: 15, fontWeight: 700, color: item.color, marginBottom: 4 }}>{item.tier}</div>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-primary)', marginBottom: 8, fontWeight: 600 }}>{item.model}</div>
+                  <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5 }}>{item.desc}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Overview Tab */}
+      {activeTab === 'overview' && (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16 }}>
+          {[
+            { label: 'Total Members', value: '847', sub: '+24 this month', color: 'var(--mint)' },
+            { label: 'Cards Issued', value: '812', sub: '96% issuance rate', color: 'var(--emerald)' },
+            { label: 'Monthly Revenue', value: '$284K', sub: '+12% MoM', color: 'var(--gold)' },
+          ].map(stat => (
+            <div key={stat.label} style={{ ...sectionStyle, borderLeft: `3px solid ${stat.color}` }}>
+              <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 8 }}>{stat.label}</div>
+              <div style={{ fontFamily: 'var(--font-display)', fontSize: 32, fontWeight: 700, color: 'var(--text-primary)' }}>{stat.value}</div>
+              <div style={{ fontSize: 12, color: stat.color, marginTop: 4 }}>{stat.sub}</div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Members Tab */}
+      {activeTab === 'members' && (
+        <div style={sectionStyle}>
+          <div style={{
+            display: 'grid', gridTemplateColumns: '2fr 1.5fr 1fr 1fr 80px',
+            padding: '0 0 10px', fontSize: 11, color: 'var(--text-tertiary)',
+            fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.08em',
+            borderBottom: '1px solid var(--border-default)',
+          }}>
+            <span>Name</span><span>Organisation</span><span>Tier</span><span>ID</span><span>Status</span>
+          </div>
+          {sampleMembers.map(m => (
+            <div key={m.id} style={{
+              display: 'grid', gridTemplateColumns: '2fr 1.5fr 1fr 1fr 80px',
+              padding: '14px 0', borderBottom: '1px solid var(--border-subtle)',
+              fontSize: 13, alignItems: 'center',
+            }} className="member-row">
+              <span style={{ color: 'var(--text-primary)', fontWeight: 500 }}>{m.name}</span>
+              <span style={{ color: 'var(--text-secondary)' }}>{m.org}</span>
+              <span style={{
+                color: TIER_CONFIG[m.tier].colorHex, fontFamily: 'var(--font-mono)', fontSize: 11,
+                fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em',
+              }}>{TIER_CONFIG[m.tier].name}</span>
+              <span style={{ color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', fontSize: 11 }}>{m.id}</span>
+              <span style={{
+                fontSize: 11, fontWeight: 600, padding: '3px 8px', borderRadius: 4, textAlign: 'center',
+                color: m.status === 'Active' ? 'var(--mint)' : 'var(--gold)',
+                background: m.status === 'Active' ? 'var(--mint-glow)' : 'var(--gold-glow)',
+              }}>{m.status}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Issue Modal */}
+      {issueModal && <CardIssueModal tierKey={issueModal} onClose={() => setIssueModal(null)} />}
+    </div>
+  );
+};
+
+Object.assign(window, { MembersPage, MembershipCard, TIER_CONFIG });
+
+
+
+
+/* os-projects.jsx - Projects Dashboard: Status Monitoring, Credential Vault, System Health */
+
+const PROJECT_DATA = [
+  {
+    id: 'proj-childcare', name: 'Charis Childcare OS', client: 'Internal / Charis Creations', kind: 'os',
+    status: 'active', health: 'healthy', progress: 85, priority: 'high', planned: false,
+    platform: 'NEXT OS Vertical', domain: 'childcare.next', url: '',
+    builtDate: '2026-07', hosting: 'Local / OS Component', registrar: '',
+    team: ['HT', 'ML', 'FA'], startDate: '2026-07-01', deadline: '', runs: 'Childcare Operations', website: 'none',
+    uptime: 100, lastDeploy: 'just now', errors24h: 0, warnings24h: 1,
+    alerts: [{ type: 'warn', msg: '1 invoice overdue (Nakamya)' }],
+    milestones: [
+      { name: 'Initial wire-up with NEXT OS', done: true },
+      { name: 'Nia Context Integration', done: true },
+      { name: 'Billing automated tracking', done: false },
+    ],
+    credentials: { adminEmail: 'hudson@nextafrica.ai' },
+  },
+  // ── OPERATING SYSTEMS (the engine room behind each website) ──
+  {
+    id: 'next-os', name: 'NEXT OS', client: 'NEXT · master operating system', kind: 'os',
+    status: 'active', health: 'healthy', progress: 82, priority: 'high', planned: false,
+    platform: 'Cloudflare Worker + Supabase + Hostinger', domain: 'nextafrica.ai', url: 'https://nextos.nextafrica.ai',
+    builtDate: '2026-05', hosting: 'Hostinger (site) · Cloudflare (Nia worker)', registrar: '',
+    team: ['HT'], startDate: '2026-05-01', deadline: '', runs: 'the whole fleet', website: 'nextafrica',
+    uptime: 100, lastDeploy: 'auto (GitHub → Hostinger)', errors24h: 0, warnings24h: 0,
+    alerts: [],
+    milestones: [
+      { name: 'Nia agent + portfolio monitoring', done: true },
+      { name: 'Projects: websites + operating systems', done: true },
+      { name: 'Analytics + SEO + Search Console', done: true },
+      { name: 'Roster import (real students)', done: false },
+    ],
+    credentials: { supabaseUrl: 'https://llxhvqkkgftqwefmrofn.supabase.co', supabaseKey: 'service key — Cloudflare secret', adminEmail: 'nextafrica.ai@gmail.com' },
+  },
+  {
+    id: 'schools-os', name: 'Schools OS', client: 'NEXT · schools vertical', kind: 'os',
+    status: 'active', health: 'healthy', progress: 75, priority: 'high', planned: false,
+    platform: 'NEXT OS tenant engine', domain: 'nextafrica.ai', url: 'https://nextos.nextafrica.ai/s/bare-foot',
+    builtDate: '2026-05', hosting: 'Hostinger · Cloudflare', registrar: '',
+    team: ['HT'], startDate: '2026-05', deadline: '', runs: 'Peak Primary, bare foot, Good Foundation + new schools',
+    uptime: 100, lastDeploy: 'live', errors24h: 0, warnings24h: 0,
+    alerts: [],
+    milestones: [
+      { name: 'Onboarding engine + branding', done: true },
+      { name: 'Live per-school data', done: true },
+      { name: 'Receipts (PDF + WhatsApp)', done: true },
+      { name: 'Roster import', done: false },
+    ],
+    credentials: { supabaseUrl: 'https://llxhvqkkgftqwefmrofn.supabase.co', supabaseKey: 'service key — Cloudflare secret', adminEmail: '' },
+  },
+  {
+    id: 'purity-os', name: 'Purity OS', client: 'Manages: Purity Mukisa website', kind: 'os',
+    status: 'planned', health: 'healthy', progress: 10, priority: 'medium', planned: true, website: 'purity-mukisa',
+    platform: 'NEXT OS vertical (planned)', domain: '', url: '',
+    builtDate: '', hosting: '', registrar: '',
+    team: ['HT'], startDate: '', deadline: '', runs: 'music releases, PCB charity, tickets & events',
+    uptime: 100, lastDeploy: '—', errors24h: 0, warnings24h: 0,
+    alerts: [],
+    milestones: [{ name: 'Define modules (releases, charity, events)', done: false }, { name: 'Build OS', done: false }],
+    credentials: { supabaseUrl: '', supabaseKey: '', adminEmail: '' },
+  },
+  {
+    id: 'charis-os', name: 'Charis OS', client: 'Manages: Charis Creations website', kind: 'os',
+    status: 'active', health: 'healthy', progress: 50, priority: 'high', planned: false, website: 'charis-creations',
+    platform: 'Live OS (app)', domain: 'chariscreationsltd.com', url: 'https://app.chariscreationsltd.com/',
+    builtDate: '', hosting: '', registrar: '',
+    team: ['HT'], startDate: '', deadline: '', runs: 'clients, bookings, projects, gear (Gear Plug)',
+    uptime: 100, lastDeploy: '—', errors24h: 0, warnings24h: 0,
+    alerts: [],
+    milestones: [{ name: 'Define modules (CRM, bookings, projects)', done: false }, { name: 'Build OS', done: false }],
+    credentials: { supabaseUrl: '', supabaseKey: '', adminEmail: '' },
+  },
+  {
+    id: 'fathers-os', name: 'Fathers Arise OS', client: 'Manages: Fathers Arise website', kind: 'os',
+    status: 'active', health: 'healthy', progress: 55, priority: 'high', planned: false, website: 'fathers-arise',
+    platform: 'Live OS', domain: 'fathersarize.org', url: 'https://fathersarize.org/os/',
+    builtDate: '', hosting: '', registrar: '',
+    team: ['HT'], startDate: '', deadline: '', runs: 'community, content, events, mentorship',
+    uptime: 100, lastDeploy: '—', errors24h: 0, warnings24h: 0,
+    alerts: [],
+    milestones: [{ name: 'Define modules (community, content, events)', done: false }, { name: 'Build OS', done: false }],
+    credentials: { supabaseUrl: '', supabaseKey: '', adminEmail: '' },
+  },
+
+  // ── WEBSITES (the public storefront, each paired to an OS) ──
+  {
+    id: 'nextafrica', name: 'NEXT Africa', client: 'NEXT \u00b7 the company building Africa\'s intelligent future', kind: 'website', os: 'next-os',
+    status: 'active', health: 'healthy', progress: 70, priority: 'high',
+    platform: 'Company website', domain: 'nextafrica.ai', url: 'https://nextafrica.ai',
+    builtDate: '2026', hosting: 'Hostinger', registrar: '',
+    team: ['HT'], startDate: '2026', deadline: '',
+    uptime: 100, lastDeploy: 'live', errors24h: 0, warnings24h: 0,
+    alerts: [],
+    milestones: [],
+    credentials: { supabaseUrl: '', supabaseKey: '', adminEmail: '' },
+  },
+  {
+    id: 'purity-mukisa', name: 'Purity Mukisa website', client: 'Purity Mukisa · gospel artist & PCB charity', kind: 'website', os: 'purity-os',
+    status: 'active', health: 'healthy', progress: 95, priority: 'high',
+    platform: 'Static site + Supabase (tickets)', domain: 'puritymukisa.com', url: 'https://puritymukisa.com',
+    builtDate: '2026', hosting: 'Hostinger', registrar: '',
+    team: ['HT'], startDate: '2026', deadline: '',
+    uptime: 100, lastDeploy: 'live', errors24h: 0, warnings24h: 0,
+    alerts: [],
+    milestones: [
+      { name: 'Website + cart', done: true },
+      { name: 'Downloadable songs + player', done: true },
+      { name: 'Ticket system (QR + gate scanner)', done: true },
+      { name: 'Payments go-live (Flutterwave + Resend)', done: false },
+    ],
+    credentials: { supabaseUrl: '', supabaseKey: '', adminEmail: '' },
+  },
+  {
+    id: 'charis-creations', name: 'Charis Creations', client: 'Charis Creations · media production & storytelling', kind: 'website', os: 'charis-os',
+    status: 'active', health: 'healthy', progress: 60, priority: 'medium',
+    platform: 'Website', domain: 'chariscreationsltd.com', url: 'https://chariscreationsltd.com',
+    builtDate: '', hosting: 'Hostinger', registrar: '',
+    team: ['HT'], startDate: '', deadline: '',
+    uptime: 100, lastDeploy: '—', errors24h: 0, warnings24h: 0,
+    alerts: [],
+    milestones: [],
+    credentials: { supabaseUrl: '', supabaseKey: '', adminEmail: '' },
+  },
+  {
+    id: 'fathers-arise', name: 'Fathers Arise', client: 'The Remnant Generation · fatherhood initiative', kind: 'website', os: 'fathers-os',
+    status: 'active', health: 'healthy', progress: 50, priority: 'medium',
+    platform: 'Website', domain: 'fathersarize.org', url: 'https://fathersarize.org',
+    builtDate: '', hosting: 'Hostinger', registrar: '',
+    team: ['HT'], startDate: '', deadline: '',
+    uptime: 100, lastDeploy: '—', errors24h: 0, warnings24h: 0,
+    alerts: [],
+    milestones: [],
+    credentials: { supabaseUrl: '', supabaseKey: '', adminEmail: '' },
+  },
+  {
+    id: 'gear-plug', name: 'Gear Plug', client: 'Gear Plug \u00b7 tech gear & equipment web app', kind: 'website',
+    status: 'active', health: 'healthy', progress: 45, priority: 'medium',
+    platform: 'Web app', domain: '', url: '',
+    builtDate: '', hosting: '', registrar: '',
+    team: ['HT'], startDate: '', deadline: '',
+    uptime: 100, lastDeploy: '\u2014', errors24h: 0, warnings24h: 0,
+    alerts: [], milestones: [],
+    credentials: { supabaseUrl: '', supabaseKey: '', adminEmail: '' },
+  },
+  {
+    id: 'human-address', name: 'Human Address', client: 'New \u00b7 incoming project', kind: 'website',
+    status: 'building', health: 'healthy', progress: 8, priority: 'medium', planned: true,
+    platform: 'Incoming', domain: '', url: '',
+    builtDate: '', hosting: '', registrar: '',
+    team: ['HT'], startDate: '2026', deadline: '',
+    uptime: 100, lastDeploy: '\u2014', errors24h: 0, warnings24h: 0,
+    alerts: [], milestones: [{ name: 'Scope + brief', done: false }],
+    credentials: { supabaseUrl: '', supabaseKey: '', adminEmail: '' },
+  },
+];
+const HEALTH_CONFIG = {
+  healthy:  { color: 'var(--mint)',   label: 'Healthy' },
+  warning:  { color: 'var(--gold)',   label: 'Warning' },
+  critical: { color: 'var(--danger)', label: 'Critical' },
+};
+const ALERT_COLORS = { critical: '#FF4757', error: '#FF6B6B', warning: '#FFB400', info: '#3B82F6' };
+
+/* -- Health Badge -- */
+const HealthBadge = ({ health }) => {
+  const cfg = HEALTH_CONFIG[health];
+  return (
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11,
+      fontFamily: 'var(--font-mono)', fontWeight: 600, color: cfg.color,
+      background: `${cfg.color}15`, padding: '3px 10px', borderRadius: 4,
+      textTransform: 'uppercase', letterSpacing: '0.06em',
+    }}>
+      <span style={{ fontSize: 8 }}>{cfg.icon}</span> {cfg.label}
+    </span>
+  );
+};
+
+/* -- Credential Vault Row -- */
+const CredentialRow = ({ label, value, hidden }) => {
+  const [shown, setShown] = React.useState(false);
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--border-subtle)' }}>
+      <span style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.08em', minWidth: 100 }}>{label}</span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, justifyContent: 'flex-end' }}>
+        <span style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)', maxWidth: 240, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {hidden && !shown ? '******************' : value}
+        </span>
+        {hidden && (
+          <button onClick={() => setShown(!shown)} style={{
+            background: 'none', border: '1px solid var(--border-subtle)', borderRadius: 4,
+            color: 'var(--text-tertiary)', fontSize: 10, padding: '2px 8px', cursor: 'pointer',
+            fontFamily: 'var(--font-mono)',
+          }}>{shown ? 'HIDE' : 'SHOW'}</button>
+        )}
+        <button onClick={() => navigator.clipboard?.writeText(value)} style={{
+          background: 'none', border: '1px solid var(--border-subtle)', borderRadius: 4,
+          color: 'var(--text-tertiary)', fontSize: 10, padding: '2px 8px', cursor: 'pointer',
+          fontFamily: 'var(--font-mono)',
+        }}>COPY</button>
+      </div>
+    </div>
+  );
+};
+
+/* -- Project Detail Panel -- */
+const ProjectDetail = ({ project, onBack }) => {
+  const [tab, setTab] = React.useState('overview');
+  const p = project;
+  const hCfg = HEALTH_CONFIG[p.health];
+  const META_KEY = 'nextos.projectmeta.' + p.id;
+  const loadMeta = () => { try { return JSON.parse(localStorage.getItem(META_KEY) || '{}'); } catch (e) { return {}; } };
+  const [meta, setMeta] = React.useState(loadMeta);
+  const pm = Object.assign({}, p, meta);
+  const [editing, setEditing] = React.useState(false);
+  const [form, setForm] = React.useState({ url: pm.url || '', domain: pm.domain || '', builtDate: pm.builtDate || '', hosting: pm.hosting || '', registrar: pm.registrar || '', repo: meta.repo || '', branch: meta.branch || 'main', supabaseUrl: meta.supabaseUrl || (p.credentials && p.credentials.supabaseUrl) || '', adminEmail: meta.adminEmail || (p.credentials && p.credentials.adminEmail) || '', vaultNotes: meta.vaultNotes || '', diskGB: pm.diskGB || '', inodes: pm.inodes || '', databases: pm.databases || '', cpuNote: pm.cpuNote || '' });
+  const [checking, setChecking] = React.useState(false);
+  const [check, setCheck] = React.useState(meta.lastCheck || null);
+  const saveMeta = () => { const next = Object.assign({}, meta, form); try { localStorage.setItem(META_KEY, JSON.stringify(next)); } catch (e) {} setMeta(next); setEditing(false); };
+  const runCheck = async () => {
+    setChecking(true);
+    try {
+      const base = (window.NEXT_OS_SENTINEL_ENDPOINT) || 'https://nextos-sentinel.nextafricaai.workers.dev';
+      const r = await fetch(base + '/check-project?url=' + encodeURIComponent(pm.url || '') + '&domain=' + encodeURIComponent(pm.domain || ''));
+      const d = await r.json();
+      setCheck(d);
+      const nm = Object.assign({}, meta, { lastCheck: d });
+      try { localStorage.setItem(META_KEY, JSON.stringify(nm)); } catch (e) {}
+      setMeta(nm);
+    } catch (e) { setCheck({ error: String((e && e.message) || e) }); }
+    setChecking(false);
+  };
+  const [seo, setSeo] = React.useState(meta.lastSeo || null);
+  const [seoLoading, setSeoLoading] = React.useState(false);
+  const runSeo = async () => {
+    setSeoLoading(true);
+    try {
+      const base = (window.NEXT_OS_SENTINEL_ENDPOINT) || 'https://nextos-sentinel.nextafricaai.workers.dev';
+      const r = await fetch(base + '/seo-audit?url=' + encodeURIComponent(pm.url || ''));
+      const d = await r.json(); setSeo(d);
+      const nm = Object.assign({}, meta, { lastSeo: d }); try { localStorage.setItem(META_KEY, JSON.stringify(nm)); } catch (e) {} setMeta(nm);
+    } catch (e) { setSeo({ error: String((e && e.message) || e) }); }
+    setSeoLoading(false);
+  };
+  const siteKey = pm.domain || (function () { try { return new URL(pm.url).hostname.replace(/^www\./, ''); } catch (e) { return ''; } })();
+  const pxSnippet = '<script defer src="https://nextos-sentinel.nextafricaai.workers.dev/px.js?s=' + (siteKey || 'YOURDOMAIN.com') + '"><\/script>';
+  const [an, setAn] = React.useState(meta.lastAnalytics || null);
+  const [anLoading, setAnLoading] = React.useState(false);
+  const runAnalytics = async () => {
+    if (!siteKey) return;
+    setAnLoading(true);
+    try {
+      const base = (window.NEXT_OS_SENTINEL_ENDPOINT) || 'https://nextos-sentinel.nextafricaai.workers.dev';
+      const r = await fetch(base + '/analytics?site=' + encodeURIComponent(siteKey) + '&days=7');
+      const d = await r.json(); setAn(d);
+      const nm = Object.assign({}, meta, { lastAnalytics: d }); try { localStorage.setItem(META_KEY, JSON.stringify(nm)); } catch (e) {} setMeta(nm);
+    } catch (e) { setAn({ error: String((e && e.message) || e) }); }
+    setAnLoading(false);
+  };
+  React.useEffect(() => { if (tab === 'analytics' && !an && siteKey) runAnalytics(); }, [tab]);
+  React.useEffect(() => { if (siteKey && !an) runAnalytics(); }, []);
+  const [autoStat, setAutoStat] = React.useState(null);
+  const [statBusy, setStatBusy] = React.useState(false);
+  const loadStat = React.useCallback(() => { if (!siteKey) return; const base = (window.NEXT_OS_SENTINEL_ENDPOINT) || 'https://nextos-sentinel.nextafricaai.workers.dev'; fetch(base + '/hosting-report?site=' + encodeURIComponent(siteKey)).then(r => r.json()).then(d => { if (d && d.stat) setAutoStat(d.stat); }).catch(() => {}); }, [siteKey]);
+  React.useEffect(() => { loadStat(); }, [loadStat]);
+  const refreshStats = () => { if (!siteKey) return; setStatBusy(true); fetch('https://' + siteKey + '/nx-stats.php?force=1').then(r => r.json()).then(() => { setTimeout(() => { loadStat(); setStatBusy(false); }, 900); }).catch(() => { setStatBusy(false); loadStat(); }); };
+  const [gsc, setGsc] = React.useState(meta.lastGsc || null);
+  const [gscLoading, setGscLoading] = React.useState(false);
+  const runGsc = async () => {
+    if (!pm.domain) return;
+    setGscLoading(true);
+    try {
+      const base = (window.NEXT_OS_SENTINEL_ENDPOINT) || 'https://nextos-sentinel.nextafricaai.workers.dev';
+      const r = await fetch(base + '/gsc?site=' + encodeURIComponent('sc-domain:' + pm.domain) + '&days=28');
+      const d = await r.json(); setGsc(d);
+      const nm = Object.assign({}, meta, { lastGsc: d }); try { localStorage.setItem(META_KEY, JSON.stringify(nm)); } catch (e) {} setMeta(nm);
+    } catch (e) { setGsc({ error: String((e && e.message) || e) }); }
+    setGscLoading(false);
+  };
+
+  const sectionStyle = {
+    background: 'var(--bg-elevated)', borderRadius: 'var(--radius-md)',
+    border: '1px solid var(--border-subtle)', padding: 20,
+  };
+
+  return (
+    <div>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
+        <button onClick={onBack} style={{
+          background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)',
+          borderRadius: 'var(--radius-sm)', color: 'var(--text-secondary)',
+          padding: '6px 12px', cursor: 'pointer', fontSize: 13,
+        }}>{'<- Back'}</button>
+        <div style={{ flex: 1 }}>
+          <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 24, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+            {p.name}
+          </h1>
+          <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 2 }}>{p.client}</div>
+        </div>
+        <HealthBadge health={p.health} />
+      </div>
+
+      {/* Tabs */}
+      <div style={{ display: 'flex', gap: 2, marginBottom: 20, background: 'var(--bg-deep)', borderRadius: 'var(--radius-sm)', padding: 3 }}>
+        {['overview', 'analytics', 'seo', 'alerts', 'credentials', 'milestones'].map(t => (
+          <button key={t} onClick={() => setTab(t)} style={{
+            flex: 1, padding: '9px 14px', border: 'none', borderRadius: 'var(--radius-sm)',
+            background: tab === t ? 'var(--bg-elevated)' : 'transparent',
+            color: tab === t ? 'var(--text-primary)' : 'var(--text-tertiary)',
+            fontSize: 12, fontWeight: 500, cursor: 'pointer', fontFamily: 'var(--font-body)',
+            textTransform: 'capitalize', transition: 'all 0.2s',
+          }}>{t === 'alerts' ? `Alerts (${p.alerts.length})` : t === 'seo' ? 'SEO' : t}</button>
+        ))}
+      </div>
+
+      {/* Overview Tab */}
+      {tab === 'overview' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+          <div style={sectionStyle}>
+            <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 16 }}>System Status</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+              {[
+                { label: 'Uptime', value: `${p.uptime}%`, color: p.uptime > 99 ? 'var(--mint)' : p.uptime > 97 ? 'var(--gold)' : 'var(--danger)' },
+                { label: 'Last Deploy', value: p.lastDeploy, color: 'var(--text-primary)' },
+                { label: 'Errors (24h)', value: p.errors24h, color: p.errors24h > 0 ? 'var(--danger)' : 'var(--mint)' },
+                { label: 'Warnings (24h)', value: p.warnings24h, color: p.warnings24h > 5 ? 'var(--gold)' : 'var(--text-primary)' },
+              ].map(s => (
+                <div key={s.label}>
+                  <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>{s.label}</div>
+                  <div style={{ fontSize: 20, fontFamily: 'var(--font-display)', fontWeight: 700, color: s.color }}>{s.value}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div style={sectionStyle}>
+            <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 16 }}>Project Info</div>
+            {([
+              { label: 'Kind', value: p.kind === 'os' ? (p.planned ? 'Operating System · planned' : 'Operating System') : 'Website' },
+              (p.kind === 'website' && p.os && window.PROJECT_DATA) ? { label: 'Operating System', value: ((window.PROJECT_DATA.find(x => x.id === p.os) || {}).name) || p.os } : null,
+              (p.kind === 'os' && p.runs) ? { label: 'Runs', value: p.runs } : null,
+              { label: 'Platform', value: p.platform },
+              { label: 'Domain', value: p.domain },
+              p.registrar ? { label: 'Registrar', value: p.registrar } : null,
+              p.renewalDate ? { label: 'Domain renewal', value: p.renewalDate } : null,
+              p.hosting ? { label: 'Hosting', value: p.hosting } : null,
+              p.registrarAccount ? { label: 'Registrar account', value: p.registrarAccount } : null,
+              { label: 'Progress', value: `${p.progress}%` },
+            ].filter(Boolean)).map(r => (
+              <div key={r.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid var(--border-subtle)' }}>
+                <span style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>{r.label}</span>
+                <span style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-primary)', fontWeight: 500 }}>{r.value}</span>
+              </div>
+            ))}
+            {/* Progress bar */}
+            <div style={{ marginTop: 12, height: 6, background: 'var(--bg-deep)', borderRadius: 3, overflow: 'hidden' }}>
+              <div style={{ width: `${p.progress}%`, height: '100%', borderRadius: 3, background: p.progress > 75 ? 'var(--mint)' : p.progress > 40 ? 'var(--emerald)' : 'var(--info)', transition: 'width 1s' }}></div>
+            </div>
+          </div>
+        </div>
+          <div style={sectionStyle}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+              <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Resources · Hostinger {autoStat ? <span style={{ color: 'var(--mint)' }}>· auto</span> : null}</div>
+              {autoStat ? <button onClick={refreshStats} disabled={statBusy} style={{ background: 'transparent', border: '1px solid var(--border-subtle)', color: 'var(--text-secondary)', borderRadius: 'var(--radius-sm)', padding: '5px 11px', fontSize: 11.5, cursor: 'pointer' }}>{statBusy ? 'Scanning…' : 'Refresh'}</button> : null}
+            </div>
+            {(() => {
+              const autoDiskGB = (autoStat && autoStat.diskMB != null) ? (autoStat.diskMB / 1024) : null;
+              const autoInodes = (autoStat && autoStat.inodes != null) ? autoStat.inodes : null;
+              const isAuto = autoStat && (autoStat.diskMB != null || autoStat.inodes != null);
+              const disk = autoDiskGB != null ? autoDiskGB : (Number(pm.diskGB) || 0);
+              const inodes = autoInodes != null ? autoInodes : (Number(pm.inodes) || 0);
+              const dbs = (pm.databases != null && pm.databases !== '') ? pm.databases : '\u2014';
+              const dP = Math.min(100, Math.round(disk / 200 * 100)), iP = Math.min(100, Math.round(inodes / 600000 * 100));
+              const col = (x) => x >= 90 ? 'var(--danger)' : x >= 70 ? 'var(--gold)' : 'var(--mint)';
+              const visits = (an && an.visitors != null) ? an.visitors : null;
+              const kb = (an && an.avgPageKB != null) ? an.avgPageKB : null;
+              const Row = (pp) => (<div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid var(--border-subtle)' }}><span style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>{pp.label}</span><span style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-primary)' }}>{pp.val}</span></div>);
+              const Meter = (pp) => (<div style={{ marginBottom: 12 }}><div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--text-secondary)', marginBottom: 4 }}><span>{pp.label}</span><span style={{ color: col(pp.p) }}>{pp.val}</span></div><div style={{ height: 6, background: 'var(--bg-deep)', borderRadius: 999, overflow: 'hidden' }}><div style={{ width: pp.p + '%', height: '100%', background: col(pp.p) }} /></div></div>);
+              return (<div>
+                <Meter label="Disk" p={dP} val={disk ? ((Math.round(disk * 100) / 100) + ' GB') : '\u2014'} />
+                <Meter label="Files (inodes)" p={iP} val={inodes ? inodes.toLocaleString() : '\u2014'} />
+                <Row label="Databases" val={dbs} />
+                <Row label="CPU / I-O" val={pm.cpuNote || '\u2014'} />
+                <Row label="Visits (7d)" val={siteKey ? (visits != null ? visits.toLocaleString() : '\u2026') : 'add a domain'} />
+                <Row label="Avg page weight" val={kb != null ? (kb + ' KB') : '\u2014'} />
+                <div style={{ fontSize: 10.5, color: 'var(--text-tertiary)', marginTop: 10, lineHeight: 1.5 }}>{isAuto ? ('Disk &amp; files measured automatically' + (autoStat.at ? (' \u00b7 updated ' + new Date(autoStat.at).toLocaleString()) : '')) : 'Disk, files &amp; databases: read this site in hPanel \u2192 Resources and type them via Edit (they change slowly).'}<br/>Visits &amp; page weight update automatically from your tracker. On Business, bandwidth is unmetered \u2014 the limits that bite are <b>files</b> &amp; <b>disk</b>.</div>
+              </div>);
+            })()}
+          </div>
+          <div style={sectionStyle}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+              <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Lifecycle & Domains</div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button onClick={runCheck} disabled={checking || !(pm.url || pm.domain)} style={{ background: 'var(--mint)', color: 'var(--text-inverse)', border: 'none', borderRadius: 'var(--radius-sm)', padding: '6px 12px', fontSize: 12, fontWeight: 600, cursor: (checking || !(pm.url || pm.domain)) ? 'not-allowed' : 'pointer', opacity: (pm.url || pm.domain) ? 1 : 0.5 }}>{checking ? 'Checking...' : 'Run live check'}</button>
+                <button onClick={() => setEditing(!editing)} style={{ background: 'transparent', color: 'var(--text-secondary)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-sm)', padding: '6px 12px', fontSize: 12, cursor: 'pointer' }}>{editing ? 'Cancel' : 'Edit'}</button>
+              </div>
+            </div>
+            {editing ? (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                {[['url', 'Live URL', 'https://...'], ['domain', 'Domain', 'example.com'], ['builtDate', 'Built', '2026-05'], ['hosting', 'Hosting', 'Hostinger'], ['registrar', 'Registrar', 'Namecheap / Hostinger'], ['diskGB', 'Disk GB · hPanel', '2.4'], ['inodes', 'Files / inodes', '18000'], ['databases', 'Databases', '1'], ['cpuNote', 'CPU / I-O note', 'normal'], ['repo', 'GitHub repo (owner/name)', 'nextafricaai-alt/site'], ['branch', 'Branch', 'main'], ['supabaseUrl', 'Supabase URL', 'https://xxx.supabase.co'], ['adminEmail', 'Admin email', '']].map(fld => (
+                  <label key={fld[0]} style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>{fld[1]}
+                    <input value={form[fld[0]]} onChange={e => setForm(Object.assign({}, form, { [fld[0]]: e.target.value }))} placeholder={fld[2]} style={{ width: '100%', marginTop: 4, background: 'var(--bg-deep)', border: '1px solid var(--border-subtle)', borderRadius: 6, color: 'var(--text-primary)', padding: '8px 10px', fontSize: 12, boxSizing: 'border-box' }} />
+                  </label>
+                ))}
+                <label style={{ gridColumn: 'span 2', fontSize: 11, color: 'var(--text-tertiary)' }}>Vault notes (refs, doc links — stored in your browser)
+                  <textarea value={form.vaultNotes} onChange={e => setForm(Object.assign({}, form, { vaultNotes: e.target.value }))} placeholder="e.g. Supabase project ref, registrar login, API key names (not the secret values)…" rows={3} style={{ width: '100%', marginTop: 4, background: 'var(--bg-deep)', border: '1px solid var(--border-subtle)', borderRadius: 6, color: 'var(--text-primary)', padding: '8px 10px', fontSize: 12, fontFamily: 'var(--font-mono)', boxSizing: 'border-box', resize: 'vertical' }} />
+                </label>
+                <div style={{ gridColumn: 'span 2', fontSize: 10.5, color: 'var(--text-tertiary)', lineHeight: 1.5 }}>🔒 Security: store config + references here. Real secrets the system uses (GitHub token, payment keys) belong in Cloudflare worker secrets, not the browser. Nia publishes using the worker's GITHUB_TOKEN + the repo/branch/path above.</div>
+                <button onClick={saveMeta} style={{ gridColumn: 'span 2', background: 'var(--mint)', color: 'var(--text-inverse)', border: 'none', borderRadius: 'var(--radius-sm)', padding: '9px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Save</button>
+              </div>
+            ) : (
+              [['Live URL', pm.url || ''], ['Domain', pm.domain || ''], ['Built', pm.builtDate || ''], ['Hosting', pm.hosting || ''], ['Registrar', pm.registrar || ''], ['GitHub repo', meta.repo || ''], ['Branch', meta.branch || ''], ['Supabase', meta.supabaseUrl || (p.credentials && p.credentials.supabaseUrl) || ''], ['Vault notes', meta.vaultNotes || '']].map((r, i) => (
+                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid var(--border-subtle)' }}>
+                  <span style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>{r[0]}</span>
+                  {r[0] === 'Live URL' && r[1] ? <a href={r[1]} target="_blank" rel="noreferrer" style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--mint)', textAlign: 'right', maxWidth: '62%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r[1]}</a> : <span style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: r[1] ? 'var(--text-primary)' : 'var(--text-tertiary)', fontWeight: 500, textAlign: 'right' }}>{r[1] || 'click Edit to add'}</span>}
+                </div>
+              ))
+            )}
+            {check && (
+              <div style={{ marginTop: 14, padding: 12, background: 'var(--bg-deep)', borderRadius: 'var(--radius-sm)' }}>
+                {check.error ? <div style={{ fontSize: 12, color: 'var(--danger)' }}>Check failed: {check.error}</div> : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 12, fontFamily: 'var(--font-mono)' }}>
+                    <div>Status: <span style={{ color: check.up ? 'var(--mint)' : 'var(--danger)' }}>{check.up ? ('UP · HTTP ' + check.status + ' · ' + check.ms + 'ms') : 'DOWN / unreachable'}</span></div>
+                    {check.daysToExpiry != null && <div>Domain: <span style={{ color: check.daysToExpiry < 30 ? 'var(--gold)' : 'var(--text-primary)' }}>{check.domainExpiry ? new Date(check.domainExpiry).toLocaleDateString() : '-'} ({check.daysToExpiry} days left)</span></div>}
+                    {(check.alerts || []).map((a, i) => <div key={i} style={{ color: a.type === 'critical' ? 'var(--danger)' : 'var(--gold)' }}>! {a.msg}</div>)}
+                    {(!check.alerts || check.alerts.length === 0) && !check.error && <div style={{ color: 'var(--mint)' }}>No issues detected.</div>}
+                    <div style={{ color: 'var(--text-tertiary)' }}>Checked {check.checkedAt ? new Date(check.checkedAt).toLocaleTimeString() : 'now'}</div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {tab === 'analytics' && (
+        <div style={sectionStyle}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Analytics · last 7 days</div>
+            <button onClick={runAnalytics} disabled={anLoading || !siteKey} style={{ background: 'var(--bg-deep)', color: 'var(--text-primary)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-sm)', padding: '6px 12px', fontSize: 12, cursor: (anLoading || !siteKey) ? 'not-allowed' : 'pointer' }}>{anLoading ? 'Loading...' : 'Refresh'}</button>
+          </div>
+          {(!an || (an && !an.error && an.pageviews === 0)) && (
+            <div style={{ padding: 14, background: 'var(--bg-deep)', borderRadius: 'var(--radius-sm)', marginBottom: 16 }}>
+              <div style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 600, marginBottom: 6 }}>No data yet — add the tracker to this site</div>
+              <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 8 }}>Paste this one line just before &lt;/body&gt; on every page (Hostinger File Manager), then traffic shows up here automatically:</div>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--mint)', background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: 6, padding: 10, wordBreak: 'break-all' }}>{pxSnippet}</div>
+              <button onClick={() => { try { navigator.clipboard.writeText(pxSnippet); window.NEXT_OS && window.NEXT_OS.notify && window.NEXT_OS.notify({ severity: 'success', title: 'Tracker copied', body: 'Paste before </body> on ' + (siteKey || 'the site'), source: 'NEXT OS' }); } catch (e) {} }} style={{ marginTop: 8, background: 'transparent', color: 'var(--mint)', border: '1px solid var(--border-subtle)', borderRadius: 6, padding: '6px 10px', fontSize: 12, cursor: 'pointer' }}>Copy snippet</button>
+              <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginTop: 8 }}>For sign-ins/sales, call <span style={{ fontFamily: 'var(--font-mono)' }}>nxTrack('signin')</span> or <span style={{ fontFamily: 'var(--font-mono)' }}>nxTrack('conversion','ticket',value)</span> in your code.</div>
+            </div>
+          )}
+          {an && an.error && <div style={{ color: 'var(--danger)', fontSize: 13 }}>Could not load: {an.error}</div>}
+          {an && !an.error && (
+            <div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 1, background: 'var(--border-subtle)', borderRadius: 'var(--radius-sm)', overflow: 'hidden', marginBottom: 16 }}>
+                {[['Visitors', an.visitors], ['Pageviews', an.pageviews], ['Sign-ins', an.signins], ['Conversions', an.conversions], ['Revenue', an.revenue ? an.revenue.toLocaleString() : 0]].map((k, i) => (
+                  <div key={i} style={{ background: 'var(--bg-surface)', padding: 14 }}>
+                    <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{k[0]}</div>
+                    <div style={{ fontSize: 22, fontFamily: 'var(--font-display)', fontWeight: 700, color: 'var(--text-primary)', marginTop: 4 }}>{k[1]}</div>
+                  </div>
+                ))}
+              </div>
+              <div style={{ display: 'flex', gap: 4, alignItems: 'flex-end', height: 60, marginBottom: 16 }}>
+                {(an.daily || []).map((d, i) => { const max = Math.max(1, ...(an.daily || []).map(x => x.pv)); return (
+                  <div key={i} title={d.date + ': ' + d.pv} style={{ flex: 1, background: 'var(--mint)', opacity: 0.7, height: Math.max(2, Math.round(d.pv / max * 56)) + 'px', borderRadius: 2 }} />
+                ); })}
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                <div>
+                  <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)', textTransform: 'uppercase', marginBottom: 8 }}>Top pages</div>
+                  {(an.topPages || []).length === 0 ? <div style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>—</div> : (an.topPages || []).map((p, i) => (
+                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, padding: '4px 0', borderBottom: '1px solid var(--border-subtle)' }}><span style={{ color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '78%' }}>{p.name}</span><span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-primary)' }}>{p.count}</span></div>
+                  ))}
+                </div>
+                <div>
+                  <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)', textTransform: 'uppercase', marginBottom: 8 }}>Top referrers</div>
+                  {(an.topReferrers || []).length === 0 ? <div style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>—</div> : (an.topReferrers || []).map((p, i) => (
+                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, padding: '4px 0', borderBottom: '1px solid var(--border-subtle)' }}><span style={{ color: 'var(--text-secondary)' }}>{p.name}</span><span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-primary)' }}>{p.count}</span></div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {tab === 'seo' && (
+        <div style={sectionStyle}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>SEO & Performance</div>
+            <button onClick={runSeo} disabled={seoLoading || !pm.url} style={{ background: 'var(--mint)', color: 'var(--text-inverse)', border: 'none', borderRadius: 'var(--radius-sm)', padding: '6px 12px', fontSize: 12, fontWeight: 600, cursor: (seoLoading || !pm.url) ? 'not-allowed' : 'pointer', opacity: pm.url ? 1 : 0.5 }}>{seoLoading ? 'Auditing...' : 'Run SEO audit'}</button>
+          </div>
+          {!seo && <div style={{ color: 'var(--text-tertiary)', fontSize: 13 }}>{pm.url ? 'Click "Run SEO audit" to score this page and get concrete fix tips.' : 'Add a Live URL in the Overview tab first.'}</div>}
+          {seo && seo.error && <div style={{ color: 'var(--danger)', fontSize: 13 }}>Audit failed: {seo.error}</div>}
+          {seo && !seo.error && (
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 16 }}>
+                <div style={{ fontSize: 40, fontFamily: 'var(--font-display)', fontWeight: 700, color: seo.score >= 80 ? 'var(--mint)' : seo.score >= 55 ? 'var(--gold)' : 'var(--danger)' }}>{seo.score}<span style={{ fontSize: 16, color: 'var(--text-tertiary)' }}>/100</span></div>
+                <div style={{ fontSize: 12, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', lineHeight: 1.6 }}>
+                  Title {seo.titleLen}c · Desc {seo.metaDescLen}c · H1s {seo.h1s}<br/>{seo.words} words · {seo.https ? 'HTTPS' : 'no HTTPS'} · {seo.viewport ? 'mobile-ready' : 'NOT mobile-ready'} · {seo.ms}ms
+                </div>
+              </div>
+              {seo.issues.length === 0 ? <div style={{ color: 'var(--mint)', fontSize: 13 }}>No major SEO issues. Nicely done.</div> : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {seo.issues.map((it, i) => (
+                    <div key={i} style={{ padding: 12, background: 'var(--bg-deep)', borderRadius: 'var(--radius-sm)', borderLeft: '3px solid ' + (it.sev === 'high' ? 'var(--danger)' : it.sev === 'med' ? 'var(--gold)' : 'var(--border-default)') }}>
+                      <div style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 600 }}><span style={{ fontSize: 9, fontFamily: 'var(--font-mono)', color: it.sev === 'high' ? 'var(--danger)' : it.sev === 'med' ? 'var(--gold)' : 'var(--text-tertiary)', marginRight: 8 }}>{it.sev.toUpperCase()}</span>{it.msg}</div>
+                      <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 4 }}>{it.tip}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+          <div style={{ marginTop: 18, paddingTop: 16, borderTop: '1px solid var(--border-subtle)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Search Console · what people Google to find you</div>
+              <button onClick={runGsc} disabled={gscLoading || !pm.domain} style={{ background: 'var(--bg-deep)', color: 'var(--text-primary)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-sm)', padding: '6px 12px', fontSize: 12, cursor: (gscLoading || !pm.domain) ? 'not-allowed' : 'pointer' }}>{gscLoading ? 'Loading...' : 'Load search terms'}</button>
+            </div>
+            {!gsc && <div style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>Click to pull the real Google search terms (needs the Google service account connected).</div>}
+            {gsc && gsc.error && <div style={{ fontSize: 12, color: 'var(--gold)' }}>{/not configured/i.test(gsc.error) ? 'Google not connected yet — finish the service-account setup, then this fills in.' : gsc.error}</div>}
+            {gsc && !gsc.error && (
+              <div>
+                <div style={{ fontSize: 12, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', marginBottom: 10 }}>{(gsc.totals ? gsc.totals.clicks : 0)} clicks · {(gsc.totals ? gsc.totals.impressions : 0)} impressions · {gsc.start} to {gsc.end}</div>
+                {(gsc.top || []).length === 0 ? <div style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>No search data yet (new sites take a few weeks to show in Google).</div> : (
+                  <div>
+                    <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginBottom: 4 }}>Top terms</div>
+                    {(gsc.top || []).slice(0, 8).map((q, i) => (
+                      <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr auto auto auto', gap: 10, fontSize: 12, padding: '4px 0', borderBottom: '1px solid var(--border-subtle)' }}>
+                        <span style={{ color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{q.query}</span>
+                        <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--mint)' }}>{q.clicks}c</span>
+                        <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)' }}>{q.impressions}i</span>
+                        <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)' }}>#{q.position}</span>
+                      </div>
+                    ))}
+                    {(gsc.striking || []).length > 0 && (
+                      <div style={{ marginTop: 12, padding: 12, background: 'rgba(255,180,0,0.06)', border: '1px solid rgba(255,180,0,0.15)', borderRadius: 'var(--radius-sm)' }}>
+                        <div style={{ fontSize: 11, color: 'var(--gold)', fontWeight: 600, marginBottom: 6 }}>Striking distance (positions 5-15) — small tweaks, big wins</div>
+                        {(gsc.striking || []).slice(0, 5).map((q, i) => (
+                          <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, padding: '3px 0' }}><span style={{ color: 'var(--text-secondary)' }}>{q.query}</span><span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)' }}>#{q.position} · {q.impressions}i</span></div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Alerts Tab */}
+      {tab === 'alerts' && (
+        <div style={sectionStyle}>
+          {p.alerts.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-tertiary)' }}>
+              <div style={{ fontSize: 32, marginBottom: 8, opacity: 0.3 }}>OK</div>
+              <div style={{ fontSize: 14 }}>No active alerts. All systems operational.</div>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {p.alerts.map((a, i) => (
+                <div key={i} style={{
+                  display: 'flex', alignItems: 'flex-start', gap: 12, padding: 14,
+                  background: 'var(--bg-deep)', borderRadius: 'var(--radius-sm)',
+                  borderLeft: `3px solid ${ALERT_COLORS[a.type]}`,
+                }}>
+                  <span style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: ALERT_COLORS[a.type], fontWeight: 700, textTransform: 'uppercase', minWidth: 60 }}>{a.type}</span>
+                  <span style={{ fontSize: 13, color: 'var(--text-primary)', flex: 1, lineHeight: 1.4 }}>{a.msg}</span>
+                  <span style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)', whiteSpace: 'nowrap' }}>{a.time}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Credentials Tab */}
+      {tab === 'credentials' && (
+        <div style={sectionStyle}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Credential Vault</div>
+            <div style={{ fontSize: 10, color: 'var(--mint)', fontFamily: 'var(--font-mono)', display: 'flex', alignItems: 'center', gap: 4 }}>
+              <span style={{ fontSize: 8 }}></span> ENCRYPTED
+            </div>
+          </div>
+          <CredentialRow label="Supabase URL" value={p.credentials.supabaseUrl} />
+          <CredentialRow label="API Key" value={p.credentials.supabaseKey} hidden />
+          <CredentialRow label="Admin Email" value={p.credentials.adminEmail} />
+          <div style={{ marginTop: 16, padding: 12, background: 'var(--bg-deep)', borderRadius: 'var(--radius-sm)', fontSize: 11, color: 'var(--text-tertiary)', lineHeight: 1.6, fontFamily: 'var(--font-mono)' }}>
+            Credentials are AES-256 encrypted at rest. Access is logged and restricted to admin roles.
+          </div>
+        </div>
+      )}
+
+      {/* Milestones Tab */}
+      {tab === 'milestones' && (
+        <div style={sectionStyle}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {p.milestones.map((m, i) => (
+              <div key={i} style={{
+                display: 'flex', alignItems: 'center', gap: 14, padding: 14,
+                background: 'var(--bg-deep)', borderRadius: 'var(--radius-sm)',
+                opacity: m.done ? 0.7 : 1,
+              }}>
+                <div style={{
+                  width: 24, height: 24, borderRadius: '50%', flexShrink: 0,
+                  background: m.done ? 'var(--mint)' : 'var(--bg-surface)',
+                  border: m.done ? 'none' : '2px solid var(--border-default)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  color: '#140035', fontSize: 12, fontWeight: 700,
+                }}>
+                  {m.done ? 'OK' : i + 1}
+                </div>
+                <span style={{
+                  fontSize: 13, color: 'var(--text-primary)', fontWeight: 500,
+                  textDecoration: m.done ? 'line-through' : 'none',
+                  textDecorationColor: 'var(--text-tertiary)',
+                }}>{m.name}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+
+/* -- Add Project Modal -- */
+const AddProjectModal = ({ onSave, onClose }) => {
+  const [name, setName] = React.useState('');
+  const [client, setClient] = React.useState('');
+  const [status, setStatus] = React.useState('active');
+  const [health, setHealth] = React.useState('healthy');
+  const [progress, setProgress] = React.useState('0');
+  const [platform, setPlatform] = React.useState('');
+  const [deadline, setDeadline] = React.useState('');
+  const [domain, setDomain] = React.useState('');
+  const [url, setUrl] = React.useState('');
+  const [registrar, setRegistrar] = React.useState('');
+  const [renewalDate, setRenewalDate] = React.useState('');
+  const [hosting, setHosting] = React.useState('');
+  const [registrarAccount, setRegistrarAccount] = React.useState('');
+  const canSubmit = name.trim().length >= 2;
+  const inputStyle = { width: '100%', background: 'var(--bg-deep)', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-sm)', padding: '10px 12px', color: 'var(--text-primary)', fontSize: 13, fontFamily: 'var(--font-body)', outline: 'none' };
+  const labelStyle = { fontSize: 10, fontFamily: 'var(--font-mono)', letterSpacing: 1.5, color: 'var(--text-tertiary)', marginBottom: 6, display: 'block', textTransform: 'uppercase' };
+  const submit = (e) => {
+    if (e) e.preventDefault();
+    if (!canSubmit) return;
+    onSave({ name: name.trim(), client: client.trim(), status, health, progress: Number(progress) || 0, platform: platform.trim(), deadline, domain: domain.trim(), url: url.trim(), registrar: registrar.trim(), renewalDate, hosting: hosting.trim(), registrarAccount: registrarAccount.trim() });
+  };
+  return (
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(6,0,18,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, backdropFilter: 'blur(8px)' }}>
+      <form onClick={(e) => e.stopPropagation()} onSubmit={submit} style={{ background: 'var(--bg-primary)', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-lg)', padding: 32, width: '100%', maxWidth: 520, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 30px 80px rgba(0,0,0,0.5), 0 0 40px rgba(0,252,143,0.08)' }}>
+        <div style={{ marginBottom: 24 }}>
+          <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', letterSpacing: 2, color: 'var(--text-tertiary)', marginBottom: 6 }}>NEW PROJECT</div>
+          <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 26, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>Add a project</h2>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div><label style={labelStyle}>Project name *</label><input style={inputStyle} value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Citizen Portal Rebuild" autoFocus /></div>
+          <div><label style={labelStyle}>Client</label><input style={inputStyle} value={client} onChange={(e) => setClient(e.target.value)} placeholder="e.g. KCCA Kampala" /></div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div><label style={labelStyle}>Status</label>
+              <select style={inputStyle} value={status} onChange={(e) => setStatus(e.target.value)}>
+                <option value="active">Active</option><option value="planning">Planning</option><option value="paused">Paused</option><option value="completed">Completed</option>
+              </select></div>
+            <div><label style={labelStyle}>Health</label>
+              <select style={inputStyle} value={health} onChange={(e) => setHealth(e.target.value)}>
+                <option value="healthy">Healthy</option><option value="warning">Warning</option><option value="critical">Critical</option>
+              </select></div>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr 160px', gap: 12 }}>
+            <div><label style={labelStyle}>Progress %</label><input style={inputStyle} type="number" min="0" max="100" value={progress} onChange={(e) => setProgress(e.target.value)} /></div>
+            <div><label style={labelStyle}>Platform</label><input style={inputStyle} value={platform} onChange={(e) => setPlatform(e.target.value)} placeholder="e.g. Supabase + React" /></div>
+            <div><label style={labelStyle}>Deadline</label><input style={inputStyle} type="date" value={deadline} onChange={(e) => setDeadline(e.target.value)} /></div>
+          </div>
+
+          <div style={{ marginTop: 4, paddingTop: 16, borderTop: '1px solid var(--border-subtle)' }}>
+            <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', letterSpacing: 1.5, color: 'var(--mint)', marginBottom: 12 }}>DOMAIN &amp; REGISTRAR</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div><label style={labelStyle}>Domain</label><input style={inputStyle} value={domain} onChange={(e) => setDomain(e.target.value)} placeholder="example.org" /></div>
+              <div><label style={labelStyle}>Live URL</label><input style={inputStyle} value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://example.org" /></div>
+              <div><label style={labelStyle}>Registrar</label>
+                <input style={inputStyle} value={registrar} onChange={(e) => setRegistrar(e.target.value)} placeholder="Where the domain is registered" list="nx-registrars" />
+                <datalist id="nx-registrars">
+                  <option value="Hostinger" /><option value="Namecheap" /><option value="GoDaddy" /><option value="Cloudflare" /><option value="Truehost" /><option value="Whogohost" /><option value="Google Domains / Squarespace" /><option value="Other" />
+                </datalist>
+              </div>
+              <div><label style={labelStyle}>Renewal date</label><input style={inputStyle} type="date" value={renewalDate} onChange={(e) => setRenewalDate(e.target.value)} /></div>
+              <div><label style={labelStyle}>Hosting</label><input style={inputStyle} value={hosting} onChange={(e) => setHosting(e.target.value)} placeholder="e.g. Hostinger \u00b7 Cloudflare" /></div>
+              <div><label style={labelStyle}>Registrar account</label><input style={inputStyle} value={registrarAccount} onChange={(e) => setRegistrarAccount(e.target.value)} placeholder="login email (not the password)" /></div>
+            </div>
+            <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginTop: 8, lineHeight: 1.5 }}>Keep the registrar <b>password</b> out of here \u2014 store it encrypted in the <b>Fleet Vault</b>. Nia uses the domain + renewal date to warn you before it expires.</div>
+          </div>
+        </div>
+        <div style={{ marginTop: 28, paddingTop: 20, borderTop: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+          <button type="button" onClick={onClose} style={{ background: 'transparent', border: '1px solid var(--border-default)', color: 'var(--text-secondary)', padding: '10px 18px', borderRadius: 'var(--radius-sm)', fontSize: 13, cursor: 'pointer' }}>Cancel</button>
+          <button type="submit" disabled={!canSubmit} style={{ background: canSubmit ? 'var(--mint)' : 'var(--bg-elevated)', border: '1px solid ' + (canSubmit ? 'var(--mint)' : 'var(--border-default)'), color: canSubmit ? 'var(--text-inverse)' : 'var(--text-tertiary)', padding: '10px 22px', borderRadius: 'var(--radius-sm)', fontSize: 13, fontWeight: 600, cursor: canSubmit ? 'pointer' : 'not-allowed' }}>Add project</button>
+        </div>
+      </form>
+    </div>
+  );
+};
+
+/* -- Projects Page -- */
+const ProjectsPage = ({ onNavigate }) => {
+  const [mounted, setMounted] = React.useState(false);
+  const [selectedProject, setSelectedProject] = React.useState(null);
+  const [filter, setFilter] = React.useState('all');
+  const [showAddModal, setShowAddModal] = React.useState(false);
+  const [projects, setProjects] = React.useState(() => {
+    const userProjects = (window.OS_DATA && window.OS_DATA.getProjects) ? window.OS_DATA.getProjects().filter(p => p.addedByUser) : [];
+    return PROJECT_DATA.concat(userProjects);
+  });
+  React.useEffect(() => { setTimeout(() => setMounted(true), 50); }, []);
+
+  // Push the project list to Nia's watcher so her nightly sweep knows what sites to watch (uptime + domain expiry).
+  React.useEffect(() => {
+    try {
+      const all = (window.OS_DATA && window.OS_DATA.getProjects) ? window.OS_DATA.getProjects() : projects;
+      const sites = (all || []).map(p => {
+        let m = {}; try { m = JSON.parse(localStorage.getItem('nextos.projectmeta.' + p.id) || '{}'); } catch (e) {}
+        const url = m.url || p.url || ''; const domain = m.domain || p.domain || '';
+        return (url || domain) ? { name: p.name, url: url, domain: domain } : null;
+      }).filter(Boolean);
+      if (sites.length) {
+        const base = (window.NEXT_OS_SENTINEL_ENDPOINT) || 'https://nextos-sentinel.nextafricaai.workers.dev';
+        fetch(base + '/watch/sync', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sites }) }).catch(() => {});
+      }
+    } catch (e) {}
+  }, []);
+
+  if (selectedProject) {
+    return <ProjectDetail project={selectedProject} onBack={() => setSelectedProject(null)} />;
+  }
+
+  const totalAlerts = projects.reduce((s, p) => s + (p.alerts ? p.alerts.length : 0), 0);
+  const criticalCount = projects.filter(p => p.health === 'critical').length;
+  const warningCount = projects.filter(p => p.health === 'warning').length;
+  const filtered = filter === 'all' ? projects : projects.filter(p => p.health === filter);
+
+  const handleAdd = (input) => {
+    if (window.OS_DATA && window.OS_DATA.addProject) {
+      window.OS_DATA.addProject(input);
+      const userProjects = window.OS_DATA.getProjects().filter(p => p.addedByUser);
+      setProjects(PROJECT_DATA.concat(userProjects));
+    }
+    setShowAddModal(false);
+  };
+
+  const byId = {}; projects.forEach(p => { byId[p.id] = p; });
+  const renderCard = (p) => (
+    <div key={p.id} onClick={() => setSelectedProject(p)} style={{
+      background: 'var(--bg-elevated)', borderRadius: 'var(--radius-md)',
+      border: `1px solid ${p.health === 'critical' ? 'rgba(255,71,87,0.2)' : p.health === 'warning' ? 'rgba(255,180,0,0.12)' : 'var(--border-subtle)'}`,
+      padding: 20, cursor: 'pointer', transition: 'all 0.2s', opacity: p.planned ? 0.72 : 1,
+      display: 'grid', gridTemplateColumns: '1fr auto',
+    }} className="project-card">
+      <div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8, flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)' }}>{p.name}</span>
+          {p.planned ? <span style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)', background: 'var(--bg-deep)', padding: '2px 8px', borderRadius: 3, letterSpacing: '0.06em' }}>PLANNED</span> : <HealthBadge health={p.health} />}
+          {p.alerts && p.alerts.length > 0 && (
+            <span style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: ALERT_COLORS[p.alerts[0].type], background: `${ALERT_COLORS[p.alerts[0].type]}12`, padding: '2px 8px', borderRadius: 3 }}>
+              {p.alerts.length} alert{p.alerts.length > 1 ? 's' : ''}
+            </span>
+          )}
+        </div>
+        <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 10 }}>{p.client}</div>
+        <div style={{ display: 'flex', gap: 16, fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)', flexWrap: 'wrap' }}>
+          {p.kind === 'website' && p.os && byId[p.os] && <span style={{ color: 'var(--mint)' }}>⚙ {byId[p.os].name}</span>}
+          {p.kind === 'os' && p.runs && <span>Runs: {p.runs}</span>}
+          {!p.planned && <span>Uptime: <span style={{ color: p.uptime > 99 ? 'var(--mint)' : p.uptime > 97 ? 'var(--gold)' : 'var(--danger)' }}>{p.uptime}%</span></span>}
+          {p.domain && <span>{p.domain}</span>}
+        </div>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'center', gap: 6 }}>
+        {p.url && <button onClick={(e) => { e.stopPropagation(); window.open('/studio.html?url=' + encodeURIComponent(p.url) + '&name=' + encodeURIComponent(p.name) + '&pid=' + encodeURIComponent(p.id), '_blank'); }} style={{ background: 'transparent', border: '1px solid var(--mint)', color: 'var(--mint)', borderRadius: 'var(--radius-sm)', padding: '4px 10px', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>✎ Studio</button>}
+        {p.url && <button onClick={(e) => { e.stopPropagation(); window.open('/nia-intel.html?url=' + encodeURIComponent(p.url), '_blank'); }} style={{ background: 'transparent', border: '1px solid var(--accent)', color: '#a8c0ff', borderRadius: 'var(--radius-sm)', padding: '4px 10px', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>🧠 Nia Intel</button>}
+        <div style={{ fontSize: 22, fontFamily: 'var(--font-display)', fontWeight: 700, color: 'var(--text-primary)' }}>{p.progress}%</div>
+        <div style={{ width: 80, height: 4, background: 'var(--bg-deep)', borderRadius: 2, overflow: 'hidden' }}>
+          <div style={{ width: `${p.progress}%`, height: '100%', borderRadius: 2, background: p.progress > 75 ? 'var(--mint)' : p.progress > 40 ? 'var(--emerald)' : 'var(--info)' }}></div>
+        </div>
+      </div>
+    </div>
+  );
+
+  return (
+    <div style={{ opacity: mounted ? 1 : 0, transform: mounted ? 'none' : 'translateY(8px)', transition: 'all 0.4s ease' }}>
+      <div style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap' }}>
+        <div>
+          <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 28, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+            Projects <span style={{ color: 'var(--mint)' }}>Command</span>
+          </h1>
+          <p style={{ fontSize: 14, color: 'var(--text-secondary)', margin: '6px 0 0' }}>
+            Monitor all deployed operating systems. {totalAlerts > 0 && <span style={{ color: 'var(--gold)' }}>{totalAlerts} active alert{totalAlerts > 1 ? 's' : ''} across projects.</span>}
+          </p>
+        </div>
+        <button onClick={() => setShowAddModal(true)} style={{ background: 'var(--mint)', color: 'var(--text-inverse)', border: 'none', padding: '10px 18px', borderRadius: 'var(--radius-sm)', fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, boxShadow: '0 6px 24px rgba(0,252,143,0.2)' }}>
+          <span style={{ fontSize: 18, lineHeight: 1, marginTop: -2 }}>+</span> Add Project
+        </button>
+        {showAddModal && <AddProjectModal onSave={handleAdd} onClose={() => setShowAddModal(false)} />}
+      </div>
+
+      {/* Health Summary Bar */}
+      {(criticalCount > 0 || warningCount > 0) && (
+        <div style={{
+          display: 'flex', gap: 12, marginBottom: 20, padding: 16,
+          background: criticalCount > 0 ? 'rgba(255,71,87,0.08)' : 'rgba(255,180,0,0.06)',
+          border: `1px solid ${criticalCount > 0 ? 'rgba(255,71,87,0.2)' : 'rgba(255,180,0,0.15)'}`,
+          borderRadius: 'var(--radius-md)', alignItems: 'center',
+        }}>
+          <span style={{ fontSize: 18 }}>{criticalCount > 0 ? '!' : ''}</span>
+          <div style={{ flex: 1 }}>
+            <span style={{ fontSize: 13, fontWeight: 600, color: criticalCount > 0 ? 'var(--danger)' : 'var(--gold)' }}>
+              {criticalCount > 0 ? `${criticalCount} system${criticalCount > 1 ? 's' : ''} critical` : `${warningCount} system${warningCount > 1 ? 's' : ''} with warnings`}
+            </span>
+            <span style={{ fontSize: 12, color: 'var(--text-tertiary)', marginLeft: 8 }}>- Immediate attention required</span>
+          </div>
+        </div>
+      )}
+
+      {/* Filter */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
+        {[
+          { id: 'all', label: `All (${projects.length})` },
+          { id: 'critical', label: `Critical (${criticalCount})` },
+          { id: 'warning', label: `Warning (${warningCount})` },
+          { id: 'healthy', label: `Healthy (${projects.filter(p => p.health === 'healthy').length})` },
+        ].map(f => (
+          <button key={f.id} onClick={() => setFilter(f.id)} style={{
+            padding: '6px 14px', borderRadius: 'var(--radius-sm)', fontSize: 12,
+            fontFamily: 'var(--font-body)', cursor: 'pointer', fontWeight: 500,
+            background: filter === f.id ? 'var(--bg-elevated)' : 'transparent',
+            border: `1px solid ${filter === f.id ? 'var(--border-active)' : 'var(--border-subtle)'}`,
+            color: filter === f.id ? 'var(--mint)' : 'var(--text-tertiary)',
+            transition: 'all 0.15s',
+          }}>{f.label}</button>
+        ))}
+      </div>
+
+      {/* Grouped: Operating Systems + Websites */}
+      {[{ k: 'os', label: 'Operating Systems' }, { k: 'website', label: 'Websites' }].map(g => {
+        const list = filtered.filter(p => (p.kind || 'website') === g.k);
+        if (!list.length) return null;
+        return (
+          <div key={g.k} style={{ marginBottom: 26 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '4px 0 12px' }}>
+              <span style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.12em', fontWeight: 700 }}>{g.label}</span>
+              <span style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>({list.length})</span>
+              <div style={{ flex: 1, height: 1, background: 'var(--border-subtle)' }} />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>{list.map(renderCard)}</div>
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
+Object.assign(window, { ProjectsPage, PROJECT_DATA });
+
+Object.assign(window, { ProjectsPage, AddProjectModal });
+
+
+
+/* os-finance.jsx - Admin Financial Panel: Income, Expenses, Cash Flow.
+   Reads finance data from window.OS_DATA. Source can swap to Supabase later
+   without touching this file. See os-data.jsx for the contract. */
+
+const _financeData = (window.OS_DATA && window.OS_DATA.getFinance && window.OS_DATA.getFinance()) || {};
+const MONTHS = _financeData.months || ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
+const REVENUE_DATA = _financeData.revenueSeries || [];
+const EXPENSE_DATA = _financeData.expenseSeries || [];
+const NET_DATA = REVENUE_DATA.map((r, i) => r - (EXPENSE_DATA[i] || 0));
+const TRANSACTIONS = _financeData.transactions || [];
+
+/* -- Bar Chart (SVG) -- */
+const BarChart = ({ data1, data2, labels, color1 = 'var(--mint)', color2 = 'var(--danger)', height = 180, width = '100%' }) => {
+  const max = Math.max(...data1, ...data2);
+  const barW = 28; const gap = 6;
+  const totalW = labels.length * (barW * 2 + gap * 3);
+  return (
+    <div style={{ width, overflowX: 'auto' }}>
+      <svg width={totalW + 40} height={height + 30} style={{ display: 'block' }}>
+        {labels.map((label, i) => {
+          const x = 20 + i * (barW * 2 + gap * 3);
+          const h1 = (data1[i] / max) * height * 0.85;
+          const h2 = (data2[i] / max) * height * 0.85;
+          return (
+            <g key={i}>
+              <rect x={x} y={height - h1} width={barW} height={h1} rx={4} fill={color1} opacity={0.8} />
+              <rect x={x + barW + gap} y={height - h2} width={barW} height={h2} rx={4} fill={color2} opacity={0.6} />
+              <text x={x + barW + gap / 2} y={height + 18} textAnchor="middle" fill="rgba(255,255,255,0.4)" fontSize="10" fontFamily="var(--font-mono)">{label}</text>
+            </g>
+          );
+        })}
+      </svg>
+    </div>
+  );
+};
+
+/* -- Sparkline (inline) -- */
+const Sparkline = ({ data, color = 'var(--mint)', w = 80, h = 24 }) => {
+  if (!data || data.length === 0) return null;
+  const max = Math.max(...data); const min = Math.min(...data); const range = max - min || 1;
+  const pts = data.map((v, i) => `${(i / (data.length - 1)) * w},${h - ((v - min) / range) * h * 0.8 - h * 0.1}`).join(' ');
+  return (
+    <svg width={w} height={h} style={{ display: 'block' }}>
+      <polyline points={pts} fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  );
+};
+
+/* -- Add Transaction Modal -- */
+const AddTransactionModal = ({ onSave, onClose }) => {
+  const today = new Date();
+  const todayStr = today.getDate() + ' ' + today.toLocaleString('en-US', { month: 'short' }) + ' ' + today.getFullYear();
+  const [date, setDate] = React.useState(todayStr);
+  const [desc, setDesc] = React.useState('');
+  const [type, setType] = React.useState('income');
+  const [amount, setAmount] = React.useState('');
+  const [category, setCategory] = React.useState('Membership');
+  const [status, setStatus] = React.useState('completed');
+  const canSubmit = desc.trim().length >= 2 && Number(amount) > 0;
+  const inputStyle = { width: '100%', background: 'var(--bg-deep)', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-sm)', padding: '10px 12px', color: 'var(--text-primary)', fontSize: 13, fontFamily: 'var(--font-body)', outline: 'none' };
+  const labelStyle = { fontSize: 10, fontFamily: 'var(--font-mono)', letterSpacing: 1.5, color: 'var(--text-tertiary)', marginBottom: 6, display: 'block', textTransform: 'uppercase' };
+  const submit = (e) => {
+    if (e) e.preventDefault();
+    if (!canSubmit) return;
+    onSave({ date, desc: desc.trim(), type, amount: Number(amount), category, status });
+  };
+  return (
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(6,0,18,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, backdropFilter: 'blur(8px)' }}>
+      <form onClick={(e) => e.stopPropagation()} onSubmit={submit} style={{ background: 'var(--bg-primary)', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-lg)', padding: 32, width: '100%', maxWidth: 520, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 30px 80px rgba(0,0,0,0.5), 0 0 40px rgba(0,252,143,0.08)' }}>
+        <div style={{ marginBottom: 24 }}>
+          <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', letterSpacing: 2, color: 'var(--text-tertiary)', marginBottom: 6 }}>NEW TRANSACTION</div>
+          <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 26, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>Log a transaction</h2>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div><label style={labelStyle}>Description *</label><input style={inputStyle} value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="e.g. Safaricom Q3 retainer" autoFocus /></div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div><label style={labelStyle}>Type</label>
+              <select style={inputStyle} value={type} onChange={(e) => setType(e.target.value)}>
+                <option value="income">Income</option><option value="expense">Expense</option>
+              </select></div>
+            <div><label style={labelStyle}>Amount (USD) *</label><input style={inputStyle} type="number" min="0" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" /></div>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div><label style={labelStyle}>Category</label>
+              <select style={inputStyle} value={category} onChange={(e) => setCategory(e.target.value)}>
+                <option>Membership</option><option>Project</option><option>Consulting</option>
+                <option>Payroll</option><option>Infrastructure</option><option>Operations</option>
+                <option>Tools</option><option>Other</option>
+              </select></div>
+            <div><label style={labelStyle}>Status</label>
+              <select style={inputStyle} value={status} onChange={(e) => setStatus(e.target.value)}>
+                <option value="completed">Completed</option><option value="pending">Pending</option>
+              </select></div>
+          </div>
+          <div><label style={labelStyle}>Date</label><input style={inputStyle} value={date} onChange={(e) => setDate(e.target.value)} /></div>
+        </div>
+        <div style={{ marginTop: 28, paddingTop: 20, borderTop: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+          <button type="button" onClick={onClose} style={{ background: 'transparent', border: '1px solid var(--border-default)', color: 'var(--text-secondary)', padding: '10px 18px', borderRadius: 'var(--radius-sm)', fontSize: 13, cursor: 'pointer' }}>Cancel</button>
+          <button type="submit" disabled={!canSubmit} style={{ background: canSubmit ? 'var(--mint)' : 'var(--bg-elevated)', border: '1px solid ' + (canSubmit ? 'var(--mint)' : 'var(--border-default)'), color: canSubmit ? 'var(--text-inverse)' : 'var(--text-tertiary)', padding: '10px 22px', borderRadius: 'var(--radius-sm)', fontSize: 13, fontWeight: 600, cursor: canSubmit ? 'pointer' : 'not-allowed' }}>Save transaction</button>
+        </div>
+      </form>
+    </div>
+  );
+};
+
+/* -- Finance Page -- */
+const FinancePage = ({ onNavigate }) => {
+  const [mounted, setMounted] = React.useState(false);
+  const [txFilter, setTxFilter] = React.useState('all');
+  const [period, setPeriod] = React.useState('6m');
+  const [showAddModal, setShowAddModal] = React.useState(false);
+  const [txList, setTxList] = React.useState(() =>
+    (window.OS_DATA && window.OS_DATA.getTransactions) ? window.OS_DATA.getTransactions() : TRANSACTIONS
+  );
+  React.useEffect(() => { setTimeout(() => setMounted(true), 50); }, []);
+
+  const handleAddTx = (input) => {
+    if (window.OS_DATA && window.OS_DATA.addTransaction) {
+      const updated = window.OS_DATA.addTransaction(input);
+      setTxList(updated);
+    }
+    setShowAddModal(false);
+  };
+
+  const handleRemoveTx = (tx) => {
+    if (!window.confirm('Delete this ' + (tx.type === 'expense' ? 'cost' : 'entry') + '?\n\n' + tx.desc + ' — $' + (tx.amount || 0).toLocaleString() + '\n\nThis removes it from your cash-flow totals.')) return;
+    if (window.OS_DATA && window.OS_DATA.removeTransaction) {
+      const updated = window.OS_DATA.removeTransaction(tx.id);
+      setTxList(updated);
+    }
+  };
+
+  const totalIncome = txList.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
+  const totalExpense = txList.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
+  const netCashFlow = totalIncome - totalExpense;
+  const membershipRev = txList.filter(t => t.category === 'Membership').reduce((s, t) => s + t.amount, 0);
+  const projectRev = txList.filter(t => t.category === 'Project' || t.category === 'Consulting').reduce((s, t) => s + t.amount, 0);
+  const filtered = txFilter === 'all' ? txList : txList.filter(t => t.type === txFilter);
+
+  const sectionStyle = { background: 'var(--bg-elevated)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)', padding: 22 };
+  const metricLabel = { fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 6 };
+  const metricValue = { fontFamily: 'var(--font-display)', fontSize: 28, fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1 };
+
+  return (
+    <div style={{ opacity: mounted ? 1 : 0, transform: mounted ? 'none' : 'translateY(8px)', transition: 'all 0.4s ease' }}>
+      <div style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <div>
+          <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 28, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+            Financial <span style={{ color: 'var(--mint)' }}>Overview</span>
+          </h1>
+          <p style={{ fontSize: 14, color: 'var(--text-secondary)', margin: '6px 0 0' }}>
+            Track all income and expenses across NEXT operations.
+          </p>
+        </div>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: 4, background: 'var(--bg-deep)', borderRadius: 'var(--radius-sm)', padding: 3 }}>
+            {['1m', '3m', '6m', '1y'].map(p => (
+              <button key={p} onClick={() => setPeriod(p)} style={{
+                padding: '6px 12px', borderRadius: 4, border: 'none', fontSize: 11,
+                fontFamily: 'var(--font-mono)', cursor: 'pointer',
+                background: period === p ? 'var(--bg-elevated)' : 'transparent',
+                color: period === p ? 'var(--text-primary)' : 'var(--text-tertiary)',
+              }}>{p.toUpperCase()}</button>
+            ))}
+          </div>
+          <button onClick={() => setShowAddModal(true)} style={{
+            background: 'var(--mint)', color: 'var(--text-inverse)', border: 'none',
+            padding: '10px 16px', borderRadius: 'var(--radius-sm)',
+            fontSize: 13, fontWeight: 600, cursor: 'pointer',
+            display: 'flex', alignItems: 'center', gap: 6,
+            boxShadow: '0 6px 24px rgba(0,252,143,0.2)',
+          }}>
+            <span style={{ fontSize: 18, lineHeight: 1, marginTop: -2 }}>+</span> Add Transaction
+          </button>
+        </div>
+      </div>
+      {showAddModal && <AddTransactionModal onSave={handleAddTx} onClose={() => setShowAddModal(false)} />}
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 20 }}>
+        {[
+          { label: 'Total Revenue', value: '$' + (totalIncome / 1000).toFixed(0) + 'K', change: '+12%', positive: true, color: 'var(--mint)', data: REVENUE_DATA },
+          { label: 'Total Expenses', value: '$' + (totalExpense / 1000).toFixed(0) + 'K', change: '+8%', positive: false, color: 'var(--danger)', data: EXPENSE_DATA },
+          { label: 'Net Cash Flow', value: '$' + (netCashFlow / 1000).toFixed(0) + 'K', change: '+18%', positive: true, color: 'var(--gold)', data: NET_DATA },
+          { label: 'Membership MRR', value: '$' + (membershipRev / 1000).toFixed(1) + 'K', change: '+24', positive: true, color: 'var(--emerald)', data: [4,5,5.5,6.2,7,7.8] },
+        ].map(kpi => (
+          <div key={kpi.label} style={sectionStyle}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
+              <div style={metricLabel}>{kpi.label}</div>
+              <Sparkline data={kpi.data} color={kpi.color} />
+            </div>
+            <div style={metricValue}>{kpi.value}</div>
+            <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: kpi.positive ? 'var(--mint)' : 'var(--danger)', marginTop: 4 }}>
+              {kpi.change} vs last period
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div style={sectionStyle}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>Recent Transactions</span>
+          <div style={{ display: 'flex', gap: 6 }}>
+            {['all', 'income', 'expense'].map(f => (
+              <button key={f} onClick={() => setTxFilter(f)} style={{
+                padding: '4px 12px', borderRadius: 4, border: 'none', fontSize: 11,
+                cursor: 'pointer', fontFamily: 'var(--font-body)', textTransform: 'capitalize',
+                background: txFilter === f ? 'var(--bg-surface)' : 'transparent',
+                color: txFilter === f ? 'var(--text-primary)' : 'var(--text-tertiary)',
+              }}>{f}</button>
+            ))}
+          </div>
+        </div>
+        <div>
+          <div style={{
+            display: 'grid', gridTemplateColumns: '110px 1fr 100px 100px 80px 40px',
+            padding: '0 0 8px', fontSize: 10, color: 'var(--text-tertiary)',
+            fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.08em',
+            borderBottom: '1px solid var(--border-default)',
+          }}>
+            <span>Date</span><span>Description</span><span>Category</span>
+            <span style={{ textAlign: 'right' }}>Amount</span><span style={{ textAlign: 'right' }}>Status</span><span />
+          </div>
+          {filtered.length === 0 ? (
+            <div style={{ padding: '20px 0', color: 'var(--text-tertiary)', fontSize: 13 }}>No transactions yet. Click "+ Add Transaction" to log one.</div>
+          ) : filtered.map(tx => (
+            <div key={tx.id} style={{
+              display: 'grid', gridTemplateColumns: '110px 1fr 100px 100px 80px 40px',
+              padding: '12px 0', borderBottom: '1px solid var(--border-subtle)',
+              fontSize: 12, alignItems: 'center',
+            }} className="member-row">
+              <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)', fontSize: 11 }}>{tx.date}</span>
+              <span style={{ color: 'var(--text-primary)', paddingRight: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {tx.desc}
+                {tx.addedByUser && <span style={{ marginLeft: 8, fontSize: 9, fontFamily: 'var(--font-mono)', letterSpacing: 1, color: 'var(--mint)', padding: '1px 6px', borderRadius: 4, background: 'var(--mint-glow)', border: '1px solid var(--mint)' }}>NEW</span>}
+              </span>
+              <span style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)' }}>{tx.category}</span>
+              <span style={{
+                textAlign: 'right', fontFamily: 'var(--font-mono)', fontWeight: 600,
+                color: tx.type === 'income' ? 'var(--mint)' : 'var(--danger)',
+              }}>
+                {tx.type === 'income' ? '+' : '-'}${tx.amount.toLocaleString()}
+              </span>
+              <span style={{
+                textAlign: 'right', fontSize: 10, fontFamily: 'var(--font-mono)', fontWeight: 600,
+                color: tx.status === 'completed' ? 'var(--mint)' : 'var(--gold)',
+              }}>{tx.status === 'completed' ? 'Done' : 'Pending'}</span>
+              <button onClick={() => handleRemoveTx(tx)} title="Delete this cost" style={{ justifySelf: 'end', background: 'transparent', border: '1px solid var(--border-subtle)', color: 'var(--text-tertiary)', borderRadius: 'var(--radius-sm)', width: 26, height: 26, fontSize: 13, lineHeight: 1, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }} onMouseEnter={e => { e.currentTarget.style.color = 'var(--danger)'; e.currentTarget.style.borderColor = 'var(--danger)'; }} onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-tertiary)'; e.currentTarget.style.borderColor = 'var(--border-subtle)'; }}>×</button>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+Object.assign(window, { FinancePage, AddTransactionModal });
+
+
+
+/* os-ai-tools.jsx - NEXT AI Command Center: Tools, Automation, Analytics */
+
+const AI_TOOLS = [
+  {
+    id: 'doc-ai', name: 'NEXT Docs', desc: 'Extract, classify, and process documents automatically using AI.',
+    status: 'active', usage: 847, icon: 'N', color: 'var(--mint)',
+    stats: { processed: '12.4K', accuracy: '96.2%', avgTime: '1.8s' },
+  },
+  {
+    id: 'chat-ai', name: 'NEXT Assistant', desc: 'AI-powered chat assistant for internal queries, client support, and knowledge base.',
+    status: 'active', usage: 2340, icon: 'N', color: 'var(--mint)',
+    stats: { conversations: '2.3K', resolved: '89%', avgResponse: '0.4s' },
+  },
+  {
+    id: 'analytics-ai', name: 'NEXT Insights', desc: 'Forecast trends, detect anomalies, and generate insights from project data.',
+    status: 'active', usage: 412, icon: 'N', color: 'var(--emerald)',
+    stats: { predictions: '1.8K', accuracy: '91.5%', datasets: '24' },
+  },
+  {
+    id: 'auto-ai', name: 'NEXT Flow', desc: 'Design and deploy automated workflows across client operating systems.',
+    status: 'active', usage: 1560, icon: 'N', color: 'var(--gold)',
+    stats: { workflows: '67', executions: '14.2K', successRate: '98.7%' },
+  },
+  {
+    id: 'code-ai', name: 'NEXT Code', desc: 'AI-assisted code generation, review, and deployment for NEXT projects.',
+    status: 'beta', usage: 234, icon: 'N', color: 'var(--info)',
+    stats: { generated: '4.2K lines', reviewed: '890 PRs', saved: '~120h' },
+  },
+  {
+    id: 'report-ai', name: 'NEXT Reports', desc: 'Auto-generate client reports, financial summaries, and project status updates.',
+    status: 'active', usage: 156, icon: 'N', color: 'var(--emerald)',
+    stats: { reports: '342', templates: '18', clients: '12' },
+  },
+];
+
+const RECENT_OPS = []; // real AI-operation logging not wired yet — honest empty state below
+
+/* -- AI Command Terminal -- */
+const AITerminal = () => {
+  const [input, setInput] = React.useState('');
+  const [history, setHistory] = React.useState([
+    { type: 'system', text: 'NEXT AI Command Center v2.1 - Connected to 6 active operating systems' },
+    { type: 'system', text: 'Type a command or ask a question. Try: "status all", "alert summary", "generate report"' },
+  ]);
+  const scrollRef = React.useRef(null);
+
+  React.useEffect(() => {
+    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+  }, [history]);
+
+  const handleCommand = (cmd) => {
+    if (!cmd.trim()) return;
+    const newHistory = [...history, { type: 'user', text: cmd }];
+
+    const lower = cmd.toLowerCase().trim();
+    let response;
+
+    if (lower.includes('status') && lower.includes('all')) {
+      response = {
+        type: 'response', text:
+`System Status Report - ${new Date().toLocaleString()}
+----------------------------------------
+ Digital Services Platform  [HEALTHY]  Uptime: 99.7%  Progress: 67%
+ AI Operations Suite        [WARNING]  Uptime: 98.2%  Progress: 42%
+ Smart Campus               [HEALTHY]  Uptime: 99.9%  Progress: 89%
+ Process Automation          [CRITICAL] Uptime: 94.1%  Progress: 31%
+ Citizen Portal              [HEALTHY]  Uptime: 99.4%  Progress: 55%
+ Digital Membership OS       [HEALTHY]  Uptime: 99.9%  Progress: 72%
+----------------------------------------
+4 Healthy | 1 Warning | 1 Critical - 15 active alerts total` };
+    } else if (lower.includes('alert')) {
+      response = {
+        type: 'response', text:
+`Active Alert Summary
+---------------------
+ CRITICAL: Safaricom - Production server unresponsive (45m ago)
+ ERROR:    Safaricom - Workflow engine crash: null pointer (1h ago)
+ ERROR:    Safaricom - Failed deployment rollback on staging (3h ago)
+ ERROR:    UBA - API rate limit exceeded on AI endpoint (2h ago)
+ WARNING:  UBA - DB connection pool at 85% capacity (3h ago)
+ WARNING:  Uganda ICT - SSL cert expires in 14 days (6h ago)
+---------------------
+Recommendation: Priority 1 - Safaricom needs immediate attention.`};
+    } else if (lower.includes('member') || lower.includes('card')) {
+      response = {
+        type: 'response', text:
+`Membership Overview
+-------------------
+Catalyst:  623 members  | $92,877/mo | Static cards
+Builder:   187 members  | $139,963/mo | Dynamic refresh
+Architect:  37 members  | $110,963/mo | Dynamic+ premium
+-------------------
+Total: 847 members | $343,803 MRR | +24 new this month`};
+    } else if (lower.includes('generate') && lower.includes('report')) {
+      response = { type: 'response', text: `Generating weekly status report...\nOK Project data compiled (6 projects)\nOK Financial summary attached ($284K revenue)\nOK Alert digest included (15 alerts)\nOK Membership metrics added (847 members)\n\nReport generated -> Sent to hudson@nextafrica.ai` };
+    } else if (lower.includes('help') || lower === '?') {
+      response = { type: 'response', text: `Available Commands:\n-------------------\nstatus all      - View all project health\nalert summary   - View active alerts\nmembers         - Membership overview\ngenerate report - Create weekly status report\nrevenue         - Financial summary\npredict [topic] - Run predictive analysis\ndeploy [project]- Trigger deployment\nhelp            - Show this menu` };
+    } else if (lower.includes('revenue') || lower.includes('financ')) {
+      response = { type: 'response', text: `Financial Summary - May 2026\n-------------------\nRevenue:  $310K (+9.2% MoM)\nExpenses: $142K (+8.4% MoM)\nNet:      $168K (+10.1% MoM)\n-------------------\nTop source: Project contracts (65%)\nGrowing:   Membership MRR (+24 members)` };
+    } else {
+      response = { type: 'response', text: `Processing: "${cmd}"\n\nI understand your request. In a production environment, NEXT AI would route this to the appropriate module.\n\nTry: "status all", "alert summary", "members", "generate report", or "help"` };
+    }
+
+    setHistory([...newHistory, response]);
+    setInput('');
+  };
+
+  return (
+    <div style={{
+      background: '#0a0a14', borderRadius: 'var(--radius-md)',
+      border: '1px solid var(--border-subtle)', overflow: 'hidden',
+    }}>
+      <div style={{
+        padding: '10px 16px', background: '#0e0e1a',
+        borderBottom: '1px solid var(--border-subtle)',
+        display: 'flex', alignItems: 'center', gap: 8,
+      }}>
+        <div style={{ display: 'flex', gap: 6 }}>
+          <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#FF5F57' }}></span>
+          <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#FEBC2E' }}></span>
+          <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#28C840' }}></span>
+        </div>
+        <span style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)', marginLeft: 8 }}>
+          next-ai - command center
+        </span>
+        <span style={{ marginLeft: 'auto', fontSize: 9, fontFamily: 'var(--font-mono)', color: 'var(--mint)', background: 'rgba(0,252,143,0.1)', padding: '2px 8px', borderRadius: 3 }}>CONNECTED</span>
+      </div>
+      <div ref={scrollRef} style={{ padding: 16, height: 260, overflowY: 'auto', fontFamily: 'var(--font-mono)', fontSize: 12, lineHeight: 1.7 }}>
+        {history.map((entry, i) => (
+          <div key={i} style={{ marginBottom: 8 }}>
+            {entry.type === 'system' && <span style={{ color: 'var(--text-tertiary)' }}>{'>'} {entry.text}</span>}
+            {entry.type === 'user' && <span style={{ color: 'var(--mint)' }}>next@ai ~ $ {entry.text}</span>}
+            {entry.type === 'response' && <pre style={{ color: 'var(--text-secondary)', whiteSpace: 'pre-wrap', margin: 0, fontFamily: 'var(--font-mono)', fontSize: 12 }}>{entry.text}</pre>}
+          </div>
+        ))}
+      </div>
+      <div style={{
+        padding: '10px 16px', borderTop: '1px solid var(--border-subtle)',
+        display: 'flex', alignItems: 'center', gap: 8,
+      }}>
+        <span style={{ color: 'var(--mint)', fontFamily: 'var(--font-mono)', fontSize: 12 }}>next@ai ~ $</span>
+        <input
+          value={input}
+          onChange={e => setInput(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && handleCommand(input)}
+          placeholder="Type a command..."
+          style={{
+            flex: 1, background: 'none', border: 'none', outline: 'none',
+            color: 'var(--text-primary)', fontFamily: 'var(--font-mono)', fontSize: 12,
+          }}
+        />
+      </div>
+    </div>
+  );
+};
+
+/* -- AI Tools Page -- */
+const AIToolsPage = ({ onNavigate }) => {
+  const [mounted, setMounted] = React.useState(false);
+  const [selectedTool, setSelectedTool] = React.useState(null);
+  React.useEffect(() => { setTimeout(() => setMounted(true), 50); }, []);
+
+  const totalOps = AI_TOOLS.reduce((s, t) => s + t.usage, 0);
+
+  const sectionStyle = {
+    background: 'var(--bg-elevated)', borderRadius: 'var(--radius-md)',
+    border: '1px solid var(--border-subtle)', padding: 22,
+  };
+
+  return (
+    <div style={{ opacity: mounted ? 1 : 0, transform: mounted ? 'none' : 'translateY(8px)', transition: 'all 0.4s ease' }}>
+      <div style={{ marginBottom: 24 }}>
+        <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 28, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+          AI <span style={{ color: 'var(--mint)' }}>Command Center</span>
+        </h1>
+        <p style={{ fontSize: 14, color: 'var(--text-secondary)', margin: '6px 0 0' }}>
+          {AI_TOOLS.length} AI modules wired into NEXT — documents, assistant, insights, automation, code and reports.
+        </p>
+      </div>
+
+      {/* Terminal */}
+      <div style={{ marginBottom: 20 }}>
+        <AITerminal />
+      </div>
+
+      {/* Tools Grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 20 }}>
+        {AI_TOOLS.map(tool => (
+          <div key={tool.id} onClick={() => setSelectedTool(selectedTool === tool.id ? null : tool.id)} style={{
+            ...sectionStyle, cursor: 'pointer', transition: 'all 0.2s',
+            border: selectedTool === tool.id ? `1px solid ${tool.color}40` : '1px solid var(--border-subtle)',
+          }} className="project-card">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ fontSize: 20, color: tool.color }}>{tool.icon}</span>
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>{tool.name}</div>
+                  <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: tool.status === 'beta' ? 'var(--gold)' : 'var(--mint)', textTransform: 'uppercase', marginTop: 2 }}>
+                    {tool.status === 'beta' ? ' BETA' : ' ACTIVE'}
+                  </div>
+                </div>
+              </div>
+              <span style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)' }}>
+                {''}
+              </span>
+            </div>
+            <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: '0 0 12px', lineHeight: 1.5 }}>{tool.desc}</p>
+
+            {/* Expanded Stats */}
+            {selectedTool === tool.id && (
+              <div style={{
+                display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, paddingTop: 12,
+                borderTop: '1px solid var(--border-subtle)', marginTop: 4,
+              }}>
+                {Object.entries(tool.stats).map(([key, val]) => (
+                  <div key={key}>
+                    <div style={{ fontSize: 9, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 3 }}>
+                      {key.replace(/([A-Z])/g, ' $1').trim()}
+                    </div>
+                    <div style={{ fontSize: 15, fontFamily: 'var(--font-display)', fontWeight: 700, color: tool.color }}>{val}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Recent AI Operations */}
+      <div style={sectionStyle}>
+        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 16 }}>Recent AI Operations</div>
+        {RECENT_OPS.length === 0 && <div style={{ padding: '8px 0 4px', color: 'var(--text-tertiary)', fontSize: 13, lineHeight: 1.5 }}>No AI operations logged yet. As Nia runs tasks across your tools, they'll appear here.</div>}
+        {RECENT_OPS.map((op, i) => (
+          <div key={i} style={{
+            display: 'flex', alignItems: 'flex-start', gap: 12, padding: '10px 0',
+            borderBottom: i < RECENT_OPS.length - 1 ? '1px solid var(--border-subtle)' : 'none',
+          }}>
+            <span style={{
+              fontSize: 8, marginTop: 5,
+              color: op.status === 'success' ? 'var(--mint)' : op.status === 'warning' ? 'var(--gold)' : 'var(--info)',
+            }}></span>
+            <div style={{ flex: 1 }}>
+              <span style={{ fontSize: 12, color: 'var(--text-primary)' }}>{op.action}</span>
+              <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)', marginTop: 2 }}>
+                {op.tool} - {op.time}
+              </div>
+            </div>
+            <span style={{
+              fontSize: 10, fontFamily: 'var(--font-mono)', fontWeight: 600,
+              color: op.status === 'success' ? 'var(--mint)' : op.status === 'warning' ? 'var(--gold)' : 'var(--info)',
+              background: op.status === 'success' ? 'var(--mint-glow)' : op.status === 'warning' ? 'var(--gold-glow)' : 'rgba(59,130,246,0.1)',
+              padding: '2px 8px', borderRadius: 3, textTransform: 'uppercase',
+            }}>{op.status}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+Object.assign(window, { AIToolsPage });
+
+
+
+
+/* sentinel-ui.jsx - local NEXT Sentinel advisory bridge */
+
+const SentinelPanel = () => {
+  const [status, setStatus] = React.useState('connecting');
+  const [advisories, setAdvisories] = React.useState([]);
+
+  React.useEffect(() => {
+    // Sentinel WebSocket only attempts connection on local development.
+    // In production (Hostinger), the backend ws-bridge is not reachable from a
+    // static host, so we stay offline and show the fallback copy.
+    // Override with ?sentinel=<host>:<port> if running a remote bridge.
+    const params = new URLSearchParams(window.location.search);
+    const override = params.get('sentinel');
+    const isLocal = ['127.0.0.1', 'localhost', ''].includes(window.location.hostname);
+    if (!isLocal && !override) {
+      setStatus('offline');
+      return;
+    }
+    const target = override
+      ? (override.startsWith('ws') ? override : `ws://${override}`)
+      : 'ws://127.0.0.1:8787';
+    let ws;
+    try {
+      ws = new WebSocket(target);
+      ws.onopen = () => setStatus('connected');
+      ws.onclose = () => setStatus('offline');
+      ws.onerror = () => setStatus('offline');
+      ws.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        if (data.type === 'sentinel.advisory') {
+          setAdvisories((items) => [data.advisory, ...items].slice(0, 6));
+        }
+      };
+    } catch (error) {
+      setStatus('offline');
+    }
+    return () => ws && ws.close();
+  }, []);
+
+  const latest = advisories[0];
+  return (
+    <div style={{
+      background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)',
+      borderRadius: 'var(--radius-md)', padding: 18, marginBottom: 20
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>NEXT Nia</div>
+        <span style={{
+          fontFamily: 'var(--font-mono)', fontSize: 10,
+          color: status === 'connected' ? 'var(--mint)' : 'var(--gold)',
+          textTransform: 'uppercase'
+        }}>{status}</span>
+      </div>
+      {latest ? (
+        <div>
+          <div style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 600, marginBottom: 6 }}>{latest.title}</div>
+          <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5 }}>{latest.message}</div>
+        </div>
+      ) : (
+        <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+          Monitoring local health, financial signals, and operational thresholds from inside NEXT OS.
+        </div>
+      )}
+    </div>
+  );
+};
+
+const TEMPLATE_CARDS = [
+  { title: 'Schools', type: 'K-12', profile: 'templates/schools/sample-school-profile.json', target: 'data/onboarding/st-marys-demo' },
+  { title: 'Churches', type: 'Church', profile: 'templates/churches/sample-church-profile.json', target: 'data/onboarding/grace-chapel-demo' },
+  { title: 'NGOs', type: 'Nonprofit', profile: 'templates/ngos/sample-ngo-profile.json', target: 'data/onboarding/hope-program-demo' },
+  { title: 'Companies', type: 'Business', profile: 'templates/companies/sample-company-profile.json', target: 'data/onboarding/next-services-demo' },
+  { title: 'Organisations', type: 'General', profile: 'templates/organisations/sample-organisation-profile.json', target: 'data/onboarding/community-association-demo' },
+];
+
+const SentinelButton = ({ children, onClick }) => (
+  <button onClick={onClick} style={{
+    background: 'var(--mint)', color: '#140035', border: 'none',
+    borderRadius: 'var(--radius-sm)', padding: '9px 14px',
+    fontSize: 12, fontWeight: 700, cursor: 'pointer'
+  }}>
+    {children}
+  </button>
+);
+
+const SentinelPage = ({ onNavigate }) => {
+  const [mounted, setMounted] = React.useState(false);
+  React.useEffect(() => { setTimeout(() => setMounted(true), 50); }, []);
+
+  const sectionStyle = {
+    background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)',
+    borderRadius: 'var(--radius-md)', padding: 22
+  };
+  const itemStyle = {
+    padding: '12px 0', borderBottom: '1px solid var(--border-subtle)',
+    color: 'var(--text-secondary)', fontSize: 13, lineHeight: 1.5
+  };
+
+  return (
+    <div style={{ opacity: mounted ? 1 : 0, transform: mounted ? 'none' : 'translateY(8px)', transition: 'all 0.4s ease' }}>
+      <div style={{ marginBottom: 24 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16 }}>
+          <div>
+            <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 28, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+              NEXT <span style={{ color: 'var(--mint)' }}>Nia</span>
+            </h1>
+            <p style={{ fontSize: 14, color: 'var(--text-secondary)', margin: '6px 0 0', lineHeight: 1.5 }}>
+              Embedded local supervisory agent for system health, financial intelligence, and board-ready advisories.
+            </p>
+          </div>
+          <SentinelButton onClick={() => onNavigate && onNavigate('onboarding')}>Open Onboarding</SentinelButton>
+        </div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 16 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div style={sectionStyle}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 10 }}>Runtime Loops</div>
+            {[
+              'Observability Loop: Rust daemon writes signed CPU, memory, storage, and database integrity logs.',
+              'Reasoning Loop: local LLM prompt engine turns raw state into empathetic institutional advisories.',
+              'Action Loop: sandboxed repair engine runs approved recovery actions after preflight checks.'
+            ].map(text => <div key={text} style={itemStyle}>{text}</div>)}
+          </div>
+          <div style={sectionStyle}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 10 }}>Governance</div>
+            {[
+              'All data remains local to NEXT OS.',
+              'Financial recommendations require human board approval.',
+              'Recovery actions are least-privilege and restricted to approved targets.',
+              'Every failure, recovery action, and advisory is recorded in the local SQLite audit log.'
+            ].map(text => <div key={text} style={itemStyle}>{text}</div>)}
+          </div>
+        </div>
+        <div>
+          <SentinelPanel />
+          <div style={sectionStyle}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 10 }}>Supported Verticals</div>
+            {['K-12 schools', 'Higher education institutions', 'Churches', 'NGOs and nonprofits', 'Companies', 'Organisations'].map(text => (
+              <div key={text} style={{ ...itemStyle, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--mint)', display: 'inline-block' }}></span>
+                {text}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const OnboardingPage = () => {
+  const [mounted, setMounted] = React.useState(false);
+  React.useEffect(() => { setTimeout(() => setMounted(true), 50); }, []);
+
+  const sectionStyle = {
+    background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)',
+    borderRadius: 'var(--radius-md)', padding: 22
+  };
+
+  return (
+    <div style={{ opacity: mounted ? 1 : 0, transform: mounted ? 'none' : 'translateY(8px)', transition: 'all 0.4s ease' }}>
+      <div style={{ marginBottom: 24 }}>
+        <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 28, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+          Client <span style={{ color: 'var(--mint)' }}>Onboarding</span>
+        </h1>
+        <p style={{ fontSize: 14, color: 'var(--text-secondary)', margin: '6px 0 0', lineHeight: 1.5 }}>
+          Start from a template, change the client profile, then generate a local Sentinel bundle.
+        </p>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14, marginBottom: 18 }}>
+        {TEMPLATE_CARDS.map(card => (
+          <div key={card.title} style={sectionStyle}>
+            <div style={{ fontSize: 11, color: 'var(--mint)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', marginBottom: 8 }}>{card.type}</div>
+            <div style={{ fontSize: 17, color: 'var(--text-primary)', fontWeight: 700, marginBottom: 10 }}>{card.title}</div>
+            <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: 14 }}>
+              Profile: <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-primary)' }}>{card.profile}</span>
+            </div>
+            <div style={{ fontSize: 11, color: 'var(--text-tertiary)', lineHeight: 1.6 }}>
+              Output: <span style={{ fontFamily: 'var(--font-mono)' }}>{card.target}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div style={sectionStyle}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 12 }}>Onboarding Command</div>
+        <pre style={{
+          margin: 0, padding: 14, background: 'var(--bg-deep)', borderRadius: 'var(--radius-sm)',
+          color: 'var(--text-secondary)', whiteSpace: 'pre-wrap', fontSize: 12, lineHeight: 1.7,
+          fontFamily: 'var(--font-mono)'
+        }}>{`npm.cmd run onboard -- templates/schools/sample-school-profile.json
+npm.cmd run aggregator -- data/onboarding/st-marys-demo`}</pre>
+      </div>
+    </div>
+  );
+};
+
+Object.assign(window, { SentinelPanel, SentinelPage, OnboardingPage });
+
+
+
+
+/* os-fleet.jsx — Mothership Bridge.
+   The NEXT team's view of every client OS under Sentinel supervision.
+   Vertical-agnostic by design. "VIEW DETAILS →" opens the vertical-specific
+   prototype when wired.
+*/
+
+const VERTICAL_LABELS = {
+  school: 'Schools',
+  hospital: 'Hospitals',
+  home: 'Homes',
+  ngo: 'NGOs',
+  company: 'Companies',
+  church: 'Churches',
+  organisation: 'Organisations',
+};
+
+const HEALTH_COLOR = {
+  healthy: '#00FC8F',
+  advisory: '#FFB400',
+  repair: '#FF4757',
+  unknown: 'rgba(255,255,255,0.4)',
+};
+
+const HEALTH_LABEL = {
+  healthy: 'Healthy',
+  advisory: 'Advisory',
+  repair: 'Repair in progress',
+  unknown: 'No signal',
+};
+
+function fleetFmtCurrency(amount, currency) {
+  const abs = Math.abs(amount);
+  if (abs >= 1e9) return (amount / 1e9).toFixed(2) + 'B ' + currency;
+  if (abs >= 1e6) return (amount / 1e6).toFixed(1) + 'M ' + currency;
+  if (abs >= 1e3) return (amount / 1e3).toFixed(0) + 'K ' + currency;
+  return String(Math.round(amount)) + ' ' + currency;
+}
+
+const FilterChip = ({ label, active, onClick, count }) => (
+  <button
+    onClick={onClick}
+    style={{
+      background: active ? 'var(--mint-glow)' : 'var(--bg-elevated)',
+      border: '1px solid ' + (active ? 'var(--mint)' : 'var(--border-subtle)'),
+      color: active ? 'var(--mint)' : 'var(--text-secondary)',
+      padding: '8px 14px',
+      borderRadius: 'var(--radius-sm)',
+      fontSize: 12,
+      fontFamily: 'var(--font-mono)',
+      letterSpacing: 1,
+      cursor: 'pointer',
+      transition: 'all 0.2s ease',
+    }}
+  >
+    {label.toUpperCase()} {typeof count === 'number' && (
+      <span style={{ marginLeft: 6, opacity: 0.6 }}>{count}</span>
+    )}
+  </button>
+);
+
+const TenantCard = ({ tenant, onOpen, onRemove }) => {
+  const healthColor = HEALTH_COLOR[tenant.health] || HEALTH_COLOR.unknown;
+  const gap = (tenant.kpis ? tenant.kpis.expenses : 0) - (tenant.kpis ? tenant.kpis.revenue : 0);
+  const hasLeak = gap > 0;
+  const hasKpis = tenant.kpis && (tenant.kpis.revenue || tenant.kpis.expenses);
+
+  return (
+    <div
+      className="project-card"
+      style={{
+        background: 'var(--bg-elevated)',
+        border: '1px solid var(--border-subtle)',
+        borderRadius: 'var(--radius-lg)',
+        padding: 22,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 14,
+        transition: 'all 0.2s ease',
+        position: 'relative',
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+            <span style={{
+              width: 8, height: 8, borderRadius: '50%', background: healthColor, flexShrink: 0,
+              boxShadow: '0 0 8px ' + healthColor + '66',
+            }} />
+            <span style={{
+              fontSize: 16, fontWeight: 600, color: 'var(--text-primary)',
+              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+            }}>{tenant.name}</span>
+            {tenant.addedByUser && (
+              <span style={{
+                fontSize: 9, fontFamily: 'var(--font-mono)', letterSpacing: 1,
+                color: 'var(--mint)', padding: '2px 6px', borderRadius: 4,
+                background: 'var(--mint-glow)', border: '1px solid var(--mint)',
+              }}>NEW</span>
+            )}
+          </div>
+          <div style={{ fontSize: 11, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', letterSpacing: 1 }}>
+            {VERTICAL_LABELS[tenant.vertical] || tenant.vertical} · {tenant.country}
+          </div>
+        </div>
+        <div style={{
+          fontSize: 10, fontFamily: 'var(--font-mono)', letterSpacing: 1,
+          color: healthColor, textTransform: 'uppercase',
+          padding: '4px 8px', borderRadius: 4, background: healthColor + '12',
+          border: '1px solid ' + healthColor + '40',
+          flexShrink: 0,
+        }}>
+          {HEALTH_LABEL[tenant.health]}
+        </div>
+      </div>
+
+      <div style={{
+        background: 'var(--bg-surface)',
+        border: '1px solid var(--border-subtle)',
+        borderRadius: 'var(--radius-md)',
+        padding: 14,
+        minHeight: 78,
+      }}>
+        {tenant.latest ? (
+          <>
+            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>
+              {tenant.latest.title}
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.45 }}>
+              {tenant.latest.summary}
+            </div>
+          </>
+        ) : (
+          <div style={{ fontSize: 13, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ color: 'var(--mint)' }}>✓</span>
+            {tenant.health === 'unknown' ? 'Awaiting first signal.' : 'All systems clear. No open advisories.'}
+          </div>
+        )}
+      </div>
+
+      {hasKpis ? (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+          <div>
+            <div style={{ fontSize: 10, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', letterSpacing: 1 }}>REVENUE</div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', marginTop: 2 }}>
+              {fleetFmtCurrency(tenant.kpis.revenue, tenant.currency)}
+            </div>
+          </div>
+          <div>
+            <div style={{ fontSize: 10, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', letterSpacing: 1 }}>EXPENSES</div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', marginTop: 2 }}>
+              {fleetFmtCurrency(tenant.kpis.expenses, tenant.currency)}
+            </div>
+          </div>
+          <div>
+            <div style={{ fontSize: 10, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', letterSpacing: 1 }}>
+              {hasLeak ? 'GAP' : 'SURPLUS'}
+            </div>
+            <div style={{
+              fontSize: 14, fontWeight: 600, marginTop: 2,
+              color: hasLeak ? 'var(--danger)' : 'var(--mint)',
+            }}>
+              {fleetFmtCurrency(Math.abs(gap), tenant.currency)}
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div style={{ fontSize: 12, color: 'var(--text-tertiary)', fontStyle: 'italic' }}>
+          No KPIs yet. Will appear when the first health signal arrives.
+        </div>
+      )}
+
+      <div style={{
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        paddingTop: 8, borderTop: '1px solid var(--border-subtle)',
+      }}>
+        <div style={{ fontSize: 11, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)' }}>
+          Updated {tenant.lastSignalAt}
+        </div>
+        <div style={{ display: 'flex', gap: 12 }}>
+          {tenant.addedByUser && onRemove && (
+            <button
+              onClick={() => onRemove(tenant)}
+              style={{
+                background: 'transparent', border: 'none', color: 'var(--text-tertiary)',
+                fontSize: 11, fontFamily: 'var(--font-mono)', letterSpacing: 1,
+                cursor: 'pointer', padding: 0,
+              }}
+            >REMOVE</button>
+          )}
+          <button
+            onClick={() => onOpen(tenant)}
+            style={{
+              background: 'transparent', border: 'none', color: 'var(--mint)',
+              fontSize: 12, fontFamily: 'var(--font-mono)', letterSpacing: 1,
+              cursor: 'pointer', padding: 0,
+            }}
+          >VIEW DETAILS →</button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const AddTenantModal = ({ onSave, onClose }) => {
+  const [name, setName] = React.useState('');
+  const [vertical, setVertical] = React.useState('school');
+  const [country, setCountry] = React.useState('Uganda');
+  const [currency, setCurrency] = React.useState('UGX');
+  const [revenue, setRevenue] = React.useState('');
+  const [expenses, setExpenses] = React.useState('');
+  const [submitting, setSubmitting] = React.useState(false);
+
+  const canSubmit = name.trim().length >= 2 && !submitting;
+
+  const handleSubmit = (e) => {
+    if (e) e.preventDefault();
+    if (!canSubmit) return;
+    setSubmitting(true);
+    onSave({
+      name: name.trim(),
+      vertical,
+      country: country.trim() || 'Uganda',
+      currency: currency.trim() || 'UGX',
+      revenue: revenue ? Number(revenue) : 0,
+      expenses: expenses ? Number(expenses) : 0,
+    });
+  };
+
+  const inputStyle = {
+    width: '100%', background: 'var(--bg-deep)', border: '1px solid var(--border-default)',
+    borderRadius: 'var(--radius-sm)', padding: '10px 12px',
+    color: 'var(--text-primary)', fontSize: 13, fontFamily: 'var(--font-body)',
+    outline: 'none',
+  };
+  const labelStyle = {
+    fontSize: 10, fontFamily: 'var(--font-mono)', letterSpacing: 1.5,
+    color: 'var(--text-tertiary)', marginBottom: 6, display: 'block',
+    textTransform: 'uppercase',
+  };
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: 'fixed', inset: 0, background: 'rgba(6,0,18,0.85)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        zIndex: 1000, backdropFilter: 'blur(8px)',
+      }}
+    >
+      <form
+        onClick={(e) => e.stopPropagation()}
+        onSubmit={handleSubmit}
+        style={{
+          background: 'var(--bg-primary)',
+          border: '1px solid var(--border-default)',
+          borderRadius: 'var(--radius-lg)',
+          padding: 32, width: '100%', maxWidth: 520, maxHeight: '90vh',
+          overflowY: 'auto',
+          boxShadow: '0 30px 80px rgba(0,0,0,0.5), 0 0 40px rgba(0,252,143,0.08)',
+        }}
+      >
+        <div style={{ marginBottom: 24 }}>
+          <div style={{
+            fontSize: 11, fontFamily: 'var(--font-mono)', letterSpacing: 2,
+            color: 'var(--text-tertiary)', marginBottom: 6,
+          }}>ONBOARD A NEW TENANT</div>
+          <h2 style={{
+            fontFamily: 'var(--font-display)', fontSize: 26, fontWeight: 700,
+            color: 'var(--text-primary)', margin: 0,
+          }}>Add to the Fleet</h2>
+          <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 8, lineHeight: 1.5 }}>
+            New ship enters supervision immediately. KPIs hydrate when the first health signal arrives.
+          </p>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div>
+            <label style={labelStyle}>Institution name *</label>
+            <input style={inputStyle} value={name} onChange={(e) => setName(e.target.value)}
+              placeholder="e.g. St. Mary's Secondary School" autoFocus />
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div>
+              <label style={labelStyle}>Vertical *</label>
+              <select style={inputStyle} value={vertical} onChange={(e) => setVertical(e.target.value)}>
+                {Object.keys(VERTICAL_LABELS).map(k => (
+                  <option key={k} value={k}>{VERTICAL_LABELS[k]}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label style={labelStyle}>Country</label>
+              <input style={inputStyle} value={country} onChange={(e) => setCountry(e.target.value)} />
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr 1fr', gap: 12 }}>
+            <div>
+              <label style={labelStyle}>Currency</label>
+              <input style={inputStyle} value={currency} onChange={(e) => setCurrency(e.target.value)} />
+            </div>
+            <div>
+              <label style={labelStyle}>Revenue (optional)</label>
+              <input style={inputStyle} type="number" min="0" value={revenue}
+                onChange={(e) => setRevenue(e.target.value)} placeholder="0" />
+            </div>
+            <div>
+              <label style={labelStyle}>Expenses (optional)</label>
+              <input style={inputStyle} type="number" min="0" value={expenses}
+                onChange={(e) => setExpenses(e.target.value)} placeholder="0" />
+            </div>
+          </div>
+        </div>
+
+        <div style={{
+          marginTop: 28, paddingTop: 20, borderTop: '1px solid var(--border-subtle)',
+          display: 'flex', justifyContent: 'flex-end', gap: 10,
+        }}>
+          <button type="button" onClick={onClose} style={{
+            background: 'transparent', border: '1px solid var(--border-default)',
+            color: 'var(--text-secondary)', padding: '10px 18px',
+            borderRadius: 'var(--radius-sm)', fontSize: 13, cursor: 'pointer',
+            fontFamily: 'var(--font-body)',
+          }}>Cancel</button>
+          <button type="submit" disabled={!canSubmit} style={{
+            background: canSubmit ? 'var(--mint)' : 'var(--bg-elevated)',
+            border: '1px solid ' + (canSubmit ? 'var(--mint)' : 'var(--border-default)'),
+            color: canSubmit ? 'var(--text-inverse)' : 'var(--text-tertiary)',
+            padding: '10px 22px', borderRadius: 'var(--radius-sm)',
+            fontSize: 13, fontWeight: 600, fontFamily: 'var(--font-body)',
+            cursor: canSubmit ? 'pointer' : 'not-allowed',
+          }}>{submitting ? 'Onboarding...' : 'Onboard tenant →'}</button>
+        </div>
+      </form>
+    </div>
+  );
+};
+
+const FleetPage = ({ onNavigate }) => {
+  const [tenants, setTenants] = React.useState(() =>
+    (window.OS_DATA && window.OS_DATA.getTenants) ? window.OS_DATA.getTenants() : []
+  );
+  const [filter, setFilter] = React.useState('all');
+  const [showAddModal, setShowAddModal] = React.useState(false);
+
+  // Pull the LIVE fleet (Supabase) and re-render the moment it arrives — no more
+  // "demo data until I reload again".
+  React.useEffect(() => {
+    let alive = true;
+    const sync = () => { try { if (alive && window.OS_DATA && window.OS_DATA.getTenants) setTenants(window.OS_DATA.getTenants().slice()); } catch (e) {} };
+    window.addEventListener('osdata:fleet', sync);
+    try { if (window.OS_DATA && window.OS_DATA.refreshFleet) window.OS_DATA.refreshFleet().then(sync).catch(function(){}); } catch (e) {}
+    const t1 = setTimeout(sync, 800);
+    const t2 = setTimeout(sync, 2000);
+    return () => { alive = false; window.removeEventListener('osdata:fleet', sync); clearTimeout(t1); clearTimeout(t2); };
+  }, []);
+
+  const filtered = filter === 'all' ? tenants : tenants.filter(t => t.vertical === filter);
+
+  const counts = {
+    total: tenants.length,
+    advisories: tenants.filter(t => t.health === 'advisory').length,
+    critical: tenants.filter(t => t.health === 'repair').length,
+  };
+  const verticalCounts = {};
+  tenants.forEach(t => { verticalCounts[t.vertical] = (verticalCounts[t.vertical] || 0) + 1; });
+
+  const handleOpen = (tenant) => {
+    // Individual childcare centers open in standalone app
+    if (tenant.vertical === 'childcare') {
+      var _c = 'prototypes/childcare/index.html?t=' + encodeURIComponent(tenant.id) + '&n=' + encodeURIComponent(tenant.name || '');
+      window.open(_c, '_blank', 'noopener,noreferrer');
+      return;
+    }
+    // Schools open their own branded Schools OS (one template, branded per tenant).
+    if (tenant.vertical === 'school') {
+      var _b = 'prototypes/schools/peak-primary/login.html?t=' + encodeURIComponent(tenant.id) + '&n=' + encodeURIComponent(tenant.name || '') + (tenant.primaryColor ? '&c=' + encodeURIComponent(tenant.primaryColor) : '') + (tenant.logoUrl ? '&l=' + encodeURIComponent(tenant.logoUrl) : '');
+      window.open(_b, '_blank', 'noopener,noreferrer');
+      return;
+    }
+    // If the tenant has a wired prototype, open it in a new tab.
+    if (tenant.prototypeUrl) {
+      window.open(tenant.prototypeUrl, '_blank', 'noopener,noreferrer');
+      return;
+    }
+    alert(
+      tenant.name + '\n\n' +
+      'The ' + (VERTICAL_LABELS[tenant.vertical] || tenant.vertical) + ' OS prototype ' +
+      'will open here when wired. For now, this is the fleet-level view only.'
+    );
+  };
+
+  const handleAdd = (input) => {
+    if (window.OS_DATA && window.OS_DATA.addTenant) {
+      const updated = window.OS_DATA.addTenant(input);
+      setTenants(updated);
+    }
+    setShowAddModal(false);
+  };
+
+  const handleRemove = (tenant) => {
+    if (!window.confirm('Remove ' + tenant.name + ' from the fleet?')) return;
+    if (window.OS_DATA && window.OS_DATA.removeTenant) {
+      const updated = window.OS_DATA.removeTenant(tenant.id);
+      setTenants(updated);
+    }
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 20, flexWrap: 'wrap' }}>
+        <div>
+          <div style={{
+            fontSize: 11, fontFamily: 'var(--font-mono)', letterSpacing: 2,
+            color: 'var(--text-tertiary)', marginBottom: 6,
+          }}>MOTHERSHIP BRIDGE</div>
+          <h1 style={{
+            fontFamily: 'var(--font-display)', fontSize: 36, fontWeight: 700,
+            color: 'var(--text-primary)', lineHeight: 1.1, margin: 0,
+          }}>The Fleet</h1>
+          <div style={{ marginTop: 10, color: 'var(--text-secondary)', fontSize: 14, display: 'flex', gap: 18, flexWrap: 'wrap' }}>
+            <span><strong style={{ color: 'var(--text-primary)' }}>{counts.total}</strong> tenants under supervision</span>
+            <span style={{ color: 'rgba(255,255,255,0.25)' }}>·</span>
+            <span><strong style={{ color: 'var(--gold)' }}>{counts.advisories}</strong> open advisories</span>
+            <span style={{ color: 'rgba(255,255,255,0.25)' }}>·</span>
+            <span><strong style={{ color: counts.critical > 0 ? 'var(--danger)' : 'var(--text-primary)' }}>{counts.critical}</strong> critical</span>
+          </div>
+        </div>
+        <button
+          onClick={() => setShowAddModal(true)}
+          style={{
+            background: 'var(--mint)', color: 'var(--text-inverse)',
+            border: 'none', padding: '12px 22px',
+            borderRadius: 'var(--radius-sm)', fontSize: 13, fontWeight: 600,
+            fontFamily: 'var(--font-body)', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', gap: 8,
+            boxShadow: '0 6px 24px rgba(0,252,143,0.25)',
+          }}
+        >
+          <span style={{ fontSize: 18, lineHeight: 1, marginTop: -2 }}>+</span> Add Tenant
+        </button>
+      </div>
+
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <FilterChip label="All" active={filter === 'all'} onClick={() => setFilter('all')} count={counts.total} />
+        {Object.keys(VERTICAL_LABELS).map(v => verticalCounts[v] ? (
+          <FilterChip key={v} label={VERTICAL_LABELS[v]} active={filter === v} onClick={() => setFilter(v)} count={verticalCounts[v]} />
+        ) : null)}
+      </div>
+
+      {filtered.length === 0 ? (
+        <div style={{
+          background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)',
+          borderRadius: 'var(--radius-lg)', padding: 40, textAlign: 'center',
+          color: 'var(--text-secondary)',
+        }}>
+          {filter === 'all'
+            ? 'No tenants yet. Click "Add Tenant" to onboard your first one.'
+            : 'No tenants in this vertical yet.'}
+        </div>
+      ) : (
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))',
+          gap: 16,
+        }}>
+          {filtered.map(t => (
+            <TenantCard key={t.id} tenant={t} onOpen={handleOpen} onRemove={handleRemove} />
+          ))}
+        </div>
+      )}
+
+      <div style={{
+        fontSize: 11, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)',
+        textAlign: 'center', marginTop: 12, letterSpacing: 1,
+      }}>
+        FLEET HYDRATES FROM OS_DATA · USER-ADDED TENANTS PERSIST IN LOCALSTORAGE · SUPABASE WHEN WIRED
+      </div>
+
+      {showAddModal && (
+        <AddTenantModal onSave={handleAdd} onClose={() => setShowAddModal(false)} />
+      )}
+    </div>
+  );
+};
+
+Object.assign(window, { FleetPage, TenantCard, AddTenantModal, VERTICAL_LABELS });
+
+  
+
+
+/* os-agent.jsx — Sentinel: Chief of Staff WITH HANDS (Phase 2).
+   Tools: read_fleet, read_tenant, read_finance, read_projects,
+   evaluate_health, draft_message. Read-only or draft-only — never sends.
+*/
+(function () {
+  const KEY_API_KEY      = 'nextos.agent.apiKey.v1';
+  const KEY_PROVIDER     = 'nextos.agent.provider.v1';
+  const KEY_CONVERSATION = 'nextos.agent.conversation.v2';
+  const DEFAULT_PROVIDER = 'nia-free';
+  const DEFAULT_MODEL = { anthropic: 'claude-sonnet-4-5-20250929', openai: 'gpt-4o', 'nia-free': 'llama-3.3-70b' };
+  const TOOL_LOOP_MAX = 5;
+  // Free-tier Nia worker (Cloudflare Workers AI · Llama 3.3 70B · no key needed).
+  // Override at runtime: window.NEXT_OS_SENTINEL_ENDPOINT = 'https://...';
+  const NIA_FREE_ENDPOINT = 'https://nextos-sentinel.nextafricaai.workers.dev';
+
+  const SYSTEM_PROMPT = `You are Nia, Chief of Staff for Hudson Tumusiime — founder of NEXT (Uganda). You live inside NEXT OS.
+
+FIRST, ON EVERY MESSAGE, DECIDE: does this actually need live OS data or an action?
+- NO — greetings ("hi", "hello", "how are you"), small talk, thanks, opinions, advice, brainstorming, explanations, general questions → just reply naturally and warmly in 1-3 sentences. Call NO tool. NEVER call read_fleet or read_tenant for a greeting or a chat.
+- YES — he asks about the fleet, a specific school, money/fees, analytics, SEO, a project's status, OR wants something drafted/sent/recorded → silently call the right tool(s), then answer.
+Default to conversation. Reach for a tool only when the request truly needs data you don't have or an action only a tool can perform.
+
+PERSON
+Hudson: visionary, not a developer. Talks in CEO terms. Wants direct answers, not consulting jargon. Runs Charis Creations alongside NEXT.
+
+HARD RULES — VIOLATE NONE
+1. Never claim a tenant/fleet/money fact you didn't read from a tool. But do NOT call a tool for conversation — only when the request needs live data or an action (see FIRST decision above).
+2. Tenant IDs are slugs (e.g. peak-primary, bare-foot). If you do not already know a school's id, call read_fleet FIRST — it lists every tenant with its id and name — then match the name Hudson gave ("bare foot" becomes "bare-foot", "Peak" becomes "peak-primary") and use that id with read_tenant. NEVER ask Hudson for the id, and NEVER say you lack details for a clear question about a school — look it up via read_fleet. Never invent an id.
+3. NEVER use the word "sent" unless a tool returned {"sent": true}. After draft_message → say "Draft ready." After open_whatsapp → say "WhatsApp opened — tap Send to deliver." After send_whatsapp returning {sent:true} → only then say "Sent."
+4. You cannot move money, sign contracts, or send anything outside the OS without a tool. No fictional actions.
+5. NEVER narrate your own actions ("I'll call the tool", "I'm waiting for the response", "let me check"). Just call the tool silently, then respond with the answer when you have it. Hudson sees the tool chips automatically — he doesn't need a play-by-play.
+
+VOICE
+Short. Direct. Warm. Money first, judgment second. African business context (UGX, M-Pesa, WhatsApp dominant). No "as an AI" disclaimers, no excessive caveats.
+
+CONVERSATION — not everything needs a tool
+- Greetings, opinions, strategy, brainstorming, advice, explanations, "what do you think" — just answer directly and intelligently in Hudson's voice. Do NOT force a tool call or dump OS data when he is only talking.
+- Call a tool ONLY when the request needs live OS data (fleet, a specific tenant, analytics, SEO, a project's status) or an action (draft/send a message, issue a receipt, check a site). When unsure, give a sharp short answer first and offer to pull the numbers.
+- Write cleanly every time: complete sentences, correct grammar, no typos, no half-finished thoughts. Quality over length — lead with the answer, then one or two supporting lines.
+- If you are not sure of a fact, say so plainly instead of guessing. Never pad with filler.
+- Be a real chief of staff: warm, decisive, proactive. Think like someone who runs the business with Hudson, not a chatbot.
+
+DEFAULTS
+- "How's the fleet?" → read_fleet → 3-line summary, names + flags only.
+- "What's at Peak Primary?" → read_tenant("peak-primary") → THEN evaluate_health("peak-primary") → reply with the verticalKpis (286 students, 71% collection, 3 overdue, 12 at-risk).
+- "How is <school> doing / this month" → if unsure of the id, read_fleet → find the tenant whose name matches → read_tenant(id) → evaluate_health(id) → short plain summary (students, fees, attendance, flags). Never ask for clarification on this.
+- "Draft / write a WhatsApp" → draft_message first → THEN write the draft in a code block. Stop. Ask Hudson if he wants you to open WhatsApp.
+- "Send a WhatsApp to <number>" → open_whatsapp(phone, message) (Path A). If Hudson says "actually send" or "use Cloud API", call send_whatsapp.
+- "Notify me about X" → notify(severity, title, body).
+- "What do people search to find <site> / SEO keywords / Search Console" -> read_projects (domain) -> read_search_console("sc-domain:"+domain) -> give top terms + striking-distance keywords + one page change.\n- "How is <site> performing / traffic / visitors this week" -> read_projects (get domain) -> read_analytics(site) -> summarize + 1-2 growth tips.\n- "Improve SEO / how do I rank better / audit <site>" -> read_projects (get url) -> seo_audit(url) -> give the score + top 3 fixes with the exact change.\n- "Is <project> up? / watch <site> / check the domain" → read_projects (get the url/domain) → check_project(url, domain) → report up/down + days to domain expiry. If down or expiring, state it and DRAFT the fix for Hudson to approve; never claim you fixed it yourself.\n- "Record a payment / issue a receipt for <school>" → issue_receipt(tenant_id, amount, student_name, guardian_phone?). Then tell Hudson the receipt number; if a guardian phone was given, offer to open WhatsApp to send it. The receipt is stored and downloadable as a branded PDF in that school Fees then Receipts.
+
+WHATSAPP TOOLS
+- open_whatsapp(phone, message): opens WhatsApp on Hudson's device, message pre-filled. Free. DEFAULT.
+- send_whatsapp(phone, message): real auto-send via Meta Cloud API. Use only when Hudson asked for auto-send explicitly.
+- Phone format: digits only, country code, no +. Uganda example: 256772123456.
+- If you don't have a number, ASK Hudson. Never guess.
+
+PEAK PRIMARY SCHOOL (your main wired client)
+286 students. 38 teachers. 14 streams (P1-P7 · Vigilant + Prudent). Term 2 Week 6. Currently: 71% fee collection, 3 accounts overdue 30+ days (1.08M UGX outstanding), 12 at-risk students, 4 enrollment inquiries waiting. Open the live prototype at prototypes/schools/peak-primary/index.html.
+
+EXAMPLES — match these patterns
+
+User: "What's happening at Peak Primary?"
+You: [call read_tenant("peak-primary")] [call evaluate_health("peak-primary")] "Term 2 Week 6, three signals worth noting: (1) Fee collection at 71% — 3 accounts overdue more than 30 days (1.08M UGX). (2) Weekly attendance 88%, twelve students flagged at-risk. (3) Four new P1/P3 enrollment inquiries waiting in WhatsApp. Want me to draft the reminder to the three overdue guardians?"
+
+User: "Yes draft it."
+You: [call draft_message("whatsapp", "Guardian", "Gentle reminder of overdue Term 2 fees")] "Draft ready:" [code block with warm Luganda-English message] "Want me to open WhatsApp to send it to Mrs. Asiimwe?"
+
+User: "Send a WhatsApp to 256772111222 saying we have a meeting at 4pm."
+You: [call open_whatsapp("256772111222", "Quick note — meeting at 4pm today. Confirm?")] "WhatsApp opened with the draft. Tap Send when ready."
+
+ADVISORY VOICE — this is HOW you advise; match it exactly
+When asked for advice, marketing help, or a rewrite: lead with the point, name the REAL problem (usually one layer beneath the surface complaint), give the highest-leverage fix, then close with ONE concrete next step. Plain words beat jargon — never use "leverage", "synergy", "disrupt", "innovate", "facilitate", "optimize", "best-in-class". Swap corporate verbs for concrete ones (implement to wire, facilitate to run, leverage to use). Warm, never cold: acknowledge the person before the ask. Use an analogy that paints a picture. Money and outcomes first. Depth in simple language — profound but accessible, never academic or preachy.
+
+User: "A school has 180 students and tracks fees on paper. Which NEXT tier, and why?"
+You: "Builder. Here is the math, not the pitch: at 180 students a bursar burns about 12 hours a week chasing and reconciling fees by hand — roughly 50 hours a month. Builder gives them the fee ledger, automated reminders, and me watching collection daily; it pays for itself inside two weeks of saved time, before you count the fees it recovers. Catalyst would feel cheap but leave them doing manual reconciliation — do not undersell them into frustration. Next step: get one photo of their fee book and I will turn it into a one-page before/after for the head teacher."
+
+User: "A church wants more young people attending. Advise them."
+You: "Youth do not leave because the message is wrong — they leave because nothing reaches them between Sundays. The fix is not a louder service, it is a midweek signal: a short WhatsApp from a leader they trust, a clip from Sunday, one question that invites a reply. Presence beats programs. Next step: pick three youth leaders and give them one message to send this Wednesday."
+
+User: "Rewrite: 'Our organization seeks to facilitate the optimization of your operational efficiencies.'"
+You: "'We help you get more done with less stress.' Nine plain words beat the jargon every time. Next step: show one example of exactly how."
+`;
+
+  const TOOLS = [
+    { name: 'read_fleet', description: 'Returns current state of every tenant under supervision: id, name, vertical, health, KPIs, latest advisory.',
+      input_schema: { type: 'object', properties: {}, required: [] } },
+    { name: 'read_tenant', description: 'Full details for one tenant by id (slug).',
+      input_schema: { type: 'object', properties: { tenant_id: { type: 'string', description: 'Tenant slug, e.g. st-marys-demo' } }, required: ['tenant_id'] } },
+    { name: 'read_finance', description: "NEXT's own finance: revenue/expense series + recent transactions.",
+      input_schema: { type: 'object', properties: {}, required: [] } },
+    { name: 'read_projects', description: 'The portfolio of projects/websites/OS (NEXT OS, Schools OS, Purity Mukisa, Charis, Fathers Arise...) with name, kind, status, url, domain, builtDate. Use this to find a project URL/domain before check_project.',
+      input_schema: { type: 'object', properties: {}, required: [] } },
+    { name: 'evaluate_health', description: 'Threshold checks for one tenant — returns concerns array.',
+      input_schema: { type: 'object', properties: { tenant_id: { type: 'string' } }, required: ['tenant_id'] } },
+    { name: 'draft_message', description: 'Signal you are about to compose a draft. Compose the actual text in your next reply as a fenced code block. Never sends.',
+      input_schema: { type: 'object', properties: {
+        channel: { type: 'string', enum: ['whatsapp', 'email', 'in-app', 'sms'] },
+        recipient_role: { type: 'string', description: 'e.g. Head Teacher, Pastor, Donor' },
+        intent: { type: 'string', description: 'One-line goal' }
+      }, required: ['channel', 'recipient_role', 'intent'] } },
+    { name: 'notify', description: 'Push a pop-up notification toast to Hudson inside NEXT OS. Use this when you spot something worth surfacing right now (overdue fees, attendance dip, top performers, deal closing, etc.). Severity guidance: info = signal, success = good news, warn = needs attention soon, critical = act now.',
+      input_schema: { type: 'object', properties: {
+        severity: { type: 'string', enum: ['info', 'success', 'warn', 'critical'] },
+        title:    { type: 'string', description: 'One short line, < 60 chars' },
+        body:     { type: 'string', description: 'One sentence of context, < 160 chars' },
+        tenant_id:{ type: 'string', description: 'Optional tenant slug if it relates to a fleet member' }
+      }, required: ['severity', 'title'] } },
+    { name: 'open_whatsapp', description: 'Open WhatsApp on Hudson\'s device with a pre-filled message to a phone number. Hudson taps Send manually. Use for personal, sensitive, or first-time messages. Free, instant.',
+      input_schema: { type: 'object', properties: {
+        phone:   { type: 'string', description: 'International format, digits only, no + (e.g. 256772123456)' },
+        message: { type: 'string', description: 'The message text to pre-fill' }
+      }, required: ['phone', 'message'] } },
+    { name: 'send_whatsapp', description: 'Actually send a WhatsApp message via Meta Cloud API. Requires Hudson\'s WhatsApp Business API configured. Use ONLY for routine, low-stakes, repeat messages (fee reminders, attendance alerts). When unsure, use open_whatsapp instead.',
+      input_schema: { type: 'object', properties: {
+        phone:   { type: 'string', description: 'International format, digits only, no + (e.g. 256772123456)' },
+        message: { type: 'string', description: 'The message text to send' }
+      }, required: ['phone', 'message'] } },
+    { name: 'issue_receipt', description: 'Create a REAL, numbered fee-payment receipt for a school (tenant) and store it in the database. Returns the receipt number and, if a guardian phone is provided, a WhatsApp link. Use when recording/confirming a payment or when asked to issue a receipt for a school.',
+      input_schema: { type: 'object', properties: {
+        tenant_id:      { type: 'string', description: 'Tenant slug, e.g. peak-primary or bare-foot' },
+        amount:         { type: 'number', description: 'Amount received, positive number' },
+        student_name:   { type: 'string', description: 'Student the payment is for' },
+        guardian_name:  { type: 'string', description: 'Guardian name (optional)' },
+        guardian_phone: { type: 'string', description: 'Guardian WhatsApp, digits only e.g. 256772123456 (optional; enables WhatsApp send)' },
+        method:         { type: 'string', description: 'cash | momo | mtn | airtel | mpesa | bank | cheque' },
+        reference:      { type: 'string', description: 'Payment reference / txn id (optional)' }
+      }, required: ['tenant_id', 'amount'] } },
+    { name: 'check_project', description: 'Live-watch a project: pings its URL (up/down, HTTP status, speed) and checks domain expiry via public WHOIS/RDAP. Returns health + alerts. Use to supervise a website or OS, or when asked if something is up or about to expire. Get the url/domain from read_projects first.',
+      input_schema: { type: 'object', properties: {
+        url:    { type: 'string', description: 'Full URL to ping, e.g. https://nextos.nextafrica.ai' },
+        domain: { type: 'string', description: 'Bare domain for expiry check, e.g. nextafrica.ai (optional; derived from url if omitted)' }
+      }, required: [] } },
+    { name: 'seo_audit', description: 'Audit a web page for SEO + performance: title, meta description, headings, mobile viewport, HTTPS, Open Graph, load speed, word count. Returns a score and concrete fix tips. Use when asked to improve SEO/ranking or review a site. Get the url from read_projects.',
+      input_schema: { type: 'object', properties: { url: { type: 'string', description: 'Full page URL to audit, e.g. https://puritymukisa.com' } }, required: ['url'] } },
+    { name: 'read_analytics', description: 'Traffic + events for a site over the last N days: visitors, pageviews, sign-ins, conversions, revenue, top pages, referrers. Use when asked how a site is performing. Get the site domain from read_projects.',
+      input_schema: { type: 'object', properties: { site: { type: 'string', description: 'Site domain key, e.g. puritymukisa.com' }, days: { type: 'number', description: 'Days back (default 7)' } }, required: ['site'] } },
+    { name: 'read_search_console', description: 'Google Search Console for a site: the real search terms people use to find it on Google, with clicks, impressions, CTR, average position, and the striking-distance keywords (positions 5-15) worth optimizing. Use for SEO/search questions. site is the GSC property, e.g. sc-domain:fathersarize.org',
+      input_schema: { type: 'object', properties: { site: { type: 'string', description: 'GSC property, e.g. sc-domain:fathersarize.org (use sc-domain: + the bare domain)' }, days: { type: 'number', description: 'Days back (default 28)' } }, required: ['site'] } },
+    { name: 'read_ga4', description: 'Google Analytics 4 for a site: users, sessions, pageviews, conversions broken down by channel (organic, direct, social, referral). Use for deeper traffic questions. property is the numeric GA4 property id.',
+      input_schema: { type: 'object', properties: { property: { type: 'string', description: 'Numeric GA4 property id, e.g. 480123456' }, days: { type: 'number', description: 'Days back (default 28)' } }, required: ['property'] } },
+    { name: 'remember', description: 'Save a durable fact, preference or decision to your long-term memory so you recall it in future conversations (e.g. how Hudson likes things done, a person, a recurring number, a standing instruction). Use proactively whenever you learn something worth keeping. Keep each memory one clear sentence.',
+      input_schema: { type: 'object', properties: { fact: { type: 'string', description: 'The single fact/preference to remember, written so it makes sense later out of context.' } }, required: ['fact'] } },
+  ];
+
+
+  // Llama often mishears tenant slugs ("peak-school" / "pick-primary" /
+  // "peakprimary" etc). Auto-correct against the actual fleet so the
+  // right tenant gets fetched even with a sloppy id.
+  function fuzzyTenantId(input) {
+    if (!input || !window.OS_DATA) return input;
+    const want = String(input).toLowerCase().replace(/[^a-z]/g, '');
+    const tenants = window.OS_DATA.getTenants();
+    const ids = tenants.map(t => t.id);
+    // Exact match wins
+    if (ids.includes(input)) return input;
+    // Match by collapsed letters (peak-primary <-> peakprimary <-> peakschool ~ peak)
+    let best = null, bestScore = 0;
+    for (const id of ids) {
+      const norm = id.toLowerCase().replace(/[^a-z]/g, '');
+      // Score = length of the longest shared prefix
+      let score = 0;
+      const n = Math.min(want.length, norm.length);
+      for (let i = 0; i < n; i++) {
+        if (want[i] === norm[i]) score++; else break;
+      }
+      // Also try shared "first word" match
+      const wantFirst = want.slice(0, 4);
+      if (norm.startsWith(wantFirst)) score = Math.max(score, wantFirst.length);
+      if (score > bestScore) { bestScore = score; best = id; }
+    }
+    return bestScore >= 3 ? best : input;
+  }
+
+  async function execTool(name, input) {
+    const D = window.OS_DATA;
+    if (!D) return JSON.stringify({ error: 'OS_DATA not available' });
+    try {
+      switch (name) {
+        case 'read_fleet': {
+          const tenants = D.getTenants().map(t => ({ id: t.id, name: t.name, vertical: t.vertical, country: t.country, currency: t.currency, health: t.health, kpis: t.kpis, verticalKpis: t.verticalKpis || null, prototypeWired: !!t.prototypeUrl, latest: t.latest }));
+          return JSON.stringify({ count: tenants.length, tenants });
+        }
+        case 'read_tenant': {
+          const correctedId = fuzzyTenantId(input.tenant_id);
+          const t = D.getTenants().find(x => x.id === correctedId);
+          if (!t) return JSON.stringify({ error: 'Tenant not found', available: D.getTenants().map(x => x.id) });
+          // Pass through everything including verticalKpis and prototypeUrl so Nia can reason about school-specific signals.
+          return JSON.stringify(t);
+        }
+        case 'read_finance': {
+          const f = D.getFinance();
+          return JSON.stringify({ currency: f.currency, unit: f.unit, months: f.months, revenueSeries: f.revenueSeries, expenseSeries: f.expenseSeries, recentTransactions: f.transactions.slice(0, 10), totalIncome: f.transactions.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0), totalExpense: f.transactions.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0) });
+        }
+        case 'read_projects': {
+          const seed = (window.PROJECT_DATA || []);
+          const userP = (D.getProjects ? D.getProjects().filter(p => p.addedByUser) : []);
+          const all = seed.concat(userP).map(p => {
+            let meta = {}; try { meta = JSON.parse(localStorage.getItem('nextos.projectmeta.' + p.id) || '{}'); } catch (e) {}
+            return { id: p.id, name: p.name, client: p.client, kind: p.kind || 'project', planned: !!p.planned, os: p.os || null, website: p.website || null, runs: p.runs || null, status: p.status, health: p.health, progress: p.progress, url: meta.url || p.url || '', domain: meta.domain || p.domain || '', builtDate: meta.builtDate || p.builtDate || '', registrar: meta.registrar || p.registrar || '', repo: meta.repo || '', branch: meta.branch || '', supabaseUrl: meta.supabaseUrl || (p.credentials && p.credentials.supabaseUrl) || '', lastCheck: meta.lastCheck || null };
+          });
+          return JSON.stringify({ count: all.length, projects: all });
+        }
+        case 'evaluate_health': {
+          const correctedId = fuzzyTenantId(input.tenant_id);
+          const t = D.getTenants().find(x => x.id === correctedId);
+          if (!t) return JSON.stringify({ error: 'Tenant not found' });
+          const concerns = [];
+          const k = t.kpis || {};
+          const gap = (k.expenses || 0) - (k.revenue || 0);
+          if (gap > 0) concerns.push({ type: 'cash_flow', severity: 'warn', summary: 'Expenses exceed revenue by ' + gap + ' ' + t.currency });
+          if (t.latest) concerns.push({ type: 'open_advisory', severity: t.latest.severity, summary: t.latest.title + ' - ' + t.latest.summary });
+          // Vertical-specific checks. Right now: school.
+          if (t.vertical === 'school' && t.verticalKpis) {
+            const v = t.verticalKpis;
+            if (v.accountsOverdue30d && v.accountsOverdue30d > 0) {
+              concerns.push({ type: 'fees_overdue', severity: 'warn',
+                summary: v.accountsOverdue30d + ' accounts overdue 30+ days, ' + Math.round((v.overdueAmount || 0) / 1000) + 'K ' + t.currency + ' outstanding. Draft WhatsApp reminder to guardians for Hudson to approve.' });
+            }
+            if (typeof v.feesCollectionRate === 'number' && v.feesCollectionRate < 0.85) {
+              concerns.push({ type: 'fee_collection_low', severity: 'info',
+                summary: 'Term fee collection at ' + Math.round(v.feesCollectionRate * 100) + '% (target 85%+). ' + (v.feesOutstanding ? Math.round(v.feesOutstanding / 1000000) + 'M ' + t.currency + ' still expected.' : '') });
+            }
+            if (typeof v.attendanceWeek === 'number' && v.attendanceWeek < 0.92) {
+              concerns.push({ type: 'attendance_dip', severity: 'info',
+                summary: 'Weekly attendance at ' + Math.round(v.attendanceWeek * 100) + '% (target 92%+). ' + (v.atRiskStudents || 0) + ' students flagged at-risk.' });
+            }
+            if (v.atRiskStudents && v.atRiskStudents > 10) {
+              concerns.push({ type: 'at_risk_students', severity: 'warn',
+                summary: v.atRiskStudents + ' students flagged at-risk this week. Pastoral check-in recommended before term break.' });
+            }
+            if (v.enrollmentInquiries && v.enrollmentInquiries > 0) {
+              concerns.push({ type: 'enrollment_pipeline', severity: 'info',
+                summary: v.enrollmentInquiries + ' new enrollment inquiries waiting in WhatsApp queue.' });
+            }
+          }
+          if (concerns.length === 0) concerns.push({ type: 'all_clear', severity: 'info', summary: 'No threshold breaches.' });
+          return JSON.stringify({ tenant: t.name, vertical: t.vertical, currency: t.currency, concerns });
+        }
+        case 'draft_message': {
+          return JSON.stringify({ acknowledged: true, instruction: 'Now write the ' + input.channel + ' draft to the ' + input.recipient_role + '. Goal: ' + input.intent + '. Render in a fenced code block labelled Draft so Hudson can review before sending. Never send.' });
+        }
+        case 'notify': {
+          if (window.NEXT_OS && typeof window.NEXT_OS.notify === 'function') {
+            const id = window.NEXT_OS.notify({
+              severity: input.severity,
+              title:    input.title,
+              body:     input.body || '',
+              source:   'Sentinel · Nia',
+              tenantId: input.tenant_id || null,
+            });
+            return JSON.stringify({ delivered: true, id, instruction: 'Pop-up shown to Hudson. Continue your reply.' });
+          }
+          return JSON.stringify({ delivered: false, error: 'Notification center not mounted yet.' });
+        }
+        case 'open_whatsapp': {
+          const phone = String(input.phone || '').replace(/[^0-9]/g, '');
+          const text  = String(input.message || '');
+          if (!phone) return JSON.stringify({ opened: false, error: 'No phone number provided. Ask Hudson for the contact number.' });
+          const url = 'https://wa.me/' + phone + '?text=' + encodeURIComponent(text);
+          try {
+            if (typeof window !== 'undefined' && typeof window.open === 'function') {
+              window.open(url, '_blank', 'noopener,noreferrer');
+            }
+            if (window.NEXT_OS && typeof window.NEXT_OS.notify === 'function') {
+              window.NEXT_OS.notify({ severity: 'success', title: 'WhatsApp opened', body: 'Review the draft and tap Send to deliver it.', source: 'Sentinel · Nia' });
+            }
+            return JSON.stringify({ opened: true, url, instruction: 'WhatsApp was opened with the draft pre-filled. Tell Hudson the draft is ready and he must tap Send to actually deliver it. Do NOT claim it was sent.' });
+          } catch (e) {
+            return JSON.stringify({ opened: false, error: String(e.message || e) });
+          }
+        }
+        case 'send_whatsapp': {
+          const phone = String(input.phone || '').replace(/[^0-9]/g, '');
+          const text  = String(input.message || '');
+          if (!phone) return JSON.stringify({ sent: false, error: 'No phone number provided.' });
+          const endpoint = (typeof window !== 'undefined' && window.NEXT_OS_SENTINEL_ENDPOINT) || NIA_FREE_ENDPOINT;
+          try {
+            const res = await fetch(endpoint + '/whatsapp', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ to: phone, text }),
+            });
+            const data = await res.json();
+            if (!res.ok || data.sent === false) {
+              return JSON.stringify({ sent: false, error: (data && data.error) || ('HTTP ' + res.status), hint: 'WhatsApp Cloud API not configured. Suggest open_whatsapp instead, or run the WHATSAPP-SETUP.md guide.' });
+            }
+            if (window.NEXT_OS && typeof window.NEXT_OS.notify === 'function') {
+              window.NEXT_OS.notify({ severity: 'success', title: 'WhatsApp sent', body: 'Delivered to ' + phone + ' via Meta Cloud API.', source: 'Sentinel · Nia' });
+            }
+            return JSON.stringify({ sent: true, to: phone, messageId: data.messageId || null, instruction: 'Confirm delivery to Hudson in plain language.' });
+          } catch (e) {
+            return JSON.stringify({ sent: false, error: String(e.message || e), hint: 'Likely WhatsApp Cloud API not configured. Fall back to open_whatsapp.' });
+          }
+        }
+        case 'issue_receipt': {
+          const tenant = String(input.tenant_id || '').trim();
+          if (!tenant) return JSON.stringify({ ok: false, error: 'tenant_id required (e.g. peak-primary, bare-foot)' });
+          const amount = Number(input.amount || 0);
+          if (!amount || amount <= 0) return JSON.stringify({ ok: false, error: 'A positive amount is required.' });
+          const endpoint = (typeof window !== 'undefined' && window.NEXT_OS_SENTINEL_ENDPOINT) || NIA_FREE_ENDPOINT;
+          try {
+            const res = await fetch(endpoint + '/issue-receipt', {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ tenant_id: tenant, amount, student_name: input.student_name || null, guardian_name: input.guardian_name || null, guardian_phone: input.guardian_phone || null, method: input.method || null, reference: input.reference || null, issued_by: 'Nia' }),
+            });
+            const data = await res.json();
+            if (!res.ok || data.ok === false) return JSON.stringify({ ok: false, error: (data && data.error) || ('HTTP ' + res.status), hint: 'If the receipts table is missing, run cloudflare-worker/supabase-schema-receipts.sql in Supabase.' });
+            if (window.NEXT_OS && typeof window.NEXT_OS.notify === 'function') { window.NEXT_OS.notify({ severity: 'success', title: 'Receipt ' + data.receipt_no + ' issued', body: 'Stored for ' + tenant, source: 'Sentinel · Nia' }); }
+            return JSON.stringify({ ok: true, receipt_no: data.receipt_no, receipt: data.receipt, whatsappUrl: data.whatsappUrl, instruction: 'The receipt is created and stored. Tell Hudson the receipt number. If whatsappUrl is present, offer to open WhatsApp to send it to the guardian (call open_whatsapp with the guardian phone). If no guardian phone was given, say the receipt is saved and downloadable as a PDF from that school Fees then Receipts.' });
+          } catch (e) { return JSON.stringify({ ok: false, error: String(e.message || e) }); }
+        }
+        case 'check_project': {
+          const u = String(input.url || '').trim();
+          const dom = String(input.domain || '').trim();
+          if (!u && !dom) return JSON.stringify({ error: 'Provide a url or domain. Call read_projects to find one; if a project has none on file, ask Hudson to add it in Projects.' });
+          const endpoint = (typeof window !== 'undefined' && window.NEXT_OS_SENTINEL_ENDPOINT) || NIA_FREE_ENDPOINT;
+          try {
+            const res = await fetch(endpoint + '/check-project?url=' + encodeURIComponent(u) + '&domain=' + encodeURIComponent(dom));
+            const data = await res.json();
+            if (data && data.alerts && data.alerts.length && window.NEXT_OS && typeof window.NEXT_OS.notify === 'function') { const top = data.alerts[0]; window.NEXT_OS.notify({ severity: top.type === 'critical' ? 'critical' : 'warning', title: (data.domain || u) + ' needs attention', body: top.msg, source: 'Sentinel \u00b7 Nia' }); }
+            return JSON.stringify(Object.assign({ instruction: 'Report up/down and domain expiry plainly. If there is a critical or warning alert, state it and draft the concrete fix (e.g. renew the domain, redeploy, contact host) for Hudson to approve. Do NOT claim you fixed it yourself.' }, data));
+          } catch (e) { return JSON.stringify({ error: String(e.message || e) }); }
+        }
+        case 'seo_audit': {
+          const u = String(input.url || '').trim();
+          if (!u) return JSON.stringify({ error: 'Provide a url. Use read_projects to find the project URL.' });
+          const endpoint = (typeof window !== 'undefined' && window.NEXT_OS_SENTINEL_ENDPOINT) || NIA_FREE_ENDPOINT;
+          try {
+            const res = await fetch(endpoint + '/seo-audit?url=' + encodeURIComponent(u));
+            const data = await res.json();
+            return JSON.stringify(Object.assign({ instruction: 'Give Hudson the score, then the top 3 highest-impact fixes in plain language with the exact change to make. Lead with the point, no jargon.' }, data));
+          } catch (e) { return JSON.stringify({ error: String(e.message || e) }); }
+        }
+        case 'read_analytics': {
+          const site = String(input.site || '').trim();
+          if (!site) return JSON.stringify({ error: 'Provide a site domain. Use read_projects to find it.' });
+          const endpoint = (typeof window !== 'undefined' && window.NEXT_OS_SENTINEL_ENDPOINT) || NIA_FREE_ENDPOINT;
+          try {
+            const res = await fetch(endpoint + '/analytics?site=' + encodeURIComponent(site) + '&days=' + (Number(input.days) || 7));
+            const data = await res.json();
+            return JSON.stringify(Object.assign({ instruction: 'Summarize traffic plainly (visitors, pageviews, trend, top page, where visitors come from, any sign-ins/conversions). If pageviews is 0, tell Hudson the tracker snippet is not installed on that site yet. Then give 1-2 concrete growth tips.' }, data));
+          } catch (e) { return JSON.stringify({ error: String(e.message || e) }); }
+        }
+        case 'read_search_console': {
+          const site = String(input.site || '').trim();
+          if (!site) return JSON.stringify({ error: 'Provide a GSC property like sc-domain:fathersarize.org. Get the domain from read_projects and prefix sc-domain:.' });
+          const endpoint = (typeof window !== 'undefined' && window.NEXT_OS_SENTINEL_ENDPOINT) || NIA_FREE_ENDPOINT;
+          try {
+            const res = await fetch(endpoint + '/gsc?site=' + encodeURIComponent(site) + '&days=' + (Number(input.days) || 28));
+            const data = await res.json();
+            if (data.error && /not configured/i.test(data.error)) return JSON.stringify({ error: data.error, hint: 'Google service account is not set up yet. Tell Hudson to finish the Search Console setup (service account + Cloudflare secrets).' });
+            return JSON.stringify(Object.assign({ instruction: 'Summarize: total clicks/impressions, the top terms people search to find the site, then the striking-distance keywords (position 5-15) and ONE concrete page change to climb them. No jargon.' }, data));
+          } catch (e) { return JSON.stringify({ error: String(e.message || e) }); }
+        }
+        case 'read_ga4': {
+          const prop = String(input.property || '').trim();
+          if (!prop) return JSON.stringify({ error: 'Provide the numeric GA4 property id.' });
+          const endpoint = (typeof window !== 'undefined' && window.NEXT_OS_SENTINEL_ENDPOINT) || NIA_FREE_ENDPOINT;
+          try {
+            const res = await fetch(endpoint + '/ga4?property=' + encodeURIComponent(prop) + '&days=' + (Number(input.days) || 28));
+            const data = await res.json();
+            return JSON.stringify(Object.assign({ instruction: 'Summarize users/sessions/pageviews/conversions and which channel drives the most. Give 1 growth tip.' }, data));
+          } catch (e) { return JSON.stringify({ error: String(e.message || e) }); }
+        }
+        case 'remember': {
+          const fact = (input.fact || '').toString().trim();
+          if (!fact) return JSON.stringify({ error: 'fact required' });
+          try { await saveNiaMemory(fact); } catch (e) { return JSON.stringify({ error: 'could not save: ' + (e && e.message || e) }); }
+          try { window.dispatchEvent(new CustomEvent('nia:memory-updated')); } catch (e) {}
+          return JSON.stringify({ ok: true, remembered: fact });
+        }
+        default: return JSON.stringify({ error: 'Unknown tool: ' + name });
+      }
+    } catch (e) { return JSON.stringify({ error: String(e.message || e) }); }
+  }
+
+  async function callAnthropic({ apiKey, model, system, messages, tools }) {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
+      body: JSON.stringify({ model, system, messages, tools, max_tokens: 2048 }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error((data && data.error && data.error.message) || ('HTTP ' + res.status));
+    return data;
+  }
+  async function callOpenAI({ apiKey, model, system, messages }) {
+    const flat = messages.map(m => {
+      if (typeof m.content === 'string') return { role: m.role, content: m.content };
+      const text = (m.content || []).filter(b => b.type === 'text').map(b => b.text).join('\n');
+      return { role: m.role, content: text || '[tool data omitted]' };
+    });
+    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
+      body: JSON.stringify({ model, max_tokens: 2048, messages: [{ role: 'system', content: system }].concat(flat) }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error((data && data.error && data.error.message) || ('HTTP ' + res.status));
+    return { stop_reason: 'end_turn', content: [{ type: 'text', text: data.choices[0].message.content }] };
+  }
+  async function callNiaFree({ system, messages, tools }) {
+    const endpoint = (typeof window !== 'undefined' && window.NEXT_OS_SENTINEL_ENDPOINT) || NIA_FREE_ENDPOINT;
+    const res = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ system, messages, tools }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error((data && data.error && data.error.message) || ('HTTP ' + res.status));
+    return data; // Worker returns Anthropic-shape { content, stop_reason }
+  }
+  async function callLLM({ provider, apiKey, model, system, messages, tools }) {
+    const m = model || DEFAULT_MODEL[provider] || DEFAULT_MODEL[DEFAULT_PROVIDER];
+    if (provider === 'nia-free') return callNiaFree({ system, messages, tools });
+    if (!apiKey) throw new Error('No API key set. Use Nia Free (no key) or click CONNECT to add a Claude/GPT key.');
+    if (provider === 'openai') return callOpenAI({ apiKey, model: m, system, messages });
+    return callAnthropic({ apiKey, model: m, system, messages, tools });
+  }
+
+  function safeGet(k, f) { try { const v = window.localStorage && window.localStorage.getItem(k); return v == null ? f : v; } catch (e) { return f; } }
+  function safeSet(k, v) { try { if (window.localStorage) window.localStorage.setItem(k, v); } catch (e) {} }
+  function loadConvo() { try { return JSON.parse(safeGet(KEY_CONVERSATION, '[]')); } catch (e) { return []; } }
+  function saveConvo(m) { safeSet(KEY_CONVERSATION, JSON.stringify(m)); }
+  function shortenForUI(s) { if (!s) return ''; return s.length > 140 ? s.slice(0, 137) + '...' : s; }
+
+  // ─── Nia memory — what she remembers about Hudson & the fleet (persisted) ──
+  const NIA_MEM_WK = (typeof window !== 'undefined' && window.NEXT_OS_SENTINEL_ENDPOINT) || 'https://nextos-sentinel.nextafricaai.workers.dev';
+  function loadNiaMemory() { return fetch(NIA_MEM_WK + '/os-data?kind=nia_memory&tenant=next').then(r => r.json()).then(d => ((d && d.records) || []).map(x => ({ id: x.id, text: (x.payload && x.payload.text) || '' })).filter(m => m.text)).catch(() => []); }
+  function saveNiaMemory(text) { return fetch(NIA_MEM_WK + '/os-data/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind: 'nia_memory', tenant: 'next', record: { text: text, at: new Date().toISOString() } }) }).then(r => r.json()).catch(() => ({})); }
+  function memoryNote(mem) { if (!mem || !mem.length) return ''; return '\n\nWHAT YOU REMEMBER (carry this knowledge naturally, do not list it back):\n' + mem.slice(0, 40).map(m => '- ' + m.text).join('\n'); }
+
+  function useConversation() {
+    const [messages, setMessages] = React.useState(() => loadConvo());
+    const [memory, setMemory] = React.useState([]);
+    React.useEffect(() => { loadNiaMemory().then(setMemory); const h = () => loadNiaMemory().then(setMemory); window.addEventListener('nia:memory-updated', h); return () => window.removeEventListener('nia:memory-updated', h); }, []);
+    const [pending, setPending] = React.useState(false);
+    const [error, setError] = React.useState(null);
+    const [apiKey, setApiKey] = React.useState(() => safeGet(KEY_API_KEY, ''));
+    const [provider, setProvider] = React.useState(() => safeGet(KEY_PROVIDER, DEFAULT_PROVIDER));
+    const setKey = (k) => { setApiKey(k); safeSet(KEY_API_KEY, k); };
+    const setProv = (p) => { setProvider(p); safeSet(KEY_PROVIDER, p); };
+    const clearConvo = () => { setMessages([]); saveConvo([]); setError(null); };
+
+    const send = async (text) => {
+      const trimmed = (text || '').trim();
+      if (!trimmed || pending) return;
+      const userMsg = { role: 'user', content: trimmed, ts: Date.now() };
+      let convo = messages.concat(userMsg);
+      setMessages(convo); saveConvo(convo);
+      setPending(true); setError(null);
+      // Pull the 2 most relevant Nia Brain docs for THIS query and inject.
+      // The base prompt teaches Nia how to behave; the brain teaches her what to know.
+      const brainSnippet = (window.NIA_BRAIN && typeof window.NIA_BRAIN.systemPrompt === 'function')
+        ? window.NIA_BRAIN.systemPrompt(trimmed, 2)
+        : '';
+      let prefNote = '';
+      try {
+        const _p = JSON.parse(localStorage.getItem('nextos.nia.prefs') || '{}');
+        if (_p.tone) prefNote += '\n- Tone: ' + _p.tone + '.';
+        if (_p.length) prefNote += '\n- Length: keep replies ' + _p.length + '.';
+        if (_p.language && _p.language !== 'English') prefNote += '\n- Language: reply in ' + _p.language + ' when natural for the recipient.';
+      } catch (e) {}
+      const augmentedSystem = SYSTEM_PROMPT + brainSnippet + memoryNote(memory) + (prefNote ? ('\n\nUSER PREFERENCES (set in Nia HQ):' + prefNote) : '');
+      // Auto-remember: "remember ..." / "note that ..." / "don't forget ..."
+      const _mem = trimmed.match(/^(?:nia[, ]+)?(?:please\s+)?(?:remember|note that|note:|keep in mind|don'?t forget)\b[:,]?\s*(.+)/i);
+      if (_mem && _mem[1] && _mem[1].length > 2) {
+        const fact = _mem[1].trim().replace(/\.$/, '');
+        saveNiaMemory(fact).then(() => loadNiaMemory().then(setMemory));
+      }
+      const _t = trimmed.toLowerCase();
+      // Tools are offered ONLY when the message references something a tool can do; everything else stays pure conversation.
+      const needsTools = /\b(fleet|tenant|tenants|school|schools|peak|st\.?\s*mary|grace|hope|community|next services|student|students|pupil|enrol|enroll|enrolment|attendance|present|absent|register|fee|fees|pay|payment|paid|receipt|overdue|balance|arrears|money|revenue|finance|expense|expenses|profit|surplus|asset|analytics|traffic|visitor|visitors|pageview|seo|keyword|keywords|rank|ranking|search console|ga4|google|domain|expire|expiry|uptime|down|offline|whatsapp|message|messages|broadcast|draft|send|notify|reminder|remind|check|audit|report|reports|exam|exams|marks|grade|grading|division|teacher|teachers|staff|sick|health|project|projects|site|website|deploy|publish|bare\s?foot|good\s?foundation|st\s?mary|this (?:month|term|week|year)|perform|performing|performance|enrol|enrolment|how many|how much)\b/.test(_t);
+      const convoOnly = !needsTools;
+      try {
+        let apiMessages = convo.map(m => ({ role: m.role, content: m.apiContent !== undefined ? m.apiContent : m.content }));
+        for (let loop = 0; loop < TOOL_LOOP_MAX; loop++) {
+          const resp = await callLLM({ provider, apiKey, system: augmentedSystem, messages: apiMessages, tools: convoOnly ? [] : TOOLS });
+          const textParts = (resp.content || []).filter(c => c.type === 'text').map(c => c.text).join('');
+          const toolUses = (resp.content || []).filter(c => c.type === 'tool_use');
+          const assistantMsg = { role: 'assistant', content: textParts, apiContent: resp.content, toolCalls: toolUses.map(t => ({ id: t.id, name: t.name, input: t.input })), ts: Date.now() };
+          convo = convo.concat(assistantMsg);
+          setMessages(convo); saveConvo(convo);
+          apiMessages.push({ role: 'assistant', content: resp.content });
+          if (resp.stop_reason !== 'tool_use' || toolUses.length === 0) break;
+          const results = await Promise.all(toolUses.map(async t => ({ type: 'tool_result', tool_use_id: t.id, content: await execTool(t.name, t.input || {}) })));
+          const trMsg = { role: 'user', content: '', apiContent: results, toolResults: toolUses.map((t, i) => ({ name: t.name, summary: shortenForUI(results[i].content) })), hidden: true, ts: Date.now() };
+          convo = convo.concat(trMsg);
+          setMessages(convo); saveConvo(convo);
+          apiMessages.push({ role: 'user', content: results });
+        }
+      } catch (e) { setError(e.message || String(e)); }
+      finally { setPending(false); }
+    };
+    return { messages, pending, error, apiKey, provider, setKey, setProv, clearConvo, send };
+  }
+
+  const inputStyle = { width: '100%', background: 'var(--bg-deep)', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-sm)', padding: '10px 12px', color: 'var(--text-primary)', fontSize: 13, fontFamily: 'var(--font-body)', outline: 'none', resize: 'none' };
+
+  const KeyPanel = ({ apiKey, provider, setKey, setProv, onClose }) => {
+    const [tempKey, setTempKey] = React.useState(apiKey);
+    const [tempProv, setTempProv] = React.useState(provider);
+    const needsKey = tempProv !== 'nia-free';
+    return (
+      <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-md)', padding: 16, marginBottom: 12 }}>
+        <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)', letterSpacing: 1, marginBottom: 10 }}>CHOOSE YOUR AGENT</div>
+        <div style={{ display: 'grid', gridTemplateColumns: needsKey ? '180px 1fr' : '1fr', gap: 8, marginBottom: 10 }}>
+          <select value={tempProv} onChange={(e) => setTempProv(e.target.value)} style={inputStyle}>
+            <option value="nia-free">Nia Free (Llama 3.3 · no key)</option>
+            <option value="anthropic">Claude (Anthropic) — sharpest</option>
+            <option value="openai">GPT-4 (OpenAI) — text-only</option>
+          </select>
+          {needsKey && (
+            <input style={inputStyle} type="password" value={tempKey} onChange={(e) => setTempKey(e.target.value)} placeholder={tempProv === 'anthropic' ? 'sk-ant-...' : 'sk-...'} />
+          )}
+        </div>
+        <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginBottom: 10, lineHeight: 1.5 }}>
+          {tempProv === 'nia-free'
+            ? 'Nia Free runs on Llama 3.3 70B via Cloudflare Workers AI. No key, no cost, always on. Weaker than Claude but uses the same tools.'
+            : 'Key stays in your browser only. Tools require Claude — OpenAI is text-only this phase.'}
+        </div>
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <button onClick={onClose} style={{ background: 'transparent', border: '1px solid var(--border-default)', color: 'var(--text-secondary)', padding: '6px 14px', borderRadius: 'var(--radius-sm)', fontSize: 12, cursor: 'pointer' }}>Cancel</button>
+          <button onClick={() => { if (needsKey) setKey(tempKey); else setKey(''); setProv(tempProv); onClose(); }} style={{ background: 'var(--mint)', color: 'var(--text-inverse)', border: 'none', padding: '6px 16px', borderRadius: 'var(--radius-sm)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Save</button>
+        </div>
+      </div>
+    );
+  };
+
+  const ToolChip = ({ name, input }) => (
+    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(0,252,143,0.08)', border: '1px solid var(--border-active)', borderRadius: 12, padding: '3px 10px', fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--mint)', marginRight: 6, marginBottom: 4 }}>
+      <span>⚙</span> {name}({input && Object.keys(input).length ? Object.entries(input).map(([k, v]) => k + ':' + (typeof v === 'string' ? '"' + v.slice(0, 20) + '"' : v)).join(',') : ''})
+    </div>
+  );
+  const ToolResultChip = ({ name, summary }) => (
+    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: '3px 10px', fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)', marginRight: 6, marginBottom: 4 }}>
+      <span>↩</span> {name}: <span style={{ color: 'var(--text-secondary)', maxWidth: 240, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{summary}</span>
+    </div>
+  );
+
+  const Message = ({ msg }) => {
+    if (msg.hidden && msg.toolResults) {
+      return <div style={{ marginBottom: 10, padding: '4px 6px' }}>{msg.toolResults.map((r, i) => <ToolResultChip key={i} name={r.name} summary={r.summary} />)}</div>;
+    }
+    const isUser = msg.role === 'user';
+    const hasText = msg.content && msg.content.trim().length > 0;
+    const hasTools = msg.toolCalls && msg.toolCalls.length > 0;
+    if (!hasText && !hasTools) return null;
+    return (
+      <div style={{ display: 'flex', justifyContent: isUser ? 'flex-end' : 'flex-start', marginBottom: 10 }}>
+        <div style={{ maxWidth: '85%', background: isUser ? 'var(--mint-glow)' : 'var(--bg-elevated)', border: '1px solid ' + (isUser ? 'var(--mint)' : 'var(--border-subtle)'), borderRadius: 'var(--radius-md)', padding: '10px 14px', color: 'var(--text-primary)', fontSize: 13, lineHeight: 1.5, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+          {!isUser && <div style={{ fontSize: 9, fontFamily: 'var(--font-mono)', color: 'var(--mint)', letterSpacing: 1, marginBottom: 4 }}>NIA</div>}
+          {hasTools && <div style={{ marginBottom: hasText ? 8 : 0 }}>{msg.toolCalls.map((t, i) => <ToolChip key={i} name={t.name} input={t.input} />)}</div>}
+          {hasText && msg.content}
+        </div>
+      </div>
+    );
+  };
+
+  const ChatInput = ({ onSend, pending, placeholder }) => {
+    const [text, setText] = React.useState('');
+    const [listening, setListening] = React.useState(false);
+    const recRef = React.useRef(null);
+    const baseRef = React.useRef('');
+    const SR = (typeof window !== 'undefined') && (window.SpeechRecognition || window.webkitSpeechRecognition);
+    const submit = () => { if (!pending && text.trim()) { onSend(text); setText(''); } };
+    const stopMic = () => { try { recRef.current && recRef.current.stop(); } catch (e) {} setListening(false); };
+    const startMic = () => {
+      if (!SR) return;
+      let rec;
+      try { rec = new SR(); } catch (e) { return; }
+      rec.lang = 'en-US'; rec.interimResults = true; rec.continuous = false; rec.maxAlternatives = 1;
+      let finalText = '';
+      baseRef.current = text ? text.trim() + ' ' : '';
+      rec.onresult = (e) => {
+        let interim = '';
+        for (let i = e.resultIndex; i < e.results.length; i++) {
+          const tr = e.results[i][0].transcript;
+          if (e.results[i].isFinal) finalText += tr; else interim += tr;
+        }
+        setText((baseRef.current + (finalText || interim)).replace(/\s+/g, ' ').trimStart());
+      };
+      rec.onerror = () => setListening(false);
+      rec.onend = () => { setListening(false); recRef.current = null; };
+      recRef.current = rec;
+      setListening(true);
+      try { rec.start(); } catch (e) { setListening(false); }
+    };
+    const toggleMic = () => { if (listening) stopMic(); else startMic(); };
+    return (
+      <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
+        <textarea value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submit(); } }} placeholder={listening ? 'Listening\u2026 speak your command' : (placeholder || 'Ask Nia anything...')} rows={2} style={Object.assign({}, inputStyle, { minHeight: 44, maxHeight: 120 })} />
+        {SR && (
+          <button onClick={toggleMic} title={listening ? 'Stop listening' : 'Speak to Nia'} aria-label="Voice input" style={{ flexShrink: 0, width: 44, height: 44, borderRadius: '50%', border: listening ? 'none' : '1px solid var(--border-subtle)', background: listening ? '#e23a52' : 'var(--bg-elevated)', color: listening ? '#fff' : 'var(--text-secondary)', fontSize: 18, lineHeight: 1, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: listening ? '0 0 0 4px rgba(226,58,82,0.25)' : 'none' }}>{listening ? '\u25A0' : '🎤'}</button>
+        )}
+        <button onClick={submit} disabled={pending || !text.trim()} style={{ flexShrink: 0, background: pending || !text.trim() ? 'var(--bg-elevated)' : 'var(--mint)', color: pending || !text.trim() ? 'var(--text-tertiary)' : 'var(--text-inverse)', border: 'none', borderRadius: 'var(--radius-sm)', padding: '0 18px', height: 44, fontSize: 13, fontWeight: 600, cursor: pending || !text.trim() ? 'not-allowed' : 'pointer' }}>{pending ? '...' : 'Send'}</button>
+      </div>
+    );
+  };
+
+  const ConversationView = ({ convo, compact }) => {
+    const scrollRef = React.useRef(null);
+    React.useEffect(() => { if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight; }, [convo.messages.length, convo.pending]);
+    return (
+      <div ref={scrollRef} style={{ flex: 1, overflowY: 'auto', padding: compact ? '8px 4px' : '8px 0' }}>
+        {convo.messages.length === 0 && (
+          <div style={{ padding: 20, textAlign: 'center', color: 'var(--text-tertiary)', fontSize: 13, lineHeight: 1.6 }}>
+            <div style={{ fontSize: 28, marginBottom: 8 }}>◆</div>
+            <div style={{ fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 6 }}>Nia is ready — now with hands.</div>
+            <div style={{ fontSize: 12 }}>Try: "Check Peak Primary right now"<br/>"Summarize the whole fleet"<br/>"Draft a WhatsApp to Mrs. Asiimwe"</div>
+          </div>
+        )}
+        {convo.messages.map((m, i) => <Message key={i} msg={m} />)}
+        {convo.pending && (
+          <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
+            <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: '10px 14px', color: 'var(--text-tertiary)', fontSize: 13, fontFamily: 'var(--font-mono)' }}>thinking...</div>
+          </div>
+        )}
+        {convo.error && <div style={{ background: 'rgba(255,71,87,0.1)', border: '1px solid var(--danger)', borderRadius: 'var(--radius-md)', padding: '8px 12px', color: 'var(--danger)', fontSize: 12, marginTop: 8 }}>⚠ {convo.error}</div>}
+      </div>
+    );
+  };
+
+  function niaSpeak(text) {
+    try {
+      if (!window.speechSynthesis || !text) return;
+      const clean = String(text).replace(/```[\s\S]*?```/g, ' (code) ').replace(/[*_#>`~]/g, '').replace(/\[(.*?)\]\(.*?\)/g, '$1').replace(/\s+/g, ' ').trim();
+      if (!clean) return;
+      window.speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(clean.slice(0, 700));
+      u.rate = 1.03; u.pitch = 1.0; u.lang = 'en-US';
+      const vs = window.speechSynthesis.getVoices() || [];
+      const pick = vs.find(v => /female|samantha|aria|jenny|google uk english female|zira/i.test(v.name)) || vs.find(v => /^en/i.test(v.lang));
+      if (pick) u.voice = pick;
+      window.speechSynthesis.speak(u);
+    } catch (e) {}
+  }
+  if (typeof window !== 'undefined') window.niaSpeak = niaSpeak;
+
+  // ── Global "Hey Nia" orb. Wake-word on Chrome/Android; tap-to-talk (server STT) on iOS. ──
+  function NiaWakeOrb() {
+    const SR = (typeof window !== 'undefined') && (window.SpeechRecognition || window.webkitSpeechRecognition);
+    const hasMedia = (typeof navigator !== 'undefined') && navigator.mediaDevices && navigator.mediaDevices.getUserMedia && (typeof MediaRecorder !== 'undefined');
+    const WKB = (window.NEXT_OS_SENTINEL_ENDPOINT) || 'https://nextos-sentinel.nextafricaai.workers.dev';
+    const [on, setOn] = React.useState(() => { try { return localStorage.getItem('nextos.nia.voice') === '1'; } catch (e) { return false; } });
+    const [heard, setHeard] = React.useState('');
+    const [pulse, setPulse] = React.useState(false);
+    const [rec, setRec] = React.useState('idle');
+    React.useEffect(() => { const h = (e) => setOn(!!(e && e.detail)); window.addEventListener('niaVoiceToggle', h); return () => window.removeEventListener('niaVoiceToggle', h); }, []);
+    const recRef = React.useRef(null); const chunksRef = React.useRef([]); const stopTimer = React.useRef(null);
+    const chime = () => { try { const A = window.AudioContext || window.webkitAudioContext; if (!A) return; const c = new A(); const now = c.currentTime; [[880, 0], [1175, 0.12]].forEach(function (p) { const o2 = c.createOscillator(), g = c.createGain(); o2.type = 'sine'; o2.frequency.value = p[0]; g.gain.setValueAtTime(0.0001, now + p[1]); g.gain.exponentialRampToValueAtTime(0.12, now + p[1] + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, now + p[1] + 0.16); o2.connect(g); g.connect(c.destination); o2.start(now + p[1]); o2.stop(now + p[1] + 0.18); }); setTimeout(function () { try { c.close(); } catch (e) {} }, 600); } catch (e) {} };
+    React.useEffect(() => { if (typeof window !== 'undefined') window.NIA_HANDS_FREE_TOGGLE = () => setOn(v => !v); }, []);
+    const handle = (cmd) => {
+      const c = (cmd || '').replace(/^(hey |ok )?(nia|nya|nina)[\s,.:!?-]*/i, '').trim();
+      if (!c || c.length < 2) { window.niaSpeak && window.niaSpeak("Yes? I'm listening."); return; }
+      window.__NIA_PENDING = c;
+      try { localStorage.setItem('nextos.nia.voiceout', '1'); } catch (e) {}
+      if (window.NIA_ASK) { window.NIA_ASK(c); window.__NIA_PENDING = null; }
+      else if (window.NEXT_OS_NAVIGATE) { window.NEXT_OS_NAVIGATE('talk'); }
+    };
+    // Wake-word mode
+    React.useEffect(() => {
+      try { localStorage.setItem('nextos.nia.voice', on ? '1' : '0'); } catch (e) {}
+      if (!on || !SR) return;
+      try { localStorage.setItem('nextos.nia.voiceout', '1'); } catch (e) {}
+      let r, stopped = false, rt = null;
+      const start = () => {
+        try { r = new SR(); } catch (e) { return; }
+        r.lang = 'en-US'; r.continuous = true; r.interimResults = false; r.maxAlternatives = 1;
+        r.onresult = (e) => {
+          if (window.speechSynthesis && window.speechSynthesis.speaking) return;
+          for (let i = e.resultIndex; i < e.results.length; i++) {
+            if (!e.results[i].isFinal) continue;
+            const t = (e.results[i][0].transcript || '').trim(); const low = t.toLowerCase();
+            const m = low.match(/\b(hey nia|ok nia|nia|nya|nina|near|neah)\b/); if (!m) continue;
+            setHeard(t); setTimeout(() => setHeard(''), 4000); chime(); setPulse(true); setTimeout(() => setPulse(false), 900);
+            handle(t.slice(low.indexOf(m[1]) + m[1].length));
+          }
+        };
+        r.onerror = (ev) => { if (ev && ev.error === 'not-allowed') setOn(false); };
+        r.onend = () => { if (!stopped && !rt) { rt = setTimeout(() => { rt = null; try { r.start(); } catch (e) {} }, 350); } };
+        try { r.start(); } catch (e) {}
+      };
+      start();
+      return () => { stopped = true; if (rt) clearTimeout(rt); try { r && r.stop(); } catch (e) {} };
+    }, [on]);
+    // Tap-to-talk
+    const stopRec = () => { try { recRef.current && recRef.current.state !== 'inactive' && recRef.current.stop(); } catch (e) {} };
+    const startPtt = async () => {
+      if (!hasMedia) return;
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const mr = new MediaRecorder(stream); recRef.current = mr; chunksRef.current = [];
+        mr.ondataavailable = (e) => { if (e.data && e.data.size) chunksRef.current.push(e.data); };
+        mr.onstop = async () => {
+          try { stream.getTracks().forEach(t => t.stop()); } catch (e) {}
+          setRec('thinking');
+          try {
+            const blob = new Blob(chunksRef.current, { type: (chunksRef.current[0] && chunksRef.current[0].type) || 'audio/webm' });
+            const buf = await blob.arrayBuffer();
+            const resp = await fetch(WKB + '/stt', { method: 'POST', headers: { 'Content-Type': 'application/octet-stream' }, body: buf });
+            const d = await resp.json(); setRec('idle');
+            if (d && d.text) { setHeard(d.text); setTimeout(() => setHeard(''), 5000); chime(); handle(d.text); }
+            else { window.niaSpeak && window.niaSpeak("Sorry, I didn't catch that."); }
+          } catch (e) { setRec('idle'); window.niaSpeak && window.niaSpeak('Could not transcribe.'); }
+        };
+        mr.start(); setRec('recording'); chime();
+        stopTimer.current = setTimeout(stopRec, 7000);
+      } catch (e) { setRec('idle'); }
+    };
+    const tap = () => { if (SR) return; if (rec === 'recording') { if (stopTimer.current) clearTimeout(stopTimer.current); stopRec(); } else if (rec === 'idle') { startPtt(); } };
+    if (!on) return null;
+    const active = SR ? true : (rec !== 'idle');
+    const glyph = (!SR && rec === 'thinking') ? '⋯' : (active ? '\u{1F3A4}' : '◆');
+    const hint = SR ? (on ? 'say “Nia …”' : '') : (rec === 'recording' ? 'tap to send' : rec === 'thinking' ? 'thinking…' : 'tap & talk');
+    return (
+      <div style={{ position: 'fixed', right: 18, bottom: 18, zIndex: 400, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
+        <style>{'@keyframes niaWakePulse{0%{transform:scale(1)}30%{transform:scale(1.18)}100%{transform:scale(1)}}'}</style>
+        {heard ? <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: '7px 11px', fontSize: 12, color: 'var(--text-secondary)', maxWidth: 260, boxShadow: '0 8px 24px rgba(0,0,0,0.45)' }}>{'“'}{heard}{'”'}</div> : null}
+        {hint ? <div style={{ fontSize: 10.5, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 999, padding: '3px 9px' }}>{hint}</div> : null}
+        <button onClick={tap} title={SR ? (on ? 'Hands-free on — say "Nia ..."' : 'Let Nia listen') : 'Tap and talk to Nia'} style={{ width: 56, height: 56, borderRadius: '50%', border: 'none', cursor: 'pointer', background: active ? '#e23a52' : 'var(--mint)', color: active ? '#fff' : 'var(--text-inverse)', fontSize: 22, boxShadow: active ? '0 0 0 6px rgba(226,58,82,0.22), 0 10px 30px rgba(0,0,0,0.45)' : '0 10px 30px rgba(0,0,0,0.45)', display: 'grid', placeItems: 'center', animation: pulse ? 'niaWakePulse 0.6s ease' : 'none' }}>{glyph}</button>
+      </div>
+    );
+  }
+  if (typeof window !== 'undefined') window.NiaWakeOrb = NiaWakeOrb;
+
+  const TalkToSentinelPage = () => {
+    const convo = useConversation();
+    const sendRefT = React.useRef(convo.send); sendRefT.current = convo.send;
+    React.useEffect(() => {
+      window.NIA_ASK = (q) => { try { sendRefT.current && sendRefT.current(q); } catch (e) {} };
+      if (window.__NIA_PENDING) { const q = window.__NIA_PENDING; window.__NIA_PENDING = null; setTimeout(() => { try { sendRefT.current && sendRefT.current(q); } catch (e) {} }, 300); }
+      return () => { if (window.NIA_ASK) window.NIA_ASK = null; };
+    }, []);
+    const [voiceOn, setVoiceOn] = React.useState(() => { try { return localStorage.getItem('nextos.nia.voiceout') === '1'; } catch (e) { return false; } });
+    const lastSpoke = React.useRef(-1);
+    React.useEffect(() => {
+      if (!voiceOn) return;
+      const ms = convo.messages;
+      for (let i = ms.length - 1; i >= 0; i--) { if (ms[i].role === 'assistant' && ms[i].content) { if (i > lastSpoke.current) { lastSpoke.current = i; niaSpeak(ms[i].content); } break; } }
+    }, [convo.messages, voiceOn]);
+    const toggleVoice = () => setVoiceOn(v => { const n = !v; try { localStorage.setItem('nextos.nia.voiceout', n ? '1' : '0'); } catch (e) {} if (!n) { try { window.speechSynthesis && window.speechSynthesis.cancel(); } catch (e) {} } else { lastSpoke.current = convo.messages.length - 1; } return n; });
+    const isFree = convo.provider === 'nia-free';
+    const ready = isFree || !!convo.apiKey;
+    const [showKey, setShowKey] = React.useState(!ready);
+    const providerLabel = isFree ? 'Nia Free (Llama 3.3 70B)' : (convo.provider === 'anthropic' ? 'Claude' : 'GPT-4');
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16, height: 'calc(100vh - 130px)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
+          <div>
+            <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', letterSpacing: 2, color: 'var(--text-tertiary)', marginBottom: 6 }}>YOUR CHIEF OF STAFF · 9 TOOLS WIRED</div>
+            <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 32, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>Talk to Nia</h1>
+            <div style={{ marginTop: 8, color: 'var(--text-secondary)', fontSize: 13 }}>
+              {ready
+                ? <span><span style={{ color: 'var(--mint)', marginRight: 6 }}>{'●'}</span>Connected {'·'} {providerLabel} {'·'} ready</span>
+                : <span><span style={{ color: 'var(--gold)', marginRight: 6 }}>{'●'}</span>Not connected {'—'} pick an agent to start.</span>}
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button onClick={toggleVoice} title={voiceOn ? 'Nia voice: on (reads replies aloud)' : 'Nia voice: off'} style={{ background: voiceOn ? 'var(--mint)' : 'transparent', border: '1px solid ' + (voiceOn ? 'var(--mint)' : 'var(--border-default)'), color: voiceOn ? 'var(--text-inverse)' : 'var(--text-secondary)', padding: '8px 12px', borderRadius: 'var(--radius-sm)', fontSize: 12, fontFamily: 'var(--font-mono)', letterSpacing: 1, cursor: 'pointer' }}>{voiceOn ? '\u{1F50A} VOICE ON' : '\u{1F507} VOICE'}</button>
+            <button onClick={() => setShowKey(s => !s)} style={{ background: 'transparent', border: '1px solid var(--border-default)', color: 'var(--text-secondary)', padding: '8px 14px', borderRadius: 'var(--radius-sm)', fontSize: 12, fontFamily: 'var(--font-mono)', letterSpacing: 1, cursor: 'pointer' }}>{ready ? 'SWITCH AGENT' : 'CONNECT'}</button>
+            <button onClick={convo.clearConvo} style={{ background: 'transparent', border: '1px solid var(--border-subtle)', color: 'var(--text-tertiary)', padding: '8px 14px', borderRadius: 'var(--radius-sm)', fontSize: 12, fontFamily: 'var(--font-mono)', letterSpacing: 1, cursor: 'pointer' }}>CLEAR</button>
+          </div>
+        </div>
+
+        {showKey && <KeyPanel apiKey={convo.apiKey} provider={convo.provider} setKey={convo.setKey} setProv={convo.setProv} onClose={() => setShowKey(false)} />}
+
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-lg)', padding: '12px 16px', minHeight: 0 }}>
+          <ConversationView convo={convo} />
+          <div style={{ marginTop: 10 }}>
+            <ChatInput onSend={convo.send} pending={convo.pending} placeholder={ready ? 'Ask Nia anything about the fleet...' : 'Pick an agent above to start.'} />
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const NiaHQPage = ({ onNavigate }) => {
+    const [mounted, setMounted] = React.useState(false);
+    const [online, setOnline] = React.useState(null);
+    const [health, setHealth] = React.useState(null);
+    React.useEffect(() => { let ok = true; var WKh = (window.NEXT_OS_SENTINEL_ENDPOINT) || 'https://nextos-sentinel.nextafricaai.workers.dev'; const run = () => fetch(WKh + '/health').then(r => r.json()).then(d => { if (ok) setHealth(d); }).catch(() => {}); run(); const iv = setInterval(run, 60000); return () => { ok = false; clearInterval(iv); }; }, []);
+    const [prefs, setPrefs] = React.useState(() => { try { return Object.assign({ tone: 'Advisory', length: 'balanced', language: 'English', monitoring: true }, JSON.parse(localStorage.getItem('nextos.nia.prefs') || '{}')); } catch (e) { return { tone: 'Advisory', length: 'balanced', language: 'English', monitoring: true }; } });
+    const [saved, setSaved] = React.useState(false);
+    React.useEffect(() => { setTimeout(() => setMounted(true), 50); }, []);
+    React.useEffect(() => { let ok = true; fetch(NIA_FREE_ENDPOINT + '/', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ system: 'ping', messages: [{ role: 'user', content: 'ping' }] }) }).then(r => { if (ok) setOnline(r.ok); }).catch(() => { if (ok) setOnline(false); }); return () => { ok = false; }; }, []);
+    const savePrefs = (next) => { const merged = Object.assign({}, prefs, next); setPrefs(merged); try { localStorage.setItem('nextos.nia.prefs', JSON.stringify(merged)); } catch (e) {} setSaved(true); setTimeout(() => setSaved(false), 1500); };
+
+    const card = { background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: 20 };
+    const products = [
+      { icon: '\u{1F4AC}', name: 'Talk to Nia', tag: 'Chief of Staff', desc: 'Your wired assistant — 9 tools: receipts, WhatsApp, project checks, SEO, analytics.', go: () => onNavigate && onNavigate('talk') },
+      { icon: '\u{1F310}', name: 'Nia Studio', tag: 'Website editor', desc: 'Edit any site live with Nia as design director — she takes over the canvas.', go: () => window.open('/studio.html', '_blank') },
+      { icon: '\u{1F3A8}', name: 'Nia Graphics', tag: 'Design from scratch', desc: 'Posters, logos, social posts as editable vector graphics. Export PNG/SVG.', go: () => window.open('/studio.html?mode=graphics', '_blank') },
+      { icon: '\u{1F9E0}', name: 'Nia Intelligence', tag: 'Analyze & build', desc: 'Study a website, blueprint its CMS/OS, and auto-scaffold the admin.', go: () => window.open('/studio.html?mode=intel', '_blank') },
+      { icon: '\u{1F6E1}', name: 'Nia Sentinel', tag: 'Monitoring', desc: 'Watches your projects — uptime, domain expiry, SEO — and flags issues.', go: () => onNavigate && onNavigate('projects') },
+      { icon: '\u{1F9FE}', name: 'Receipts & Comms', tag: 'Communications', desc: 'Issue receipts (PDF + WhatsApp) and run the messaging layer.', go: () => onNavigate && onNavigate('comms') },
+      { icon: '\u{1F6AA}', name: 'Gate Kiosk', tag: 'Beta · attendance', desc: 'Face recognition + ID/QR check-in at the school gate. Test it per school before roll-out.', go: () => onNavigate && onNavigate('gate') },
+      { icon: '\u{1F4F9}', name: 'Smart Campus', tag: 'Add-on \u00b7 AI cameras', desc: 'Connect campus cameras and Nia watches them \u2014 headcount, fights/falls/escapes, face-matches learners to profiles, and locates a child across cameras.', go: () => onNavigate && onNavigate('smartcampus') },
+    ];
+    const sel = { background: 'var(--bg-base)', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-sm)', color: 'var(--text-primary)', padding: '8px 10px', fontSize: 13, width: '100%' };
+    const lbl = { fontSize: 11, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 6, display: 'block' };
+
+    return (
+      <div style={{ opacity: mounted ? 1 : 0, transform: mounted ? 'none' : 'translateY(8px)', transition: 'all 0.4s ease' }}>
+        <div style={{ marginBottom: 22 }}>
+          <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', letterSpacing: 2, color: 'var(--text-tertiary)', marginBottom: 6 }}>CONTROL CENTER</div>
+          <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 30, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>Nia <span style={{ color: 'var(--mint)' }}>HQ</span></h1>
+          <p style={{ fontSize: 14, color: 'var(--text-secondary)', margin: '6px 0 0' }}>Every Nia product, and the settings behind them — in one place.</p>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 14, marginBottom: 26 }}>
+          {products.map(p => (
+            <div key={p.name} onClick={p.go} style={{ ...card, cursor: 'pointer', transition: 'border-color .2s, transform .2s' }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--mint)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-subtle)'; e.currentTarget.style.transform = 'none'; }}>
+              <div style={{ fontSize: 26, marginBottom: 10 }}>{p.icon}</div>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
+                <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)' }}>{p.name}</div>
+                <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', letterSpacing: 1, color: 'var(--mint)', textTransform: 'uppercase' }}>{p.tag}</div>
+              </div>
+              <div style={{ fontSize: 12.5, color: 'var(--text-secondary)', lineHeight: 1.5, margin: '8px 0 12px' }}>{p.desc}</div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--mint)' }}>Open {'→'}</div>
+            </div>
+          ))}
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }} className="niahq-cols">
+          <div style={card}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 14 }}>How Nia communicates</div>
+            <div style={{ marginBottom: 14 }}>
+              <span style={lbl}>Tone</span>
+              <select style={sel} value={prefs.tone} onChange={e => savePrefs({ tone: e.target.value })}>
+                {['Advisory', 'Direct', 'Warm', 'Concise', 'Visionary'].map(o => <option key={o} value={o}>{o}</option>)}
+              </select>
+            </div>
+            <div style={{ marginBottom: 14 }}>
+              <span style={lbl}>Reply length</span>
+              <select style={sel} value={prefs.length} onChange={e => savePrefs({ length: e.target.value })}>
+                {[['brief', 'Brief'], ['balanced', 'Balanced'], ['detailed', 'Detailed']].map(o => <option key={o[0]} value={o[0]}>{o[1]}</option>)}
+              </select>
+            </div>
+            <div>
+              <span style={lbl}>Language</span>
+              <select style={sel} value={prefs.language} onChange={e => savePrefs({ language: e.target.value })}>
+                {['English', 'Luganda', 'Swahili', 'Kinyarwanda'].map(o => <option key={o} value={o}>{o}</option>)}
+              </select>
+            </div>
+            <div style={{ marginTop: 14, fontSize: 11, color: saved ? 'var(--mint)' : 'var(--text-tertiary)' }}>{saved ? '✓ Saved — applies to your next message to Nia.' : 'Changes apply instantly to Talk to Nia.'}</div>
+          </div>
+
+          <div style={card}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 14 }}>Status & connection</div>
+            {[
+              ['Engine', 'Nia Free · Llama 3.3 70B'],
+              ['Endpoint', NIA_FREE_ENDPOINT.replace('https://', '')],
+              ['Tools wired', '9 (receipts, WhatsApp, checks, SEO, analytics…)'],
+            ].map(r => (
+              <div key={r[0]} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '9px 0', borderBottom: '1px solid var(--border-subtle)', fontSize: 12.5 }}>
+                <span style={{ color: 'var(--text-tertiary)' }}>{r[0]}</span>
+                <span style={{ color: 'var(--text-secondary)', textAlign: 'right' }}>{r[1]}</span>
+              </div>
+            ))}
+            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '9px 0', fontSize: 12.5 }}>
+              <span style={{ color: 'var(--text-tertiary)' }}>Worker</span>
+              <span style={{ color: online === false ? 'var(--gold)' : 'var(--mint)' }}>{online === null ? 'checking…' : online ? '● online' : '● unreachable'}</span>
+            </div>
+            <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--border-subtle)' }}>
+              <div style={{ fontSize: 10.5, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)', letterSpacing: '0.06em', marginBottom: 6, display: 'flex', justifyContent: 'space-between' }}><span>SYSTEM HEALTH</span>{health && <span style={{ color: health.status === 'ok' ? 'var(--mint)' : health.status === 'warn' ? 'var(--gold)' : 'var(--danger)' }}>{(health.status || '').toUpperCase()}</span>}</div>
+              {!health ? <div style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>checking vital signs…</div> : (health.checks || []).map(c => (
+                <div key={c.name} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '6px 0', fontSize: 12 }}>
+                  <span style={{ color: 'var(--text-secondary)' }}>{c.status === 'ok' ? '●' : c.status === 'warn' ? '◐' : '○'} {c.name}</span>
+                  <span style={{ color: c.status === 'ok' ? 'var(--mint)' : c.status === 'warn' ? 'var(--gold)' : 'var(--danger)', textAlign: 'right', fontSize: 11 }}>{c.detail}</span>
+                </div>
+              ))}
+            </div>
+            <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '12px', background: 'var(--bg-base)', borderRadius: 'var(--radius-sm)' }}>
+              <div>
+                <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--text-primary)' }}>Project monitoring</div>
+                <div style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>Nia watches uptime, domains & SEO.</div>
+              </div>
+              <button onClick={() => savePrefs({ monitoring: !prefs.monitoring })} style={{ width: 46, height: 26, borderRadius: 13, border: 'none', cursor: 'pointer', background: prefs.monitoring ? 'var(--mint)' : 'var(--border-default)', position: 'relative', transition: 'background .2s' }}>
+                <span style={{ position: 'absolute', top: 3, left: prefs.monitoring ? 23 : 3, width: 20, height: 20, borderRadius: '50%', background: '#fff', transition: 'left .2s' }}></span>
+              </button>
+            </div>
+            <button onClick={() => onNavigate && onNavigate('talk')} style={{ marginTop: 14, width: '100%', background: 'var(--mint)', color: '#062b18', border: 'none', borderRadius: 'var(--radius-sm)', padding: '11px', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>Talk to Nia {'→'}</button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Sentinel page (System nav) reuses the same conversation chrome for now.
+  const SentinelPage = TalkToSentinelPage;
+
+  Object.assign(window, { TalkToSentinelPage, SentinelPage, NiaHQPage });
+})();
+
+  
+
+
+/* os-notify.jsx — NEXT OS Notification Center.
+   Toasts + slide-out panel + click-to-source routing.
+
+   Public API:
+     window.NEXT_OS.notify({ severity, title, body, source, actionUrl, tenantId })
+     window.NEXT_OS.gotoSource(notification)
+     window.NEXT_OS.openNotificationPanel()
+
+   actionUrl formats:
+     "os://fleet"                       — switch to OS tab (talk/fleet/dashboard/...)
+     "prototype:peak-primary#fees"      — open tenant prototype at hash
+     "https://..."                      — open URL in new tab
+*/
+
+(function () {
+  const STORAGE_KEY = 'nextos.notifications.v1';
+  const MAX_KEEP = 100;
+
+  const SEVERITY = {
+    info:     { color: '#3B82F6', glow: 'rgba(59,130,246,0.25)', label: 'INFO',     icon: 'i' },
+    success:  { color: '#00FC8F', glow: 'rgba(0,252,143,0.25)',  label: 'SUCCESS',  icon: '✓' },
+    warn:     { color: '#FFB400', glow: 'rgba(255,180,0,0.25)',  label: 'ADVISORY', icon: '!' },
+    critical: { color: '#FF4757', glow: 'rgba(255,71,87,0.35)',  label: 'CRITICAL', icon: '✕' },
+  };
+
+  // ─── Tenant prototype registry — where each tenant's UI lives ──────
+  const TENANT_PROTOTYPES = {
+    'peak-primary': 'prototypes/schools/peak-primary/index.html',
+  };
+
+  // ─── Concern → deep-link hash for the prototype ────────────────────
+  const CONCERN_HASHES = {
+    fees_overdue:        '#fees',
+    fee_collection_low:  '#fees',
+    attendance_dip:      '#attendance',
+    at_risk_students:    '#attendance',
+    enrollment_pipeline: '#enrollments',
+    cash_flow:           '#fees',
+  };
+
+  function defaultActionFor(notif) {
+    if (notif.actionUrl) return notif.actionUrl;
+    if (notif.tenantId && TENANT_PROTOTYPES[notif.tenantId]) {
+      const hash = (notif.concernType && CONCERN_HASHES[notif.concernType]) || '';
+      return 'prototype:' + notif.tenantId + hash;
+    }
+    return null;
+  }
+
+  // ─── Storage ──────────────────────────────────────────────────────
+  function loadHistory() {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); }
+    catch (e) { return []; }
+  }
+  function saveHistory(list) {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(list.slice(0, MAX_KEEP))); }
+    catch (e) {}
+  }
+
+  // ─── Pub/sub ──────────────────────────────────────────────────────
+  const toastListeners = new Set();
+  const panelListeners = new Set();
+  function emitToast(n) { toastListeners.forEach(fn => { try { fn(n); } catch (e) {} }); }
+  function emitPanel()  { panelListeners.forEach(fn => { try { fn(); } catch (e) {} }); }
+
+  // ─── Public: notify ────────────────────────────────────────────────
+  function notify(input) {
+    const n = {
+      id:          'ntf-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7),
+      severity:    SEVERITY[input.severity] ? input.severity : 'info',
+      title:       String(input.title || 'Notification'),
+      body:        input.body ? String(input.body) : '',
+      source:      input.source || 'NEXT OS',
+      tenantId:    input.tenantId || null,
+      concernType: input.concernType || null,
+      actionUrl:   input.actionUrl || null,
+      actionLabel: input.actionLabel || null,
+      at:          new Date().toISOString(),
+      read:        false,
+    };
+    n.actionUrl = defaultActionFor(n);
+    const history = loadHistory();
+    // De-dup: if same title + source within last 5 minutes, skip
+    const fiveMinAgo = Date.now() - 5 * 60 * 1000;
+    const dup = history.find(h =>
+      h.title === n.title && h.source === n.source && new Date(h.at).getTime() > fiveMinAgo
+    );
+    if (dup) return dup.id;
+    history.unshift(n);
+    saveHistory(history);
+    emitToast(n);
+    emitPanel();
+    return n.id;
+  }
+
+  // ─── Public: gotoSource (route a notification's click) ─────────────
+  function gotoSource(notification) {
+    const url = notification.actionUrl || defaultActionFor(notification);
+    if (!url) return false;
+    if (url.startsWith('os://')) {
+      const tab = url.slice(5).split(/[?#]/)[0];
+      // Find AppShell's state setter via the global hook we install
+      if (typeof window.NEXT_OS_NAVIGATE === 'function') {
+        window.NEXT_OS_NAVIGATE(tab);
+        return true;
+      }
+      return false;
+    }
+    if (url.startsWith('prototype:')) {
+      const rest = url.slice(10);
+      const [tenantId, hash] = rest.includes('#') ? [rest.split('#')[0], '#' + rest.split('#')[1]] : [rest, ''];
+      const path = TENANT_PROTOTYPES[tenantId];
+      if (path) {
+        window.open(path + hash, '_blank', 'noopener,noreferrer');
+        return true;
+      }
+      return false;
+    }
+    if (url.startsWith('http')) {
+      window.open(url, '_blank', 'noopener,noreferrer');
+      return true;
+    }
+    return false;
+  }
+
+  // ─── Public: open/close panel ──────────────────────────────────────
+  let _panelOpenSetter = null;
+  function openNotificationPanel()  { if (_panelOpenSetter) _panelOpenSetter(true); }
+  function closeNotificationPanel() { if (_panelOpenSetter) _panelOpenSetter(false); }
+
+  function markRead(id) {
+    const h = loadHistory().map(n => n.id === id ? Object.assign({}, n, { read: true }) : n);
+    saveHistory(h);
+    emitPanel();
+  }
+  function markAllRead() {
+    const h = loadHistory().map(n => Object.assign({}, n, { read: true }));
+    saveHistory(h);
+    emitPanel();
+  }
+  function clearAll() { saveHistory([]); emitToast({ __clear: true }); emitPanel(); }
+  function getHistory() { return loadHistory(); }
+  function unreadCount() { return loadHistory().filter(n => !n.read).length; }
+
+  window.NEXT_OS = Object.assign(window.NEXT_OS || {}, {
+    notify, gotoSource, openNotificationPanel, closeNotificationPanel,
+    markRead, markAllRead, clearAll, getHistory, unreadCount,
+    info:     (title, body, opts) => notify(Object.assign({ severity: 'info',     title, body }, opts || {})),
+    success:  (title, body, opts) => notify(Object.assign({ severity: 'success',  title, body }, opts || {})),
+    warn:     (title, body, opts) => notify(Object.assign({ severity: 'warn',     title, body }, opts || {})),
+    critical: (title, body, opts) => notify(Object.assign({ severity: 'critical', title, body }, opts || {})),
+  });
+
+  // ─── React component: Toast stack ──────────────────────────────────
+  function NotificationCenter() {
+    const [stack, setStack] = React.useState([]);
+    React.useEffect(() => {
+      const onNotify = (n) => {
+        if (n.__clear) { setStack([]); return; }
+        setStack(prev => [n, ...prev].slice(0, 5));
+        if (n.severity !== 'critical') {
+          const dwell = n.severity === 'warn' ? 9000 : 6000;
+          setTimeout(() => setStack(prev => prev.filter(x => x.id !== n.id)), dwell);
+        }
+      };
+      toastListeners.add(onNotify);
+      return () => toastListeners.delete(onNotify);
+    }, []);
+
+    const dismiss = (id) => setStack(prev => prev.filter(x => x.id !== id));
+
+    const onToastClick = (n) => {
+      const ok = gotoSource(n);
+      markRead(n.id);
+      dismiss(n.id);
+      if (!ok) openNotificationPanel();
+    };
+
+    return React.createElement('div', {
+      style: {
+        position: 'fixed', right: 24, bottom: 24, zIndex: 9999,
+        display: 'flex', flexDirection: 'column', gap: 12,
+        maxWidth: 380, width: 'calc(100vw - 48px)', pointerEvents: 'none',
+      }
+    }, stack.map(n => {
+      const s = SEVERITY[n.severity];
+      const clickable = !!defaultActionFor(n);
+      return React.createElement('div', {
+        key: n.id,
+        onClick: clickable ? () => onToastClick(n) : null,
+        style: {
+          background: 'rgba(20, 0, 53, 0.96)',
+          border: '1px solid ' + s.color,
+          borderLeft: '4px solid ' + s.color,
+          borderRadius: 10, padding: '14px 16px',
+          boxShadow: '0 20px 60px rgba(0,0,0,0.45), 0 0 30px ' + s.glow,
+          backdropFilter: 'blur(12px)', color: '#f5f6fa',
+          fontFamily: 'var(--font-body, Inter, system-ui, sans-serif)',
+          pointerEvents: 'auto',
+          animation: 'nextos-toast-in 0.28s cubic-bezier(0.2, 0.9, 0.2, 1)',
+          position: 'relative',
+          cursor: clickable ? 'pointer' : 'default',
+        }
+      }, [
+        React.createElement('div', { key: 'hdr',
+          style: { display: 'flex', alignItems: 'center', gap: 8, marginBottom: n.body ? 6 : 0 }
+        }, [
+          React.createElement('span', { key: 'icon',
+            style: { width: 20, height: 20, borderRadius: '50%',
+              background: s.color, color: '#0A001A',
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 12, fontWeight: 700, flexShrink: 0 }
+          }, s.icon),
+          React.createElement('span', { key: 'sev',
+            style: { fontSize: 9, fontFamily: 'JetBrains Mono, ui-monospace, monospace',
+              letterSpacing: 1.5, color: s.color, fontWeight: 600 }
+          }, s.label),
+          React.createElement('span', { key: 'src',
+            style: { fontSize: 9, fontFamily: 'JetBrains Mono, ui-monospace, monospace',
+              letterSpacing: 1, color: 'rgba(255,255,255,0.4)',
+              marginLeft: 'auto', marginRight: 24, overflow: 'hidden',
+              textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 140 }
+          }, (n.source || 'NEXT OS').toUpperCase()),
+          React.createElement('button', { key: 'x',
+            onClick: (e) => { e.stopPropagation(); dismiss(n.id); },
+            style: { position: 'absolute', top: 8, right: 8,
+              background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.5)',
+              cursor: 'pointer', fontSize: 18, lineHeight: 1, padding: 4 },
+            'aria-label': 'Dismiss',
+          }, '×'),
+        ]),
+        React.createElement('div', { key: 'title',
+          style: { fontSize: 14, fontWeight: 600, lineHeight: 1.35, color: '#f5f6fa', marginBottom: n.body ? 4 : 0 }
+        }, n.title),
+        n.body ? React.createElement('div', { key: 'body',
+          style: { fontSize: 12.5, lineHeight: 1.5, color: 'rgba(255,255,255,0.7)' }
+        }, n.body) : null,
+        clickable ? React.createElement('div', { key: 'hint',
+          style: { fontSize: 10, color: s.color, marginTop: 8,
+            fontFamily: 'JetBrains Mono, ui-monospace, monospace', letterSpacing: 1 }
+        }, 'CLICK TO OPEN →') : null,
+      ]);
+    }));
+  }
+
+  // ─── React component: Notification Panel (slide-out from right) ────
+  function NotificationPanel() {
+    const [open, setOpen] = React.useState(false);
+    const [history, setHistory] = React.useState(loadHistory());
+
+    React.useEffect(() => {
+      _panelOpenSetter = setOpen;
+      const onPanel = () => setHistory(loadHistory());
+      panelListeners.add(onPanel);
+      return () => { _panelOpenSetter = null; panelListeners.delete(onPanel); };
+    }, []);
+
+    if (!open) return null;
+
+    const onItemClick = (n) => {
+      const ok = gotoSource(n);
+      markRead(n.id);
+      setHistory(loadHistory());
+      if (ok) setOpen(false);
+    };
+
+    const formatTime = (iso) => {
+      try {
+        const d = new Date(iso);
+        const diff = Math.round((Date.now() - d) / 60000);
+        if (diff < 1) return 'just now';
+        if (diff < 60) return diff + 'm';
+        if (diff < 60 * 24) return Math.round(diff / 60) + 'h';
+        return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+      } catch (e) { return ''; }
+    };
+
+    return React.createElement(React.Fragment, null, [
+      // Backdrop
+      React.createElement('div', {
+        key: 'backdrop',
+        onClick: () => setOpen(false),
+        style: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
+          backdropFilter: 'blur(4px)', zIndex: 9998 }
+      }),
+      // Panel
+      React.createElement('div', {
+        key: 'panel',
+        style: { position: 'fixed', top: 0, right: 0, height: '100vh',
+          width: 420, maxWidth: '100vw', zIndex: 9999,
+          background: '#140035', borderLeft: '1px solid rgba(255,255,255,0.1)',
+          boxShadow: '-20px 0 60px rgba(0,0,0,0.5)',
+          display: 'flex', flexDirection: 'column',
+          animation: 'nextos-panel-in 0.25s cubic-bezier(0.2, 0.9, 0.2, 1)',
+        }
+      }, [
+        // Header
+        React.createElement('div', { key: 'hdr',
+          style: { padding: '18px 20px', borderBottom: '1px solid rgba(255,255,255,0.08)',
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between' }
+        }, [
+          React.createElement('div', { key: 'title' }, [
+            React.createElement('div', { key: 'pre',
+              style: { fontSize: 10, fontFamily: 'JetBrains Mono, ui-monospace, monospace',
+                letterSpacing: 2, color: 'rgba(255,255,255,0.4)', marginBottom: 4 }
+            }, 'NOTIFICATIONS'),
+            React.createElement('div', { key: 'h',
+              style: { fontSize: 18, fontWeight: 600, color: '#f5f6fa' }
+            }, history.length + ' total · ' + history.filter(h => !h.read).length + ' unread'),
+          ]),
+          React.createElement('div', { key: 'actions', style: { display: 'flex', gap: 8 } }, [
+            React.createElement('button', { key: 'mar',
+              onClick: () => { markAllRead(); setHistory(loadHistory()); },
+              style: { background: 'transparent', border: '1px solid rgba(255,255,255,0.15)',
+                color: 'rgba(255,255,255,0.7)', fontSize: 11, padding: '6px 10px',
+                borderRadius: 6, cursor: 'pointer', fontFamily: 'JetBrains Mono, monospace',
+                letterSpacing: 1 }
+            }, 'MARK ALL READ'),
+            React.createElement('button', { key: 'close',
+              onClick: () => setOpen(false),
+              style: { background: 'transparent', border: 'none',
+                color: 'rgba(255,255,255,0.6)', fontSize: 22, cursor: 'pointer',
+                padding: '2px 8px' }
+            }, '×'),
+          ]),
+        ]),
+        // List
+        React.createElement('div', { key: 'list',
+          style: { flex: 1, overflowY: 'auto', padding: '12px 16px' }
+        }, history.length === 0
+          ? React.createElement('div', {
+              style: { padding: 40, textAlign: 'center', color: 'rgba(255,255,255,0.4)',
+                fontSize: 13 }
+            }, 'No notifications yet. Nia will surface things here as they happen.')
+          : history.map(n => {
+              const s = SEVERITY[n.severity] || SEVERITY.info;
+              const clickable = !!defaultActionFor(n);
+              return React.createElement('div', {
+                key: n.id,
+                onClick: clickable ? () => onItemClick(n) : null,
+                style: {
+                  padding: 14, marginBottom: 8, borderRadius: 8,
+                  background: n.read ? 'rgba(255,255,255,0.02)' : 'rgba(0,252,143,0.04)',
+                  border: '1px solid ' + (n.read ? 'rgba(255,255,255,0.05)' : s.color + '40'),
+                  borderLeft: '3px solid ' + s.color,
+                  cursor: clickable ? 'pointer' : 'default',
+                  transition: 'background 0.15s',
+                }
+              }, [
+                React.createElement('div', { key: 'r1',
+                  style: { display: 'flex', alignItems: 'center', gap: 8,
+                    marginBottom: 6, fontSize: 9,
+                    fontFamily: 'JetBrains Mono, monospace', letterSpacing: 1.5 }
+                }, [
+                  React.createElement('span', { key: 'sev', style: { color: s.color, fontWeight: 600 } }, s.label),
+                  React.createElement('span', { key: 'sep', style: { color: 'rgba(255,255,255,0.3)' } }, '·'),
+                  React.createElement('span', { key: 'src', style: { color: 'rgba(255,255,255,0.5)' } }, n.source.toUpperCase()),
+                  React.createElement('span', { key: 'sep2', style: { color: 'rgba(255,255,255,0.3)', marginLeft: 'auto' } }, formatTime(n.at)),
+                ]),
+                React.createElement('div', { key: 'title',
+                  style: { fontSize: 13, fontWeight: 600, color: '#f5f6fa',
+                    marginBottom: n.body ? 4 : 0, lineHeight: 1.4 }
+                }, n.title),
+                n.body ? React.createElement('div', { key: 'body',
+                  style: { fontSize: 12, color: 'rgba(255,255,255,0.6)', lineHeight: 1.5 }
+                }, n.body) : null,
+                clickable ? React.createElement('div', { key: 'cta',
+                  style: { marginTop: 8, fontSize: 10, color: s.color,
+                    fontFamily: 'JetBrains Mono, monospace', letterSpacing: 1 }
+                }, 'OPEN SOURCE →') : null,
+              ]);
+            })
+        ),
+      ]),
+    ]);
+  }
+
+  // CSS animations
+  if (!document.getElementById('nextos-notify-styles')) {
+    const style = document.createElement('style');
+    style.id = 'nextos-notify-styles';
+    style.textContent =
+      '@keyframes nextos-toast-in { from { opacity: 0; transform: translateX(12px) translateY(8px); } to { opacity: 1; transform: translateX(0) translateY(0); } }' +
+      '@keyframes nextos-panel-in { from { transform: translateX(100%); } to { transform: translateX(0); } }';
+    document.head.appendChild(style);
+  }
+
+  window.NotificationCenter = NotificationCenter;
+  window.NotificationPanel  = NotificationPanel;
+})();
+
+  
+
+
+/* nia-watch.jsx — Nia's Watch Widget + on-load brief toasts.
+   When Hudson opens NEXT OS, Nia greets him with what happened while
+   he was away. Fetches /briefs from the Sentinel worker on mount,
+   surfaces unread briefs as toasts, and renders a card on Dashboard.
+*/
+
+(function () {
+  const BRIEFS_ENDPOINT_BASE = (typeof window !== 'undefined' && window.NEXT_OS_SENTINEL_ENDPOINT)
+    || 'https://nextos-sentinel.nextafricaai.workers.dev';
+
+  // ─── Fetcher ────────────────────────────────────────────────────────
+  async function fetchBriefs() {
+    try {
+      const res = await fetch(BRIEFS_ENDPOINT_BASE + '/briefs');
+      if (!res.ok) return { briefs: [], unreadCount: 0, error: 'HTTP ' + res.status };
+      const data = await res.json();
+      return data && Array.isArray(data.briefs)
+        ? data
+        : { briefs: [], unreadCount: 0 };
+    } catch (e) {
+      return { briefs: [], unreadCount: 0, error: String(e.message || e) };
+    }
+  }
+
+  async function markRead(ids) {
+    if (!ids || ids.length === 0) return;
+    try {
+      await fetch(BRIEFS_ENDPOINT_BASE + '/briefs/mark-read', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids }),
+      });
+    } catch (e) { /* silent */ }
+  }
+
+  // Track which brief IDs we've already shown so polling doesn't repeat them
+  const seenBriefs = new Set();
+
+  // For each finding (concern) in a brief, emit a separate clickable toast
+  // that drives Hudson directly to that tenant's prototype at the right hash.
+  function surfaceBrief(b) {
+    if (seenBriefs.has(b.id)) return;
+    seenBriefs.add(b.id);
+    if (!window.NEXT_OS || typeof window.NEXT_OS.notify !== 'function') return;
+
+    const ts = new Date(b.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const kindLabel = b.kind === 'morning' ? 'Morning brief'
+                    : b.kind === 'weekly'  ? 'Weekly wrap'
+                    : 'Pulse check';
+
+    // If there are findings, surface one toast PER concern so each one
+    // navigates to its specific source when clicked.
+    const findings = b.findings || [];
+    const concerns = [];
+    findings.forEach(f => (f.concerns || []).forEach(c => {
+      concerns.push({ tenantId: f.tenantId, name: f.name, concern: c });
+    }));
+
+    if (concerns.length === 0) {
+      // Quiet brief — just one info toast
+      window.NEXT_OS.notify({
+        severity: 'info',
+        title: kindLabel + ' — all clear',
+        body: (b.text || '').slice(0, 180),
+        source: 'Nia · ' + ts,
+      });
+      return;
+    }
+
+    // Lead toast — summary
+    window.NEXT_OS.notify({
+      severity: 'warn',
+      title: kindLabel + ' · ' + concerns.length + ' thing' + (concerns.length === 1 ? '' : 's') + ' to look at',
+      body: (b.text || '').slice(0, 180),
+      source: 'Nia · ' + ts,
+    });
+
+    // Then one toast per concern, staggered, each clickable to its source
+    concerns.slice(0, 4).forEach((c, i) => {
+      setTimeout(() => {
+        window.NEXT_OS.notify({
+          severity: c.concern.severity === 'warn' ? 'warn' : 'info',
+          title: c.name + ' — ' + c.concern.type.replace(/_/g, ' '),
+          body: c.concern.summary,
+          source: 'Nia · click to open',
+          tenantId: c.tenantId,
+          concernType: c.concern.type,
+        });
+      }, 400 * (i + 1));
+    });
+
+    // Show what Nia DID about each finding (auto-fix actions she took)
+    const actions = b.actions || [];
+    actions.slice(0, 4).forEach((a, i) => {
+      setTimeout(() => {
+        const isApprovalNeeded = a.requiresApproval;
+        window.NEXT_OS.notify({
+          severity: isApprovalNeeded ? 'info' : 'success',
+          title: 'Nia ' + (isApprovalNeeded ? 'prepared' : 'handled') + ': ' + (a.tenantName || ''),
+          body: a.humanReadable || a.result,
+          source: 'Nia · auto-action',
+          tenantId: a.tenantId,
+          concernType: a.concernType,
+        });
+      }, 400 * (concerns.slice(0, 4).length + i + 1));
+    });
+  }
+
+  // ─── On-load toast trigger ──────────────────────────────────────────
+  let bootRan = false;
+  async function bootBriefToasts() {
+    if (bootRan) return;
+    bootRan = true;
+    await new Promise(r => setTimeout(r, 1200));
+    if (!window.NEXT_OS || typeof window.NEXT_OS.notify !== 'function') return;
+    const b = await buildLiveBrief();
+    const ts = new Date(b.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const hasConcern = (b.findings || []).length > 0;
+    window.NEXT_OS.notify({
+      severity: hasConcern ? 'warn' : 'success',
+      title: hasConcern ? ('Nia — ' + b.findings.length + ' thing' + (b.findings.length === 1 ? '' : 's') + ' to look at') : 'Nia is watching',
+      body: (b.text || '').slice(0, 190),
+      source: 'Nia · ' + ts,
+    });
+  }
+
+  // ─── Live polling — every 30s while OS is open, check for new briefs
+  async function pollOnce() { /* live brief is generated on demand; no stale-toast polling */ }
+  function startPolling() { /* disabled — Nia's Watch refreshes its live brief in the widget */ }
+
+  // ─── Live brief — built fresh from current fleet data, in Nia's warm voice ──
+  function _knownName() {
+    try { var p = JSON.parse(localStorage.getItem('nextos.session.v1') || 'null'); if (p && p.name) return p.name; } catch (e) {}
+    return 'Hudson';
+  }
+  function _pick(arr, seed) { return arr[Math.abs(seed) % arr.length]; }
+  async function buildLiveBrief() {
+    const now = new Date();
+    const hr = now.getHours();
+    const greet = hr < 5 ? 'Still up' : hr < 12 ? 'Good morning' : hr < 17 ? 'Good afternoon' : 'Good evening';
+    const name = _knownName();
+    const seed = now.getHours() * 60 + now.getMinutes();
+    let tenants = []; try { tenants = (window.OS_DATA && window.OS_DATA.getTenants && window.OS_DATA.getTenants()) || []; } catch (e) {}
+    let vault = []; try { const d = await fetch(BRIEFS_ENDPOINT_BASE + '/os-data?kind=fleet_vault&tenant=next').then(r => r.json()); vault = ((d && d.records) || []).map(x => x.payload || {}); } catch (e) {}
+    let projects = []; try { projects = window.PROJECT_DATA || []; } catch (e) {}
+
+    // recently onboarded (createdAt within ~8 days)
+    const recent = vault.filter(v => { if (!v.createdAt) return false; const d = new Date(v.createdAt); return !isNaN(d.getTime()) && (now - d) < 8 * 86400000; })
+                        .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
+    // concerns from tenant kpis / health
+    const concerns = [];
+    tenants.forEach(t => {
+      const k = t.kpis || {};
+      let rate = (typeof k.feesCollectionRate === 'number') ? k.feesCollectionRate : (typeof t.feesCollectionRate === 'number' ? t.feesCollectionRate : null);
+      if (rate != null && rate < 0.5) concerns.push({ tenantId: t.id, name: t.name, type: 'fee_collection_low', severity: 'warn', summary: t.name + ' is at ' + Math.round(rate * 100) + '% on term fees.' });
+      else if (t.health === 'repair' || t.health === 'critical') concerns.push({ tenantId: t.id, name: t.name, type: 'needs_attention', severity: 'warn', summary: t.name + ' could use a look.' });
+    });
+    const downProj = (projects || []).filter(p => p.health === 'critical');
+
+    const lines = [greet + ', ' + name + '.'];
+    const actions = [];
+    if (recent.length) {
+      const r0 = recent[0];
+      lines.push(_pick([
+        'I saw you onboarded ' + (r0.name || r0.tenantId) + ' — I\'m watching it now, and it\'s settling in nicely.',
+        'Welcome ' + (r0.name || r0.tenantId) + ' to the fleet. I\'ve got eyes on it from here.',
+        (r0.name || r0.tenantId) + ' is live and I\'m already keeping watch over it.',
+      ], seed));
+      actions.push({ humanReadable: 'Set up ' + (r0.name || r0.tenantId) + '\'s dashboards and started tracking its numbers.' });
+    }
+    if (concerns.length) {
+      const names = concerns.slice(0, 3).map(c => c.name).join(', ');
+      lines.push('A few schools are leaning on fees — ' + names + (concerns.length > 3 ? ' and others' : '') + '. Nothing urgent, but worth a gentle nudge.');
+      actions.push({ humanReadable: 'Drafted warm fee reminders for the lagging schools — approve and I\'ll send them.', requiresApproval: true });
+    }
+    if (downProj.length) {
+      lines.push(downProj.length + ' project' + (downProj.length === 1 ? ' needs' : 's need') + ' attention — ' + downProj.slice(0, 2).map(p => p.name).join(', ') + '.');
+      actions.push({ humanReadable: 'Flagged the projects that are down or near expiry.', requiresApproval: true });
+    }
+    if (!concerns.length && !downProj.length) {
+      lines.push(_pick([
+        'Everything\'s calm across the fleet right now — nothing needs you. Hope your day\'s been a good one.',
+        'All clear tonight. The fleet is steady and I\'m keeping watch so you don\'t have to.',
+        'Quiet and steady out there — every OS is healthy. Rest easy, I\'ve got it.',
+        'No fires, ' + name + '. The fleet is running smoothly and I\'m on the bridge.',
+      ], seed));
+      actions.push({ humanReadable: 'Kept watch over all ' + (tenants.length || 'your') + ' fleet members — nothing needs you right now.' });
+    }
+    const findings = concerns.map(c => ({ tenantId: c.tenantId, name: c.name, concerns: [{ type: c.type, severity: c.severity, summary: c.summary }] }));
+    return { id: 'live-' + now.getTime(), kind: hr < 12 ? 'morning' : (now.getDay() === 5 ? 'weekly' : 'pulse'), at: now.toISOString(), text: lines.join(' '), findings: findings, actions: actions, read: true, live: true };
+  }
+
+  // ─── Dashboard widget ──────────────────────────────────────────────
+  function NiaWatchWidget() {
+    const [data, setData] = React.useState({ briefs: [], unreadCount: 0, loading: true });
+    const [expanded, setExpanded] = React.useState(false);
+
+    const refresh = React.useCallback(async () => {
+      setData(d => Object.assign({}, d, { loading: true }));
+      const live = await buildLiveBrief();
+      let stored = { briefs: [] }; try { stored = await fetchBriefs(); } catch (e) {}
+      const history = (stored.briefs || []).filter(b => !b.live);
+      setData({ briefs: [live].concat(history), unreadCount: 0, loading: false });
+    }, []);
+
+    React.useEffect(() => {
+      refresh();
+      const id = setInterval(refresh, 60000); // re-poll every 60s
+      return () => clearInterval(id);
+    }, [refresh]);
+
+    const latest = data.briefs[0];
+    const rest = data.briefs.slice(1, 8);
+    const formatTime = (iso) => {
+      try {
+        const d = new Date(iso);
+        const now = new Date();
+        const diffMin = Math.round((now - d) / 60000);
+        if (diffMin < 1) return 'just now';
+        if (diffMin < 60) return diffMin + 'm ago';
+        if (diffMin < 60 * 24) return Math.round(diffMin / 60) + 'h ago';
+        return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+      } catch (e) { return ''; }
+    };
+    const kindLabel = (k) => k === 'morning' ? 'MORNING BRIEF' : k === 'weekly' ? 'WEEKLY WRAP' : 'PULSE CHECK';
+
+    return (
+      <div style={{
+        background: 'var(--bg-elevated)',
+        border: '1px solid var(--border-subtle)',
+        borderRadius: 'var(--radius-md)',
+        padding: 24, marginBottom: 24,
+      }}>
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          marginBottom: 16,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{
+              width: 32, height: 32, borderRadius: 8,
+              background: 'var(--mint-glow)', color: 'var(--mint)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 14,
+            }}>N</div>
+            <div>
+              <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', letterSpacing: 1.5, color: 'var(--text-tertiary)' }}>NIA'S WATCH <span style={{ color: 'var(--mint)', marginLeft: 6 }}>· LIVE v38</span></div>
+              <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)' }}>
+                What happened while you were away
+              </div>
+            </div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {data.unreadCount > 0 && (
+              <span style={{
+                fontSize: 11, fontWeight: 700, color: 'var(--text-inverse)',
+                background: 'var(--mint)', padding: '3px 8px', borderRadius: 10,
+                fontFamily: 'var(--font-mono)',
+              }}>{data.unreadCount} NEW</span>
+            )}
+            <button onClick={refresh} style={{
+              background: 'transparent', border: '1px solid var(--border-subtle)',
+              color: 'var(--text-tertiary)', fontSize: 11, padding: '4px 10px',
+              borderRadius: 'var(--radius-sm)', cursor: 'pointer',
+              fontFamily: 'var(--font-mono)', letterSpacing: 1,
+            }}>{data.loading ? '...' : 'REFRESH'}</button>
+          </div>
+        </div>
+
+        {!latest && !data.loading && (
+          <div style={{
+            padding: '24px 0', textAlign: 'center', color: 'var(--text-tertiary)',
+            fontSize: 13, lineHeight: 1.6,
+          }}>
+            {data.error
+              ? 'Nia’s briefs aren’t reachable yet. Deploy the worker and trigger one via /supervise to test.'
+              : 'No briefs yet. Nia’s first cron fires at 6:30 AM EAT, or trigger one manually:'}
+            <div style={{
+              fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--mint)',
+              marginTop: 10, padding: '8px 12px', background: 'var(--bg-deep)',
+              borderRadius: 6, display: 'inline-block',
+            }}>POST {BRIEFS_ENDPOINT_BASE}/supervise</div>
+          </div>
+        )}
+
+        {latest && (
+          <div style={{
+            background: 'var(--bg-deep)',
+            border: '1px solid ' + (latest.read ? 'var(--border-subtle)' : 'var(--mint)'),
+            borderRadius: 'var(--radius-sm)', padding: 16,
+          }}>
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8,
+              fontSize: 10, fontFamily: 'var(--font-mono)', letterSpacing: 1.5,
+            }}>
+              <span style={{ color: 'var(--mint)' }}>{kindLabel(latest.kind)}</span>
+              <span style={{ color: 'var(--text-tertiary)' }}>·</span>
+              <span style={{ color: 'var(--text-tertiary)' }}>{formatTime(latest.at)}</span>
+              {latest.sentToWA && <span style={{ color: 'var(--text-tertiary)' }}>· WHATSAPPED</span>}
+            </div>
+            <div style={{
+              fontSize: 14, color: 'var(--text-primary)', lineHeight: 1.55,
+              whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+            }}>{latest.text}</div>
+            {latest.findings && latest.findings.length > 0 && (
+              <div style={{
+                marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--border-subtle)',
+                display: 'flex', flexWrap: 'wrap', gap: 6,
+              }}>
+                {latest.findings.flatMap(f => f.concerns || []).slice(0, 5).map((c, i) => (
+                  <span key={i} style={{
+                    fontSize: 10, fontFamily: 'var(--font-mono)', letterSpacing: 1,
+                    color: c.severity === 'warn' ? 'var(--gold)' : 'var(--text-tertiary)',
+                    background: c.severity === 'warn' ? 'rgba(255,180,0,0.08)' : 'var(--bg-surface)',
+                    padding: '2px 8px', borderRadius: 4,
+                    border: '1px solid ' + (c.severity === 'warn' ? 'var(--gold)' : 'var(--border-subtle)'),
+                  }}>{c.type.replace(/_/g, ' ').toUpperCase()}</span>
+                ))}
+              </div>
+            )}
+            {latest.actions && latest.actions.length > 0 && (
+              <div style={{
+                marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--border-subtle)',
+              }}>
+                <div style={{
+                  fontSize: 10, fontFamily: 'var(--font-mono)', letterSpacing: 1.5,
+                  color: 'var(--mint)', marginBottom: 8,
+                }}>WHAT NIA DID</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {latest.actions.slice(0, 4).map((a, i) => (
+                    <div key={i} style={{
+                      fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5,
+                      display: 'flex', gap: 8, alignItems: 'flex-start',
+                    }}>
+                      <span style={{
+                        color: a.requiresApproval ? 'var(--gold)' : 'var(--mint)',
+                        flexShrink: 0, marginTop: 2, fontSize: 11,
+                      }}>{a.requiresApproval ? '⏳' : '✓'}</span>
+                      <span>{a.humanReadable || a.result}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {rest.length > 0 && (
+          <div style={{ marginTop: 14 }}>
+            <button onClick={() => setExpanded(e => !e)} style={{
+              background: 'transparent', border: 'none', cursor: 'pointer',
+              fontSize: 11, fontFamily: 'var(--font-mono)', letterSpacing: 1,
+              color: 'var(--text-tertiary)', padding: 0,
+            }}>{expanded ? 'HIDE EARLIER BRIEFS' : 'SHOW ' + rest.length + ' EARLIER BRIEF' + (rest.length === 1 ? '' : 'S')}</button>
+            {expanded && (
+              <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {rest.map(b => (
+                  <div key={b.id} style={{
+                    padding: 12, background: 'var(--bg-deep)',
+                    border: '1px solid var(--border-subtle)', borderRadius: 6,
+                  }}>
+                    <div style={{
+                      fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)',
+                      letterSpacing: 1.5, marginBottom: 4,
+                    }}>{kindLabel(b.kind)} · {formatTime(b.at)}</div>
+                    <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                      {(b.text || '').slice(0, 200)}{(b.text || '').length > 200 ? '…' : ''}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  window.NiaWatchWidget = NiaWatchWidget;
+  window.NiaWatchBoot = bootBriefToasts;
+
+  // Auto-fire on load — runs once when the OS finishes booting
+  if (typeof document !== 'undefined') {
+    const boot = () => { setTimeout(bootBriefToasts, 1500); setTimeout(startPolling, 5000); };
+    if (document.readyState === 'complete' || document.readyState === 'interactive') boot();
+    else document.addEventListener('DOMContentLoaded', boot);
+  }
+})();
+
+  
+
+
+/* os-onboarding.jsx - School onboarding embedded in NEXT OS */
+window.OnboardingPage = function OnboardingPage(props) {
+  const onNavigate = props && props.onNavigate;
+  const VERTICALS = [
+    { id: 'schools',    icon: '\u{1F393}', name: 'Schools',            live: true,  desc: 'Students, fees, attendance, exams, reports \u2014 primary & secondary.' },
+    { id: 'hospitals',  icon: '\u{1F3E5}', name: 'Hospitals & Clinics', live: false, desc: 'Patients, appointments, records, billing, pharmacy, staff rota.' },
+    { id: 'companies',  icon: '\u{1F3E2}', name: 'Companies',           live: false, desc: 'HR, payroll, operations, projects, performance.' },
+    { id: 'businesses', icon: '\u{1F6D2}', name: 'Businesses & SMEs',   live: false, desc: 'Inventory, sales, customers, invoicing, cash flow.' },
+    { id: 'government', icon: '\u{1F3DB}', name: 'Government',          live: false, desc: 'Departments, citizens, services, records, workflows.' },
+    { id: 'ngos',       icon: '\u{1F91D}', name: 'NGOs',                live: false, desc: 'Beneficiaries, programs, donors, impact reporting.' },
+    { id: 'churches',   icon: '\u26EA',    name: 'Churches',            live: false, desc: 'Members, giving, events, cell groups, communication.' },
+  ];
+  const [sel, setSel] = React.useState('schools');
+  const cur = VERTICALS.find(v => v.id === sel) || VERTICALS[0];
+  return (
+    <div>
+      <div style={{ marginBottom: 18 }}>
+        <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 28, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+          Onboarding <span style={{ color: 'var(--mint)' }}>a new organisation</span>
+        </h1>
+        <p style={{ fontSize: 14, color: 'var(--text-secondary)', margin: '6px 0 0' }}>
+          Pick the kind of organisation. Schools is live today; the other verticals are reserved and rolling out next.
+        </p>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12, marginBottom: 22 }}>
+        {VERTICALS.map(v => (
+          <div key={v.id} onClick={() => setSel(v.id)} style={{
+            background: 'var(--bg-elevated)', border: '1px solid ' + (sel === v.id ? 'var(--mint)' : 'var(--border-subtle)'),
+            borderRadius: 'var(--radius-md)', padding: 16, cursor: 'pointer', position: 'relative', transition: 'border-color .15s',
+          }}>
+            <div style={{ fontSize: 24, marginBottom: 8 }}>{v.icon}</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>{v.name}</div>
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--text-tertiary)', lineHeight: 1.5, marginTop: 6 }}>{v.desc}</div>
+            <div style={{ marginTop: 10, fontSize: 9.5, fontFamily: 'var(--font-mono)', letterSpacing: 1, fontWeight: 700, color: v.live ? 'var(--mint)' : 'var(--text-tertiary)' }}>{v.live ? '\u25CF LIVE' : 'COMING SOON'}</div>
+          </div>
+        ))}
+      </div>
+
+      {sel === 'schools' ? (
+        <div>
+          <p style={{ fontSize: 13.5, color: 'var(--text-secondary)', margin: '0 0 12px' }}>
+            Nia rebrands the Schools OS to a new school in minutes \u2014 name, colour, logo. Preview their login, then hand over their branded OS.
+          </p>
+          <iframe src="school-onboarding.html" title="School Onboarding"
+            style={{ width: '100%', height: 'calc(100vh - 360px)', minHeight: 520, border: '1px solid var(--border-subtle)', borderRadius: 12, background: '#0a1029' }} />
+        </div>
+      ) : (
+        <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: 30, textAlign: 'center' }}>
+          <div style={{ fontSize: 40, marginBottom: 12 }}>{cur.icon}</div>
+          <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-primary)' }}>{cur.name} OS \u2014 coming soon</div>
+          <div style={{ fontSize: 14, color: 'var(--text-secondary)', margin: '10px auto 0', maxWidth: 540, lineHeight: 1.6 }}>
+            We build vertical operating systems one at a time, starting with Schools. The <b>{cur.name}</b> structure is reserved on NEXT \u2014 {cur.desc.toLowerCase()} When you have a real {cur.name.toLowerCase()} client, tell Nia and we'll prioritise building it.
+          </div>
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginTop: 20 }}>
+            <button onClick={() => onNavigate && onNavigate('talk')} style={{ background: 'var(--mint)', color: 'var(--text-inverse)', border: 'none', borderRadius: 'var(--radius-sm)', padding: '11px 20px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>Discuss this with Nia</button>
+            <button onClick={() => setSel('schools')} style={{ background: 'transparent', color: 'var(--text-secondary)', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-sm)', padding: '11px 20px', fontSize: 13, cursor: 'pointer' }}>Onboard a school instead</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+  
+
+
+/* NEXT_OPS — real Members / Billing / Training, backed by Supabase (os_records) */
+(function () {
+  const WK = (typeof window !== 'undefined' && window.NEXT_OS_SENTINEL_ENDPOINT) || 'https://nextos-sentinel.nextafricaai.workers.dev';
+  const fmtU = n => 'UGX ' + (Number(n) || 0).toLocaleString();
+  const KINDS = {
+    members: {
+      title: 'Members', eyebrow: 'CLIENTS & PARTNERS', sub: 'The organisations and people on NEXT.', addLabel: '+ Add member',
+      fields: [{ k: 'name', l: 'Name' }, { k: 'organisation', l: 'Organisation' }, { k: 'role', l: 'Role' }, { k: 'tier', l: 'Tier', type: 'select', opts: ['Catalyst', 'Builder', 'Architect'] }, { k: 'email', l: 'Email' }, { k: 'phone', l: 'Phone' }],
+      columns: [['name', 'Name'], ['organisation', 'Organisation'], ['tier', 'Tier'], ['email', 'Email']],
+      summary: rows => { const by = {}; rows.forEach(r => { by[r.tier || '—'] = (by[r.tier || '—'] || 0) + 1; }); return [['Total members', rows.length], ['Catalyst', by.Catalyst || 0], ['Builder', by.Builder || 0], ['Architect', by.Architect || 0]]; },
+    },
+    billing: {
+      title: 'Billing', eyebrow: 'INVOICES & REVENUE', sub: 'What clients owe and what has been collected.', addLabel: '+ Add invoice',
+      fields: [{ k: 'client', l: 'Client' }, { k: 'description', l: 'Description' }, { k: 'amount', l: 'Amount (UGX)', type: 'number' }, { k: 'status', l: 'Status', type: 'select', opts: ['paid', 'pending', 'overdue'] }, { k: 'date', l: 'Date', type: 'date' }],
+      columns: [['client', 'Client'], ['description', 'Description'], ['amount', 'Amount', 'money'], ['status', 'Status'], ['date', 'Date']],
+      summary: rows => { const total = rows.reduce((a, r) => a + (+r.amount || 0), 0); const paid = rows.filter(r => r.status === 'paid').reduce((a, r) => a + (+r.amount || 0), 0); return [['Total billed', fmtU(total)], ['Collected', fmtU(paid)], ['Outstanding', fmtU(total - paid)], ['Invoices', rows.length]]; },
+    },
+    training: {
+      title: 'Training', eyebrow: 'CAPACITY BUILDING', sub: 'Programs and workshops across client organisations.', addLabel: '+ Schedule training',
+      fields: [{ k: 'title', l: 'Title' }, { k: 'organisation', l: 'Organisation' }, { k: 'date', l: 'Date', type: 'date' }, { k: 'mode', l: 'Mode', type: 'select', opts: ['In-person', 'Online', 'Hybrid'] }, { k: 'status', l: 'Status', type: 'select', opts: ['Scheduled', 'Completed', 'Cancelled'] }],
+      columns: [['title', 'Title'], ['organisation', 'Organisation'], ['date', 'Date'], ['mode', 'Mode'], ['status', 'Status']],
+      summary: rows => [['Programs', rows.length], ['Scheduled', rows.filter(r => r.status === 'Scheduled').length], ['Completed', rows.filter(r => r.status === 'Completed').length]],
+    },
+  };
+
+  function NextOps({ kind }) {
+    const cfg = KINDS[kind] || KINDS.members;
+    const [rows, setRows] = React.useState([]);
+    const [adding, setAdding] = React.useState(false);
+    const [form, setForm] = React.useState({});
+    const [busy, setBusy] = React.useState(false);
+    const [mounted, setMounted] = React.useState(false);
+    React.useEffect(() => { setTimeout(() => setMounted(true), 40); }, []);
+    const reload = React.useCallback(() => { fetch(WK + '/os-data?kind=' + kind).then(r => r.json()).then(d => { if (d && d.records) setRows(d.records.map(x => Object.assign({ _id: x.id }, x.payload))); }).catch(() => {}); }, [kind]);
+    React.useEffect(() => { reload(); setForm({}); setAdding(false); }, [reload]);
+    const save = () => {
+      setBusy(true);
+      fetch(WK + '/os-data/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind, record: form }) })
+        .then(r => r.json()).then(res => { setBusy(false); if (res.error) { window.NEXT_OS && window.NEXT_OS.notify && window.NEXT_OS.notify({ severity: 'warn', title: 'Could not save', body: res.error, source: 'NEXT OS' }); return; } setAdding(false); setForm({}); reload(); }).catch(() => setBusy(false));
+    };
+    const card = { background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: 18 };
+    const inp = { width: '100%', background: 'var(--bg-deep)', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-sm)', color: 'var(--text-primary)', padding: '9px 11px', fontSize: 13, outline: 'none' };
+    const cell = (r, c) => { const v = r[c[0]]; if (c[2] === 'money') return fmtU(v); return v || '—'; };
+    return (
+      <div style={{ opacity: mounted ? 1 : 0, transition: 'opacity .35s' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: 12, marginBottom: 20 }}>
+          <div>
+            <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', letterSpacing: 2, color: 'var(--text-tertiary)', marginBottom: 6 }}>{cfg.eyebrow}</div>
+            <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 30, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>{cfg.title}</h1>
+            <p style={{ fontSize: 14, color: 'var(--text-secondary)', margin: '6px 0 0' }}>{cfg.sub}</p>
+          </div>
+          <button onClick={() => setAdding(true)} style={{ background: 'var(--mint)', color: 'var(--text-inverse)', border: 'none', borderRadius: 'var(--radius-sm)', padding: '10px 18px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>{cfg.addLabel}</button>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(' + cfg.summary(rows).length + ', 1fr)', gap: 1, background: 'var(--border-subtle)', borderRadius: 'var(--radius-md)', overflow: 'hidden', marginBottom: 18 }}>
+          {cfg.summary(rows).map((k, i) => (
+            <div key={i} style={{ background: 'var(--bg-elevated)', padding: 16 }}>
+              <div style={{ fontSize: 10.5, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>{k[0]}</div>
+              <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--text-primary)', marginTop: 4 }}>{k[1]}</div>
+            </div>
+          ))}
+        </div>
+
+        <div style={card}>
+          {rows.length === 0 ? (
+            <div style={{ padding: '20px 0', textAlign: 'center', color: 'var(--text-tertiary)', fontSize: 13 }}>Nothing here yet. Click <b>{cfg.addLabel}</b> to add the first one — it saves live.</div>
+          ) : (
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                <thead><tr style={{ borderBottom: '1px solid var(--border-default)' }}>{cfg.columns.map((c, i) => <th key={i} style={{ textAlign: 'left', padding: '8px 10px', fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>{c[1]}</th>)}</tr></thead>
+                <tbody>{rows.map((r, i) => (<tr key={i} style={{ borderBottom: '1px solid var(--border-subtle)' }}>{cfg.columns.map((c, j) => <td key={j} style={{ padding: '10px 10px', color: j === 0 ? 'var(--text-primary)' : 'var(--text-secondary)', fontWeight: j === 0 ? 600 : 400 }}>{cell(r, c)}</td>)}</tr>))}</tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        {adding && (
+          <div onClick={() => setAdding(false)} style={{ position: 'fixed', inset: 0, zIndex: 9000, background: 'rgba(5,8,22,0.7)', backdropFilter: 'blur(6px)', display: 'grid', placeItems: 'center', padding: 20 }}>
+            <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 460, background: 'var(--bg-elevated)', border: '1px solid var(--border-default)', borderRadius: 16, padding: 22 }}>
+              <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 16 }}>{cfg.addLabel.replace('+ ', '')}</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                {cfg.fields.map(fl => (
+                  <label key={fl.k} style={{ gridColumn: (fl.k === 'name' || fl.k === 'title' || fl.k === 'description') ? 'span 2' : 'span 1' }}>
+                    <div style={{ fontSize: 11, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', marginBottom: 5 }}>{fl.l.toUpperCase()}</div>
+                    {fl.type === 'select'
+                      ? <select style={inp} value={form[fl.k] || ''} onChange={e => setForm(f => ({ ...f, [fl.k]: e.target.value }))}><option value="">—</option>{fl.opts.map(o => <option key={o} value={o}>{o}</option>)}</select>
+                      : <input style={inp} type={fl.type === 'date' ? 'date' : 'text'} value={form[fl.k] || ''} onChange={e => setForm(f => ({ ...f, [fl.k]: e.target.value }))} />}
+                  </label>
+                ))}
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 18 }}>
+                <button onClick={() => setAdding(false)} style={{ background: 'transparent', border: '1px solid var(--border-default)', color: 'var(--text-secondary)', borderRadius: 'var(--radius-sm)', padding: '9px 16px', fontSize: 13, cursor: 'pointer' }}>Cancel</button>
+                <button onClick={save} disabled={busy} style={{ background: 'var(--mint)', color: 'var(--text-inverse)', border: 'none', borderRadius: 'var(--radius-sm)', padding: '9px 18px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>{busy ? 'Saving…' : 'Save'}</button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+  window.NEXT_OPS = NextOps;
+
+  window.NEXT_GENERATE_REPORT = async function () {
+    var J = window.jspdf && window.jspdf.jsPDF; if (!J) { alert('Report engine still loading — try again in a moment.'); return; }
+    var doc = new J(); var W = 210;
+    doc.setFontSize(18); doc.setFont(undefined, 'bold'); doc.text('NEXT — Operations Report', W / 2, 18, { align: 'center' });
+    doc.setFont(undefined, 'normal'); doc.setFontSize(10); doc.text(new Date().toLocaleString(), W / 2, 25, { align: 'center' });
+    doc.setDrawColor(200); doc.line(14, 30, W - 14, 30);
+    var projs = (window.PROJECT_DATA || []); var y = 42;
+    doc.setFontSize(13); doc.setFont(undefined, 'bold'); doc.text('Projects (' + projs.length + ')', 14, y); doc.setFont(undefined, 'normal'); y += 4; doc.line(14, y, W - 14, y); y += 7;
+    doc.setFontSize(9); doc.setFont(undefined, 'bold'); doc.text('Project', 14, y); doc.text('Client', 80, y); doc.text('Status', 150, y); doc.text('%', 185, y); doc.setFont(undefined, 'normal'); y += 5;
+    projs.forEach(function (p) { if (y > 270) { doc.addPage(); y = 20; } doc.text(String(p.name || '').slice(0, 34), 14, y); doc.text(String(p.client || '').slice(0, 32), 80, y); doc.text(p.planned ? 'Planned' : 'Active', 150, y); doc.text(String(p.progress != null ? p.progress : '-'), 185, y); y += 6; });
+    try {
+      var bill = await fetch('https://nextos-sentinel.nextafricaai.workers.dev/os-data?kind=billing').then(function (r) { return r.json(); });
+      var mem = await fetch('https://nextos-sentinel.nextafricaai.workers.dev/os-data?kind=members').then(function (r) { return r.json(); });
+      var bRows = (bill && bill.records || []).map(function (x) { return x.payload; });
+      var total = bRows.reduce(function (a, r) { return a + (+r.amount || 0); }, 0);
+      var paid = bRows.filter(function (r) { return r.status === 'paid'; }).reduce(function (a, r) { return a + (+r.amount || 0); }, 0);
+      y += 8; if (y > 250) { doc.addPage(); y = 20; }
+      doc.setFontSize(13); doc.setFont(undefined, 'bold'); doc.text('Summary', 14, y); doc.setFont(undefined, 'normal'); y += 4; doc.line(14, y, W - 14, y); y += 8; doc.setFontSize(11);
+      doc.text('Members: ' + ((mem && mem.records || []).length), 14, y); y += 7;
+      doc.text('Billed: UGX ' + total.toLocaleString() + '   Collected: UGX ' + paid.toLocaleString() + '   Outstanding: UGX ' + (total - paid).toLocaleString(), 14, y);
+    } catch (e) {}
+    doc.setFontSize(9); doc.setTextColor(120); doc.text('Generated by NEXT OS · Nia', 14, 290);
+    doc.save('NEXT_Operations_Report_' + new Date().toISOString().slice(0, 10) + '.pdf');
+  };
+})();
+  
+
+
+/* NEXT_COMMS — Communications hub: contacts directory + broadcast composer (WhatsApp/Email/SMS/In-app) + templates + log. Backed by os_records. */
+(function () {
+  const WK = (typeof window !== 'undefined' && window.NEXT_OS_SENTINEL_ENDPOINT) || 'https://nextos-sentinel.nextafricaai.workers.dev';
+  const SEGMENTS = ['client', 'team', 'prospect', 'parent', 'other'];
+  const SEG_LABEL = { client: 'Fleet client', team: 'Team & partner', prospect: 'Prospect', parent: 'Parent / member', other: 'Other' };
+  const CHANNELS = [
+    { k: 'whatsapp', label: 'WhatsApp', need: 'phone', glyph: '\u{1F4AC}' },
+    { k: 'email', label: 'Email', need: 'email', glyph: '✉' },
+    { k: 'sms', label: 'SMS', need: 'phone', glyph: '\u{1F4F1}' },
+    { k: 'inapp', label: 'In-app', need: 'tenant', glyph: '\u{1F514}' },
+  ];
+  const fill = (t, r) => String(t || '')
+    .replace(/\{name\}/gi, r.name || 'there')
+    .replace(/\{first\}/gi, (r.name || 'there').split(' ')[0])
+    .replace(/\{org\}/gi, r.org || 'your organisation');
+
+  function jget(kind) { return fetch(WK + '/os-data?kind=' + kind).then(r => r.json()).then(d => (d && d.records) || []).catch(() => []); }
+  function jsave(kind, record, id) { return fetch(WK + '/os-data/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(id ? { kind, record, id } : { kind, record }) }).then(r => r.json()).catch(e => ({ error: String(e && e.message || e) })); }
+
+  function NextComms() {
+    const [tab, setTab] = React.useState('compose');
+    const [contacts, setContacts] = React.useState([]);
+    const [templates, setTemplates] = React.useState([]);
+    const [log, setLog] = React.useState([]);
+    const [mounted, setMounted] = React.useState(false);
+    React.useEffect(() => { setTimeout(() => setMounted(true), 40); }, []);
+
+    const loadContacts = React.useCallback(() => {
+      Promise.all([jget('contact'), jget('members')]).then(([cs, ms]) => {
+        const a = cs.map(x => Object.assign({ _id: x.id, _src: 'contact' }, x.payload));
+        const b = ms.map(x => ({ _id: x.id, _src: 'member', name: x.payload.name, org: x.payload.organisation, role: x.payload.role, segment: 'client', phone: x.payload.phone, email: x.payload.email, tenant: x.payload.tenant || '' }));
+        setContacts(a.concat(b));
+      });
+    }, []);
+    const loadTemplates = React.useCallback(() => jget('msg_template').then(rs => setTemplates(rs.map(x => Object.assign({ _id: x.id }, x.payload)))), []);
+    const loadLog = React.useCallback(() => jget('broadcast').then(rs => setLog(rs.map(x => Object.assign({ _id: x.id }, x.payload)).sort((p, q) => String(q.at || '').localeCompare(String(p.at || ''))))), []);
+    React.useEffect(() => { loadContacts(); loadTemplates(); loadLog(); }, [loadContacts, loadTemplates, loadLog]);
+
+    const tabBtn = (k, label) => (
+      <button onClick={() => setTab(k)} style={{ background: tab === k ? 'var(--bg-elevated)' : 'transparent', color: tab === k ? 'var(--text-primary)' : 'var(--text-tertiary)', border: '1px solid ' + (tab === k ? 'var(--border-default)' : 'transparent'), borderRadius: 'var(--radius-sm)', padding: '8px 14px', fontSize: 13, fontWeight: tab === k ? 700 : 500, cursor: 'pointer' }}>{label}</button>
+    );
+
+    return (
+      <div style={{ opacity: mounted ? 1 : 0, transition: 'opacity .35s' }}>
+        <div style={{ marginBottom: 18 }}>
+          <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', letterSpacing: 2, color: 'var(--text-tertiary)', marginBottom: 6 }}>SIGNAL LAYER</div>
+          <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 30, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>Communications</h1>
+          <p style={{ fontSize: 14, color: 'var(--text-secondary)', margin: '6px 0 0' }}>One place to reach your fleet, team and prospects — compose once, send across channels.</p>
+        </div>
+        <div style={{ display: 'flex', gap: 6, marginBottom: 18, flexWrap: 'wrap' }}>
+          {tabBtn('compose', 'Compose')}
+          {tabBtn('contacts', 'Contacts (' + contacts.length + ')')}
+          {tabBtn('templates', 'Templates (' + templates.length + ')')}
+          {tabBtn('log', 'Sent log (' + log.length + ')')}
+        </div>
+        {tab === 'compose' && <Compose contacts={contacts} templates={templates} onSent={loadLog} />}
+        {tab === 'contacts' && <Contacts contacts={contacts} reload={loadContacts} />}
+        {tab === 'templates' && <Templates templates={templates} reload={loadTemplates} onUse={() => setTab('compose')} />}
+        {tab === 'log' && <SentLog log={log} />}
+      </div>
+    );
+  }
+
+  /* ---------- Compose ---------- */
+  function Compose({ contacts, templates, onSent }) {
+    const [channel, setChannel] = React.useState('whatsapp');
+    const [seg, setSeg] = React.useState('all');
+    const [picked, setPicked] = React.useState({});
+    const [subject, setSubject] = React.useState('');
+    const [message, setMessage] = React.useState('');
+    const [sending, setSending] = React.useState(false);
+    const [result, setResult] = React.useState(null);
+
+    const ch = CHANNELS.find(c => c.k === channel) || CHANNELS[0];
+    const inSeg = contacts.filter(c => seg === 'all' ? true : (c.segment || 'other') === seg);
+    const eligible = inSeg.filter(c => c[ch.need]);
+    const anyPicked = Object.keys(picked).filter(k => picked[k]);
+    const recipients = (anyPicked.length ? eligible.filter(c => picked[c._src + ':' + c._id]) : eligible);
+
+    const useTemplate = (t) => { if (t.channel) setChannel(t.channel); if (t.subject) setSubject(t.subject); setMessage(t.body || ''); };
+
+    const inp = { width: '100%', background: 'var(--bg-deep)', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-sm)', color: 'var(--text-primary)', padding: '10px 12px', fontSize: 13.5, outline: 'none', fontFamily: 'var(--font-sans)' };
+    const card = { background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: 18 };
+
+    const send = () => {
+      if (!message.trim()) { setResult({ err: 'Write a message first.' }); return; }
+      if (!recipients.length) { setResult({ err: 'No recipients have a ' + ch.need + ' on file for this channel.' }); return; }
+      setSending(true); setResult(null);
+      const logIt = (sent, failed, note) => {
+        jsave('broadcast', { channel, audience: seg, count: recipients.length, sent: sent, failed: failed, subject: subject, message: message, note: note || '', at: new Date().toISOString() });
+        onSent && onSent();
+      };
+      const done = (res) => {
+        setSending(false);
+        if (res && res.error) { setResult({ err: res.error + (res.hint ? ' — ' + res.hint : '') }); logIt(0, recipients.length, res.error); return; }
+        const sent = (res && res.sent) || 0, failed = (res && res.failed) || 0;
+        setResult({ ok: true, sent, failed });
+        logIt(sent, failed);
+      };
+      if (channel === 'whatsapp') {
+        const items = recipients.map(r => ({ to: String(r.phone || '').replace(/[^0-9]/g, ''), text: fill(message, r) }));
+        fetch(WK + '/whatsapp/bulk', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items }) }).then(r => r.json()).then(done).catch(e => done({ error: String(e && e.message || e) }));
+      } else if (channel === 'email') {
+        const items = recipients.map(r => ({ to: r.email, subject: subject || 'A message from NEXT', text: fill(message, r) }));
+        fetch(WK + '/email/send', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items, subject: subject || 'A message from NEXT' }) }).then(r => r.json()).then(done).catch(e => done({ error: String(e && e.message || e) }));
+      } else if (channel === 'sms') {
+        const items = recipients.map(r => ({ to: String(r.phone || '').replace(/[^0-9+]/g, ''), text: message }));
+        fetch(WK + '/sms/send', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items, message }) }).then(r => r.json()).then(done).catch(e => done({ error: String(e && e.message || e) }));
+      } else if (channel === 'inapp') {
+        const targets = recipients.filter(r => r.tenant);
+        if (!targets.length) { setSending(false); setResult({ err: 'In-app needs contacts that are linked to a tenant OS. None of these have one.' }); return; }
+        Promise.all(targets.map(r => jsave('notification', { tenant: r.tenant, title: subject || 'Message from NEXT', body: fill(message, r), at: new Date().toISOString() }))).then(() => { setSending(false); setResult({ ok: true, sent: targets.length, failed: recipients.length - targets.length }); logIt(targets.length, recipients.length - targets.length); });
+      }
+    };
+
+    return (
+      <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr', gap: 16, alignItems: 'start' }}>
+        <div style={card}>
+          <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)', marginBottom: 8 }}>CHANNEL</div>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
+            {CHANNELS.map(c => (
+              <button key={c.k} onClick={() => { setChannel(c.k); setResult(null); }} style={{ display: 'flex', alignItems: 'center', gap: 7, background: channel === c.k ? 'var(--mint)' : 'var(--bg-deep)', color: channel === c.k ? 'var(--text-inverse)' : 'var(--text-secondary)', border: '1px solid ' + (channel === c.k ? 'var(--mint)' : 'var(--border-default)'), borderRadius: 'var(--radius-sm)', padding: '9px 14px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+                <span>{c.glyph}</span>{c.label}
+              </button>
+            ))}
+          </div>
+
+          <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)', marginBottom: 8 }}>AUDIENCE</div>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
+            {['all'].concat(SEGMENTS).map(sgk => (
+              <button key={sgk} onClick={() => { setSeg(sgk); setPicked({}); }} style={{ background: seg === sgk ? 'var(--bg-elevated)' : 'transparent', color: seg === sgk ? 'var(--text-primary)' : 'var(--text-tertiary)', border: '1px solid ' + (seg === sgk ? 'var(--border-default)' : 'var(--border-subtle)'), borderRadius: 999, padding: '6px 12px', fontSize: 12, cursor: 'pointer' }}>{sgk === 'all' ? 'Everyone' : SEG_LABEL[sgk]}</button>
+            ))}
+          </div>
+          <div style={{ fontSize: 12.5, color: 'var(--text-secondary)', marginBottom: 14 }}>
+            <b style={{ color: 'var(--mint)' }}>{recipients.length}</b> recipient{recipients.length === 1 ? '' : 's'} with a {ch.need} {anyPicked.length ? '(hand-picked)' : 'in this segment'}.
+            {eligible.length < inSeg.length && <span style={{ color: 'var(--text-tertiary)' }}> {inSeg.length - eligible.length} skipped (no {ch.need}).</span>}
+          </div>
+
+          {channel === 'email' && (
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)', marginBottom: 6 }}>SUBJECT</div>
+              <input style={inp} value={subject} onChange={e => setSubject(e.target.value)} placeholder="e.g. Your June statement" />
+            </div>
+          )}
+          <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)', marginBottom: 6 }}>MESSAGE</div>
+          <textarea style={{ ...inp, minHeight: 150, resize: 'vertical', lineHeight: 1.5 }} value={message} onChange={e => setMessage(e.target.value)} placeholder={'Hi {first}, ...'} />
+          <div style={{ fontSize: 11.5, color: 'var(--text-tertiary)', marginTop: 6 }}>Personalise with <code>{'{first}'}</code>, <code>{'{name}'}</code>, <code>{'{org}'}</code>. {channel === 'sms' ? 'SMS sends the same text to all (no personalising).' : 'Filled in per recipient.'}</div>
+
+          {result && result.err && <div style={{ marginTop: 14, padding: '10px 12px', background: 'var(--danger-soft, rgba(226,58,82,0.12))', border: '1px solid var(--danger)', borderRadius: 'var(--radius-sm)', color: 'var(--danger)', fontSize: 13 }}>{result.err}</div>}
+          {result && result.ok && <div style={{ marginTop: 14, padding: '10px 12px', background: 'rgba(61,214,140,0.12)', border: '1px solid var(--mint)', borderRadius: 'var(--radius-sm)', color: 'var(--mint)', fontSize: 13 }}>Sent to {result.sent}{result.failed ? (' · ' + result.failed + ' failed') : ''}. Logged in Sent log.</div>}
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
+            <button onClick={send} disabled={sending} style={{ background: 'var(--mint)', color: 'var(--text-inverse)', border: 'none', borderRadius: 'var(--radius-sm)', padding: '11px 22px', fontSize: 14, fontWeight: 700, cursor: 'pointer', opacity: sending ? 0.6 : 1 }}>{sending ? 'Sending…' : ('Send to ' + recipients.length + ' →')}</button>
+          </div>
+        </div>
+
+        <div style={{ display: 'grid', gap: 16 }}>
+          <div style={card}>
+            <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)', marginBottom: 10 }}>TEMPLATES</div>
+            {templates.length === 0 ? <div style={{ fontSize: 12.5, color: 'var(--text-tertiary)' }}>No templates yet. Save reusable messages under the Templates tab.</div> : (
+              <div style={{ display: 'grid', gap: 8 }}>
+                {templates.slice(0, 6).map((t, i) => (
+                  <button key={i} onClick={() => useTemplate(t)} style={{ textAlign: 'left', background: 'var(--bg-deep)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-sm)', padding: '10px 12px', cursor: 'pointer' }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{t.name || 'Untitled'}</div>
+                    <div style={{ fontSize: 11.5, color: 'var(--text-tertiary)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.body || ''}</div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          <div style={{ ...card, fontSize: 12.5, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+            <div style={{ fontWeight: 700, color: 'var(--text-primary)', marginBottom: 6 }}>How sending works</div>
+            <div><b>WhatsApp</b> sends now if your WhatsApp Business number is connected. <b>Email / SMS</b> need a sender key — if not set, you'll get a clear note (see COMMS-SETUP). <b>In-app</b> drops a notice into a client's own OS.</div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  /* ---------- Contacts ---------- */
+  function Contacts({ contacts, reload }) {
+    const [seg, setSeg] = React.useState('all');
+    const [editing, setEditing] = React.useState(null);
+    const [importing, setImporting] = React.useState(false);
+    const shown = contacts.filter(c => seg === 'all' ? true : (c.segment || 'other') === seg);
+    const card = { background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: 18 };
+    return (
+      <div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10, marginBottom: 14 }}>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            {['all'].concat(SEGMENTS).map(sgk => (
+              <button key={sgk} onClick={() => setSeg(sgk)} style={{ background: seg === sgk ? 'var(--bg-elevated)' : 'transparent', color: seg === sgk ? 'var(--text-primary)' : 'var(--text-tertiary)', border: '1px solid ' + (seg === sgk ? 'var(--border-default)' : 'var(--border-subtle)'), borderRadius: 999, padding: '6px 12px', fontSize: 12, cursor: 'pointer' }}>{sgk === 'all' ? 'All (' + contacts.length + ')' : SEG_LABEL[sgk]}</button>
+            ))}
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button onClick={() => setImporting(true)} style={{ background: 'transparent', border: '1px solid var(--border-default)', color: 'var(--text-secondary)', borderRadius: 'var(--radius-sm)', padding: '9px 14px', fontSize: 13, cursor: 'pointer' }}>Import CSV</button>
+            <button onClick={() => setEditing({})} style={{ background: 'var(--mint)', color: 'var(--text-inverse)', border: 'none', borderRadius: 'var(--radius-sm)', padding: '9px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>+ Add contact</button>
+          </div>
+        </div>
+        <div style={card}>
+          {shown.length === 0 ? <div style={{ padding: '20px 0', textAlign: 'center', color: 'var(--text-tertiary)', fontSize: 13 }}>No contacts here yet. Add one, or Import CSV — they save live and feed the composer.</div> : (
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                <thead><tr style={{ borderBottom: '1px solid var(--border-default)' }}>{['Name', 'Organisation', 'Segment', 'Phone', 'Email', ''].map((h, i) => <th key={i} style={{ textAlign: 'left', padding: '8px 10px', fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>{h}</th>)}</tr></thead>
+                <tbody>{shown.map((c, i) => (
+                  <tr key={i} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+                    <td style={{ padding: '10px', color: 'var(--text-primary)', fontWeight: 600 }}>{c.name || '—'}</td>
+                    <td style={{ padding: '10px', color: 'var(--text-secondary)' }}>{c.org || '—'}</td>
+                    <td style={{ padding: '10px', color: 'var(--text-secondary)' }}>{SEG_LABEL[c.segment] || c.segment || '—'}</td>
+                    <td style={{ padding: '10px', color: 'var(--text-secondary)' }}>{c.phone || '—'}</td>
+                    <td style={{ padding: '10px', color: 'var(--text-secondary)' }}>{c.email || '—'}</td>
+                    <td style={{ padding: '10px', textAlign: 'right' }}>{c._src === 'contact' ? <button onClick={() => setEditing(c)} style={{ background: 'transparent', border: '1px solid var(--border-subtle)', color: 'var(--text-tertiary)', borderRadius: 6, padding: '4px 10px', fontSize: 11.5, cursor: 'pointer' }}>Edit</button> : <span style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>member</span>}</td>
+                  </tr>
+                ))}</tbody>
+              </table>
+            </div>
+          )}
+        </div>
+        {editing && <ContactModal contact={editing} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); reload(); }} />}
+        {importing && <ImportModal onClose={() => setImporting(false)} onDone={() => { setImporting(false); reload(); }} />}
+      </div>
+    );
+  }
+
+  function ContactModal({ contact, onClose, onSaved }) {
+    const [f, setF] = React.useState(Object.assign({ segment: 'client' }, contact));
+    const [busy, setBusy] = React.useState(false);
+    const inp = { width: '100%', background: 'var(--bg-deep)', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-sm)', color: 'var(--text-primary)', padding: '9px 11px', fontSize: 13, outline: 'none' };
+    const set = (k, v) => setF(o => Object.assign({}, o, { [k]: v }));
+    const save = () => { setBusy(true); const rec = { name: f.name, org: f.org, role: f.role, segment: f.segment, phone: f.phone, email: f.email, tenant: f.tenant, tags: f.tags }; jsave('contact', rec, f._id).then(res => { setBusy(false); if (res && res.error) { alert(res.error); return; } onSaved(); }); };
+    const fields = [['name', 'Name', 'span 2'], ['org', 'Organisation', 'span 2'], ['role', 'Role'], ['segment', 'Segment', '', SEGMENTS], ['phone', 'Phone (WhatsApp/SMS)'], ['email', 'Email'], ['tenant', 'Linked OS tenant (optional)', 'span 2']];
+    return (
+      <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 9000, background: 'rgba(5,8,22,0.7)', backdropFilter: 'blur(6px)', display: 'grid', placeItems: 'center', padding: 20 }}>
+        <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 480, background: 'var(--bg-elevated)', border: '1px solid var(--border-default)', borderRadius: 16, padding: 22, maxHeight: '90vh', overflow: 'auto' }}>
+          <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 16 }}>{f._id ? 'Edit contact' : 'New contact'}</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            {fields.map(fd => (
+              <label key={fd[0]} style={{ gridColumn: fd[2] || 'span 1' }}>
+                <div style={{ fontSize: 11, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', marginBottom: 5 }}>{fd[1].toUpperCase()}</div>
+                {fd[3] ? <select style={inp} value={f[fd[0]] || ''} onChange={e => set(fd[0], e.target.value)}>{fd[3].map(o => <option key={o} value={o}>{SEG_LABEL[o] || o}</option>)}</select>
+                  : <input style={inp} value={f[fd[0]] || ''} onChange={e => set(fd[0], e.target.value)} />}
+              </label>
+            ))}
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 18 }}>
+            <button onClick={onClose} style={{ background: 'transparent', border: '1px solid var(--border-default)', color: 'var(--text-secondary)', borderRadius: 'var(--radius-sm)', padding: '9px 16px', fontSize: 13, cursor: 'pointer' }}>Cancel</button>
+            <button onClick={save} disabled={busy} style={{ background: 'var(--mint)', color: 'var(--text-inverse)', border: 'none', borderRadius: 'var(--radius-sm)', padding: '9px 18px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>{busy ? 'Saving…' : 'Save contact'}</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  function ImportModal({ onClose, onDone }) {
+    const [raw, setRaw] = React.useState('');
+    const [seg, setSeg] = React.useState('client');
+    const [busy, setBusy] = React.useState(false);
+    const [done, setDone] = React.useState(null);
+    const inp = { width: '100%', background: 'var(--bg-deep)', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-sm)', color: 'var(--text-primary)', padding: '10px 12px', fontSize: 13, outline: 'none' };
+    function splitLine(line, d) { const out = []; let cur = '', q = false; for (let i = 0; i < line.length; i++) { const c = line[i]; if (c === '"') { if (q && line[i + 1] === '"') { cur += '"'; i++; } else q = !q; } else if (c === d && !q) { out.push(cur); cur = ''; } else cur += c; } out.push(cur); return out.map(x => x.trim()); }
+    const parse = () => {
+      const lines = raw.replace(/\r/g, '').split('\n').filter(l => l.trim());
+      if (!lines.length) return [];
+      const d = (lines[0].split('\t').length > lines[0].split(',').length) ? '\t' : ',';
+      const hd = splitLine(lines[0], d).map(h => h.toLowerCase());
+      const find = keys => { for (let i = 0; i < hd.length; i++) for (const k of keys) if (hd[i].indexOf(k) >= 0) return i; return -1; };
+      const iName = find(['name', 'contact', 'full']), iOrg = find(['org', 'organisation', 'organization', 'company', 'school']), iPhone = find(['phone', 'tel', 'mobile', 'whatsapp', 'number']), iEmail = find(['email', 'mail']), iRole = find(['role', 'title', 'position']);
+      return lines.slice(1).map(l => { const r = splitLine(l, d); return { name: iName >= 0 ? r[iName] : '', org: iOrg >= 0 ? r[iOrg] : '', phone: iPhone >= 0 ? r[iPhone] : '', email: iEmail >= 0 ? r[iEmail] : '', role: iRole >= 0 ? r[iRole] : '', segment: seg }; }).filter(x => (x.name || x.phone || x.email));
+    };
+    const rows = parse();
+    const run = () => { setBusy(true); Promise.all(rows.map(r => jsave('contact', r))).then(() => { setBusy(false); setDone(rows.length); setTimeout(onDone, 700); }); };
+    return (
+      <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 9000, background: 'rgba(5,8,22,0.7)', backdropFilter: 'blur(6px)', display: 'grid', placeItems: 'center', padding: 20 }}>
+        <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 520, background: 'var(--bg-elevated)', border: '1px solid var(--border-default)', borderRadius: 16, padding: 22 }}>
+          <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 6 }}>Import contacts</div>
+          <div style={{ fontSize: 12.5, color: 'var(--text-tertiary)', marginBottom: 14 }}>Paste rows with headers like <code>Name, Organisation, Phone, Email, Role</code>. Columns are auto-detected.</div>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 10 }}>
+            <span style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>Tag all as</span>
+            <select style={{ ...inp, width: 'auto' }} value={seg} onChange={e => setSeg(e.target.value)}>{SEGMENTS.map(o => <option key={o} value={o}>{SEG_LABEL[o]}</option>)}</select>
+          </div>
+          <textarea style={{ ...inp, minHeight: 130, fontFamily: 'var(--font-mono)' }} value={raw} onChange={e => setRaw(e.target.value)} placeholder={'Name, Organisation, Phone, Email\nJane Director, Good Foundation, +256700000000, jane@gf.org'} />
+          <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 8 }}>{rows.length} contact{rows.length === 1 ? '' : 's'} detected.</div>
+          {done != null && <div style={{ marginTop: 10, color: 'var(--mint)', fontSize: 13 }}>Imported {done}. Closing…</div>}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
+            <button onClick={onClose} style={{ background: 'transparent', border: '1px solid var(--border-default)', color: 'var(--text-secondary)', borderRadius: 'var(--radius-sm)', padding: '9px 16px', fontSize: 13, cursor: 'pointer' }}>Cancel</button>
+            <button onClick={run} disabled={busy || !rows.length} style={{ background: 'var(--mint)', color: 'var(--text-inverse)', border: 'none', borderRadius: 'var(--radius-sm)', padding: '9px 18px', fontSize: 13, fontWeight: 700, cursor: 'pointer', opacity: (busy || !rows.length) ? 0.6 : 1 }}>{busy ? 'Importing…' : ('Import ' + rows.length)}</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  /* ---------- Templates ---------- */
+  function Templates({ templates, reload, onUse }) {
+    const [editing, setEditing] = React.useState(null);
+    const card = { background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: 18 };
+    return (
+      <div>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 14 }}>
+          <button onClick={() => setEditing({})} style={{ background: 'var(--mint)', color: 'var(--text-inverse)', border: 'none', borderRadius: 'var(--radius-sm)', padding: '9px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>+ New template</button>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 12 }}>
+          {templates.length === 0 ? <div style={{ ...card, gridColumn: '1/-1', textAlign: 'center', color: 'var(--text-tertiary)', fontSize: 13 }}>No templates yet. Save your fee reminders, announcements and event invites here for one-tap reuse.</div> :
+            templates.map((t, i) => (
+              <div key={i} style={card}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>{t.name || 'Untitled'}</div>
+                  <span style={{ fontSize: 10.5, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>{t.channel || 'any'}</span>
+                </div>
+                {t.subject && <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 4 }}>{t.subject}</div>}
+                <div style={{ fontSize: 12.5, color: 'var(--text-tertiary)', lineHeight: 1.5, maxHeight: 70, overflow: 'hidden' }}>{t.body}</div>
+                <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+                  <button onClick={() => setEditing(t)} style={{ background: 'transparent', border: '1px solid var(--border-subtle)', color: 'var(--text-tertiary)', borderRadius: 6, padding: '5px 12px', fontSize: 12, cursor: 'pointer' }}>Edit</button>
+                </div>
+              </div>
+            ))}
+        </div>
+        {editing && <TemplateModal tpl={editing} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); reload(); }} />}
+      </div>
+    );
+  }
+
+  function TemplateModal({ tpl, onClose, onSaved }) {
+    const [f, setF] = React.useState(Object.assign({ channel: 'whatsapp' }, tpl));
+    const [busy, setBusy] = React.useState(false);
+    const inp = { width: '100%', background: 'var(--bg-deep)', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-sm)', color: 'var(--text-primary)', padding: '9px 11px', fontSize: 13, outline: 'none' };
+    const set = (k, v) => setF(o => Object.assign({}, o, { [k]: v }));
+    const save = () => { setBusy(true); jsave('msg_template', { name: f.name, channel: f.channel, subject: f.subject, body: f.body }, f._id).then(res => { setBusy(false); if (res && res.error) { alert(res.error); return; } onSaved(); }); };
+    return (
+      <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 9000, background: 'rgba(5,8,22,0.7)', backdropFilter: 'blur(6px)', display: 'grid', placeItems: 'center', padding: 20 }}>
+        <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 500, background: 'var(--bg-elevated)', border: '1px solid var(--border-default)', borderRadius: 16, padding: 22 }}>
+          <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 16 }}>{f._id ? 'Edit template' : 'New template'}</div>
+          <div style={{ display: 'grid', gap: 12 }}>
+            <label><div style={{ fontSize: 11, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', marginBottom: 5 }}>NAME</div><input style={inp} value={f.name || ''} onChange={e => set('name', e.target.value)} placeholder="Fee reminder" /></label>
+            <label><div style={{ fontSize: 11, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', marginBottom: 5 }}>CHANNEL</div><select style={inp} value={f.channel || 'whatsapp'} onChange={e => set('channel', e.target.value)}>{CHANNELS.map(c => <option key={c.k} value={c.k}>{c.label}</option>)}</select></label>
+            <label><div style={{ fontSize: 11, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', marginBottom: 5 }}>SUBJECT (email)</div><input style={inp} value={f.subject || ''} onChange={e => set('subject', e.target.value)} /></label>
+            <label><div style={{ fontSize: 11, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', marginBottom: 5 }}>BODY</div><textarea style={{ ...inp, minHeight: 120 }} value={f.body || ''} onChange={e => set('body', e.target.value)} placeholder={'Hi {first}, ...'} /></label>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 18 }}>
+            <button onClick={onClose} style={{ background: 'transparent', border: '1px solid var(--border-default)', color: 'var(--text-secondary)', borderRadius: 'var(--radius-sm)', padding: '9px 16px', fontSize: 13, cursor: 'pointer' }}>Cancel</button>
+            <button onClick={save} disabled={busy} style={{ background: 'var(--mint)', color: 'var(--text-inverse)', border: 'none', borderRadius: 'var(--radius-sm)', padding: '9px 18px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>{busy ? 'Saving…' : 'Save template'}</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  /* ---------- Sent log ---------- */
+  function SentLog({ log }) {
+    const card = { background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: 18 };
+    const chLabel = k => (CHANNELS.find(c => c.k === k) || {}).label || k;
+    return (
+      <div style={card}>
+        {log.length === 0 ? <div style={{ padding: '20px 0', textAlign: 'center', color: 'var(--text-tertiary)', fontSize: 13 }}>No broadcasts yet. Every message you send is recorded here.</div> : (
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+              <thead><tr style={{ borderBottom: '1px solid var(--border-default)' }}>{['When', 'Channel', 'Audience', 'Sent', 'Failed', 'Message'].map((h, i) => <th key={i} style={{ textAlign: 'left', padding: '8px 10px', fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>{h}</th>)}</tr></thead>
+              <tbody>{log.map((b, i) => (
+                <tr key={i} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+                  <td style={{ padding: '10px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>{b.at ? new Date(b.at).toLocaleString() : '—'}</td>
+                  <td style={{ padding: '10px', color: 'var(--text-primary)', fontWeight: 600 }}>{chLabel(b.channel)}</td>
+                  <td style={{ padding: '10px', color: 'var(--text-secondary)' }}>{b.audience === 'all' ? 'Everyone' : (SEG_LABEL[b.audience] || b.audience)}</td>
+                  <td style={{ padding: '10px', color: 'var(--mint)' }}>{b.sent || 0}</td>
+                  <td style={{ padding: '10px', color: b.failed ? 'var(--danger)' : 'var(--text-tertiary)' }}>{b.failed || 0}</td>
+                  <td style={{ padding: '10px', color: 'var(--text-tertiary)', maxWidth: 280, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{b.message || ''}</td>
+                </tr>
+              ))}</tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  window.NEXT_COMMS = NextComms;
+})();
+
+  
+
+
+/* NEXT_VAULT — Fleet Vault with client-side encryption (AES-GCM) + copy login details. */
+(function () {
+  const WK = (typeof window !== 'undefined' && window.NEXT_OS_SENTINEL_ENDPOINT) || 'https://nextos-sentinel.nextafricaai.workers.dev';
+  const VLABEL = (window.VERTICAL_LABELS) || { school: 'School', hospital: 'Hospital', company: 'Company', ngo: 'NGO', church: 'Church', government: 'Government' };
+  function vget() { return fetch(WK + '/os-data?kind=fleet_vault&tenant=next').then(r => r.json()).then(d => (d && d.records) || []).catch(() => []); }
+  function vsave(record, id) { return fetch(WK + '/os-data/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(id ? { kind: 'fleet_vault', tenant: 'next', record, id } : { kind: 'fleet_vault', tenant: 'next', record }) }).then(r => r.json()).catch(e => ({ error: String(e && e.message || e) })); }
+  function keyMetaGet() { return fetch(WK + '/os-data?kind=vault_key&tenant=next').then(r => r.json()).then(d => ((d && d.records) || [])[0] || null).catch(() => null); }
+  function keyMetaSave(record, id) { return fetch(WK + '/os-data/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(id ? { kind: 'vault_key', tenant: 'next', record, id } : { kind: 'vault_key', tenant: 'next', record }) }).then(r => r.json()).catch(e => ({ error: String(e && e.message || e) })); }
+
+  // ── Web Crypto helpers ──
+  const _enc = new TextEncoder(), _dec = new TextDecoder();
+  const b64 = (buf) => btoa(String.fromCharCode.apply(null, new Uint8Array(buf)));
+  const unb64 = (s) => { const bin = atob(s); const a = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) a[i] = bin.charCodeAt(i); return a; };
+  const isEnc = (v) => typeof v === 'string' && v.indexOf('enc:1:') === 0;
+  async function deriveKey(pass, saltBytes) {
+    const base = await crypto.subtle.importKey('raw', _enc.encode(pass), 'PBKDF2', false, ['deriveKey']);
+    return crypto.subtle.deriveKey({ name: 'PBKDF2', salt: saltBytes, iterations: 150000, hash: 'SHA-256' }, base, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+  }
+  async function encField(key, text) { if (text == null || text === '') return text; const iv = crypto.getRandomValues(new Uint8Array(12)); const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, _enc.encode(String(text))); return 'enc:1:' + b64(iv) + ':' + b64(ct); }
+  async function decField(key, blob) { if (!isEnc(blob)) return blob; try { const parts = blob.split(':'); const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: unb64(parts[2]) }, key, unb64(parts[3])); return _dec.decode(pt); } catch (e) { return ''; } }
+
+  async function copyLogin(row, vk) {
+    let pw = row.password || '';
+    if (isEnc(pw)) { if (!vk) { alert('Unlock the vault first to copy the password.'); return; } pw = await decField(vk, pw); }
+    const lines = [(row.name || row.tenantId) + ' — NEXT OS login', row.loginUrl ? ('Link: ' + row.loginUrl) : '', row.headEmail ? ('Email: ' + row.headEmail) : '', pw ? ('Password: ' + pw) : ''].filter(Boolean);
+    const text = lines.join('\n');
+    try { await navigator.clipboard.writeText(text); window.NEXT_OS && window.NEXT_OS.notify && window.NEXT_OS.notify({ severity: 'info', title: 'Login details copied', body: row.name || row.tenantId, source: 'Fleet Vault' }); }
+    catch (e) { prompt('Copy these login details:', text); }
+  }
+
+  function NextVault() {
+    const [tenants, setTenants] = React.useState(() => (window.OS_DATA && window.OS_DATA.getTenants) ? window.OS_DATA.getTenants() : []);
+    const [vaults, setVaults] = React.useState({});
+    const [editing, setEditing] = React.useState(null);
+    const [q, setQ] = React.useState('');
+    const [mounted, setMounted] = React.useState(false);
+    const [keyMeta, setKeyMeta] = React.useState(undefined); // undefined=loading, null=none, obj=set
+    const [vk, setVk] = React.useState(null);                // unlocked CryptoKey
+    React.useEffect(() => { setTimeout(() => setMounted(true), 40); }, []);
+    const load = React.useCallback(() => {
+      vget().then(rs => { const m = {}; rs.forEach(x => { const p = x.payload || {}; if (p.tenantId) m[p.tenantId] = Object.assign({ _id: x.id }, p); }); setVaults(m); });
+      if (window.OS_DATA && window.OS_DATA.getTenants) setTenants(window.OS_DATA.getTenants());
+    }, []);
+    React.useEffect(() => { load(); keyMetaGet().then(setKeyMeta); }, [load]);
+
+    const rows = []; const seen = {};
+    tenants.forEach(t => { seen[t.id] = true; rows.push(Object.assign({ tenantId: t.id, name: t.name, vertical: t.vertical }, vaults[t.id] || {})); });
+    Object.keys(vaults).forEach(tid => { if (!seen[tid]) rows.push(vaults[tid]); });
+    const shown = rows.filter(r => !q || (String(r.name || '') + ' ' + String(r.tenantId || '')).toLowerCase().indexOf(q.toLowerCase()) >= 0);
+    const card = { background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: 16 };
+    const filled = rows.filter(r => r._id).length;
+    const locked = keyMeta && !vk;
+
+    return (
+      <div style={{ opacity: mounted ? 1 : 0, transition: 'opacity .35s' }}>
+        <div style={{ marginBottom: 18 }}>
+          <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', letterSpacing: 2, color: 'var(--text-tertiary)', marginBottom: 6 }}>MOTHERSHIP · SECURE</div>
+          <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 30, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>Fleet Vault</h1>
+          <p style={{ fontSize: 14, color: 'var(--text-secondary)', margin: '6px 0 0' }}>Every fleet member's logins, emails, links and key details — in one place. {filled}/{rows.length} have saved credentials.</p>
+        </div>
+
+        <LockBar keyMeta={keyMeta} vk={vk} setVk={setVk} setKeyMeta={setKeyMeta} />
+
+        <div style={{ display: 'flex', gap: 10, margin: '14px 0 16px', flexWrap: 'wrap' }}>
+          <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search fleet…" style={{ flex: '1 1 220px', background: 'var(--bg-deep)', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-sm)', color: 'var(--text-primary)', padding: '10px 12px', fontSize: 13, outline: 'none' }} />
+          <button onClick={() => setEditing({ tenantId: '', name: '', vertical: 'school', secrets: [] })} style={{ background: 'var(--mint)', color: 'var(--text-inverse)', border: 'none', borderRadius: 'var(--radius-sm)', padding: '10px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>+ Add entry</button>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 12 }}>
+          {shown.length === 0 ? <div style={{ ...card, gridColumn: '1/-1', textAlign: 'center', color: 'var(--text-tertiary)' }}>No fleet members yet. Onboard a school and its credentials land here automatically.</div> :
+            shown.map((r, i) => (
+              <div key={i} style={card}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)', cursor: 'pointer' }} onClick={() => setEditing(Object.assign({ secrets: [] }, r))}>{r.name || r.tenantId}</div>
+                  <span style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>{VLABEL[r.vertical] || r.vertical || ''}</span>
+                </div>
+                <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.7 }}>
+                  <div>{r.headEmail ? ('✉ ' + r.headEmail) : <span style={{ color: 'var(--text-tertiary)' }}>no login email yet</span>}</div>
+                  <div>{r.password ? (isEnc(r.password) ? '🔒 password encrypted' : '🔑 password saved') : <span style={{ color: 'var(--text-tertiary)' }}>no password saved</span>}</div>
+                  {(r.secrets && r.secrets.length) ? <div>🗝 {r.secrets.length} secret{r.secrets.length === 1 ? '' : 's'}</div> : null}
+                  {r.createdAt ? <div style={{ color: 'var(--text-tertiary)', fontSize: 11.5 }}>created {String(r.createdAt).slice(0, 10)}</div> : null}
+                </div>
+                <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+                  <button onClick={() => setEditing(Object.assign({ secrets: [] }, r))} style={{ flex: 1, background: 'transparent', border: '1px solid var(--border-default)', color: 'var(--text-secondary)', borderRadius: 8, padding: '7px 0', fontSize: 12, cursor: 'pointer' }}>{r._id ? 'View / edit' : 'Add credentials'}</button>
+                  {(r.headEmail || r.password || r.loginUrl) ? <button onClick={() => copyLogin(r, vk)} style={{ flex: 1, background: 'rgba(0,252,143,0.12)', border: '1px solid var(--mint)', color: 'var(--mint)', borderRadius: 8, padding: '7px 0', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Copy login</button> : null}
+                </div>
+              </div>
+            ))}
+        </div>
+        <div style={{ marginTop: 16, fontSize: 11.5, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', textAlign: 'center' }}>
+          {keyMeta ? 'ENCRYPTED AT REST · UNLOCK WITH YOUR PASSPHRASE' : 'STORED IN YOUR SUPABASE · SET A PASSPHRASE TO ENCRYPT'} · TREAT THIS PAGE LIKE A SAFE
+        </div>
+        {editing && <VaultModal entry={editing} vk={vk} locked={locked} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); load(); }} />}
+      </div>
+    );
+  }
+
+  function LockBar({ keyMeta, vk, setVk, setKeyMeta }) {
+    const [pass, setPass] = React.useState('');
+    const [busy, setBusy] = React.useState(false);
+    const [err, setErr] = React.useState('');
+    const bar = { display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: '12px 14px' };
+    const inp = { background: 'var(--bg-deep)', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-sm)', color: 'var(--text-primary)', padding: '8px 11px', fontSize: 13, outline: 'none', flex: '1 1 180px' };
+    const btn = { background: 'var(--mint)', color: 'var(--text-inverse)', border: 'none', borderRadius: 'var(--radius-sm)', padding: '8px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer' };
+    if (keyMeta === undefined) return null;
+    if (vk) return <div style={bar}><span style={{ color: 'var(--mint)', fontSize: 13, fontWeight: 600 }}>🔓 Vault unlocked</span><span style={{ color: 'var(--text-tertiary)', fontSize: 12.5, flex: 1 }}>Passwords decrypt on screen. Lock when you step away.</span><button onClick={() => setVk(null)} style={{ ...btn, background: 'transparent', border: '1px solid var(--border-default)', color: 'var(--text-secondary)' }}>Lock</button></div>;
+    if (keyMeta === null) {
+      const setup = async () => { if (pass.length < 6) { setErr('Use at least 6 characters.'); return; } setBusy(true); const salt = crypto.getRandomValues(new Uint8Array(16)); const key = await deriveKey(pass, salt); const verifier = await encField(key, 'NEXTOS-VAULT-OK'); const res = await keyMetaSave({ salt: b64(salt), verifier }); setBusy(false); if (res && res.error) { setErr(res.error); return; } setVk(key); setKeyMeta({ payload: { salt: b64(salt), verifier } }); };
+      return <div style={bar}><span style={{ fontSize: 13, color: 'var(--text-secondary)', flex: '1 1 100%' }}>🔐 Set a vault passphrase to encrypt all credentials. Keep it safe — it can't be recovered.</span><input type="password" value={pass} onChange={e => { setPass(e.target.value); setErr(''); }} placeholder="Choose a passphrase" style={inp} /><button onClick={setup} disabled={busy} style={btn}>{busy ? 'Setting…' : 'Set passphrase'}</button>{err && <span style={{ color: 'var(--danger)', fontSize: 12, flex: '1 1 100%' }}>{err}</span>}</div>;
+    }
+    const unlock = async () => { setBusy(true); setErr(''); try { const meta = keyMeta.payload || keyMeta; const key = await deriveKey(pass, unb64(meta.salt)); const check = await decField(key, meta.verifier); if (check === 'NEXTOS-VAULT-OK') { setVk(key); } else { setErr('Wrong passphrase.'); } } catch (e) { setErr('Wrong passphrase.'); } setBusy(false); };
+    return <div style={bar}><span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>🔒 Vault locked.</span><input type="password" value={pass} onChange={e => { setPass(e.target.value); setErr(''); }} onKeyDown={e => { if (e.key === 'Enter') unlock(); }} placeholder="Passphrase" style={inp} /><button onClick={unlock} disabled={busy} style={btn}>{busy ? 'Unlocking…' : 'Unlock'}</button>{err && <span style={{ color: 'var(--danger)', fontSize: 12 }}>{err}</span>}</div>;
+  }
+
+  function VaultModal({ entry, vk, locked, onClose, onSaved }) {
+    const [f, setF] = React.useState(Object.assign({ secrets: [] }, entry));
+    const [busy, setBusy] = React.useState(false);
+    const [reveal, setReveal] = React.useState(false);
+    const [ready, setReady] = React.useState(false);
+    // decrypt sensitive fields on open (if unlocked)
+    React.useEffect(() => {
+      let live = true;
+      (async () => {
+        const base = Object.assign({ secrets: [] }, entry);
+        if (vk) {
+          if (isEnc(base.password)) base.password = await decField(vk, base.password);
+          base.secrets = await Promise.all((base.secrets || []).map(async s => Object.assign({}, s, { value: isEnc(s.value) ? await decField(vk, s.value) : s.value })));
+        }
+        let logins = Array.isArray(base.logins) ? base.logins.slice() : [];
+        if (!logins.length && (base.headEmail || base.password || base.headName)) logins = [{ label: 'Head / Admin', name: base.headName || '', email: base.headEmail || '', password: base.password || '' }];
+        if (vk) logins = await Promise.all(logins.map(async L => Object.assign({}, L, { password: isEnc(L.password) ? await decField(vk, L.password) : L.password })));
+        base.logins = logins;
+        if (live) { setF(base); setReady(true); }
+      })();
+      return () => { live = false; };
+    }, [entry, vk]);
+    const set = (k, v) => setF(o => Object.assign({}, o, { [k]: v }));
+    const setSecret = (i, k, v) => setF(o => { const s = (o.secrets || []).slice(); s[i] = Object.assign({}, s[i], { [k]: v }); return Object.assign({}, o, { secrets: s }); });
+    const addSecret = () => setF(o => Object.assign({}, o, { secrets: (o.secrets || []).concat([{ label: '', value: '' }]) }));
+    const delSecret = (i) => setF(o => Object.assign({}, o, { secrets: (o.secrets || []).filter((_, j) => j !== i) }));
+    const [revealMap, setRevealMap] = React.useState({});
+    const setLogin = (i, k, v) => setF(o => { const L = (o.logins || []).slice(); L[i] = Object.assign({}, L[i], { [k]: v }); return Object.assign({}, o, { logins: L }); });
+    const addLogin = () => setF(o => Object.assign({}, o, { logins: (o.logins || []).concat([{ label: '', name: '', email: '', password: '' }]) }));
+    const delLogin = (i) => setF(o => Object.assign({}, o, { logins: (o.logins || []).filter((_, j) => j !== i) }));
+    const resetLogin = async (i) => {
+      const L = (f.logins || [])[i]; if (!L || !L.email) { alert('Add an email for this login first.'); return; }
+      const pin = window.prompt('Admin PIN to reset the login for ' + L.email + ':'); if (!pin) return;
+      try {
+        const baseU = (window.NEXT_OS_SENTINEL_ENDPOINT) || 'https://nextos-sentinel.nextafricaai.workers.dev';
+        const rr = await fetch(baseU + '/admin/reset-login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pin: pin, email: L.email, tenant_id: f.tenantId }) });
+        const d = await rr.json(); if (!d.ok) { alert(d.error || 'Reset failed'); return; }
+        setLogin(i, 'password', d.tempPassword); setRevealMap(m => Object.assign({}, m, { [i]: true }));
+        window.prompt('New temp password for ' + L.email + ' (copy & share; Save to keep it in the vault):', d.tempPassword);
+      } catch (e) { alert('Reset error: ' + (e && e.message || e)); }
+    };
+    const inp = { width: '100%', background: 'var(--bg-deep)', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-sm)', color: 'var(--text-primary)', padding: '9px 11px', fontSize: 13, outline: 'none' };
+    const lbl = { fontSize: 11, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', marginBottom: 5 };
+    const hasEncrypted = isEnc((entry || {}).password) || ((entry || {}).logins || []).some(L => isEnc(L.password)) || ((entry || {}).secrets || []).some(s => isEnc(s.value));
+    const lockedView = locked && hasEncrypted;
+    const save = async () => {
+      if (!f.tenantId && !f.name) return;
+      setBusy(true);
+      let secrets = (f.secrets || []).filter(s => s.label || s.value);
+      if (vk) secrets = await Promise.all(secrets.map(async s => Object.assign({}, s, { value: await encField(vk, s.value) })));
+      const cleanLogins = (f.logins || []).filter(L => L.email || L.password || L.name || L.label);
+      const first = cleanLogins[0] || {};
+      let logins = cleanLogins;
+      if (vk) logins = await Promise.all(cleanLogins.map(async L => Object.assign({}, L, { password: L.password ? await encField(vk, L.password) : L.password })));
+      let pw0 = first.password; if (vk && pw0) pw0 = await encField(vk, pw0);
+      const rec = { tenantId: (f.tenantId || (f.name || '').toLowerCase().replace(/[^a-z0-9]+/g, '-')).trim(), name: f.name, vertical: f.vertical, level: f.level, tier: f.tier, createdAt: f.createdAt, loginUrl: f.loginUrl, logins: logins, headName: first.name || '', headEmail: first.email || '', password: pw0, secrets: secrets, notes: f.notes };
+      const res = await vsave(rec, f._id); setBusy(false); if (res && res.error) { alert(res.error); return; } onSaved();
+    };
+    const field = (k, label, ph, span) => (<label style={{ gridColumn: span || 'span 1' }}><div style={lbl}>{label}</div><input style={inp} value={f[k] || ''} onChange={e => set(k, e.target.value)} placeholder={ph || ''} /></label>);
+    return (
+      <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 9000, background: 'rgba(5,8,22,0.72)', backdropFilter: 'blur(6px)', display: 'grid', placeItems: 'center', padding: 20 }}>
+        <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 560, background: 'var(--bg-elevated)', border: '1px solid var(--border-default)', borderRadius: 16, padding: 22, maxHeight: '92vh', overflow: 'auto' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)' }}>{f._id ? ('Credentials · ' + (f.name || f.tenantId)) : 'New vault entry'}</div>
+            {(f.headEmail || f.password || f.loginUrl) && !lockedView ? <button onClick={() => copyLogin(Object.assign({}, f), vk ? vk : null)} style={{ background: 'rgba(0,252,143,0.12)', border: '1px solid var(--mint)', color: 'var(--mint)', borderRadius: 8, padding: '6px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Copy login</button> : null}
+          </div>
+          {lockedView && <div style={{ marginBottom: 14, padding: '10px 12px', background: 'rgba(255,181,61,0.12)', border: '1px solid var(--gold)', borderRadius: 'var(--radius-sm)', color: 'var(--gold)', fontSize: 12.5 }}>This entry is encrypted. Unlock the vault (top of the page) to read or copy the password.</div>}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            {field('name', 'NAME', 'Good Foundation School', 'span 2')}
+            {field('tenantId', 'TENANT ID', 'good-foundation-school')}
+            <label><div style={lbl}>VERTICAL</div><select style={inp} value={f.vertical || 'school'} onChange={e => set('vertical', e.target.value)}>{Object.keys(VLABEL).map(v => <option key={v} value={v}>{VLABEL[v]}</option>)}</select></label>
+            {field('level', 'LEVEL', 'primary / secondary / tertiary')}
+            {field('tier', 'TIER', 'Catalyst / Builder / Architect')}
+            {field('createdAt', 'CREATED', '2026-06-11', 'span 2')}
+            {field('loginUrl', 'LOGIN LINK', 'https://nextos.nextafrica.ai/s/...', 'span 2')}
+            <div style={{ gridColumn: 'span 2' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                <div style={lbl}>LOGINS · head, bursar, deputy…{vk ? ' · encrypted on save' : ''}</div>
+                <button onClick={addLogin} disabled={lockedView} style={{ background: 'transparent', border: '1px solid var(--border-default)', color: 'var(--text-secondary)', borderRadius: 6, padding: '4px 10px', fontSize: 12, cursor: 'pointer' }}>+ Add login</button>
+              </div>
+              {lockedView ? <div style={{ fontSize: 12.5, color: 'var(--text-tertiary)' }}>{(((entry || {}).logins || []).length || ((entry || {}).headEmail ? 1 : 0))} encrypted login(s) — unlock the vault to read or reset.</div> :
+                (f.logins || []).length === 0 ? <div style={{ fontSize: 12.5, color: 'var(--text-tertiary)' }}>No logins yet. Click <b>+ Add login</b>.</div> :
+                (f.logins || []).map((L, i) => (
+                  <div key={i} style={{ border: '1px solid var(--border-subtle)', borderRadius: 10, padding: 12, marginBottom: 8 }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                      <input style={inp} value={L.label || ''} onChange={e => setLogin(i, 'label', e.target.value)} placeholder="Role (Head, Bursar…)" />
+                      <input style={inp} value={L.name || ''} onChange={e => setLogin(i, 'name', e.target.value)} placeholder="Name" />
+                      <input style={{ ...inp, gridColumn: 'span 2' }} value={L.email || ''} onChange={e => setLogin(i, 'email', e.target.value)} placeholder="email@school.ug" />
+                    </div>
+                    <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                      <input style={{ ...inp, fontFamily: revealMap[i] ? 'var(--font-mono)' : 'inherit' }} type={revealMap[i] ? 'text' : 'password'} value={L.password || ''} onChange={e => setLogin(i, 'password', e.target.value)} placeholder="password" />
+                      <button onClick={() => setRevealMap(m => Object.assign({}, m, { [i]: !m[i] }))} style={{ background: 'transparent', border: '1px solid var(--border-default)', color: 'var(--text-secondary)', borderRadius: 'var(--radius-sm)', padding: '0 12px', fontSize: 12, cursor: 'pointer' }}>{revealMap[i] ? 'Hide' : 'Show'}</button>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8 }}>
+                      <button onClick={() => resetLogin(i)} style={{ background: 'rgba(255,180,0,0.10)', border: '1px solid var(--gold)', color: 'var(--gold)', borderRadius: 'var(--radius-sm)', padding: '6px 11px', fontSize: 11.5, fontWeight: 600, cursor: 'pointer' }}>↺ Reset (operator)</button>
+                      <button onClick={() => delLogin(i)} style={{ background: 'transparent', border: '1px solid var(--border-subtle)', color: 'var(--danger)', borderRadius: 'var(--radius-sm)', padding: '6px 11px', fontSize: 11.5, cursor: 'pointer' }}>Remove</button>
+                    </div>
+                  </div>
+                ))}
+            </div>
+          </div>
+          <div style={{ marginTop: 16 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <div style={lbl}>OTHER SECRETS · keys, tokens, registrar, etc.</div>
+              <button onClick={addSecret} disabled={lockedView} style={{ background: 'transparent', border: '1px solid var(--border-default)', color: 'var(--text-secondary)', borderRadius: 6, padding: '4px 10px', fontSize: 12, cursor: 'pointer' }}>+ Add secret</button>
+            </div>
+            {lockedView ? <div style={{ fontSize: 12.5, color: 'var(--text-tertiary)' }}>{((entry || {}).secrets || []).length} encrypted secret(s) — unlock to view.</div> :
+              (f.secrets || []).map((sx, i) => (
+                <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+                  <input style={{ ...inp, flex: '0 0 38%' }} value={sx.label || ''} onChange={e => setSecret(i, 'label', e.target.value)} placeholder="Label (e.g. Domain registrar)" />
+                  <input style={{ ...inp, flex: 1 }} value={sx.value || ''} onChange={e => setSecret(i, 'value', e.target.value)} placeholder="Value" />
+                  <button onClick={() => delSecret(i)} style={{ background: 'transparent', border: '1px solid var(--border-default)', color: 'var(--danger)', borderRadius: 6, padding: '0 11px', cursor: 'pointer' }}>×</button>
+                </div>
+              ))}
+          </div>
+          <label style={{ display: 'block', marginTop: 12 }}><div style={lbl}>NOTES</div><textarea style={{ ...inp, minHeight: 60 }} value={f.notes || ''} onChange={e => set('notes', e.target.value)} placeholder="Anything else about this fleet member…" /></label>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 18 }}>
+            <button onClick={onClose} style={{ background: 'transparent', border: '1px solid var(--border-default)', color: 'var(--text-secondary)', borderRadius: 'var(--radius-sm)', padding: '9px 16px', fontSize: 13, cursor: 'pointer' }}>Cancel</button>
+            <button onClick={save} disabled={busy || lockedView} style={{ background: 'var(--mint)', color: 'var(--text-inverse)', border: 'none', borderRadius: 'var(--radius-sm)', padding: '9px 18px', fontSize: 13, fontWeight: 700, cursor: 'pointer', opacity: (busy || lockedView) ? 0.6 : 1 }}>{busy ? 'Saving…' : 'Save to vault'}</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  window.NEXT_VAULT = NextVault;
+})();
+
+  
+
+
+/* NEXT_FINANCE — company finances: income (maintenance, OS revenue) vs costs (hosting, domains, API) + statement */
+(function () {
+  const WK = (typeof window !== 'undefined' && window.NEXT_OS_SENTINEL_ENDPOINT) || 'https://nextos-sentinel.nextafricaai.workers.dev';
+  const fmt = n => 'UGX ' + Math.round(Number(n) || 0).toLocaleString();
+  const INCOME_CATS = ['Website maintenance', 'OS revenue', 'Other income'];
+  const COST_CATS = ['Hosting', 'Domain', 'API', 'Salaries', 'Other cost'];
+  const monthly = r => { const a = +r.amount || 0; return r.frequency === 'Annual' ? a / 12 : (r.frequency === 'Monthly' ? a : 0); };
+
+  function FinanceModule() {
+    const [rows, setRows] = React.useState([]);
+    const [form, setForm] = React.useState(null);
+    const [busy, setBusy] = React.useState(false);
+    const [mounted, setMounted] = React.useState(false);
+    React.useEffect(() => { setTimeout(() => setMounted(true), 40); }, []);
+    const reload = React.useCallback(() => { fetch(WK + '/os-data?kind=finance').then(r => r.json()).then(d => { if (d && d.records) setRows(d.records.map(x => Object.assign({ _id: x.id }, x.payload))); }).catch(() => {}); }, []);
+    React.useEffect(() => { reload(); }, [reload]);
+
+    const inc = rows.filter(r => r.type === 'income'), cost = rows.filter(r => r.type === 'cost');
+    const mInc = inc.reduce((a, r) => a + monthly(r), 0), mCost = cost.reduce((a, r) => a + monthly(r), 0);
+    const net = mInc - mCost;
+    const card = { background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: 18 };
+    const inp = { width: '100%', background: 'var(--bg-deep)', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-sm)', color: 'var(--text-primary)', padding: '9px 11px', fontSize: 13, outline: 'none' };
+    const btn = (p) => ({ background: p ? 'var(--mint)' : 'transparent', color: p ? 'var(--text-inverse)' : 'var(--text-secondary)', border: p ? 'none' : '1px solid var(--border-default)', borderRadius: 'var(--radius-sm)', padding: '10px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer' });
+
+    const save = () => {
+      setBusy(true);
+      const id = form._id; const rec = Object.assign({}, form); delete rec._id;
+      fetch(WK + '/os-data/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind: 'finance', record: rec, id: id }) })
+        .then(r => r.json()).then(res => { setBusy(false); if (res.error) { alert(res.error); return; } setForm(null); reload(); }).catch(() => setBusy(false));
+    };
+    const seedFromPortfolio = () => {
+      const projs = (window.PROJECT_DATA || []);
+      const existing = new Set(rows.map(r => (r.label || '').toLowerCase()));
+      const toAdd = []; const seenDom = {};
+      projs.forEach(p => { if (p.domain && !seenDom[p.domain]) { seenDom[p.domain] = p; } });
+      Object.keys(seenDom).forEach(dom => { const p = seenDom[dom];
+        if (!existing.has((dom + ' domain').toLowerCase())) toAdd.push({ type: 'cost', category: 'Domain', label: dom + ' domain', party: p.client || p.name, frequency: 'Annual', amount: 0 });
+        if (!existing.has((dom + ' hosting').toLowerCase())) toAdd.push({ type: 'cost', category: 'Hosting', label: dom + ' hosting', party: p.client || p.name, frequency: 'Monthly', amount: 0 });
+      });
+      projs.forEach(p => {
+        if (p.kind === 'website' && !existing.has((p.name + ' maintenance').toLowerCase())) toAdd.push({ type: 'income', category: 'Website maintenance', label: p.name + ' maintenance', party: p.client || p.name, frequency: 'Monthly', amount: 0 });
+        if (p.kind === 'os' && !existing.has((p.name + ' subscription').toLowerCase())) toAdd.push({ type: 'income', category: 'OS revenue', label: p.name + ' subscription', party: p.client || p.name, frequency: 'Monthly', amount: 0 });
+      });
+      if (!toAdd.length) { alert('Already seeded from your portfolio. Click any row to edit its amount.'); return; }
+      setBusy(true);
+      Promise.all(toAdd.map(rec => fetch(WK + '/os-data/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind: 'finance', record: rec }) }))).then(() => { setBusy(false); reload(); }).catch(() => setBusy(false));
+    };
+    const delRows = (ids, after) => {
+      if (!ids.length) return;
+      setBusy(true);
+      fetch(WK + '/os-data/delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids: ids }) })
+        .then(async r => {
+          let d = {}; try { d = await r.json(); } catch (e) {}
+          if (!r.ok || d.error || d.deleted === 0) {
+            setBusy(false);
+            if (d.deleted === 0 && r.ok) { alert('Nothing was deleted — the rows may already be gone. Refreshing.'); reload(); return; }
+            alert('Could not delete: ' + (d.error || ('the Sentinel worker needs updating — its delete endpoint returned ' + r.status + '.')) + '\n\nPaste the latest sentinel-worker.js in Cloudflare and deploy, then try again.');
+            return;
+          }
+          setBusy(false); setForm(null); reload(); after && after();
+        })
+        .catch(e => { setBusy(false); alert('Delete failed: ' + (e && e.message || e)); });
+    };
+    const delOne = (r, e) => { if (e) e.stopPropagation(); if (!r._id) return; if (!window.confirm('Delete this ' + (r.type === 'cost' ? 'cost' : 'income') + '?\n\n' + (r.label || '(blank)') + (r.amount ? ' — ' + fmt(r.amount) : '') + '\n\nThis removes it from your monthly totals.')) return; delRows([r._id]); };
+    const removeDuplicates = () => {
+      const seen = {}; const dupIds = []; const blankIds = [];
+      rows.forEach(r => {
+        const key = (r.type || '') + '|' + ((r.label || '').trim().toLowerCase());
+        if (!(r.label || '').trim()) { if (r._id) blankIds.push(r._id); return; }
+        if (seen[key]) { if (r._id) dupIds.push(r._id); } else { seen[key] = r; }
+      });
+      const ids = dupIds.concat(blankIds);
+      if (!ids.length) { alert('No duplicates or blank rows found — your finance list is clean.'); return; }
+      if (!window.confirm('Remove ' + ids.length + ' row' + (ids.length === 1 ? '' : 's') + ' (' + dupIds.length + ' duplicate' + (dupIds.length === 1 ? '' : 's') + ', ' + blankIds.length + ' blank)? Kept one of each.')) return;
+      delRows(ids);
+    };
+    const statement = () => {
+      const J = window.jspdf && window.jspdf.jsPDF; if (!J) { alert('Report engine loading — try again.'); return; }
+      const doc = new J(); const W = 210; let y = 20;
+      doc.setFontSize(18); doc.setFont(undefined, 'bold'); doc.text('NEXT — Financial Statement', W / 2, y, { align: 'center' }); y += 7;
+      doc.setFont(undefined, 'normal'); doc.setFontSize(10); doc.text('Monthly recurring · as of ' + new Date().toLocaleDateString(), W / 2, y, { align: 'center' }); y += 6;
+      doc.setDrawColor(200); doc.line(14, y, W - 14, y); y += 10;
+      const section = (title, list) => {
+        doc.setFontSize(12); doc.setFont(undefined, 'bold'); doc.text(title, 14, y); doc.setFont(undefined, 'normal'); y += 6;
+        doc.setFontSize(9);
+        list.forEach(r => { if (y > 275) { doc.addPage(); y = 20; } doc.text((r.category || '') + ' · ' + (r.label || r.party || '—'), 14, y); doc.text(fmt(r.amount) + '/' + (r.frequency || '?'), 130, y); doc.text(fmt(monthly(r)) + '/mo', 175, y, { align: 'right' }); y += 6; });
+        if (!list.length) { doc.text('— none —', 14, y); y += 6; }
+        y += 2;
+      };
+      section('INCOME', inc);
+      doc.setFont(undefined, 'bold'); doc.text('Monthly income', 14, y); doc.text(fmt(mInc), 175, y, { align: 'right' }); doc.setFont(undefined, 'normal'); y += 10;
+      section('COSTS', cost);
+      doc.setFont(undefined, 'bold'); doc.text('Monthly cost', 14, y); doc.text(fmt(mCost), 175, y, { align: 'right' }); y += 8;
+      doc.line(14, y, W - 14, y); y += 8;
+      doc.setFontSize(13); doc.text('NET MONTHLY', 14, y); doc.setTextColor(net >= 0 ? 20 : 180, net >= 0 ? 140 : 30, net >= 0 ? 60 : 30); doc.text(fmt(net), 175, y, { align: 'right' }); doc.setTextColor(0, 0, 0); y += 8;
+      doc.setFontSize(11); doc.text('Projected annual net', 14, y); doc.text(fmt(net * 12), 175, y, { align: 'right' });
+      doc.setFontSize(9); doc.setTextColor(120); doc.text('Generated by NEXT OS · Nia', 14, 290);
+      doc.save('NEXT_Financial_Statement_' + new Date().toISOString().slice(0, 10) + '.pdf');
+    };
+
+    return (
+      <div style={{ opacity: mounted ? 1 : 0, transition: 'opacity .35s' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: 12, marginBottom: 20 }}>
+          <div>
+            <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', letterSpacing: 2, color: 'var(--text-tertiary)', marginBottom: 6 }}>NEXT FINANCE</div>
+            <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 30, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>Finance</h1>
+            <p style={{ fontSize: 14, color: 'var(--text-secondary)', margin: '6px 0 0' }}>What NEXT earns and spends — hosting, domains, APIs, maintenance and OS revenue.</p>
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button style={btn(false)} onClick={() => setForm({ type: 'income', category: INCOME_CATS[0], frequency: 'Monthly' })}>+ Income</button>
+            <button style={btn(false)} onClick={() => setForm({ type: 'cost', category: COST_CATS[0], frequency: 'Monthly' })}>+ Cost</button>
+            <button style={btn(false)} onClick={seedFromPortfolio} disabled={busy}>Seed from portfolio</button>
+            <button style={btn(false)} onClick={removeDuplicates} disabled={busy}>Remove duplicates</button>
+            <button style={btn(true)} onClick={statement}>Print statement</button>
+          </div>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 1, background: 'var(--border-subtle)', borderRadius: 'var(--radius-md)', overflow: 'hidden', marginBottom: 18 }}>
+          {[['Monthly income', fmt(mInc), 'var(--mint)'], ['Monthly cost', fmt(mCost), 'var(--gold)'], ['Net / month', fmt(net), net >= 0 ? 'var(--mint)' : 'var(--danger)'], ['Net / year', fmt(net * 12), net >= 0 ? 'var(--mint)' : 'var(--danger)']].map((k, i) => (
+            <div key={i} style={{ background: 'var(--bg-elevated)', padding: 16 }}>
+              <div style={{ fontSize: 10.5, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>{k[0]}</div>
+              <div style={{ fontSize: 19, fontWeight: 700, color: k[2], marginTop: 4 }}>{k[1]}</div>
+            </div>
+          ))}
+        </div>
+
+        {[['Income', inc, 'var(--mint)'], ['Costs', cost, 'var(--gold)']].map(grp => (
+          <div key={grp[0]} style={{ ...card, marginBottom: 16 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 12 }}>{grp[0]} <span style={{ color: 'var(--text-tertiary)', fontWeight: 400, fontSize: 12 }}>· {grp[1].length}</span></div>
+            {grp[1].length === 0 ? <div style={{ color: 'var(--text-tertiary)', fontSize: 13 }}>None yet. Use the buttons above to add {grp[0].toLowerCase()}.</div> : (
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                  <thead><tr style={{ borderBottom: '1px solid var(--border-default)' }}>{['Category', 'Item', 'Party', 'Amount', 'Frequency', 'Per month', ''].map((h, i) => <th key={i} style={{ textAlign: (i > 2 && i < 6) ? 'right' : 'left', padding: '7px 8px', fontSize: 10.5, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>{h}</th>)}</tr></thead>
+                  <tbody>{grp[1].map((r, i) => (<tr key={i} onClick={() => setForm(Object.assign({}, r))} style={{ borderBottom: '1px solid var(--border-subtle)', cursor: 'pointer' }}>
+                    <td style={{ padding: '9px 8px', color: 'var(--text-secondary)' }}>{r.category}</td>
+                    <td style={{ padding: '9px 8px', color: 'var(--text-primary)', fontWeight: 600 }}>{r.label || '—'}</td>
+                    <td style={{ padding: '9px 8px', color: 'var(--text-secondary)' }}>{r.party || '—'}</td>
+                    <td style={{ padding: '9px 8px', color: 'var(--text-primary)', textAlign: 'right' }}>{fmt(r.amount)}</td>
+                    <td style={{ padding: '9px 8px', color: 'var(--text-tertiary)', textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: 11 }}>{r.frequency}</td>
+                    <td style={{ padding: '9px 8px', color: grp[2], textAlign: 'right', fontWeight: 600 }}>{fmt(monthly(r))}</td>
+                    <td style={{ padding: '9px 8px', textAlign: 'right' }}><button onClick={(e) => delOne(r, e)} title="Delete this row" style={{ background: 'transparent', border: '1px solid var(--border-subtle)', color: 'var(--text-tertiary)', borderRadius: 6, width: 24, height: 24, fontSize: 13, lineHeight: 1, cursor: 'pointer' }} onMouseEnter={ev => { ev.currentTarget.style.color = 'var(--danger)'; ev.currentTarget.style.borderColor = 'var(--danger)'; }} onMouseLeave={ev => { ev.currentTarget.style.color = 'var(--text-tertiary)'; ev.currentTarget.style.borderColor = 'var(--border-subtle)'; }}>×</button></td>
+                  </tr>))}</tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        ))}
+
+        {form && (
+          <div onClick={() => setForm(null)} style={{ position: 'fixed', inset: 0, zIndex: 9000, background: 'rgba(5,8,22,0.7)', backdropFilter: 'blur(6px)', display: 'grid', placeItems: 'center', padding: 20 }}>
+            <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 460, background: 'var(--bg-elevated)', border: '1px solid var(--border-default)', borderRadius: 16, padding: 22 }}>
+              <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 16 }}>{(form._id ? 'Edit ' : 'Add ') + (form.type === 'income' ? 'income' : 'cost')}</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <label><div style={{ fontSize: 11, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', marginBottom: 5 }}>CATEGORY</div>
+                  <select style={inp} value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))}>{(form.type === 'income' ? INCOME_CATS : COST_CATS).map(c => <option key={c} value={c}>{c}</option>)}</select></label>
+                <label><div style={{ fontSize: 11, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', marginBottom: 5 }}>FREQUENCY</div>
+                  <select style={inp} value={form.frequency} onChange={e => setForm(f => ({ ...f, frequency: e.target.value }))}>{['Monthly', 'Annual', 'One-off'].map(c => <option key={c} value={c}>{c}</option>)}</select></label>
+                <label style={{ gridColumn: 'span 2' }}><div style={{ fontSize: 11, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', marginBottom: 5 }}>ITEM</div>
+                  <input style={inp} value={form.label || ''} onChange={e => setForm(f => ({ ...f, label: e.target.value }))} placeholder={form.type === 'cost' ? 'e.g. nextafrica.ai hosting · puritymukisa.com domain · OpenAI API' : 'e.g. Purity OS subscription · Charis website maintenance'} /></label>
+                <label><div style={{ fontSize: 11, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', marginBottom: 5 }}>PARTY / CLIENT</div>
+                  <input style={inp} value={form.party || ''} onChange={e => setForm(f => ({ ...f, party: e.target.value }))} placeholder="Purity Mukisa" /></label>
+                <label><div style={{ fontSize: 11, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', marginBottom: 5 }}>AMOUNT (UGX)</div>
+                  <input style={inp} value={form.amount || ''} onChange={e => setForm(f => ({ ...f, amount: e.target.value.replace(/[^0-9]/g, '') }))} placeholder="150000" /></label>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginTop: 18, alignItems: 'center' }}>
+                {form._id ? <button onClick={() => delOne(form)} disabled={busy} style={{ background: 'transparent', border: '1px solid var(--danger)', color: 'var(--danger)', borderRadius: 'var(--radius-sm)', padding: '10px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Delete</button> : <span />}
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button style={btn(false)} onClick={() => setForm(null)}>Cancel</button>
+                  <button style={btn(true)} onClick={save} disabled={busy}>{busy ? 'Saving…' : 'Save'}</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+  window.NEXT_FINANCE = FinanceModule;
+})();
+  
+
+
+/* SettingsPage — real account / appearance / app / preferences */
+(function () {
+  const ACCENTS = ['#00FC8F', '#3b82f6', '#7c3aed', '#f155a1', '#ffb400', '#ef4444', '#14b8a6'];
+  function SettingsPage() {
+    const [accent, setAccent] = React.useState(() => { try { return localStorage.getItem('nextos.accent') || '#00FC8F'; } catch (e) { return '#00FC8F'; } });
+    const [tut, setTut] = React.useState(() => { try { return localStorage.getItem('nextos.tutorial') !== '0'; } catch (e) { return true; } });
+    const [gate, setGate] = React.useState(() => { try { return localStorage.getItem('nextos.gate') === 'on'; } catch (e) { return false; } });
+    const [voice, setVoice] = React.useState(() => { try { return localStorage.getItem('nextos.nia.voice') === '1'; } catch (e) { return false; } });
+    const [pushSt, setPushSt] = React.useState('checking');
+    const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent || '');
+    const standalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone;
+    React.useEffect(() => { if (window.NX_PUSH) window.NX_PUSH.status().then(setPushSt); else setPushSt('unsupported'); }, []);
+    const emailN = (window.NEXT_OS_USER && window.NEXT_OS_USER()) || '';
+    const enablePush = async () => {
+      if (isIOS && !standalone) { alert('On iPhone, install NEXT OS first: Safari → Share → Add to Home Screen, then open it from the home screen and turn this on.'); return; }
+      try { await window.NX_PUSH.enable({ tenant: 'next', email: emailN, role: 'owner' }); setPushSt('on'); window.NX_PUSH.test({ tenant: 'next', email: emailN }); } catch (e) { alert(String(e && e.message || e)); }
+    };
+    const testPush = async () => {
+      try { await window.NX_PUSH.enable({ tenant: 'next', email: emailN, role: 'owner' }); setPushSt('on'); } catch (e) { alert('Could not register this device: ' + (e && e.message || e)); return; }
+      window.NX_PUSH.test({ tenant: 'next', email: emailN }).then(r => { var matched = (r && r.matched) || 0, sent = (r && r.sent) || 0; if (sent > 0) alert('Test sent — check your lock screen.'); else if (matched > 0) alert('Device registered but not delivered — paste the latest sentinel-worker.js and retry.'); else alert('Not registered yet — allow notifications, then tap again.'); }); };
+    const toggleVoice = () => setVoice(v => { const n = !v; try { localStorage.setItem('nextos.nia.voice', n ? '1' : '0'); } catch (e) {} try { window.dispatchEvent(new CustomEvent('niaVoiceToggle', { detail: n })); } catch (e) {} return n; });
+    const email = (window.NEXT_OS_USER && window.NEXT_OS_USER()) || '';
+    const card = { background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: 20, marginBottom: 16 };
+    const h = { fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4 };
+    const sub = { fontSize: 12.5, color: 'var(--text-tertiary)', marginBottom: 14 };
+    const btn = (p) => ({ background: p ? 'var(--mint)' : 'transparent', color: p ? 'var(--text-inverse)' : 'var(--text-secondary)', border: p ? 'none' : '1px solid var(--border-default)', borderRadius: 'var(--radius-sm)', padding: '9px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer' });
+    const row = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' };
+    const applyAccent = (c) => { setAccent(c); try { localStorage.setItem('nextos.accent', c); } catch (e) {} document.documentElement.style.setProperty('--mint', c); document.documentElement.style.setProperty('--accent', c); };
+    const toggleTut = () => setTut(v => { const n = !v; try { localStorage.setItem('nextos.tutorial', n ? '1' : '0'); } catch (e) {} return n; });
+    const toggleGate = () => { const n = !gate; try { localStorage.setItem('nextos.gate', n ? 'on' : 'off'); } catch (e) {} setGate(n); setTimeout(() => location.reload(), 400); };
+    const Toggle = ({ on, onClick }) => (<button onClick={onClick} style={{ width: 46, height: 26, borderRadius: 13, border: 'none', cursor: 'pointer', background: on ? 'var(--mint)' : 'var(--border-default)', position: 'relative', flexShrink: 0 }}><span style={{ position: 'absolute', top: 3, left: on ? 23 : 3, width: 20, height: 20, borderRadius: '50%', background: '#fff', transition: 'left .15s' }} /></button>);
+
+    return (
+      <div style={{ maxWidth: 720 }}>
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', letterSpacing: 2, color: 'var(--text-tertiary)', marginBottom: 6 }}>SETTINGS</div>
+          <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 30, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>Settings</h1>
+        </div>
+
+        <div style={card}>
+          <div style={h}>Account</div>
+          <div style={sub}>You're signed in to NEXT OS.</div>
+          <div style={row}>
+            <div><div style={{ fontSize: 14, color: 'var(--text-primary)', fontWeight: 600 }}>{email || 'Admin'}</div><div style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>Administrator</div></div>
+            <button style={btn(false)} onClick={() => window.NEXT_OS_SIGNOUT && window.NEXT_OS_SIGNOUT()}>Sign out</button>
+          </div>
+        </div>
+
+        <div style={card}>
+          <div style={h}>The app</div>
+          <div style={sub}>Install NEXT OS on this device, or share it with your team.</div>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            <button style={btn(true)} onClick={() => window.NEXT_OS_INSTALL && window.NEXT_OS_INSTALL()}>{'⤓'} Install NEXT OS</button>
+            <button style={btn(false)} onClick={() => window.NEXT_OS_SHARE && window.NEXT_OS_SHARE()}>{'\u{1F517}'} Share app</button>
+          </div>
+        </div>
+
+        <div style={card}>
+          <div style={h}>Lock-screen notifications</div>
+          <div style={sub}>{pushSt === 'on' ? 'On — Nia\'s alerts (new subscriptions, system health, fleet) land on your lock screen like WhatsApp.' : (isIOS && !standalone) ? 'On iPhone, install NEXT OS first (Share → Add to Home Screen), open it from the home screen, then turn this on.' : pushSt === 'denied' ? 'Blocked — allow notifications for NEXT OS in your device settings, then re-enable.' : pushSt === 'unsupported' ? 'This browser can\'t show alerts — use Chrome or the installed app.' : 'Get billing, health and fleet alerts from Nia on your lock screen.'}</div>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            {pushSt === 'on' ? <button style={btn(false)} onClick={testPush}>Send test</button> : <button style={btn(true)} onClick={enablePush}>{'\uD83D\uDD14'} Turn on</button>}
+          </div>
+        </div>
+
+        <div style={card}>
+          <div style={h}>Appearance</div>
+          <div style={sub}>Pick your accent colour — applies across the OS instantly.</div>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            {ACCENTS.map(c => (
+              <button key={c} onClick={() => applyAccent(c)} title={c} style={{ width: 34, height: 34, borderRadius: '50%', background: c, border: accent.toLowerCase() === c.toLowerCase() ? '3px solid var(--text-primary)' : '2px solid var(--border-default)', cursor: 'pointer' }} />
+            ))}
+          </div>
+        </div>
+
+        <div style={card}>
+          <div style={h}>Preferences</div>
+          <div style={{ ...row, paddingBottom: 12, borderBottom: '1px solid var(--border-subtle)', marginBottom: 12 }}>
+            <div><div style={{ fontSize: 13.5, color: 'var(--text-primary)', fontWeight: 600 }}>Tutorial mode</div><div style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>Hover tips + quick tour. Reload to apply.</div></div>
+            <Toggle on={tut} onClick={toggleTut} />
+          </div>
+          <div style={row}>
+            <div><div style={{ fontSize: 13.5, color: 'var(--text-primary)', fontWeight: 600 }}>Require sign-in (email code)</div><div style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>Gate the OS behind email verification.</div></div>
+            <Toggle on={gate} onClick={toggleGate} />
+          </div>
+          <div style={{ ...row, paddingTop: 12, borderTop: '1px solid var(--border-subtle)', marginTop: 12 }}>
+            <div><div style={{ fontSize: 13.5, color: 'var(--text-primary)', fontWeight: 600 }}>Nia voice assistant</div><div style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>Hands-free “Hey Nia” on Chrome/Android; tap-to-talk on iPhone. A mic appears once on.</div></div>
+            <Toggle on={voice} onClick={toggleVoice} />
+          </div>
+        </div>
+
+        <div style={card}>
+          <div style={h}>Nia</div>
+          <div style={sub}>Tone, language and voice live in Nia HQ.</div>
+          <button style={btn(false)} onClick={() => window.NEXT_OS_NAVIGATE && window.NEXT_OS_NAVIGATE('sentinel')}>Open Nia HQ {'→'}</button>
+        </div>
+
+        <div style={{ ...card, marginBottom: 0 }}>
+          <div style={h}>About</div>
+          <div style={{ fontSize: 12.5, color: 'var(--text-tertiary)', lineHeight: 1.6 }}>NEXT OS — Africa's intelligent operating system.<br />Engine: Cloudflare Worker (Nia) + Supabase + Hostinger.</div>
+        </div>
+      </div>
+    );
+  }
+  window.NEXT_SETTINGS = SettingsPage;
+})();
+  
+
+
+/* os-shell.jsx - NEXT OS App Shell: Sidebar, Topbar, Routing */
+
+/* -- SVG Icons -- */
+const OSIcon = ({ name, size = 20 }) => {
+  const paths = {
+    dashboard: <><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></>,
+    fleet: <><circle cx="12" cy="12" r="3"/><circle cx="4" cy="6" r="1.5"/><circle cx="20" cy="6" r="1.5"/><circle cx="4" cy="18" r="1.5"/><circle cx="20" cy="18" r="1.5"/><path d="M12 9L5.5 6.5"/><path d="M12 9L18.5 6.5"/><path d="M12 15L5.5 17.5"/><path d="M12 15L18.5 17.5"/></>,
+    talk: <><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/></>,
+    projects: <><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></>,
+    studio: <><path d="M15 4l5 5L9 20H4v-5z"/><path d="M12.5 6.5l5 5"/><path d="M20 3l1 1"/><path d="M4.5 13.5l1 1"/></>,
+    analyticsNav: <><path d="M3 3v18h18"/><path d="M7 15l3-4 3 2 4-6"/></>,
+    graphics: <><circle cx="13.5" cy="6.5" r="1.5"/><circle cx="17.5" cy="10.5" r="1.5"/><circle cx="8.5" cy="7.5" r="1.5"/><circle cx="6.5" cy="12.5" r="1.5"/><path d="M12 2a10 10 0 100 20 1.4 1.4 0 001-2.4 1.4 1.4 0 011-2.4h1.6A4.4 4.4 0 0022 13c0-5-4.5-11-10-11z"/></>,
+    ai: <><path d="M12 2L3 7l9 5 9-5-9-5z"/><path d="M3 17l9 5 9-5"/><path d="M3 12l9 5 9-5"/></>,
+    training: <><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></>,
+    members: <><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4-4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></>,
+    comms: <><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></>,
+    vault: <><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></>,
+    billing: <><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></>,
+    sentinel: <><path d="M12 2l7 3v6c0 5-3.4 9.4-7 11-3.6-1.6-7-6-7-11V5l7-3z"/><path d="M9 12l2 2 4-5"/></>,
+    onboarding: <><path d="M12 5v14"/><path d="M5 12h14"/><rect x="4" y="4" width="16" height="16" rx="3"/></>,
+    settings: <><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></>,
+    search: <><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></>,
+    bell: <><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></>,
+    chevronDown: <><polyline points="6 9 12 15 18 9"/></>,
+    logout: <><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></>,
+  };
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      {paths[name]}
+    </svg>
+  );
+};
+
+/* -- Navigation Config -- */
+const AnalyticsPage = ({ onNavigate }) => {
+  const WK = (typeof window !== 'undefined' && window.NEXT_OS_SENTINEL_ENDPOINT) || 'https://nextos-sentinel.nextafricaai.workers.dev';
+  const sites = React.useMemo(() => {
+    const all = [].concat(window.PROJECT_DATA || []);
+    try { if (window.OS_DATA && window.OS_DATA.getProjects) { (window.OS_DATA.getProjects() || []).forEach(p => all.push(p)); } } catch (e) {}
+    const seen = {}, out = [];
+    all.forEach(p => {
+      if (!p) return;
+      let d = (p.domain || p.url || '').trim().replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/.*$/, '');
+      if (!d || seen[d]) return;
+      // websites only — skip planned projects with no live site
+      if (p.planned && !p.url && !p.domain) return;
+      seen[d] = 1;
+      out.push({ domain: d, name: p.name || d, url: (p.url && /^https?:/.test(p.url)) ? p.url : ('https://' + d) });
+    });
+    return out;
+  }, []);
+  const [days, setDays] = React.useState(7);
+  const [rows, setRows] = React.useState({});
+  const [loading, setLoading] = React.useState(false);
+  const [mounted, setMounted] = React.useState(false);
+  const [seo, setSeo] = React.useState({});
+  const [seoLoading, setSeoLoading] = React.useState(false);
+  const runSeo = React.useCallback(() => {
+    if (!sites.length) return; setSeoLoading(true);
+    Promise.all(sites.map(s => fetch(WK + '/seo-audit?url=' + encodeURIComponent(s.url || ('https://' + s.domain))).then(r => r.json()).then(d => ({ s, d })).catch(e => ({ s, d: { error: String(e) } }))))
+      .then(res => { const m = {}; res.forEach(x => { m[x.s.domain] = x.d; }); setSeo(m); setSeoLoading(false); });
+  }, [sites, WK]);
+  const [tips, setTips] = React.useState('');
+  const [tipsLoading, setTipsLoading] = React.useState(false);
+  const [siteTips, setSiteTips] = React.useState({});
+  const askNiaFleet = () => {
+    const fleet = sites.map(s => ({ site: s.domain, audit: seo[s.domain] })).filter(x => x.audit && !x.audit.error);
+    if (!fleet.length) return; setTipsLoading(true);
+    fetch(WK + '/seo-tips', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fleet }) })
+      .then(r => r.json()).then(d => { setTips(d.tips || ('(' + (d.error || 'no tips') + ')')); setTipsLoading(false); }).catch(e => { setTips(String(e)); setTipsLoading(false); });
+  };
+  const askNiaSite = (s) => {
+    setSiteTips(p => Object.assign({}, p, { [s.domain]: { loading: true } }));
+    fetch(WK + '/seo-tips', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ site: s.domain, audit: seo[s.domain] }) })
+      .then(r => r.json()).then(d => setSiteTips(p => Object.assign({}, p, { [s.domain]: { text: d.tips || ('(' + (d.error || 'no tips') + ')') } })))
+      .catch(e => setSiteTips(p => Object.assign({}, p, { [s.domain]: { text: String(e) } })));
+  };
+  React.useEffect(() => { setTimeout(() => setMounted(true), 40); }, []);
+  const load = React.useCallback(() => {
+    setLoading(true);
+    Promise.all(sites.map(s =>
+      fetch(WK + '/analytics?site=' + encodeURIComponent(s.domain) + '&days=' + days)
+        .then(r => r.json()).then(d => ({ s, d })).catch(e => ({ s, d: { error: String(e) } }))
+    )).then(res => {
+      const map = {}; res.forEach(x => { map[x.s.domain] = x.d; }); setRows(map); setLoading(false);
+    });
+  }, [sites, days, WK]);
+  React.useEffect(() => { load(); }, [load]);
+
+  const valid = sites.map(s => ({ s, d: rows[s.domain] })).filter(x => x.d && !x.d.error);
+  const sum = (k) => valid.reduce((a, x) => a + (Number(x.d[k]) || 0), 0);
+  const totals = { visitors: sum('visitors'), pageviews: sum('pageviews'), signins: sum('signins'), conversions: sum('conversions'), revenue: sum('revenue') };
+  // merged daily trend
+  const trend = {};
+  valid.forEach(x => (x.d.daily || []).forEach(dd => { trend[dd.date] = (trend[dd.date] || 0) + (dd.pv || 0); }));
+  const trendArr = Object.keys(trend).sort().map(date => ({ date, pv: trend[date] }));
+  const maxPv = Math.max(1, ...trendArr.map(t => t.pv));
+  // merged top pages
+  const pageMap = {};
+  valid.forEach(x => (x.d.topPages || []).forEach(pg => { pageMap[pg.name] = (pageMap[pg.name] || 0) + (pg.count || 0); }));
+  const topPages = Object.keys(pageMap).map(name => ({ name, count: pageMap[name] })).sort((a, b) => b.count - a.count).slice(0, 10);
+  const refMap = {};
+  valid.forEach(x => (x.d.topReferrers || []).forEach(rr => { refMap[rr.name] = (refMap[rr.name] || 0) + (rr.count || 0); }));
+  const topRefs = Object.keys(refMap).map(name => ({ name, count: refMap[name] })).sort((a, b) => b.count - a.count).slice(0, 8);
+  const seoVals = sites.map(s => seo[s.domain]).filter(d => d && !d.error && typeof d.score === 'number');
+  const avgSeo = seoVals.length ? Math.round(seoVals.reduce((a, d) => a + d.score, 0) / seoVals.length) : null;
+  const seoColor = (sc) => sc >= 80 ? 'var(--mint)' : sc >= 55 ? 'var(--gold)' : 'var(--danger)';
+
+  const card = { background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: 20 };
+  const mono = { fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.1em' };
+
+  return (
+    <div style={{ opacity: mounted ? 1 : 0, transition: 'opacity .35s' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: 12, marginBottom: 22 }}>
+        <div>
+          <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', letterSpacing: 2, color: 'var(--text-tertiary)', marginBottom: 6 }}>FLEET ANALYTICS</div>
+          <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 30, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>Analytics</h1>
+          <p style={{ fontSize: 14, color: 'var(--text-secondary)', margin: '6px 0 0' }}>Real first-party traffic across every site you track. No cookies, no third parties.</p>
+        </div>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          {[[7, '7d'], [30, '30d']].map(o => (
+            <button key={o[0]} onClick={() => setDays(o[0])} style={{ background: days === o[0] ? 'var(--mint)' : 'var(--bg-elevated)', color: days === o[0] ? '#062b18' : 'var(--text-secondary)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-sm)', padding: '7px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>{o[1]}</button>
+          ))}
+          <button onClick={load} disabled={loading} style={{ background: 'var(--bg-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-sm)', padding: '7px 12px', fontSize: 12, cursor: loading ? 'not-allowed' : 'pointer' }}>{loading ? 'Loading…' : 'Refresh'}</button>
+        </div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 1, background: 'var(--border-subtle)', borderRadius: 'var(--radius-md)', overflow: 'hidden', marginBottom: 16 }} className="niahq-cols">
+        {[['Visitors', totals.visitors], ['Pageviews', totals.pageviews], ['Sign-ins', totals.signins], ['Conversions', totals.conversions], ['Revenue', totals.revenue ? totals.revenue.toLocaleString() : 0]].map((k, i) => (
+          <div key={i} style={{ background: 'var(--bg-elevated)', padding: 18 }}>
+            <div style={mono}>{k[0]}</div>
+            <div style={{ fontSize: 26, fontFamily: 'var(--font-display)', fontWeight: 700, color: 'var(--text-primary)', marginTop: 4 }}>{k[1]}</div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ ...card, marginBottom: 16 }}>
+        <div style={{ ...mono, marginBottom: 12 }}>Pageviews · last {days} days (all sites)</div>
+        {trendArr.length === 0 ? <div style={{ fontSize: 13, color: 'var(--text-tertiary)' }}>No data yet — install the tracker on your sites (see below).</div> : (
+          <div style={{ display: 'flex', gap: 4, alignItems: 'flex-end', height: 90 }}>
+            {trendArr.map((t, i) => (
+              <div key={i} title={t.date + ': ' + t.pv} style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', height: '100%' }}>
+                <div style={{ background: 'var(--mint)', opacity: 0.75, height: Math.max(2, Math.round(t.pv / maxPv * 84)) + 'px', borderRadius: 3 }} />
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1.3fr 1fr', gap: 16 }} className="niahq-cols">
+        <div style={card}>
+          <div style={{ ...mono, marginBottom: 12 }}>By site</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr auto auto auto', gap: 8, fontSize: 11, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', paddingBottom: 8, borderBottom: '1px solid var(--border-subtle)' }}>
+            <span>Site</span><span>Visitors</span><span>Views</span><span>Conv.</span>
+          </div>
+          {sites.map(s => { const d = rows[s.domain]; const err = d && d.error; const empty = d && !err && d.pageviews === 0; return (
+            <div key={s.domain} onClick={() => onNavigate && onNavigate('projects')} style={{ display: 'grid', gridTemplateColumns: '1fr auto auto auto', gap: 8, fontSize: 12.5, padding: '10px 0', borderBottom: '1px solid var(--border-subtle)', cursor: 'pointer' }}>
+              <span style={{ color: 'var(--text-primary)' }}>{s.domain}{empty ? <span style={{ color: 'var(--gold)', fontSize: 10, marginLeft: 8, fontFamily: 'var(--font-mono)' }}>no tracker</span> : null}{err ? <span style={{ color: 'var(--danger)', fontSize: 10, marginLeft: 8 }}>error</span> : null}</span>
+              <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }}>{d && !err ? d.visitors : '—'}</span>
+              <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }}>{d && !err ? d.pageviews : '—'}</span>
+              <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }}>{d && !err ? d.conversions : '—'}</span>
+            </div>
+          ); })}
+          {sites.length === 0 && <div style={{ fontSize: 13, color: 'var(--text-tertiary)', paddingTop: 10 }}>Add a domain to a project to track it.</div>}
+        </div>
+        <div style={card}>
+          <div style={{ ...mono, marginBottom: 12 }}>Top pages (all sites)</div>
+          {topPages.length === 0 ? <div style={{ fontSize: 13, color: 'var(--text-tertiary)' }}>—</div> : topPages.map((p, i) => (
+            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', gap: 10, fontSize: 12, padding: '6px 0', borderBottom: '1px solid var(--border-subtle)' }}>
+              <span style={{ color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '80%' }}>{p.name}</span>
+              <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-primary)' }}>{p.count}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.3fr', gap: 16, marginTop: 16 }} className="niahq-cols">
+        <div style={card}>
+          <div style={{ ...mono, marginBottom: 12 }}>Traffic sources (all sites)</div>
+          {topRefs.length === 0 ? <div style={{ fontSize: 13, color: 'var(--text-tertiary)' }}>No referrer data yet — sources appear once visitors arrive from Google, social or other sites.</div> : topRefs.map((r, i) => (
+            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', gap: 10, fontSize: 12.5, padding: '8px 0', borderBottom: '1px solid var(--border-subtle)' }}>
+              <span style={{ color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '78%' }}>{r.name === '(none)' ? '(direct / typed in)' : r.name}</span>
+              <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-primary)' }}>{r.count}</span>
+            </div>
+          ))}
+        </div>
+        <div style={card}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, gap: 10, flexWrap: 'wrap' }}>
+            <div style={mono}>SEO health (fleet)</div>
+            <button onClick={runSeo} disabled={seoLoading || !sites.length} style={{ background: 'var(--mint)', color: '#062b18', border: 'none', borderRadius: 'var(--radius-sm)', padding: '7px 12px', fontSize: 12, fontWeight: 600, cursor: (seoLoading || !sites.length) ? 'not-allowed' : 'pointer', opacity: sites.length ? 1 : 0.5 }}>{seoLoading ? 'Auditing…' : (seoVals.length ? 'Re-audit' : 'Run SEO audit')}</button>
+          </div>
+          {seoVals.length === 0 && !seoLoading && <div style={{ fontSize: 13, color: 'var(--text-tertiary)' }}>Click <b>Run SEO audit</b> to score every site's homepage — title, meta, headings, mobile, HTTPS, speed — and see who needs work.</div>}
+          {avgSeo != null && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 12 }}>
+              <div style={{ fontSize: 40, fontFamily: 'var(--font-display)', fontWeight: 700, color: seoColor(avgSeo), lineHeight: 1 }}>{avgSeo}<span style={{ fontSize: 15, color: 'var(--text-tertiary)' }}>/100</span></div>
+              <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Average across {seoVals.length} site{seoVals.length === 1 ? '' : 's'}</div>
+              <button onClick={askNiaFleet} disabled={tipsLoading} style={{ marginLeft: 'auto', background: 'var(--bg-deep)', color: 'var(--mint)', border: '1px solid var(--mint)', borderRadius: 'var(--radius-sm)', padding: '7px 12px', fontSize: 12, fontWeight: 600, cursor: tipsLoading ? 'wait' : 'pointer' }}>{tipsLoading ? 'Nia is thinking…' : '✦ Ask Nia for a fleet SEO plan'}</button>
+            </div>
+          )}
+          {tips && <div style={{ background: 'var(--bg-deep)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-sm)', padding: 14, marginBottom: 12, fontSize: 12.5, color: 'var(--text-secondary)', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}><div style={{ ...mono, marginBottom: 8, color: 'var(--mint)' }}>Nia's SEO action plan</div>{tips}</div>}
+          {sites.map(s => { const d = seo[s.domain]; if (!d) return null; if (d.error) return <div key={s.domain} style={{ fontSize: 12, padding: '8px 0', borderTop: '1px solid var(--border-subtle)', color: 'var(--text-tertiary)' }}>{s.domain} <span style={{ color: 'var(--danger)' }}>· could not audit</span></div>;
+            const issue = (d.issues && d.issues[0]) || 'No major issues'; const st = siteTips[s.domain]; return (
+              <div key={s.domain} style={{ padding: '9px 0', borderTop: '1px solid var(--border-subtle)' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr auto', gap: 12, alignItems: 'center' }}>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 15, color: seoColor(d.score || 0), minWidth: 34 }}>{d.score}</span>
+                  <div style={{ minWidth: 0 }}><div style={{ fontSize: 12.5, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.domain}</div><div style={{ fontSize: 11, color: (d.issues && d.issues.length) ? 'var(--gold)' : 'var(--mint)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{issue}{(d.issues && d.issues.length > 1) ? ' · +' + (d.issues.length - 1) + ' more' : ''}</div></div>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <button onClick={() => askNiaSite(s)} disabled={st && st.loading} style={{ background: 'transparent', color: 'var(--mint)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-sm)', padding: '5px 9px', fontSize: 11, cursor: 'pointer', whiteSpace: 'nowrap' }}>{st && st.loading ? '…' : '✦ Nia fixes'}</button>
+                    <a href={'/studio.html?url=' + encodeURIComponent(s.url || ('https://' + s.domain)) + '&seo=1'} target="_blank" rel="noopener" style={{ background: 'var(--mint)', color: '#062b18', border: 'none', borderRadius: 'var(--radius-sm)', padding: '5px 9px', fontSize: 11, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', textDecoration: 'none' }}>Fix in Studio →</a>
+                  </div>
+                </div>
+                {st && st.text && <div style={{ background: 'var(--bg-deep)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-sm)', padding: 12, marginTop: 8, fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{st.text}</div>}
+              </div>
+            ); })}
+        </div>
+      </div>
+
+      <div style={{ ...card, marginTop: 16 }}>
+        <div style={{ ...mono, marginBottom: 8 }}>Not seeing a site?</div>
+        <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6 }}>Open that project in <span onClick={() => onNavigate && onNavigate('projects')} style={{ color: 'var(--mint)', cursor: 'pointer' }}>Projects → Analytics</span> and copy the one-line tracker snippet onto every page (just before &lt;/body&gt;). Traffic shows up here automatically within a minute.</div>
+      </div>
+    </div>
+  );
+};
+
+const SubscriptionsPage = ({ onNavigate }) => {
+  const WK = (typeof window !== 'undefined' && window.NEXT_OS_SENTINEL_ENDPOINT) || 'https://nextos-sentinel.nextafricaai.workers.dev';
+  const [subs, setSubs] = React.useState([]); const [notices, setNotices] = React.useState([]); const [loading, setLoading] = React.useState(true);
+  const load = React.useCallback(() => { setLoading(true); fetch(WK + '/billing/subscriptions').then(r => r.json()).then(d => { setSubs(d.subscriptions || []); setNotices(d.notices || []); setLoading(false); }).catch(() => setLoading(false)); }, []);
+  React.useEffect(() => { load(); }, [load]);
+  const card = { background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: 18 };
+  const mono = { fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.1em' };
+  const fmt = n => 'UGX ' + Math.round(Number(n) || 0).toLocaleString();
+  const active = subs.filter(s => s.status === 'active');
+  const mrr = active.reduce((a, s) => a + (Number(s.amount) || 0), 0);
+  return (
+    <div>
+      <div style={{ marginBottom: 22 }}>
+        <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', letterSpacing: 2, color: 'var(--text-tertiary)', marginBottom: 6 }}>BILLING · SUBSCRIPTIONS</div>
+        <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 30, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>Subscriptions</h1>
+        <p style={{ fontSize: 14, color: 'var(--text-secondary)', margin: '6px 0 0', maxWidth: 640 }}>Every paid subscription lands here the moment Flutterwave confirms it — and the income is auto-recorded in Finance. No manual approval.</p>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 1, background: 'var(--border-subtle)', borderRadius: 'var(--radius-md)', overflow: 'hidden', marginBottom: 16 }} className="niahq-cols">
+        {[['Active subscriptions', active.length], ['Revenue / term', fmt(mrr)], ['Recent payments', notices.length]].map((k, i) => (
+          <div key={i} style={{ background: 'var(--bg-elevated)', padding: 18 }}><div style={mono}>{k[0]}</div><div style={{ fontSize: 24, fontFamily: 'var(--font-display)', fontWeight: 700, color: 'var(--text-primary)', marginTop: 4 }}>{k[1]}</div></div>
+        ))}
+      </div>
+      <div style={{ ...card }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+          <div style={mono}>Incoming subscriptions</div>
+          <button onClick={load} style={{ background: 'var(--bg-deep)', color: 'var(--text-primary)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-sm)', padding: '6px 12px', fontSize: 12, cursor: 'pointer' }}>{loading ? 'Loading…' : 'Refresh'}</button>
+        </div>
+        {subs.length === 0 ? <div style={{ fontSize: 13, color: 'var(--text-tertiary)' }}>No subscriptions yet. When a school pays from its Plan screen, it appears here automatically.</div> : (
+          <div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto auto', gap: 10, fontSize: 11, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', paddingBottom: 8, borderBottom: '1px solid var(--border-subtle)' }}><span>School</span><span>Plan</span><span style={{ textAlign: 'right' }}>Amount</span><span style={{ textAlign: 'right' }}>Status</span></div>
+            {subs.map((s, i) => (
+              <div key={s.id || i} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto auto', gap: 10, fontSize: 12.5, padding: '10px 0', borderBottom: '1px solid var(--border-subtle)', alignItems: 'center' }}>
+                <span style={{ color: 'var(--text-primary)' }}>{s.tenant}</span>
+                <span style={{ color: 'var(--text-secondary)', textTransform: 'capitalize' }}>{s.plan}</span>
+                <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-primary)', textAlign: 'right' }}>{fmt(s.amount)}</span>
+                <span style={{ textAlign: 'right', fontSize: 11, fontWeight: 700, color: s.status === 'active' ? 'var(--mint)' : 'var(--gold)' }}>{(s.status || '').toUpperCase()}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+const GatePage = ({ onNavigate }) => {
+  const tenants = (window.OS_DATA && window.OS_DATA.getTenants) ? window.OS_DATA.getTenants() : [];
+  const card = { background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: 18 };
+  const mono = { fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.1em' };
+  return (
+    <div>
+      <div style={{ marginBottom: 22 }}>
+        <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', letterSpacing: 2, color: 'var(--text-tertiary)', marginBottom: 6 }}>GATE KIOSK · BETA (NEXT-ONLY)</div>
+        <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 30, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>Gate Attendance Kiosk</h1>
+        <p style={{ fontSize: 14, color: 'var(--text-secondary)', margin: '6px 0 0', maxWidth: 640 }}>Face recognition + ID/QR check-in for a school tablet at the gate. You're testing it here first — it stays hidden from schools (shows "in testing" on their plan) until you roll it out. Open a school's kiosk below to test, then enrol a few faces and try a check-in.</p>
+      </div>
+      <div style={{ ...card }}>
+        <div style={{ ...mono, marginBottom: 12 }}>Open the kiosk for a school</div>
+        {tenants.length === 0 ? <div style={{ fontSize: 13, color: 'var(--text-tertiary)' }}>No schools found.</div> : tenants.map(t => {
+          const url = '/gate.html?s=' + encodeURIComponent(t.id);
+          return (
+            <div key={t.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, padding: '11px 0', borderBottom: '1px solid var(--border-subtle)' }}>
+              <div><div style={{ fontSize: 14, color: 'var(--text-primary)', fontWeight: 600 }}>{t.name}</div><div style={{ fontSize: 11, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)' }}>{t.id}{t.vertical ? ' · ' + t.vertical : ''}</div></div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <a href={url} target="_blank" rel="noopener" style={{ background: 'var(--mint)', color: '#042', border: 'none', borderRadius: 'var(--radius-sm)', padding: '8px 14px', fontSize: 12.5, fontWeight: 700, textDecoration: 'none' }}>Open kiosk →</a>
+                <button onClick={() => { try { navigator.clipboard.writeText(location.origin + url); } catch (e) {} }} style={{ background: 'transparent', border: '1px solid var(--border-subtle)', color: 'var(--text-secondary)', borderRadius: 'var(--radius-sm)', padding: '8px 12px', fontSize: 12, cursor: 'pointer' }}>Copy link</button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <div style={{ ...card, marginTop: 16, fontSize: 12.5, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+        <b style={{ color: 'var(--text-primary)' }}>Roll-out plan:</b> once it's proven, flip the Gate add-on from "in testing" to live in the Schools OS and it appears on Mastery-tier schools' Plan screen. Until then only you (NEXT) can open it.
+      </div>
+    </div>
+  );
+};
+
+const SmartCampusPage = ({ onNavigate }) => {
+  const tenants = (window.OS_DATA && window.OS_DATA.getTenants) ? window.OS_DATA.getTenants() : [];
+  const card = { background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: 18 };
+  const mono = { fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.1em' };
+  const feat = [
+    ['\u{1F465}', 'Headcount & who\u2019s on campus', 'Nia counts children per camera and names the ones enrolled.'],
+    ['\u{1F3C3}', 'Escape & perimeter alerts', 'Flags a child at the fence/gate during class time and alerts the head.'],
+    ['\u26A0\uFE0F', 'Fights & falls', 'Spots a scuffle or a hurt child, logs the frame, head confirms identity.'],
+    ['\u{1F50D}', 'Find a learner', 'Sweeps every camera and reports where a specific child is, right now.'],
+    ['\u{1F9E0}', 'Face-match to profiles', 'On-device recognition links faces to the learner\u2019s real profile.'],
+    ['\u{1F4F9}', 'Live auto-watch board', 'Refreshing camera grid with Nia\u2019s read on each \u2014 not a dumb video wall.'],
+  ];
+  return (
+    <div>
+      <div style={{ marginBottom: 22 }}>
+        <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', letterSpacing: 2, color: 'var(--text-tertiary)', marginBottom: 6 }}>SMART CAMPUS \u00b7 AI CAMERAS (ADD-ON)</div>
+        <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 30, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>Smart Campus</h1>
+        <p style={{ fontSize: 14, color: 'var(--text-secondary)', margin: '6px 0 0', maxWidth: 660 }}>Connect a school\u2019s cameras and Nia becomes the eyes of the campus \u2014 she counts who arrived, recognises learners against their profiles, finds a specific child across cameras, and flags safety incidents (fights, falls, escapes) for the head to confirm. Sold as a premium add-on; the head-only console lives inside each school\u2019s OS.</p>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 12, marginBottom: 16 }}>
+        {feat.map((ft, i) => (
+          <div key={i} style={{ ...card }}>
+            <div style={{ fontSize: 22, marginBottom: 6 }}>{ft[0]}</div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>{ft[1]}</div>
+            <div style={{ fontSize: 12.5, color: 'var(--text-secondary)', marginTop: 4, lineHeight: 1.5 }}>{ft[2]}</div>
+          </div>
+        ))}
+      </div>
+      <div style={{ ...card, marginBottom: 16 }}>
+        <div style={{ ...mono, marginBottom: 6 }}>Suggested pricing</div>
+        <div style={{ fontSize: 13.5, color: 'var(--text-secondary)', lineHeight: 1.7 }}>Premium add-on on top of any plan: <b style={{ color: 'var(--text-primary)' }}>setup fee</b> (cameras + install, billed at cost or with margin) + a <b style={{ color: 'var(--text-primary)' }}>recurring software licence per term</b> (e.g. UGX 600K\u20131.5M depending on camera count), since the AI scene-reading uses paid compute. Face-matching, find-a-learner and headcount run on-device (free to run) \u2014 only the safety scene-reading consumes credits, so price covers that.</div>
+      </div>
+      <div style={{ ...card }}>
+        <div style={{ ...mono, marginBottom: 12 }}>Open a school to set up cameras (head \u2192 Smart Campus)</div>
+        {tenants.length === 0 ? <div style={{ fontSize: 13, color: 'var(--text-tertiary)' }}>No schools found.</div> : tenants.map(t => {
+          const url = '/school/' + encodeURIComponent(t.id);
+          return (
+            <div key={t.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, padding: '11px 0', borderBottom: '1px solid var(--border-subtle)' }}>
+              <div><div style={{ fontSize: 14, color: 'var(--text-primary)', fontWeight: 600 }}>{t.name}</div><div style={{ fontSize: 11, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)' }}>{t.id}{t.vertical ? ' \u00b7 ' + t.vertical : ''}</div></div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <a href={url} target="_blank" rel="noopener" style={{ background: 'var(--mint)', color: '#042', border: 'none', borderRadius: 'var(--radius-sm)', padding: '8px 14px', fontSize: 12.5, fontWeight: 700, textDecoration: 'none' }}>Open school OS \u2192</a>
+                <button onClick={() => { try { navigator.clipboard.writeText(location.origin + url); } catch (e) {} }} style={{ background: 'transparent', border: '1px solid var(--border-subtle)', color: 'var(--text-secondary)', borderRadius: 'var(--radius-sm)', padding: '8px 12px', fontSize: 12, cursor: 'pointer' }}>Copy link</button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <div style={{ ...card, marginTop: 16, fontSize: 12.5, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+        <b style={{ color: 'var(--text-primary)' }}>To run live:</b> the school needs ONVIF IP cameras (Hikvision recommended) with internet-reachable snapshot URLs, learners enrolled at the gate, and the worker\u2019s ANTHROPIC_API_KEY set (for safety scene-reading). Recognition + find-a-learner run on-device. Children\u2019s images are sensitive personal data \u2014 keep parental consent on file and restrict the console to the head.
+      </div>
+    </div>
+  );
+};
+
+const NAV_SECTIONS = [
+  { id: 'main', label: 'Main', items: [
+    { id: 'dashboard', label: 'Dashboard', icon: 'dashboard' },
+    { id: 'talk', label: 'Talk to Nia', icon: 'talk' },
+    { id: 'fleet', label: 'Fleet', icon: 'fleet', badge: 5 },
+    { id: 'projects', label: 'Projects', icon: 'projects', badge: 12 },
+    { id: 'studio', label: 'Nia Studio', icon: 'studio', external: '/studio.html' },
+    { id: 'analytics', label: 'Analytics', icon: 'analyticsNav' },
+    { id: 'ai-tools', label: 'AI Tools', icon: 'ai' },
+  ]},
+  { id: 'manage', label: 'Manage', items: [
+    { id: 'training', label: 'Training', icon: 'training' },
+    { id: 'members', label: 'Members', icon: 'members', badge: 3 },
+    { id: 'comms', label: 'Communications', icon: 'comms' },
+  ]},
+  { id: 'system', label: 'System', items: [
+    { id: 'subs', label: 'Subscriptions', icon: 'billing' },
+    { id: 'billing', label: 'Finance', icon: 'billing' },
+    { id: 'sentinel', label: 'Nia HQ', icon: 'sentinel' },
+    { id: 'vault', label: 'Fleet Vault', icon: 'vault' },
+    { id: 'onboarding', label: 'Onboarding', icon: 'onboarding' },
+    { id: 'settings', label: 'Settings', icon: 'settings' },
+  ]},
+];
+
+/* -- Sidebar -- */
+const TUTORIAL_TIPS = {
+  dashboard: "Your command center. Fleet health, finances and what needs your attention today — the one screen Nia wants you to start your morning on.",
+  talk: "Talk to Nia, your AI chief of staff. Ask about any school, draft and send WhatsApps, issue receipts, check sites, pull analytics — she has 9 tools wired and can speak her answers aloud.",
+  fleet: "The mothership view — every client OS Nia supervises (schools, churches, NGOs), each with a live health signal so you see trouble before it lands.",
+  studio: "Nia Studio. Edit any website live with Nia as your design director, design graphics from scratch, or point her at a site and she'll blueprint its CMS/OS. Opens in its own tab.",
+  analytics: "Fleet-wide traffic across all your sites — visitors, pageviews, top pages and trends. First-party and free: no cookies, no Google needed.",
+  'ai-tools': "Your AI toolkit — document processing, assistants, automation and insights you can point at real work.",
+  projects: "Your portfolio. Every website and the operating system behind it, with uptime, domain-expiry, SEO score and analytics — and Nia watching them for you.",
+  members: "The people across your organisations — roles, access and who does what.",
+  comms: "The communications hub — reporting and client messaging, unified.",
+  billing: "Money in one place — revenue, invoices and the financial picture across NEXT.",
+  sentinel: "Nia HQ — the control center for every Nia product plus how she talks (tone, language) and her live status.",
+  onboarding: "Spin up a brand-new client OS. Nia clones the template, rebrands it, and hands you a clean live link.",
+  training: "Capacity building — programs, certifications and workshops so client teams can run their OS themselves.",
+  settings: "System configuration, preferences and platform controls.",
+};
+
+const NiaTour = ({ onClose, onNavigate }) => {
+  const cards = [
+    { icon: '\u{1F4AC}', t: 'Talk to Nia', d: 'Your chief of staff. Ask anything, or give a command — she has hands.', go: 'talk' },
+    { icon: '\u{1F310}', t: 'Nia Studio', d: 'Edit sites live, design graphics, or blueprint an OS — with Nia as designer.', go: 'studio' },
+    { icon: '\u{1F4C1}', t: 'Projects', d: 'Every site + its OS, watched for uptime, domains, SEO and traffic.', go: 'projects' },
+    { icon: '\u{1F4CA}', t: 'Analytics', d: 'Real first-party traffic across all your sites, free.', go: 'analytics' },
+    { icon: '\u{1F6E1}', t: 'Nia HQ', d: 'Control every Nia product and how she communicates.', go: 'sentinel' },
+  ];
+  return (
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 9998, background: 'rgba(6,10,20,0.72)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+      <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 720, background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 18, padding: 26, boxShadow: '0 30px 80px rgba(0,0,0,0.5)' }}>
+        <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', letterSpacing: 2, color: 'var(--mint)', marginBottom: 6 }}>NIA · QUICK TOUR</div>
+        <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 4 }}>Welcome — here's the lay of the land</div>
+        <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 18 }}>Tutorial mode is on. Hover any icon in the left sidebar and I'll tell you what it does. Here are the big five:</div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12 }}>
+          {cards.map(c => (
+            <div key={c.t} onClick={() => { onNavigate && onNavigate(c.go); onClose(); }} style={{ background: 'var(--bg-base)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: 14, cursor: 'pointer' }}>
+              <div style={{ fontSize: 22, marginBottom: 8 }}>{c.icon}</div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>{c.t}</div>
+              <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5, marginTop: 4 }}>{c.d}</div>
+            </div>
+          ))}
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 20 }}>
+          <span style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>Toggle Tutorial off anytime in the top bar.</span>
+          <button onClick={onClose} style={{ background: 'var(--mint)', color: 'var(--text-inverse)', border: 'none', borderRadius: 'var(--radius-sm)', padding: '10px 18px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>Got it</button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const Sidebar = ({ activeTab, onTabChange, collapsed, onToggle, tutorial, narrow, drawerOpen, onClose }) => {
+  const [tip, setTip] = React.useState(null);
+  const sidebarStyles = {
+    root: {
+      width: narrow ? 240 : (collapsed ? 64 : 240), height: '100vh', position: 'fixed',
+      left: 0, top: 0, zIndex: narrow ? 200 : 100,
+      background: 'var(--bg-elevated)', borderRight: '1px solid var(--border-subtle)',
+      display: 'flex', flexDirection: 'column',
+      transform: narrow ? (drawerOpen ? 'translateX(0)' : 'translateX(-100%)') : 'none',
+      transition: 'transform 0.25s ease, width 0.25s ease', overflow: 'hidden',
+      boxShadow: (narrow && drawerOpen) ? '0 0 40px rgba(0,0,0,0.5)' : 'none',
+    },
+    logo: {
+      padding: collapsed ? '20px 12px' : '20px 20px',
+      borderBottom: '1px solid var(--border-subtle)',
+      display: 'flex', alignItems: 'center', gap: 12, height: 64,
+      cursor: 'pointer',
+    },
+    section: {
+      padding: collapsed ? '12px 8px 4px' : '12px 12px 4px',
+    },
+    sectionLabel: {
+      fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)',
+      textTransform: 'uppercase', letterSpacing: '0.12em', padding: '4px 8px',
+      marginBottom: 4, opacity: collapsed ? 0 : 1, transition: 'opacity 0.2s',
+      whiteSpace: 'nowrap',
+    },
+    navItem: (isActive) => ({
+      display: 'flex', alignItems: 'center', gap: 12,
+      padding: collapsed ? '10px 0' : '10px 12px',
+      justifyContent: collapsed ? 'center' : 'flex-start',
+      borderRadius: 'var(--radius-sm)', cursor: 'pointer',
+      color: isActive ? 'var(--mint)' : 'var(--text-secondary)',
+      background: isActive ? 'var(--mint-glow)' : 'transparent',
+      transition: 'all 0.15s', fontSize: 13, fontWeight: isActive ? 600 : 400,
+      fontFamily: 'var(--font-body)', whiteSpace: 'nowrap', position: 'relative',
+      border: 'none', width: '100%', textAlign: 'left',
+    }),
+    badge: {
+      marginLeft: 'auto', fontSize: 10, fontWeight: 700,
+      background: 'var(--mint)', color: '#140035',
+      borderRadius: 10, padding: '1px 6px', fontFamily: 'var(--font-mono)',
+    },
+  };
+
+  return (
+    <React.Fragment>
+    <nav style={sidebarStyles.root}>
+      {/* Logo */}
+      <div style={sidebarStyles.logo} onClick={onToggle}>
+        <img 
+          src={window.__resources?.faviconLogo || "uploads/NEXT Favicon Transperent Logo@3x.png"} 
+          alt="N" style={{ width: 28, height: 28, flexShrink: 0 }} 
+        />
+        {!collapsed && (
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <span style={{ fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '0.08em' }}>NEXT</span>
+            <span style={{ fontSize: 9, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', letterSpacing: '0.06em' }}>DIGITAL OS</span>
+          </div>
+        )}
+      </div>
+
+      {/* Nav Sections */}
+      <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' }}>
+        {NAV_SECTIONS.map(section => (
+          <div key={section.id} style={sidebarStyles.section}>
+            <div style={sidebarStyles.sectionLabel}>{section.label}</div>
+            {section.items.map(item => (
+              <button
+                key={item.id}
+                onClick={() => { if (item.external) window.open(item.external, '_blank'); else onTabChange(item.id); if (narrow && onClose) onClose(); }}
+                onMouseEnter={(e) => { if (tutorial) { const r = e.currentTarget.getBoundingClientRect(); setTip({ id: item.id, top: Math.min(r.top, window.innerHeight - 150), left: r.right + 12 }); } }}
+                onMouseLeave={() => setTip(null)}
+                style={sidebarStyles.navItem(activeTab === item.id)}
+                className="nav-item"
+              >
+                <OSIcon name={item.icon} size={18} />
+                {!collapsed && <span>{item.label}</span>}
+                {!collapsed && item.badge && <span style={sidebarStyles.badge}>{item.badge}</span>}
+              </button>
+            ))}
+          </div>
+        ))}
+      </div>
+
+      {/* User */}
+      <div style={{
+        padding: collapsed ? '16px 8px' : '16px', borderTop: '1px solid var(--border-subtle)',
+        display: 'flex', alignItems: 'center', gap: 10,
+        justifyContent: collapsed ? 'center' : 'flex-start',
+      }}>
+        <div style={{
+          width: 32, height: 32, borderRadius: '50%', flexShrink: 0,
+          background: 'linear-gradient(135deg, var(--mint), var(--emerald))',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: 13, fontWeight: 700, color: '#140035',
+        }}>HT</div>
+        {!collapsed && (
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Hudson T.</div>
+            <div style={{ fontSize: 10, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)' }}>Admin</div>
+          </div>
+        )}
+      </div>
+    </nav>
+    {tutorial && tip && TUTORIAL_TIPS[tip.id] && (
+      <div style={{ position: 'fixed', left: tip.left, top: tip.top, zIndex: 200, maxWidth: 260, background: 'var(--bg-elevated)', border: '1px solid var(--mint)', borderRadius: 10, padding: '10px 12px', boxShadow: '0 12px 34px rgba(0,0,0,0.5)' }}>
+        <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', letterSpacing: 1.5, color: 'var(--mint)', marginBottom: 5 }}>NIA · TIP</div>
+        <div style={{ fontSize: 12.5, color: 'var(--text-secondary)', lineHeight: 1.55 }}>{TUTORIAL_TIPS[tip.id]}</div>
+      </div>
+    )}
+    </React.Fragment>
+  );
+};
+
+/* -- BellButton — clickable bell with live unread badge -- */
+// ─── Web Push client (phone / lock-screen alerts) ───────────────────────────
+window.NX_VAPID = window.NX_VAPID || 'BN6fZK3_ipRqATydKqGPB22d-Iaf9knXLDZrLGqAuPeSfac0C8elNLovSBtKlEugC-t7XeMoYg8FsEUwTwb6Y-c';
+window.NX_PUSH = window.NX_PUSH || {
+  WK: (window.NEXT_OS_SENTINEL_ENDPOINT) || 'https://nextos-sentinel.nextafricaai.workers.dev',
+  supported() { return (typeof navigator !== 'undefined') && ('serviceWorker' in navigator) && ('PushManager' in window) && ('Notification' in window); },
+  async status() { if (!this.supported()) return 'unsupported'; if (Notification.permission === 'denied') return 'denied'; try { const reg = await navigator.serviceWorker.ready; const sub = await reg.pushManager.getSubscription(); return sub ? 'on' : 'off'; } catch (e) { return 'off'; } },
+  _key() { const raw = atob(window.NX_VAPID.replace(/-/g, '+').replace(/_/g, '/')); const a = new Uint8Array(raw.length); for (let i = 0; i < raw.length; i++) a[i] = raw.charCodeAt(i); return a; },
+  async enable(opts) {
+    opts = opts || {};
+    if (!this.supported()) throw new Error('This browser can’t do phone alerts. Install the app first.');
+    const perm = await Notification.requestPermission();
+    if (perm !== 'granted') throw new Error('Notifications were not allowed.');
+    const reg = await navigator.serviceWorker.ready;
+    let sub = await reg.pushManager.getSubscription();
+    if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: this._key() });
+    const j = sub.toJSON();
+    const r = await fetch(this.WK + '/push/subscribe', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tenant: opts.tenant || 'next', email: (opts.email || '').toLowerCase(), role: opts.role || 'owner', subscription: { endpoint: j.endpoint, keys: j.keys } }) });
+    const d = await r.json(); if (!d.ok) throw new Error(d.error || 'Could not register this device.');
+    return true;
+  },
+  async test(opts) { opts = opts || {}; const r = await fetch(this.WK + '/push/test', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tenant: opts.tenant || 'next', email: (opts.email || '').toLowerCase() }) }); return r.json(); },
+};
+
+const PhoneAlertBtn = () => {
+  const [st, setSt] = React.useState('off');
+  const [busy, setBusy] = React.useState(false);
+  const email = (window.NEXT_OS_USER && window.NEXT_OS_USER()) || '';
+  React.useEffect(() => { window.NX_PUSH.status().then(setSt); }, []);
+  if (st === 'unsupported') return null;
+  const on = st === 'on';
+  const click = async () => {
+    if (busy) return; setBusy(true);
+    try {
+      if (on) { await window.NX_PUSH.test({ tenant: 'next', email }); }
+      else { await window.NX_PUSH.enable({ tenant: 'next', email, role: 'owner' }); setSt('on'); window.NX_PUSH.test({ tenant: 'next', email }); }
+    } catch (e) { alert(String((e && e.message) || e)); }
+    setBusy(false);
+  };
+  return (
+    <button onClick={click} disabled={busy} title={on ? 'Phone alerts on — tap to test' : 'Turn on phone alerts (Nia notifies you here)'} style={{
+      background: on ? 'rgba(0,252,143,0.12)' : 'transparent', border: '1px solid ' + (on ? 'var(--mint)' : 'var(--border-default)'),
+      color: on ? 'var(--mint)' : 'var(--text-secondary)', borderRadius: 'var(--radius-sm)', padding: '6px 9px', fontSize: 13, cursor: busy ? 'wait' : 'pointer', lineHeight: 1,
+    }}>{on ? '\uD83D\uDD14' : '\uD83D\uDD15'}</button>
+  );
+};
+
+const BellButton = () => {
+  const [count, setCount] = React.useState(() => (window.NEXT_OS && window.NEXT_OS.unreadCount) ? window.NEXT_OS.unreadCount() : 0);
+  React.useEffect(() => {
+    const refresh = () => setCount((window.NEXT_OS && window.NEXT_OS.unreadCount) ? window.NEXT_OS.unreadCount() : 0);
+    refresh();
+    const id = setInterval(refresh, 3000);
+    return () => clearInterval(id);
+  }, []);
+  return (
+    <button
+      onClick={() => window.NEXT_OS && window.NEXT_OS.openNotificationPanel && window.NEXT_OS.openNotificationPanel()}
+      title="Notifications"
+      style={{
+        background: 'none', border: 'none', color: 'var(--text-secondary)',
+        cursor: 'pointer', position: 'relative', padding: 4,
+      }}>
+      <OSIcon name="bell" size={18} />
+      {count > 0 && (
+        <div style={{
+          position: 'absolute', top: -2, right: -2, minWidth: 16, height: 16,
+          padding: '0 4px', borderRadius: 8,
+          background: 'var(--mint)', color: '#140035',
+          fontSize: 10, fontWeight: 700, fontFamily: 'var(--font-mono)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          boxShadow: '0 0 6px rgba(0,252,143,0.5)',
+        }}>{count > 99 ? '99+' : count}</div>
+      )}
+    </button>
+  );
+};
+
+/* -- Topbar -- */
+const Topbar = ({ pageTitle, sidebarWidth, tutorial, onToggleTutorial, narrow, onHamburger }) => {
+  const [searchFocused, setSearchFocused] = React.useState(false);
+  const [searchQ, setSearchQ] = React.useState('');
+  const [searchExtra, setSearchExtra] = React.useState({ members: [], vault: [] });
+  React.useEffect(() => {
+    const WK = (window.NEXT_OS_SENTINEL_ENDPOINT) || 'https://nextos-sentinel.nextafricaai.workers.dev';
+    Promise.all([
+      fetch(WK + '/os-data?kind=members&tenant=next').then(r => r.ok ? r.json() : null).catch(() => null),
+      fetch(WK + '/os-data?kind=fleet_vault&tenant=next').then(r => r.ok ? r.json() : null).catch(() => null),
+    ]).then(([m, v]) => {
+      setSearchExtra({
+        members: ((m && m.records) || []).map(x => x.payload || {}),
+        vault: ((v && v.records) || []).map(x => x.payload || {}),
+      });
+    }).catch(() => {});
+  }, []);
+
+  return (
+    <header style={{
+      height: 64, position: 'fixed', top: 0, right: 0,
+      left: sidebarWidth, zIndex: 90,
+      background: 'rgba(10,0,26,0.8)', backdropFilter: 'blur(12px)',
+      borderBottom: '1px solid var(--border-subtle)',
+      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+      padding: narrow ? '0 14px' : '0 28px', transition: 'left 0.25s ease',
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
+        {narrow && (
+          <button onClick={() => onHamburger && onHamburger()} aria-label="Menu" style={{ background: 'transparent', border: 'none', color: 'var(--text-primary)', cursor: 'pointer', padding: 4, display: 'flex' }}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+          </button>
+        )}
+        <h2 style={{
+          fontFamily: 'var(--font-display)', fontSize: narrow ? 16 : 18, fontWeight: 700,
+          color: 'var(--text-primary)', letterSpacing: '0.03em', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+        }}>{pageTitle}</h2>
+      </div>
+
+      {/* Right side */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+        {/* Search */}
+        {(() => {
+          const term = searchQ.trim().toLowerCase();
+          const nav = (id) => { if (window.NEXT_OS_NAVIGATE) window.NEXT_OS_NAVIGATE(id); };
+          let results = [];
+          if (term) {
+            const OD = window.OS_DATA || {};
+            // Pages
+            (typeof NAV_SECTIONS !== 'undefined' ? NAV_SECTIONS : []).forEach(sec => (sec.items || []).forEach(it => { if ((it.label || '').toLowerCase().indexOf(term) >= 0) results.push({ kind: 'Page', icon: it.icon || 'dashboard', label: it.label, sub: 'Open', run: () => { if (it.external) window.open(it.external, '_blank'); else nav(it.id); } }); }));
+            // Fleet / client OSes (schools, churches, NGOs)
+            try { (OD.getTenants ? OD.getTenants() : []).forEach(t => { if (((t.name || '') + ' ' + (t.vertical || '')).toLowerCase().indexOf(term) >= 0) results.push({ kind: 'Client', icon: 'fleet', label: t.name, sub: (t.vertical || 'organisation') + ' · open Fleet', run: () => nav('fleet') }); }); } catch (e) {}
+            // Projects / websites
+            try { (OD.getProjects ? OD.getProjects() : []).forEach(p => { if (((p.name || '') + ' ' + (p.url || '') + ' ' + (p.domain || '')).toLowerCase().indexOf(term) >= 0) results.push({ kind: 'Project', icon: 'projects', label: p.name, sub: (p.domain || p.url || '') + ' · open Projects', run: () => nav('projects') }); }); } catch (e) {}
+            // AI tools
+            try { (OD.getAiTools ? OD.getAiTools() : []).forEach(a => { const nm = a.name || a.label || a.title || ''; if (nm.toLowerCase().indexOf(term) >= 0) results.push({ kind: 'AI tool', icon: 'ai', label: nm, sub: 'open AI Tools', run: () => nav('ai-tools') }); }); } catch (e) {}
+            // Finance — transactions by description, category or type
+            try { (OD.getTransactions ? OD.getTransactions() : []).forEach(tx => { if (((tx.desc || '') + ' ' + (tx.category || '') + ' ' + (tx.type || '')).toLowerCase().indexOf(term) >= 0) results.push({ kind: 'Finance', icon: 'billing', label: tx.desc || (tx.category || 'Transaction'), sub: (tx.type === 'expense' ? '-' : '+') + '$' + Number(tx.amount || 0).toLocaleString() + ' · ' + (tx.category || '') + ' · open Finance', run: () => nav('billing') }); }); } catch (e) {}
+            // Members
+            (searchExtra.members || []).forEach(m => { if (((m.name || '') + ' ' + (m.organisation || '') + ' ' + (m.role || '') + ' ' + (m.email || '')).toLowerCase().indexOf(term) >= 0) results.push({ kind: 'Member', icon: 'members', label: m.name || m.email || 'Member', sub: (m.role || '') + (m.organisation ? (' · ' + m.organisation) : '') + ' · open Members', run: () => nav('members') }); });
+            // Vault entries (names only — never the secrets)
+            (searchExtra.vault || []).forEach(v => { const nm = v.school || v.name || v.label || ''; if (nm.toLowerCase().indexOf(term) >= 0) results.push({ kind: 'Vault', icon: 'vault', label: nm, sub: 'open Fleet Vault', run: () => nav('vault') }); });
+            const seen = {}; results = results.filter(r => { const k = r.kind + '|' + r.label; if (seen[k]) return false; seen[k] = 1; return true; }).slice(0, 12);
+          }
+          const go = (p) => { setSearchQ(''); setSearchFocused(false); try { p.run(); } catch (e) {} };
+          return (
+            <div style={{ position: 'relative', display: narrow ? 'none' : 'block' }}>
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 8,
+                background: searchFocused ? 'var(--bg-surface)' : 'var(--bg-elevated)',
+                border: `1px solid ${searchFocused ? 'var(--border-active)' : 'var(--border-subtle)'}`,
+                borderRadius: 'var(--radius-sm)', padding: '6px 12px',
+                transition: 'all 0.2s', width: searchFocused ? 280 : 200,
+              }}>
+                <OSIcon name="search" size={14} />
+                <input
+                  value={searchQ}
+                  placeholder="Search the whole OS…"
+                  onChange={e => setSearchQ(e.target.value)}
+                  onFocus={() => setSearchFocused(true)}
+                  onBlur={() => setTimeout(() => setSearchFocused(false), 160)}
+                  onKeyDown={e => { if (e.key === 'Enter' && results[0]) go(results[0]); if (e.key === 'Escape') { setSearchQ(''); e.currentTarget.blur(); } }}
+                  style={{ background: 'none', border: 'none', outline: 'none', color: 'var(--text-primary)', fontSize: 13, fontFamily: 'var(--font-body)', width: '100%' }}
+                />
+                <span style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)', background: 'var(--bg-deep)', padding: '2px 6px', borderRadius: 3 }}>Ctrl+K</span>
+              </div>
+              {searchFocused && term ? (
+                <div style={{ position: 'absolute', top: 'calc(100% + 6px)', left: 0, right: 0, minWidth: 240, background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-sm)', boxShadow: '0 14px 34px rgba(0,0,0,0.5)', zIndex: 300, overflow: 'hidden' }}>
+                  {results.length === 0 ? <div style={{ padding: '11px 13px', color: 'var(--text-tertiary)', fontSize: 12.5 }}>No matches for “{searchQ}”.</div> :
+                    results.map((p, i) => (
+                      <div key={i} onMouseDown={() => go(p)} style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '10px 13px', cursor: 'pointer', borderTop: i ? '1px solid var(--border-subtle)' : 'none', color: 'var(--text-primary)', fontSize: 13 }}>
+                        <OSIcon name={p.icon || 'dashboard'} size={14} />
+                        <div style={{ minWidth: 0, flex: 1 }}><div style={{ fontWeight: 600 }}>{p.label}</div><div style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>{p.sub}</div></div>
+                        <span style={{ fontSize: 9, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)', border: '1px solid var(--border-subtle)', borderRadius: 4, padding: '1px 5px' }}>{p.kind}</span>
+                      </div>
+                    ))}
+                </div>
+              ) : null}
+            </div>
+          );
+        })()}
+
+        {/* Notifications */}
+        <button onClick={() => onToggleTutorial && onToggleTutorial()} title={tutorial ? 'Tutorial mode: on — hover sidebar icons for tips' : 'Turn on tutorial mode'} style={{ background: tutorial ? 'var(--mint)' : 'transparent', border: '1px solid ' + (tutorial ? 'var(--mint)' : 'var(--border-default)'), color: tutorial ? 'var(--text-inverse)' : 'var(--text-secondary)', borderRadius: 'var(--radius-sm)', padding: '6px 10px', fontSize: 11, fontFamily: 'var(--font-mono)', letterSpacing: 1, cursor: 'pointer' }}>{tutorial ? '\u{1F393} TUTORIAL ON' : '\u{1F393} TUTORIAL'}</button>
+
+        <PhoneAlertBtn />
+        <BellButton />
+
+        {/* Sign out */}
+        <button onClick={() => window.NEXT_OS_SIGNOUT && window.NEXT_OS_SIGNOUT()} title="Sign out" style={{ background: 'transparent', border: '1px solid var(--border-subtle)', color: 'var(--text-tertiary)', borderRadius: 'var(--radius-sm)', padding: '6px 10px', fontSize: 11, fontFamily: 'var(--font-mono)', letterSpacing: 1, cursor: 'pointer' }}>SIGN OUT</button>
+
+        {/* Time */}
+        <div style={{
+          fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-tertiary)',
+        }}>
+          {new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+        </div>
+      </div>
+    </header>
+  );
+};
+
+/* -- Placeholder Pages -- */
+const PlaceholderPage = ({ title, description, icon }) => {
+  const [mounted, setMounted] = React.useState(false);
+  React.useEffect(() => { setTimeout(() => setMounted(true), 50); }, []);
+  return (
+    <div style={{
+      opacity: mounted ? 1 : 0, transform: mounted ? 'none' : 'translateY(8px)',
+      transition: 'all 0.4s ease', display: 'flex', alignItems: 'center',
+      justifyContent: 'center', minHeight: 'calc(100vh - 160px)',
+    }}>
+      <div style={{ textAlign: 'center', maxWidth: 400 }}>
+        <div style={{ fontSize: 48, marginBottom: 16, opacity: 0.3 }}>{icon}</div>
+        <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 24, color: 'var(--text-primary)', margin: '0 0 8px', fontWeight: 700 }}>{title}</h2>
+        <p style={{ fontSize: 14, color: 'var(--text-tertiary)', lineHeight: 1.6 }}>{description}</p>
+      </div>
+    </div>
+  );
+};
+
+  
+
+
+/* os-childcare.jsx — Charis Childcare OS Panel
+   Renders as a full NEXT OS page when the 'childcare' tab is active.
+   Supervised by Nia. Data mirrors os-data.jsx charis-childcare tenant.
+*/
+
+console.log("os-childcare.jsx is executing!");
+alert("os-childcare.jsx is executing!");
+
+(function () {
+
+  // ── Childcare data seed (mirrors os-data.jsx verticalKpis) ──────────────
+  
+  const CENTERS = [
+    {
+      id: 'charis-kampala',
+      name: 'Kampala Branch',
+      kpi: {
+        enrolled: 24, presentToday: 21, absentToday: 3,
+        attendanceRate: 0.875, caretakers: 3, activeParents: 20,
+        invoicesDue: 3, invoicesOverdue30d: 1, overdueAmount: 300000,
+        totalInvoiced: 2100000, collectionRate: 0.857,
+        unreadParentMessages: 5, unansweredMessages24h: 2,
+        milestonesThisWeek: 7, activitiesScheduledToday: 4,
+      },
+      children: [
+        { id: 1,  name: 'Aiden Nakamya',   age: 3, mood: '😊', present: true,  nap: false, milestone: 'First full sentence',   invoiceStatus: 'overdue',  parent: 'Mrs. Nakamya',   parentPhone: '256772001001', photoUrl: 'https://i.pravatar.cc/150?u=1', allergies: 'Peanuts', completedVaccines: ['BCG', 'Polio 0', 'Polio 1', 'DPT 1', 'Pneumococcal 1', 'Rotavirus 1', 'Polio 2', 'DPT 2', 'Pneumococcal 2', 'Rotavirus 2', 'Polio 3', 'DPT 3', 'Pneumococcal 3', 'Measles 1', 'Yellow Fever', 'MMR (Optional)', 'Varicella (Optional)', 'Measles 2 / DPT Booster'], birthday: '2023-05-14', height: '95 cm', weight: '14.2 kg', activeScore: 850, favouriteMeals: 'Mac & Cheese', enrollmentDate: '2024-01-10', healthRecord: 'Asthma (mild). Uses inhaler when needed.' },
+        { id: 2,  name: 'Bella Okello',    age: 2, mood: '😴', present: true,  nap: true,  milestone: 'Counting to 10',         invoiceStatus: 'paid',     parent: 'Ms. Okello',     parentPhone: '256772001002', photoUrl: 'https://i.pravatar.cc/150?u=2', allergies: 'None', completedVaccines: ['BCG', 'Polio 0', 'Polio 1', 'DPT 1', 'Pneumococcal 1', 'Rotavirus 1', 'Polio 2', 'DPT 2', 'Pneumococcal 2', 'Rotavirus 2', 'DPT 3', 'Pneumococcal 3'], birthday: '2024-02-10', height: '88 cm', weight: '12.5 kg', activeScore: 620, favouriteMeals: 'Mashed Potatoes, Fish', enrollmentDate: '2025-03-01', healthRecord: 'No known chronic conditions. Prone to eczema.' },
+        { id: 3,  name: 'Caleb Ssemanda',  age: 4, mood: '😄', present: true,  nap: false, milestone: 'Drawing shapes',         invoiceStatus: 'paid',     parent: 'Mr. Ssemanda',   parentPhone: '256772001003', photoUrl: 'https://i.pravatar.cc/150?u=3', allergies: 'Dairy (Lactose Intolerant)', completedVaccines: ['BCG', 'Polio 0', 'Polio 1', 'DPT 1', 'Pneumococcal 1', 'Rotavirus 1', 'Polio 2', 'DPT 2', 'Pneumococcal 2', 'Rotavirus 2', 'Polio 3', 'DPT 3', 'Pneumococcal 3', 'Measles 1', 'Yellow Fever', 'MMR (Optional)', 'Varicella (Optional)', 'Measles 2 / DPT Booster'], birthday: '2022-11-05', height: '102 cm', weight: '16.0 kg', activeScore: 1120, favouriteMeals: 'Chicken Stew, Rice', enrollmentDate: '2023-09-15', healthRecord: 'Lactose intolerance requires soy/almond milk substitutes.' },
+        { id: 4,  name: 'Daisy Mutebe',    age: 3, mood: '😢', present: false, nap: false, milestone: null,                     invoiceStatus: 'due',      parent: 'Mrs. Mutebe',    parentPhone: '256772001004', photoUrl: 'https://i.pravatar.cc/150?u=4', allergies: 'None', completedVaccines: ['BCG', 'Polio 0', 'Polio 1', 'DPT 1', 'Pneumococcal 1', 'Rotavirus 1', 'Polio 2', 'DPT 2', 'Pneumococcal 2', 'Rotavirus 2', 'Polio 3', 'DPT 3', 'Pneumococcal 3', 'Measles 1', 'Yellow Fever', 'MMR (Optional)', 'Varicella (Optional)', 'Measles 2 / DPT Booster'], birthday: '2023-08-20', height: '92 cm', weight: '13.8 kg', activeScore: 780, favouriteMeals: 'Spaghetti, Bananas', enrollmentDate: '2024-05-20', healthRecord: 'Currently home sick with mild fever.' },
+        { id: 5,  name: 'Ethan Lubega',    age: 2, mood: '😊', present: true,  nap: false, milestone: 'Walking stairs alone',   invoiceStatus: 'paid',     parent: 'Mr. Lubega',     parentPhone: '256772001005', photoUrl: 'https://i.pravatar.cc/150?u=5', allergies: 'Eggs', completedVaccines: ['BCG', 'Polio 0', 'Polio 1', 'DPT 1', 'Pneumococcal 1', 'Rotavirus 1', 'Polio 2', 'DPT 2', 'Pneumococcal 2', 'Rotavirus 2', 'Polio 3', 'DPT 3', 'Pneumococcal 3', 'Measles 1', 'Yellow Fever'], birthday: '2024-01-30', height: '86 cm', weight: '12.1 kg', activeScore: 590, favouriteMeals: 'Oatmeal, Apples', enrollmentDate: '2025-01-10', healthRecord: 'Egg allergy causes hives. EpiPen in nurse station.' },
+        { id: 6,  name: 'Fiona Atim',      age: 4, mood: '😄', present: true,  nap: false, milestone: 'Reading own name',       invoiceStatus: 'paid',     parent: 'Ms. Atim',       parentPhone: '256772001006', photoUrl: 'https://i.pravatar.cc/150?u=6', allergies: 'None', completedVaccines: ['BCG', 'Polio 0', 'Polio 1', 'DPT 1', 'Pneumococcal 1', 'Rotavirus 1', 'Polio 2', 'DPT 2', 'Pneumococcal 2', 'Rotavirus 2', 'Polio 3', 'DPT 3', 'Pneumococcal 3', 'Measles 1', 'Yellow Fever', 'MMR (Optional)', 'Varicella (Optional)', 'Measles 2 / DPT Booster'], birthday: '2022-12-12', height: '105 cm', weight: '17.5 kg', activeScore: 1250, favouriteMeals: 'Matooke and G-nut sauce', enrollmentDate: '2023-10-01', healthRecord: 'Perfect health record.' },
+        { id: 7,  name: 'Grace Wamala',    age: 3, mood: '😊', present: true,  nap: true,  milestone: 'Sharing during play',    invoiceStatus: 'due',      parent: 'Mrs. Wamala',    parentPhone: '256772001007', photoUrl: 'https://i.pravatar.cc/150?u=7', allergies: 'None', completedVaccines: ['BCG', 'Polio 0', 'Polio 1', 'DPT 1', 'Pneumococcal 1', 'Rotavirus 1', 'Polio 2', 'DPT 2', 'Pneumococcal 2', 'Rotavirus 2', 'Polio 3', 'DPT 3', 'Pneumococcal 3', 'Measles 1', 'Yellow Fever', 'MMR (Optional)'], birthday: '2023-04-18', height: '94 cm', weight: '14.0 kg', activeScore: 810, favouriteMeals: 'Rice, Beans', enrollmentDate: '2024-08-15', healthRecord: 'Minor hearing issue in left ear, under observation.' },
+        { id: 8,  name: 'Henry Kato',      age: 2, mood: '😴', present: true,  nap: true,  milestone: null,                     invoiceStatus: 'paid',     parent: 'Mr. Kato',       parentPhone: '256772001008', photoUrl: 'https://i.pravatar.cc/150?u=8', allergies: 'None', completedVaccines: ['BCG', 'Polio 0', 'Polio 1', 'DPT 1', 'Pneumococcal 1', 'Rotavirus 1', 'Polio 2', 'DPT 2', 'Pneumococcal 2', 'Rotavirus 2', 'Polio 3', 'DPT 3', 'Pneumococcal 3', 'Measles 1', 'Yellow Fever', 'MMR (Optional)', 'Varicella (Optional)'], birthday: '2024-03-05', height: '89 cm', weight: '13.2 kg', activeScore: 640, favouriteMeals: 'Yogurt, Toast', enrollmentDate: '2025-04-01', healthRecord: 'Generally healthy.' },
+        { id: 9,  name: 'Ivy Kyomuhendo',  age: 4, mood: '😄', present: true,  nap: false, milestone: 'Puzzle (12 pieces)',     invoiceStatus: 'paid',     parent: 'Ms. Kyomuhendo', parentPhone: '256772001009', photoUrl: 'https://i.pravatar.cc/150?u=9', allergies: 'Dust', completedVaccines: ['BCG', 'Polio 0', 'Polio 1', 'DPT 1', 'Pneumococcal 1', 'Rotavirus 1', 'Polio 2', 'DPT 2', 'Pneumococcal 2', 'Rotavirus 2', 'Polio 3', 'DPT 3', 'Pneumococcal 3', 'Measles 1', 'Yellow Fever', 'MMR (Optional)', 'Varicella (Optional)', 'Measles 2 / DPT Booster'], birthday: '2022-09-22', height: '108 cm', weight: '18.1 kg', activeScore: 1320, favouriteMeals: 'Chapati, Beef stew', enrollmentDate: '2023-08-01', healthRecord: 'Allergic to severe dust. Avoid dusty playground areas.' },
+        { id: 10, name: 'Joel Byaruhanga', age: 3, mood: '😊', present: false, nap: false, milestone: null,                     invoiceStatus: 'paid',     parent: 'Mr. Byaruhanga', parentPhone: '256772001010', photoUrl: 'https://i.pravatar.cc/150?u=10', allergies: 'None', completedVaccines: ['BCG', 'Polio 0', 'Polio 1', 'DPT 1', 'Pneumococcal 1', 'Rotavirus 1', 'Polio 2', 'DPT 2', 'Pneumococcal 2', 'Rotavirus 2', 'Polio 3', 'DPT 3', 'Pneumococcal 3', 'Measles 1', 'Yellow Fever', 'MMR (Optional)', 'Varicella (Optional)', 'Measles 2 / DPT Booster'], birthday: '2023-07-11', height: '93 cm', weight: '14.5 kg', activeScore: 750, favouriteMeals: 'Pancakes, Mangoes', enrollmentDate: '2024-06-15', healthRecord: 'Recovering from minor cold.' },
+      ],
+      schedule: [
+        { time: '07:30', activity: 'Arrival & Free Play',               caretaker: 'Ms. Maria L.',   icon: '🌅', color: '#00FC8F' },
+        { time: '09:00', activity: 'Morning Circle & Songs',            caretaker: 'Ms. Maria L.',   icon: '🎵', color: '#A855F7' },
+        { time: '09:30', activity: 'Structured Learning — Letters',     caretaker: 'Ms. Faith A.',   icon: '📚', color: '#3B82F6' },
+        { time: '10:30', activity: 'Snack Time',                        caretaker: 'All caretakers', icon: '🍎', color: '#FFB400' },
+        { time: '11:00', activity: 'Creative Arts & Craft',             caretaker: 'Ms. Ruth K.',    icon: '🎨', color: '#F43F5E' },
+        { time: '12:00', activity: 'Lunch',                             caretaker: 'All caretakers', icon: '🍽️', color: '#10B981' },
+        { time: '12:45', activity: 'Nap Time',                          caretaker: 'Ms. Maria L.',   icon: '😴', color: '#6366F1' },
+        { time: '14:00', activity: 'Outdoor Play & Story Time',         caretaker: 'Ms. Faith A.',   icon: '🌳', color: '#00FC8F' },
+        { time: '15:00', activity: 'Parent Pick-up Window',             caretaker: 'All caretakers', icon: '🚗', color: '#FFB400' },
+      ],
+      messages: [
+        { id: 1, parent: 'Mrs. Nakamya',  time: '8:42 AM',  text: 'Will pick up Aiden at 2pm today, please note.',          read: false, answered: false },
+        { id: 2, parent: 'Ms. Okello',    time: '9:15 AM',  text: 'Bella is feeling better, thanks for yesterday\'s care!', read: true,  answered: true  },
+        { id: 3, parent: 'Mr. Ssemanda',  time: '9:50 AM',  text: 'Can you share today\'s activity photos on WhatsApp?',    read: false, answered: false },
+        { id: 4, parent: 'Mrs. Mutebe',   time: '10:20 AM', text: 'Daisy is home sick today, she has a mild fever.',        read: true,  answered: true  },
+        { id: 5, parent: 'Mr. Lubega',    time: '11:05 AM', text: 'Please give Ethan his medication at 1pm. Thanks.',       read: false, answered: false },
+      ],
+      cameras: [
+        { id: 'cam1', wsPort: 9999, name: 'Playroom A - North View', source: 'camera_mock_1', children: [{ name: 'Ivy Kyomuhendo', milestone: 'Puzzle (12 pieces)', x: 60, y: 40 }, { name: 'Aiden Nakamya', milestone: 'First full sentence', x: 20, y: 70 }] },
+        { id: 'cam2', wsPort: 9998, name: 'Nap Area - East Wing', source: 'camera_mock_2', children: [{ name: 'Henry Kato', milestone: 'Sleeping calmly', x: 40, y: 50 }] },
+      ]
+    },
+    {
+      id: 'charis-gulu',
+      name: 'Gulu Branch',
+      kpi: {
+        enrolled: 18, presentToday: 15, absentToday: 3,
+        attendanceRate: 0.833, caretakers: 2, activeParents: 15,
+        invoicesDue: 2, invoicesOverdue30d: 0, overdueAmount: 150000,
+        totalInvoiced: 1500000, collectionRate: 0.900,
+        unreadParentMessages: 2, unansweredMessages24h: 0,
+        milestonesThisWeek: 4, activitiesScheduledToday: 3,
+      },
+      children: [
+        { id: 11,  name: 'David Ocen',   age: 3, mood: '😊', present: true,  nap: false, milestone: 'First full sentence',   invoiceStatus: 'paid',  parent: 'Mr. Ocen',   parentPhone: '256772001020', photoUrl: 'https://i.pravatar.cc/150?u=11', allergies: 'None', completedVaccines: ['BCG', 'Polio 0'], birthday: '2023-01-14', height: '95 cm', weight: '14.2 kg', activeScore: 850, favouriteMeals: 'Posho', enrollmentDate: '2024-01-10', healthRecord: 'Healthy' },
+        { id: 12,  name: 'Sarah Laker',    age: 2, mood: '😴', present: true,  nap: true,  milestone: 'Counting to 10',         invoiceStatus: 'paid',     parent: 'Mrs. Laker',     parentPhone: '256772001021', photoUrl: 'https://i.pravatar.cc/150?u=12', allergies: 'Dust', completedVaccines: ['BCG', 'Polio 0', 'Polio 1'], birthday: '2024-02-10', height: '88 cm', weight: '12.5 kg', activeScore: 620, favouriteMeals: 'Beans', enrollmentDate: '2025-03-01', healthRecord: 'Asthma' },
+      ],
+      schedule: [
+        { time: '08:00', activity: 'Arrival & Free Play',               caretaker: 'Mr. Opiyo',   icon: '🌅', color: '#00FC8F' },
+        { time: '12:00', activity: 'Lunch',                             caretaker: 'All caretakers', icon: '🍽️', color: '#10B981' },
+      ],
+      messages: [
+        { id: 6, parent: 'Mr. Ocen',  time: '8:42 AM',  text: 'Will pick up David early today.',          read: false, answered: false },
+      ],
+      cameras: [
+        { id: 'cam3', wsPort: null, name: 'Gulu Playroom', source: 'camera_mock_3', children: [{ name: 'Sarah Laker', milestone: 'Playing', x: 60, y: 40 }] },
+      ]
+    }
+  ];
+
+  const UNEPI_SCHEDULE = [
+    { name: 'BCG', ageWeeks: 0 },
+    { name: 'Polio 0', ageWeeks: 0 },
+    { name: 'Polio 1', ageWeeks: 6 },
+    { name: 'DPT 1', ageWeeks: 6 },
+    { name: 'Pneumococcal 1', ageWeeks: 6 },
+    { name: 'Rotavirus 1', ageWeeks: 6 },
+    { name: 'Polio 2', ageWeeks: 10 },
+    { name: 'DPT 2', ageWeeks: 10 },
+    { name: 'Pneumococcal 2', ageWeeks: 10 },
+    { name: 'Rotavirus 2', ageWeeks: 10 },
+    { name: 'Polio 3', ageWeeks: 14 },
+    { name: 'DPT 3', ageWeeks: 14 },
+    { name: 'Pneumococcal 3', ageWeeks: 14 },
+    { name: 'Measles 1', ageWeeks: 39 },
+    { name: 'Yellow Fever', ageWeeks: 39 },
+    { name: 'MMR (Optional)', ageWeeks: 52 },
+    { name: 'Varicella (Optional)', ageWeeks: 52 },
+    { name: 'Measles 2 / DPT Booster', ageWeeks: 78 }
+  ];
+
+  function calculateVaccineStatus(child) {
+    if (!child.birthday) return { progress: 0, due: [], upcoming: [], requiredTotal: 0, completedCount: 0 };
+    const bday = new Date(child.birthday);
+    if (isNaN(bday)) return { progress: 0, due: [], upcoming: [], requiredTotal: 0, completedCount: 0 };
+    const weeksOld = Math.floor((Date.now() - bday.getTime()) / (1000 * 60 * 60 * 24 * 7));
+    
+    let requiredTotal = 0;
+    let completedCount = 0;
+    const due = [];
+    const upcoming = [];
+    const completed = child.completedVaccines || [];
+    
+    UNEPI_SCHEDULE.forEach(v => {
+      const isCompleted = completed.includes(v.name);
+      if (weeksOld >= v.ageWeeks) {
+        requiredTotal++;
+        if (isCompleted) {
+          completedCount++;
+        } else {
+          due.push(v.name);
+        }
+      } else if (v.ageWeeks - weeksOld <= 4) {
+        if (!isCompleted) upcoming.push(v.name);
+      }
+    });
+    
+    const progress = requiredTotal === 0 ? 100 : Math.round((completedCount / requiredTotal) * 100);
+    return { progress, requiredTotal, completedCount, due, upcoming };
+  }
+
+
+
+
+  // ── Helper: current time highlight for schedule ──────────────────────────
+  function getCurrentTimeSlot(schedule) {
+    if (!schedule || !schedule.length) return -1;
+    const now = new Date();
+    const hhmm = now.getHours() * 60 + now.getMinutes();
+    for (let i = 0; i < schedule.length - 1; i++) {
+      const [ah, am] = schedule[i].time.split(':').map(Number);
+      const [bh, bm] = schedule[i + 1].time.split(':').map(Number);
+      if (hhmm >= ah * 60 + am && hhmm < bh * 60 + bm) return i;
+    }
+    return -1;
+  }
+
+  // ── KPI Card Component ───────────────────────────────────────────────────
+  const CcKpiCard = ({ label, value, sub, accent, icon }) => (
+    <div style={{
+      background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)',
+      borderRadius: 12, padding: '20px 22px', flex: 1, minWidth: 140,
+      position: 'relative', overflow: 'hidden', transition: 'border-color 0.2s, transform 0.2s',
+    }} className="kpi-card">
+      <div style={{
+        position: 'absolute', top: -20, right: -20, width: 70, height: 70,
+        borderRadius: '50%', background: accent, opacity: 0.08, filter: 'blur(20px)',
+      }} />
+      <div style={{ fontSize: 22, marginBottom: 6 }}>{icon}</div>
+      <div style={{ fontFamily: 'var(--font-display)', fontSize: 30, fontWeight: 700, color: accent, lineHeight: 1 }}>{value}</div>
+      <div style={{ fontSize: 11, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: 6, fontFamily: 'var(--font-mono)' }}>{label}</div>
+      {sub && <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 3 }}>{sub}</div>}
+    </div>
+  );
+
+  // ── Child Card Component ─────────────────────────────────────────────────
+  const ChildCard = ({ child, onSelect, onMessage }) => {
+    const statusColor = child.present ? '#00FC8F' : '#FF4757';
+    const invoiceColor = child.invoiceStatus === 'overdue' ? '#FF4757' : child.invoiceStatus === 'due' ? '#FFB400' : '#00FC8F';
+    return (
+      <div onClick={() => onSelect(child)} style={{
+        background: 'var(--bg-elevated)', border: `1px solid ${child.present ? 'var(--border-subtle)' : 'rgba(255,71,87,0.2)'}`,
+        borderRadius: 12, padding: '16px', display: 'flex', flexDirection: 'column', gap: 10,
+        transition: 'border-color 0.2s, transform 0.2s, box-shadow 0.2s', cursor: 'pointer',
+      }} className="kpi-card">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{
+              width: 38, height: 38, borderRadius: '50%',
+              background: `url(${child.photoUrl}) center/cover`, border: `2px solid ${statusColor}`,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18,
+            }}></div>
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{child.name}</div>
+              <div style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>{child.age} yrs · {child.parent}</div>
+            </div>
+          </div>
+          <div style={{ textAlign: 'right' }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: statusColor, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+              {child.present ? (child.nap ? '😴 Napping' : '✓ Present') : '✗ Absent'}
+            </div>
+            <div style={{ fontSize: 10, color: invoiceColor, marginTop: 2, textTransform: 'uppercase' }}>
+              {child.invoiceStatus === 'overdue' ? '⚠ Overdue' : child.invoiceStatus === 'due' ? '○ Due' : '✓ Paid'}
+            </div>
+          </div>
+        </div>
+        {child.milestone && (
+          <div style={{ background: 'rgba(0,252,143,0.06)', border: '1px solid rgba(0,252,143,0.15)', borderRadius: 8, padding: '6px 10px', fontSize: 11, color: 'var(--mint)' }}>
+            🏆 Milestone: {child.milestone}
+          </div>
+        )}
+        <button onClick={(e) => { e.stopPropagation(); onMessage(child); }} style={{
+          background: 'transparent', border: '1px solid var(--border-default)', borderRadius: 8,
+          padding: '6px 10px', fontSize: 11, color: 'var(--text-secondary)', cursor: 'pointer',
+          display: 'flex', alignItems: 'center', gap: 6, transition: 'all 0.15s',
+        }} className="quick-action-btn">
+          <span>💬</span> Message {child.parent.split(' ')[1] || child.parent}
+        </button>
+      </div>
+    );
+  };
+
+  // ── Child Profile View Component ─────────────────────────────────────────
+  const ChildProfileView = ({ child, onBack, onMessage }) => {
+    return (
+      <div style={{ animation: 'fadeIn 0.3s ease' }}>
+        <button onClick={onBack} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', marginBottom: 20, fontSize: 13, display: 'flex', alignItems: 'center', gap: 8, fontFamily: 'var(--font-body)' }}>
+          <span>←</span> Back to Roster
+        </button>
+        
+        <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 16, padding: '32px 40px', display: 'flex', gap: 40 }}>
+          {/* Left Column: Photo & Base Info */}
+          <div style={{ width: 220, display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
+            <div style={{ width: 140, height: 140, borderRadius: '50%', background: `url(${child.photoUrl}) center/cover`, border: `4px solid ${child.present ? 'var(--mint)' : 'var(--border-default)'}`, marginBottom: 16, boxShadow: '0 8px 24px rgba(0,0,0,0.2)' }}></div>
+            <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 24, margin: '0 0 4px 0', color: 'var(--text-primary)' }}>{child.name}</h2>
+            <div style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 12 }}>{child.age} Years Old</div>
+            
+            <div style={{ background: 'var(--bg-deep)', borderRadius: 12, padding: '12px', width: '100%', marginBottom: 16 }}>
+              <div style={{ fontSize: 11, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>Parent / Guardian</div>
+              <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>{child.parent}</div>
+              <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{child.parentPhone}</div>
+            </div>
+            
+            <button onClick={() => onMessage(child)} style={{ background: 'var(--mint)', color: '#060012', border: 'none', borderRadius: 8, padding: '12px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer', width: '100%', fontFamily: 'var(--font-body)' }}>
+              Message Parent
+            </button>
+          </div>
+          
+          {/* Right Column: Detailed Vitals & Health */}
+          <div style={{ flex: 1 }}>
+            <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 18, color: 'var(--text-primary)', borderBottom: '1px solid var(--border-subtle)', paddingBottom: 12, marginBottom: 20, marginTop: 0 }}>Vital Information</h3>
+            
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 24 }}>
+              {[
+                { label: 'Birthday', val: child.birthday },
+                { label: 'Height', val: child.height },
+                { label: 'Weight', val: child.weight },
+                { label: 'Active Score', val: child.activeScore + ' pts', color: 'var(--mint)' },
+              ].map(v => (
+                <div key={v.label} style={{ background: 'var(--bg-deep)', borderRadius: 10, padding: '12px 16px' }}>
+                  <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginBottom: 4 }}>{v.label}</div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: v.color || 'var(--text-primary)' }}>{v.val}</div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 24 }}>
+              <div style={{ background: child.allergies !== 'None' ? 'rgba(255,71,87,0.05)' : 'var(--bg-deep)', border: child.allergies !== 'None' ? '1px solid rgba(255,71,87,0.2)' : '1px solid var(--border-subtle)', borderRadius: 10, padding: '16px' }}>
+                <div style={{ fontSize: 12, color: child.allergies !== 'None' ? '#FF4757' : 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8, fontWeight: 600 }}>Allergies</div>
+                <div style={{ fontSize: 14, color: 'var(--text-primary)' }}>{child.allergies}</div>
+              </div>
+              <div style={{ background: 'var(--bg-deep)', borderRadius: 10, padding: '16px' }}>
+                <div style={{ fontSize: 12, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Immunisation Tracker</div>
+                {(() => {
+                  const vac = calculateVaccineStatus(child);
+                  return (
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4 }}>
+                        <span style={{ color: 'var(--text-secondary)' }}>Completed</span>
+                        <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{vac.progress}%</span>
+                      </div>
+                      <div style={{ background: 'var(--bg-default)', height: 6, borderRadius: 3, overflow: 'hidden', marginBottom: 12 }}>
+                        <div style={{ background: vac.progress === 100 ? 'var(--mint)' : '#A855F7', width: vac.progress + '%', height: '100%' }}></div>
+                      </div>
+                      {vac.due.length > 0 && (
+                        <div style={{ background: 'rgba(255,180,0,0.1)', border: '1px solid rgba(255,180,0,0.3)', borderRadius: 6, padding: '8px 10px', marginTop: 8 }}>
+                          <span style={{ fontSize: 11, color: '#FFB400', fontWeight: 600, display: 'block', marginBottom: 2 }}>⚠️ Overdue Vaccines</span>
+                          <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{vac.due.join(', ')}</span>
+                        </div>
+                      )}
+                      {vac.upcoming.length > 0 && (
+                        <div style={{ background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.3)', borderRadius: 6, padding: '8px 10px', marginTop: 8 }}>
+                          <span style={{ fontSize: 11, color: '#3B82F6', fontWeight: 600, display: 'block', marginBottom: 2 }}>⏳ Upcoming (Next 4 Weeks)</span>
+                          <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{vac.upcoming.join(', ')}</span>
+                        </div>
+                      )}
+                      {vac.due.length === 0 && vac.upcoming.length === 0 && (
+                        <div style={{ fontSize: 12, color: 'var(--mint)' }}>✅ Up to date</div>
+                      )}
+                    </div>
+                  );
+                })()}
+              </div>
+            </div>
+            
+            <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 18, color: 'var(--text-primary)', borderBottom: '1px solid var(--border-subtle)', paddingBottom: 12, marginBottom: 20, marginTop: 24 }}>Health Record & Notes</h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.6, background: 'var(--bg-deep)', padding: 16, borderRadius: 10 }}>
+                {child.healthRecord}
+              </div>
+              <div style={{ display: 'flex', gap: 20 }}>
+                <div style={{ flex: 1, background: 'var(--bg-deep)', padding: 16, borderRadius: 10 }}>
+                  <div style={{ fontSize: 12, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Favourite Meals</div>
+                  <div style={{ fontSize: 13, color: 'var(--text-primary)' }}>🍽️ {child.favouriteMeals}</div>
+                </div>
+                <div style={{ flex: 1, background: 'var(--bg-deep)', padding: 16, borderRadius: 10 }}>
+                  <div style={{ fontSize: 12, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Enrollment Date</div>
+                  <div style={{ fontSize: 13, color: 'var(--text-primary)' }}>📅 {child.enrollmentDate}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // ── Nia Advisory Banner ──────────────────────────────────────────────────
+  const NiaAdvisoryBanner = ({ onTalkToNia }) => (
+    <div style={{
+      background: 'linear-gradient(135deg, rgba(0,252,143,0.06) 0%, rgba(0,252,143,0.02) 100%)',
+      border: '1px solid rgba(0,252,143,0.2)', borderRadius: 12, padding: '16px 20px',
+      display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16,
+      marginBottom: 28,
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+        <div style={{
+          width: 40, height: 40, borderRadius: '50%',
+          background: 'linear-gradient(135deg, #00FC8F, #1B9B6F)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: 18, boxShadow: '0 0 16px rgba(0,252,143,0.3)',
+        }}>🛡️</div>
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--mint)' }}>Nia is watching Childcare OS</div>
+          <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>
+            2 parent messages unanswered · Nakamya invoice 30+ days overdue · 3 children absent today
+          </div>
+        </div>
+      </div>
+      <button onClick={onTalkToNia} style={{
+        background: 'var(--mint)', color: '#060012', border: 'none', borderRadius: 8,
+        padding: '8px 16px', fontSize: 12, fontWeight: 700, cursor: 'pointer',
+        whiteSpace: 'nowrap', fontFamily: 'var(--font-body)',
+      }}>Talk to Nia →</button>
+    </div>
+  );
+
+  // ── Nia AI Chat Overlay ──────────────────────────────────────────────────
+  const ChildcareNiaOverlay = ({ isOpen, onClose, contextData }) => {
+    const [messages, setMessages] = React.useState([{ role: 'assistant', content: 'Hello Hudson. I am monitoring Charis Childcare OS. What do you need to know?' }]);
+    const [input, setInput] = React.useState('');
+    const [pending, setPending] = React.useState(false);
+    const messagesEndRef = React.useRef(null);
+
+    React.useEffect(() => {
+      if (messagesEndRef.current) messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }, [messages]);
+
+    if (!isOpen) return null;
+
+    const handleSend = async () => {
+      if (!input.trim() || pending) return;
+      const userMsg = { role: 'user', content: input.trim() };
+      setMessages(prev => [...prev, userMsg]);
+      setInput('');
+      setPending(true);
+
+      const rosterStr = JSON.stringify(contextData.children.map(c => {
+        const vac = typeof calculateVaccineStatus !== 'undefined' ? calculateVaccineStatus(c) : {};
+        return { name: c.name, age: c.age, present: c.present, nap: c.nap, milestone: c.milestone, invoice: c.invoiceStatus, healthRecord: c.healthRecord, allergies: c.allergies, overdueVaccines: vac.due || [], upcomingVaccines: vac.upcoming || [], completedVaccines: c.completedVaccines, favouriteMeals: c.favouriteMeals, birthday: c.birthday, height: c.height, weight: c.weight, activeScore: c.activeScore, enrollmentDate: c.enrollmentDate };
+      }));
+      const scheduleStr = JSON.stringify(contextData.schedule.map(s => ({ time: s.time, activity: s.activity, caretaker: s.caretaker })));
+      const messagesStr = JSON.stringify(contextData.messages);
+      const kpiStr = JSON.stringify(contextData.kpi);
+
+      const systemPrompt = `You are Nia, the AI Chief of Staff for NEXT OS. You are currently viewing the Charis Childcare OS dashboard for Hudson Tumusiime (Global Director).
+You have complete access to the current dashboard state. Answer the user's questions based ONLY on this data. Be concise, direct, and helpful. Do not use markdown headers.
+
+CURRENT DASHBOARD STATE:
+KPIs: ${kpiStr}
+CHILDREN ROSTER: ${rosterStr}
+TODAY'S SCHEDULE: ${scheduleStr}
+MESSAGES FROM PARENTS: ${messagesStr}`;
+
+      try {
+        const res = await fetch('https://nextos-sentinel.nextafricaai.workers.dev', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            system: systemPrompt,
+            messages: [...messages, userMsg].map(m => ({ role: m.role, content: m.content })),
+            tools: []
+          })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to fetch');
+        
+        const textRespObj = (data.content || []).find(c => c.type === 'text');
+        const textResp = (textRespObj && textRespObj.text) || "I'm sorry, I couldn't process that.";
+        setMessages(prev => [...prev, { role: 'assistant', content: textResp }]);
+      } catch (err) {
+        setMessages(prev => [...prev, { role: 'assistant', content: '⚠️ Error connecting to Nia: ' + err.message }]);
+      } finally {
+        setPending(false);
+      }
+    };
+
+    return (
+      <div style={{ position: 'fixed', top: 0, right: 0, bottom: 0, width: 400, background: 'var(--bg-elevated)', borderLeft: '1px solid var(--border-default)', boxShadow: '-10px 0 30px rgba(0,0,0,0.5)', display: 'flex', flexDirection: 'column', zIndex: 1000 }}>
+        <div style={{ padding: '20px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'linear-gradient(135deg, #00FC8F, #1B9B6F)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>🛡️</div>
+            <div style={{ fontWeight: 700, color: 'var(--mint)' }}>Nia Advisory</div>
+          </div>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: 24, lineHeight: 1 }}>×</button>
+        </div>
+        <div style={{ flex: 1, overflowY: 'auto', padding: 20, display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {messages.map((m, i) => (
+            <div key={i} style={{ alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: '85%' }}>
+              <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginBottom: 4, textAlign: m.role === 'user' ? 'right' : 'left' }}>
+                {m.role === 'user' ? 'Hudson' : 'Nia'}
+              </div>
+              <div style={{ background: m.role === 'user' ? 'var(--mint)' : 'var(--bg-surface)', color: m.role === 'user' ? '#060012' : 'var(--text-primary)', padding: '10px 14px', borderRadius: 12, borderBottomRightRadius: m.role === 'user' ? 2 : 12, borderBottomLeftRadius: m.role === 'user' ? 12 : 2, fontSize: 13, lineHeight: 1.5 }}>
+                {m.content}
+              </div>
+            </div>
+          ))}
+          {pending && (
+            <div style={{ alignSelf: 'flex-start', background: 'var(--bg-surface)', padding: '10px 14px', borderRadius: 12, fontSize: 13, color: 'var(--text-tertiary)' }}>
+              Nia is thinking...
+            </div>
+          )}
+          <div ref={messagesEndRef} />
+        </div>
+        <div style={{ padding: 20, borderTop: '1px solid var(--border-subtle)' }}>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <input type="text" value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSend()} placeholder="Ask Nia about the dashboard..." style={{ flex: 1, background: 'var(--bg-deep)', border: '1px solid var(--border-default)', borderRadius: 8, padding: '10px 14px', color: 'var(--text-primary)', fontSize: 13, outline: 'none' }} />
+            <button onClick={handleSend} disabled={pending || !input.trim()} style={{ background: 'var(--mint)', color: '#060012', border: 'none', borderRadius: 8, padding: '0 16px', fontWeight: 700, cursor: (pending || !input.trim()) ? 'not-allowed' : 'pointer', opacity: (pending || !input.trim()) ? 0.5 : 1 }}>Send</button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // ── Main Page Component ──────────────────────────────────────────────────
+  const ChildcareOSPage = ({ onNavigate }) => {
+    const [activeTab, setActiveTab] = React.useState('overview');
+    const [selectedCenterId, setSelectedCenterId] = React.useState('all');
+    const [selectedChild, setSelectedChild] = React.useState(null);
+    const [niaOpen, setNiaOpen] = React.useState(false);
+    const [centersData, setCentersData] = React.useState(CENTERS);
+    const [onboardingOpen, setOnboardingOpen] = React.useState(false);
+
+    const kpi = React.useMemo(() => {
+      if (selectedCenterId !== 'all') {
+        return centersData.find(c => c.id === selectedCenterId)?.kpi || centersData[0].kpi;
+      }
+      const agg = {
+        enrolled: 0, presentToday: 0, absentToday: 0,
+        invoicesDue: 0, invoicesOverdue30d: 0, overdueAmount: 0,
+        totalInvoiced: 0, unreadParentMessages: 0, unansweredMessages24h: 0,
+        milestonesThisWeek: 0, activitiesScheduledToday: 0,
+      };
+      centersData.forEach(c => {
+        agg.enrolled += c.kpi.enrolled;
+        agg.presentToday += c.kpi.presentToday;
+        agg.absentToday += c.kpi.absentToday;
+        agg.invoicesDue += c.kpi.invoicesDue;
+        agg.invoicesOverdue30d += c.kpi.invoicesOverdue30d;
+        agg.overdueAmount += c.kpi.overdueAmount;
+        agg.totalInvoiced += c.kpi.totalInvoiced;
+        agg.unreadParentMessages += c.kpi.unreadParentMessages;
+        agg.unansweredMessages24h += c.kpi.unansweredMessages24h;
+        agg.milestonesThisWeek += c.kpi.milestonesThisWeek;
+        agg.activitiesScheduledToday += c.kpi.activitiesScheduledToday;
+      });
+      agg.attendanceRate = agg.enrolled > 0 ? agg.presentToday / agg.enrolled : 0;
+      agg.collectionRate = agg.totalInvoiced > 0 ? (agg.totalInvoiced - agg.overdueAmount) / agg.totalInvoiced : 0;
+      return agg;
+    }, [selectedCenterId, centersData]);
+
+    const childrenData = React.useMemo(() => {
+      if (selectedCenterId === 'all') return centersData.flatMap(c => c.children);
+      return centersData.find(c => c.id === selectedCenterId)?.children || [];
+    }, [selectedCenterId, centersData]);
+
+    const TODAY_SCHEDULE = React.useMemo(() => {
+      if (selectedCenterId === 'all') return centersData[0].schedule;
+      return centersData.find(c => c.id === selectedCenterId)?.schedule || [];
+    }, [selectedCenterId, centersData]);
+
+    const MESSAGES = React.useMemo(() => {
+      if (selectedCenterId === 'all') return centersData.flatMap(c => c.messages);
+      return centersData.find(c => c.id === selectedCenterId)?.messages || [];
+    }, [selectedCenterId, centersData]);
+
+    const CAMERAS = React.useMemo(() => {
+      if (selectedCenterId === 'all') return centersData.flatMap(c => c.cameras);
+      return centersData.find(c => c.id === selectedCenterId)?.cameras || [];
+    }, [selectedCenterId, centersData]);
+
+    const currentSlot = getCurrentTimeSlot(TODAY_SCHEDULE);
+
+    React.useEffect(() => {
+      if (activeTab === 'cameras' && typeof window !== 'undefined' && window.JSMpeg) {
+        let players = [];
+        const setupPlayer = (id, port) => {
+          const canvas = document.getElementById(id);
+          if (canvas) {
+            players.push(new window.JSMpeg.Player(`ws://127.0.0.1:${port}`, { canvas: canvas, autoplay: true, loop: true }));
+          }
+        };
+        const timer = setTimeout(() => {
+          CAMERAS.forEach(cam => {
+            if (cam.wsPort) setupPlayer(`camera-canvas-${cam.id}`, cam.wsPort);
+          });
+        }, 300);
+        return () => {
+          clearTimeout(timer);
+          players.forEach(p => p.destroy());
+        };
+      }
+    }, [activeTab]);
+
+    function handleMessage(child) {
+      const url = 'https://wa.me/' + child.parentPhone + '?text=' + encodeURIComponent(
+        'Hello ' + child.parent + ', this is a message from the Charis Childcare team regarding ' + child.name + '. '
+      );
+      window.open(url, '_blank', 'noopener,noreferrer');
+    }
+
+    const tabs = [
+      { id: 'overview',  label: 'Overview', icon: '📊' },
+      { id: 'children',  label: 'Children', icon: '🧒' },
+      { id: 'schedule',  label: 'Schedule', icon: '🗓️' },
+      { id: 'messages',  label: 'Messages', icon: '💬', badge: kpi.unreadParentMessages },
+      { id: 'invoices',  label: 'Invoices', icon: '💳' },
+      { id: 'cameras',   label: 'Live Cameras', icon: '🎥' },
+    ];
+
+    return (
+      <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-default)' }}>
+        {/* ── SIDEBAR ── */}
+        <div style={{
+          width: 260, background: 'var(--bg-elevated)', borderRight: '1px solid var(--border-subtle)',
+          padding: '32px 20px', display: 'flex', flexDirection: 'column',
+          position: 'fixed', top: 0, bottom: 0, left: 0, overflowY: 'auto', zIndex: 50
+        }}>
+          {/* Header */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20, paddingLeft: 8 }}>
+            <div style={{
+              width: 44, height: 44, borderRadius: 12,
+              background: 'linear-gradient(135deg, #FFB400, #FF8C00)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 22, boxShadow: '0 4px 20px rgba(255,180,0,0.3)', flexShrink: 0
+            }}>👶</div>
+            <div>
+              <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 800, color: 'var(--text-primary)', margin: 0, lineHeight: 1.2 }}>
+                Charis OS
+              </h1>
+              <div style={{ fontSize: 11, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', marginTop: 2 }}>
+                Global Director
+              </div>
+            </div>
+          </div>
+
+          {/* Center Selector */}
+          <div style={{ marginBottom: 30, paddingLeft: 8, paddingRight: 8 }}>
+            <div style={{ fontSize: 10, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>Facility</div>
+            <select 
+              value={selectedCenterId}
+              onChange={(e) => setSelectedCenterId(e.target.value)}
+              style={{
+                width: '100%', padding: '10px 12px', borderRadius: 8,
+                background: 'var(--bg-default)', border: '1px solid var(--border-default)',
+                color: 'var(--text-primary)', fontSize: 13, fontWeight: 600,
+                cursor: 'pointer', outline: 'none'
+              }}
+            >
+              <option value="all">🌐 All Centers (Global)</option>
+              {centersData.map(c => (
+                <option key={c.id} value={c.id}>📍 {c.name}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Navigation Menu */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: 1 }}>
+            <div style={{ fontSize: 11, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10, paddingLeft: 12 }}>Menu</div>
+            {tabs.map(tab => (
+              <button key={tab.id} onClick={() => setActiveTab(tab.id)} style={{
+                background: activeTab === tab.id ? 'rgba(0,252,143,0.08)' : 'transparent',
+                border: 'none', cursor: 'pointer', padding: '12px 14px', fontSize: 14,
+                fontWeight: activeTab === tab.id ? 600 : 500,
+                color: activeTab === tab.id ? 'var(--mint)' : 'var(--text-secondary)',
+                borderRadius: 10, transition: 'all 0.15s', fontFamily: 'var(--font-body)',
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between', textAlign: 'left'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <span style={{ fontSize: 18 }}>{tab.icon}</span>
+                  {tab.label}
+                </div>
+                {tab.badge > 0 && (
+                  <span style={{ background: '#A855F7', color: '#fff', borderRadius: 10, padding: '2px 8px', fontSize: 10, fontWeight: 700 }}>
+                    {tab.badge}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+
+          <button onClick={() => setNiaOpen(true)} style={{
+            background: 'linear-gradient(135deg, rgba(0,252,143,0.1), rgba(0,252,143,0.02))',
+            border: '1px solid rgba(0,252,143,0.2)', borderRadius: 12, padding: '16px 20px',
+            display: 'flex', alignItems: 'center', gap: 12, marginTop: 40, cursor: 'pointer', transition: 'all 0.2s', width: '100%', textAlign: 'left'
+          }}>
+            <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'linear-gradient(135deg, #00FC8F, #1B9B6F)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>🛡️</div>
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--mint)' }}>Talk to Nia</div>
+              <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>AI Chief of Staff</div>
+            </div>
+          </button>
+        </div>
+
+        {/* ── MAIN CONTENT AREA ── */}
+        <div style={{ flex: 1, padding: '40px 60px', marginLeft: 260, maxWidth: 1200 }}>
+          {/* Top Bar inside content */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 28 }}>
+            <div>
+              <div style={{ fontSize: 13, color: 'var(--mint)', fontFamily: 'var(--font-mono)', marginBottom: 4 }}>{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</div>
+              <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 28, fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
+                {tabs.find(t => t.id === activeTab) ? tabs.find(t => t.id === activeTab).label : ''}
+              </h2>
+            </div>
+            <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+              Welcome back, Hudson Tumusiime
+            </div>
+          </div>
+
+        {/* Nia Banner */}
+        <NiaAdvisoryBanner onTalkToNia={() => setNiaOpen(true)} />
+
+        {/* ── OVERVIEW TAB ── */}
+        {activeTab === 'overview' && (
+          <>
+            {/* KPI Strip */}
+            <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginBottom: 28 }}>
+              <CcKpiCard label="Enrolled" value={kpi.enrolled} sub="July cohort" accent="#00FC8F" icon="🧒" />
+              <CcKpiCard label="Present Today" value={kpi.presentToday} sub={`${kpi.absentToday} absent`} accent="#3B82F6" icon="✅" />
+              <CcKpiCard label="Attendance" value={Math.round(kpi.attendanceRate * 100) + '%'} sub="Target: 90%+" accent={kpi.attendanceRate >= 0.9 ? '#00FC8F' : '#FFB400'} icon="📊" />
+              <CcKpiCard label="Invoices Due" value={kpi.invoicesDue} sub={kpi.invoicesOverdue30d + ' overdue 30d+'} accent="#FF4757" icon="💳" />
+              <CcKpiCard label="Messages" value={kpi.unreadParentMessages} sub={kpi.unansweredMessages24h + ' need reply'} accent="#A855F7" icon="💬" />
+              <CcKpiCard label="Milestones" value={kpi.milestonesThisWeek} sub="This week" accent="#FFB400" icon="🏆" />
+            </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+            {/* Today's Pulse */}
+            <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: 20 }}>
+              <div style={{ fontSize: 12, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 16 }}>Today's Pulse</div>
+              {[
+                { label: 'Present', val: kpi.presentToday, total: kpi.enrolled, color: '#00FC8F' },
+                { label: 'Fee Collection', val: Math.round(kpi.collectionRate * 100), total: 100, color: '#3B82F6', pct: true },
+                { label: 'Attendance Rate', val: Math.round(kpi.attendanceRate * 100), total: 100, color: '#FFB400', pct: true },
+              ].map(({ label, val, total, color, pct }) => (
+                <div key={label} style={{ marginBottom: 16 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                    <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{label}</span>
+                    <span style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color }}>{pct ? val + '%' : val + '/' + total}</span>
+                  </div>
+                  <div style={{ height: 5, background: 'var(--bg-surface)', borderRadius: 4 }}>
+                    <div style={{ height: '100%', width: (pct ? val : Math.round(val / total * 100)) + '%', background: color, borderRadius: 4, transition: 'width 0.8s ease' }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Next Activity */}
+            <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: 20 }}>
+              <div style={{ fontSize: 12, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 16 }}>Today's Schedule</div>
+              {TODAY_SCHEDULE.slice(0, 5).map((slot, i) => (
+                <div key={i} style={{
+                  display: 'flex', alignItems: 'center', gap: 12, padding: '8px 10px',
+                  borderRadius: 8, marginBottom: 4,
+                  background: i === currentSlot ? 'rgba(0,252,143,0.08)' : 'transparent',
+                  border: i === currentSlot ? '1px solid rgba(0,252,143,0.2)' : '1px solid transparent',
+                }}>
+                  <span style={{ fontSize: 16 }}>{slot.icon}</span>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 12, color: i === currentSlot ? 'var(--mint)' : 'var(--text-secondary)', fontWeight: i === currentSlot ? 600 : 400 }}>{slot.activity}</div>
+                    <div style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>{slot.caretaker}</div>
+                  </div>
+                  <div style={{ fontSize: 10, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)' }}>{slot.time}</div>
+                </div>
+              ))}
+              <button onClick={() => setActiveTab('schedule')} style={{ background: 'none', border: '1px solid var(--border-default)', borderRadius: 8, padding: '6px 12px', fontSize: 11, color: 'var(--text-secondary)', cursor: 'pointer', width: '100%', marginTop: 8, fontFamily: 'var(--font-body)' }}>
+                View full schedule →
+              </button>
+            </div>
+
+            {/* Immunisation Alerts */}
+            <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: 20 }}>
+              <div style={{ fontSize: 12, color: '#FFB400', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 16 }}>⚠️ Immunisation Alerts</div>
+              {(() => {
+                const alerts = childrenData.map(c => ({ child: c, vac: calculateVaccineStatus(c) }))
+                  .filter(item => item.vac.due.length > 0)
+                  .slice(0, 5);
+                if (alerts.length === 0) return <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>All children are up to date!</div>;
+                return alerts.map((item, i) => (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: '1px solid var(--border-subtle)' }}>
+                    <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#FF4757' }} />
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)' }}>{item.child.name}</div>
+                      <div style={{ fontSize: 11, color: '#FFB400' }}>Overdue: {item.vac.due.join(', ')}</div>
+                    </div>
+                  </div>
+                ));
+              })()}
+            </div>
+
+            {/* Recent Milestones */}
+            <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: 20 }}>
+              <div style={{ fontSize: 12, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 16 }}>Recent Milestones</div>
+              {childrenData.filter(c => c.milestone).slice(0, 5).map(child => (
+                <div key={child.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: '1px solid var(--border-subtle)' }}>
+                  <span style={{ fontSize: 20 }}>{child.mood}</span>
+                  <div>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)' }}>{child.name}</div>
+                    <div style={{ fontSize: 11, color: 'var(--mint)' }}>🏆 {child.milestone}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Quick Actions */}
+            <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: 20 }}>
+              <div style={{ fontSize: 12, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 16 }}>Quick Actions</div>
+              {[
+                { label: '📣 Broadcast to All Parents', action: () => { const url = 'https://wa.me/?text=' + encodeURIComponent('Hello from Charis Childcare! '); window.open(url, '_blank'); } },
+                { label: '💬 View Messages', action: () => setActiveTab('messages') },
+                { label: '📋 View Invoices', action: () => setActiveTab('invoices') },
+                { label: '🛡️ Ask Nia for Advisory', action: () => setNiaOpen(true) },
+              ].map(({ label, action }) => (
+                <button key={label} onClick={action} style={{
+                  display: 'block', width: '100%', background: 'transparent',
+                  border: '1px solid var(--border-default)', borderRadius: 8, padding: '10px 14px',
+                  fontSize: 12, color: 'var(--text-secondary)', cursor: 'pointer', textAlign: 'left',
+                  marginBottom: 8, transition: 'all 0.15s', fontFamily: 'var(--font-body)',
+                }} className="quick-action-btn">{label}</button>
+              ))}
+            </div>
+          </div>
+          </>
+        )}
+
+        {/* ── CHILDREN TAB ── */}
+        {activeTab === 'children' && !selectedChild && (
+          <div style={{ animation: 'fadeIn 0.3s ease' }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginBottom: 16 }}>
+              <button onClick={() => setOnboardingOpen(true)} style={{ background: 'var(--mint)', color: '#060012', border: 'none', borderRadius: 8, padding: '10px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font-body)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span>➕</span> Onboard Child
+              </button>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 14 }}>
+              {childrenData.map(child => <ChildCard key={child.id} child={child} onSelect={setSelectedChild} onMessage={handleMessage} />)}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'children' && selectedChild && (
+           <ChildProfileView child={selectedChild} onBack={() => setSelectedChild(null)} onMessage={handleMessage} />
+        )}
+
+        {/* ── CAMERAS TAB ── */}
+        {activeTab === 'cameras' && (
+          <div style={{ animation: 'fadeIn 0.3s ease' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+              <div style={{ fontSize: 14, color: 'var(--text-secondary)' }}>Live feeds from Charis Childcare center. AI Milestone tracking is currently active.</div>
+              <button style={{ background: 'transparent', border: '1px solid var(--border-default)', color: 'var(--text-secondary)', borderRadius: 8, padding: '8px 12px', fontSize: 12, cursor: 'pointer' }}>⚙️ Configure Video Sources</button>
+            </div>
+            
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: 24 }}>
+              {CAMERAS.map(cam => (
+                <div key={cam.id} style={{ background: 'var(--bg-elevated)', borderRadius: 16, overflow: 'hidden', border: '1px solid var(--border-subtle)', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}>
+                  {/* Camera Header */}
+                  <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#FF4757', animation: 'pulse 2s infinite' }}></div>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{cam.name}</span>
+                    </div>
+                    <span style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>1080p • 30fps</span>
+                  </div>
+                  {/* Real Camera Feed (JSMpeg) */}
+                  <div style={{ position: 'relative', width: '100%', height: 220, background: '#111' }}>
+                    <canvas id={`camera-canvas-${cam.id}`} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: 0.8 }}></canvas>
+                    {/* Bounding Boxes */}
+                    {cam.children.map((c, i) => (
+                      <div key={i} style={{ position: 'absolute', left: c.x + '%', top: c.y + '%', transform: 'translate(-50%, -50%)' }}>
+                        <div style={{ border: '2px solid var(--mint)', width: 60, height: 80, borderRadius: 8, boxShadow: '0 0 10px rgba(0,252,143,0.3)', position: 'relative' }}>
+                          <div style={{ position: 'absolute', top: -30, left: '50%', transform: 'translateX(-50%)', background: 'rgba(0,0,0,0.8)', border: '1px solid var(--mint)', borderRadius: 6, padding: '4px 8px', whiteSpace: 'nowrap', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                            <span style={{ fontSize: 10, color: '#fff', fontWeight: 700 }}>{c.name}</span>
+                            <span style={{ fontSize: 9, color: 'var(--mint)' }}>🏆 {c.milestone}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ── SCHEDULE TAB ── */}
+        {activeTab === 'schedule' && (
+          <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: 24 }}>
+            <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>Today's Programme</div>
+            <div style={{ fontSize: 12, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', marginBottom: 24 }}>
+              Generated by Global Director Hudson · {new Date().toDateString()}
+            </div>
+            {TODAY_SCHEDULE.map((slot, i) => (
+              <div key={i} style={{
+                display: 'flex', alignItems: 'center', gap: 16,
+                padding: '14px 16px', borderRadius: 10, marginBottom: 8,
+                background: i === currentSlot ? 'rgba(0,252,143,0.06)' : i < currentSlot ? 'rgba(255,255,255,0.02)' : 'transparent',
+                border: i === currentSlot ? '1px solid rgba(0,252,143,0.25)' : '1px solid var(--border-subtle)',
+                opacity: i < currentSlot ? 0.55 : 1,
+                transition: 'all 0.2s',
+              }}>
+                <div style={{
+                  width: 44, height: 44, borderRadius: 10,
+                  background: slot.color + '18', border: `1px solid ${slot.color}30`,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, flexShrink: 0,
+                }}>{slot.icon}</div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 13, fontWeight: i === currentSlot ? 600 : 400, color: i === currentSlot ? 'var(--mint)' : 'var(--text-primary)' }}>
+                    {slot.activity}
+                    {i === currentSlot && <span style={{ marginLeft: 8, fontSize: 10, background: 'var(--mint)', color: '#060012', borderRadius: 20, padding: '2px 8px', fontWeight: 700 }}>NOW</span>}
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginTop: 2 }}>Led by {slot.caretaker}</div>
+                </div>
+                <div style={{ fontSize: 12, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', flexShrink: 0 }}>{slot.time}</div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* ── MESSAGES TAB ── */}
+        {activeTab === 'messages' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {MESSAGES.map(msg => (
+              <div key={msg.id} style={{
+                background: 'var(--bg-elevated)', border: `1px solid ${!msg.read ? 'rgba(168,85,247,0.3)' : 'var(--border-subtle)'}`,
+                borderRadius: 12, padding: '16px 18px',
+                display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16,
+              }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                    <div style={{ width: 8, height: 8, borderRadius: '50%', background: !msg.read ? '#A855F7' : 'var(--border-default)', flexShrink: 0 }} />
+                    <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{msg.parent}</span>
+                    <span style={{ fontSize: 11, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)' }}>{msg.time}</span>
+                    {!msg.answered && (
+                      <span style={{ fontSize: 10, background: 'rgba(255,71,87,0.15)', color: '#FF4757', borderRadius: 20, padding: '2px 8px', fontWeight: 700 }}>Needs reply</span>
+                    )}
+                  </div>
+                  <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5 }}>{msg.text}</div>
+                </div>
+                <button onClick={() => {
+                  const child = childrenData.find(c => c.parent === msg.parent);
+                  if (child) handleMessage(child);
+                }} style={{
+                  background: 'var(--mint)', color: '#060012', border: 'none', borderRadius: 8,
+                  padding: '8px 14px', fontSize: 11, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: 'var(--font-body)',
+                }}>
+                  Reply via WhatsApp
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* ── INVOICES TAB ── */}
+        {activeTab === 'invoices' && (
+          <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 12, overflow: 'hidden' }}>
+            <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>Invoice Register — July 2026</span>
+              <span style={{ fontSize: 12, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)' }}>
+                Collection: {Math.round(kpi.collectionRate * 100)}%
+              </span>
+            </div>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+              <thead>
+                <tr style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+                  {['Child', 'Parent', 'Amount (UGX)', 'Status', 'Action'].map(h => (
+                    <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontSize: 11, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600, fontFamily: 'var(--font-mono)' }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {childrenData.map(child => {
+                  const statusColor = child.invoiceStatus === 'overdue' ? '#FF4757' : child.invoiceStatus === 'due' ? '#FFB400' : '#00FC8F';
+                  const statusLabel = child.invoiceStatus === 'overdue' ? '⚠ OVERDUE 30d+' : child.invoiceStatus === 'due' ? '○ DUE' : '✓ PAID';
+                  return (
+                    <tr key={child.id} style={{ borderBottom: '1px solid var(--border-subtle)' }} className="member-row">
+                      <td style={{ padding: '12px 16px', color: 'var(--text-primary)', fontWeight: 500 }}>{child.name}</td>
+                      <td style={{ padding: '12px 16px', color: 'var(--text-secondary)' }}>{child.parent}</td>
+                      <td style={{ padding: '12px 16px', fontFamily: 'var(--font-mono)', color: 'var(--text-primary)' }}>87,500</td>
+                      <td style={{ padding: '12px 16px' }}>
+                        <span style={{ fontSize: 11, color: statusColor, fontWeight: 700, fontFamily: 'var(--font-mono)' }}>{statusLabel}</span>
+                      </td>
+                      <td style={{ padding: '12px 16px' }}>
+                        {child.invoiceStatus !== 'paid' && (
+                          <button onClick={() => handleMessage(child)} style={{
+                            background: 'transparent', border: '1px solid var(--border-default)', borderRadius: 6,
+                            padding: '5px 10px', fontSize: 11, color: 'var(--mint)', cursor: 'pointer', fontFamily: 'var(--font-body)',
+                          }} className="quick-action-btn">Send reminder</button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+        
+        {/* Nia Overlay */}
+        <ChildcareNiaOverlay 
+          isOpen={niaOpen} 
+          onClose={() => setNiaOpen(false)} 
+          contextData={{ kpi: kpi, children: childrenData, schedule: TODAY_SCHEDULE, messages: MESSAGES }}
+        />
+
+        {/* Onboarding Drawer Modal */}
+        {onboardingOpen && (
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', animation: 'fadeIn 0.2s ease' }}>
+            <div style={{ background: 'var(--bg-elevated)', width: 500, borderRadius: 16, border: '1px solid var(--border-subtle)', padding: 32, position: 'relative' }}>
+              <button onClick={() => setOnboardingOpen(false)} style={{ position: 'absolute', top: 16, right: 16, background: 'none', border: 'none', color: 'var(--text-tertiary)', cursor: 'pointer', fontSize: 20 }}>×</button>
+              <h2 style={{ fontSize: 22, fontWeight: 800, margin: '0 0 24px', color: 'var(--text-primary)', fontFamily: 'var(--font-display)' }}>Onboard New Child</h2>
+              <form onSubmit={e => {
+                e.preventDefault();
+                const fd = new FormData(e.target);
+                const newChild = {
+                  id: 'child-new-' + Date.now(),
+                  name: fd.get('name'), age: fd.get('age') + ' yrs',
+                  parent: fd.get('parent'), parentPhone: '256700000000',
+                  mood: '😊', present: true, nap: false, milestone: '',
+                  invoiceStatus: 'paid', healthRecord: 'No current concerns.',
+                  allergies: fd.get('allergies') || 'None',
+                  completedVaccines: (fd.get('completedVaccines') || '').split(',').map(s => s.trim()),
+                  favouriteMeals: 'To be determined', birthday: fd.get('birthday') || 'TBD',
+                  height: '-', weight: '-', activeScore: 90, enrollmentDate: new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+                  photoUrl: 'https://images.unsplash.com/photo-1596461404969-9ae70f2830c1?ixlib=rb-4.0.3&auto=format&fit=crop&w=200&q=80'
+                };
+                setChildrenData([newChild, ...childrenData]);
+                setOnboardingOpen(false);
+              }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+                  <div><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Full Name</label><input required name="name" style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }} /></div>
+                  <div><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Age (years)</label><input required name="age" type="number" style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }} /></div>
+                  <div><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Parent / Guardian</label><input required name="parent" style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }} /></div>
+                  <div><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Birthday</label><input name="birthday" type="date" style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }} /></div>
+                  <div><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Allergies</label><input name="allergies" placeholder="e.g. Peanuts" style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }} /></div>
+                  <div><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Completed Vaccines (comma separated)</label><input name="completedVaccines" defaultValue="BCG, Polio 0" style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }} /></div>
+                </div>
+                <button type="submit" style={{ width: '100%', background: 'var(--mint)', color: '#060012', border: 'none', borderRadius: 8, padding: '12px', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font-body)', marginTop: 8 }}>Complete Onboarding</button>
+              </form>
+            </div>
+          </div>
+        )}
+        
+        </div>{/* End Main Content Area */}
+      </div>
+    );
+  };
+
+  window.ChildcareOSPage = ChildcareOSPage;
+})();
+
+
+
+
+/* -- Page Titles Map -- */
+const PAGE_TITLES = {
+  dashboard: 'Command Center',
+  talk: 'Talk to Nia',
+  fleet: 'Mothership Bridge',
+  projects: 'Projects Command',
+  'ai-tools': 'AI Command Center',
+  training: 'Training',
+  members: 'Members & Cards',
+  comms: 'Communications',
+  vault: 'Fleet Vault',
+  billing: 'Financial Overview',
+  sentinel: 'Nia HQ',
+  analytics: 'Fleet Analytics',
+  onboarding: 'Onboarding',
+  settings: 'Settings',
+};
+
+/* -- Apply Tweaks to CSS Vars -- */
+const applyTweaks = (t) => {
+  const root = document.documentElement;
+  if (t.accentColor) {
+    root.style.setProperty('--mint', t.accentColor);
+    // Compute glow
+    const hex = t.accentColor.replace('#','');
+    const r = parseInt(hex.substr(0,2),16), g = parseInt(hex.substr(2,2),16), b = parseInt(hex.substr(4,2),16);
+    root.style.setProperty('--mint-glow', `rgba(${r},${g},${b},0.1)`);
+    root.style.setProperty('--mint-glow-strong', `rgba(${r},${g},${b},0.2)`);
+  }
+  if (t.bgDepth === 'deeper') {
+    root.style.setProperty('--bg-deep', '#050010');
+    root.style.setProperty('--bg-elevated', '#140035');
+    root.style.setProperty('--bg-surface', '#1A0042');
+  } else if (t.bgDepth === 'lighter') {
+    root.style.setProperty('--bg-deep', '#120030');
+    root.style.setProperty('--bg-elevated', '#220058');
+    root.style.setProperty('--bg-surface', '#2A0068');
+  } else {
+    root.style.setProperty('--bg-deep', '#0A001A');
+    root.style.setProperty('--bg-elevated', '#1A0042');
+    root.style.setProperty('--bg-surface', '#220055');
+  }
+  if (t.fontScale) {
+    root.style.setProperty('font-size', `${t.fontScale}%`);
+  }
+};
+
+/* -- Main App Shell -- */
+const NEXT_AUTH_KEY = 'nextos.session.v1';
+const NEXT_AUTH_DAYS = 7;
+const NEXT_AUTH_ON = false; // master switch: set true to require email sign-in. Live override: ?gate=on / ?gate=off
+function nextGateOn() {
+  try {
+    const u = new URLSearchParams(location.search).get('gate');
+    if (u === 'on') localStorage.setItem('nextos.gate', 'on');
+    if (u === 'off') localStorage.setItem('nextos.gate', 'off');
+    const flag = localStorage.getItem('nextos.gate');
+    if (flag === 'on') return true;
+    if (flag === 'off') return false;
+  } catch (e) {}
+  return NEXT_AUTH_ON;
+}
+const NEXT_KNOWN = { 'hudson.tim.uk@gmail.com': 'Hudson', 'nextafrica.ai@gmail.com': 'Hudson' };
+function nextAuthValid() {
+  try { const j = JSON.parse(localStorage.getItem(NEXT_AUTH_KEY) || 'null'); return !!(j && j.email && j.exp && j.exp > Date.now()); } catch (e) { return false; }
+}
+function nextJwtEmail(t) {
+  try { const p = JSON.parse(atob(t.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))); return p.email || ''; } catch (e) { return ''; }
+}
+function nextConsumeHash() {
+  try {
+    if (location.hash && location.hash.indexOf('access_token=') >= 0) {
+      const h = new URLSearchParams(location.hash.slice(1)); const at = h.get('access_token');
+      if (at) { localStorage.setItem(NEXT_AUTH_KEY, JSON.stringify({ email: nextJwtEmail(at), exp: Date.now() + NEXT_AUTH_DAYS * 86400000 })); return true; }
+    }
+  } catch (e) {}
+  return false;
+}
+function nextGreet(email) {
+  email = (email || '').toLowerCase();
+  if (NEXT_KNOWN[email]) return { name: NEXT_KNOWN[email], back: true };
+  let lp = (email.split('@')[0] || '').replace(/[._\-]+/g, ' ').trim().split(' ')[0];
+  if (!lp) return { name: '', back: false };
+  return { name: lp.charAt(0).toUpperCase() + lp.slice(1), back: false };
+}
+if (typeof window !== 'undefined') {
+  window.NEXT_OS_SIGNOUT = () => { try { localStorage.removeItem(NEXT_AUTH_KEY); } catch (e) {} location.reload(); };
+  window.NEXT_OS_USER = () => { try { return (JSON.parse(localStorage.getItem(NEXT_AUTH_KEY) || 'null') || {}).email || ''; } catch (e) { return ''; } };
+}
+
+const WelcomeSplash = ({ email, onDone }) => {
+  const [show, setShow] = React.useState(false);
+  const g = nextGreet(email);
+  React.useEffect(() => {
+    const t0 = setTimeout(() => setShow(true), 30);
+    const t1 = setTimeout(() => setShow(false), 2200);
+    const t2 = setTimeout(() => onDone && onDone(), 2900);
+    return () => { clearTimeout(t0); clearTimeout(t1); clearTimeout(t2); };
+  }, []);
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 10000, background: 'radial-gradient(circle at 50% 35%, #0f1f3a, #060a14)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: 24, opacity: show ? 1 : 0, transition: 'opacity .6s ease' }}>
+      <div style={{ fontSize: 12, fontFamily: 'ui-monospace, monospace', letterSpacing: 4, color: '#00fc8f', marginBottom: 18, transform: show ? 'none' : 'translateY(8px)', transition: 'all .7s ease' }}>NEXT OS</div>
+      <div style={{ fontSize: 34, fontWeight: 800, color: '#eef1fb', lineHeight: 1.2, transform: show ? 'none' : 'translateY(14px)', transition: 'all .7s ease .05s', maxWidth: 560 }}>
+        {g.name ? ('Hello ' + g.name + ',') : 'Welcome,'}
+      </div>
+      <div style={{ fontSize: 19, color: '#aab2d5', marginTop: 8, transform: show ? 'none' : 'translateY(14px)', transition: 'all .7s ease .12s' }}>
+        {g.back ? 'welcome back to NEXT OS' : 'welcome to NEXT OS'}
+      </div>
+      <div style={{ marginTop: 22, fontSize: 14, fontFamily: 'ui-monospace, monospace', letterSpacing: 2, color: '#00fc8f', opacity: show ? 0.9 : 0, transition: 'all .7s ease .2s' }}>
+        AFRICA&rsquo;S INTELLIGENT FUTURE
+      </div>
+      <div style={{ marginTop: 30, width: 160, height: 3, borderRadius: 3, background: '#1a2342', overflow: 'hidden' }}>
+        <div style={{ height: '100%', background: '#00fc8f', width: show ? '100%' : '0%', transition: 'width 2.1s linear' }} />
+      </div>
+    </div>
+  );
+};
+
+const AuthGate = ({ children }) => {
+  if (!nextGateOn()) return children;
+  const WK = (typeof window !== 'undefined' && window.NEXT_OS_SENTINEL_ENDPOINT) || 'https://nextos-sentinel.nextafricaai.workers.dev';
+  const [authed, setAuthed] = React.useState(() => nextAuthValid() || nextConsumeHash());
+  const [welcome, setWelcome] = React.useState(() => authed);
+  const [step, setStep] = React.useState('email');
+  const [email, setEmail] = React.useState('');
+  const [code, setCode] = React.useState('');
+  const [busy, setBusy] = React.useState(false);
+  const [err, setErr] = React.useState('');
+  const [note, setNote] = React.useState('');
+  React.useEffect(() => { if (location.hash && location.hash.indexOf('access_token=') >= 0) { try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {} } }, []);
+
+  if (authed) return (<React.Fragment>{children}{welcome && <WelcomeSplash email={window.NEXT_OS_USER ? window.NEXT_OS_USER() : email} onDone={() => setWelcome(false)} />}</React.Fragment>);
+
+  const sendCode = async () => {
+    const e = email.trim().toLowerCase();
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e)) { setErr('Enter a valid email address.'); return; }
+    setBusy(true); setErr(''); setNote('');
+    try {
+      const r = await fetch(WK + '/auth/send-otp', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: e, redirectTo: location.origin + location.pathname }) });
+      const d = await r.json();
+      if (d.error) { setErr(d.error); } else { setStep('code'); setNote('Sent to ' + e + '. Enter the code, or just tap the link in the email — it signs you in automatically.'); }
+    } catch (x) { setErr('Could not reach the server. Try again.'); }
+    setBusy(false);
+  };
+  const verify = async () => {
+    const e = email.trim().toLowerCase(); const c = code.trim();
+    if (c.length < 6) { setErr('Enter the full code from your email.'); return; }
+    setBusy(true); setErr('');
+    try {
+      const r = await fetch(WK + '/auth/verify-otp', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: e, code: c }) });
+      const d = await r.json();
+      if (d.error || !d.ok) { setErr(d.error || 'Invalid or expired code.'); }
+      else { try { localStorage.setItem(NEXT_AUTH_KEY, JSON.stringify({ email: d.email || e, exp: Date.now() + NEXT_AUTH_DAYS * 86400000 })); } catch (x) {} setWelcome(true); setAuthed(true); }
+    } catch (x) { setErr('Could not reach the server. Try again.'); }
+    setBusy(false);
+  };
+
+  const wrap = { position: 'fixed', inset: 0, background: 'radial-gradient(circle at 50% 20%, #0f1a30, #070b16)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, fontFamily: 'Inter, -apple-system, system-ui, sans-serif', padding: 20 };
+  const card = { width: '100%', maxWidth: 380, background: 'rgba(17,26,54,0.7)', border: '1px solid #26315a', borderRadius: 18, padding: 30, boxShadow: '0 30px 80px rgba(0,0,0,0.5)', backdropFilter: 'blur(8px)' };
+  const input = { width: '100%', background: '#0a0f24', border: '1px solid #26315a', borderRadius: 10, color: '#eef1fb', padding: '13px 14px', fontSize: 15, outline: 'none' };
+  const btn = (on) => ({ width: '100%', marginTop: 12, background: on ? '#00fc8f' : '#1a2342', color: on ? '#062b18' : '#7e88b0', border: 'none', borderRadius: 10, padding: '13px', fontSize: 14, fontWeight: 700, cursor: on ? 'pointer' : 'not-allowed' });
+
+  return (
+    <div style={wrap}>
+      <div style={card}>
+        <div style={{ fontSize: 13, fontFamily: 'ui-monospace, monospace', letterSpacing: 3, color: '#00fc8f', marginBottom: 6 }}>NEXT OS</div>
+        <div style={{ fontSize: 22, fontWeight: 800, color: '#eef1fb', marginBottom: 4 }}>{step === 'email' ? 'Sign in' : 'Enter your code'}</div>
+        <div style={{ fontSize: 13, color: '#aab2d5', marginBottom: 20, lineHeight: 1.5 }}>{step === 'email' ? 'Secure email sign-in. We’ll send a one-time code — or a one-tap link — to verify it’s you.' : note}</div>
+
+        {step === 'email' ? (
+          <div>
+            <input style={input} type="email" placeholder="you@example.com" value={email} autoFocus
+              onChange={e => setEmail(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') sendCode(); }} />
+            <button style={btn(!busy)} disabled={busy} onClick={sendCode}>{busy ? 'Sending…' : 'Send code'}</button>
+          </div>
+        ) : (
+          <div>
+            <input style={{ ...input, letterSpacing: 6, fontSize: 20, textAlign: 'center', fontFamily: 'ui-monospace, monospace' }} inputMode="numeric" maxLength={10} placeholder="Code from email" value={code} autoFocus
+              onChange={e => setCode(e.target.value.replace(/\D/g, '').slice(0, 10))} onKeyDown={e => { if (e.key === 'Enter') verify(); }} />
+            <button style={btn(!busy)} disabled={busy} onClick={verify}>{busy ? 'Verifying…' : 'Verify & sign in'}</button>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 14, fontSize: 12 }}>
+              <span onClick={() => { setStep('email'); setCode(''); setErr(''); setNote(''); }} style={{ color: '#7e88b0', cursor: 'pointer' }}>{'←'} Change email</span>
+              <span onClick={sendCode} style={{ color: '#00fc8f', cursor: 'pointer' }}>Resend code</span>
+            </div>
+          </div>
+        )}
+        {err && <div style={{ marginTop: 14, fontSize: 13, color: '#ff8a96' }}>{err}</div>}
+        <div style={{ marginTop: 22, paddingTop: 16, borderTop: '1px solid #26315a', fontSize: 11, color: '#6b748a', lineHeight: 1.5 }}>Protected by one-time email verification. Your session stays active for {NEXT_AUTH_DAYS} days on this device.</div>
+      </div>
+    </div>
+  );
+};
+
+class ErrorBoundary extends React.Component {
+  constructor(props) { super(props); this.state = { hasError: false, error: null }; }
+  static getDerivedStateFromError(error) { return { hasError: true, error }; }
+  componentDidCatch(error, errorInfo) { console.error("Caught error:", error, errorInfo); }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{ padding: 40, color: 'var(--text-primary)' }}>
+          <h2>Something went wrong in this module.</h2>
+          <pre style={{ background: '#111', padding: 20, marginTop: 20, overflowX: 'auto', color: '#ff4757' }}>
+            {this.state.error && this.state.error.toString()}
+          </pre>
+          <button onClick={() => this.setState({ hasError: false })} style={{ marginTop: 20, padding: '10px 20px', background: 'var(--mint)', border: 'none', borderRadius: 8, cursor: 'pointer', color: '#000', fontWeight: 'bold' }}>Try Again</button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+const AppShell = () => {
+  const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
+  const [activeTab, setActiveTab] = React.useState('dashboard');
+  // Expose tab navigation globally so notifications can drive routing.
+  React.useEffect(() => {
+    if (typeof window !== 'undefined') window.NEXT_OS_NAVIGATE = (tab) => setActiveTab(tab);
+  }, []);
+  const [tutorial, setTutorial] = React.useState(() => { try { return localStorage.getItem('nextos.tutorial') !== '0'; } catch (e) { return true; } });
+  const [tour, setTour] = React.useState(false);
+  const toggleTutorial = () => setTutorial(v => { const n = !v; try { localStorage.setItem('nextos.tutorial', n ? '1' : '0'); } catch (e) {} if (n) setTour(true); return n; });
+  React.useEffect(() => { try { if (tutorial && localStorage.getItem('nextos.tutorial.seen') !== '1') { setTour(true); localStorage.setItem('nextos.tutorial.seen', '1'); } } catch (e) {} }, []);
+  const sidebarCollapsed = t.sidebarCollapsed;
+  const sidebarWidth = sidebarCollapsed ? 64 : 240;
+  const [narrow, setNarrow] = React.useState(() => typeof window !== 'undefined' && window.innerWidth < 900);
+  const [drawerOpen, setDrawerOpen] = React.useState(false);
+  React.useEffect(() => { const onR = () => setNarrow(window.innerWidth < 900); window.addEventListener('resize', onR); return () => window.removeEventListener('resize', onR); }, []);
+  React.useEffect(() => { setDrawerOpen(false); }, [activeTab]);
+  const effWidth = narrow ? 0 : sidebarWidth;
+
+  React.useEffect(() => { applyTweaks(t); }, [t.accentColor, t.bgDepth, t.fontScale]);
+
+  const renderPage = () => {
+    if (typeof window !== 'undefined') window.__SENTINEL_HIDE_WIDGET = false;
+    switch (activeTab) {
+      case 'dashboard':
+        return <DashboardPage onNavigate={setActiveTab} />;
+      case 'talk':
+        if (typeof window !== 'undefined') window.__SENTINEL_HIDE_WIDGET = true;
+        return window.TalkToSentinelPage ? React.createElement(window.TalkToSentinelPage) : <PlaceholderPage title="Talk to Nia" description="Agent is loading." icon="" />;
+      case 'fleet':
+        return window.FleetPage ? React.createElement(window.FleetPage, { onNavigate: setActiveTab }) : <PlaceholderPage title="Mothership Bridge" description="Fleet view is loading." icon="" />;
+      case 'members':
+        return window.NEXT_OPS ? React.createElement(window.NEXT_OPS, { kind: 'members' }) : <MembersPage onNavigate={setActiveTab} />;
+      case 'projects':
+        return <ProjectsPage onNavigate={setActiveTab} />;
+      case 'analytics':
+        return <AnalyticsPage onNavigate={setActiveTab} />;
+      case 'gate':
+        return <GatePage onNavigate={setActiveTab} />;
+      case 'smartcampus':
+        return <SmartCampusPage onNavigate={setActiveTab} />;
+      case 'subs':
+        return <SubscriptionsPage onNavigate={setActiveTab} />;
+      case 'ai-tools':
+        return <AIToolsPage onNavigate={setActiveTab} />;
+      case 'billing':
+        return window.NEXT_FINANCE ? React.createElement(window.NEXT_FINANCE) : <FinancePage onNavigate={setActiveTab} />;
+      case 'sentinel':
+        return window.NiaHQPage ? React.createElement(window.NiaHQPage, { onNavigate: setActiveTab }) : <PlaceholderPage title="Nia HQ" description="Loading." icon="" />;
+      case 'childcare':
+        if (!window.ChildcareOSPage) return <PlaceholderPage title="Charis Childcare OS" description="Loading childcare panel." icon="" />;
+        return (
+          <ErrorBoundary>
+            {React.createElement(window.ChildcareOSPage, { onNavigate: setActiveTab })}
+          </ErrorBoundary>
+        );
+      case 'onboarding':
+        return window.OnboardingPage ? React.createElement(window.OnboardingPage, { onNavigate: setActiveTab }) : <PlaceholderPage title="Onboarding" description="Template onboarding is loading." icon="" />;
+      case 'training':
+        return window.NEXT_OPS ? React.createElement(window.NEXT_OPS, { kind: 'training' }) : <PlaceholderPage title="Training" description="Loading." icon="" />;
+      case 'comms':
+        return window.NEXT_COMMS ? React.createElement(window.NEXT_COMMS) : <PlaceholderPage title="Communications" description="Loading." icon="" />;
+      case 'vault':
+        return window.NEXT_VAULT ? React.createElement(window.NEXT_VAULT) : <PlaceholderPage title="Fleet Vault" description="Loading." icon="" />;
+      case 'settings':
+        return window.NEXT_SETTINGS ? React.createElement(window.NEXT_SETTINGS) : <PlaceholderPage title="Settings" description="Loading." icon="Settings" />;
+      default:
+        return <DashboardPage onNavigate={setActiveTab} />;
+    }
+  };
+
+  const density = t.density || 'regular';
+  const padding = density === 'compact' ? '20px 24px' : density === 'comfortable' ? '36px 40px' : '28px 32px';
+
+  return (
+    <div style={{ minHeight: '100vh', background: 'var(--bg-deep)' }} data-glow={t.cardGlow || 'medium'} data-shine={t.cardShine === false ? 'off' : 'on'}>
+      <Sidebar 
+        activeTab={activeTab} 
+        onTabChange={setActiveTab} 
+        collapsed={sidebarCollapsed}
+        onToggle={() => setTweak('sidebarCollapsed', !sidebarCollapsed)}
+        tutorial={tutorial}
+        narrow={narrow}
+        drawerOpen={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+      />
+      {narrow && drawerOpen && <div onClick={() => setDrawerOpen(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 150 }} />}
+      <Topbar pageTitle={PAGE_TITLES[activeTab] || 'Dashboard'} sidebarWidth={effWidth} tutorial={tutorial} onToggleTutorial={toggleTutorial} narrow={narrow} onHamburger={() => setDrawerOpen(true)} />
+      {tour && <NiaTour onClose={() => setTour(false)} onNavigate={setActiveTab} />}
+      <main style={{
+        marginLeft: effWidth, paddingTop: 64,
+        transition: 'margin-left 0.25s ease',
+      }}>
+        <div style={{ padding: narrow ? '16px 14px 40px' : padding, maxWidth: 1200, margin: '0 auto', transition: 'padding 0.25s ease' }}>
+          {renderPage()}
+        </div>
+      </main>
+
+      {/* Dev TweaksPanel: only visible with ?tweaks=1 query param or on localhost.
+          Prevents it from leaking into the production deployment. */}
+      {(typeof window !== 'undefined' && (
+        window.location.search.includes('tweaks=1') ||
+        ['127.0.0.1', 'localhost', ''].includes(window.location.hostname)
+      )) && (
+      <TweaksPanel>
+        <TweakSection label="Theme" />
+        <TweakColor label="Accent" value={t.accentColor}
+          options={['#00FC8F', '#1B9B6F', '#3B82F6', '#A855F7', '#FFB400']}
+          onChange={v => setTweak('accentColor', v)} />
+        <TweakRadio label="Background" value={t.bgDepth}
+          options={['deeper', 'standard', 'lighter']}
+          onChange={v => setTweak('bgDepth', v)} />
+        <TweakSection label="Layout" />
+        <TweakToggle label="Collapse sidebar" value={t.sidebarCollapsed}
+          onChange={v => setTweak('sidebarCollapsed', v)} />
+        <TweakRadio label="Density" value={t.density}
+          options={['compact', 'regular', 'comfortable']}
+          onChange={v => setTweak('density', v)} />
+        <TweakSlider label="Font scale" value={t.fontScale} min={80} max={120} step={5} unit="%"
+          onChange={v => setTweak('fontScale', v)} />
+        <TweakSection label="Cards" />
+        <TweakRadio label="Card glow" value={t.cardGlow}
+          options={['subtle', 'medium', 'intense']}
+          onChange={v => setTweak('cardGlow', v)} />
+        <TweakToggle label="Card shine animation" value={t.cardShine}
+          onChange={v => setTweak('cardShine', v)} />
+      </TweaksPanel>
+      )}
+
+      {/* Global "Hey Nia" voice orb — listens for her name on every screen */}
+      {window.NiaWakeOrb ? React.createElement(window.NiaWakeOrb) : null}
+      {/* Global notification center — toasts from any module / Nia stack here */}
+      {window.NotificationCenter ? React.createElement(window.NotificationCenter) : null}
+      {window.NotificationPanel ? React.createElement(window.NotificationPanel) : null}
+    </div>
+  );
+};
+
+Object.assign(window, { AppShell, Sidebar, Topbar, OSIcon, PlaceholderPage });
+
+  
+
+
+    const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+      "accentColor": "#00FC8F",
+      "bgDepth": "standard",
+      "sidebarCollapsed": true,
+      "density": "regular",
+      "fontScale": 100,
+      "cardGlow": "medium",
+      "cardShine": true
+    }/*EDITMODE-END*/;
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(
+      <ErrorBoundary>
+        <AuthGate><AppShell /></AuthGate>
+      </ErrorBoundary>
+    );
+  

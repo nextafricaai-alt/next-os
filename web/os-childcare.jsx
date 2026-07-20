@@ -676,28 +676,6 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
       const center = centersData.find(c => c.id === selectedCenterId); return center ? center.children : [];
     }, [selectedCenterId, centersData]);
 
-    if (!currentUser) {
-      return (
-        <div style={{ width: '100%', height: '100%', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-deepest)', fontFamily: 'var(--font-body)' }}>
-          <div style={{ background: 'var(--bg-default)', padding: 40, borderRadius: 16, border: '1px solid var(--border-subtle)', width: 400, textAlign: 'center', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }}>
-            <h1 style={{ fontFamily: 'var(--font-display)', color: 'var(--text-primary)', marginBottom: 8 }}>Charis Childcare</h1>
-            <p style={{ color: 'var(--text-secondary)', marginBottom: 32 }}>Select your role to continue</p>
-            
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <button onClick={() => setCurrentUser({ role: 'director', name: 'Global Director' })} style={{ padding: 14, background: 'var(--mint)', color: '#000', border: 'none', borderRadius: 8, fontWeight: 700, cursor: 'pointer', fontSize: 14 }}>Login as Global Director</button>
-              <button onClick={() => { setCurrentUser({ role: 'manager', name: 'Branch Manager', branchId: 'charis-kampala' }); setSelectedCenterId('charis-kampala'); }} style={{ padding: 14, background: 'var(--bg-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border-default)', borderRadius: 8, fontWeight: 600, cursor: 'pointer', fontSize: 14 }}>Login as Branch Manager (Kampala)</button>
-              <button onClick={() => setCurrentUser({ role: 'parent', name: 'Mrs. Nakamya', childId: 1 })} style={{ padding: 14, background: 'var(--bg-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border-default)', borderRadius: 8, fontWeight: 600, cursor: 'pointer', fontSize: 14 }}>Login as Parent (Mrs. Nakamya)</button>
-              <button onClick={() => setCurrentUser({ role: 'investor', name: 'Investor Group' })} style={{ padding: 14, background: 'var(--bg-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border-default)', borderRadius: 8, fontWeight: 600, cursor: 'pointer', fontSize: 14 }}>Login as Investor</button>
-            </div>
-          </div>
-        </div>
-      );
-    }
-
-    if (currentUser.role === 'parent') {
-      return <ParentApp user={currentUser} childrenData={childrenData} onLogout={() => setCurrentUser(null)} globalMessages={globalMessages} setGlobalMessages={setGlobalMessages} />;
-    }
-
 
     const TODAY_SCHEDULE = React.useMemo(() => {
       if (selectedCenterId === 'all') return centersData[0].schedule;
@@ -744,15 +722,39 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
       window.open(url, '_blank', 'noopener,noreferrer');
     }
 
+    if (!currentUser) {
+      return (
+        <div style={{ width: '100%', height: '100%', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-deepest)', fontFamily: 'var(--font-body)' }}>
+          <div style={{ background: 'var(--bg-default)', padding: 40, borderRadius: 16, border: '1px solid var(--border-subtle)', width: 400, textAlign: 'center', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }}>
+            <h1 style={{ fontFamily: 'var(--font-display)', color: 'var(--text-primary)', marginBottom: 8 }}>Charis Childcare</h1>
+            <p style={{ color: 'var(--text-secondary)', marginBottom: 32 }}>Select your role to continue</p>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <button onClick={() => setCurrentUser({ role: 'director', name: 'Global Director' })} style={{ padding: 14, background: 'var(--mint)', color: '#000', border: 'none', borderRadius: 8, fontWeight: 700, cursor: 'pointer', fontSize: 14 }}>Login as Global Director</button>
+              <button onClick={() => { setCurrentUser({ role: 'manager', name: 'Branch Manager', branchId: 'charis-kampala' }); setSelectedCenterId('charis-kampala'); }} style={{ padding: 14, background: 'var(--bg-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border-default)', borderRadius: 8, fontWeight: 600, cursor: 'pointer', fontSize: 14 }}>Login as Branch Manager (Kampala)</button>
+              <button onClick={() => setCurrentUser({ role: 'parent', name: 'Mrs. Nakamya', childId: 1 })} style={{ padding: 14, background: 'var(--bg-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border-default)', borderRadius: 8, fontWeight: 600, cursor: 'pointer', fontSize: 14 }}>Login as Parent (Mrs. Nakamya)</button>
+              <button onClick={() => setCurrentUser({ role: 'investor', name: 'Investor Group' })} style={{ padding: 14, background: 'var(--bg-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border-default)', borderRadius: 8, fontWeight: 600, cursor: 'pointer', fontSize: 14 }}>Login as Investor</button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    if (currentUser.role === 'parent') {
+      return <ParentApp user={currentUser} childrenData={childrenData} onLogout={() => setCurrentUser(null)} globalMessages={globalMessages} setGlobalMessages={setGlobalMessages} />;
+    }
+
     const tabs = [
-      { id: 'overview',  label: 'Overview', icon: '📊' },
-      { id: 'children',  label: 'Children', icon: '🧒' },
-      { id: 'schedule',  label: 'Schedule', icon: '🗓️' },
-      { id: 'messages',  label: 'Messages', icon: '💬', badge: kpi.unreadParentMessages },
-      { id: 'invoices',  label: selectedCenterId === 'all' ? 'Finances' : 'Invoices', icon: '💳' },
+      { id: 'overview',  label: 'Overview', icon: '📊', roles: ['director', 'manager', 'investor'] },
+      { id: 'children',  label: 'Children', icon: '🧒', roles: ['director', 'manager'] },
+      { id: 'schedule',  label: 'Schedule', icon: '🗓️', roles: ['director', 'manager'] },
+      { id: 'messages',  label: 'Messages', icon: '💬', badge: kpi.unreadParentMessages, roles: ['director', 'manager', 'investor'] },
+      { id: 'invoices',  label: selectedCenterId === 'all' ? 'Finances' : 'Invoices', icon: '💳', roles: ['director', 'manager', 'investor'] },
     ];
-    if (selectedCenterId === 'all') tabs.push({ id: 'inventory', label: 'Inventory', icon: '📦' });
-    tabs.push({ id: 'cameras',   label: 'Live Cameras', icon: '🎥' });
+    if (selectedCenterId === 'all') tabs.push({ id: 'inventory', label: 'Inventory', icon: '📦', roles: ['director', 'manager'] });
+    tabs.push({ id: 'cameras',   label: 'Live Cameras', icon: '🎥', roles: ['director', 'manager'] });
+
+    const filteredTabs = tabs.filter(t => t.roles.includes(currentUser.role));
 
     return (
       <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-default)' }}>
@@ -774,36 +776,39 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
               <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 800, color: 'var(--text-primary)', margin: 0, lineHeight: 1.2 }}>
                 Charis OS
               </h1>
-              <div style={{ fontSize: 11, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', marginTop: 2 }}>
-                Global Director
+              <div style={{ fontSize: 11, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', marginTop: 2, textTransform: 'uppercase' }}>
+                {currentUser.role}
               </div>
+              <button onClick={() => setCurrentUser(null)} style={{ marginTop: 8, padding: '4px 8px', background: 'var(--bg-deepest)', border: 'none', color: 'var(--text-secondary)', borderRadius: 4, cursor: 'pointer', fontSize: 10 }}>LOGOUT</button>
             </div>
           </div>
 
           {/* Center Selector */}
-          <div style={{ marginBottom: 30, paddingLeft: 8, paddingRight: 8 }}>
-            <div style={{ fontSize: 10, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>Facility</div>
-            <select 
-              value={selectedCenterId}
-              onChange={(e) => setSelectedCenterId(e.target.value)}
-              style={{
-                width: '100%', padding: '10px 12px', borderRadius: 8,
-                background: 'var(--bg-default)', border: '1px solid var(--border-default)',
-                color: 'var(--text-primary)', fontSize: 13, fontWeight: 600,
-                cursor: 'pointer', outline: 'none'
-              }}
-            >
-              <option value="all">🌐 All Centers (Global)</option>
-              {centersData.map(c => (
-                <option key={c.id} value={c.id}>📍 {c.name}</option>
-              ))}
-            </select>
-          </div>
+          {currentUser.role === 'director' && (
+            <div style={{ marginBottom: 30, paddingLeft: 8, paddingRight: 8 }}>
+              <div style={{ fontSize: 10, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>Facility</div>
+              <select 
+                value={selectedCenterId}
+                onChange={(e) => setSelectedCenterId(e.target.value)}
+                style={{
+                  width: '100%', padding: '10px 12px', borderRadius: 8,
+                  background: 'var(--bg-default)', border: '1px solid var(--border-default)',
+                  color: 'var(--text-primary)', fontSize: 13, fontWeight: 600,
+                  cursor: 'pointer', outline: 'none'
+                }}
+              >
+                <option value="all">🌐 All Centers (Global)</option>
+                {centersData.map(c => (
+                  <option key={c.id} value={c.id}>📍 {c.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {/* Navigation Menu */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: 1 }}>
             <div style={{ fontSize: 11, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10, paddingLeft: 12 }}>Menu</div>
-            {tabs.map(tab => (
+            {filteredTabs.map(tab => (
               <button key={tab.id} onClick={() => setActiveTab(tab.id)} style={{
                 background: activeTab === tab.id ? 'rgba(0,252,143,0.08)' : 'transparent',
                 border: 'none', cursor: 'pointer', padding: '12px 14px', fontSize: 14,
@@ -1070,35 +1075,48 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
 
         {/* ── MESSAGES TAB ── */}
         {activeTab === 'messages' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {MESSAGES.map(msg => (
-              <div key={msg.id} style={{
-                background: 'var(--bg-elevated)', border: `1px solid ${!msg.read ? 'rgba(168,85,247,0.3)' : 'var(--border-subtle)'}`,
-                borderRadius: 12, padding: '16px 18px',
-                display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16,
-              }}>
-                <div style={{ flex: 1 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                    <div style={{ width: 8, height: 8, borderRadius: '50%', background: !msg.read ? '#A855F7' : 'var(--border-default)', flexShrink: 0 }} />
-                    <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{msg.parent}</span>
-                    <span style={{ fontSize: 11, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)' }}>{msg.time}</span>
-                    {!msg.answered && (
-                      <span style={{ fontSize: 10, background: 'rgba(255,71,87,0.15)', color: '#FF4757', borderRadius: 20, padding: '2px 8px', fontWeight: 700 }}>Needs reply</span>
-                    )}
-                  </div>
-                  <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5 }}>{msg.text}</div>
-                </div>
-                <button onClick={() => {
-                  const child = childrenData.find(c => c.parent === msg.parent);
-                  if (child) handleMessage(child);
-                }} style={{
-                  background: 'var(--mint)', color: '#060012', border: 'none', borderRadius: 8,
-                  padding: '8px 14px', fontSize: 11, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: 'var(--font-body)',
-                }}>
-                  Reply via WhatsApp
-                </button>
+          <div style={{ animation: 'fadeIn 0.3s ease', display: 'flex', gap: 20, height: 'calc(100vh - 150px)' }}>
+            
+            {/* Inbox List */}
+            <div style={{ width: 300, display: 'flex', flexDirection: 'column', gap: 10, borderRight: '1px solid var(--border-subtle)', paddingRight: 20 }}>
+              <div style={{ fontSize: 18, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 12 }}>
+                {currentUser.role === 'investor' ? 'Director Comms' : 'Inbox'}
               </div>
-            ))}
+              <div style={{ flex: 1, overflowY: 'auto' }}>
+                {globalMessages
+                  .filter(m => {
+                    if (currentUser.role === 'investor') return m.fromRole === 'director' || m.toRole === 'investor' || m.fromRole === 'investor';
+                    if (currentUser.role === 'manager') return (m.toRole === 'manager' && m.branchId === currentUser.branchId) || (m.fromRole === 'manager' && m.branchId === currentUser.branchId);
+                    if (currentUser.role === 'director') return true; // Director sees everything
+                    return false;
+                  })
+                  .map(msg => (
+                    <div key={msg.id} style={{
+                      background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)',
+                      borderRadius: 12, padding: '14px', marginBottom: 10, cursor: 'pointer'
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                        <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{msg.fromName} ({msg.fromRole})</span>
+                        <span style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>{msg.time}</span>
+                      </div>
+                      <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{msg.text}</div>
+                      <div style={{ fontSize: 10, color: 'var(--mint)', marginTop: 8, textTransform: 'uppercase' }}>To: {msg.toRole}</div>
+                    </div>
+                  ))}
+              </div>
+            </div>
+
+            {/* Message Composer */}
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: 'var(--bg-elevated)', borderRadius: 12, border: '1px solid var(--border-subtle)', padding: 20 }}>
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-tertiary)' }}>
+                Select a message to view thread, or compose a new one.
+              </div>
+              <div style={{ display: 'flex', gap: 12, marginTop: 20 }}>
+                <input placeholder="Type a message..." style={{ flex: 1, background: 'var(--bg-deepest)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '12px 16px', borderRadius: 8 }} />
+                <button style={{ background: 'var(--mint)', color: '#000', border: 'none', padding: '0 24px', borderRadius: 8, fontWeight: 700, cursor: 'pointer' }}>Send</button>
+              </div>
+            </div>
+
           </div>
         )}
 
