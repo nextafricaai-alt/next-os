@@ -568,6 +568,36 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
   ];
 
   // ── Parent App Component ──────────────────────────────────────────────────
+  const ShareLinkPanel = ({ role, childId, branchId }) => {
+    let hash = '';
+    if (role === 'director') hash = '#director';
+    else if (role === 'investor') hash = '#investor';
+    else if (role === 'manager') hash = `#manager/${branchId}`;
+    else if (role === 'parent') hash = `#parent/${childId}`;
+    
+    let basePath = window.location.origin + window.location.pathname;
+    if (!basePath.endsWith('.html')) {
+        basePath += basePath.endsWith('/') ? 'armani.html' : '/armani.html';
+    } else {
+        basePath = basePath.replace(/[^/]+$/, 'armani.html');
+    }
+    const url = basePath + hash;
+    
+    return (
+      <div style={{ background: 'var(--bg-deepest)', padding: 12, borderRadius: 8, border: '1px solid var(--border-default)', marginTop: 16 }}>
+        <div style={{ fontSize: 11, color: 'var(--text-tertiary)', textTransform: 'uppercase', marginBottom: 8, letterSpacing: '0.05em', fontWeight: 600 }}>Your Personal App Link</div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <input readOnly value={url} style={{ flex: 1, background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', color: 'var(--text-secondary)', padding: '8px', borderRadius: 6, fontSize: 12 }} />
+          <button onClick={() => { navigator.clipboard.writeText(url); alert('Link copied!'); }} style={{ background: 'var(--mint)', color: '#000', border: 'none', padding: '0 12px', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Copy</button>
+        </div>
+        <button onClick={() => window.open('https://wa.me/?text=' + encodeURIComponent('Here is your Armani OS link: ' + url))} style={{ width: '100%', marginTop: 8, background: '#25D366', color: '#fff', border: 'none', padding: '8px', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12.031 0C5.383 0 0 5.383 0 12.031c0 2.124.553 4.195 1.604 6.012L.211 23.789l5.882-1.543a11.96 11.96 0 005.938 1.57h.005c6.648 0 12.031-5.383 12.031-12.031S18.679 0 12.031 0zm0 21.848a9.98 9.98 0 01-5.093-1.385l-.365-.216-3.784.992.992-3.69-.237-.376a9.962 9.962 0 01-1.528-5.334c0-5.503-4.478-9.981-9.981-9.981 2.668 0 5.176 1.038 7.062 2.925a9.957 9.957 0 012.925 7.056c0 5.503-4.478 9.981-9.981 9.981zm5.474-7.48c-.3-.15-1.774-.876-2.048-.976-.274-.101-.474-.15-.674.15-.2.3-.775.976-.95 1.176-.175.2-.35.225-.65.075-.3-.15-1.266-.466-2.411-1.488-.89-.794-1.49-1.774-1.665-2.074-.175-.3-.02-.462.13-.612.135-.135.3-.35.45-.525.15-.175.2-.3.3-.5.1-.2.05-.375-.025-.525-.075-.15-.674-1.626-.924-2.226-.242-.582-.488-.5-.674-.51-.175-.01-.375-.01-.575-.01-.2 0-.525.075-.8.375-.275.3-1.05 1.026-1.05 2.502 0 1.476 1.075 2.902 1.225 3.102.15.2 2.115 3.227 5.124 4.526.717.31 1.275.495 1.711.635.718.23 1.371.197 1.884.12.574-.086 1.774-.726 2.024-1.426.25-.7.25-1.302.175-1.426-.075-.125-.275-.2-.575-.35z"/></svg>
+          Share
+        </button>
+      </div>
+    );
+  };
+
   const ParentApp = ({ user, childrenData, onLogout, globalMessages, setGlobalMessages, setParentFeedback }) => {
     const child = childrenData.find(c => c.id === user.childId);
     const [activeTab, setActiveTab] = React.useState('home');
@@ -634,7 +664,8 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
           </div>
 
           <div style={{ padding: 20, display: isMobile ? 'none' : 'block' }}>
-            <button onClick={onLogout} style={{ width: '100%', padding: '12px', background: 'transparent', border: '1px solid var(--border-default)', borderRadius: 12, color: 'var(--text-secondary)', fontWeight: 600, cursor: 'pointer' }}>
+            <ShareLinkPanel role="parent" childId={child.id} />
+            <button onClick={onLogout} style={{ width: '100%', padding: '12px', background: 'transparent', border: '1px solid var(--border-default)', borderRadius: 12, color: 'var(--text-secondary)', fontWeight: 600, cursor: 'pointer', marginTop: 16 }}>
               Sign Out
             </button>
           </div>
@@ -1440,6 +1471,32 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
 
     const [activeTab, setActiveTab] = React.useState('overview');
     const [selectedCenterId, setSelectedCenterId] = React.useState('all');
+
+    React.useEffect(() => {
+      const hash = window.location.hash.replace('#', '');
+      if (!hash) return;
+      
+      const allChildren = CENTERS.flatMap(c => c.children);
+      
+      if (hash === 'director') {
+        setCurrentUser({ role: 'director', name: 'Global Director' });
+        setActiveTab('owner-view');
+      } else if (hash === 'investor') {
+        setCurrentUser({ role: 'investor', name: 'Investor Group' });
+        setActiveTab('owner-view');
+      } else if (hash.startsWith('manager/')) {
+        const branchId = hash.split('/')[1];
+        setCurrentUser({ role: 'manager', name: 'Branch Manager', branchId });
+        setSelectedCenterId(branchId);
+        setActiveTab('operations');
+      } else if (hash.startsWith('parent/')) {
+        const childId = hash.split('/')[1];
+        const child = allChildren.find(c => c.id === childId);
+        if (child) {
+          setCurrentUser({ role: 'parent', name: child.parent, childId: child.id });
+        }
+      }
+    }, []);
     const [selectedChild, setSelectedChild] = React.useState(null);
     const [niaOpen, setNiaOpen] = React.useState(false);
     const [centersData, setCentersData] = React.useState(CENTERS);
@@ -1772,6 +1829,8 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
               <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>AI Chief of Staff</div>
             </div>
           </button>
+
+          <ShareLinkPanel role={currentUser.role} branchId={currentUser.branchId} />
         </div>
 
         {/* ── MAIN CONTENT AREA ── */}

@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Armani OS</title>
+  
+  <link rel="icon" type="image/png" href="uploads/NEXT Favicon Transperent Logo@3x.png">
+  <link rel="apple-touch-icon" href="uploads/NEXT Favicon Transperent Logo@3x.png">
+  
+  <link rel="manifest" href="armani-manifest.json">
+  <meta name="theme-color" content="#00FC8F">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Armani">
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://jsmpeg.com/jsmpeg.min.js"></script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@400;600;700;800&family=DM+Mono:wght@400;500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg-deepest: #060012; --bg-deep: #0A001A; --bg-primary: #140035; --bg-elevated: #1A0042;
+      --bg-surface: #220055; --bg-hover: #2A0068;
+      --border-subtle: rgba(255,255,255,0.06); --border-default: rgba(255,255,255,0.1); --border-active: rgba(0,252,143,0.3);
+      --text-primary: #FFFFFF; --text-secondary: rgba(255,255,255,0.65); --text-tertiary: rgba(255,255,255,0.4); --text-inverse: #140035;
+      --mint: #00FC8F; --mint-dim: #00C96F; --mint-glow: rgba(0,252,143,0.1); --mint-glow-strong: rgba(0,252,143,0.2);
+      --emerald: #1B9B6F; --emerald-dim: #158759; --gold: #FFB400; --gold-dim: #CC9000; --gold-glow: rgba(255,180,0,0.1);
+      --danger: #FF4757; --warning: #FFA502; --info: #3B82F6;
+      --font-display: 'Big Shoulders Display', sans-serif; --font-body: 'Inter', sans-serif; --font-mono: 'DM Mono', monospace;
+    }
+    body { font-family: var(--font-body); background-color: var(--bg-deepest); color: var(--text-primary); margin: 0; }
+    #root { min-height: 100vh; }
+    
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes pulse { 0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 71, 87, 0.4); } 70% { transform: scale(1.02); box-shadow: 0 0 0 6px rgba(255, 71, 87, 0); } 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 71, 87, 0); } }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <!-- React & Babel -->
+  <script src="vendor/react.development.js"></script>
+  <script src="vendor/react-dom.development.js"></script>
+  <script src="vendor/babel.min.js"></script>
+
+  <!-- Shared components required by os-childcare.jsx -->
+  <script type="text/babel">
+    const useWindowSize = () => {
+      const [size, setSize] = React.useState([window.innerWidth, window.innerHeight]);
+      React.useEffect(() => {
+        const handleResize = () => setSize([window.innerWidth, window.innerHeight]);
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+      }, []);
+      return size;
+    };
+  </script>
+
+  <!-- Load Armani OS Component -->
+  <script type="text/babel" src="os-childcare.jsx"></script>
+
+  <!-- Mount Component -->
+  <script type="text/babel">
+    const renderApp = () => {
+      if (window.ChildcareOSPage) {
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<window.ChildcareOSPage onNavigate={() => {}} />);
+      } else {
+        setTimeout(renderApp, 50);
+      }
+    };
+    renderApp();
+
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('sw.js');
+    }
+  </script>
+</body>
+</html>
