@@ -301,15 +301,17 @@ Your task: Provide a brief, professional, and actionable 2-sentence assessment. 
 
   // ── Child Profile View Component ─────────────────────────────────────────
   const ChildProfileView = ({ child, onBack, onMessage }) => {
+    const [windowWidth] = useWindowSize();
+    const isMobile = windowWidth < 768;
     return (
       <div style={{ animation: 'fadeIn 0.3s ease' }}>
         <button onClick={onBack} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', marginBottom: 20, fontSize: 13, display: 'flex', alignItems: 'center', gap: 8, fontFamily: 'var(--font-body)' }}>
           <span>←</span> Back to Roster
         </button>
         
-        <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 16, padding: '32px 40px', display: 'flex', gap: 40 }}>
+        <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 16, padding: isMobile ? '20px' : '32px 40px', display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: isMobile ? 24 : 40 }}>
           {/* Left Column: Photo & Base Info */}
-          <div style={{ width: 220, display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
+          <div style={{ width: isMobile ? '100%' : 220, display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
             <div style={{ width: 140, height: 140, borderRadius: '50%', background: `url(${child.photoUrl}) center/cover`, border: `4px solid ${child.present ? 'var(--mint)' : 'var(--border-default)'}`, marginBottom: 16, boxShadow: '0 8px 24px rgba(0,0,0,0.2)' }}></div>
             <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 24, margin: '0 0 4px 0', color: 'var(--text-primary)' }}>{child.name}</h2>
             <div style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 12 }}>{child.age} Years Old</div>
@@ -330,7 +332,7 @@ Your task: Provide a brief, professional, and actionable 2-sentence assessment. 
             <NiaProfileBrief child={child} />
             <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 18, color: 'var(--text-primary)', borderBottom: '1px solid var(--border-subtle)', paddingBottom: 12, marginBottom: 20, marginTop: 0 }}>Vital Information</h3>
             
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 24 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 16, marginBottom: 24 }}>
               {[
                 { label: 'Birthday', val: child.birthday },
                 { label: 'Height', val: child.height },
@@ -344,7 +346,7 @@ Your task: Provide a brief, professional, and actionable 2-sentence assessment. 
               ))}
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 24 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 20, marginBottom: 24 }}>
               <div style={{ background: child.allergies !== 'None' ? 'rgba(255,71,87,0.05)' : 'var(--bg-deep)', border: child.allergies !== 'None' ? '1px solid rgba(255,71,87,0.2)' : '1px solid var(--border-subtle)', borderRadius: 10, padding: '16px' }}>
                 <div style={{ fontSize: 12, color: child.allergies !== 'None' ? '#FF4757' : 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8, fontWeight: 600 }}>Allergies</div>
                 <div style={{ fontSize: 14, color: 'var(--text-primary)' }}>{child.allergies}</div>
@@ -388,7 +390,7 @@ Your task: Provide a brief, professional, and actionable 2-sentence assessment. 
               <div style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.6, background: 'var(--bg-deep)', padding: 16, borderRadius: 10 }}>
                 {child.healthRecord}
               </div>
-              <div style={{ display: 'flex', gap: 20 }}>
+              <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 20 }}>
                 <div style={{ flex: 1, background: 'var(--bg-deep)', padding: 16, borderRadius: 10 }}>
                   <div style={{ fontSize: 12, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Favourite Meals</div>
                   <div style={{ fontSize: 13, color: 'var(--text-primary)' }}>🍽️ {child.favouriteMeals}</div>
@@ -406,34 +408,39 @@ Your task: Provide a brief, professional, and actionable 2-sentence assessment. 
   };
 
   // ── Nia Advisory Banner ──────────────────────────────────────────────────
-  const NiaAdvisoryBanner = ({ onTalkToNia }) => (
-    <div style={{
-      background: 'linear-gradient(135deg, rgba(0,252,143,0.06) 0%, rgba(0,252,143,0.02) 100%)',
-      border: '1px solid rgba(0,252,143,0.2)', borderRadius: 12, padding: '16px 20px',
-      display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16,
-      marginBottom: 28,
-    }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-        <div style={{
-          width: 40, height: 40, borderRadius: '50%',
-          background: 'linear-gradient(135deg, #00FC8F, #1B9B6F)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 18, boxShadow: '0 0 16px rgba(0,252,143,0.3)',
-        }}>🛡️</div>
-        <div>
-          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--mint)' }}>Nia is watching Childcare OS</div>
-          <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>
-            2 parent messages unanswered · Nakamya invoice 30+ days overdue · 3 children absent today
+  const NiaAdvisoryBanner = ({ onTalkToNia }) => {
+    const [windowWidth] = useWindowSize();
+    const isMobile = windowWidth < 768;
+    return (
+      <div style={{
+        background: 'linear-gradient(135deg, rgba(0,252,143,0.06) 0%, rgba(0,252,143,0.02) 100%)',
+        border: '1px solid rgba(0,252,143,0.2)', borderRadius: 12, padding: '16px 20px',
+        display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'flex-start' : 'center', justifyContent: 'space-between', gap: 16,
+        marginBottom: 28,
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          <div style={{
+            width: 40, height: 40, borderRadius: '50%',
+            background: 'linear-gradient(135deg, #00FC8F, #1B9B6F)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 18, boxShadow: '0 0 16px rgba(0,252,143,0.3)',
+            flexShrink: 0
+          }}>🛡️</div>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--mint)' }}>Nia is watching Childcare OS</div>
+            <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>
+              2 parent messages unanswered · Nakamya invoice 30+ days overdue · 3 children absent today
+            </div>
           </div>
         </div>
+        <button onClick={onTalkToNia} style={{
+          background: 'var(--mint)', color: '#060012', border: 'none', borderRadius: 8,
+          padding: '8px 16px', fontSize: 12, fontWeight: 700, cursor: 'pointer',
+          whiteSpace: 'nowrap', fontFamily: 'var(--font-body)', width: isMobile ? '100%' : 'auto'
+        }}>Talk to Nia →</button>
       </div>
-      <button onClick={onTalkToNia} style={{
-        background: 'var(--mint)', color: '#060012', border: 'none', borderRadius: 8,
-        padding: '8px 16px', fontSize: 12, fontWeight: 700, cursor: 'pointer',
-        whiteSpace: 'nowrap', fontFamily: 'var(--font-body)',
-      }}>Talk to Nia →</button>
-    </div>
-  );
+    );
+  };
 
   // ── Nia AI Chat Overlay ──────────────────────────────────────────────────
   const ChildcareNiaOverlay = ({ isOpen, onClose, contextData }) => {
@@ -624,9 +631,23 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
     );
   };
 
+// ── Custom Hooks ──────────────────────────────────────────────────────────
+  const useWindowSize = () => {
+    const [size, setSize] = React.useState([window.innerWidth, window.innerHeight]);
+    React.useEffect(() => {
+      const handleResize = () => setSize([window.innerWidth, window.innerHeight]);
+      window.addEventListener('resize', handleResize);
+      return () => window.removeEventListener('resize', handleResize);
+    }, []);
+    return size;
+  };
+
 // ── Main Page Component ──────────────────────────────────────────────────
   const ChildcareOSPage = ({ onNavigate }) => {
-    
+    const [windowWidth] = useWindowSize();
+    const isMobile = windowWidth < 768;
+    const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
+
     const [currentUser, setCurrentUser] = React.useState(null);
     const [globalMessages, setGlobalMessages] = React.useState(INITIAL_GLOBAL_MESSAGES);
 
@@ -762,25 +783,34 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
         <div style={{
           width: 260, background: 'var(--bg-elevated)', borderRight: '1px solid var(--border-subtle)',
           padding: '32px 20px', display: 'flex', flexDirection: 'column',
-          position: 'fixed', top: 0, bottom: 0, left: 0, overflowY: 'auto', zIndex: 50
+          position: 'fixed', top: 0, bottom: 0, left: isMobile ? (mobileMenuOpen ? 0 : -260) : 0,
+          transition: 'left 0.3s ease', overflowY: 'auto', zIndex: 100,
+          boxShadow: isMobile && mobileMenuOpen ? '4px 0 20px rgba(0,0,0,0.5)' : 'none'
         }}>
           {/* Header */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20, paddingLeft: 8 }}>
-            <div style={{
-              width: 44, height: 44, borderRadius: 12,
-              background: 'linear-gradient(135deg, #FFB400, #FF8C00)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 22, boxShadow: '0 4px 20px rgba(255,180,0,0.3)', flexShrink: 0
-            }}>👶</div>
-            <div>
-              <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 800, color: 'var(--text-primary)', margin: 0, lineHeight: 1.2 }}>
-                Armani OS
-              </h1>
-              <div style={{ fontSize: 11, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', marginTop: 2, textTransform: 'uppercase' }}>
-                {currentUser.role}
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20, paddingLeft: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{
+                width: 44, height: 44, borderRadius: 12,
+                background: 'linear-gradient(135deg, #FFB400, #FF8C00)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 22, boxShadow: '0 4px 20px rgba(255,180,0,0.3)', flexShrink: 0
+              }}>👶</div>
+              <div>
+                <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 800, color: 'var(--text-primary)', margin: 0, lineHeight: 1.2 }}>
+                  Armani OS
+                </h1>
+                <div style={{ fontSize: 11, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', marginTop: 2, textTransform: 'uppercase' }}>
+                  {currentUser.role}
+                </div>
+                <button onClick={() => setCurrentUser(null)} style={{ marginTop: 8, padding: '4px 8px', background: 'var(--bg-deepest)', border: 'none', color: 'var(--text-secondary)', borderRadius: 4, cursor: 'pointer', fontSize: 10 }}>LOGOUT</button>
               </div>
-              <button onClick={() => setCurrentUser(null)} style={{ marginTop: 8, padding: '4px 8px', background: 'var(--bg-deepest)', border: 'none', color: 'var(--text-secondary)', borderRadius: 4, cursor: 'pointer', fontSize: 10 }}>LOGOUT</button>
             </div>
+            {isMobile && (
+              <button onClick={() => setMobileMenuOpen(false)} style={{ background: 'none', border: 'none', color: 'var(--text-primary)', fontSize: 20, cursor: 'pointer', padding: 4 }}>
+                ✕
+              </button>
+            )}
           </div>
 
           {/* Center Selector */}
@@ -844,14 +874,21 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
         </div>
 
         {/* ── MAIN CONTENT AREA ── */}
-        <div style={{ flex: 1, padding: '40px 60px', marginLeft: 260, maxWidth: 1200 }}>
+        <div style={{ flex: 1, padding: isMobile ? '20px' : '40px 60px', marginLeft: isMobile ? 0 : 260, maxWidth: 1200, transition: 'margin-left 0.3s ease' }}>
           {/* Top Bar inside content */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 28 }}>
-            <div>
-              <div style={{ fontSize: 13, color: 'var(--mint)', fontFamily: 'var(--font-mono)', marginBottom: 4 }}>{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</div>
-              <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 28, fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
-                {tabs.find(t => t.id === activeTab) ? tabs.find(t => t.id === activeTab).label : ''}
-              </h2>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 28, flexDirection: isMobile ? 'column' : 'row', gap: isMobile ? 12 : 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+              {isMobile && (
+                <button onClick={() => setMobileMenuOpen(true)} style={{ background: 'none', border: 'none', color: 'var(--text-primary)', fontSize: 28, cursor: 'pointer', padding: 0 }}>
+                  ☰
+                </button>
+              )}
+              <div>
+                <div style={{ fontSize: 13, color: 'var(--mint)', fontFamily: 'var(--font-mono)', marginBottom: 4 }}>{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</div>
+                <h2 style={{ fontFamily: 'var(--font-display)', fontSize: isMobile ? 22 : 28, fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
+                  {tabs.find(t => t.id === activeTab) ? tabs.find(t => t.id === activeTab).label : ''}
+                </h2>
+              </div>
             </div>
             <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
               Welcome back, Hudson Tumusiime
@@ -878,7 +915,7 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
               <CcKpiCard label="Milestones" value={kpi.milestonesThisWeek} sub="This week" accent="#FFB400" icon="🏆" />
             </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 20 }}>
             {/* Today's Pulse */}
             <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: 20 }}>
               <div style={{ fontSize: 12, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 16 }}>Today's Pulse</div>
@@ -1311,7 +1348,7 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
                     setChildrenData([newChild, ...childrenData]);
                     setOnboardingReport(newChild);
                   }}>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 16, marginBottom: 16 }}>
                       <div style={{ gridColumn: '1 / -1' }}><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Digital Passport Photo URL</label><input name="photoUrl" placeholder="https://..." style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }} /></div>
                       <div><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Full Name</label><input required name="name" style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }} /></div>
                       <div><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Age (years)</label><input required name="age" type="number" style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }} /></div>
@@ -1338,7 +1375,7 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
                   <h2 style={{ fontSize: 22, fontWeight: 800, margin: '0 0 8px', color: 'var(--mint)', fontFamily: 'var(--font-display)' }}>Onboarding Complete! 🎉</h2>
                   <p style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 24 }}>{onboardingReport.name} has been successfully added to the system.</p>
                   
-                  <div style={{ display: 'flex', gap: 24, marginBottom: 24 }}>
+                  <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 24, marginBottom: 24 }}>
                     <div style={{ flex: 1 }}>
                       <div style={{ background: 'var(--bg-deepest)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: 16 }}>
                         <div style={{ fontSize: 12, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12, fontWeight: 700 }}>Pickup QR Card</div>
@@ -1352,7 +1389,7 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
                     <div style={{ flex: 2, display: 'flex', flexDirection: 'column', gap: 12 }}>
                       <div style={{ background: 'var(--bg-deepest)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: 16 }}>
                         <div style={{ fontSize: 12, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12, fontWeight: 700 }}>Intake Summary</div>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 16px', fontSize: 13 }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '8px 16px', fontSize: 13 }}>
                           <div><span style={{ color: 'var(--text-tertiary)' }}>Parents:</span> <span style={{ color: '#fff' }}>{onboardingReport.parent}, {onboardingReport.secondaryParent}</span></div>
                           <div><span style={{ color: 'var(--text-tertiary)' }}>Auth Pickups:</span> <span style={{ color: '#fff' }}>{onboardingReport.authorizedPickups}</span></div>
                           <div><span style={{ color: 'var(--text-tertiary)' }}>Allergies:</span> <span style={{ color: '#FF4757' }}>{onboardingReport.allergies}</span></div>
