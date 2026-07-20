@@ -1,4 +1,4 @@
-/* os-childcare.jsx — Charis Childcare OS Panel
+/* os-childcare.jsx — Armani OS Panel
    Renders as a full NEXT OS page when the 'childcare' tab is active.
    Supervised by Nia. Data mirrors os-data.jsx charis-childcare tenant.
 */
@@ -233,7 +233,7 @@ console.log("os-childcare.jsx is executing!");
       const fetchBrief = async () => {
         try {
           const vac = typeof calculateVaccineStatus !== 'undefined' ? calculateVaccineStatus(child) : {};
-          const systemPrompt = `You are Nia, the AI Chief of Staff for Charis Childcare. You are analyzing a child's profile to assist the childcare staff.
+          const systemPrompt = `You are Nia, the AI Chief of Staff for Armani. You are analyzing a child's profile to assist the childcare staff.
 Child Name: ${child.name}
 Age: ${child.age}
 Allergies: ${child.allergies}
@@ -437,7 +437,7 @@ Your task: Provide a brief, professional, and actionable 2-sentence assessment. 
 
   // ── Nia AI Chat Overlay ──────────────────────────────────────────────────
   const ChildcareNiaOverlay = ({ isOpen, onClose, contextData }) => {
-    const [messages, setMessages] = React.useState([{ role: 'assistant', content: 'Hello Hudson. I am monitoring Charis Childcare OS. What do you need to know?' }]);
+    const [messages, setMessages] = React.useState([{ role: 'assistant', content: 'Hello Hudson. I am monitoring Armani OS. What do you need to know?' }]);
     const [input, setInput] = React.useState('');
     const [pending, setPending] = React.useState(false);
     const messagesEndRef = React.useRef(null);
@@ -463,7 +463,7 @@ Your task: Provide a brief, professional, and actionable 2-sentence assessment. 
       const messagesStr = JSON.stringify(contextData.messages);
       const kpiStr = JSON.stringify(contextData.kpi);
 
-      const systemPrompt = `You are Nia, the AI Chief of Staff for NEXT OS. You are currently viewing the Charis Childcare OS dashboard for Hudson Tumusiime (Global Director).
+      const systemPrompt = `You are Nia, the AI Chief of Staff for NEXT OS. You are currently viewing the Armani OS dashboard for Hudson Tumusiime (Global Director).
 You have complete access to the current dashboard state. Answer the user's questions based ONLY on this data. Be concise, direct, and helpful. Do not use markdown headers.
 
 CURRENT DASHBOARD STATE:
@@ -558,7 +558,7 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
           
           {/* Header */}
           <div style={{ padding: '20px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div style={{ fontWeight: 700, fontSize: 18, color: 'var(--text-primary)' }}>Charis Parent</div>
+            <div style={{ fontWeight: 700, fontSize: 18, color: 'var(--text-primary)' }}>Armani Parent</div>
             <button onClick={onLogout} style={{ background: 'transparent', border: '1px solid var(--border-default)', color: 'var(--text-secondary)', padding: '6px 12px', borderRadius: 6, cursor: 'pointer' }}>Logout</button>
           </div>
 
@@ -717,7 +717,7 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
 
     function handleMessage(child) {
       const url = 'https://wa.me/' + child.parentPhone + '?text=' + encodeURIComponent(
-        'Hello ' + child.parent + ', this is a message from the Charis Childcare team regarding ' + child.name + '. '
+        'Hello ' + child.parent + ', this is a message from the Armani team regarding ' + child.name + '. '
       );
       window.open(url, '_blank', 'noopener,noreferrer');
     }
@@ -726,7 +726,7 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
       return (
         <div style={{ width: '100%', height: '100%', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-deepest)', fontFamily: 'var(--font-body)' }}>
           <div style={{ background: 'var(--bg-default)', padding: 40, borderRadius: 16, border: '1px solid var(--border-subtle)', width: 400, textAlign: 'center', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }}>
-            <h1 style={{ fontFamily: 'var(--font-display)', color: 'var(--text-primary)', marginBottom: 8 }}>Charis Childcare</h1>
+            <h1 style={{ fontFamily: 'var(--font-display)', color: 'var(--text-primary)', marginBottom: 8 }}>Armani</h1>
             <p style={{ color: 'var(--text-secondary)', marginBottom: 32 }}>Select your role to continue</p>
             
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -774,7 +774,7 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
             }}>👶</div>
             <div>
               <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 800, color: 'var(--text-primary)', margin: 0, lineHeight: 1.2 }}>
-                Charis OS
+                Armani OS
               </h1>
               <div style={{ fontSize: 11, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', marginTop: 2, textTransform: 'uppercase' }}>
                 {currentUser.role}
@@ -960,7 +960,7 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
             <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: 20 }}>
               <div style={{ fontSize: 12, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 16 }}>Quick Actions</div>
               {[
-                { label: '📣 Broadcast to All Parents', action: () => { const url = 'https://wa.me/?text=' + encodeURIComponent('Hello from Charis Childcare! '); window.open(url, '_blank'); } },
+                { label: '📣 Broadcast to All Parents', action: () => { const url = 'https://wa.me/?text=' + encodeURIComponent('Hello from Armani! '); window.open(url, '_blank'); } },
                 { label: '💬 View Messages', action: () => setActiveTab('messages') },
                 { label: selectedCenterId === 'all' ? '📊 View Finances' : '📋 View Invoices', action: () => setActiveTab('invoices') },
                 { label: '🛡️ Ask Nia for Advisory', action: () => setNiaOpen(true) },
@@ -999,7 +999,7 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
         {activeTab === 'cameras' && (
           <div style={{ animation: 'fadeIn 0.3s ease' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-              <div style={{ fontSize: 14, color: 'var(--text-secondary)' }}>Live feeds from Charis Childcare center. AI Milestone tracking is currently active.</div>
+              <div style={{ fontSize: 14, color: 'var(--text-secondary)' }}>Live feeds from Armani center. AI Milestone tracking is currently active.</div>
               <button style={{ background: 'transparent', border: '1px solid var(--border-default)', color: 'var(--text-secondary)', borderRadius: 8, padding: '8px 12px', fontSize: 12, cursor: 'pointer' }}>⚙️ Configure Video Sources</button>
             </div>
             
@@ -1364,7 +1364,7 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
                       <div style={{ background: 'var(--bg-deepest)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: 16 }}>
                         <div style={{ fontSize: 12, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8, fontWeight: 700 }}>Parent Portal Link</div>
                         <div style={{ display: 'flex', gap: 8 }}>
-                          <input readOnly value={`https://charis.app/parent/${onboardingReport.id}`} style={{ flex: 1, background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '8px 12px', borderRadius: 6, fontSize: 12 }} />
+                          <input readOnly value={`https://armani.app/parent/${onboardingReport.id}`} style={{ flex: 1, background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '8px 12px', borderRadius: 6, fontSize: 12 }} />
                           <button onClick={() => alert('Link Copied!')} style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '8px 12px', borderRadius: 6, fontSize: 12, cursor: 'pointer' }}>Copy</button>
                         </div>
                       </div>
