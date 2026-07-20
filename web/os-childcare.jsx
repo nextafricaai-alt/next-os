@@ -1141,6 +1141,20 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
         ]
       }
     ]);
+    // Compliance & Licensing State
+    const [complianceRecords, setComplianceRecords] = React.useState([
+      { id: 'comp1', name: 'Fire Safety Certificate', type: 'Facility', expirationDate: '2026-08-15', status: 'expiring-soon' },
+      { id: 'comp2', name: 'Ministry of Education License', type: 'Facility', expirationDate: '2027-01-10', status: 'valid' },
+      { id: 'comp3', name: 'Liability Insurance Policy', type: 'Facility', expirationDate: '2026-09-01', status: 'expiring-soon' },
+      { id: 'comp4', name: 'Food Handling (Chef Sarah)', type: 'Staff', expirationDate: '2026-07-28', status: 'critical' }
+    ]);
+
+    // Growth Engine State
+    const [growthMetrics, setGrowthMetrics] = React.useState({
+      activeWaitlist: 14,
+      toursBookedThisWeek: 3,
+      referralsPending: 2
+    });
 
     // Billing Engine State
     const [invoiceViewMode, setInvoiceViewMode] = React.useState('register'); // 'register' or 'ledger'
@@ -1554,6 +1568,49 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
                 }} className="quick-action-btn">{label}</button>
               ))}
             </div>
+            {/* Growth Engine KPI */}
+            <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: 20 }}>
+              <div style={{ fontSize: 12, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 16 }}>Growth Engine Pipeline</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-deep)', padding: 12, borderRadius: 8 }}>
+                  <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>⏳ Active Waitlist</span>
+                  <span style={{ fontSize: 18, fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#3B82F6' }}>{growthMetrics.activeWaitlist}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-deep)', padding: 12, borderRadius: 8 }}>
+                  <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>📅 Tours Booked (This Week)</span>
+                  <span style={{ fontSize: 18, fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#A855F7' }}>{growthMetrics.toursBookedThisWeek}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-deep)', padding: 12, borderRadius: 8 }}>
+                  <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>🎁 Referrals Pending</span>
+                  <span style={{ fontSize: 18, fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#FFB400' }}>{growthMetrics.referralsPending}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Compliance & Licensing Tracker */}
+            <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: 20 }}>
+              <div style={{ fontSize: 12, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 16 }}>Compliance Tracker (60-Day Alerts)</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {complianceRecords.map(record => {
+                  const isExpiring = record.status === 'expiring-soon';
+                  const isCritical = record.status === 'critical';
+                  const isOk = record.status === 'valid';
+                  const color = isCritical ? '#FF4757' : isExpiring ? '#FFB400' : '#10B981';
+                  const icon = isCritical ? '🔴' : isExpiring ? '🟡' : '🟢';
+                  
+                  return (
+                    <div key={record.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-deep)', padding: '10px 12px', borderRadius: 8, borderLeft: `4px solid ${color}` }}>
+                      <div>
+                        <div style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 500 }}>{record.name}</div>
+                        <div style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>{record.type} • Expires: {record.expirationDate}</div>
+                      </div>
+                      <div style={{ fontSize: 16 }}>{icon}</div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
           </div>
           </React.Fragment>
         )}
