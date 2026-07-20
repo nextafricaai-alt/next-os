@@ -583,148 +583,267 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
 
     if (!child) return <div>Child not found</div>;
 
+    const [windowWidth] = useWindowSize();
+    const isMobile = windowWidth < 768;
+
     return (
-      <div style={{ width: '100%', height: '100vh', display: 'flex', justifyContent: 'center', background: '#000', fontFamily: 'var(--font-body)' }}>
-        <div style={{ width: '100%', maxWidth: 414, background: 'var(--bg-default)', height: '100%', position: 'relative', display: 'flex', flexDirection: 'column' }}>
-          
-          {/* Header */}
-          <div style={{ padding: '20px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div style={{ fontWeight: 700, fontSize: 18, color: 'var(--text-primary)' }}>Armani Parent</div>
-            <button onClick={onLogout} style={{ background: 'transparent', border: '1px solid var(--border-default)', color: 'var(--text-secondary)', padding: '6px 12px', borderRadius: 6, cursor: 'pointer' }}>Logout</button>
+      <div style={{ width: '100%', height: '100vh', display: 'flex', flexDirection: isMobile ? 'column' : 'row', background: '#060012', fontFamily: 'var(--font-body)', overflow: 'hidden' }}>
+        
+        {/* ── SIDEBAR / HEADER ── */}
+        <div style={{ 
+          width: isMobile ? '100%' : '320px', 
+          background: 'var(--bg-default)', 
+          borderRight: isMobile ? 'none' : '1px solid var(--border-subtle)', 
+          borderBottom: isMobile ? '1px solid var(--border-subtle)' : 'none',
+          display: 'flex', flexDirection: 'column',
+          zIndex: 10
+        }}>
+          {/* Profile Area */}
+          <div style={{ padding: '30px 20px', textAlign: 'center', background: 'linear-gradient(180deg, rgba(0,252,143,0.05) 0%, transparent 100%)' }}>
+            <div style={{ position: 'relative', display: 'inline-block' }}>
+              <img src={child.photoUrl} alt={child.name} style={{ width: isMobile ? 80 : 120, height: isMobile ? 80 : 120, borderRadius: '50%', border: '4px solid var(--bg-default)', boxShadow: '0 0 0 2px var(--mint)', objectFit: 'cover' }} />
+              <div style={{ position: 'absolute', bottom: 4, right: 4, width: 16, height: 16, borderRadius: '50%', background: child.present ? 'var(--mint)' : '#FF4757', border: '2px solid var(--bg-default)' }} />
+            </div>
+            <h2 style={{ fontSize: 24, fontWeight: 700, color: 'var(--text-primary)', marginTop: 16, marginBottom: 4 }}>{child.name}</h2>
+            <div style={{ fontSize: 14, color: 'var(--text-secondary)' }}>
+              {child.present ? 'Checked In' : 'Absent'} {child.nap ? ' • Napping' : ''}
+            </div>
           </div>
 
-          {/* Content */}
-          <div style={{ flex: 1, overflowY: 'auto', padding: '20px' }}>
-            {activeTab === 'home' && (
-              <div>
-                <div style={{ textAlign: 'center', marginBottom: 20 }}>
-                  <img src={child.photoUrl} style={{ width: 80, height: 80, borderRadius: '50%', border: '3px solid var(--mint)', marginBottom: 10 }} />
-                  <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--text-primary)' }}>{child.name}</div>
-                  <div style={{ fontSize: 14, color: 'var(--text-secondary)' }}>Status: {child.present ? 'Present' : 'Absent'} {child.nap ? ' (Napping)' : ''}</div>
-                </div>
-                
-                <div style={{ background: 'var(--bg-elevated)', padding: 16, borderRadius: 12, marginBottom: 16, border: '1px solid var(--border-subtle)' }}>
-                  <div style={{ fontSize: 12, textTransform: 'uppercase', color: 'var(--text-tertiary)', marginBottom: 8, letterSpacing: '0.05em' }}>Daily Update</div>
-                  <div style={{ fontSize: 14, color: 'var(--text-primary)' }}>Mood: {child.mood}</div>
-                  {child.milestone && <div style={{ fontSize: 14, color: 'var(--mint)', marginTop: 8 }}>🏆 Milestone: {child.milestone}</div>}
-                </div>
+          {/* Navigation */}
+          <div style={{ flex: 1, padding: '20px 16px', display: isMobile ? 'none' : 'flex', flexDirection: 'column', gap: 8 }}>
+            {[
+              { id: 'home', icon: '☀️', label: 'The Day' },
+              { id: 'gallery', icon: '📸', label: 'Gallery' },
+              { id: 'learning', icon: '📚', label: 'Curriculum' },
+              { id: 'messages', icon: '💬', label: 'Messages' },
+              { id: 'pickup', icon: '🪪', label: 'Pickup QR' },
+              { id: 'feedback', icon: '📝', label: 'Feedback' },
+            ].map(nav => (
+              <button key={nav.id} onClick={() => setActiveTab(nav.id)} style={{
+                display: 'flex', alignItems: 'center', gap: 16, width: '100%', padding: '12px 16px',
+                background: activeTab === nav.id ? 'rgba(0,252,143,0.1)' : 'transparent',
+                border: 'none', borderRadius: 12, cursor: 'pointer', transition: 'all 0.2s ease',
+                color: activeTab === nav.id ? 'var(--mint)' : 'var(--text-secondary)',
+                fontWeight: activeTab === nav.id ? 700 : 500, fontSize: 15, textAlign: 'left'
+              }}>
+                <span style={{ fontSize: 20 }}>{nav.icon}</span>
+                {nav.label}
+              </button>
+            ))}
+          </div>
 
-                <div style={{ background: 'var(--bg-elevated)', padding: 16, borderRadius: 12, border: '1px solid var(--border-subtle)' }}>
-                  <div style={{ fontSize: 12, textTransform: 'uppercase', color: 'var(--text-tertiary)', marginBottom: 8, letterSpacing: '0.05em' }}>Recent Activity</div>
-                  <div style={{ fontSize: 14, color: 'var(--text-primary)' }}>Ate Lunch: Mac & Cheese</div>
-                  <div style={{ fontSize: 14, color: 'var(--text-primary)' }}>Participated in Art Class</div>
+          <div style={{ padding: 20, display: isMobile ? 'none' : 'block' }}>
+            <button onClick={onLogout} style={{ width: '100%', padding: '12px', background: 'transparent', border: '1px solid var(--border-default)', borderRadius: 12, color: 'var(--text-secondary)', fontWeight: 600, cursor: 'pointer' }}>
+              Sign Out
+            </button>
+          </div>
+        </div>
+
+        {/* ── MAIN CONTENT AREA ── */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: isMobile ? '20px' : '40px', position: 'relative' }}>
+          <div style={{ maxWidth: 800, margin: '0 auto' }}>
+            
+            {activeTab === 'home' && (
+              <div style={{ animation: 'fadeIn 0.3s ease' }}>
+                <h1 style={{ fontSize: 32, fontFamily: 'var(--font-display)', color: 'var(--text-primary)', marginBottom: 24 }}>Today's Journey</h1>
+                
+                {/* Milestone Highlight */}
+                {child.milestone && (
+                  <div style={{ 
+                    background: 'linear-gradient(135deg, rgba(0,252,143,0.15) 0%, rgba(27,155,111,0.05) 100%)',
+                    border: '1px solid rgba(0,252,143,0.3)', borderRadius: 16, padding: '24px',
+                    display: 'flex', alignItems: 'center', gap: 20, marginBottom: 32,
+                    boxShadow: '0 10px 30px rgba(0,252,143,0.05)'
+                  }}>
+                    <div style={{ fontSize: 48, filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.2))' }}>🏆</div>
+                    <div>
+                      <div style={{ fontSize: 13, textTransform: 'uppercase', color: 'var(--mint)', fontWeight: 700, letterSpacing: '0.05em', marginBottom: 4 }}>Milestone Unlocked!</div>
+                      <div style={{ fontSize: 18, color: 'var(--text-primary)', fontWeight: 600 }}>{child.milestone}</div>
+                    </div>
+                  </div>
+                )}
+
+                {/* The Day Timeline */}
+                <h3 style={{ fontSize: 18, color: 'var(--text-secondary)', marginBottom: 16, fontWeight: 600 }}>Activity Log</h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                  {[
+                    { time: '08:15 AM', icon: '👋', title: 'Checked In', desc: 'Arrived with a big smile.' },
+                    { time: '09:00 AM', icon: '🍎', title: 'Breakfast', desc: 'Ate all of the oatmeal and fruit.' },
+                    { time: '10:30 AM', icon: '🎨', title: 'Creative Play', desc: 'Participated in finger painting.' },
+                    { time: '12:00 PM', icon: '🍽️', title: 'Lunch', desc: 'Ate Lunch: Mac & Cheese.' },
+                    { time: '01:00 PM', icon: '💤', title: 'Nap Time', desc: child.nap ? 'Currently sleeping peacefully.' : 'Rested quietly.' },
+                  ].map((item, i) => (
+                    <div key={i} style={{ display: 'flex', gap: 16, background: 'var(--bg-elevated)', padding: 20, borderRadius: 16, border: '1px solid var(--border-subtle)' }}>
+                      <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'var(--bg-deep)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, flexShrink: 0 }}>
+                        {item.icon}
+                      </div>
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginBottom: 4 }}>
+                          <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)' }}>{item.title}</span>
+                          <span style={{ fontSize: 12, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)' }}>{item.time}</span>
+                        </div>
+                        <div style={{ fontSize: 14, color: 'var(--text-secondary)' }}>{item.desc}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'gallery' && (
+              <div style={{ animation: 'fadeIn 0.3s ease' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+                  <h1 style={{ fontSize: 32, fontFamily: 'var(--font-display)', color: 'var(--text-primary)' }}>Gallery</h1>
+                  <span style={{ fontSize: 14, color: 'var(--text-secondary)' }}>This Week</span>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 16 }}>
+                  {/* Placeholder Gallery Images */}
+                  {[
+                    'https://images.unsplash.com/photo-1519340333755-56e9c1d04579?w=400&q=80',
+                    'https://images.unsplash.com/photo-1594608661623-aa0bd3a01844?w=400&q=80',
+                    'https://images.unsplash.com/photo-1544214589-9e8ff535c8e4?w=400&q=80',
+                    'https://images.unsplash.com/photo-1502086223501-7ea6ecd79368?w=400&q=80'
+                  ].map((src, i) => (
+                    <div key={i} style={{ borderRadius: 16, overflow: 'hidden', aspectRatio: '1/1', position: 'relative', border: '1px solid var(--border-subtle)' }}>
+                      <img src={src} style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.3s' }} onMouseOver={e => e.currentTarget.style.transform = 'scale(1.05)'} onMouseOut={e => e.currentTarget.style.transform = 'scale(1)'} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'learning' && (
+              <div style={{ animation: 'fadeIn 0.3s ease' }}>
+                <h1 style={{ fontSize: 32, fontFamily: 'var(--font-display)', color: 'var(--text-primary)', marginBottom: 24 }}>Weekly Curriculum</h1>
+                <div style={{ display: 'grid', gap: 20 }}>
+                  <div style={{ background: 'var(--bg-elevated)', padding: 24, borderRadius: 16, border: '1px solid var(--border-subtle)' }}>
+                    <div style={{ fontSize: 13, textTransform: 'uppercase', color: 'var(--mint)', marginBottom: 8, letterSpacing: '0.05em', fontWeight: 700 }}>Theme of the Week</div>
+                    <div style={{ fontSize: 24, color: 'var(--text-primary)', fontWeight: 700, marginBottom: 12 }}>Community Helpers</div>
+                    <div style={{ fontSize: 16, color: 'var(--text-secondary)', lineHeight: 1.5 }}>This week we are learning about doctors, firefighters, and teachers! We explore how they help our community stay safe and healthy.</div>
+                  </div>
+                  
+                  <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 20 }}>
+                    <div style={{ background: 'var(--bg-elevated)', padding: 24, borderRadius: 16, border: '1px solid var(--border-subtle)' }}>
+                      <div style={{ fontSize: 13, textTransform: 'uppercase', color: 'var(--text-tertiary)', marginBottom: 12, letterSpacing: '0.05em', fontWeight: 600 }}>Faith Focus</div>
+                      <div style={{ fontSize: 16, color: 'var(--text-primary)', marginBottom: 8 }}>📖 <span style={{ fontWeight: 600 }}>Memory Verse:</span> "Love one another."</div>
+                      <div style={{ fontSize: 16, color: 'var(--text-primary)' }}>🕊️ <span style={{ fontWeight: 600 }}>Bible Story:</span> The Good Samaritan</div>
+                    </div>
+                    
+                    <div style={{ background: 'var(--bg-elevated)', padding: 24, borderRadius: 16, border: '1px solid var(--border-subtle)' }}>
+                      <div style={{ fontSize: 13, textTransform: 'uppercase', color: 'var(--text-tertiary)', marginBottom: 12, letterSpacing: '0.05em', fontWeight: 600 }}>Core Activities</div>
+                      <ul style={{ margin: 0, paddingLeft: 24, color: 'var(--text-secondary)', fontSize: 16, lineHeight: 1.6 }}>
+                        <li>Role-playing in the "Hospital" corner</li>
+                        <li>Writing "Thank You" cards to postmen</li>
+                        <li>Sorting objects by community roles</li>
+                      </ul>
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
 
             {activeTab === 'messages' && (
-              <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-                <div style={{ flex: 1, overflowY: 'auto', marginBottom: 16 }}>
-                  {myMessages.length === 0 ? <div style={{ color: 'var(--text-tertiary)' }}>No messages yet.</div> : null}
-                  {myMessages.map(m => (
-                    <div key={m.id} style={{ 
-                      marginBottom: 10, padding: 10, borderRadius: 8, 
-                      background: m.fromRole === 'parent' ? 'rgba(0, 252, 143, 0.1)' : 'var(--bg-elevated)',
-                      border: m.fromRole === 'parent' ? '1px solid rgba(0, 252, 143, 0.2)' : '1px solid var(--border-subtle)',
-                      alignSelf: m.fromRole === 'parent' ? 'flex-end' : 'flex-start'
-                    }}>
-                      <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginBottom: 4 }}>{m.fromName} • {m.time}</div>
-                      <div style={{ fontSize: 14, color: 'var(--text-primary)' }}>{m.text}</div>
-                    </div>
-                  ))}
-                </div>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <input value={msgText} onChange={e => setMsgText(e.target.value)} placeholder="Message the Manager..." style={{ flex: 1, background: 'var(--bg-elevated)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px', borderRadius: 8 }} />
-                  <button onClick={() => {
-                    setGlobalMessages([...globalMessages, { id: Date.now(), threadId: `parent-${child.id}`, fromRole: 'parent', fromName: user.name, toRole: 'manager', toName: 'Branch Manager', branchId: 'charis-kampala', text: msgText, time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) }]);
-                    setMsgText('');
-                  }} style={{ background: 'var(--mint)', color: '#000', border: 'none', padding: '10px 16px', borderRadius: 8, fontWeight: 700, cursor: 'pointer' }}>Send</button>
+              <div style={{ animation: 'fadeIn 0.3s ease', height: '100%', display: 'flex', flexDirection: 'column' }}>
+                <h1 style={{ fontSize: 32, fontFamily: 'var(--font-display)', color: 'var(--text-primary)', marginBottom: 24 }}>Messages</h1>
+                <div style={{ flex: 1, background: 'var(--bg-elevated)', borderRadius: 16, border: '1px solid var(--border-subtle)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                  <div style={{ flex: 1, padding: 24, overflowY: 'auto' }}>
+                    {myMessages.length === 0 && <div style={{ color: 'var(--text-tertiary)', textAlign: 'center', marginTop: 40 }}>No messages yet. Say hello!</div>}
+                    {myMessages.map(m => (
+                      <div key={m.id} style={{ 
+                        marginBottom: 16, padding: 16, borderRadius: 12, maxWidth: '80%',
+                        background: m.fromRole === 'parent' ? 'rgba(0, 252, 143, 0.1)' : 'var(--bg-deep)',
+                        border: m.fromRole === 'parent' ? '1px solid rgba(0, 252, 143, 0.2)' : '1px solid var(--border-default)',
+                        alignSelf: m.fromRole === 'parent' ? 'flex-end' : 'flex-start',
+                        marginLeft: m.fromRole === 'parent' ? 'auto' : 0
+                      }}>
+                        <div style={{ fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>{m.fromName} • {m.time}</div>
+                        <div style={{ fontSize: 15, color: 'var(--text-primary)', lineHeight: 1.4 }}>{m.text}</div>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ padding: 16, borderTop: '1px solid var(--border-subtle)', background: 'var(--bg-deep)', display: 'flex', gap: 12 }}>
+                    <input value={msgText} onChange={e => setMsgText(e.target.value)} placeholder="Message the Branch Manager..." style={{ flex: 1, background: 'var(--bg-elevated)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '12px 16px', borderRadius: 8, fontSize: 15, outline: 'none' }} />
+                    <button onClick={() => {
+                      if (!msgText.trim()) return;
+                      setGlobalMessages([...globalMessages, { id: Date.now(), threadId: `parent-${child.id}`, fromRole: 'parent', fromName: user.name, toRole: 'manager', toName: 'Branch Manager', branchId: 'charis-kampala', text: msgText, time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) }]);
+                      setMsgText('');
+                    }} style={{ background: 'var(--mint)', color: '#000', border: 'none', padding: '0 24px', borderRadius: 8, fontWeight: 700, cursor: 'pointer', fontSize: 15 }}>Send</button>
+                  </div>
                 </div>
               </div>
             )}
 
             {activeTab === 'pickup' && (
-              <div style={{ textAlign: 'center', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', animation: 'fadeIn 0.2s ease' }}>
-                <h3 style={{ fontSize: 20, color: 'var(--text-primary)', marginBottom: 8, fontFamily: 'var(--font-display)' }}>Authorized Pickup QR</h3>
-                <p style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 24, padding: '0 20px' }}>Show this code to center staff to authorize pickup for {child.name}.</p>
-                <div style={{ background: '#fff', padding: 24, borderRadius: 16, display: 'inline-block', marginBottom: 24, boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }}>
-                  <img src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${child.id}`} alt="QR Code" style={{ width: 200, height: 200 }} />
+              <div style={{ animation: 'fadeIn 0.3s ease', textAlign: 'center', maxWidth: 400, margin: '40px auto' }}>
+                <h1 style={{ fontSize: 32, fontFamily: 'var(--font-display)', color: 'var(--text-primary)', marginBottom: 12 }}>Pickup Pass</h1>
+                <p style={{ fontSize: 16, color: 'var(--text-secondary)', marginBottom: 32 }}>Scan this code at the center gate to authorize pickup for {child.name}.</p>
+                
+                <div style={{ background: 'linear-gradient(135deg, #ffffff 0%, #f0f0f0 100%)', padding: 32, borderRadius: 24, display: 'inline-block', marginBottom: 32, boxShadow: '0 20px 40px rgba(0,0,0,0.4)', border: '8px solid var(--bg-elevated)' }}>
+                  <img src={`https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${child.id}`} alt="QR Code" style={{ width: 240, height: 240, mixBlendMode: 'multiply' }} />
                 </div>
-                <div style={{ background: 'var(--bg-elevated)', padding: 16, borderRadius: 12, width: '100%', border: '1px solid var(--border-subtle)', textAlign: 'left' }}>
-                  <div style={{ fontSize: 12, textTransform: 'uppercase', color: 'var(--text-tertiary)', marginBottom: 8, letterSpacing: '0.05em' }}>Other Authorized Persons</div>
-                  <div style={{ fontSize: 14, color: 'var(--text-primary)' }}>{child.authorizedPickups || 'Parents only'}</div>
-                </div>
-              </div>
-            )}
-            {activeTab === 'learning' && (
-              <div style={{ animation: 'fadeIn 0.2s ease', height: '100%', display: 'flex', flexDirection: 'column' }}>
-                <h3 style={{ fontSize: 20, color: 'var(--text-primary)', marginBottom: 16, fontFamily: 'var(--font-display)' }}>Weekly Curriculum</h3>
-                <div style={{ background: 'var(--bg-elevated)', padding: 16, borderRadius: 12, border: '1px solid var(--border-subtle)', marginBottom: 16 }}>
-                  <div style={{ fontSize: 12, textTransform: 'uppercase', color: 'var(--mint)', marginBottom: 8, letterSpacing: '0.05em', fontWeight: 700 }}>Theme of the Week</div>
-                  <div style={{ fontSize: 18, color: 'var(--text-primary)', fontWeight: 700, marginBottom: 8 }}>Community Helpers</div>
-                  <div style={{ fontSize: 14, color: 'var(--text-secondary)' }}>This week we are learning about doctors, firefighters, and teachers!</div>
-                </div>
-                <div style={{ background: 'var(--bg-elevated)', padding: 16, borderRadius: 12, border: '1px solid var(--border-subtle)', marginBottom: 16 }}>
-                  <div style={{ fontSize: 12, textTransform: 'uppercase', color: 'var(--text-tertiary)', marginBottom: 8, letterSpacing: '0.05em' }}>Faith Curriculum</div>
-                  <div style={{ fontSize: 14, color: 'var(--text-primary)', marginBottom: 4 }}>📖 <span style={{ fontWeight: 600 }}>Memory Verse:</span> "Love one another."</div>
-                  <div style={{ fontSize: 14, color: 'var(--text-primary)' }}>🕊️ <span style={{ fontWeight: 600 }}>Bible Story:</span> The Good Samaritan</div>
-                </div>
-                <div style={{ background: 'var(--bg-elevated)', padding: 16, borderRadius: 12, border: '1px solid var(--border-subtle)' }}>
-                  <div style={{ fontSize: 12, textTransform: 'uppercase', color: 'var(--text-tertiary)', marginBottom: 8, letterSpacing: '0.05em' }}>Activity Focus</div>
-                  <ul style={{ margin: 0, paddingLeft: 20, color: 'var(--text-secondary)', fontSize: 14 }}>
-                    <li style={{ marginBottom: 4 }}>Role-playing in the "Hospital" corner</li>
-                    <li style={{ marginBottom: 4 }}>Writing "Thank You" cards to postmen</li>
-                    <li>Sorting objects by community roles</li>
-                  </ul>
+                
+                <div style={{ background: 'var(--bg-elevated)', padding: 20, borderRadius: 16, border: '1px solid var(--border-subtle)', textAlign: 'left' }}>
+                  <div style={{ fontSize: 12, textTransform: 'uppercase', color: 'var(--text-tertiary)', marginBottom: 8, letterSpacing: '0.05em', fontWeight: 600 }}>Authorized Pickups</div>
+                  <div style={{ fontSize: 16, color: 'var(--text-primary)', fontWeight: 500 }}>{child.authorizedPickups || 'Parents only'}</div>
                 </div>
               </div>
             )}
 
             {activeTab === 'feedback' && (
-              <div style={{ animation: 'fadeIn 0.2s ease', height: '100%', display: 'flex', flexDirection: 'column' }}>
-                <h3 style={{ fontSize: 20, color: 'var(--text-primary)', marginBottom: 16, fontFamily: 'var(--font-display)' }}>Weekly Feedback</h3>
+              <div style={{ animation: 'fadeIn 0.3s ease', maxWidth: 600, margin: '0 auto' }}>
+                <h1 style={{ fontSize: 32, fontFamily: 'var(--font-display)', color: 'var(--text-primary)', marginBottom: 24 }}>Weekly Feedback</h1>
                 
                 {feedbackSubmitted ? (
-                  <div style={{ textAlign: 'center', marginTop: 40 }}>
-                    <div style={{ fontSize: 40, marginBottom: 16 }}>✅</div>
-                    <div style={{ fontSize: 18, color: 'var(--text-primary)', fontWeight: 600 }}>Thank you for your feedback!</div>
-                    <div style={{ fontSize: 14, color: 'var(--text-secondary)', marginTop: 8 }}>Your input helps us improve the Armani experience.</div>
+                  <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 16, padding: 48, textAlign: 'center' }}>
+                    <div style={{ fontSize: 64, marginBottom: 24 }}>✨</div>
+                    <div style={{ fontSize: 24, color: 'var(--text-primary)', fontWeight: 700, marginBottom: 8 }}>Thank you!</div>
+                    <div style={{ fontSize: 16, color: 'var(--text-secondary)' }}>Your input helps us continuously improve the Armani experience.</div>
                   </div>
                 ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                    <div>
-                      <div style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 8 }}>How was your experience this week?</div>
-                      <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginBottom: 16 }}>
+                  <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 16, padding: 32 }}>
+                    <div style={{ marginBottom: 32 }}>
+                      <div style={{ fontSize: 16, color: 'var(--text-primary)', fontWeight: 600, marginBottom: 16, textAlign: 'center' }}>How was {child.name}'s experience this week?</div>
+                      <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
                         {[1, 2, 3, 4, 5].map(star => (
-                          <button key={star} onClick={() => setFeedbackRating(star)} style={{ background: 'transparent', border: 'none', fontSize: 32, cursor: 'pointer', filter: star <= feedbackRating ? 'none' : 'grayscale(100%) opacity(0.3)', transition: 'all 0.2s' }}>⭐</button>
+                          <button key={star} onClick={() => setFeedbackRating(star)} style={{ background: 'transparent', border: 'none', fontSize: 40, cursor: 'pointer', filter: star <= feedbackRating ? 'none' : 'grayscale(100%) opacity(0.2)', transition: 'all 0.2s', transform: star <= feedbackRating ? 'scale(1.1)' : 'scale(1)' }}>⭐</button>
                         ))}
                       </div>
                     </div>
-                    <div>
-                      <div style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 8 }}>Additional Comments</div>
-                      <textarea value={feedbackText} onChange={e => setFeedbackText(e.target.value)} rows={4} placeholder="Tell us what you liked or how we can improve..." style={{ width: '100%', background: 'var(--bg-elevated)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: 12, borderRadius: 8, fontFamily: 'inherit', resize: 'none' }} />
+                    <div style={{ marginBottom: 24 }}>
+                      <div style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 8, fontWeight: 500 }}>Additional Comments</div>
+                      <textarea value={feedbackText} onChange={e => setFeedbackText(e.target.value)} rows={5} placeholder="Tell us what you liked or how we can improve..." style={{ width: '100%', background: 'var(--bg-deep)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: 16, borderRadius: 12, fontFamily: 'inherit', resize: 'none', fontSize: 15, outline: 'none' }} />
                     </div>
                     <button onClick={() => {
                       if (setParentFeedback) {
                         setParentFeedback(prev => [{ id: Date.now(), parent: user.name, rating: feedbackRating, comment: feedbackText, date: new Date().toISOString().split('T')[0] }, ...prev]);
                       }
                       setFeedbackSubmitted(true);
-                    }} style={{ background: 'var(--mint)', color: '#000', border: 'none', padding: '14px', borderRadius: 8, fontWeight: 700, cursor: 'pointer', fontSize: 16, marginTop: 8 }}>Submit Feedback</button>
+                    }} style={{ width: '100%', background: 'var(--mint)', color: '#000', border: 'none', padding: '16px', borderRadius: 12, fontWeight: 700, cursor: 'pointer', fontSize: 16, transition: 'background 0.2s' }}>Submit Feedback</button>
                   </div>
                 )}
               </div>
             )}
           </div>
-
-          {/* Bottom Nav */}
-          <div style={{ display: 'flex', borderTop: '1px solid var(--border-subtle)', background: 'var(--bg-elevated)', padding: '10px 0', paddingBottom: 'calc(10px + env(safe-area-inset-bottom))' }}>
-            <div onClick={() => setActiveTab('home')} style={{ flex: 1, textAlign: 'center', color: activeTab === 'home' ? 'var(--mint)' : 'var(--text-secondary)', cursor: 'pointer', fontSize: 20 }}>🏠<div style={{ fontSize: 10, marginTop: 4 }}>Home</div></div>
-            <div onClick={() => setActiveTab('messages')} style={{ flex: 1, textAlign: 'center', color: activeTab === 'messages' ? 'var(--mint)' : 'var(--text-secondary)', cursor: 'pointer', fontSize: 20 }}>💬<div style={{ fontSize: 10, marginTop: 4 }}>Messages</div></div>
-            <div onClick={() => setActiveTab('pickup')} style={{ flex: 1, textAlign: 'center', color: activeTab === 'pickup' ? 'var(--mint)' : 'var(--text-secondary)', cursor: 'pointer', fontSize: 20 }}>🪪<div style={{ fontSize: 10, marginTop: 4 }}>Pickup</div></div>
-            <div onClick={() => setActiveTab('learning')} style={{ flex: 1, textAlign: 'center', color: activeTab === 'learning' ? 'var(--mint)' : 'var(--text-secondary)', cursor: 'pointer', fontSize: 20 }}>📚<div style={{ fontSize: 10, marginTop: 4 }}>Learning</div></div>
-            <div onClick={() => setActiveTab('feedback')} style={{ flex: 1, textAlign: 'center', color: activeTab === 'feedback' ? 'var(--mint)' : 'var(--text-secondary)', cursor: 'pointer', fontSize: 20 }}>📝<div style={{ fontSize: 10, marginTop: 4 }}>Feedback</div></div>
-          </div>
         </div>
+
+        {/* Mobile Bottom Nav */}
+        {isMobile && (
+          <div style={{ display: 'flex', borderTop: '1px solid var(--border-subtle)', background: 'var(--bg-elevated)', padding: '12px 8px', paddingBottom: 'calc(12px + env(safe-area-inset-bottom))', overflowX: 'auto', zIndex: 20 }}>
+            {[
+              { id: 'home', icon: '☀️', label: 'Day' },
+              { id: 'gallery', icon: '📸', label: 'Gallery' },
+              { id: 'learning', icon: '📚', label: 'Learn' },
+              { id: 'messages', icon: '💬', label: 'Chat' },
+              { id: 'pickup', icon: '🪪', label: 'Pass' },
+            ].map(nav => (
+              <div key={nav.id} onClick={() => setActiveTab(nav.id)} style={{ flex: 1, minWidth: 64, textAlign: 'center', color: activeTab === nav.id ? 'var(--mint)' : 'var(--text-secondary)', cursor: 'pointer', transition: 'color 0.2s' }}>
+                <div style={{ fontSize: 24, marginBottom: 4 }}>{nav.icon}</div>
+                <div style={{ fontSize: 11, fontWeight: activeTab === nav.id ? 700 : 500 }}>{nav.label}</div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     );
   };
