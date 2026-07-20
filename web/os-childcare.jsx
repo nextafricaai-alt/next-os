@@ -32,6 +32,7 @@ console.log("os-childcare.jsx is executing!");
         { id: 8,  name: 'Henry Kato',      age: 2, mood: '😴', present: true,  nap: true,  milestone: null,                     invoiceStatus: 'paid',     parent: 'Mr. Kato',       parentPhone: '256772001008', photoUrl: 'https://i.pravatar.cc/150?u=8', allergies: 'None', completedVaccines: ['BCG', 'Polio 0', 'Polio 1', 'DPT 1', 'Pneumococcal 1', 'Rotavirus 1', 'Polio 2', 'DPT 2', 'Pneumococcal 2', 'Rotavirus 2', 'Polio 3', 'DPT 3', 'Pneumococcal 3', 'Measles 1', 'Yellow Fever', 'MMR (Optional)', 'Varicella (Optional)'], birthday: '2024-03-05', height: '89 cm', weight: '13.2 kg', activeScore: 640, favouriteMeals: 'Yogurt, Toast', enrollmentDate: '2025-04-01', healthRecord: 'Generally healthy.', carePlan: 'daily' },
         { id: 9,  name: 'Ivy Kyomuhendo',  age: 4, mood: '😄', present: true,  nap: false, milestone: 'Puzzle (12 pieces)',     invoiceStatus: 'paid',     parent: 'Ms. Kyomuhendo', parentPhone: '256772001009', photoUrl: 'https://i.pravatar.cc/150?u=9', allergies: 'Dust', completedVaccines: ['BCG', 'Polio 0', 'Polio 1', 'DPT 1', 'Pneumococcal 1', 'Rotavirus 1', 'Polio 2', 'DPT 2', 'Pneumococcal 2', 'Rotavirus 2', 'Polio 3', 'DPT 3', 'Pneumococcal 3', 'Measles 1', 'Yellow Fever', 'MMR (Optional)', 'Varicella (Optional)', 'Measles 2 / DPT Booster'], birthday: '2022-09-22', height: '108 cm', weight: '18.1 kg', activeScore: 1320, favouriteMeals: 'Chapati, Beef stew', enrollmentDate: '2023-08-01', healthRecord: 'Allergic to severe dust. Avoid dusty playground areas.', carePlan: 'monthly' },
         { id: 10, name: 'Joel Byaruhanga', age: 3, mood: '😊', present: false, nap: false, milestone: null,                     invoiceStatus: 'paid',     parent: 'Mr. Byaruhanga', parentPhone: '256772001010', photoUrl: 'https://i.pravatar.cc/150?u=10', allergies: 'None', completedVaccines: ['BCG', 'Polio 0', 'Polio 1', 'DPT 1', 'Pneumococcal 1', 'Rotavirus 1', 'Polio 2', 'DPT 2', 'Pneumococcal 2', 'Rotavirus 2', 'Polio 3', 'DPT 3', 'Pneumococcal 3', 'Measles 1', 'Yellow Fever', 'MMR (Optional)', 'Varicella (Optional)', 'Measles 2 / DPT Booster'], birthday: '2023-07-11', height: '93 cm', weight: '14.5 kg', activeScore: 750, favouriteMeals: 'Pancakes, Mangoes', enrollmentDate: '2024-06-15', healthRecord: 'Recovering from minor cold.', carePlan: 'monthly' },
+        { id: 11, name: 'Liam Kazibwe',    age: 5, mood: '🎓', present: false, nap: false, milestone: 'Graduated to Primary', invoiceStatus: 'paid',     parent: 'Mrs. Kazibwe',   parentPhone: '256772001011', photoUrl: 'https://i.pravatar.cc/150?u=11', allergies: 'None', completedVaccines: [], birthday: '2021-02-14', height: '110 cm', weight: '19.0 kg', activeScore: 0, favouriteMeals: 'Sandwiches', enrollmentDate: '2022-01-10', healthRecord: 'Graduated perfectly healthy.', carePlan: 'monthly', isAlumni: true },
       ],
       schedule: [
         { time: '07:30', activity: 'Arrival & Free Play',               caretaker: 'Ms. Maria L.',   icon: '🌅', color: '#00FC8F' },
@@ -548,10 +549,13 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
   ];
 
   // ── Parent App Component ──────────────────────────────────────────────────
-  const ParentApp = ({ user, childrenData, onLogout, globalMessages, setGlobalMessages }) => {
+  const ParentApp = ({ user, childrenData, onLogout, globalMessages, setGlobalMessages, setParentFeedback }) => {
     const child = childrenData.find(c => c.id === user.childId);
     const [activeTab, setActiveTab] = React.useState('home');
     const [msgText, setMsgText] = React.useState('');
+    const [feedbackText, setFeedbackText] = React.useState('');
+    const [feedbackRating, setFeedbackRating] = React.useState(5);
+    const [feedbackSubmitted, setFeedbackSubmitted] = React.useState(false);
 
     const myMessages = globalMessages.filter(m => 
       (m.fromRole === 'parent' && m.fromName === user.name) || 
@@ -633,6 +637,40 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
                 </div>
               </div>
             )}
+            {activeTab === 'feedback' && (
+              <div style={{ animation: 'fadeIn 0.2s ease', height: '100%', display: 'flex', flexDirection: 'column' }}>
+                <h3 style={{ fontSize: 20, color: 'var(--text-primary)', marginBottom: 16, fontFamily: 'var(--font-display)' }}>Weekly Feedback</h3>
+                
+                {feedbackSubmitted ? (
+                  <div style={{ textAlign: 'center', marginTop: 40 }}>
+                    <div style={{ fontSize: 40, marginBottom: 16 }}>✅</div>
+                    <div style={{ fontSize: 18, color: 'var(--text-primary)', fontWeight: 600 }}>Thank you for your feedback!</div>
+                    <div style={{ fontSize: 14, color: 'var(--text-secondary)', marginTop: 8 }}>Your input helps us improve the Armani experience.</div>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                    <div>
+                      <div style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 8 }}>How was your experience this week?</div>
+                      <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginBottom: 16 }}>
+                        {[1, 2, 3, 4, 5].map(star => (
+                          <button key={star} onClick={() => setFeedbackRating(star)} style={{ background: 'transparent', border: 'none', fontSize: 32, cursor: 'pointer', filter: star <= feedbackRating ? 'none' : 'grayscale(100%) opacity(0.3)', transition: 'all 0.2s' }}>⭐</button>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 8 }}>Additional Comments</div>
+                      <textarea value={feedbackText} onChange={e => setFeedbackText(e.target.value)} rows={4} placeholder="Tell us what you liked or how we can improve..." style={{ width: '100%', background: 'var(--bg-elevated)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: 12, borderRadius: 8, fontFamily: 'inherit', resize: 'none' }} />
+                    </div>
+                    <button onClick={() => {
+                      if (setParentFeedback) {
+                        setParentFeedback(prev => [{ id: Date.now(), parent: user.name, rating: feedbackRating, comment: feedbackText, date: new Date().toISOString().split('T')[0] }, ...prev]);
+                      }
+                      setFeedbackSubmitted(true);
+                    }} style={{ background: 'var(--mint)', color: '#000', border: 'none', padding: '14px', borderRadius: 8, fontWeight: 700, cursor: 'pointer', fontSize: 16, marginTop: 8 }}>Submit Feedback</button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Bottom Nav */}
@@ -640,6 +678,7 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
             <div onClick={() => setActiveTab('home')} style={{ flex: 1, textAlign: 'center', color: activeTab === 'home' ? 'var(--mint)' : 'var(--text-secondary)', cursor: 'pointer', fontSize: 20 }}>🏠<div style={{ fontSize: 10, marginTop: 4 }}>Home</div></div>
             <div onClick={() => setActiveTab('messages')} style={{ flex: 1, textAlign: 'center', color: activeTab === 'messages' ? 'var(--mint)' : 'var(--text-secondary)', cursor: 'pointer', fontSize: 20 }}>💬<div style={{ fontSize: 10, marginTop: 4 }}>Messages</div></div>
             <div onClick={() => setActiveTab('pickup')} style={{ flex: 1, textAlign: 'center', color: activeTab === 'pickup' ? 'var(--mint)' : 'var(--text-secondary)', cursor: 'pointer', fontSize: 20 }}>🪪<div style={{ fontSize: 10, marginTop: 4 }}>Pickup QR</div></div>
+            <div onClick={() => setActiveTab('feedback')} style={{ flex: 1, textAlign: 'center', color: activeTab === 'feedback' ? 'var(--mint)' : 'var(--text-secondary)', cursor: 'pointer', fontSize: 20 }}>📝<div style={{ fontSize: 10, marginTop: 4 }}>Feedback</div></div>
           </div>
         </div>
       </div>
@@ -1156,6 +1195,14 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
       referralsPending: 2
     });
 
+    const [showAlumni, setShowAlumni] = React.useState(false);
+
+    // Parent Feedback State
+    const [parentFeedback, setParentFeedback] = React.useState([
+      { id: 1, parent: 'Mrs. Nakamya', rating: 5, comment: 'Aiden loves the new art class!', date: '2026-07-19' },
+      { id: 2, parent: 'Mr. Byaruhanga', rating: 3, comment: 'Pickup line was a bit slow on Tuesday.', date: '2026-07-18' }
+    ]);
+
     // Billing Engine State
     const [invoiceViewMode, setInvoiceViewMode] = React.useState('register'); // 'register' or 'ledger'
     const [ledgerRows, setLedgerRows] = React.useState([
@@ -1304,7 +1351,7 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
     }
 
     if (currentUser.role === 'parent') {
-      return <ParentApp user={currentUser} childrenData={childrenData} onLogout={() => setCurrentUser(null)} globalMessages={globalMessages} setGlobalMessages={setGlobalMessages} />;
+      return <ParentApp user={currentUser} childrenData={childrenData} onLogout={() => setCurrentUser(null)} globalMessages={globalMessages} setGlobalMessages={setGlobalMessages} setParentFeedback={setParentFeedback} />;
     }
 
     const tabs = [
@@ -1448,6 +1495,32 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
           <div style={{ animation: 'fadeIn 0.3s ease' }}>
             <h2 style={{ fontSize: 24, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 20 }}>Operations Wall Tablet</h2>
             <OperationsWallTablet center={centersData.find(c => c.id === selectedCenterId) || centersData[0]} childrenData={childrenData} onSignOut={handleSignOut} onOpenScanner={() => setQrScannerOpen(true)} />
+
+            <div style={{ marginTop: 40 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                <h3 style={{ fontSize: 20, color: 'var(--text-primary)', fontFamily: 'var(--font-display)' }}>Parent Pulse (CSAT)</h3>
+                <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Last 7 Days</div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 16 }}>
+                {parentFeedback.map(fb => (
+                  <div key={fb.id} style={{ background: 'var(--bg-elevated)', padding: 16, borderRadius: 12, border: '1px solid ' + (fb.rating <= 3 ? '#FF4757' : 'var(--border-subtle)') }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                      <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>{fb.parent}</span>
+                      <span style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>{fb.date}</span>
+                    </div>
+                    <div style={{ fontSize: 16, marginBottom: 8 }}>
+                      {'⭐'.repeat(fb.rating)}{'🌑'.repeat(5 - fb.rating)}
+                    </div>
+                    <div style={{ fontSize: 14, color: 'var(--text-secondary)' }}>"{fb.comment}"</div>
+                    {fb.rating <= 3 && (
+                      <div style={{ marginTop: 12, padding: '8px 12px', background: 'rgba(255, 71, 87, 0.1)', color: '#FF4757', borderRadius: 6, fontSize: 12, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span>⚠️</span> Action Required: Follow-up Call
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         )}
 
@@ -1618,13 +1691,17 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
         {/* ── CHILDREN TAB ── */}
         {activeTab === 'children' && !selectedChild && (
           <div style={{ animation: 'fadeIn 0.3s ease' }}>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginBottom: 16 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <div style={{ display: 'flex', gap: 8, background: 'var(--bg-deep)', padding: 4, borderRadius: 8 }}>
+                <button onClick={() => setShowAlumni(false)} style={{ background: !showAlumni ? 'var(--bg-elevated)' : 'transparent', color: !showAlumni ? 'var(--text-primary)' : 'var(--text-secondary)', border: 'none', borderRadius: 6, padding: '6px 12px', fontSize: 13, fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s' }}>Active Roster</button>
+                <button onClick={() => setShowAlumni(true)} style={{ background: showAlumni ? 'var(--bg-elevated)' : 'transparent', color: showAlumni ? 'var(--text-primary)' : 'var(--text-secondary)', border: 'none', borderRadius: 6, padding: '6px 12px', fontSize: 13, fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s' }}>Alumni / Graduated</button>
+              </div>
               <button onClick={() => setOnboardingOpen(true)} style={{ background: 'var(--mint)', color: '#060012', border: 'none', borderRadius: 8, padding: '10px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font-body)', display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span>➕</span> Onboard Child
               </button>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 14 }}>
-              {childrenData.map(child => <ChildCard key={child.id} child={child} onSelect={setSelectedChild} onMessage={handleMessage} />)}
+              {childrenData.filter(c => (showAlumni ? c.isAlumni : !c.isAlumni)).map(child => <ChildCard key={child.id} child={child} onSelect={setSelectedChild} onMessage={handleMessage} />)}
             </div>
           </div>
         )}
