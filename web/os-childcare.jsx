@@ -859,8 +859,154 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
     return size;
   };
 
+// ── Messages Panel (proper component to avoid Rules of Hooks violation) ───
+  const MessagesPanel = ({ currentUser, globalMessages, setGlobalMessages, childrenData, centersData }) => {
+    const [selectedThreadId, setSelectedThreadId] = React.useState(null);
+    const [composeText, setComposeText] = React.useState('');
+    const [recipient, setRecipient] = React.useState('');
+
+    const visibleMessages = globalMessages.filter(m => {
+      if (currentUser.role === 'investor') return m.toRole === 'investor' || (m.fromRole === 'investor' && m.toRole === 'director');
+      if (currentUser.role === 'manager') return m.branchId === currentUser.branchId && (m.toRole === 'manager' || m.fromRole === 'manager');
+      if (currentUser.role === 'director') return true;
+      return false;
+    });
+
+    const threads = {};
+    visibleMessages.forEach(m => {
+      if (!threads[m.threadId]) threads[m.threadId] = { id: m.threadId, messages: [], participants: new Set() };
+      threads[m.threadId].messages.push(m);
+      threads[m.threadId].participants.add(m.fromName);
+      threads[m.threadId].participants.add(m.toName);
+    });
+    const threadList = Object.values(threads).sort((a, b) => b.messages[b.messages.length - 1].id - a.messages[a.messages.length - 1].id);
+    const activeThread = selectedThreadId ? threads[selectedThreadId] : null;
+
+    let allowedRecipients = [];
+    if (currentUser.role === 'investor') {
+      allowedRecipients = [{ role: 'director', name: 'Global Director', threadId: 'director-investor', branchId: 'all' }];
+    } else if (currentUser.role === 'manager') {
+      allowedRecipients = [
+        { role: 'director', name: 'Global Director', threadId: 'manager-director', branchId: currentUser.branchId },
+        ...childrenData.map(c => ({ role: 'parent', name: c.parent, threadId: `parent-${c.id}`, branchId: currentUser.branchId }))
+      ];
+    } else if (currentUser.role === 'director') {
+      allowedRecipients = [
+        { role: 'investor', name: 'Investor Group', threadId: 'director-investor', branchId: 'all' },
+        ...centersData.map(c => ({ role: 'manager', name: `Branch Manager (${c.name})`, threadId: 'manager-director', branchId: c.id }))
+      ];
+    }
+
+    const handleSendMessage = () => {
+      if (!composeText.trim() || !recipient) return;
+      const rec = allowedRecipients.find(r => r.name === recipient);
+      if (!rec) return;
+      const newMsg = {
+        id: Date.now(),
+        threadId: rec.threadId,
+        fromRole: currentUser.role,
+        fromName: currentUser.name,
+        toRole: rec.role,
+        toName: rec.name,
+        branchId: rec.branchId,
+        text: composeText,
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      };
+      setGlobalMessages(prev => [...prev, newMsg]);
+      setComposeText('');
+      setSelectedThreadId(rec.threadId);
+    };
+
+    return (
+      <div style={{ animation: 'fadeIn 0.3s ease', display: 'flex', gap: 20, height: 'calc(100vh - 150px)' }}>
+        {/* Thread List */}
+        <div style={{ width: 320, display: 'flex', flexDirection: 'column', gap: 10, borderRight: '1px solid var(--border-subtle)', paddingRight: 20 }}>
+          <div style={{ fontSize: 18, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 12 }}>
+            {currentUser.role === 'investor' ? 'Director Comms' : 'Inbox'}
+          </div>
+          <div style={{ flex: 1, overflowY: 'auto' }}>
+            {threadList.map(thread => {
+              const lastMsg = thread.messages[thread.messages.length - 1];
+              const isSelected = selectedThreadId === thread.id;
+              return (
+                <div key={thread.id} onClick={() => setSelectedThreadId(thread.id)} style={{
+                  background: isSelected ? 'rgba(0,252,143,0.1)' : 'var(--bg-elevated)',
+                  border: isSelected ? '1px solid var(--mint)' : '1px solid var(--border-subtle)',
+                  borderRadius: 12, padding: 14, marginBottom: 10, cursor: 'pointer', transition: 'all 0.2s'
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>
+                      {Array.from(thread.participants).filter(p => p !== currentUser.name).join(', ') || Array.from(thread.participants)[0]}
+                    </span>
+                    <span style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>{lastMsg.time}</span>
+                  </div>
+                  <div style={{ fontSize: 13, color: 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{lastMsg.text}</div>
+                </div>
+              );
+            })}
+            {threadList.length === 0 && <div style={{ color: 'var(--text-tertiary)', fontSize: 13 }}>No messages in your inbox.</div>}
+          </div>
+        </div>
+
+        {/* Thread Viewer + Composer */}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: 'var(--bg-elevated)', borderRadius: 12, border: '1px solid var(--border-subtle)', overflow: 'hidden' }}>
+          <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+              {activeThread ? Array.from(activeThread.participants).filter(p => p !== currentUser.name).join(', ') : 'New Message'}
+            </div>
+            {currentUser.role === 'director' && activeThread && activeThread.id.startsWith('parent-') && (
+              <span style={{ fontSize: 11, background: 'rgba(255,180,0,0.1)', color: '#FFB400', padding: '4px 8px', borderRadius: 4, fontWeight: 700 }}>READ ONLY (Parent ↔ Manager)</span>
+            )}
+          </div>
+
+          <div style={{ flex: 1, overflowY: 'auto', padding: 20, display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {!activeThread ? (
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 12, color: 'var(--text-tertiary)' }}>
+                <div style={{ fontSize: 40 }}>💬</div>
+                <div>Select a thread on the left, or compose a new message below.</div>
+              </div>
+            ) : (
+              activeThread.messages.map(msg => {
+                const isMe = msg.fromRole === currentUser.role;
+                return (
+                  <div key={msg.id} style={{
+                    alignSelf: isMe ? 'flex-end' : 'flex-start',
+                    background: isMe ? 'rgba(0,252,143,0.1)' : 'var(--bg-deepest)',
+                    border: isMe ? '1px solid rgba(0,252,143,0.2)' : '1px solid var(--border-subtle)',
+                    padding: '12px 16px', borderRadius: 12, maxWidth: '80%'
+                  }}>
+                    <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginBottom: 4 }}>{msg.fromName} • {msg.time}</div>
+                    <div style={{ fontSize: 14, color: 'var(--text-primary)' }}>{msg.text}</div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          {(!activeThread || !(currentUser.role === 'director' && activeThread && activeThread.id.startsWith('parent-'))) && (
+            <div style={{ padding: 20, borderTop: '1px solid var(--border-subtle)', background: 'var(--bg-default)' }}>
+              <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                <select value={recipient} onChange={e => setRecipient(e.target.value)} style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '12px', borderRadius: 8, minWidth: 200 }}>
+                  <option value="">-- Select Recipient --</option>
+                  {allowedRecipients.map(r => <option key={r.name} value={r.name}>{r.name} ({r.role})</option>)}
+                </select>
+                <input
+                  value={composeText} onChange={e => setComposeText(e.target.value)}
+                  placeholder="Type a message..."
+                  style={{ flex: 1, background: 'var(--bg-deepest)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '12px 16px', borderRadius: 8, outline: 'none' }}
+                  onKeyDown={e => e.key === 'Enter' && handleSendMessage()}
+                />
+                <button onClick={handleSendMessage} disabled={!composeText.trim() || !recipient} style={{ background: 'var(--mint)', color: '#000', border: 'none', padding: '0 24px', borderRadius: 8, fontWeight: 700, cursor: (!composeText.trim() || !recipient) ? 'not-allowed' : 'pointer', height: 44, opacity: (!composeText.trim() || !recipient) ? 0.5 : 1 }}>Send</button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
 // ── Operations Wall Tablet ────────────────────────────────────────────────
-  const OperationsWallTablet = ({ center, childrenData, onSignOut, onOpenScanner }) => {
+  const OperationsWallTablet = ({ center, childrenData, onSignOut, onOpenScanner, globalMessages }) => {
     // Operations Logic
     const [kitchenConfirmed, setKitchenConfirmed] = React.useState(false);
     
@@ -1657,7 +1803,7 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
         {activeTab === 'operations' && (
           <div style={{ animation: 'fadeIn 0.3s ease' }}>
             <h2 style={{ fontSize: 24, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 20 }}>Operations Wall Tablet</h2>
-            <OperationsWallTablet center={centersData.find(c => c.id === selectedCenterId) || centersData[0]} childrenData={childrenData} onSignOut={handleSignOut} onOpenScanner={() => setQrScannerOpen(true)} />
+            <OperationsWallTablet center={centersData.find(c => c.id === selectedCenterId) || centersData[0]} childrenData={childrenData} onSignOut={handleSignOut} onOpenScanner={() => setQrScannerOpen(true)} globalMessages={globalMessages} />
 
             <div style={{ marginTop: 40 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
@@ -2005,168 +2151,15 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
         )}
 
         {/* ── MESSAGES TAB ── */}
-        {activeTab === 'messages' && (() => {
-          // Tiered Messaging Logic
-          const [selectedThreadId, setSelectedThreadId] = React.useState(null);
-          const [composeText, setComposeText] = React.useState('');
-          const [recipient, setRecipient] = React.useState('');
-
-          // 1. Filter visible messages based on Governance Tier
-          const visibleMessages = globalMessages.filter(m => {
-            if (currentUser.role === 'investor') {
-              // Investor ↔ Director only
-              return m.toRole === 'investor' || (m.fromRole === 'investor' && m.toRole === 'director');
-            }
-            if (currentUser.role === 'manager') {
-              // Manager ↔ Parent, Manager ↔ Director (for their branch)
-              return m.branchId === currentUser.branchId && (m.toRole === 'manager' || m.fromRole === 'manager');
-            }
-            if (currentUser.role === 'director') {
-              // Director sees EVERYTHING (Global overview)
-              return true;
-            }
-            return false;
-          });
-
-          // Group into threads
-          const threads = {};
-          visibleMessages.forEach(m => {
-            if (!threads[m.threadId]) threads[m.threadId] = { id: m.threadId, messages: [], participants: new Set() };
-            threads[m.threadId].messages.push(m);
-            threads[m.threadId].participants.add(m.fromName);
-            threads[m.threadId].participants.add(m.toName);
-          });
-          const threadList = Object.values(threads).sort((a, b) => b.messages[b.messages.length - 1].id - a.messages[a.messages.length - 1].id);
-
-          const activeThread = selectedThreadId ? threads[selectedThreadId] : null;
-
-          // Determine allowed recipients for the Compose dropdown
-          let allowedRecipients = [];
-          if (currentUser.role === 'investor') {
-            allowedRecipients = [{ role: 'director', name: 'Global Director', threadId: 'director-investor', branchId: 'all' }];
-          } else if (currentUser.role === 'manager') {
-            allowedRecipients = [
-              { role: 'director', name: 'Global Director', threadId: 'manager-director', branchId: currentUser.branchId },
-              ...childrenData.map(c => ({ role: 'parent', name: c.parent, threadId: `parent-${c.id}`, branchId: currentUser.branchId }))
-            ];
-          } else if (currentUser.role === 'director') {
-            allowedRecipients = [
-              { role: 'investor', name: 'Investor Group', threadId: 'director-investor', branchId: 'all' },
-              ...centersData.map(c => ({ role: 'manager', name: `Branch Manager (${c.name})`, threadId: 'manager-director', branchId: c.id }))
-            ];
-          }
-
-          const handleSendMessage = () => {
-            if(!composeText.trim() || !recipient) return;
-            const rec = allowedRecipients.find(r => r.name === recipient);
-            
-            const newMsg = {
-              id: Date.now(),
-              threadId: rec.threadId,
-              fromRole: currentUser.role,
-              fromName: currentUser.name,
-              toRole: rec.role,
-              toName: rec.name,
-              branchId: rec.branchId,
-              text: composeText,
-              time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
-            };
-            setGlobalMessages([...globalMessages, newMsg]);
-            setComposeText('');
-            setSelectedThreadId(rec.threadId);
-          };
-
-          return (
-            <div style={{ animation: 'fadeIn 0.3s ease', display: 'flex', gap: 20, height: 'calc(100vh - 150px)' }}>
-              {/* Inbox Threads */}
-              <div style={{ width: 320, display: 'flex', flexDirection: 'column', gap: 10, borderRight: '1px solid var(--border-subtle)', paddingRight: 20 }}>
-                <div style={{ fontSize: 18, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 12 }}>
-                  {currentUser.role === 'investor' ? 'Director Comms' : 'Inbox Threads'}
-                </div>
-                <div style={{ flex: 1, overflowY: 'auto' }}>
-                  {threadList.map(thread => {
-                    const lastMsg = thread.messages[thread.messages.length - 1];
-                    const isSelected = selectedThreadId === thread.id;
-                    return (
-                      <div key={thread.id} onClick={() => setSelectedThreadId(thread.id)} style={{
-                        background: isSelected ? 'rgba(0, 252, 143, 0.1)' : 'var(--bg-elevated)', 
-                        border: isSelected ? '1px solid var(--mint)' : '1px solid var(--border-subtle)',
-                        borderRadius: 12, padding: '14px', marginBottom: 10, cursor: 'pointer', transition: 'all 0.2s'
-                      }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                          <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>
-                            {Array.from(thread.participants).filter(p => p !== currentUser.name).join(', ') || thread.participants.values().next().value}
-                          </span>
-                          <span style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>{lastMsg.time}</span>
-                        </div>
-                        <div style={{ fontSize: 13, color: 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{lastMsg.text}</div>
-                      </div>
-                    );
-                  })}
-                  {threadList.length === 0 && <div style={{ color: 'var(--text-tertiary)', fontSize: 13 }}>No messages found.</div>}
-                </div>
-              </div>
-
-              {/* Message Thread & Composer */}
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: 'var(--bg-elevated)', borderRadius: 12, border: '1px solid var(--border-subtle)', overflow: 'hidden' }}>
-                {/* Thread Header */}
-                <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
-                    {activeThread ? 'Conversation Thread' : 'New Message'}
-                  </div>
-                  {currentUser.role === 'director' && activeThread && activeThread.id.startsWith('parent-') && (
-                    <span style={{ fontSize: 11, background: 'rgba(255, 180, 0, 0.1)', color: '#FFB400', padding: '4px 8px', borderRadius: 4, fontWeight: 700 }}>READ ONLY (Parent ↔ Manager)</span>
-                  )}
-                </div>
-
-                {/* Messages List */}
-                <div style={{ flex: 1, overflowY: 'auto', padding: 20, display: 'flex', flexDirection: 'column', gap: 12 }}>
-                  {!activeThread ? (
-                    <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-tertiary)' }}>
-                      Select a thread or compose a new message.
-                    </div>
-                  ) : (
-                    activeThread.messages.map(msg => {
-                      const isMe = msg.fromRole === currentUser.role;
-                      return (
-                        <div key={msg.id} style={{ 
-                          alignSelf: isMe ? 'flex-end' : 'flex-start',
-                          background: isMe ? 'rgba(0, 252, 143, 0.1)' : 'var(--bg-deepest)',
-                          border: isMe ? '1px solid rgba(0, 252, 143, 0.2)' : '1px solid var(--border-subtle)',
-                          padding: '12px 16px', borderRadius: 12, maxWidth: '80%'
-                        }}>
-                          <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginBottom: 4 }}>
-                            {msg.fromName} ({msg.fromRole}) • {msg.time}
-                          </div>
-                          <div style={{ fontSize: 14, color: 'var(--text-primary)' }}>{msg.text}</div>
-                        </div>
-                      )
-                    })
-                  )}
-                </div>
-
-                {/* Composer */}
-                {(!activeThread || !(currentUser.role === 'director' && activeThread.id.startsWith('parent-'))) && (
-                  <div style={{ padding: 20, borderTop: '1px solid var(--border-subtle)', background: 'var(--bg-default)' }}>
-                    <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-                      <select value={recipient} onChange={e => setRecipient(e.target.value)} style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '12px', borderRadius: 8, minWidth: 200 }}>
-                        <option value="">-- Select Recipient --</option>
-                        {allowedRecipients.map(r => <option key={r.name} value={r.name}>{r.name} ({r.role})</option>)}
-                      </select>
-                      <input 
-                        value={composeText} onChange={e => setComposeText(e.target.value)}
-                        placeholder="Type a message..." 
-                        style={{ flex: 1, background: 'var(--bg-deepest)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '12px 16px', borderRadius: 8 }} 
-                        onKeyDown={e => e.key === 'Enter' && handleSendMessage()}
-                      />
-                      <button onClick={handleSendMessage} disabled={!composeText.trim() || !recipient} style={{ background: 'var(--mint)', color: '#000', border: 'none', padding: '0 24px', borderRadius: 8, fontWeight: 700, cursor: (!composeText.trim() || !recipient) ? 'not-allowed' : 'pointer', height: 42, opacity: (!composeText.trim() || !recipient) ? 0.5 : 1 }}>Send</button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          );
-        })()}
+        {activeTab === 'messages' && (
+          <MessagesPanel
+            currentUser={currentUser}
+            globalMessages={globalMessages}
+            setGlobalMessages={setGlobalMessages}
+            childrenData={childrenData}
+            centersData={centersData}
+          />
+        )}
 
         {/* ── INVOICES / FINANCES TAB ── */}
         {activeTab === 'invoices' && (
