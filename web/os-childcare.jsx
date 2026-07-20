@@ -541,9 +541,10 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
 
   
   const INITIAL_GLOBAL_MESSAGES = [
-    { id: 101, fromRole: 'parent', fromName: 'Mrs. Nakamya', toRole: 'manager', branchId: 'charis-kampala', text: 'Aiden will be late today.', time: '8:00 AM' },
-    { id: 102, fromRole: 'investor', fromName: 'Investor Group', toRole: 'director', branchId: null, text: 'When is the next quarterly report?', time: '9:00 AM' },
-    { id: 103, fromRole: 'parent', fromName: 'Ms. Okello', toRole: 'manager', branchId: 'charis-kampala', text: 'Bella is feeling better, thanks!', time: '9:15 AM' },
+    { id: 101, threadId: 'parent-nakamya', fromRole: 'parent', fromName: 'Mrs. Nakamya', toRole: 'manager', toName: 'Manager', branchId: 'charis-kampala', text: 'Aiden will be late today.', time: '8:00 AM' },
+    { id: 102, threadId: 'director-investor', fromRole: 'investor', fromName: 'Investor Group', toRole: 'director', toName: 'Global Director', branchId: 'all', text: 'When is the next quarterly report?', time: '9:00 AM' },
+    { id: 103, threadId: 'parent-okello', fromRole: 'parent', fromName: 'Ms. Okello', toRole: 'manager', toName: 'Manager', branchId: 'charis-kampala', text: 'Bella is feeling better, thanks!', time: '9:15 AM' },
+    { id: 104, threadId: 'manager-director', fromRole: 'manager', fromName: 'Branch Manager (Kampala)', toRole: 'director', toName: 'Global Director', branchId: 'charis-kampala', text: 'Need approval for petty cash requested today.', time: '10:00 AM' }
   ];
 
   // ── Parent App Component ──────────────────────────────────────────────────
@@ -612,10 +613,23 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
                 <div style={{ display: 'flex', gap: 8 }}>
                   <input value={msgText} onChange={e => setMsgText(e.target.value)} placeholder="Message the Manager..." style={{ flex: 1, background: 'var(--bg-elevated)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px', borderRadius: 8 }} />
                   <button onClick={() => {
-                    if(!msgText.trim()) return;
-                    setGlobalMessages([...globalMessages, { id: Date.now(), fromRole: 'parent', fromName: user.name, toRole: 'manager', branchId: 'charis-kampala', text: msgText, time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) }]);
+                    setGlobalMessages([...globalMessages, { id: Date.now(), threadId: `parent-${child.id}`, fromRole: 'parent', fromName: user.name, toRole: 'manager', toName: 'Branch Manager', branchId: 'charis-kampala', text: msgText, time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) }]);
                     setMsgText('');
                   }} style={{ background: 'var(--mint)', color: '#000', border: 'none', padding: '10px 16px', borderRadius: 8, fontWeight: 700, cursor: 'pointer' }}>Send</button>
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'pickup' && (
+              <div style={{ textAlign: 'center', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', animation: 'fadeIn 0.2s ease' }}>
+                <h3 style={{ fontSize: 20, color: 'var(--text-primary)', marginBottom: 8, fontFamily: 'var(--font-display)' }}>Authorized Pickup QR</h3>
+                <p style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 24, padding: '0 20px' }}>Show this code to center staff to authorize pickup for {child.name}.</p>
+                <div style={{ background: '#fff', padding: 24, borderRadius: 16, display: 'inline-block', marginBottom: 24, boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }}>
+                  <img src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${child.id}`} alt="QR Code" style={{ width: 200, height: 200 }} />
+                </div>
+                <div style={{ background: 'var(--bg-elevated)', padding: 16, borderRadius: 12, width: '100%', border: '1px solid var(--border-subtle)', textAlign: 'left' }}>
+                  <div style={{ fontSize: 12, textTransform: 'uppercase', color: 'var(--text-tertiary)', marginBottom: 8, letterSpacing: '0.05em' }}>Other Authorized Persons</div>
+                  <div style={{ fontSize: 14, color: 'var(--text-primary)' }}>{child.authorizedPickups || 'Parents only'}</div>
                 </div>
               </div>
             )}
@@ -625,6 +639,7 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
           <div style={{ display: 'flex', borderTop: '1px solid var(--border-subtle)', background: 'var(--bg-elevated)', padding: '10px 0', paddingBottom: 'calc(10px + env(safe-area-inset-bottom))' }}>
             <div onClick={() => setActiveTab('home')} style={{ flex: 1, textAlign: 'center', color: activeTab === 'home' ? 'var(--mint)' : 'var(--text-secondary)', cursor: 'pointer', fontSize: 20 }}>🏠<div style={{ fontSize: 10, marginTop: 4 }}>Home</div></div>
             <div onClick={() => setActiveTab('messages')} style={{ flex: 1, textAlign: 'center', color: activeTab === 'messages' ? 'var(--mint)' : 'var(--text-secondary)', cursor: 'pointer', fontSize: 20 }}>💬<div style={{ fontSize: 10, marginTop: 4 }}>Messages</div></div>
+            <div onClick={() => setActiveTab('pickup')} style={{ flex: 1, textAlign: 'center', color: activeTab === 'pickup' ? 'var(--mint)' : 'var(--text-secondary)', cursor: 'pointer', fontSize: 20 }}>🪪<div style={{ fontSize: 10, marginTop: 4 }}>Pickup QR</div></div>
           </div>
         </div>
       </div>
@@ -640,6 +655,385 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
       return () => window.removeEventListener('resize', handleResize);
     }, []);
     return size;
+  };
+
+// ── Operations Wall Tablet ────────────────────────────────────────────────
+  const OperationsWallTablet = ({ center, childrenData, onSignOut, onOpenScanner }) => {
+    // Operations Logic
+    const [kitchenConfirmed, setKitchenConfirmed] = React.useState(false);
+    
+    // Stats
+    const presentChildren = childrenData.filter(c => c.present);
+    const staffOnShift = center.kpi.caretakers || 2;
+    const ratio = presentChildren.length / staffOnShift;
+    const ratioStatus = ratio > 10 ? '🚨 HIGH' : '✅ OK';
+
+    // Expected Pickups (mocked logic: anyone missing or present but due to leave)
+    const nextHourPickups = presentChildren.slice(0, 2); // mock
+
+    return (
+      <div style={{ animation: 'fadeIn 0.3s ease', display: 'flex', flexDirection: 'column', gap: 24 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 20 }}>
+          
+          {/* Live Ratios / In Building */}
+          <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: 20 }}>
+            <div style={{ fontSize: 14, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 16, fontWeight: 700 }}>In Building Now</div>
+            <div style={{ display: 'flex', gap: 20, marginBottom: 16 }}>
+              <div style={{ flex: 1, background: 'var(--bg-deepest)', padding: 16, borderRadius: 8 }}>
+                <div style={{ fontSize: 32, fontWeight: 800, color: '#00FC8F' }}>{presentChildren.length}</div>
+                <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Children</div>
+              </div>
+              <div style={{ flex: 1, background: 'var(--bg-deepest)', padding: 16, borderRadius: 8 }}>
+                <div style={{ fontSize: 32, fontWeight: 800, color: '#3B82F6' }}>{staffOnShift}</div>
+                <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Staff</div>
+              </div>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: ratio > 10 ? 'rgba(255, 71, 87, 0.1)' : 'rgba(0, 252, 143, 0.1)', padding: 12, borderRadius: 8, border: `1px solid ${ratio > 10 ? 'rgba(255, 71, 87, 0.3)' : 'rgba(0, 252, 143, 0.3)'}` }}>
+              <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>Live Ratio: {ratio.toFixed(1)}:1</span>
+              <span style={{ fontSize: 12, fontWeight: 700, color: ratio > 10 ? '#FF4757' : '#00FC8F' }}>{ratioStatus}</span>
+            </div>
+          </div>
+
+          {/* Kitchen & Allergy Check */}
+          <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: 20 }}>
+            <div style={{ fontSize: 14, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 16, fontWeight: 700 }}>Kitchen & Meals</div>
+            <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 12 }}>Today's Menu: <strong style={{ color: 'var(--text-primary)' }}>Mac & Cheese, Apples</strong></div>
+            <div style={{ background: 'var(--bg-deepest)', padding: 16, borderRadius: 8, border: '1px solid var(--border-default)', marginBottom: 16 }}>
+              <div style={{ fontSize: 12, color: '#FFB400', fontWeight: 700, marginBottom: 8 }}>⚠️ Allergy Alerts for Present Children</div>
+              {presentChildren.filter(c => c.allergies && c.allergies !== 'None').map(c => (
+                <div key={c.id} style={{ fontSize: 12, color: 'var(--text-primary)', marginBottom: 4 }}>
+                  • {c.name}: <span style={{ color: '#FF4757' }}>{c.allergies}</span>
+                </div>
+              ))}
+              {presentChildren.filter(c => c.allergies && c.allergies !== 'None').length === 0 && (
+                <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>No allergies reported for present children.</div>
+              )}
+            </div>
+            <button 
+              onClick={() => setKitchenConfirmed(true)}
+              disabled={kitchenConfirmed}
+              style={{ width: '100%', padding: 12, borderRadius: 8, border: 'none', background: kitchenConfirmed ? 'rgba(0, 252, 143, 0.2)' : 'var(--mint)', color: kitchenConfirmed ? '#00FC8F' : '#000', fontWeight: 700, cursor: kitchenConfirmed ? 'default' : 'pointer', transition: 'all 0.2s' }}
+            >
+              {kitchenConfirmed ? '✓ Allergy Cross-check Confirmed' : 'Confirm Allergy Cross-check to Serve'}
+            </button>
+          </div>
+          
+          {/* Cleaning Checklist */}
+          <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: 20 }}>
+            <div style={{ fontSize: 14, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 16, fontWeight: 700 }}>Cleaning Tasks</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {[
+                { task: 'Morning Sanitization (Toys)', done: true, time: '08:15 AM', by: 'Ms. Maria L.' },
+                { task: 'Lunch Area Cleanup', done: false, time: null, by: null },
+                { task: 'Nap Mats Disinfected', done: false, time: null, by: null },
+                { task: 'End of Day Deep Clean', done: false, time: null, by: null },
+              ].map((item, i) => (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--bg-deepest)', padding: '10px 14px', borderRadius: 8, border: '1px solid var(--border-default)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <div style={{ width: 16, height: 16, borderRadius: 4, background: item.done ? '#00FC8F' : 'transparent', border: `2px solid ${item.done ? '#00FC8F' : 'var(--border-subtle)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      {item.done && <span style={{ color: '#000', fontSize: 10 }}>✓</span>}
+                    </div>
+                    <span style={{ fontSize: 13, color: item.done ? 'var(--text-secondary)' : 'var(--text-primary)', textDecoration: item.done ? 'line-through' : 'none' }}>{item.task}</span>
+                  </div>
+                  {item.done && <div style={{ fontSize: 10, color: 'var(--text-tertiary)', textAlign: 'right' }}>{item.time}<br/>{item.by}</div>}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Pickup Window */}
+          <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: 20 }}>
+            <div style={{ fontSize: 14, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 16, fontWeight: 700 }}>Pickup Window (Next Hour)</div>
+            {nextHourPickups.map(c => (
+              <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 12, background: 'var(--bg-deepest)', padding: 12, borderRadius: 8, marginBottom: 8, border: '1px solid var(--border-default)' }}>
+                <img src={c.photoUrl} alt="" style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover' }} />
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{c.name}</div>
+                  <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>Expected: {c.parent}</div>
+                </div>
+                <button onClick={() => onSignOut && onSignOut(c)} style={{ background: 'transparent', border: '1px solid var(--mint)', color: 'var(--mint)', borderRadius: 6, padding: '6px 10px', fontSize: 11, cursor: 'pointer' }}>Sign Out</button>
+              </div>
+            ))}
+            <div style={{ marginTop: 16, padding: 12, background: 'rgba(255, 180, 0, 0.1)', borderRadius: 8, border: '1px solid rgba(255, 180, 0, 0.3)' }}>
+              <div style={{ fontSize: 12, color: '#FFB400', fontWeight: 600, marginBottom: 4 }}>Note: Non-routine Pickups</div>
+              <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>Aiden Nakamya's aunt (Sarah) is authorized for today. Verify ID.</div>
+            </div>
+            <div style={{ marginTop: 16 }}>
+              <button onClick={onOpenScanner} style={{ width: '100%', padding: 12, borderRadius: 8, border: 'none', background: 'var(--text-primary)', color: 'var(--bg-default)', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}><span>📷</span> Scan Pickup QR Code</button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    );
+  };
+
+// ── Staff System & Rota (Module 02) ──────────────────────────────────────
+  const StaffRotaSystem = ({ staffData, setStaffData, onCallPool }) => {
+    // Expected kids per hour based on historic data
+    const expectedChildrenPerHour = [
+      { time: '07:00', count: 5 }, { time: '08:00', count: 18 }, { time: '09:00', count: 24 },
+      { time: '10:00', count: 25 }, { time: '11:00', count: 25 }, { time: '12:00', count: 25 },
+      { time: '13:00', count: 25 }, { time: '14:00', count: 25 }, { time: '15:00', count: 20 },
+      { time: '16:00', count: 15 }, { time: '17:00', count: 8 }, { time: '18:00', count: 2 }
+    ];
+
+    const getStaffCountForHour = (hourStr) => {
+      // Naive logic to parse hours and count active staff
+      let count = 0;
+      const hourNum = parseInt(hourStr.split(':')[0]);
+      staffData.filter(s => s.status === 'active').forEach(s => {
+        const [start, end] = s.hours.split(' - ').map(h => parseInt(h.split(':')[0]));
+        if (hourNum >= start && hourNum < end) count++;
+      });
+      return count;
+    };
+
+    const handleSickCall = (staffId) => {
+      const staffMember = staffData.find(s => s.id === staffId);
+      if(confirm(`Log ${staffMember.name} as sick/absent today? This will trigger a ratio alert.`)) {
+        setStaffData(staffData.map(s => s.id === staffId ? { ...s, status: 'sick' } : s));
+      }
+    };
+
+    const handleCallCover = (staffId) => {
+      const staffMember = staffData.find(s => s.id === staffId);
+      const cover = onCallPool[0];
+      if(confirm(`Call ${cover.name} to cover for ${staffMember.name}?`)) {
+        const updatedStaff = staffData.filter(s => s.id !== staffId);
+        updatedStaff.push({
+          id: 's_cover_'+Date.now(), name: `${cover.name} (Cover)`, role: 'Substitute', shift: staffMember.shift, hours: staffMember.hours, status: 'active', room: staffMember.room
+        });
+        setStaffData(updatedStaff);
+        alert(`${cover.name} has accepted the shift and is marked active!`);
+      }
+    };
+
+    return (
+      <div style={{ animation: 'fadeIn 0.3s ease', display: 'flex', flexDirection: 'column', gap: 24 }}>
+        <h2 style={{ fontSize: 24, fontWeight: 700, color: 'var(--text-primary)', margin: 0, fontFamily: 'var(--font-display)' }}>Staff Rota & Ratio Management</h2>
+        
+        {/* Ratio Heatmap */}
+        <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: 20 }}>
+          <div style={{ fontSize: 14, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 16, fontWeight: 700 }}>Live Ratio Heatmap (Today)</div>
+          <div style={{ display: 'flex', overflowX: 'auto', gap: 8, paddingBottom: 8 }}>
+            {expectedChildrenPerHour.map(slot => {
+              const staffCount = getStaffCountForHour(slot.time);
+              const ratio = staffCount > 0 ? (slot.count / staffCount) : slot.count;
+              const isDanger = ratio > 10 || staffCount === 0;
+              return (
+                <div key={slot.time} style={{ flex: '0 0 auto', width: 60, textAlign: 'center', background: 'var(--bg-deepest)', border: `1px solid ${isDanger ? 'rgba(255, 71, 87, 0.5)' : 'var(--border-default)'}`, borderRadius: 8, padding: '8px 4px' }}>
+                  <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 8 }}>{slot.time}</div>
+                  <div style={{ width: '100%', height: 40, background: isDanger ? 'rgba(255, 71, 87, 0.2)' : 'rgba(0, 252, 143, 0.1)', borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', color: isDanger ? '#FF4757' : '#00FC8F', fontWeight: 700, fontSize: 14 }}>
+                    {ratio.toFixed(1)}
+                  </div>
+                  <div style={{ fontSize: 9, color: 'var(--text-tertiary)', marginTop: 8 }}>{slot.count} kids<br/>{staffCount} staff</div>
+                </div>
+              );
+            })}
+          </div>
+          {expectedChildrenPerHour.some(slot => (getStaffCountForHour(slot.time) > 0 ? (slot.count / getStaffCountForHour(slot.time)) : slot.count) > 10) && (
+            <div style={{ marginTop: 16, padding: 12, background: 'rgba(255, 71, 87, 0.1)', borderRadius: 8, border: '1px solid rgba(255, 71, 87, 0.3)', color: '#FF4757', fontSize: 13, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span>🚨</span> Ratio non-compliance detected! Coverage required immediately.
+            </div>
+          )}
+        </div>
+
+        {/* Daily Schedule & Sick Calls */}
+        <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: 20 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <div style={{ fontSize: 14, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700 }}>Today's Rota</div>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {staffData.map(staff => (
+              <div key={staff.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--bg-deepest)', padding: 12, borderRadius: 8, border: staff.status === 'sick' ? '1px solid rgba(255, 71, 87, 0.5)' : '1px solid var(--border-default)' }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: staff.status === 'sick' ? 'var(--text-secondary)' : 'var(--text-primary)', textDecoration: staff.status === 'sick' ? 'line-through' : 'none' }}>{staff.name}</div>
+                  <div style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>{staff.role} • {staff.room}</div>
+                </div>
+                <div style={{ flex: 1, textAlign: 'center' }}>
+                  <div style={{ fontSize: 13, color: 'var(--mint)', fontWeight: 600, opacity: staff.status === 'sick' ? 0.3 : 1 }}>{staff.hours}</div>
+                  <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>({staff.shift})</div>
+                </div>
+                <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-end' }}>
+                  {staff.status === 'active' ? (
+                    <button onClick={() => handleSickCall(staff.id)} style={{ background: 'transparent', border: '1px solid var(--border-subtle)', color: 'var(--text-secondary)', padding: '6px 12px', borderRadius: 6, fontSize: 11, cursor: 'pointer', transition: 'all 0.2s' }}>Log Sick Call</button>
+                  ) : (
+                    <button onClick={() => handleCallCover(staff.id)} style={{ background: '#FF4757', border: 'none', color: '#fff', padding: '6px 12px', borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: 'pointer', animation: 'pulse 2s infinite' }}>Call Cover</button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Break Coverage Map */}
+        <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: 20 }}>
+          <div style={{ fontSize: 14, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 16, fontWeight: 700 }}>Break Coverage Schedule</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr 1fr', fontSize: 12, color: 'var(--text-secondary)', paddingBottom: 8, borderBottom: '1px solid var(--border-subtle)' }}>
+              <div>Time</div>
+              <div>Staff on Break</div>
+              <div>Covered By</div>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr 1fr', fontSize: 13, color: 'var(--text-primary)', padding: '8px 0', alignItems: 'center' }}>
+              <div style={{ color: 'var(--mint)' }}>11:30 - 12:00</div>
+              <div>Ms. Maria L. (Infant)</div>
+              <div>Ms. Joy (Float)</div>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr 1fr', fontSize: 13, color: 'var(--text-primary)', padding: '8px 0', alignItems: 'center', borderTop: '1px solid var(--border-deepest)' }}>
+              <div style={{ color: 'var(--mint)' }}>12:00 - 12:30</div>
+              <div>Ms. Sarah (Toddler)</div>
+              <div>Ms. Joy (Float)</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    );
+  };
+
+// ── Finance Dashboard (Module 06) ────────────────────────────────────────
+  const FinanceDashboard = ({ 
+    currentUser, centersData, selectedCenterId, childrenData, ledgerRows, 
+    pettyCashTransactions, setPettyCashTransactions 
+  }) => {
+    
+    const isGlobal = currentUser.role === 'director' && selectedCenterId === 'all';
+    
+    const handlePettyCashRequest = () => {
+      const desc = prompt('Enter description for Petty Cash Request:');
+      if(!desc) return;
+      const amtStr = prompt('Enter amount (UGX):');
+      if(!amtStr) return;
+      const amount = parseInt(amtStr);
+      if(isNaN(amount)) return;
+      
+      const newReq = {
+        id: 'pc_'+Date.now(),
+        branch: selectedCenterId,
+        requester: currentUser.name,
+        description: desc,
+        amount: amount,
+        status: 'pending',
+        date: new Date().toISOString().split('T')[0]
+      };
+      setPettyCashTransactions([newReq, ...pettyCashTransactions]);
+      alert('Request submitted for Global Director approval.');
+    };
+
+    const handleApprove = (id) => {
+      setPettyCashTransactions(pettyCashTransactions.map(t => t.id === id ? { ...t, status: 'approved' } : t));
+    };
+    
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 24, animation: 'fadeIn 0.3s ease', marginTop: 24 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>Financial Controls & Imprest</h2>
+          {currentUser.role === 'manager' && (
+            <button onClick={handlePettyCashRequest} style={{ background: 'var(--mint)', color: '#000', border: 'none', padding: '8px 16px', borderRadius: 8, fontWeight: 700, cursor: 'pointer' }}>
+              + Request Petty Cash
+            </button>
+          )}
+        </div>
+
+        <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: 20 }}>
+          <h3 style={{ fontSize: 14, color: 'var(--text-primary)', marginBottom: 16, marginTop: 0, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Petty Cash Ledger</h3>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+            <thead>
+              <tr style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+                {['Date', 'Branch', 'Requester', 'Description', 'Amount (UGX)', 'Status', 'Action'].map(h => (
+                  <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontSize: 11, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {pettyCashTransactions.filter(t => isGlobal || t.branch === selectedCenterId).map(t => (
+                <tr key={t.id} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+                  <td style={{ padding: '12px 16px', color: 'var(--text-secondary)' }}>{t.date}</td>
+                  <td style={{ padding: '12px 16px', color: 'var(--text-primary)' }}>{t.branch}</td>
+                  <td style={{ padding: '12px 16px', color: 'var(--text-secondary)' }}>{t.requester}</td>
+                  <td style={{ padding: '12px 16px', color: 'var(--text-primary)' }}>{t.description}</td>
+                  <td style={{ padding: '12px 16px', fontFamily: 'var(--font-mono)', color: 'var(--text-primary)' }}>{t.amount.toLocaleString()}</td>
+                  <td style={{ padding: '12px 16px' }}>
+                    <span style={{ fontSize: 11, color: t.status === 'approved' ? '#00FC8F' : '#FFB400', fontWeight: 700, textTransform: 'uppercase' }}>{t.status}</span>
+                  </td>
+                  <td style={{ padding: '12px 16px' }}>
+                    {t.status === 'pending' && currentUser.role === 'director' && (
+                      <button onClick={() => handleApprove(t.id)} style={{ background: 'var(--mint)', color: '#000', border: 'none', padding: '4px 12px', borderRadius: 4, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>Approve</button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+              {pettyCashTransactions.filter(t => isGlobal || t.branch === selectedCenterId).length === 0 && (
+                <tr>
+                  <td colSpan="7" style={{ padding: 20, textAlign: 'center', color: 'var(--text-tertiary)' }}>No petty cash transactions found.</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  };
+
+// ── Inventory System ─────────────────────────────────────────────────────
+  const InventorySystem = ({ currentUser, inventoryItems, setInventoryItems }) => {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 24, animation: 'fadeIn 0.3s ease' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <h2 style={{ fontSize: 24, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>Global Inventory</h2>
+          {currentUser.role === 'director' && (
+            <button style={{ background: 'var(--mint)', color: '#000', border: 'none', padding: '8px 16px', borderRadius: 8, fontWeight: 700, cursor: 'pointer' }}>
+              + Add Purchase
+            </button>
+          )}
+        </div>
+
+        {/* Low Stock Alerts */}
+        {inventoryItems.some(item => item.qty <= item.minQty) && (
+          <div style={{ background: 'rgba(255, 71, 87, 0.1)', border: '1px solid rgba(255, 71, 87, 0.3)', borderRadius: 8, padding: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{ color: '#FF4757', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span>🚨</span> Low Stock Alerts
+            </div>
+            {inventoryItems.filter(item => item.qty <= item.minQty).map(item => (
+              <div key={item.id} style={{ color: 'var(--text-primary)', fontSize: 13, display: 'flex', justifyContent: 'space-between' }}>
+                <span>{item.item} ({item.category})</span>
+                <span style={{ color: '#FF4757', fontWeight: 600 }}>Qty: {item.qty} (Min: {item.minQty})</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: 20 }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+            <thead>
+              <tr style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+                {['Item', 'Category', 'Supplier', 'Qty', 'Min Qty', 'Cost (UGX)', 'Last Purchased'].map(h => (
+                  <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontSize: 11, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {inventoryItems.map(item => {
+                const isLow = item.qty <= item.minQty;
+                return (
+                  <tr key={item.id} style={{ borderBottom: '1px solid var(--border-subtle)', background: isLow ? 'rgba(255, 71, 87, 0.05)' : 'transparent' }}>
+                    <td style={{ padding: '12px 16px', color: 'var(--text-primary)', fontWeight: 500 }}>{item.item}</td>
+                    <td style={{ padding: '12px 16px', color: 'var(--text-secondary)' }}>{item.category}</td>
+                    <td style={{ padding: '12px 16px', color: 'var(--text-secondary)' }}>{item.supplier}</td>
+                    <td style={{ padding: '12px 16px', color: isLow ? '#FF4757' : 'var(--text-primary)', fontWeight: isLow ? 700 : 400 }}>{item.qty}</td>
+                    <td style={{ padding: '12px 16px', color: 'var(--text-tertiary)' }}>{item.minQty}</td>
+                    <td style={{ padding: '12px 16px', fontFamily: 'var(--font-mono)', color: 'var(--text-primary)' }}>{item.cost.toLocaleString()}</td>
+                    <td style={{ padding: '12px 16px', color: 'var(--text-secondary)' }}>{item.date}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
   };
 
 // ── Main Page Component ──────────────────────────────────────────────────
@@ -658,6 +1052,69 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
     const [centersData, setCentersData] = React.useState(CENTERS);
     const [onboardingOpen, setOnboardingOpen] = React.useState(false);
     const [onboardingReport, setOnboardingReport] = React.useState(null);
+    const [qrScannerOpen, setQrScannerOpen] = React.useState(false);
+    const [scannedChildId, setScannedChildId] = React.useState(null);
+
+    // Staff System / Rota State
+    const [staffData, setStaffData] = React.useState([
+      { id: 's1', name: 'Ms. Sarah', role: 'Lead Teacher', shift: 'Morning', hours: '07:00 - 15:00', status: 'active', room: 'Toddler Room' },
+      { id: 's2', name: 'Ms. Maria L.', role: 'Assistant', shift: 'Opening', hours: '06:30 - 14:30', status: 'active', room: 'Infant Room' },
+      { id: 's3', name: 'Mr. David', role: 'Teacher', shift: 'Afternoon', hours: '10:00 - 18:00', status: 'active', room: 'Preschool' },
+      { id: 's4', name: 'Ms. Joy', role: 'Float/Cover', shift: 'Midday', hours: '11:00 - 15:00', status: 'active', room: 'Float' },
+    ]);
+    const [onCallPool, setOnCallPool] = React.useState([
+      { id: 'oc1', name: 'Ms. Florence', role: 'Substitute', phone: '+256 700 000 001' },
+      { id: 'oc2', name: 'Mr. Kato', role: 'Substitute', phone: '+256 700 000 002' },
+    ]);
+
+    // Finance & Inventory State
+    const [pettyCashTransactions, setPettyCashTransactions] = React.useState([
+      { id: 'pc1', branch: 'charis-kampala', requester: 'Branch Manager', description: 'Emergency First Aid Supplies', amount: 45000, status: 'approved', date: '2026-07-18' },
+      { id: 'pc2', branch: 'charis-kampala', requester: 'Branch Manager', description: 'Staff Water/Refreshments', amount: 15000, status: 'pending', date: '2026-07-20' },
+    ]);
+    const [inventoryItems, setInventoryItems] = React.useState([
+      { id: 'inv1', item: 'Giant Sandbox (2m x 2m)', category: 'Playground', supplier: 'Game Stores Kampala', qty: 1, minQty: 1, cost: 450000, date: '2026-07-15' },
+      { id: 'inv2', item: 'Inflatable Mini Pool', category: 'Playground', supplier: 'Kikubo Importers', qty: 2, minQty: 1, cost: 120000, date: '2026-07-12' },
+      { id: 'inv3', item: 'Montessori Wooden Toys Set', category: 'Toys', supplier: 'Aristoc Booklex', qty: 5, minQty: 3, cost: 250000, date: '2026-07-10' },
+      { id: 'inv4', item: 'Play Mats (Interlocking foam)', category: 'Safety', supplier: 'Nina Interiors', qty: 20, minQty: 10, cost: 300000, date: '2026-07-05' },
+      { id: 'inv5', item: 'Diapers (Pampers Size 4)', category: 'Consumables', supplier: 'Capital Shoppers', qty: 2, minQty: 5, cost: 90000, date: '2026-07-02' },
+      { id: 'inv6', item: 'Posho (100kg)', category: 'Food', supplier: 'Nakawa Market', qty: 1, minQty: 2, cost: 300000, date: '2026-07-01' },
+    ]);
+
+    // Billing Engine State
+    const [invoiceViewMode, setInvoiceViewMode] = React.useState('register'); // 'register' or 'ledger'
+    const [ledgerRows, setLedgerRows] = React.useState([
+      { id: 'l1', childId: 'c1', childName: 'Aiden Nakamya', plan: 'daily', signIn: '07:30 AM', signOut: '04:30 PM', hours: 9, cost: 135000, status: 'unbilled', date: new Date().toISOString().split('T')[0] },
+      { id: 'l2', childId: 'c2', childName: 'Mia Omondi', plan: 'monthly', signIn: '08:00 AM', signOut: '05:00 PM', hours: 9, cost: 0, status: 'billed', date: new Date().toISOString().split('T')[0] }
+    ]);
+
+    const handleSignOut = (child) => {
+      const now = new Date();
+      // Mock logic: assume signed in at 08:00 AM, calculate elapsed hours roughly.
+      // For demonstration, we just generate a random elapsed time or say 8 hours.
+      const elapsedHours = 8.5; 
+      
+      // Hourly Drop-in is 15,000 UGX/hour. Monthly is 0 (covered).
+      const cost = child.carePlan === 'daily' ? elapsedHours * 15000 : 0;
+      
+      const newRow = {
+        id: 'l' + Date.now(),
+        childId: child.id,
+        childName: child.name,
+        plan: child.carePlan,
+        signIn: '08:00 AM',
+        signOut: now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        hours: elapsedHours,
+        cost: cost,
+        status: 'unbilled',
+        date: now.toISOString().split('T')[0]
+      };
+      
+      setLedgerRows(prev => [newRow, ...prev]);
+      
+      // Show an alert to user
+      alert(`Signed out ${child.name}. Ledger updated: ${elapsedHours} hrs recorded (Cost: ${cost.toLocaleString()} UGX).`);
+    };
 
     const kpi = React.useMemo(() => {
       if (selectedCenterId !== 'all') {
@@ -751,10 +1208,20 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
             <p style={{ color: 'var(--text-secondary)', marginBottom: 32 }}>Select your role to continue</p>
             
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <button onClick={() => setCurrentUser({ role: 'director', name: 'Global Director' })} style={{ padding: 14, background: 'var(--mint)', color: '#000', border: 'none', borderRadius: 8, fontWeight: 700, cursor: 'pointer', fontSize: 14 }}>Login as Global Director</button>
-              <button onClick={() => { setCurrentUser({ role: 'manager', name: 'Branch Manager', branchId: 'charis-kampala' }); setSelectedCenterId('charis-kampala'); }} style={{ padding: 14, background: 'var(--bg-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border-default)', borderRadius: 8, fontWeight: 600, cursor: 'pointer', fontSize: 14 }}>Login as Branch Manager (Kampala)</button>
-              <button onClick={() => setCurrentUser({ role: 'parent', name: 'Mrs. Nakamya', childId: 1 })} style={{ padding: 14, background: 'var(--bg-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border-default)', borderRadius: 8, fontWeight: 600, cursor: 'pointer', fontSize: 14 }}>Login as Parent (Mrs. Nakamya)</button>
-              <button onClick={() => setCurrentUser({ role: 'investor', name: 'Investor Group' })} style={{ padding: 14, background: 'var(--bg-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border-default)', borderRadius: 8, fontWeight: 600, cursor: 'pointer', fontSize: 14 }}>Login as Investor</button>
+              <button onClick={() => { setCurrentUser({ role: 'director', name: 'Global Director' }); setActiveTab('owner-view'); }} style={{ padding: 14, background: 'var(--mint)', color: '#000', border: 'none', borderRadius: 8, fontWeight: 700, cursor: 'pointer', fontSize: 14 }}>Login as Global Director</button>
+              <button onClick={() => { setCurrentUser({ role: 'manager', name: 'Branch Manager', branchId: 'charis-kampala' }); setSelectedCenterId('charis-kampala'); setActiveTab('operations'); }} style={{ padding: 14, background: 'var(--bg-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border-default)', borderRadius: 8, fontWeight: 600, cursor: 'pointer', fontSize: 14 }}>Login as Branch Manager (Kampala)</button>
+              <button onClick={() => { setCurrentUser({ role: 'investor', name: 'Investor Group' }); setActiveTab('owner-view'); }} style={{ padding: 14, background: 'var(--bg-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border-default)', borderRadius: 8, fontWeight: 600, cursor: 'pointer', fontSize: 14 }}>Login as Investor</button>
+              
+              <div style={{ margin: '8px 0', borderTop: '1px solid var(--border-subtle)', paddingTop: 16 }}>
+                <p style={{ color: 'var(--text-tertiary)', marginBottom: 12, fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Parent Portal Logins</p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 180, overflowY: 'auto' }}>
+                  {childrenData.map(child => (
+                    <button key={child.id} onClick={() => setCurrentUser({ role: 'parent', name: child.parent, childId: child.id })} style={{ padding: 10, background: 'var(--bg-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border-default)', borderRadius: 8, fontWeight: 500, cursor: 'pointer', fontSize: 13 }}>
+                      Login as {child.parent} ({child.name}'s Parent)
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -766,7 +1233,9 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
     }
 
     const tabs = [
-      { id: 'overview',  label: 'Overview', icon: '📊', roles: ['director', 'manager', 'investor'] },
+      { id: 'owner-view',  label: 'Owner View', icon: '📊', roles: ['director', 'investor'] },
+      { id: 'operations', label: 'Operations', icon: '📋', roles: ['director', 'manager'] },
+      { id: 'rota', label: 'Staff Rota', icon: '👥', roles: ['director', 'manager'] },
       { id: 'children',  label: 'Children', icon: '🧒', roles: ['director', 'manager'] },
       { id: 'schedule',  label: 'Schedule', icon: '🗓️', roles: ['director', 'manager'] },
       { id: 'messages',  label: 'Messages', icon: '💬', badge: kpi.unreadParentMessages, roles: ['director', 'manager', 'investor'] },
@@ -898,8 +1367,21 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
         {/* Nia Banner */}
         <NiaAdvisoryBanner onTalkToNia={() => setNiaOpen(true)} />
 
+        {/* ── OPERATIONS TAB ── */}
+        {activeTab === 'operations' && (
+          <div style={{ animation: 'fadeIn 0.3s ease' }}>
+            <h2 style={{ fontSize: 24, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 20 }}>Operations Wall Tablet</h2>
+            <OperationsWallTablet center={centersData.find(c => c.id === selectedCenterId) || centersData[0]} childrenData={childrenData} onSignOut={handleSignOut} onOpenScanner={() => setQrScannerOpen(true)} />
+          </div>
+        )}
+
+        {/* ── STAFF ROTA TAB ── */}
+        {activeTab === 'rota' && (
+          <StaffRotaSystem staffData={staffData} setStaffData={setStaffData} onCallPool={onCallPool} />
+        )}
+
         {/* ── OVERVIEW TAB ── */}
-        {activeTab === 'overview' && (
+        {activeTab === 'owner-view' && (
           <React.Fragment>
             {/* KPI Strip */}
             <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginBottom: 28 }}>
@@ -1111,51 +1593,168 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
         )}
 
         {/* ── MESSAGES TAB ── */}
-        {activeTab === 'messages' && (
-          <div style={{ animation: 'fadeIn 0.3s ease', display: 'flex', gap: 20, height: 'calc(100vh - 150px)' }}>
+        {activeTab === 'messages' && (() => {
+          // Tiered Messaging Logic
+          const [selectedThreadId, setSelectedThreadId] = React.useState(null);
+          const [composeText, setComposeText] = React.useState('');
+          const [recipient, setRecipient] = React.useState('');
+
+          // 1. Filter visible messages based on Governance Tier
+          const visibleMessages = globalMessages.filter(m => {
+            if (currentUser.role === 'investor') {
+              // Investor ↔ Director only
+              return m.toRole === 'investor' || (m.fromRole === 'investor' && m.toRole === 'director');
+            }
+            if (currentUser.role === 'manager') {
+              // Manager ↔ Parent, Manager ↔ Director (for their branch)
+              return m.branchId === currentUser.branchId && (m.toRole === 'manager' || m.fromRole === 'manager');
+            }
+            if (currentUser.role === 'director') {
+              // Director sees EVERYTHING (Global overview)
+              return true;
+            }
+            return false;
+          });
+
+          // Group into threads
+          const threads = {};
+          visibleMessages.forEach(m => {
+            if (!threads[m.threadId]) threads[m.threadId] = { id: m.threadId, messages: [], participants: new Set() };
+            threads[m.threadId].messages.push(m);
+            threads[m.threadId].participants.add(m.fromName);
+            threads[m.threadId].participants.add(m.toName);
+          });
+          const threadList = Object.values(threads).sort((a, b) => b.messages[b.messages.length - 1].id - a.messages[a.messages.length - 1].id);
+
+          const activeThread = selectedThreadId ? threads[selectedThreadId] : null;
+
+          // Determine allowed recipients for the Compose dropdown
+          let allowedRecipients = [];
+          if (currentUser.role === 'investor') {
+            allowedRecipients = [{ role: 'director', name: 'Global Director', threadId: 'director-investor', branchId: 'all' }];
+          } else if (currentUser.role === 'manager') {
+            allowedRecipients = [
+              { role: 'director', name: 'Global Director', threadId: 'manager-director', branchId: currentUser.branchId },
+              ...childrenData.map(c => ({ role: 'parent', name: c.parent, threadId: `parent-${c.id}`, branchId: currentUser.branchId }))
+            ];
+          } else if (currentUser.role === 'director') {
+            allowedRecipients = [
+              { role: 'investor', name: 'Investor Group', threadId: 'director-investor', branchId: 'all' },
+              ...centersData.map(c => ({ role: 'manager', name: `Branch Manager (${c.name})`, threadId: 'manager-director', branchId: c.id }))
+            ];
+          }
+
+          const handleSendMessage = () => {
+            if(!composeText.trim() || !recipient) return;
+            const rec = allowedRecipients.find(r => r.name === recipient);
             
-            {/* Inbox List */}
-            <div style={{ width: 300, display: 'flex', flexDirection: 'column', gap: 10, borderRight: '1px solid var(--border-subtle)', paddingRight: 20 }}>
-              <div style={{ fontSize: 18, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 12 }}>
-                {currentUser.role === 'investor' ? 'Director Comms' : 'Inbox'}
-              </div>
-              <div style={{ flex: 1, overflowY: 'auto' }}>
-                {globalMessages
-                  .filter(m => {
-                    if (currentUser.role === 'investor') return m.fromRole === 'director' || m.toRole === 'investor' || m.fromRole === 'investor';
-                    if (currentUser.role === 'manager') return (m.toRole === 'manager' && m.branchId === currentUser.branchId) || (m.fromRole === 'manager' && m.branchId === currentUser.branchId);
-                    if (currentUser.role === 'director') return true; // Director sees everything
-                    return false;
-                  })
-                  .map(msg => (
-                    <div key={msg.id} style={{
-                      background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)',
-                      borderRadius: 12, padding: '14px', marginBottom: 10, cursor: 'pointer'
-                    }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                        <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{msg.fromName} ({msg.fromRole})</span>
-                        <span style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>{msg.time}</span>
+            const newMsg = {
+              id: Date.now(),
+              threadId: rec.threadId,
+              fromRole: currentUser.role,
+              fromName: currentUser.name,
+              toRole: rec.role,
+              toName: rec.name,
+              branchId: rec.branchId,
+              text: composeText,
+              time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+            };
+            setGlobalMessages([...globalMessages, newMsg]);
+            setComposeText('');
+            setSelectedThreadId(rec.threadId);
+          };
+
+          return (
+            <div style={{ animation: 'fadeIn 0.3s ease', display: 'flex', gap: 20, height: 'calc(100vh - 150px)' }}>
+              {/* Inbox Threads */}
+              <div style={{ width: 320, display: 'flex', flexDirection: 'column', gap: 10, borderRight: '1px solid var(--border-subtle)', paddingRight: 20 }}>
+                <div style={{ fontSize: 18, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 12 }}>
+                  {currentUser.role === 'investor' ? 'Director Comms' : 'Inbox Threads'}
+                </div>
+                <div style={{ flex: 1, overflowY: 'auto' }}>
+                  {threadList.map(thread => {
+                    const lastMsg = thread.messages[thread.messages.length - 1];
+                    const isSelected = selectedThreadId === thread.id;
+                    return (
+                      <div key={thread.id} onClick={() => setSelectedThreadId(thread.id)} style={{
+                        background: isSelected ? 'rgba(0, 252, 143, 0.1)' : 'var(--bg-elevated)', 
+                        border: isSelected ? '1px solid var(--mint)' : '1px solid var(--border-subtle)',
+                        borderRadius: 12, padding: '14px', marginBottom: 10, cursor: 'pointer', transition: 'all 0.2s'
+                      }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                          <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>
+                            {Array.from(thread.participants).filter(p => p !== currentUser.name).join(', ') || thread.participants.values().next().value}
+                          </span>
+                          <span style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>{lastMsg.time}</span>
+                        </div>
+                        <div style={{ fontSize: 13, color: 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{lastMsg.text}</div>
                       </div>
-                      <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{msg.text}</div>
-                      <div style={{ fontSize: 10, color: 'var(--mint)', marginTop: 8, textTransform: 'uppercase' }}>To: {msg.toRole}</div>
+                    );
+                  })}
+                  {threadList.length === 0 && <div style={{ color: 'var(--text-tertiary)', fontSize: 13 }}>No messages found.</div>}
+                </div>
+              </div>
+
+              {/* Message Thread & Composer */}
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: 'var(--bg-elevated)', borderRadius: 12, border: '1px solid var(--border-subtle)', overflow: 'hidden' }}>
+                {/* Thread Header */}
+                <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+                    {activeThread ? 'Conversation Thread' : 'New Message'}
+                  </div>
+                  {currentUser.role === 'director' && activeThread && activeThread.id.startsWith('parent-') && (
+                    <span style={{ fontSize: 11, background: 'rgba(255, 180, 0, 0.1)', color: '#FFB400', padding: '4px 8px', borderRadius: 4, fontWeight: 700 }}>READ ONLY (Parent ↔ Manager)</span>
+                  )}
+                </div>
+
+                {/* Messages List */}
+                <div style={{ flex: 1, overflowY: 'auto', padding: 20, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  {!activeThread ? (
+                    <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-tertiary)' }}>
+                      Select a thread or compose a new message.
                     </div>
-                  ))}
+                  ) : (
+                    activeThread.messages.map(msg => {
+                      const isMe = msg.fromRole === currentUser.role;
+                      return (
+                        <div key={msg.id} style={{ 
+                          alignSelf: isMe ? 'flex-end' : 'flex-start',
+                          background: isMe ? 'rgba(0, 252, 143, 0.1)' : 'var(--bg-deepest)',
+                          border: isMe ? '1px solid rgba(0, 252, 143, 0.2)' : '1px solid var(--border-subtle)',
+                          padding: '12px 16px', borderRadius: 12, maxWidth: '80%'
+                        }}>
+                          <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginBottom: 4 }}>
+                            {msg.fromName} ({msg.fromRole}) • {msg.time}
+                          </div>
+                          <div style={{ fontSize: 14, color: 'var(--text-primary)' }}>{msg.text}</div>
+                        </div>
+                      )
+                    })
+                  )}
+                </div>
+
+                {/* Composer */}
+                {(!activeThread || !(currentUser.role === 'director' && activeThread.id.startsWith('parent-'))) && (
+                  <div style={{ padding: 20, borderTop: '1px solid var(--border-subtle)', background: 'var(--bg-default)' }}>
+                    <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                      <select value={recipient} onChange={e => setRecipient(e.target.value)} style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '12px', borderRadius: 8, minWidth: 200 }}>
+                        <option value="">-- Select Recipient --</option>
+                        {allowedRecipients.map(r => <option key={r.name} value={r.name}>{r.name} ({r.role})</option>)}
+                      </select>
+                      <input 
+                        value={composeText} onChange={e => setComposeText(e.target.value)}
+                        placeholder="Type a message..." 
+                        style={{ flex: 1, background: 'var(--bg-deepest)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '12px 16px', borderRadius: 8 }} 
+                        onKeyDown={e => e.key === 'Enter' && handleSendMessage()}
+                      />
+                      <button onClick={handleSendMessage} disabled={!composeText.trim() || !recipient} style={{ background: 'var(--mint)', color: '#000', border: 'none', padding: '0 24px', borderRadius: 8, fontWeight: 700, cursor: (!composeText.trim() || !recipient) ? 'not-allowed' : 'pointer', height: 42, opacity: (!composeText.trim() || !recipient) ? 0.5 : 1 }}>Send</button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
-
-            {/* Message Composer */}
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: 'var(--bg-elevated)', borderRadius: 12, border: '1px solid var(--border-subtle)', padding: 20 }}>
-              <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-tertiary)' }}>
-                Select a message to view thread, or compose a new one.
-              </div>
-              <div style={{ display: 'flex', gap: 12, marginTop: 20 }}>
-                <input placeholder="Type a message..." style={{ flex: 1, background: 'var(--bg-deepest)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '12px 16px', borderRadius: 8 }} />
-                <button style={{ background: 'var(--mint)', color: '#000', border: 'none', padding: '0 24px', borderRadius: 8, fontWeight: 700, cursor: 'pointer' }}>Send</button>
-              </div>
-            </div>
-
-          </div>
-        )}
+          );
+        })()}
 
         {/* ── INVOICES / FINANCES TAB ── */}
         {activeTab === 'invoices' && (
@@ -1223,48 +1822,104 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
                 <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: 20 }}>
                   Currently, <strong style={{ color: '#fff' }}>{kpi.presentToday}</strong> out of <strong style={{ color: '#fff' }}>{kpi.enrolled}</strong> students are present today across all centers ({(kpi.attendanceRate * 100).toFixed(1)}% attendance). Consistent attendance is key for reliable revenue collection. Outstanding invoices currently total <strong style={{ color: '#FF4757' }}>UGX {kpi.overdueAmount.toLocaleString()}</strong>.
                 </div>
+                
+                <FinanceDashboard 
+                  currentUser={currentUser} 
+                  centersData={centersData} 
+                  selectedCenterId={selectedCenterId} 
+                  childrenData={childrenData} 
+                  ledgerRows={ledgerRows} 
+                  pettyCashTransactions={pettyCashTransactions} 
+                  setPettyCashTransactions={setPettyCashTransactions} 
+                />
               </div>
             ) : (
               <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 12, overflow: 'hidden' }}>
                 <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>Invoice Register — July 2026</span>
+                  <div style={{ display: 'flex', gap: 16 }}>
+                    <button onClick={() => setInvoiceViewMode('register')} style={{ background: 'transparent', border: 'none', fontSize: 13, fontWeight: 600, color: invoiceViewMode === 'register' ? 'var(--mint)' : 'var(--text-secondary)', cursor: 'pointer', padding: 0 }}>Invoice Register</button>
+                    <button onClick={() => setInvoiceViewMode('ledger')} style={{ background: 'transparent', border: 'none', fontSize: 13, fontWeight: 600, color: invoiceViewMode === 'ledger' ? 'var(--mint)' : 'var(--text-secondary)', cursor: 'pointer', padding: 0 }}>Hours Ledger</button>
+                  </div>
                   <span style={{ fontSize: 12, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)' }}>
                     Collection: {Math.round(kpi.collectionRate * 100)}%
                   </span>
                 </div>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-                  <thead>
-                    <tr style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-                      {['Child', 'Parent', 'Amount (UGX)', 'Status', 'Action'].map(h => (
-                        <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontSize: 11, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600, fontFamily: 'var(--font-mono)' }}>{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {childrenData.map(child => {
-                      const statusColor = child.invoiceStatus === 'overdue' ? '#FF4757' : child.invoiceStatus === 'due' ? '#FFB400' : '#00FC8F';
-                      const statusLabel = child.invoiceStatus === 'overdue' ? '⚠ OVERDUE 30d+' : child.invoiceStatus === 'due' ? '○ DUE' : '✓ PAID';
-                      return (
-                        <tr key={child.id} style={{ borderBottom: '1px solid var(--border-subtle)' }} className="member-row">
-                          <td style={{ padding: '12px 16px', color: 'var(--text-primary)', fontWeight: 500 }}>{child.name}</td>
-                          <td style={{ padding: '12px 16px', color: 'var(--text-secondary)' }}>{child.parent}</td>
-                          <td style={{ padding: '12px 16px', fontFamily: 'var(--font-mono)', color: 'var(--text-primary)' }}>87,500</td>
+                
+                {invoiceViewMode === 'register' ? (
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                    <thead>
+                      <tr style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+                        {['Child', 'Parent', 'Amount (UGX)', 'Status', 'Action'].map(h => (
+                          <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontSize: 11, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600, fontFamily: 'var(--font-mono)' }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {childrenData.map(child => {
+                        const statusColor = child.invoiceStatus === 'overdue' ? '#FF4757' : child.invoiceStatus === 'due' ? '#FFB400' : '#00FC8F';
+                        const statusLabel = child.invoiceStatus === 'overdue' ? '⚠ OVERDUE 30d+' : child.invoiceStatus === 'due' ? '○ DUE' : '✓ PAID';
+                        return (
+                          <tr key={child.id} style={{ borderBottom: '1px solid var(--border-subtle)' }} className="member-row">
+                            <td style={{ padding: '12px 16px', color: 'var(--text-primary)', fontWeight: 500 }}>{child.name}</td>
+                            <td style={{ padding: '12px 16px', color: 'var(--text-secondary)' }}>{child.parent}</td>
+                            <td style={{ padding: '12px 16px', fontFamily: 'var(--font-mono)', color: 'var(--text-primary)' }}>87,500</td>
+                            <td style={{ padding: '12px 16px' }}>
+                              <span style={{ fontSize: 11, color: statusColor, fontWeight: 700, fontFamily: 'var(--font-mono)' }}>{statusLabel}</span>
+                            </td>
+                            <td style={{ padding: '12px 16px' }}>
+                              {child.invoiceStatus !== 'paid' && (
+                                <button onClick={() => handleMessage(child)} style={{
+                                  background: 'transparent', border: '1px solid var(--border-default)', borderRadius: 6,
+                                  padding: '5px 10px', fontSize: 11, color: 'var(--mint)', cursor: 'pointer', fontFamily: 'var(--font-body)',
+                                }} className="quick-action-btn">Send reminder</button>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                ) : (
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                    <thead>
+                      <tr style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+                        {['Date', 'Child', 'Plan', 'In/Out', 'Hours', 'Cost (UGX)', 'Billing Status'].map(h => (
+                          <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontSize: 11, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600, fontFamily: 'var(--font-mono)' }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {ledgerRows.filter(r => selectedCenterId === 'all' || childrenData.some(c => c.id === r.childId)).map(row => (
+                        <tr key={row.id} style={{ borderBottom: '1px solid var(--border-subtle)' }} className="member-row">
+                          <td style={{ padding: '12px 16px', color: 'var(--text-secondary)' }}>{row.date}</td>
+                          <td style={{ padding: '12px 16px', color: 'var(--text-primary)', fontWeight: 500 }}>{row.childName}</td>
+                          <td style={{ padding: '12px 16px', color: 'var(--text-secondary)' }}><span style={{ textTransform: 'capitalize' }}>{row.plan}</span></td>
+                          <td style={{ padding: '12px 16px', fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)', fontSize: 12 }}>{row.signIn} - {row.signOut}</td>
+                          <td style={{ padding: '12px 16px', fontFamily: 'var(--font-mono)', color: 'var(--text-primary)' }}>{row.hours}h</td>
+                          <td style={{ padding: '12px 16px', fontFamily: 'var(--font-mono)', color: row.cost > 0 ? '#FFB400' : 'var(--text-tertiary)' }}>{row.cost.toLocaleString()}</td>
                           <td style={{ padding: '12px 16px' }}>
-                            <span style={{ fontSize: 11, color: statusColor, fontWeight: 700, fontFamily: 'var(--font-mono)' }}>{statusLabel}</span>
-                          </td>
-                          <td style={{ padding: '12px 16px' }}>
-                            {child.invoiceStatus !== 'paid' && (
-                              <button onClick={() => handleMessage(child)} style={{
-                                background: 'transparent', border: '1px solid var(--border-default)', borderRadius: 6,
-                                padding: '5px 10px', fontSize: 11, color: 'var(--mint)', cursor: 'pointer', fontFamily: 'var(--font-body)',
-                              }} className="quick-action-btn">Send reminder</button>
-                            )}
+                            <span style={{ fontSize: 11, color: row.status === 'billed' ? '#00FC8F' : 'var(--text-secondary)', fontWeight: 700, textTransform: 'uppercase', fontFamily: 'var(--font-mono)' }}>{row.status}</span>
                           </td>
                         </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+                      ))}
+                      {ledgerRows.filter(r => selectedCenterId === 'all' || childrenData.some(c => c.id === r.childId)).length === 0 && (
+                        <tr>
+                          <td colSpan="7" style={{ padding: 32, textAlign: 'center', color: 'var(--text-tertiary)' }}>No hours logged yet. Sign out a child from the Operations board.</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                )}
+                
+                <FinanceDashboard 
+                  currentUser={currentUser} 
+                  centersData={centersData} 
+                  selectedCenterId={selectedCenterId} 
+                  childrenData={childrenData} 
+                  ledgerRows={ledgerRows} 
+                  pettyCashTransactions={pettyCashTransactions} 
+                  setPettyCashTransactions={setPettyCashTransactions} 
+                />
               </div>
             )}
           </React.Fragment>
@@ -1272,42 +1927,7 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
 
         {/* ── INVENTORY TAB ── */}
         {activeTab === 'inventory' && selectedCenterId === 'all' && (
-          <div style={{ animation: 'fadeIn 0.3s ease' }}>
-            <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 12, overflow: 'hidden' }}>
-              <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-primary)' }}>Global Inventory & Purchases</span>
-                <button style={{ background: 'var(--mint)', color: '#060012', border: 'none', borderRadius: 8, padding: '8px 16px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>+ Add Purchase</button>
-              </div>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-                <thead>
-                  <tr style={{ borderBottom: '1px solid var(--border-subtle)', background: 'var(--bg-deepest)' }}>
-                    {['Item', 'Category', 'Supplier / Store', 'Quantity', 'Cost (UGX)', 'Date'].map(h => (
-                      <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontSize: 11, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600, fontFamily: 'var(--font-mono)' }}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {[
-                    { item: 'Giant Sandbox (2m x 2m)', category: 'Playground', supplier: 'Game Stores Kampala', qty: 1, cost: 450000, date: '2026-07-15' },
-                    { item: 'Inflatable Mini Pool', category: 'Playground', supplier: 'Kikubo Importers', qty: 2, cost: 120000, date: '2026-07-12' },
-                    { item: 'Montessori Wooden Toys Set', category: 'Toys', supplier: 'Aristoc Booklex', qty: 5, cost: 250000, date: '2026-07-10' },
-                    { item: 'Play Mats (Interlocking foam)', category: 'Safety', supplier: 'Nina Interiors', qty: 20, cost: 300000, date: '2026-07-05' },
-                    { item: 'Diapers (Pampers Size 4)', category: 'Consumables', supplier: 'Capital Shoppers', qty: 10, cost: 450000, date: '2026-07-02' },
-                    { item: 'Posho (100kg)', category: 'Food', supplier: 'Nakawa Market', qty: 2, cost: 600000, date: '2026-07-01' },
-                  ].map((inv, idx) => (
-                    <tr key={idx} style={{ borderBottom: '1px solid var(--border-subtle)', transition: 'background 0.2s' }}>
-                      <td style={{ padding: '14px 16px', fontWeight: 500, color: 'var(--text-primary)' }}>{inv.item}</td>
-                      <td style={{ padding: '14px 16px' }}><span style={{ padding: '4px 8px', borderRadius: 4, background: 'rgba(255,255,255,0.05)', fontSize: 11, color: 'var(--text-secondary)' }}>{inv.category}</span></td>
-                      <td style={{ padding: '14px 16px', color: 'var(--text-secondary)' }}>{inv.supplier}</td>
-                      <td style={{ padding: '14px 16px', color: 'var(--text-primary)' }}>{inv.qty}</td>
-                      <td style={{ padding: '14px 16px', fontWeight: 600, color: '#FF4757' }}>{inv.cost.toLocaleString()}</td>
-                      <td style={{ padding: '14px 16px', color: 'var(--text-tertiary)' }}>{inv.date}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
+          <InventorySystem currentUser={currentUser} inventoryItems={inventoryItems} setInventoryItems={setInventoryItems} />
         )}
         
         {/* Nia Overlay */}
@@ -1417,7 +2037,64 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
             </div>
           </div>
         )}
-        
+
+        {/* QR Scanner Modal */}
+        {qrScannerOpen && (
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', animation: 'fadeIn 0.2s ease' }}>
+            <div style={{ background: 'var(--bg-elevated)', width: 400, borderRadius: 16, border: '1px solid var(--border-subtle)', padding: 32, position: 'relative', textAlign: 'center' }}>
+              <button onClick={() => { setQrScannerOpen(false); setScannedChildId(null); }} style={{ position: 'absolute', top: 16, right: 16, background: 'none', border: 'none', color: 'var(--text-tertiary)', cursor: 'pointer', fontSize: 20 }}>×</button>
+              
+              {!scannedChildId ? (
+                <React.Fragment>
+                  <h2 style={{ fontSize: 22, fontWeight: 800, margin: '0 0 16px', color: 'var(--text-primary)', fontFamily: 'var(--font-display)' }}>Scan Parent QR</h2>
+                  <div style={{ width: '100%', height: 250, background: '#111', borderRadius: 12, marginBottom: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px dashed var(--border-default)', position: 'relative', overflow: 'hidden' }}>
+                    <div style={{ position: 'absolute', width: 200, height: 200, border: '2px solid rgba(0, 252, 143, 0.5)', borderRadius: 16 }}></div>
+                    <div style={{ width: '100%', height: 2, background: 'var(--mint)', position: 'absolute', top: '50%', boxShadow: '0 0 10px var(--mint)', animation: 'scanline 2s infinite' }}></div>
+                    <style>{`
+                      @keyframes scanline {
+                        0% { top: 0; opacity: 0; }
+                        10% { opacity: 1; }
+                        90% { opacity: 1; }
+                        100% { top: 100%; opacity: 0; }
+                      }
+                    `}</style>
+                  </div>
+                  <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 20 }}>Simulating scan... Select a child to test.</p>
+                  <select onChange={(e) => setScannedChildId(e.target.value)} style={{ width: '100%', padding: '10px 12px', borderRadius: 8, background: 'var(--bg-deepest)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', outline: 'none' }}>
+                    <option value="">-- Select Child QR --</option>
+                    {childrenData.filter(c => c.present).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
+                </React.Fragment>
+              ) : (
+                <React.Fragment>
+                  <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'rgba(0, 252, 143, 0.2)', color: 'var(--mint)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32, margin: '0 auto 16px' }}>✓</div>
+                  <h2 style={{ fontSize: 22, fontWeight: 800, margin: '0 0 8px', color: 'var(--mint)', fontFamily: 'var(--font-display)' }}>Authorized Match</h2>
+                  
+                  {(() => {
+                    const c = childrenData.find(x => x.id === scannedChildId);
+                    if (!c) return null;
+                    return (
+                      <div style={{ background: 'var(--bg-deepest)', borderRadius: 12, padding: 16, marginTop: 16, textAlign: 'left', border: '1px solid var(--mint)' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+                          <img src={c.photoUrl} style={{ width: 48, height: 48, borderRadius: '50%', objectFit: 'cover' }} />
+                          <div>
+                            <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)' }}>{c.name}</div>
+                            <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Status: {c.present ? 'Present' : 'Absent'}</div>
+                          </div>
+                        </div>
+                        <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 8 }}><strong style={{ color: 'var(--text-primary)' }}>Primary Parent:</strong> {c.parent}</div>
+                        <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 16 }}><strong style={{ color: 'var(--text-primary)' }}>Authorized Pickups:</strong> {c.authorizedPickups || 'Parents only'}</div>
+                        
+                        <button onClick={() => { handleSignOut(c); setQrScannerOpen(false); setScannedChildId(null); }} style={{ width: '100%', padding: 12, borderRadius: 8, border: 'none', background: 'var(--mint)', color: '#000', fontWeight: 700, cursor: 'pointer' }}>Confirm & Sign Out</button>
+                      </div>
+                    );
+                  })()}
+                </React.Fragment>
+              )}
+            </div>
+          </div>
+        )}
+
         </div>{/* End Main Content Area */}
       </div>
     );
