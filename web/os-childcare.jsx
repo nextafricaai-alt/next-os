@@ -1036,6 +1036,51 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
     );
   };
 
+// ── Expansion Dashboard Component ──────────────────────────────────────────
+  const ExpansionDashboard = ({ expansionProjects }) => {
+    return (
+      <div style={{ animation: 'fadeIn 0.3s ease' }}>
+        <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 24, margin: '0 0 24px 0', color: 'var(--text-primary)' }}>Expansion Playbook</h2>
+        <div style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 32, lineHeight: 1.6, background: 'var(--bg-deep)', padding: 16, borderRadius: 12, borderLeft: '4px solid var(--mint)' }}>
+          <strong>Launch Tracker:</strong> Monitoring new center setups according to the franchise playbook rules. A center must complete all 4 Pre-Launch phases before opening.
+        </div>
+
+        {expansionProjects.map(proj => (
+          <div key={proj.id} style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: 24, marginBottom: 24 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, borderBottom: '1px solid var(--border-subtle)', paddingBottom: 16 }}>
+              <div>
+                <h3 style={{ margin: '0 0 4px', fontSize: 20, color: 'var(--text-primary)' }}>{proj.name}</h3>
+                <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Launch Target: {proj.launchDate}</div>
+              </div>
+              <div style={{ padding: '6px 12px', borderRadius: 8, background: 'rgba(0,252,143,0.1)', color: 'var(--mint)', fontSize: 12, fontWeight: 700, textTransform: 'uppercase' }}>
+                {proj.status}
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {proj.phases.map((phase, i) => {
+                const isCompleted = phase.status === 'completed';
+                const isInProgress = phase.status === 'in-progress';
+                const color = isCompleted ? '#10B981' : isInProgress ? '#FFB400' : 'var(--text-tertiary)';
+                return (
+                  <div key={i} style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
+                    <div style={{ width: 24, height: 24, borderRadius: '50%', background: isCompleted ? 'rgba(16,185,129,0.1)' : isInProgress ? 'rgba(255,180,0,0.1)' : 'var(--bg-deep)', border: `2px solid ${color}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: color, fontSize: 12, flexShrink: 0 }}>
+                      {isCompleted ? '✓' : (i + 1)}
+                    </div>
+                    <div style={{ flex: 1, background: 'var(--bg-deep)', padding: 16, borderRadius: 10, border: isInProgress ? '1px solid rgba(255,180,0,0.3)' : '1px solid transparent' }}>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>{phase.name}</div>
+                      <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{phase.description}</div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
 // ── Main Page Component ──────────────────────────────────────────────────
   const ChildcareOSPage = ({ onNavigate }) => {
     const [windowWidth] = useWindowSize();
@@ -1079,6 +1124,22 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
       { id: 'inv4', item: 'Play Mats (Interlocking foam)', category: 'Safety', supplier: 'Nina Interiors', qty: 20, minQty: 10, cost: 300000, date: '2026-07-05' },
       { id: 'inv5', item: 'Diapers (Pampers Size 4)', category: 'Consumables', supplier: 'Capital Shoppers', qty: 2, minQty: 5, cost: 90000, date: '2026-07-02' },
       { id: 'inv6', item: 'Posho (100kg)', category: 'Food', supplier: 'Nakawa Market', qty: 1, minQty: 2, cost: 300000, date: '2026-07-01' },
+    ]);
+
+    // Expansion State
+    const [expansionProjects, setExpansionProjects] = React.useState([
+      { 
+        id: 'exp1', 
+        name: 'Entebbe Branch', 
+        status: 'In Progress', 
+        launchDate: '2026-10-01',
+        phases: [
+          { name: 'Phase 1: Site & Foundation', status: 'completed', description: 'Lease signed, financial model approved.' },
+          { name: 'Phase 2: Compliance & Buildout', status: 'in-progress', description: 'Fire inspection pending, flooring installation 80% complete.' },
+          { name: 'Phase 3: Hiring & Training', status: 'pending', description: 'Branch Manager hired. Awaiting educator recruitment.' },
+          { name: 'Phase 4: Marketing & Pre-Enrollment', status: 'pending', description: 'Waitlist activation and open house scheduled for late September.' }
+        ]
+      }
     ]);
 
     // Billing Engine State
@@ -1240,6 +1301,7 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
       { id: 'schedule',  label: 'Schedule', icon: '🗓️', roles: ['director', 'manager'] },
       { id: 'messages',  label: 'Messages', icon: '💬', badge: kpi.unreadParentMessages, roles: ['director', 'manager', 'investor'] },
       { id: 'invoices',  label: selectedCenterId === 'all' ? 'Finances' : 'Invoices', icon: '💳', roles: ['director', 'manager', 'investor'] },
+      { id: 'expansion', label: 'Expansion', icon: '🚀', roles: ['director', 'investor'] },
     ];
     if (selectedCenterId === 'all') tabs.push({ id: 'inventory', label: 'Inventory', icon: '📦', roles: ['director', 'manager'] });
     tabs.push({ id: 'cameras',   label: 'Live Cameras', icon: '🎥', roles: ['director', 'manager'] });
@@ -1928,6 +1990,11 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
         {/* ── INVENTORY TAB ── */}
         {activeTab === 'inventory' && selectedCenterId === 'all' && (
           <InventorySystem currentUser={currentUser} inventoryItems={inventoryItems} setInventoryItems={setInventoryItems} />
+        )}
+
+        {/* ── EXPANSION TAB ── */}
+        {activeTab === 'expansion' && (
+          <ExpansionDashboard expansionProjects={expansionProjects} />
         )}
         
         {/* Nia Overlay */}
