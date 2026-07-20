@@ -386,6 +386,25 @@ Your task: Provide a brief, professional, and actionable 2-sentence assessment. 
               </div>
             </div>
             
+            <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 18, color: 'var(--text-primary)', borderBottom: '1px solid var(--border-subtle)', paddingBottom: 12, marginBottom: 20, marginTop: 24 }}>Weekly Curriculum</h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div style={{ background: 'var(--bg-deep)', padding: 16, borderRadius: 10 }}>
+                <div style={{ fontSize: 12, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Theme of the Week</div>
+                <div style={{ fontSize: 14, color: 'var(--text-primary)' }}>Community Helpers (Doctors, Firefighters, Teachers)</div>
+              </div>
+              <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 20 }}>
+                <div style={{ flex: 1, background: 'var(--bg-deep)', padding: 16, borderRadius: 10 }}>
+                  <div style={{ fontSize: 12, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Faith Focus</div>
+                  <div style={{ fontSize: 13, color: 'var(--text-primary)' }}>📖 "Love one another."</div>
+                  <div style={{ fontSize: 13, color: 'var(--text-primary)', marginTop: 4 }}>🕊️ The Good Samaritan</div>
+                </div>
+                <div style={{ flex: 1, background: 'var(--bg-deep)', padding: 16, borderRadius: 10 }}>
+                  <div style={{ fontSize: 12, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Core Activity</div>
+                  <div style={{ fontSize: 13, color: 'var(--text-primary)' }}>🎨 Role-playing & Card Making</div>
+                </div>
+              </div>
+            </div>
+
             <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 18, color: 'var(--text-primary)', borderBottom: '1px solid var(--border-subtle)', paddingBottom: 12, marginBottom: 20, marginTop: 24 }}>Health Record & Notes</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.6, background: 'var(--bg-deep)', padding: 16, borderRadius: 10 }}>
@@ -637,6 +656,30 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
                 </div>
               </div>
             )}
+            {activeTab === 'learning' && (
+              <div style={{ animation: 'fadeIn 0.2s ease', height: '100%', display: 'flex', flexDirection: 'column' }}>
+                <h3 style={{ fontSize: 20, color: 'var(--text-primary)', marginBottom: 16, fontFamily: 'var(--font-display)' }}>Weekly Curriculum</h3>
+                <div style={{ background: 'var(--bg-elevated)', padding: 16, borderRadius: 12, border: '1px solid var(--border-subtle)', marginBottom: 16 }}>
+                  <div style={{ fontSize: 12, textTransform: 'uppercase', color: 'var(--mint)', marginBottom: 8, letterSpacing: '0.05em', fontWeight: 700 }}>Theme of the Week</div>
+                  <div style={{ fontSize: 18, color: 'var(--text-primary)', fontWeight: 700, marginBottom: 8 }}>Community Helpers</div>
+                  <div style={{ fontSize: 14, color: 'var(--text-secondary)' }}>This week we are learning about doctors, firefighters, and teachers!</div>
+                </div>
+                <div style={{ background: 'var(--bg-elevated)', padding: 16, borderRadius: 12, border: '1px solid var(--border-subtle)', marginBottom: 16 }}>
+                  <div style={{ fontSize: 12, textTransform: 'uppercase', color: 'var(--text-tertiary)', marginBottom: 8, letterSpacing: '0.05em' }}>Faith Curriculum</div>
+                  <div style={{ fontSize: 14, color: 'var(--text-primary)', marginBottom: 4 }}>📖 <span style={{ fontWeight: 600 }}>Memory Verse:</span> "Love one another."</div>
+                  <div style={{ fontSize: 14, color: 'var(--text-primary)' }}>🕊️ <span style={{ fontWeight: 600 }}>Bible Story:</span> The Good Samaritan</div>
+                </div>
+                <div style={{ background: 'var(--bg-elevated)', padding: 16, borderRadius: 12, border: '1px solid var(--border-subtle)' }}>
+                  <div style={{ fontSize: 12, textTransform: 'uppercase', color: 'var(--text-tertiary)', marginBottom: 8, letterSpacing: '0.05em' }}>Activity Focus</div>
+                  <ul style={{ margin: 0, paddingLeft: 20, color: 'var(--text-secondary)', fontSize: 14 }}>
+                    <li style={{ marginBottom: 4 }}>Role-playing in the "Hospital" corner</li>
+                    <li style={{ marginBottom: 4 }}>Writing "Thank You" cards to postmen</li>
+                    <li>Sorting objects by community roles</li>
+                  </ul>
+                </div>
+              </div>
+            )}
+
             {activeTab === 'feedback' && (
               <div style={{ animation: 'fadeIn 0.2s ease', height: '100%', display: 'flex', flexDirection: 'column' }}>
                 <h3 style={{ fontSize: 20, color: 'var(--text-primary)', marginBottom: 16, fontFamily: 'var(--font-display)' }}>Weekly Feedback</h3>
@@ -677,7 +720,8 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
           <div style={{ display: 'flex', borderTop: '1px solid var(--border-subtle)', background: 'var(--bg-elevated)', padding: '10px 0', paddingBottom: 'calc(10px + env(safe-area-inset-bottom))' }}>
             <div onClick={() => setActiveTab('home')} style={{ flex: 1, textAlign: 'center', color: activeTab === 'home' ? 'var(--mint)' : 'var(--text-secondary)', cursor: 'pointer', fontSize: 20 }}>🏠<div style={{ fontSize: 10, marginTop: 4 }}>Home</div></div>
             <div onClick={() => setActiveTab('messages')} style={{ flex: 1, textAlign: 'center', color: activeTab === 'messages' ? 'var(--mint)' : 'var(--text-secondary)', cursor: 'pointer', fontSize: 20 }}>💬<div style={{ fontSize: 10, marginTop: 4 }}>Messages</div></div>
-            <div onClick={() => setActiveTab('pickup')} style={{ flex: 1, textAlign: 'center', color: activeTab === 'pickup' ? 'var(--mint)' : 'var(--text-secondary)', cursor: 'pointer', fontSize: 20 }}>🪪<div style={{ fontSize: 10, marginTop: 4 }}>Pickup QR</div></div>
+            <div onClick={() => setActiveTab('pickup')} style={{ flex: 1, textAlign: 'center', color: activeTab === 'pickup' ? 'var(--mint)' : 'var(--text-secondary)', cursor: 'pointer', fontSize: 20 }}>🪪<div style={{ fontSize: 10, marginTop: 4 }}>Pickup</div></div>
+            <div onClick={() => setActiveTab('learning')} style={{ flex: 1, textAlign: 'center', color: activeTab === 'learning' ? 'var(--mint)' : 'var(--text-secondary)', cursor: 'pointer', fontSize: 20 }}>📚<div style={{ fontSize: 10, marginTop: 4 }}>Learning</div></div>
             <div onClick={() => setActiveTab('feedback')} style={{ flex: 1, textAlign: 'center', color: activeTab === 'feedback' ? 'var(--mint)' : 'var(--text-secondary)', cursor: 'pointer', fontSize: 20 }}>📝<div style={{ fontSize: 10, marginTop: 4 }}>Feedback</div></div>
           </div>
         </div>
@@ -1498,6 +1542,36 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
 
             <div style={{ marginTop: 40 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                <h3 style={{ fontSize: 20, color: 'var(--text-primary)', fontFamily: 'var(--font-display)' }}>Absence Follow-up</h3>
+                <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Today (After 9:30 AM)</div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 16 }}>
+                {childrenData.filter(c => !c.present && !c.isAlumni).map(child => (
+                  <div key={child.id} style={{ background: 'var(--bg-elevated)', padding: 16, borderRadius: 12, border: '1px solid #FFB400' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+                      <img src={child.photoUrl} alt={child.name} style={{ width: 40, height: 40, borderRadius: '50%' }} />
+                      <div>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>{child.name}</div>
+                        <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Absent Unexplained</div>
+                      </div>
+                    </div>
+                    <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 12 }}>
+                      Contact: {child.parent} ({child.parentPhone})
+                    </div>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button style={{ flex: 1, padding: '8px', background: 'var(--mint)', color: '#000', border: 'none', borderRadius: 6, fontWeight: 700, cursor: 'pointer' }}>Call Parent</button>
+                      <button style={{ flex: 1, padding: '8px', background: 'var(--bg-surface)', color: 'var(--text-primary)', border: 'none', borderRadius: 6, fontWeight: 600, cursor: 'pointer' }}>Log Reason</button>
+                    </div>
+                  </div>
+                ))}
+                {childrenData.filter(c => !c.present && !c.isAlumni).length === 0 && (
+                  <div style={{ color: 'var(--text-secondary)', fontSize: 14 }}>All scheduled children are accounted for.</div>
+                )}
+              </div>
+            </div>
+
+            <div style={{ marginTop: 40 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
                 <h3 style={{ fontSize: 20, color: 'var(--text-primary)', fontFamily: 'var(--font-display)' }}>Parent Pulse (CSAT)</h3>
                 <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Last 7 Days</div>
               </div>
@@ -1681,6 +1755,29 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
                     </div>
                   );
                 })}
+              </div>
+            </div>
+
+            {/* Risk & Continuity Checklist */}
+            <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: 20 }}>
+              <div style={{ fontSize: 12, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 16 }}>Risk & Continuity Readiness</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-deep)', padding: 12, borderRadius: 8 }}>
+                  <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>🔋 Device Charging Rota Validated</span>
+                  <input type="checkbox" checked={true} readOnly style={{ accentColor: 'var(--mint)', width: 16, height: 16 }} />
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-deep)', padding: 12, borderRadius: 8 }}>
+                  <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>📋 Paper Fallback Packs Stocked</span>
+                  <input type="checkbox" checked={true} readOnly style={{ accentColor: 'var(--mint)', width: 16, height: 16 }} />
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-deep)', padding: 12, borderRadius: 8 }}>
+                  <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>📞 Crisis Comm Playbook Distributed</span>
+                  <input type="checkbox" checked={true} readOnly style={{ accentColor: 'var(--mint)', width: 16, height: 16 }} />
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-deep)', padding: 12, borderRadius: 8 }}>
+                  <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>🛡️ Insurance Policies Active</span>
+                  <input type="checkbox" checked={true} readOnly style={{ accentColor: 'var(--mint)', width: 16, height: 16 }} />
+                </div>
               </div>
             </div>
 
