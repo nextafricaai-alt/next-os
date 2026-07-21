@@ -1878,7 +1878,12 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
           if (isMounted) {
             if (childrenData && childrenData.length > 0) {
                const updatedCenters = [...CENTERS];
-               updatedCenters[0].children = childrenData.sort((a,b) => a.id - b.id);
+               let mergedChildren = childrenData.sort((a,b) => a.id - b.id);
+               try {
+                 const localNewChildren = JSON.parse(localStorage.getItem('localNewChildren') || '[]');
+                 mergedChildren = [...mergedChildren, ...localNewChildren];
+               } catch (e) {}
+               updatedCenters[0].children = mergedChildren;
                setCentersData(updatedCenters);
             }
             if (messagesData && messagesData.length > 0) {
@@ -1978,7 +1983,16 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
     }, [centersData]);
     const [selectedChild, setSelectedChild] = React.useState(null);
     const [niaOpen, setNiaOpen] = React.useState(false);
-    const [centersData, setCentersData] = React.useState(CENTERS);
+    const [centersData, setCentersData] = React.useState(() => {
+      const initialCenters = [...CENTERS];
+      try {
+        const localNewChildren = JSON.parse(localStorage.getItem('localNewChildren') || '[]');
+        if (localNewChildren.length > 0 && initialCenters[0]) {
+          initialCenters[0] = { ...initialCenters[0], children: [...initialCenters[0].children, ...localNewChildren] };
+        }
+      } catch (e) {}
+      return initialCenters;
+    });
     const [onboardingOpen, setOnboardingOpen] = React.useState(false);
     const [onboardingReport, setOnboardingReport] = React.useState(null);
     const [onboardingBirthday, setOnboardingBirthday] = React.useState('');
@@ -3176,6 +3190,10 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
                               const targetId = selectedCenterId === 'all' ? prev[0].id : selectedCenterId;
                               return prev.map(c => c.id === targetId ? { ...c, children: [newChild, ...(c.children || [])] } : c);
                             });
+                            try {
+                              const existingLocal = JSON.parse(localStorage.getItem('localNewChildren') || '[]');
+                              localStorage.setItem('localNewChildren', JSON.stringify([newChild, ...existingLocal]));
+                            } catch (e) {}
                             setOnboardingReport(newChild);
                           } catch (err) {
                             console.error("Error submitting onboarding:", err);
