@@ -699,22 +699,32 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
                 <h3 style={{ fontSize: 18, color: 'var(--text-secondary)', marginBottom: 16, fontWeight: 600 }}>Activity Log</h3>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                   {[
-                    { time: '08:15 AM', icon: '👋', title: 'Checked In', desc: 'Arrived with a big smile.' },
-                    { time: '09:00 AM', icon: '🍎', title: 'Breakfast', desc: 'Ate all of the oatmeal and fruit.' },
-                    { time: '10:30 AM', icon: '🎨', title: 'Creative Play', desc: 'Participated in finger painting.' },
-                    { time: '12:00 PM', icon: '🍽️', title: 'Lunch', desc: 'Ate Lunch: Mac & Cheese.' },
-                    { time: '01:00 PM', icon: '💤', title: 'Nap Time', desc: child.nap ? 'Currently sleeping peacefully.' : 'Rested quietly.' },
+                    { time: '08:15 AM', icon: '👋', title: 'Checked In', desc: 'Arrived with a big smile.', type: 'standard' },
+                    { time: '09:00 AM', icon: '🍎', title: 'Breakfast', desc: 'Ate all of the oatmeal and fruit.', type: 'standard' },
+                    { time: '10:00 AM', icon: '🙏', title: 'Morning Prayer', desc: 'Participated beautifully in our morning devotion.', type: 'faith' },
+                    { time: '10:30 AM', icon: '🎨', title: 'Creative Play', desc: 'Participated in finger painting.', type: 'standard' },
+                    { time: '11:45 AM', icon: '🕊️', title: 'Observed Kindness', desc: 'Helped another child pick up dropped toys without being asked.', type: 'faith' },
+                    { time: '12:00 PM', icon: '🍽️', title: 'Lunch', desc: 'Ate Lunch: Mac & Cheese.', type: 'standard' },
+                    { time: '01:00 PM', icon: '💤', title: 'Nap Time', desc: child.nap ? 'Currently sleeping peacefully.' : 'Rested quietly.', type: 'standard' },
                   ].map((item, i) => (
-                    <div key={i} style={{ display: 'flex', gap: 16, background: 'var(--bg-elevated)', padding: 20, borderRadius: 16, border: '1px solid var(--border-subtle)' }}>
-                      <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'var(--bg-deep)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, flexShrink: 0 }}>
+                    <div key={i} style={{ 
+                      display: 'flex', gap: 16, padding: 20, borderRadius: 16, 
+                      background: item.type === 'faith' ? 'linear-gradient(145deg, rgba(255, 214, 0, 0.1), rgba(255, 214, 0, 0.02))' : 'var(--bg-elevated)', 
+                      border: item.type === 'faith' ? '1px solid rgba(255, 214, 0, 0.3)' : '1px solid var(--border-subtle)',
+                      boxShadow: item.type === 'faith' ? '0 4px 20px rgba(255, 214, 0, 0.05)' : 'none'
+                    }}>
+                      <div style={{ 
+                        width: 48, height: 48, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, flexShrink: 0,
+                        background: item.type === 'faith' ? 'rgba(255, 214, 0, 0.15)' : 'var(--bg-deep)'
+                      }}>
                         {item.icon}
                       </div>
                       <div>
                         <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginBottom: 4 }}>
-                          <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)' }}>{item.title}</span>
-                          <span style={{ fontSize: 12, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)' }}>{item.time}</span>
+                          <span style={{ fontSize: 16, fontWeight: 700, color: item.type === 'faith' ? '#FFD600' : 'var(--text-primary)' }}>{item.title}</span>
+                          <span style={{ fontSize: 12, color: item.type === 'faith' ? 'rgba(255, 214, 0, 0.6)' : 'var(--text-tertiary)', fontFamily: 'var(--font-mono)' }}>{item.time}</span>
                         </div>
-                        <div style={{ fontSize: 14, color: 'var(--text-secondary)' }}>{item.desc}</div>
+                        <div style={{ fontSize: 14, color: item.type === 'faith' ? 'rgba(255, 255, 255, 0.9)' : 'var(--text-secondary)' }}>{item.desc}</div>
                       </div>
                     </div>
                   ))}
@@ -746,7 +756,73 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
 
             {activeTab === 'learning' && (
               <div style={{ animation: 'fadeIn 0.3s ease' }}>
-                <h1 style={{ fontSize: 32, fontFamily: 'var(--font-display)', color: 'var(--text-primary)', marginBottom: 24 }}>Weekly Curriculum</h1>
+                <h1 style={{ fontSize: 32, fontFamily: 'var(--font-display)', color: 'var(--text-primary)', marginBottom: 24 }}>Growth & Curriculum</h1>
+                
+                {/* Milestone Rings */}
+                <h3 style={{ fontSize: 18, color: 'var(--text-secondary)', marginBottom: 16, fontWeight: 600 }}>Developmental Milestones</h3>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 16, marginBottom: 32 }}>
+                  {[
+                    { label: 'Cognitive', pct: 85, color: '#00C2FF' },
+                    { label: 'Physical', pct: 92, color: '#00E676' },
+                    { label: 'Social', pct: 78, color: '#FF9100' },
+                    { label: 'Language', pct: 88, color: '#E040FB' },
+                  ].map(m => {
+                    const radius = 40;
+                    const circumference = 2 * Math.PI * radius;
+                    const offset = circumference - (m.pct / 100) * circumference;
+                    return (
+                      <div key={m.label} style={{ background: 'var(--bg-elevated)', padding: '24px 16px', borderRadius: 16, border: '1px solid var(--border-subtle)', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
+                        <div style={{ position: 'relative', width: 100, height: 100, marginBottom: 12 }}>
+                          <svg width="100" height="100" viewBox="0 0 100 100" style={{ transform: 'rotate(-90deg)' }}>
+                            <circle cx="50" cy="50" r={radius} fill="none" stroke="var(--bg-deep)" strokeWidth="8" />
+                            <circle cx="50" cy="50" r={radius} fill="none" stroke={m.color} strokeWidth="8" strokeDasharray={circumference} strokeDashoffset={offset} strokeLinecap="round" style={{ transition: 'stroke-dashoffset 1.5s ease-out' }} />
+                          </svg>
+                          <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, fontWeight: 700, color: 'var(--text-primary)' }}>
+                            {m.pct}%
+                          </div>
+                        </div>
+                        <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-secondary)' }}>{m.label}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* WHO Growth Curve */}
+                <h3 style={{ fontSize: 18, color: 'var(--text-secondary)', marginBottom: 16, fontWeight: 600 }}>WHO Growth Tracker</h3>
+                <div style={{ background: 'var(--bg-elevated)', padding: 24, borderRadius: 16, border: '1px solid var(--border-subtle)', marginBottom: 32, overflowX: 'auto' }}>
+                  <div style={{ minWidth: 400 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+                      <div style={{ fontSize: 14, color: 'var(--text-primary)' }}>Height (cm) over 12 months</div>
+                      <div style={{ display: 'flex', gap: 12 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}><div style={{ width: 12, height: 4, background: 'rgba(255,255,255,0.2)' }}></div><span style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>WHO Median</span></div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}><div style={{ width: 12, height: 4, background: 'var(--mint)' }}></div><span style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>{child.name}</span></div>
+                      </div>
+                    </div>
+                    <svg width="100%" height="150" viewBox="0 0 400 150" preserveAspectRatio="none">
+                      {/* Grid lines */}
+                      <line x1="0" y1="25" x2="400" y2="25" stroke="var(--border-default)" strokeDasharray="4 4" />
+                      <line x1="0" y1="75" x2="400" y2="75" stroke="var(--border-default)" strokeDasharray="4 4" />
+                      <line x1="0" y1="125" x2="400" y2="125" stroke="var(--border-default)" strokeDasharray="4 4" />
+                      
+                      {/* WHO Median Band */}
+                      <path d="M 0,90 Q 100,85 200,80 T 400,60" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="12" strokeLinecap="round" />
+                      
+                      {/* Child Curve */}
+                      <path d="M 0,100 Q 100,90 200,80 T 400,55" fill="none" stroke="var(--mint)" strokeWidth="4" strokeLinecap="round" />
+                      
+                      {/* Data Points */}
+                      <circle cx="0" cy="100" r="5" fill="var(--mint)" />
+                      <circle cx="200" cy="80" r="5" fill="var(--mint)" />
+                      <circle cx="400" cy="55" r="5" fill="var(--bg-deep)" stroke="var(--mint)" strokeWidth="3" />
+                      
+                      {/* Labels */}
+                      <text x="0" y="145" fill="var(--text-tertiary)" fontSize="12">Jan</text>
+                      <text x="190" y="145" fill="var(--text-tertiary)" fontSize="12">Jun</text>
+                      <text x="375" y="145" fill="var(--text-tertiary)" fontSize="12">Dec</text>
+                    </svg>
+                  </div>
+                </div>
+
                 <div style={{ display: 'grid', gap: 20 }}>
                   <div style={{ background: 'var(--bg-elevated)', padding: 24, borderRadius: 16, border: '1px solid var(--border-subtle)' }}>
                     <div style={{ fontSize: 13, textTransform: 'uppercase', color: 'var(--mint)', marginBottom: 8, letterSpacing: '0.05em', fontWeight: 700 }}>Theme of the Week</div>
@@ -2039,6 +2115,60 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
                 }} className="quick-action-btn">{label}</button>
               ))}
             </div>
+            {/* Expansion Readiness Gate */}
+            <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: 20, gridColumn: isMobile ? '1' : '1 / -1' }}>
+              <div style={{ fontSize: 12, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 16 }}>Expansion Readiness Gate (6-Month Trend)</div>
+              {(() => {
+                const past6Months = [
+                  { month: 'Feb', score: 78 },
+                  { month: 'Mar', score: 81 },
+                  { month: 'Apr', score: 84 },
+                  { month: 'May', score: 87 },
+                  { month: 'Jun', score: 89 },
+                  { month: 'Jul', score: 91 }
+                ];
+                const avgScore = Math.round(past6Months.reduce((a, b) => a + b.score, 0) / 6);
+                const isReady = avgScore >= 85;
+                
+                return (
+                  <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 32, alignItems: 'center' }}>
+                    <div style={{ flex: 1, width: '100%' }}>
+                      <div style={{ display: 'flex', alignItems: 'flex-end', height: 120, gap: 12, borderBottom: '1px solid var(--border-default)', paddingBottom: 8, position: 'relative' }}>
+                        {/* 85 Threshold Line */}
+                        <div style={{ position: 'absolute', bottom: 'calc(85% + 8px)', left: 0, width: '100%', borderTop: '1px dashed #FFB400', zIndex: 1 }} />
+                        <span style={{ position: 'absolute', bottom: 'calc(85% + 12px)', left: 0, fontSize: 10, color: '#FFB400', fontFamily: 'var(--font-mono)' }}>85+ THRESHOLD</span>
+                        
+                        {past6Months.map(m => (
+                          <div key={m.month} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, zIndex: 2 }}>
+                            <div style={{ fontSize: 11, color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)' }}>{m.score}</div>
+                            <div style={{ width: '100%', background: m.score >= 85 ? 'var(--mint)' : 'var(--bg-hover)', height: `${m.score}%`, borderRadius: '4px 4px 0 0', transition: 'height 1s ease-out' }} />
+                          </div>
+                        ))}
+                      </div>
+                      <div style={{ display: 'flex', gap: 12, paddingTop: 8 }}>
+                        {past6Months.map(m => (
+                          <div key={m.month} style={{ flex: 1, textAlign: 'center', fontSize: 11, color: 'var(--text-tertiary)' }}>{m.month}</div>
+                        ))}
+                      </div>
+                    </div>
+                    
+                    <div style={{ width: isMobile ? '100%' : 240, background: isReady ? 'rgba(0, 252, 143, 0.05)' : 'rgba(255, 71, 87, 0.05)', border: `1px solid ${isReady ? 'rgba(0, 252, 143, 0.2)' : 'rgba(255, 71, 87, 0.2)'}`, borderRadius: 12, padding: 20, textAlign: 'center' }}>
+                      <div style={{ fontSize: 32, marginBottom: 8 }}>{isReady ? '🔓' : '🔒'}</div>
+                      <div style={{ fontSize: 14, color: isReady ? 'var(--mint)' : '#FF4757', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>
+                        {isReady ? 'Expansion Unlocked' : 'Expansion Locked'}
+                      </div>
+                      <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+                        6-Mo Avg: <span style={{ color: 'var(--text-primary)', fontWeight: 700 }}>{avgScore}/100</span>
+                      </div>
+                      {!isReady && (
+                        <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginTop: 8 }}>Must maintain 85+ average to green-light next branch.</div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+
             {/* Growth Engine KPI */}
             <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: 20 }}>
               <div style={{ fontSize: 12, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 16 }}>Growth Engine Pipeline</div>
