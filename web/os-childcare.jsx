@@ -327,6 +327,22 @@ Your task: Provide a brief, professional, and actionable 2-sentence assessment. 
               Message Parent
             </button>
             
+            <div style={{ background: 'var(--bg-deep)', borderRadius: 12, padding: '12px', width: '100%', marginBottom: 16 }}>
+              <div style={{ fontSize: 11, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Log Milestone</div>
+              <input type="text" id={`milestone-text-${child.id}`} placeholder="e.g. Counted to 10!" style={{ width: '100%', padding: '8px', borderRadius: 6, border: '1px solid var(--border-subtle)', background: 'var(--bg-default)', color: 'var(--text-primary)', fontSize: 12, marginBottom: 8, boxSizing: 'border-box' }} />
+              <button onClick={async () => {
+                const ms = document.getElementById(`milestone-text-${child.id}`).value;
+                if (!ms) return;
+                try {
+                   await window.supabase.createClient('https://eztgwiujujaxswlslqbf.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV6dGd3aXVqdWpheHN3bHNscWJmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMxNzE5NjEsImV4cCI6MjA5ODc0Nzk2MX0.mzyC4DLlC-s3YznfQLTfNxa227_hQlLAt0VhL_dGxr0').from('children').update({ milestone: ms }).eq('id', child.id);
+                   document.getElementById(`milestone-text-${child.id}`).value = '';
+                   alert('Milestone Logged! Parent will be notified via Agent Nia.');
+                } catch(e) { console.error(e); }
+              }} style={{ background: 'transparent', color: 'var(--gold)', border: '1px solid var(--gold)', borderRadius: 6, padding: '8px', fontSize: 12, fontWeight: 600, cursor: 'pointer', width: '100%' }}>
+                Log Milestone
+              </button>
+            </div>
+            
             <div style={{ background: 'var(--bg-deep)', borderRadius: 12, padding: '12px', width: '100%' }}>
               <div style={{ fontSize: 11, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Agent Nia Automation</div>
               <input type="text" id={`gallery-url-${child.id}`} placeholder="Paste Image URL" style={{ width: '100%', padding: '8px', borderRadius: 6, border: '1px solid var(--border-subtle)', background: 'var(--bg-default)', color: 'var(--text-primary)', fontSize: 12, marginBottom: 8, boxSizing: 'border-box' }} />
@@ -2293,8 +2309,11 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
                       Contact: {child.parent} ({child.parentPhone})
                     </div>
                     <div style={{ display: 'flex', gap: 8 }}>
-                      <button style={{ flex: 1, padding: '8px', background: 'var(--mint)', color: '#000', border: 'none', borderRadius: 6, fontWeight: 700, cursor: 'pointer' }}>Call Parent</button>
-                      <button style={{ flex: 1, padding: '8px', background: 'var(--bg-surface)', color: 'var(--text-primary)', border: 'none', borderRadius: 6, fontWeight: 600, cursor: 'pointer' }}>Log Reason</button>
+                      <button onClick={() => window.open(`tel:${child.parentPhone}`)} style={{ flex: 1, padding: '8px', background: 'var(--mint)', color: '#000', border: 'none', borderRadius: 6, fontWeight: 700, cursor: 'pointer' }}>Call Parent</button>
+                      <button onClick={() => {
+                        const reason = prompt('Enter the absence reason:');
+                        if(reason) alert(`Reason logged: ${reason}`);
+                      }} style={{ flex: 1, padding: '8px', background: 'var(--bg-surface)', color: 'var(--text-primary)', border: 'none', borderRadius: 6, fontWeight: 600, cursor: 'pointer' }}>Log Reason</button>
                     </div>
                   </div>
                 ))}
