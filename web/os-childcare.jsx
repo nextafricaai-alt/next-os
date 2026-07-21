@@ -2159,7 +2159,18 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
              
              <div style={{ textAlign: 'left', background: 'rgba(0,0,0,0.3)', padding: 16, borderRadius: 12 }}>
                <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 8 }}><strong style={{ color: '#fff' }}>Primary Parent:</strong> {child.parent}</div>
-               <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}><strong style={{ color: '#fff' }}>Authorized Pickups:</strong> {child.authorizedPickups || 'Parents only'}</div>
+               <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: child.carePlan !== 'monthly' ? 8 : 0 }}><strong style={{ color: '#fff' }}>Authorized Pickups:</strong> {child.authorizedPickups || 'Parents only'}</div>
+               {child.carePlan !== 'monthly' && (
+                 <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+                   <strong style={{ color: '#fff' }}>Payment Status:</strong>{' '}
+                   <span style={{ 
+                     color: child.invoiceStatus === 'paid' ? 'var(--mint)' : child.invoiceStatus === 'due' ? '#FFB400' : '#FF4757',
+                     fontWeight: 700, textTransform: 'uppercase'
+                   }}>
+                     {child.invoiceStatus}
+                   </span>
+                 </div>
+               )}
              </div>
           </div>
         </div>
@@ -2979,7 +2990,7 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
               {!onboardingReport ? (
                 <React.Fragment>
                   <h2 style={{ fontSize: 22, fontWeight: 800, margin: '0 0 24px', color: 'var(--text-primary)', fontFamily: 'var(--font-display)' }}>Onboard New Child</h2>
-                  <form onSubmit={e => {
+                    <form onSubmit={e => {
                     e.preventDefault();
                     const fd = new FormData(e.target);
                     const newChild = {
@@ -2990,13 +3001,14 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
                       authorizedPickups: fd.get('authorizedPickups') || 'Parents Only',
                       sports: fd.get('sports') || 'None',
                       mood: '😊', present: true, nap: false, milestone: '',
-                      invoiceStatus: 'paid', healthRecord: 'No current concerns.',
+                      invoiceStatus: 'due', healthRecord: 'No current concerns.',
                       allergies: fd.get('allergies') || 'None',
                       completedVaccines: (fd.get('completedVaccines') || '').split(',').map(s => s.trim()),
-                      favouriteMeals: 'To be determined', birthday: fd.get('birthday') || 'TBD',
+                      favouriteMeals: 'To be determined', birthday: fd.get('birthday'),
                       height: '-', weight: '-', activeScore: 90, enrollmentDate: new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
                       photoUrl: fd.get('photoUrl') || 'https://images.unsplash.com/photo-1596461404969-9ae70f2830c1?ixlib=rb-4.0.3&auto=format&fit=crop&w=200&q=80',
-                      carePlan: fd.get('carePlan') || 'monthly'
+                      carePlan: fd.get('carePlan') || 'monthly',
+                      paymentMethod: fd.get('paymentMethod') || 'mobile_money'
                     };
                     setChildrenData([newChild, ...childrenData]);
                     setOnboardingReport(newChild);
@@ -3005,14 +3017,22 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
                       <div style={{ gridColumn: '1 / -1' }}><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Digital Passport Photo URL</label><input name="photoUrl" placeholder="https://..." style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }} /></div>
                       <div><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Full Name</label><input required name="name" style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }} /></div>
                       <div><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Age (years)</label><input required name="age" type="number" style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }} /></div>
+                      <div><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Birthday</label><input required name="birthday" type="date" style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }} /></div>
                       <div>
-                        <label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Care Plan</label>
+                        <label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Care Package</label>
                         <select name="carePlan" style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }}>
                           <option value="monthly">Monthly Care (Everyday)</option>
+                          <option value="weekly">Weekly Care</option>
                           <option value="daily">Daily Care (Drop-in)</option>
                         </select>
                       </div>
-                      <div><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Birthday</label><input name="birthday" type="date" style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }} /></div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Preferred Payment Method</label>
+                        <select name="paymentMethod" style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }}>
+                          <option value="mobile_money">Mobile Money</option>
+                          <option value="card">Card Payment</option>
+                        </select>
+                      </div>
                       <div><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Primary Parent</label><input required name="parent" style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }} /></div>
                       <div><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Secondary Parent</label><input name="secondaryParent" placeholder="Optional" style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }} /></div>
                       <div><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Kids Sports</label><input name="sports" placeholder="e.g. Swimming, Football" style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }} /></div>
@@ -3047,6 +3067,8 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
                           <div><span style={{ color: 'var(--text-tertiary)' }}>Auth Pickups:</span> <span style={{ color: '#fff' }}>{onboardingReport.authorizedPickups}</span></div>
                           <div><span style={{ color: 'var(--text-tertiary)' }}>Allergies:</span> <span style={{ color: '#FF4757' }}>{onboardingReport.allergies}</span></div>
                           <div><span style={{ color: 'var(--text-tertiary)' }}>Care Plan:</span> <span style={{ color: '#fff', textTransform: 'capitalize' }}>{onboardingReport.carePlan}</span></div>
+                          <div><span style={{ color: 'var(--text-tertiary)' }}>Birthday:</span> <span style={{ color: '#fff' }}>{onboardingReport.birthday}</span></div>
+                          <div style={{ gridColumn: '1 / -1' }}><span style={{ color: 'var(--text-tertiary)' }}>Payment Method:</span> <span style={{ color: '#fff' }}>{onboardingReport.paymentMethod === 'mobile_money' ? '📱 Mobile Money' : '💳 Card Payment'}</span></div>
                           <div style={{ gridColumn: '1 / -1' }}><span style={{ color: 'var(--text-tertiary)' }}>Vaccines:</span> <span style={{ color: '#fff' }}>{onboardingReport.completedVaccines.join(', ')}</span></div>
                         </div>
                       </div>
@@ -3126,7 +3148,18 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
                           </div>
                         </div>
                         <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 8 }}><strong style={{ color: 'var(--text-primary)' }}>Primary Parent:</strong> {c.parent}</div>
-                        <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 16 }}><strong style={{ color: 'var(--text-primary)' }}>Authorized Pickups:</strong> {c.authorizedPickups || 'Parents only'}</div>
+                        <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: c.carePlan !== 'monthly' ? 8 : 16 }}><strong style={{ color: 'var(--text-primary)' }}>Authorized Pickups:</strong> {c.authorizedPickups || 'Parents only'}</div>
+                        {c.carePlan !== 'monthly' && (
+                          <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 16 }}>
+                            <strong style={{ color: 'var(--text-primary)' }}>Payment Status:</strong>{' '}
+                            <span style={{ 
+                              color: c.invoiceStatus === 'paid' ? 'var(--mint)' : c.invoiceStatus === 'due' ? '#FFB400' : '#FF4757',
+                              fontWeight: 700, textTransform: 'uppercase'
+                            }}>
+                              {c.invoiceStatus}
+                            </span>
+                          </div>
+                        )}
                         
                         <button onClick={() => { handleSignOut(c); setQrScannerOpen(false); setScannedChildId(null); }} style={{ width: '100%', padding: 12, borderRadius: 8, border: 'none', background: 'var(--mint)', color: '#000', fontWeight: 700, cursor: 'pointer' }}>Confirm & Sign Out</button>
                       </div>
