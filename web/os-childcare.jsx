@@ -3067,90 +3067,105 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
               {!onboardingReport ? (
                 <React.Fragment>
                   <h2 style={{ fontSize: 22, fontWeight: 800, margin: '0 0 24px', color: 'var(--text-primary)', fontFamily: 'var(--font-display)' }}>Onboard New Child</h2>
-                    <form onSubmit={e => {
-                    e.preventDefault();
-                    const fd = new FormData(e.target);
-                    const newChild = {
-                      id: 'child-new-' + Date.now(),
-                      name: fd.get('name'), age: fd.get('age') + ' yrs',
-                      parent: fd.get('parent'), secondaryParent: fd.get('secondaryParent') || 'N/A',
-                      parentPhone: '256700000000',
-                      authorizedPickups: fd.get('authorizedPickups') || 'Parents Only',
-                      sports: fd.get('sports') || 'None',
-                      mood: '😊', present: true, nap: false, milestone: '',
-                      invoiceStatus: 'due', healthRecord: 'No current concerns.',
-                      allergies: fd.get('allergies') || 'None',
-                      completedVaccines: (fd.get('completedVaccines') || '').split(',').map(s => s.trim()),
-                      favouriteMeals: 'To be determined', birthday: fd.get('birthday'),
-                      height: '-', weight: '-', activeScore: 90, enrollmentDate: new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
-                      photoUrl: fd.get('photoUrl') || 'https://images.unsplash.com/photo-1596461404969-9ae70f2830c1?ixlib=rb-4.0.3&auto=format&fit=crop&w=200&q=80',
-                      carePlan: fd.get('carePlan') || 'monthly',
-                      paymentMethod: fd.get('paymentMethod') || 'mobile_money'
-                    };
-                    setChildrenData([newChild, ...childrenData]);
-                    setOnboardingReport(newChild);
-                  }}>
-                    <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 16, marginBottom: 16 }}>
-                      <div style={{ gridColumn: '1 / -1' }}><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Digital Passport Photo URL (Optional)</label><input name="photoUrl" placeholder="https://..." style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }} /></div>
-                      <div><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Full Name</label><input name="name" style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }} /></div>
-                      <div><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Age (years)</label><input name="age" type="number" value={onboardingAgeYears} onChange={e => setOnboardingAgeYears(e.target.value)} style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }} /></div>
-                      <div><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Birthday</label><input name="birthday" type="date" value={onboardingBirthday} onChange={e => setOnboardingBirthday(e.target.value)} style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }} /></div>
-                      <div>
-                        <label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Care Package</label>
-                        <select name="carePlan" style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }}>
-                          <option value="monthly">Monthly Care (Everyday)</option>
-                          <option value="weekly">Weekly Care</option>
-                          <option value="daily">Daily Care (Drop-in)</option>
-                        </select>
+                    <form id="onboardingForm" onSubmit={e => e.preventDefault()}>
+                      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 16, marginBottom: 16 }}>
+                        <div style={{ gridColumn: '1 / -1' }}><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Digital Passport Photo URL (Optional)</label><input name="photoUrl" placeholder="https://..." style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }} /></div>
+                        <div><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Full Name</label><input name="name" style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }} /></div>
+                        <div><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Age (years)</label><input name="age" type="number" value={onboardingAgeYears} onChange={e => setOnboardingAgeYears(e.target.value)} style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }} /></div>
+                        <div><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Birthday</label><input name="birthday" type="date" value={onboardingBirthday} onChange={e => setOnboardingBirthday(e.target.value)} style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }} /></div>
+                        <div>
+                          <label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Care Package</label>
+                          <select name="carePlan" style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }}>
+                            <option value="monthly">Monthly Care (Everyday)</option>
+                            <option value="weekly">Weekly Care</option>
+                            <option value="daily">Daily Care (Drop-in)</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Preferred Payment Method</label>
+                          <select name="paymentMethod" style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }}>
+                            <option value="mobile_money">Mobile Money</option>
+                            <option value="card">Card Payment</option>
+                          </select>
+                        </div>
+                        <div><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Primary Parent</label><input name="parent" style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }} /></div>
+                        <div><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Secondary Parent</label><input name="secondaryParent" placeholder="Optional" style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }} /></div>
+                        <div><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Kids Sports</label><input name="sports" placeholder="e.g. Swimming, Football" style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }} /></div>
+                        <div style={{ gridColumn: '1 / -1' }}><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Authorized Pick-ups</label><input name="authorizedPickups" placeholder="Names & Phone Numbers" style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }} /></div>
+                        <div style={{ gridColumn: '1 / -1' }}><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Allergies</label><input name="allergies" placeholder="e.g. Peanuts" style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }} /></div>
+                        <div style={{ gridColumn: '1 / -1' }}>
+                          <label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Completed Vaccines (Based on Age)</label>
+                          {(() => {
+                            let ageInWeeks = 0;
+                            if (onboardingBirthday) {
+                              const ms = Date.now() - new Date(onboardingBirthday).getTime();
+                              ageInWeeks = ms / (1000 * 60 * 60 * 24 * 7);
+                            } else if (onboardingAgeYears) {
+                              ageInWeeks = parseFloat(onboardingAgeYears) * 52;
+                            }
+                            const expectedVaccines = UNEPI_SCHEDULE.filter(v => v.ageWeeks <= ageInWeeks);
+                            return (
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, background: 'var(--bg-default)', padding: 12, borderRadius: 8, border: '1px solid var(--border-default)' }}>
+                                {expectedVaccines.map(v => (
+                                  <label key={v.name} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text-secondary)', cursor: 'pointer' }}>
+                                    <input 
+                                      type="checkbox" 
+                                      checked={onboardingVaccines.includes(v.name)}
+                                      onChange={(e) => {
+                                        if (e.target.checked) setOnboardingVaccines([...onboardingVaccines, v.name]);
+                                        else setOnboardingVaccines(onboardingVaccines.filter(name => name !== v.name));
+                                      }}
+                                    />
+                                    {v.name}
+                                  </label>
+                                ))}
+                                {expectedVaccines.length === 0 && <span style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>Please enter Age or Birthday to see expected vaccines.</span>}
+                              </div>
+                            );
+                          })()}
+                          <input type="hidden" name="completedVaccines" value={onboardingVaccines.join(', ')} />
+                        </div>
                       </div>
-                      <div>
-                        <label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Preferred Payment Method</label>
-                        <select name="paymentMethod" style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }}>
-                          <option value="mobile_money">Mobile Money</option>
-                          <option value="card">Card Payment</option>
-                        </select>
-                      </div>
-                      <div><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Primary Parent</label><input name="parent" style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }} /></div>
-                      <div><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Secondary Parent</label><input name="secondaryParent" placeholder="Optional" style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }} /></div>
-                      <div><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Kids Sports</label><input name="sports" placeholder="e.g. Swimming, Football" style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }} /></div>
-                      <div style={{ gridColumn: '1 / -1' }}><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Authorized Pick-ups</label><input name="authorizedPickups" placeholder="Names & Phone Numbers" style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }} /></div>
-                      <div style={{ gridColumn: '1 / -1' }}><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Allergies</label><input name="allergies" placeholder="e.g. Peanuts" style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }} /></div>
-                      <div style={{ gridColumn: '1 / -1' }}>
-                        <label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Completed Vaccines (Based on Age)</label>
-                        {(() => {
-                          let ageInWeeks = 0;
-                          if (onboardingBirthday) {
-                            const ms = Date.now() - new Date(onboardingBirthday).getTime();
-                            ageInWeeks = ms / (1000 * 60 * 60 * 24 * 7);
-                          } else if (onboardingAgeYears) {
-                            ageInWeeks = parseFloat(onboardingAgeYears) * 52;
+                      <button 
+                        type="button" 
+                        onClick={() => {
+                          try {
+                            const formElement = document.getElementById('onboardingForm');
+                            if (!formElement) return;
+                            const fd = new FormData(formElement);
+                            const newChild = {
+                              id: 'child-new-' + Date.now(),
+                              name: fd.get('name') || 'Unnamed Child', 
+                              age: (fd.get('age') || '0') + ' yrs',
+                              parent: fd.get('parent') || 'Unknown', 
+                              secondaryParent: fd.get('secondaryParent') || 'N/A',
+                              parentPhone: '256700000000',
+                              authorizedPickups: fd.get('authorizedPickups') || 'Parents Only',
+                              sports: fd.get('sports') || 'None',
+                              mood: '😊', present: true, nap: false, milestone: '',
+                              invoiceStatus: 'due', healthRecord: 'No current concerns.',
+                              allergies: fd.get('allergies') || 'None',
+                              completedVaccines: (fd.get('completedVaccines') || '').split(',').map(s => s.trim()),
+                              favouriteMeals: 'To be determined', 
+                              birthday: fd.get('birthday') || new Date().toISOString().split('T')[0],
+                              height: '-', weight: '-', activeScore: 90, enrollmentDate: new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+                              photoUrl: fd.get('photoUrl') || 'https://images.unsplash.com/photo-1596461404969-9ae70f2830c1?ixlib=rb-4.0.3&auto=format&fit=crop&w=200&q=80',
+                              carePlan: fd.get('carePlan') || 'monthly',
+                              paymentMethod: fd.get('paymentMethod') || 'mobile_money'
+                            };
+                            setChildrenData([newChild, ...childrenData]);
+                            setOnboardingReport(newChild);
+                          } catch (err) {
+                            console.error("Error submitting onboarding:", err);
+                            alert("Something went wrong processing the form. Please try again.");
                           }
-                          const expectedVaccines = UNEPI_SCHEDULE.filter(v => v.ageWeeks <= ageInWeeks);
-                          return (
-                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, background: 'var(--bg-default)', padding: 12, borderRadius: 8, border: '1px solid var(--border-default)' }}>
-                              {expectedVaccines.map(v => (
-                                <label key={v.name} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text-secondary)', cursor: 'pointer' }}>
-                                  <input 
-                                    type="checkbox" 
-                                    checked={onboardingVaccines.includes(v.name)}
-                                    onChange={(e) => {
-                                      if (e.target.checked) setOnboardingVaccines([...onboardingVaccines, v.name]);
-                                      else setOnboardingVaccines(onboardingVaccines.filter(name => name !== v.name));
-                                    }}
-                                  />
-                                  {v.name}
-                                </label>
-                              ))}
-                              {expectedVaccines.length === 0 && <span style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>Please enter Age or Birthday to see expected vaccines.</span>}
-                            </div>
-                          );
-                        })()}
-                        <input type="hidden" name="completedVaccines" value={onboardingVaccines.join(', ')} />
-                      </div>
-                    </div>
-                    <button type="submit" style={{ width: '100%', background: 'var(--mint)', color: '#060012', border: 'none', borderRadius: 8, padding: '12px', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font-body)', marginTop: 8 }}>Complete Onboarding</button>
-                  </form>
-                </React.Fragment>
+                        }} 
+                        style={{ width: '100%', background: 'var(--mint)', color: '#060012', border: 'none', borderRadius: 8, padding: '12px', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font-body)', marginTop: 8 }}
+                      >
+                        Complete Onboarding
+                      </button>
+                    </form>
+                  </React.Fragment>
               ) : (
                 <React.Fragment>
                   <h2 style={{ fontSize: 22, fontWeight: 800, margin: '0 0 8px', color: 'var(--mint)', fontFamily: 'var(--font-display)' }}>Onboarding Complete! 🎉</h2>
