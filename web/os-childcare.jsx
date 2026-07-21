@@ -2245,7 +2245,13 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
     }
 
     if (currentUser.role === 'parent') {
-      return <ParentApp user={currentUser} childrenData={childrenData} setChildrenData={setChildrenData} scheduleData={TODAY_SCHEDULE} onLogout={() => setCurrentUser(null)} globalMessages={globalMessages} setGlobalMessages={setGlobalMessages} setParentFeedback={setParentFeedback} />;
+      const handleUpdateChildrenData = (updater) => {
+        setCentersData(prev => prev.map(c => ({
+          ...c,
+          children: typeof updater === 'function' ? updater(c.children || []) : updater
+        })));
+      };
+      return <ParentApp user={currentUser} childrenData={childrenData} setChildrenData={handleUpdateChildrenData} scheduleData={TODAY_SCHEDULE} onLogout={() => setCurrentUser(null)} globalMessages={globalMessages} setGlobalMessages={setGlobalMessages} setParentFeedback={setParentFeedback} />;
     }
 
     const tabs = [
@@ -3153,7 +3159,10 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
                               carePlan: fd.get('carePlan') || 'monthly',
                               paymentMethod: fd.get('paymentMethod') || 'mobile_money'
                             };
-                            setChildrenData([newChild, ...childrenData]);
+                            setCentersData(prev => {
+                              const targetId = selectedCenterId === 'all' ? prev[0].id : selectedCenterId;
+                              return prev.map(c => c.id === targetId ? { ...c, children: [newChild, ...(c.children || [])] } : c);
+                            });
                             setOnboardingReport(newChild);
                           } catch (err) {
                             console.error("Error submitting onboarding:", err);
