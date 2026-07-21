@@ -1846,6 +1846,122 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
   const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV6dGd3aXVqdWpheHN3bHNscWJmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMxNzE5NjEsImV4cCI6MjA5ODc0Nzk2MX0.mzyC4DLlC-s3YznfQLTfNxa227_hQlLAt0VhL_dGxr0';
   const supabase = window.supabase ? window.supabase.createClient(supabaseUrl, supabaseKey) : null;
 
+// ── AuthScreen Component ──────────────────────────────────────────────────
+  const AuthScreen = ({ supabase, onLogin }) => {
+    const [mode, setMode] = React.useState('login'); // 'login' | 'signup' | 'otp'
+    const [email, setEmail] = React.useState('');
+    const [password, setPassword] = React.useState('');
+    const [otpCode, setOtpCode] = React.useState('');
+    const [role, setRole] = React.useState('parent');
+    const [loading, setLoading] = React.useState(false);
+    const [error, setError] = React.useState(null);
+
+    const handleAuth = async (e) => {
+      e.preventDefault();
+      if (!supabase) return setError("System disconnected");
+      setLoading(true); setError(null);
+      try {
+        if (mode === 'signup') {
+          const { data, error: signUpErr } = await supabase.auth.signUp({
+            email, password, options: { data: { role } }
+          });
+          if (signUpErr) throw signUpErr;
+          setMode('otp'); // proceed to enter OTP
+        } else if (mode === 'login') {
+          const { data, error: signInErr } = await supabase.auth.signInWithPassword({
+            email, password
+          });
+          if (signInErr) {
+            if (signInErr.message.includes('Email not confirmed')) setMode('otp');
+            else throw signInErr;
+          } else if (data.session) {
+            onLogin(data.user);
+          } else {
+            setMode('otp');
+          }
+        }
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    const handleVerifyOtp = async (e) => {
+      e.preventDefault();
+      if (!supabase) return;
+      setLoading(true); setError(null);
+      try {
+        const { data, error: otpErr } = await supabase.auth.verifyOtp({ email, token: otpCode, type: 'email' });
+        if (otpErr) throw otpErr;
+        if (data.session) onLogin(data.user);
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    return (
+      <div style={{ width: '100%', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-deepest)', fontFamily: 'var(--font-body)', padding: 20 }}>
+        <div style={{ background: 'var(--bg-default)', padding: 40, borderRadius: 16, border: '1px solid var(--border-subtle)', width: '100%', maxWidth: 420, boxShadow: '0 20px 40px rgba(0,0,0,0.5)' }}>
+          <div style={{ textAlign: 'center', marginBottom: 32 }}>
+            <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 32, color: 'var(--mint)', margin: '0 0 8px 0' }}>Next OS</h1>
+            <p style={{ color: 'var(--text-secondary)', margin: 0 }}>Childcare Management System</p>
+          </div>
+
+          {error && <div style={{ background: 'rgba(255, 71, 87, 0.1)', color: '#FF4757', padding: 12, borderRadius: 8, fontSize: 13, marginBottom: 24, border: '1px solid rgba(255, 71, 87, 0.3)' }}>{error}</div>}
+
+          {mode === 'otp' ? (
+            <form onSubmit={handleVerifyOtp} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div style={{ fontSize: 14, color: 'var(--text-secondary)', textAlign: 'center', marginBottom: 8 }}>Enter the 6-digit one-time code sent to <strong>{email}</strong></div>
+              <div>
+                <label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6, fontWeight: 700, textTransform: 'uppercase' }}>One-Time Code</label>
+                <input type="text" value={otpCode} onChange={e => setOtpCode(e.target.value)} placeholder="000000" required style={{ width: '100%', background: 'var(--bg-deep)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '12px 16px', borderRadius: 8, fontSize: 18, textAlign: 'center', letterSpacing: '4px', outline: 'none' }} />
+              </div>
+              <button type="submit" disabled={loading} style={{ background: 'var(--mint)', color: '#060012', border: 'none', padding: 14, borderRadius: 8, fontSize: 14, fontWeight: 700, cursor: loading ? 'not-allowed' : 'pointer', marginTop: 8 }}>{loading ? 'Verifying...' : 'Verify & Login'}</button>
+              <button type="button" onClick={() => setMode('login')} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', fontSize: 13, cursor: 'pointer', marginTop: 8 }}>Back to Login</button>
+            </form>
+          ) : (
+            <form onSubmit={handleAuth} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {mode === 'signup' && (
+                <div>
+                  <label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6, fontWeight: 700, textTransform: 'uppercase' }}>Role</label>
+                  <select value={role} onChange={e => setRole(e.target.value)} style={{ width: '100%', background: 'var(--bg-deep)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '12px 16px', borderRadius: 8, fontSize: 14, outline: 'none' }}>
+                    <option value="parent">Parent</option>
+                    <option value="director">Global Director</option>
+                    <option value="manager">Branch Manager</option>
+                    <option value="investor">Investor</option>
+                  </select>
+                </div>
+              )}
+              <div>
+                <label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6, fontWeight: 700, textTransform: 'uppercase' }}>Email Address</label>
+                <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="name@example.com" required style={{ width: '100%', background: 'var(--bg-deep)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '12px 16px', borderRadius: 8, fontSize: 14, outline: 'none' }} />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6, fontWeight: 700, textTransform: 'uppercase' }}>Password</label>
+                <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" required minLength={6} style={{ width: '100%', background: 'var(--bg-deep)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '12px 16px', borderRadius: 8, fontSize: 14, outline: 'none' }} />
+              </div>
+              <button type="submit" disabled={loading} style={{ background: 'var(--mint)', color: '#060012', border: 'none', padding: 14, borderRadius: 8, fontSize: 14, fontWeight: 700, cursor: loading ? 'not-allowed' : 'pointer', marginTop: 8 }}>
+                {loading ? 'Processing...' : mode === 'login' ? 'Sign In' : 'Create Account'}
+              </button>
+              
+              <div style={{ textAlign: 'center', marginTop: 16, borderTop: '1px solid var(--border-subtle)', paddingTop: 16 }}>
+                <span style={{ color: 'var(--text-secondary)', fontSize: 13 }}>
+                  {mode === 'login' ? "Don't have an account? " : "Already have an account? "}
+                </span>
+                <button type="button" onClick={() => setMode(mode === 'login' ? 'signup' : 'login')} style={{ background: 'none', border: 'none', color: 'var(--mint)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+                  {mode === 'login' ? 'Sign Up' : 'Log In'}
+                </button>
+              </div>
+            </form>
+          )}
+        </div>
+      </div>
+    );
+  };
+
 // ── Main Page Component ──────────────────────────────────────────────────
   const ChildcareOSPage = ({ onNavigate }) => {
     const [windowWidth] = useWindowSize();
@@ -1934,11 +2050,38 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
       };
       fetchData();
 
+      let authSubscription = null;
+      if (supabase) {
+        supabase.auth.getSession().then(({ data: { session } }) => {
+          if (session && isMounted) {
+            const role = session.user?.user_metadata?.role || 'parent';
+            let updatedUser = { ...session.user, role, name: session.user?.user_metadata?.full_name || session.user.email || 'User' };
+            setCurrentUser(updatedUser);
+            if (role === 'director' || role === 'investor') setActiveTab('owner-view');
+            else if (role === 'manager') setActiveTab('operations');
+          }
+        });
+
+        const { data: { subscription: authSub } } = supabase.auth.onAuthStateChange((_event, session) => {
+          if (session && isMounted) {
+            const role = session.user?.user_metadata?.role || 'parent';
+            let updatedUser = { ...session.user, role, name: session.user?.user_metadata?.full_name || session.user.email || 'User' };
+            setCurrentUser(updatedUser);
+            if (role === 'director' || role === 'investor') setActiveTab('owner-view');
+            else if (role === 'manager') setActiveTab('operations');
+          } else if (isMounted) {
+            setCurrentUser(null);
+          }
+        });
+        authSubscription = authSub;
+      }
+
       return () => {
         isMounted = false;
         if (subscription) {
           supabase.removeChannel(subscription);
         }
+        if (authSubscription) authSubscription.unsubscribe();
       };
     }, []);
 
@@ -2245,29 +2388,19 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
 
     if (!currentUser) {
       return (
-        <div style={{ width: '100%', height: '100%', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-deepest)', fontFamily: 'var(--font-body)' }}>
-          <div style={{ background: 'var(--bg-default)', padding: 40, borderRadius: 16, border: '1px solid var(--border-subtle)', width: 400, textAlign: 'center', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }}>
-            <h1 style={{ fontFamily: 'var(--font-display)', color: 'var(--text-primary)', marginBottom: 8 }}>Armani</h1>
-            <p style={{ color: 'var(--text-secondary)', marginBottom: 32 }}>Select your role to continue</p>
-            
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <button onClick={() => { setCurrentUser({ role: 'director', name: 'Global Director' }); setActiveTab('owner-view'); }} style={{ padding: 14, background: 'var(--mint)', color: '#000', border: 'none', borderRadius: 8, fontWeight: 700, cursor: 'pointer', fontSize: 14 }}>Login as Global Director</button>
-              <button onClick={() => { setCurrentUser({ role: 'manager', name: 'Branch Manager', branchId: 'charis-kampala' }); setSelectedCenterId('charis-kampala'); setActiveTab('operations'); }} style={{ padding: 14, background: 'var(--bg-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border-default)', borderRadius: 8, fontWeight: 600, cursor: 'pointer', fontSize: 14 }}>Login as Branch Manager (Kampala)</button>
-              <button onClick={() => { setCurrentUser({ role: 'investor', name: 'Investor Group' }); setActiveTab('owner-view'); }} style={{ padding: 14, background: 'var(--bg-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border-default)', borderRadius: 8, fontWeight: 600, cursor: 'pointer', fontSize: 14 }}>Login as Investor</button>
-              
-              <div style={{ margin: '8px 0', borderTop: '1px solid var(--border-subtle)', paddingTop: 16 }}>
-                <p style={{ color: 'var(--text-tertiary)', marginBottom: 12, fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Parent Portal Logins</p>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 180, overflowY: 'auto' }}>
-                  {childrenData.map(child => (
-                    <button key={child.id} onClick={() => setCurrentUser({ role: 'parent', name: child.parent, childId: child.id })} style={{ padding: 10, background: 'var(--bg-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border-default)', borderRadius: 8, fontWeight: 500, cursor: 'pointer', fontSize: 13 }}>
-                      Login as {child.parent} ({child.name}'s Parent)
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+        <AuthScreen 
+          supabase={supabase} 
+          onLogin={(user) => {
+            const role = user?.user_metadata?.role || 'parent';
+            let updatedUser = { ...user, role, name: user?.user_metadata?.full_name || user.email || 'User' };
+            if (role === 'director' || role === 'investor') {
+              setActiveTab('owner-view');
+            } else if (role === 'manager') {
+              setActiveTab('operations');
+            }
+            setCurrentUser(updatedUser);
+          }} 
+        />
       );
     }
 
@@ -2278,7 +2411,7 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
           children: typeof updater === 'function' ? updater(c.children || []) : updater
         })));
       };
-      return <ParentApp user={currentUser} childrenData={childrenData} setChildrenData={handleUpdateChildrenData} scheduleData={TODAY_SCHEDULE} onLogout={() => setCurrentUser(null)} globalMessages={globalMessages} setGlobalMessages={setGlobalMessages} setParentFeedback={setParentFeedback} />;
+      return <ParentApp user={currentUser} childrenData={childrenData} setChildrenData={handleUpdateChildrenData} scheduleData={TODAY_SCHEDULE} onLogout={() => supabase ? supabase.auth.signOut() : setCurrentUser(null)} globalMessages={globalMessages} setGlobalMessages={setGlobalMessages} setParentFeedback={setParentFeedback} />;
     }
 
     const tabs = [
@@ -2322,7 +2455,7 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
                 <div style={{ fontSize: 11, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', marginTop: 2, textTransform: 'uppercase' }}>
                   {currentUser.role}
                 </div>
-                <button onClick={() => setCurrentUser(null)} style={{ marginTop: 8, padding: '4px 8px', background: 'var(--bg-deepest)', border: 'none', color: 'var(--text-secondary)', borderRadius: 4, cursor: 'pointer', fontSize: 10 }}>LOGOUT</button>
+                <button onClick={() => supabase ? supabase.auth.signOut() : setCurrentUser(null)} style={{ marginTop: 8, padding: '4px 8px', background: 'var(--bg-deepest)', border: 'none', color: 'var(--text-secondary)', borderRadius: 4, cursor: 'pointer', fontSize: 10 }}>LOGOUT</button>
               </div>
             </div>
             {isMobile && (
