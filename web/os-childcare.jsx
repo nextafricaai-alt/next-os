@@ -1087,7 +1087,16 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
                       setGlobalMessages([...globalMessages, newMsg]);
                       setMsgText('');
                       if (window.supabase) {
-                        await window.supabase.createClient('https://eztgwiujujaxswlslqbf.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV6dGd3aXVqdWpheHN3bHNscWJmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMxNzE5NjEsImV4cCI6MjA5ODc0Nzk2MX0.mzyC4DLlC-s3YznfQLTfNxa227_hQlLAt0VhL_dGxr0').from('global_messages').insert([{...newMsg, id: undefined}]);
+                        await window.supabase.createClient('https://eztgwiujujaxswlslqbf.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV6dGd3aXVqdWpheHN3bHNscWJmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMxNzE5NjEsImV4cCI6MjA5ODc0Nzk2MX0.mzyC4DLlC-s3YznfQLTfNxa227_hQlLAt0VhL_dGxr0').from('global_messages').insert([{
+                           threadid: newMsg.threadId,
+                           fromrole: newMsg.fromRole,
+                           fromname: newMsg.fromName,
+                           torole: newMsg.toRole,
+                           toname: newMsg.toName,
+                           branchid: newMsg.branchId,
+                           text: newMsg.text,
+                           time: newMsg.time
+                        }]);
                       }
                     }} style={{ background: 'var(--mint)', color: '#000', border: 'none', padding: '0 24px', borderRadius: 8, fontWeight: 700, cursor: 'pointer', fontSize: 15 }}>Send</button>
                   </div>
@@ -1218,7 +1227,7 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
       ];
     }
 
-    const handleSendMessage = () => {
+    const handleSendMessage = async () => {
       if (!composeText.trim() || !recipient) return;
       const rec = allowedRecipients.find(r => r.name === recipient);
       if (!rec) return;
@@ -1236,6 +1245,21 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
       setGlobalMessages(prev => [...prev, newMsg]);
       setComposeText('');
       setSelectedThreadId(rec.threadId);
+      
+      if (window.supabase) {
+        try {
+          await window.supabase.createClient('https://eztgwiujujaxswlslqbf.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV6dGd3aXVqdWpheHN3bHNscWJmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMxNzE5NjEsImV4cCI6MjA5ODc0Nzk2MX0.mzyC4DLlC-s3YznfQLTfNxa227_hQlLAt0VhL_dGxr0').from('global_messages').insert([{
+             threadid: newMsg.threadId,
+             fromrole: newMsg.fromRole,
+             fromname: newMsg.fromName,
+             torole: newMsg.toRole,
+             toname: newMsg.toName,
+             branchid: newMsg.branchId,
+             text: newMsg.text,
+             time: newMsg.time
+          }]);
+        } catch(e) { console.error(e); }
+      }
     };
 
     return (
@@ -1791,7 +1815,18 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
                setCentersData(updatedCenters);
             }
             if (messagesData && messagesData.length > 0) {
-               setGlobalMessages(messagesData.sort((a,b) => a.id - b.id));
+               const mappedMsgs = messagesData.map(m => ({
+                 id: m.id,
+                 threadId: m.threadid || m.threadId,
+                 fromRole: m.fromrole || m.fromRole,
+                 fromName: m.fromname || m.fromName,
+                 toRole: m.torole || m.toRole,
+                 toName: m.toname || m.toName,
+                 branchId: m.branchid || m.branchId,
+                 text: m.text,
+                 time: m.time
+               }));
+               setGlobalMessages(mappedMsgs.sort((a,b) => a.id - b.id));
             }
           }
 
