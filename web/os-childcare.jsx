@@ -1141,7 +1141,7 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
                 <p style={{ fontSize: 16, color: 'var(--text-secondary)', marginBottom: 32 }}>Scan this code at the center gate to authorize pickup for {child.name}.</p>
                 
                 <div style={{ background: 'linear-gradient(135deg, #ffffff 0%, #f0f0f0 100%)', padding: 32, borderRadius: 24, display: 'inline-block', marginBottom: 32, boxShadow: '0 20px 40px rgba(0,0,0,0.4)', border: '8px solid var(--bg-elevated)' }}>
-                  <img src={`https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${child.id}`} alt="QR Code" style={{ width: 240, height: 240, mixBlendMode: 'multiply' }} />
+                  <img src={`https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent((typeof window !== 'undefined' ? window.location.origin + window.location.pathname : '') + '?pass=' + child.id)}`} alt="QR Code" style={{ width: 240, height: 240, mixBlendMode: 'multiply' }} />
                 </div>
                 
                 <div style={{ background: 'var(--bg-elevated)', padding: 20, borderRadius: 16, border: '1px solid var(--border-subtle)', textAlign: 'left' }}>
@@ -2124,6 +2124,43 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
           <div style={{ textAlign: 'center' }}>
             <div style={{ fontSize: 40, marginBottom: 16 }}>☁️</div>
             <div style={{ fontSize: 18, fontWeight: 600 }}>Syncing with Supabase...</div>
+          </div>
+        </div>
+      );
+    }
+
+    const urlParams = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
+    const passId = urlParams.get('pass');
+    if (passId) {
+      const allChildren = centersData.flatMap(c => c.children);
+      const child = allChildren.find(c => c.id.toString() === passId);
+      if (!child) {
+         return <div style={{ background: '#060012', color: '#fff', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Pass not found or invalid.</div>;
+      }
+      return (
+        <div style={{ background: '#060012', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-body)', color: '#fff', padding: 20 }}>
+          <div style={{ background: 'var(--bg-elevated)', borderRadius: 24, padding: 40, border: '1px solid var(--mint)', width: '100%', maxWidth: 400, textAlign: 'center', boxShadow: '0 20px 40px rgba(0,252,143,0.1)' }}>
+             <div style={{ width: 80, height: 80, borderRadius: '50%', background: 'rgba(0,252,143,0.2)', color: 'var(--mint)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 40, margin: '0 auto 24px' }}>✓</div>
+             <h2 style={{ fontSize: 28, fontWeight: 800, margin: '0 0 24px', color: 'var(--mint)', fontFamily: 'var(--font-display)' }}>Authorized Match</h2>
+             <img src={child.photoUrl} alt={child.name} style={{ width: 120, height: 120, borderRadius: '50%', objectFit: 'cover', border: '4px solid var(--bg-default)', boxShadow: '0 0 0 2px var(--mint)', margin: '0 auto 20px' }} />
+             <h3 style={{ fontSize: 24, fontWeight: 700, margin: '0 0 8px' }}>{child.name}</h3>
+             <div style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 24 }}>Status: {child.present ? 'Present' : 'Absent'}</div>
+
+             <div style={{ display: 'flex', gap: '12px', marginBottom: 24 }}>
+                <div style={{ flex: 1, background: 'rgba(255,255,255,0.05)', padding: 12, borderRadius: 12 }}>
+                  <div style={{ fontSize: 11, color: 'var(--text-tertiary)', textTransform: 'uppercase', marginBottom: 4, fontWeight: 700 }}>Time Arrived</div>
+                  <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--mint)' }}>07:30 AM</div>
+                </div>
+                <div style={{ flex: 1, background: 'rgba(255,255,255,0.05)', padding: 12, borderRadius: 12 }}>
+                  <div style={{ fontSize: 11, color: 'var(--text-tertiary)', textTransform: 'uppercase', marginBottom: 4, fontWeight: 700 }}>Time Leaving</div>
+                  <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--mint)' }}>{new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
+                </div>
+             </div>
+             
+             <div style={{ textAlign: 'left', background: 'rgba(0,0,0,0.3)', padding: 16, borderRadius: 12 }}>
+               <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 8 }}><strong style={{ color: '#fff' }}>Primary Parent:</strong> {child.parent}</div>
+               <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}><strong style={{ color: '#fff' }}>Authorized Pickups:</strong> {child.authorizedPickups || 'Parents only'}</div>
+             </div>
           </div>
         </div>
       );
