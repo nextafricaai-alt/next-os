@@ -605,6 +605,25 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
     const [feedbackText, setFeedbackText] = React.useState('');
     const [feedbackRating, setFeedbackRating] = React.useState(5);
     const [feedbackSubmitted, setFeedbackSubmitted] = React.useState(false);
+    const [notificationsEnabled, setNotificationsEnabled] = React.useState(
+      typeof Notification !== 'undefined' && Notification.permission === 'granted'
+    );
+
+    const handleEnableNotifications = () => {
+      if (!('Notification' in window)) {
+        alert('This browser does not support desktop notification');
+        return;
+      }
+      Notification.requestPermission().then(permission => {
+        if (permission === 'granted') {
+          setNotificationsEnabled(true);
+          new Notification('Armani OS', {
+            body: 'Notifications activated successfully!',
+            icon: 'uploads/NEXT Favicon Transperent Logo@3x.png'
+          });
+        }
+      });
+    };
 
     const myMessages = globalMessages.filter(m => 
       (m.fromRole === 'parent' && m.fromName === user.name) || 
@@ -646,6 +665,7 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
               { id: 'home', icon: '☀️', label: 'The Day' },
               { id: 'gallery', icon: '📸', label: 'Gallery' },
               { id: 'learning', icon: '📚', label: 'Curriculum' },
+              { id: 'journey', icon: '🌟', label: 'Journey' },
               { id: 'messages', icon: '💬', label: 'Messages' },
               { id: 'pickup', icon: '🪪', label: 'Pickup QR' },
               { id: 'feedback', icon: '📝', label: 'Feedback' },
@@ -665,6 +685,13 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
 
           <div style={{ padding: 20, display: isMobile ? 'none' : 'block' }}>
             <ShareLinkPanel role="parent" childId={child.id} />
+            
+            {!notificationsEnabled && (
+              <button onClick={handleEnableNotifications} style={{ width: '100%', padding: '12px', background: 'rgba(0, 252, 143, 0.1)', border: '1px solid var(--mint)', borderRadius: 12, color: 'var(--mint)', fontWeight: 600, cursor: 'pointer', marginTop: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                <span>🔔</span> Enable Notifications
+              </button>
+            )}
+
             <button onClick={onLogout} style={{ width: '100%', padding: '12px', background: 'transparent', border: '1px solid var(--border-default)', borderRadius: 12, color: 'var(--text-secondary)', fontWeight: 600, cursor: 'pointer', marginTop: 16 }}>
               Sign Out
             </button>
@@ -754,12 +781,12 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
               </div>
             )}
 
-            {activeTab === 'learning' && (
+            {activeTab === 'journey' && (
               <div style={{ animation: 'fadeIn 0.3s ease' }}>
-                <h1 style={{ fontSize: 32, fontFamily: 'var(--font-display)', color: 'var(--text-primary)', marginBottom: 24 }}>Growth & Curriculum</h1>
+                <h1 style={{ fontSize: 32, fontFamily: 'var(--font-display)', color: 'var(--text-primary)', marginBottom: 24 }}>Milestones & Journey</h1>
                 
                 {/* Milestone Rings */}
-                <h3 style={{ fontSize: 18, color: 'var(--text-secondary)', marginBottom: 16, fontWeight: 600 }}>Developmental Milestones</h3>
+                <h3 style={{ fontSize: 18, color: 'var(--text-secondary)', marginBottom: 16, fontWeight: 600 }}>Developmental Domains</h3>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 16, marginBottom: 32 }}>
                   {[
                     { label: 'Cognitive', pct: 85, color: '#00C2FF' },
@@ -823,6 +850,37 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
                   </div>
                 </div>
 
+                {/* Achievement Timeline */}
+                <h3 style={{ fontSize: 18, color: 'var(--text-secondary)', marginBottom: 16, fontWeight: 600 }}>Achievement Timeline</h3>
+                <div style={{ position: 'relative', paddingLeft: 24, display: 'flex', flexDirection: 'column', gap: 24, marginBottom: 32 }}>
+                  <div style={{ position: 'absolute', left: 7, top: 12, bottom: 12, width: 2, background: 'var(--border-default)' }} />
+                  {[
+                    { date: 'Last Week', icon: '🎨', title: 'Recognized Colors', desc: 'Successfully sorted blocks by primary colors.' },
+                    { date: '1 Month Ago', icon: '🗣️', title: 'First Full Sentence', desc: 'Communicated needs effectively in a complete sentence.' },
+                    { date: '3 Months Ago', icon: '🤝', title: 'Social Play', desc: 'Shared toys with peers without prompting.' },
+                    { date: '6 Months Ago', icon: '👣', title: 'First Steps', desc: 'Walked across the room unassisted.' },
+                  ].map((ach, i) => (
+                    <div key={i} style={{ position: 'relative' }}>
+                      <div style={{ position: 'absolute', left: -24, top: 4, width: 16, height: 16, borderRadius: '50%', background: 'var(--mint)', border: '4px solid var(--bg-deepest)' }} />
+                      <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: 16 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+                          <span style={{ fontSize: 24 }}>{ach.icon}</span>
+                          <div>
+                            <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-primary)' }}>{ach.title}</div>
+                            <div style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>{ach.date}</div>
+                          </div>
+                        </div>
+                        <div style={{ fontSize: 14, color: 'var(--text-secondary)' }}>{ach.desc}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'learning' && (
+              <div style={{ animation: 'fadeIn 0.3s ease' }}>
+                <h1 style={{ fontSize: 32, fontFamily: 'var(--font-display)', color: 'var(--text-primary)', marginBottom: 24 }}>Weekly Curriculum</h1>
                 <div style={{ display: 'grid', gap: 20 }}>
                   <div style={{ background: 'var(--bg-elevated)', padding: 24, borderRadius: 16, border: '1px solid var(--border-subtle)' }}>
                     <div style={{ fontSize: 13, textTransform: 'uppercase', color: 'var(--mint)', marginBottom: 8, letterSpacing: '0.05em', fontWeight: 700 }}>Theme of the Week</div>
