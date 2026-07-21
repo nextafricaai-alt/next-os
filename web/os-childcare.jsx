@@ -3332,9 +3332,15 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
                               paymentMethod: fd.get('paymentMethod') || 'mobile_money'
                             };
 
-                            // Create Parent Auth Account in Supabase
+                            // Create Parent Auth Account in Supabase using a temporary client to prevent logging the manager out
                             if (supabase) {
-                              const { error: signUpError } = await supabase.auth.signUp({
+                              const tempSupabase = window.supabase.createClient(
+                                supabase.supabaseUrl, 
+                                supabase.supabaseKey, 
+                                { auth: { storage: { getItem: () => null, setItem: () => null, removeItem: () => null } } }
+                              );
+
+                              const { error: signUpError } = await tempSupabase.auth.signUp({
                                 email: onboardingParentEmail,
                                 password: onboardingParentPassword,
                                 options: {
