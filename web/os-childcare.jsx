@@ -704,34 +704,132 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
             
             {activeTab === 'home' && (
               <div style={{ animation: 'fadeIn 0.3s ease' }}>
-                <h1 style={{ fontSize: 32, fontFamily: 'var(--font-display)', color: 'var(--text-primary)', marginBottom: 24 }}>Today's Journey</h1>
                 
-                {/* Milestone Highlight */}
-                {child.milestone && (
-                  <div style={{ 
-                    background: 'linear-gradient(135deg, rgba(0,252,143,0.15) 0%, rgba(27,155,111,0.05) 100%)',
-                    border: '1px solid rgba(0,252,143,0.3)', borderRadius: 16, padding: '24px',
-                    display: 'flex', alignItems: 'center', gap: 20, marginBottom: 32,
-                    boxShadow: '0 10px 30px rgba(0,252,143,0.05)'
-                  }}>
-                    <div style={{ fontSize: 48, filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.2))' }}>🏆</div>
-                    <div>
-                      <div style={{ fontSize: 13, textTransform: 'uppercase', color: 'var(--mint)', fontWeight: 700, letterSpacing: '0.05em', marginBottom: 4 }}>Milestone Unlocked!</div>
-                      <div style={{ fontSize: 18, color: 'var(--text-primary)', fontWeight: 600 }}>{child.milestone}</div>
+                {/* 1. Interactive Child Hero Section */}
+                <div style={{
+                  background: 'linear-gradient(135deg, rgba(20,0,53,0.9) 0%, rgba(10,0,26,0.9) 100%)',
+                  border: '1px solid rgba(0,252,143,0.2)',
+                  borderRadius: 24,
+                  padding: isMobile ? '24px' : '40px',
+                  display: 'flex',
+                  flexDirection: isMobile ? 'column' : 'row',
+                  alignItems: 'center',
+                  gap: 32,
+                  marginBottom: 32,
+                  boxShadow: '0 20px 40px rgba(0,0,0,0.5)',
+                  position: 'relative',
+                  overflow: 'hidden'
+                }}>
+                  {/* Glassmorphism subtle glow */}
+                  <div style={{ position: 'absolute', top: -50, right: -50, width: 200, height: 200, background: 'var(--mint)', filter: 'blur(100px)', opacity: 0.1, borderRadius: '50%' }}></div>
+                  
+                  <div style={{ position: 'relative' }}>
+                    <img src={child.photoUrl} alt={child.name} style={{ width: 140, height: 140, borderRadius: '50%', objectFit: 'cover', border: '4px solid var(--bg-default)', boxShadow: '0 0 0 3px var(--mint)' }} />
+                    <div style={{ position: 'absolute', bottom: 5, right: 5, width: 24, height: 24, borderRadius: '50%', background: child.present ? 'var(--mint)' : '#FF4757', border: '3px solid var(--bg-default)' }} />
+                  </div>
+                  
+                  <div style={{ flex: 1, textAlign: isMobile ? 'center' : 'left' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: isMobile ? 'center' : 'flex-start', gap: 12, marginBottom: 8 }}>
+                      <h1 style={{ fontSize: 36, fontFamily: 'var(--font-display)', color: 'var(--text-primary)', margin: 0 }}>{child.name}</h1>
+                      <span style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', padding: '4px 8px', borderRadius: 6, fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }}>ID: #ARM-{child.id}</span>
+                    </div>
+                    <div style={{ fontSize: 16, color: 'var(--text-secondary)', marginBottom: 20 }}>
+                      Age {child.age} • Enrolled {new Date(child.enrollmentDate).toLocaleDateString()}
+                    </div>
+                    <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', justifyContent: isMobile ? 'center' : 'flex-start' }}>
+                      <div style={{ background: 'var(--bg-elevated)', padding: '8px 16px', borderRadius: 12, border: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ fontSize: 20 }}>{child.mood}</span>
+                        <div>
+                          <div style={{ fontSize: 11, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Current Mood</div>
+                          <div style={{ fontSize: 14, fontWeight: 600 }}>Happy</div>
+                        </div>
+                      </div>
+                      <div style={{ background: 'var(--bg-elevated)', padding: '8px 16px', borderRadius: 12, border: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ fontSize: 20 }}>{child.nap ? '💤' : '☀️'}</span>
+                        <div>
+                          <div style={{ fontSize: 11, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Status</div>
+                          <div style={{ fontSize: 14, fontWeight: 600 }}>{child.present ? (child.nap ? 'Napping' : 'Active & Playing') : 'At Home'}</div>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                )}
+                </div>
 
-                {/* The Day Timeline */}
-                <h3 style={{ fontSize: 18, color: 'var(--text-secondary)', marginBottom: 16, fontWeight: 600 }}>Activity Log</h3>
+                {/* 2. Dashboard Grid (Finance & Milestones) */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 24, marginBottom: 40 }}>
+                  
+                  {/* Finance Card */}
+                  <div style={{ 
+                    background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 20, padding: 24,
+                    position: 'relative', overflow: 'hidden'
+                  }}>
+                    <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: 4, background: child.invoiceStatus === 'paid' ? 'var(--mint)' : child.invoiceStatus === 'due' ? 'var(--warning)' : 'var(--danger)' }} />
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        <div style={{ width: 40, height: 40, borderRadius: 10, background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>💳</div>
+                        <div>
+                          <h3 style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-primary)' }}>Account Status</h3>
+                          <div style={{ fontSize: 13, color: 'var(--text-tertiary)' }}>Billing & Finance</div>
+                        </div>
+                      </div>
+                      <span style={{ 
+                        background: child.invoiceStatus === 'paid' ? 'rgba(0,252,143,0.1)' : child.invoiceStatus === 'due' ? 'rgba(255,165,2,0.1)' : 'rgba(255,71,87,0.1)',
+                        color: child.invoiceStatus === 'paid' ? 'var(--mint)' : child.invoiceStatus === 'due' ? 'var(--warning)' : 'var(--danger)',
+                        border: `1px solid ${child.invoiceStatus === 'paid' ? 'rgba(0,252,143,0.2)' : child.invoiceStatus === 'due' ? 'rgba(255,165,2,0.2)' : 'rgba(255,71,87,0.2)'}`,
+                        padding: '4px 12px', borderRadius: 20, fontSize: 12, fontWeight: 700, textTransform: 'uppercase'
+                      }}>
+                        {child.invoiceStatus}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: 12, borderBottom: '1px solid var(--border-subtle)' }}>
+                        <span style={{ color: 'var(--text-secondary)', fontSize: 14 }}>Last Payment</span>
+                        <span style={{ color: 'var(--text-primary)', fontSize: 14, fontWeight: 500 }}>July 1st, 2026</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span style={{ color: 'var(--text-secondary)', fontSize: 14 }}>Next Invoice Due</span>
+                        <span style={{ color: 'var(--text-primary)', fontSize: 14, fontWeight: 500 }}>August 1st, 2026</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Milestone Card */}
+                  <div style={{ 
+                    background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 20, padding: 24,
+                    display: 'flex', flexDirection: 'column', justifyContent: 'space-between'
+                  }}>
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+                        <div style={{ width: 40, height: 40, borderRadius: 10, background: 'rgba(255,180,0,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>🏆</div>
+                        <div>
+                          <h3 style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-primary)' }}>Latest Milestone</h3>
+                          <div style={{ fontSize: 13, color: 'var(--text-tertiary)' }}>Development Tracking</div>
+                        </div>
+                      </div>
+                      <div style={{ fontSize: 20, fontWeight: 600, color: 'var(--gold)', marginBottom: 8 }}>
+                        {child.milestone || 'Observing progress...'}
+                      </div>
+                      <div style={{ fontSize: 14, color: 'var(--text-secondary)' }}>
+                        Active Learning Score: <strong style={{ color: 'var(--text-primary)' }}>{child.activeScore}</strong> pts
+                      </div>
+                    </div>
+                    <button onClick={() => setActiveTab('journey')} style={{ marginTop: 20, width: '100%', padding: '10px', background: 'transparent', border: '1px solid var(--border-default)', borderRadius: 8, color: 'var(--text-primary)', fontWeight: 600, cursor: 'pointer', transition: 'background 0.2s' }} onMouseOver={e => e.currentTarget.style.background='rgba(255,255,255,0.05)'} onMouseOut={e => e.currentTarget.style.background='transparent'}>
+                      View Full Journey Timeline
+                    </button>
+                  </div>
+
+                </div>
+
+                {/* 3. The Day Timeline */}
+                <h3 style={{ fontSize: 20, fontFamily: 'var(--font-display)', color: 'var(--text-primary)', marginBottom: 20 }}>Today's Activity Log</h3>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                   {[
                     { time: '08:15 AM', icon: '👋', title: 'Checked In', desc: 'Arrived with a big smile.', type: 'standard' },
-                    { time: '09:00 AM', icon: '🍎', title: 'Breakfast', desc: 'Ate all of the oatmeal and fruit.', type: 'standard' },
+                    { time: '09:00 AM', icon: '🍎', title: 'Breakfast', desc: `Ate all of the ${child.favouriteMeals ? child.favouriteMeals.split(',')[0].toLowerCase() : 'food'} and fruit.`, type: 'standard' },
                     { time: '10:00 AM', icon: '🙏', title: 'Morning Prayer', desc: 'Participated beautifully in our morning devotion.', type: 'faith' },
                     { time: '10:30 AM', icon: '🎨', title: 'Creative Play', desc: 'Participated in finger painting.', type: 'standard' },
                     { time: '11:45 AM', icon: '🕊️', title: 'Observed Kindness', desc: 'Helped another child pick up dropped toys without being asked.', type: 'faith' },
-                    { time: '12:00 PM', icon: '🍽️', title: 'Lunch', desc: 'Ate Lunch: Mac & Cheese.', type: 'standard' },
+                    { time: '12:00 PM', icon: '🍽️', title: 'Lunch', desc: `Ate Lunch: ${child.favouriteMeals || 'Healthy meal'}.`, type: 'standard' },
                     { time: '01:00 PM', icon: '💤', title: 'Nap Time', desc: child.nap ? 'Currently sleeping peacefully.' : 'Rested quietly.', type: 'standard' },
                   ].map((item, i) => (
                     <div key={i} style={{ 
