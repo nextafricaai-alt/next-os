@@ -1931,6 +1931,9 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
     const [centersData, setCentersData] = React.useState(CENTERS);
     const [onboardingOpen, setOnboardingOpen] = React.useState(false);
     const [onboardingReport, setOnboardingReport] = React.useState(null);
+    const [onboardingBirthday, setOnboardingBirthday] = React.useState('');
+    const [onboardingAgeYears, setOnboardingAgeYears] = React.useState('');
+    const [onboardingVaccines, setOnboardingVaccines] = React.useState(['BCG', 'Polio 0']);
     const [qrScannerOpen, setQrScannerOpen] = React.useState(false);
     const [scannedChildId, setScannedChildId] = React.useState(null);
 
@@ -2322,7 +2325,7 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
         </div>
 
         {/* ── MAIN CONTENT AREA ── */}
-        <div style={{ flex: 1, padding: isMobile ? '20px' : '40px 60px', marginLeft: isMobile ? 0 : 260, maxWidth: 1200, transition: 'margin-left 0.3s ease' }}>
+        <div style={{ flex: 1, padding: isMobile ? '20px' : '40px 60px', marginLeft: isMobile ? 0 : 260, transition: 'margin-left 0.3s ease', overflowX: 'hidden' }}>
           {/* Top Bar inside content */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 28, flexDirection: isMobile ? 'column' : 'row', gap: isMobile ? 12 : 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
@@ -2704,7 +2707,7 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
                 <button onClick={() => setShowAlumni(false)} style={{ background: !showAlumni ? 'var(--bg-elevated)' : 'transparent', color: !showAlumni ? 'var(--text-primary)' : 'var(--text-secondary)', border: 'none', borderRadius: 6, padding: '6px 12px', fontSize: 13, fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s' }}>Active Roster</button>
                 <button onClick={() => setShowAlumni(true)} style={{ background: showAlumni ? 'var(--bg-elevated)' : 'transparent', color: showAlumni ? 'var(--text-primary)' : 'var(--text-secondary)', border: 'none', borderRadius: 6, padding: '6px 12px', fontSize: 13, fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s' }}>Alumni / Graduated</button>
               </div>
-              <button onClick={() => setOnboardingOpen(true)} style={{ background: 'var(--mint)', color: '#060012', border: 'none', borderRadius: 8, padding: '10px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font-body)', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <button onClick={() => { setOnboardingBirthday(''); setOnboardingAgeYears(''); setOnboardingVaccines(['BCG', 'Polio 0']); setOnboardingOpen(true); }} style={{ background: 'var(--mint)', color: '#060012', border: 'none', borderRadius: 8, padding: '10px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font-body)', display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span>➕</span> Onboard Child
               </button>
             </div>
@@ -3053,8 +3056,8 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
                     <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 16, marginBottom: 16 }}>
                       <div style={{ gridColumn: '1 / -1' }}><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Digital Passport Photo URL</label><input name="photoUrl" placeholder="https://..." style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }} /></div>
                       <div><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Full Name</label><input required name="name" style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }} /></div>
-                      <div><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Age (years)</label><input required name="age" type="number" style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }} /></div>
-                      <div><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Birthday</label><input required name="birthday" type="date" style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }} /></div>
+                      <div><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Age (years)</label><input required name="age" type="number" value={onboardingAgeYears} onChange={e => setOnboardingAgeYears(e.target.value)} style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }} /></div>
+                      <div><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Birthday</label><input required name="birthday" type="date" value={onboardingBirthday} onChange={e => setOnboardingBirthday(e.target.value)} style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }} /></div>
                       <div>
                         <label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Care Package</label>
                         <select name="carePlan" style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }}>
@@ -3075,7 +3078,38 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
                       <div><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Kids Sports</label><input name="sports" placeholder="e.g. Swimming, Football" style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }} /></div>
                       <div style={{ gridColumn: '1 / -1' }}><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Authorized Pick-ups</label><input name="authorizedPickups" placeholder="Names & Phone Numbers" style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }} /></div>
                       <div style={{ gridColumn: '1 / -1' }}><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Allergies</label><input name="allergies" placeholder="e.g. Peanuts" style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }} /></div>
-                      <div style={{ gridColumn: '1 / -1' }}><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Completed Vaccines (comma separated)</label><input name="completedVaccines" defaultValue="BCG, Polio 0" style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }} /></div>
+                      <div style={{ gridColumn: '1 / -1' }}>
+                        <label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Completed Vaccines (Based on Age)</label>
+                        {(() => {
+                          let ageInWeeks = 0;
+                          if (onboardingBirthday) {
+                            const ms = Date.now() - new Date(onboardingBirthday).getTime();
+                            ageInWeeks = ms / (1000 * 60 * 60 * 24 * 7);
+                          } else if (onboardingAgeYears) {
+                            ageInWeeks = parseFloat(onboardingAgeYears) * 52;
+                          }
+                          const expectedVaccines = UNEPI_SCHEDULE.filter(v => v.ageWeeks <= ageInWeeks);
+                          return (
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, background: 'var(--bg-default)', padding: 12, borderRadius: 8, border: '1px solid var(--border-default)' }}>
+                              {expectedVaccines.map(v => (
+                                <label key={v.name} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text-secondary)', cursor: 'pointer' }}>
+                                  <input 
+                                    type="checkbox" 
+                                    checked={onboardingVaccines.includes(v.name)}
+                                    onChange={(e) => {
+                                      if (e.target.checked) setOnboardingVaccines([...onboardingVaccines, v.name]);
+                                      else setOnboardingVaccines(onboardingVaccines.filter(name => name !== v.name));
+                                    }}
+                                  />
+                                  {v.name}
+                                </label>
+                              ))}
+                              {expectedVaccines.length === 0 && <span style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>Please enter Age or Birthday to see expected vaccines.</span>}
+                            </div>
+                          );
+                        })()}
+                        <input type="hidden" name="completedVaccines" value={onboardingVaccines.join(', ')} />
+                      </div>
                     </div>
                     <button type="submit" style={{ width: '100%', background: 'var(--mint)', color: '#060012', border: 'none', borderRadius: 8, padding: '12px', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font-body)', marginTop: 8 }}>Complete Onboarding</button>
                   </form>
