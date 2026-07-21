@@ -2293,7 +2293,36 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
             <div style={{ marginTop: 40 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
                 <h3 style={{ fontSize: 20, color: 'var(--text-primary)', fontFamily: 'var(--font-display)' }}>Absence Follow-up</h3>
-                <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Today (After 9:30 AM)</div>
+                <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                  <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Today (After 9:30 AM)</div>
+                  <button onClick={async () => {
+                    const absentChildren = childrenData.filter(c => !c.present && !c.isAlumni);
+                    if (absentChildren.length === 0) {
+                      alert('No absent children to follow up with.');
+                      return;
+                    }
+                    if (!window.supabase) {
+                      alert('Supabase not connected.');
+                      return;
+                    }
+                    try {
+                      const msgs = absentChildren.map(c => ({
+                        threadid: `parent-${c.id}`,
+                        fromrole: currentUser.role,
+                        fromname: currentUser.name,
+                        torole: 'parent',
+                        toname: c.parent,
+                        branchid: 'charis-kampala',
+                        text: `Hello ${c.parent}, we noticed ${c.name} is absent today. We missed them! Please let us know if everything is okay.`,
+                        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                      }));
+                      await window.supabase.createClient('https://eztgwiujujaxswlslqbf.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV6dGd3aXVqdWpheHN3bHNscWJmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMxNzE5NjEsImV4cCI6MjA5ODc0Nzk2MX0.mzyC4DLlC-s3YznfQLTfNxa227_hQlLAt0VhL_dGxr0').from('global_messages').insert(msgs);
+                      alert(`Sent follow-up messages to ${msgs.length} parents via Agent Nia!`);
+                    } catch(e) { console.error(e); }
+                  }} style={{ background: 'var(--mint)', color: '#000', border: 'none', padding: '6px 12px', borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
+                    Auto-Send Follow-ups (Agent Nia)
+                  </button>
+                </div>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 16 }}>
                 {childrenData.filter(c => !c.present && !c.isAlumni).map(child => (
