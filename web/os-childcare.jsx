@@ -2054,8 +2054,9 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
       if (supabase) {
         supabase.auth.getSession().then(({ data: { session } }) => {
           if (session && isMounted) {
-            const role = session.user?.user_metadata?.role || 'parent';
-            let updatedUser = { ...session.user, role, name: session.user?.user_metadata?.full_name || session.user.email || 'User' };
+            const role = (session.user && session.user.user_metadata && session.user.user_metadata.role) || 'parent';
+            const fullName = (session.user && session.user.user_metadata && session.user.user_metadata.full_name) || (session.user && session.user.email) || 'User';
+            let updatedUser = { ...session.user, role, name: fullName };
             setCurrentUser(updatedUser);
             if (role === 'director' || role === 'investor') setActiveTab('owner-view');
             else if (role === 'manager') setActiveTab('operations');
@@ -2064,8 +2065,9 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
 
         const { data: { subscription: authSub } } = supabase.auth.onAuthStateChange((_event, session) => {
           if (session && isMounted) {
-            const role = session.user?.user_metadata?.role || 'parent';
-            let updatedUser = { ...session.user, role, name: session.user?.user_metadata?.full_name || session.user.email || 'User' };
+            const role = (session.user && session.user.user_metadata && session.user.user_metadata.role) || 'parent';
+            const fullName = (session.user && session.user.user_metadata && session.user.user_metadata.full_name) || (session.user && session.user.email) || 'User';
+            let updatedUser = { ...session.user, role, name: fullName };
             setCurrentUser(updatedUser);
             if (role === 'director' || role === 'investor') setActiveTab('owner-view');
             else if (role === 'manager') setActiveTab('operations');
@@ -2391,8 +2393,9 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
         <AuthScreen 
           supabase={supabase} 
           onLogin={(user) => {
-            const role = user?.user_metadata?.role || 'parent';
-            let updatedUser = { ...user, role, name: user?.user_metadata?.full_name || user.email || 'User' };
+            const role = (user && user.user_metadata && user.user_metadata.role) || 'parent';
+            const fullName = (user && user.user_metadata && user.user_metadata.full_name) || (user && user.email) || 'User';
+            let updatedUser = { ...user, role, name: fullName };
             if (role === 'director' || role === 'investor') {
               setActiveTab('owner-view');
             } else if (role === 'manager') {
