@@ -3078,6 +3078,16 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
                             <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Status: {c.present ? 'Present' : 'Absent'}</div>
                           </div>
                         </div>
+                        <div style={{ display: 'flex', gap: '10px', marginBottom: 16 }}>
+                          <div style={{ flex: 1, background: 'rgba(255,255,255,0.05)', padding: 8, borderRadius: 8 }}>
+                            <div style={{ fontSize: 11, color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>Time Arrived</div>
+                            <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--mint)' }}>07:30 AM</div>
+                          </div>
+                          <div style={{ flex: 1, background: 'rgba(255,255,255,0.05)', padding: 8, borderRadius: 8 }}>
+                            <div style={{ fontSize: 11, color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>Time Leaving</div>
+                            <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--mint)' }}>{new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
+                          </div>
+                        </div>
                         <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 8 }}><strong style={{ color: 'var(--text-primary)' }}>Primary Parent:</strong> {c.parent}</div>
                         <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 16 }}><strong style={{ color: 'var(--text-primary)' }}>Authorized Pickups:</strong> {c.authorizedPickups || 'Parents only'}</div>
                         
