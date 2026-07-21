@@ -199,8 +199,8 @@ console.log("os-childcare.jsx is executing!");
             <div style={{ fontSize: 10, color: invoiceColor, marginTop: 2, textTransform: 'uppercase' }}>
               {child.invoiceStatus === 'overdue' ? '⚠ Overdue' : child.invoiceStatus === 'due' ? '○ Due' : '✓ Paid'}
             </div>
-            <div style={{ fontSize: 10, padding: '2px 6px', background: 'rgba(255,255,255,0.08)', borderRadius: 4, display: 'inline-block', marginTop: 4, color: 'var(--text-secondary)' }}>
-              {child.carePlan === 'monthly' ? '📅 Monthly' : '🗓️ Daily'}
+            <div style={{ fontSize: 10, padding: '2px 6px', background: 'rgba(255,255,255,0.08)', borderRadius: 4, display: 'inline-block', marginTop: 4, color: 'var(--text-secondary)', textTransform: 'capitalize' }}>
+              {child.carePlan === 'monthly' ? '📅 Monthly' : child.carePlan === 'weekly' ? '📅 Weekly' : '🗓️ Daily'}
             </div>
           </div>
         </div>
@@ -331,13 +331,19 @@ Your task: Provide a brief, professional, and actionable 2-sentence assessment. 
               <div style={{ fontSize: 11, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Log Milestone</div>
               <input type="text" id={`milestone-text-${child.id}`} placeholder="e.g. Counted to 10!" style={{ width: '100%', padding: '8px', borderRadius: 6, border: '1px solid var(--border-subtle)', background: 'var(--bg-default)', color: 'var(--text-primary)', fontSize: 12, marginBottom: 8, boxSizing: 'border-box' }} />
               <button onClick={async () => {
-                const ms = document.getElementById(`milestone-text-${child.id}`).value;
+                const input = document.getElementById(`milestone-text-${child.id}`);
+                const ms = input.value;
                 if (!ms) return;
+                
+                // Update local state so it appears in Parent App immediately
+                const updatedChild = { ...child, milestone: ms, milestoneTime: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) };
+                if (onUpdateChild) onUpdateChild(updatedChild);
+                
                 try {
                    await window.supabase.createClient('https://eztgwiujujaxswlslqbf.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV6dGd3aXVqdWpheHN3bHNscWJmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMxNzE5NjEsImV4cCI6MjA5ODc0Nzk2MX0.mzyC4DLlC-s3YznfQLTfNxa227_hQlLAt0VhL_dGxr0').from('children').update({ milestone: ms }).eq('id', child.id);
-                   document.getElementById(`milestone-text-${child.id}`).value = '';
-                   alert('Milestone Logged! Parent will be notified via Agent Nia.');
                 } catch(e) { console.error(e); }
+                input.value = '';
+                alert('Milestone Logged! Parent will be notified via Agent Nia.');
               }} style={{ background: 'transparent', color: 'var(--gold)', border: '1px solid var(--gold)', borderRadius: 6, padding: '8px', fontSize: 12, fontWeight: 600, cursor: 'pointer', width: '100%' }}>
                 Log Milestone
               </button>
@@ -632,7 +638,7 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
     );
   };
 
-  const ParentApp = ({ user, childrenData, onLogout, globalMessages, setGlobalMessages, setParentFeedback }) => {
+  const ParentApp = ({ user, childrenData, scheduleData, onLogout, globalMessages, setGlobalMessages, setParentFeedback }) => {
     const child = childrenData.find(c => c.id === user.childId);
     const [activeTab, setActiveTab] = React.useState('home');
     const [msgText, setMsgText] = React.useState('');
@@ -891,9 +897,10 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
                           <div style={{ fontSize: 13, color: 'var(--text-tertiary)' }}>Development Tracking</div>
                         </div>
                       </div>
-                      <div style={{ fontSize: 20, fontWeight: 600, color: 'var(--gold)', marginBottom: 8 }}>
+                      <div style={{ fontSize: 20, fontWeight: 600, color: 'var(--gold)', marginBottom: 4 }}>
                         {child.milestone || 'Observing progress...'}
                       </div>
+                      {child.milestoneTime && <div style={{ fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 8, fontFamily: 'var(--font-mono)' }}>Logged at {child.milestoneTime}</div>}
                       <div style={{ fontSize: 14, color: 'var(--text-secondary)' }}>
                         Active Learning Score: <strong style={{ color: 'var(--text-primary)' }}>{child.activeScore}</strong> pts
                       </div>
@@ -908,15 +915,7 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
                 {/* 3. The Day Timeline */}
                 <h3 style={{ fontSize: 20, fontFamily: 'var(--font-display)', color: 'var(--text-primary)', marginBottom: 20 }}>Today's Activity Log</h3>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                  {[
-                    { time: '08:15 AM', icon: '👋', title: 'Checked In', desc: 'Arrived with a big smile.', type: 'standard' },
-                    { time: '09:00 AM', icon: '🍎', title: 'Breakfast', desc: `Ate all of the ${child.favouriteMeals ? child.favouriteMeals.split(',')[0].toLowerCase() : 'food'} and fruit.`, type: 'standard' },
-                    { time: '10:00 AM', icon: '🙏', title: 'Morning Prayer', desc: 'Participated beautifully in our morning devotion.', type: 'faith' },
-                    { time: '10:30 AM', icon: '🎨', title: 'Creative Play', desc: 'Participated in finger painting.', type: 'standard' },
-                    { time: '11:45 AM', icon: '🕊️', title: 'Observed Kindness', desc: 'Helped another child pick up dropped toys without being asked.', type: 'faith' },
-                    { time: '12:00 PM', icon: '🍽️', title: 'Lunch', desc: `Ate Lunch: ${child.favouriteMeals || 'Healthy meal'}.`, type: 'standard' },
-                    { time: '01:00 PM', icon: '💤', title: 'Nap Time', desc: child.nap ? 'Currently sleeping peacefully.' : 'Rested quietly.', type: 'standard' },
-                  ].map((item, i) => (
+                  {(scheduleData && scheduleData.length > 0 ? scheduleData : []).map((item, i) => (
                     <div key={i} style={{ 
                       display: 'flex', gap: 16, padding: 20, borderRadius: 16, 
                       background: item.type === 'faith' ? 'linear-gradient(145deg, rgba(255, 214, 0, 0.1), rgba(255, 214, 0, 0.02))' : 'var(--bg-elevated)', 
@@ -931,10 +930,10 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
                       </div>
                       <div>
                         <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginBottom: 4 }}>
-                          <span style={{ fontSize: 16, fontWeight: 700, color: item.type === 'faith' ? '#FFD600' : 'var(--text-primary)' }}>{item.title}</span>
+                          <span style={{ fontSize: 16, fontWeight: 700, color: item.type === 'faith' ? '#FFD600' : 'var(--text-primary)' }}>{item.activity || item.title}</span>
                           <span style={{ fontSize: 12, color: item.type === 'faith' ? 'rgba(255, 214, 0, 0.6)' : 'var(--text-tertiary)', fontFamily: 'var(--font-mono)' }}>{item.time}</span>
                         </div>
-                        <div style={{ fontSize: 14, color: item.type === 'faith' ? 'rgba(255, 255, 255, 0.9)' : 'var(--text-secondary)' }}>{item.desc}</div>
+                        <div style={{ fontSize: 14, color: item.type === 'faith' ? 'rgba(255, 255, 255, 0.9)' : 'var(--text-secondary)' }}>{item.caretaker ? `Led by ${item.caretaker}` : item.desc}</div>
                       </div>
                     </div>
                   ))}
@@ -2206,7 +2205,7 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
     }
 
     if (currentUser.role === 'parent') {
-      return <ParentApp user={currentUser} childrenData={childrenData} onLogout={() => setCurrentUser(null)} globalMessages={globalMessages} setGlobalMessages={setGlobalMessages} setParentFeedback={setParentFeedback} />;
+      return <ParentApp user={currentUser} childrenData={childrenData} scheduleData={TODAY_SCHEDULE} onLogout={() => setCurrentUser(null)} globalMessages={globalMessages} setGlobalMessages={setGlobalMessages} setParentFeedback={setParentFeedback} />;
     }
 
     const tabs = [
@@ -2379,6 +2378,7 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
                         text: `Hello ${c.parent}, we noticed ${c.name} is absent today. We missed them! Please let us know if everything is okay.`,
                         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                       }));
+                      setGlobalMessages(prev => [...prev, ...msgs]);
                       await window.supabase.createClient('https://eztgwiujujaxswlslqbf.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV6dGd3aXVqdWpheHN3bHNscWJmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMxNzE5NjEsImV4cCI6MjA5ODc0Nzk2MX0.mzyC4DLlC-s3YznfQLTfNxa227_hQlLAt0VhL_dGxr0').from('global_messages').insert(msgs);
                       alert(`Sent follow-up messages to ${msgs.length} parents via Agent Nia!`);
                     } catch(e) { console.error(e); }
@@ -2394,17 +2394,20 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
                       <img src={child.photoUrl} alt={child.name} style={{ width: 40, height: 40, borderRadius: '50%' }} />
                       <div>
                         <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>{child.name}</div>
-                        <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Absent Unexplained</div>
+                        <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{child.absenceReason ? `Absent: ${child.absenceReason}` : 'Absent Unexplained'}</div>
                       </div>
                     </div>
                     <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 12 }}>
                       Contact: {child.parent} ({child.parentPhone})
                     </div>
                     <div style={{ display: 'flex', gap: 8 }}>
-                      <button onClick={() => window.open(`tel:${child.parentPhone}`)} style={{ flex: 1, padding: '8px', background: 'var(--mint)', color: '#000', border: 'none', borderRadius: 6, fontWeight: 700, cursor: 'pointer' }}>Call Parent</button>
+                      <a href={`tel:${child.parentPhone}`} style={{ flex: 1, padding: '8px', background: 'var(--mint)', color: '#000', border: 'none', borderRadius: 6, fontWeight: 700, cursor: 'pointer', textAlign: 'center', textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Call Parent</a>
                       <button onClick={() => {
                         const reason = prompt('Enter the absence reason:');
-                        if(reason) alert(`Reason logged: ${reason}`);
+                        if(reason) {
+                          setCentersData(prev => prev.map(c => c.id === selectedCenterId || selectedCenterId === 'all' ? { ...c, children: c.children.map(ch => ch.id === child.id ? { ...ch, absenceReason: reason } : ch) } : c));
+                          alert(`Reason logged: ${reason}`);
+                        }
                       }} style={{ flex: 1, padding: '8px', background: 'var(--bg-surface)', color: 'var(--text-primary)', border: 'none', borderRadius: 6, fontWeight: 600, cursor: 'pointer' }}>Log Reason</button>
                     </div>
                   </div>
@@ -2496,12 +2499,21 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
                   background: i === currentSlot ? 'rgba(0,252,143,0.08)' : 'transparent',
                   border: i === currentSlot ? '1px solid rgba(0,252,143,0.2)' : '1px solid transparent',
                 }}>
-                  <span style={{ fontSize: 16 }}>{slot.icon}</span>
+                  <span style={{ fontSize: 16 }}>{slot.icon || '🕒'}</span>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: 12, color: i === currentSlot ? 'var(--mint)' : 'var(--text-secondary)', fontWeight: i === currentSlot ? 600 : 400 }}>{slot.activity}</div>
-                    <div style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>{slot.caretaker}</div>
+                    <div style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>{slot.caretaker || 'Staff'}</div>
                   </div>
                   <div style={{ fontSize: 10, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)' }}>{slot.time}</div>
+                  <button onClick={() => {
+                    const newActivity = prompt(`Edit activity for ${slot.time}:`, slot.activity);
+                    if (newActivity !== null) {
+                      setCentersData(prev => prev.map(c => c.id === selectedCenterId || selectedCenterId === 'all' ? {
+                        ...c,
+                        schedule: c.schedule.map((s, idx) => idx === i ? { ...s, activity: newActivity } : s)
+                      } : c));
+                    }
+                  }} style={{ background: 'transparent', border: '1px solid var(--border-subtle)', color: 'var(--text-secondary)', padding: '2px 6px', borderRadius: 4, cursor: 'pointer', fontSize: 10 }}>Edit</button>
                 </div>
               ))}
               <button onClick={() => setActiveTab('schedule')} style={{ background: 'none', border: '1px solid var(--border-default)', borderRadius: 8, padding: '6px 12px', fontSize: 11, color: 'var(--text-secondary)', cursor: 'pointer', width: '100%', marginTop: 8, fontFamily: 'var(--font-body)' }}>
@@ -2703,7 +2715,12 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
         )}
 
         {activeTab === 'children' && selectedChild && (
-           <ChildProfileView child={selectedChild} onBack={() => setSelectedChild(null)} onMessage={handleMessage} />
+           <ChildProfileView 
+              child={selectedChild} 
+              onBack={() => setSelectedChild(null)} 
+              onMessage={handleMessage} 
+              onUpdateChild={(updatedChild) => setCentersData(prev => prev.map(c => ({ ...c, children: c.children.map(ch => ch.id === updatedChild.id ? updatedChild : ch) })))} 
+           />
         )}
 
         {/* ── CAMERAS TAB ── */}
@@ -2753,9 +2770,13 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
         {/* ── SCHEDULE TAB ── */}
         {activeTab === 'schedule' && (
           <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: 24 }}>
-            <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>Today's Programme</div>
-            <div style={{ fontSize: 12, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', marginBottom: 24 }}>
-              Generated by Global Director Hudson · {new Date().toDateString()}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>Today's Programme</div>
+                <div style={{ fontSize: 12, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)' }}>
+                  Generated by Global Director Hudson · {new Date().toDateString()}
+                </div>
+              </div>
             </div>
             {TODAY_SCHEDULE.map((slot, i) => (
               <div key={i} style={{
@@ -2768,17 +2789,26 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
               }}>
                 <div style={{
                   width: 44, height: 44, borderRadius: 10,
-                  background: slot.color + '18', border: `1px solid ${slot.color}30`,
+                  background: (slot.color || '#fff') + '18', border: `1px solid ${(slot.color || '#fff')}30`,
                   display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, flexShrink: 0,
-                }}>{slot.icon}</div>
+                }}>{slot.icon || '🕒'}</div>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: 13, fontWeight: i === currentSlot ? 600 : 400, color: i === currentSlot ? 'var(--mint)' : 'var(--text-primary)' }}>
                     {slot.activity}
                     {i === currentSlot && <span style={{ marginLeft: 8, fontSize: 10, background: 'var(--mint)', color: '#060012', borderRadius: 20, padding: '2px 8px', fontWeight: 700 }}>NOW</span>}
                   </div>
-                  <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginTop: 2 }}>Led by {slot.caretaker}</div>
+                  <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginTop: 2 }}>Led by {slot.caretaker || 'Staff'}</div>
                 </div>
                 <div style={{ fontSize: 12, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', flexShrink: 0 }}>{slot.time}</div>
+                <button onClick={() => {
+                  const newActivity = prompt(`Edit activity for ${slot.time}:`, slot.activity);
+                  if (newActivity !== null) {
+                    setCentersData(prev => prev.map(c => c.id === selectedCenterId || selectedCenterId === 'all' ? {
+                      ...c,
+                      schedule: c.schedule.map((s, idx) => idx === i ? { ...s, activity: newActivity } : s)
+                    } : c));
+                  }
+                }} style={{ background: 'transparent', border: '1px solid var(--border-subtle)', color: 'var(--text-secondary)', padding: '4px 8px', borderRadius: 4, cursor: 'pointer', fontSize: 11 }}>Edit</button>
               </div>
             ))}
           </div>
@@ -2805,27 +2835,34 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
                 {/* Revenue Breakdown */}
                 {(() => {
                   const monthlyCount = childrenData.filter(c => c.carePlan === 'monthly').length;
+                  const weeklyCount = childrenData.filter(c => c.carePlan === 'weekly').length;
                   const dailyCount = childrenData.filter(c => c.carePlan === 'daily').length;
                   const monthlyRevenue = monthlyCount * 87500;
+                  const weeklyRevenue = weeklyCount * 25000;
                   const dailyRevenue = dailyCount * 15000;
                   const staffCost = (kpi.caretakers || 0) * 800000;
                   const inventoryCost = 2170000;
                   const utilitiesCost = 1200000;
-                  const grossMargin = (monthlyRevenue + dailyRevenue) - (staffCost + inventoryCost + utilitiesCost);
+                  const grossMargin = (monthlyRevenue + weeklyRevenue + dailyRevenue) - (staffCost + inventoryCost + utilitiesCost);
                   
                   return (
                     <React.Fragment>
                       <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 12 }}>Revenue Stream</div>
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, marginBottom: 24 }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 16, marginBottom: 24 }}>
                         <div style={{ background: 'var(--bg-deepest)', padding: 16, borderRadius: 8, border: '1px solid var(--border-subtle)' }}>
                           <div style={{ fontSize: 11, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Monthly Care Plans</div>
                           <div style={{ fontSize: 24, fontWeight: 700, color: '#00FC8F' }}>UGX {monthlyRevenue.toLocaleString()}</div>
-                          <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 4 }}>Based on {monthlyCount} monthly kids</div>
+                          <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 4 }}>Based on {monthlyCount} kids</div>
+                        </div>
+                        <div style={{ background: 'var(--bg-deepest)', padding: 16, borderRadius: 8, border: '1px solid var(--border-subtle)' }}>
+                          <div style={{ fontSize: 11, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Weekly Packages</div>
+                          <div style={{ fontSize: 24, fontWeight: 700, color: '#00FC8F' }}>UGX {weeklyRevenue.toLocaleString()}</div>
+                          <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 4 }}>Based on {weeklyCount} kids</div>
                         </div>
                         <div style={{ background: 'var(--bg-deepest)', padding: 16, borderRadius: 8, border: '1px solid var(--border-subtle)' }}>
                           <div style={{ fontSize: 11, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Daily Drop-ins</div>
                           <div style={{ fontSize: 24, fontWeight: 700, color: '#00FC8F' }}>UGX {dailyRevenue.toLocaleString()}</div>
-                          <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 4 }}>Based on {dailyCount} daily kids</div>
+                          <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 4 }}>Based on {dailyCount} kids</div>
                         </div>
                       </div>
 
