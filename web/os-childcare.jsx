@@ -1852,7 +1852,7 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
     const [email, setEmail] = React.useState('');
     const [password, setPassword] = React.useState('');
     const [otpCode, setOtpCode] = React.useState('');
-    const [role, setRole] = React.useState('parent');
+    const [role, setRole] = React.useState('director');
     const [loading, setLoading] = React.useState(false);
     const [error, setError] = React.useState(null);
 
@@ -1928,7 +1928,6 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
                 <div>
                   <label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6, fontWeight: 700, textTransform: 'uppercase' }}>Role</label>
                   <select value={role} onChange={e => setRole(e.target.value)} style={{ width: '100%', background: 'var(--bg-deep)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '12px 16px', borderRadius: 8, fontSize: 14, outline: 'none' }}>
-                    <option value="parent">Parent</option>
                     <option value="director">Global Director</option>
                     <option value="manager">Branch Manager</option>
                     <option value="investor">Investor</option>
@@ -2143,6 +2142,8 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
     const [onboardingBirthday, setOnboardingBirthday] = React.useState('');
     const [onboardingAgeYears, setOnboardingAgeYears] = React.useState('');
     const [onboardingVaccines, setOnboardingVaccines] = React.useState(['BCG', 'Polio 0']);
+    const [onboardingParentEmail, setOnboardingParentEmail] = React.useState('');
+    const [onboardingParentPassword, setOnboardingParentPassword] = React.useState('');
     const [qrScannerOpen, setQrScannerOpen] = React.useState(false);
     const [scannedChildId, setScannedChildId] = React.useState(null);
 
@@ -2913,7 +2914,7 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
                 <button onClick={() => setShowAlumni(false)} style={{ background: !showAlumni ? 'var(--bg-elevated)' : 'transparent', color: !showAlumni ? 'var(--text-primary)' : 'var(--text-secondary)', border: 'none', borderRadius: 6, padding: '6px 12px', fontSize: 13, fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s' }}>Active Roster</button>
                 <button onClick={() => setShowAlumni(true)} style={{ background: showAlumni ? 'var(--bg-elevated)' : 'transparent', color: showAlumni ? 'var(--text-primary)' : 'var(--text-secondary)', border: 'none', borderRadius: 6, padding: '6px 12px', fontSize: 13, fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s' }}>Alumni / Graduated</button>
               </div>
-              <button onClick={() => { setOnboardingBirthday(''); setOnboardingAgeYears(''); setOnboardingVaccines(['BCG', 'Polio 0']); setOnboardingOpen(true); }} style={{ background: 'var(--mint)', color: '#060012', border: 'none', borderRadius: 8, padding: '10px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font-body)', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <button onClick={() => { setOnboardingBirthday(''); setOnboardingAgeYears(''); setOnboardingVaccines(['BCG', 'Polio 0']); setOnboardingParentEmail(''); setOnboardingParentPassword(''); setOnboardingOpen(true); }} style={{ background: 'var(--mint)', color: '#060012', border: 'none', borderRadius: 8, padding: '10px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font-body)', display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span>➕</span> Onboard Child
               </button>
             </div>
@@ -3257,8 +3258,10 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
                             <option value="card">Card Payment</option>
                           </select>
                         </div>
-                        <div><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Primary Parent</label><input name="parent" style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }} /></div>
-                        <div><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Secondary Parent</label><input name="secondaryParent" placeholder="Optional" style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }} /></div>
+                        <div><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Primary Parent Name</label><input name="parent" style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }} /></div>
+                        <div><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Secondary Parent Name</label><input name="secondaryParent" placeholder="Optional" style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }} /></div>
+                        <div><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Parent Login Email</label><input name="parentEmail" type="email" value={onboardingParentEmail} onChange={e => setOnboardingParentEmail(e.target.value)} placeholder="Required for parent access" required style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }} /></div>
+                        <div><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Parent Login Password</label><input name="parentPassword" type="password" value={onboardingParentPassword} onChange={e => setOnboardingParentPassword(e.target.value)} placeholder="Required" required style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }} /></div>
                         <div><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Kids Sports</label><input name="sports" placeholder="e.g. Swimming, Football" style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }} /></div>
                         <div style={{ gridColumn: '1 / -1' }}><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Authorized Pick-ups</label><input name="authorizedPickups" placeholder="Names & Phone Numbers" style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }} /></div>
                         <div style={{ gridColumn: '1 / -1' }}><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Allergies</label><input name="allergies" placeholder="e.g. Peanuts" style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }} /></div>
@@ -3297,11 +3300,17 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
                       </div>
                       <button 
                         type="button" 
-                        onClick={() => {
+                        onClick={async () => {
                           try {
                             const formElement = document.getElementById('onboardingForm');
                             if (!formElement) return;
                             const fd = new FormData(formElement);
+                            
+                            if (!onboardingParentEmail || !onboardingParentPassword) {
+                              alert("Please enter a Parent Login Email and Password to complete onboarding.");
+                              return;
+                            }
+
                             const newChild = {
                               id: 'child-new-' + Date.now(),
                               name: fd.get('name') || 'Unnamed Child', 
@@ -3322,6 +3331,27 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
                               carePlan: fd.get('carePlan') || 'monthly',
                               paymentMethod: fd.get('paymentMethod') || 'mobile_money'
                             };
+
+                            // Create Parent Auth Account in Supabase
+                            if (supabase) {
+                              const { error: signUpError } = await supabase.auth.signUp({
+                                email: onboardingParentEmail,
+                                password: onboardingParentPassword,
+                                options: {
+                                  data: {
+                                    role: 'parent',
+                                    full_name: newChild.parent,
+                                    childId: newChild.id
+                                  }
+                                }
+                              });
+                              if (signUpError) {
+                                console.error("Supabase Auth Error:", signUpError);
+                                alert("Failed to create parent login: " + signUpError.message);
+                                return;
+                              }
+                            }
+
                             setCentersData(prev => {
                               const targetId = selectedCenterId === 'all' ? prev[0].id : selectedCenterId;
                               return prev.map(c => c.id === targetId ? { ...c, children: [newChild, ...(c.children || [])] } : c);
