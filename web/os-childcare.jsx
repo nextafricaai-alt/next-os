@@ -323,9 +323,27 @@ Your task: Provide a brief, professional, and actionable 2-sentence assessment. 
               <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{child.parentPhone}</div>
             </div>
             
-            <button onClick={() => onMessage(child)} style={{ background: 'var(--mint)', color: '#060012', border: 'none', borderRadius: 8, padding: '12px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer', width: '100%', fontFamily: 'var(--font-body)' }}>
+            <button onClick={() => onMessage(child)} style={{ background: 'var(--mint)', color: '#060012', border: 'none', borderRadius: 8, padding: '12px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer', width: '100%', fontFamily: 'var(--font-body)', marginBottom: 16 }}>
               Message Parent
             </button>
+            
+            <div style={{ background: 'var(--bg-deep)', borderRadius: 12, padding: '12px', width: '100%' }}>
+              <div style={{ fontSize: 11, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Agent Nia Automation</div>
+              <input type="text" id={`gallery-url-${child.id}`} placeholder="Paste Image URL" style={{ width: '100%', padding: '8px', borderRadius: 6, border: '1px solid var(--border-subtle)', background: 'var(--bg-default)', color: 'var(--text-primary)', fontSize: 12, marginBottom: 8, boxSizing: 'border-box' }} />
+              <button onClick={async () => {
+                const url = document.getElementById(`gallery-url-${child.id}`).value;
+                if (!url) return;
+                try {
+                   const gallery = child.gallery || [];
+                   const newGallery = [url, ...gallery];
+                   await window.supabase.createClient('https://eztgwiujujaxswlslqbf.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV6dGd3aXVqdWpheHN3bHNscWJmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMxNzE5NjEsImV4cCI6MjA5ODc0Nzk2MX0.mzyC4DLlC-s3YznfQLTfNxa227_hQlLAt0VhL_dGxr0').from('children').update({ gallery: newGallery }).eq('id', child.id);
+                   document.getElementById(`gallery-url-${child.id}`).value = '';
+                   alert('Sent! Parent will be notified via Agent Nia.');
+                } catch(e) { console.error(e); }
+              }} style={{ background: 'transparent', color: 'var(--mint)', border: '1px solid var(--mint)', borderRadius: 6, padding: '8px', fontSize: 12, fontWeight: 600, cursor: 'pointer', width: '100%' }}>
+                Send to Parent Gallery
+              </button>
+            </div>
           </div>
           
           {/* Right Column: Detailed Vitals & Health */}
@@ -632,6 +650,42 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
 
     if (!child) return <div>Child not found</div>;
 
+    // Agent Nia: Auto-Notifications
+    const prevChildRef = React.useRef(child);
+    const prevMsgsLengthRef = React.useRef(myMessages.length);
+    React.useEffect(() => {
+      if (!notificationsEnabled) return;
+
+      const prevChild = prevChildRef.current;
+      
+      // Check for Milestone update
+      if (child.milestone && child.milestone !== prevChild.milestone) {
+        new Notification('🌟 New Milestone!', {
+          body: `${child.name} just achieved: ${child.milestone}`,
+        });
+      }
+      
+      // Check for Nap status change
+      if (child.nap !== prevChild.nap) {
+        new Notification('💤 Schedule Update', {
+          body: child.nap ? `${child.name} is now napping.` : `${child.name} woke up!`,
+        });
+      }
+
+      // Check for New Messages
+      if (myMessages.length > prevMsgsLengthRef.current) {
+        const latestMsg = myMessages[myMessages.length - 1];
+        if (latestMsg.fromRole !== 'parent') { // Only notify if it's from the center
+          new Notification(`💬 New Message from ${latestMsg.fromName}`, {
+            body: latestMsg.text,
+          });
+        }
+      }
+
+      prevChildRef.current = child;
+      prevMsgsLengthRef.current = myMessages.length;
+    }, [child, myMessages.length, notificationsEnabled]);
+
     const [windowWidth] = useWindowSize();
     const isMobile = windowWidth < 768;
 
@@ -861,21 +915,21 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
               <div style={{ animation: 'fadeIn 0.3s ease' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
                   <h1 style={{ fontSize: 32, fontFamily: 'var(--font-display)', color: 'var(--text-primary)' }}>Gallery</h1>
-                  <span style={{ fontSize: 14, color: 'var(--text-secondary)' }}>This Week</span>
+                  <span style={{ fontSize: 14, color: 'var(--text-secondary)' }}>Live from Center</span>
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 16 }}>
-                  {/* Placeholder Gallery Images */}
-                  {[
-                    'https://images.unsplash.com/photo-1519340333755-56e9c1d04579?w=400&q=80',
-                    'https://images.unsplash.com/photo-1594608661623-aa0bd3a01844?w=400&q=80',
-                    'https://images.unsplash.com/photo-1544214589-9e8ff535c8e4?w=400&q=80',
-                    'https://images.unsplash.com/photo-1502086223501-7ea6ecd79368?w=400&q=80'
-                  ].map((src, i) => (
-                    <div key={i} style={{ borderRadius: 16, overflow: 'hidden', aspectRatio: '1/1', position: 'relative', border: '1px solid var(--border-subtle)' }}>
-                      <img src={src} style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.3s' }} onMouseOver={e => e.currentTarget.style.transform = 'scale(1.05)'} onMouseOut={e => e.currentTarget.style.transform = 'scale(1)'} />
-                    </div>
-                  ))}
-                </div>
+                {(!child.gallery || child.gallery.length === 0) ? (
+                  <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-secondary)', background: 'var(--bg-elevated)', borderRadius: 16 }}>
+                    No photos uploaded yet. Check back soon!
+                  </div>
+                ) : (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 16 }}>
+                    {child.gallery.map((src, i) => (
+                      <div key={i} style={{ borderRadius: 16, overflow: 'hidden', aspectRatio: '1/1', position: 'relative', border: '1px solid var(--border-subtle)' }}>
+                        <img src={src} style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.3s' }} onMouseOver={e => e.currentTarget.style.transform = 'scale(1.05)'} onMouseOut={e => e.currentTarget.style.transform = 'scale(1)'} />
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 
@@ -1715,9 +1769,12 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
     const [selectedCenterId, setSelectedCenterId] = React.useState('all');
 
     React.useEffect(() => {
+      let isMounted = true;
+      let subscription = null;
+
       const fetchData = async () => {
         if (!supabase) {
-          setIsSupabaseLoading(false);
+          if (isMounted) setIsSupabaseLoading(false);
           return;
         }
         try {
@@ -1727,21 +1784,55 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
           const { data: messagesData, error: msgErr } = await supabase.from('global_messages').select('*');
           if (msgErr) throw msgErr;
 
-          if (childrenData && childrenData.length > 0) {
-             const updatedCenters = [...CENTERS];
-             updatedCenters[0].children = childrenData.sort((a,b) => a.id - b.id);
-             setCentersData(updatedCenters);
+          if (isMounted) {
+            if (childrenData && childrenData.length > 0) {
+               const updatedCenters = [...CENTERS];
+               updatedCenters[0].children = childrenData.sort((a,b) => a.id - b.id);
+               setCentersData(updatedCenters);
+            }
+            if (messagesData && messagesData.length > 0) {
+               setGlobalMessages(messagesData.sort((a,b) => a.id - b.id));
+            }
           }
-          if (messagesData && messagesData.length > 0) {
-             setGlobalMessages(messagesData.sort((a,b) => a.id - b.id));
-          }
+
+          // Agent Nia: Realtime Sync Subscription
+          subscription = supabase.channel('armani-os-sync')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'children' }, (payload) => {
+               // Update local state when a child changes
+               setCentersData(prevCenters => {
+                 const newCenters = [...prevCenters];
+                 if (payload.eventType === 'UPDATE') {
+                    const idx = newCenters[0].children.findIndex(c => c.id === payload.new.id);
+                    if (idx !== -1) newCenters[0].children[idx] = payload.new;
+                 }
+                 return newCenters;
+               });
+            })
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'global_messages' }, (payload) => {
+               // Update local messages when a message is added
+               setGlobalMessages(prevMsgs => {
+                 if (payload.eventType === 'INSERT') {
+                    return [...prevMsgs, payload.new].sort((a,b) => a.id - b.id);
+                 }
+                 return prevMsgs;
+               });
+            })
+            .subscribe();
+
         } catch (e) {
           console.error("Error fetching Supabase data:", e);
         } finally {
-          setIsSupabaseLoading(false);
+          if (isMounted) setIsSupabaseLoading(false);
         }
       };
       fetchData();
+
+      return () => {
+        isMounted = false;
+        if (subscription) {
+          supabase.removeChannel(subscription);
+        }
+      };
     }, []);
 
     React.useEffect(() => {
