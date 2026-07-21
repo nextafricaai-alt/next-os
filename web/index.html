@@ -3953,7 +3953,7 @@ const FleetPage = ({ onNavigate }) => {
   const handleOpen = (tenant) => {
     // Individual childcare centers open in standalone app
     if (tenant.vertical === 'childcare') {
-      var _c = 'prototypes/childcare/index.html?t=' + encodeURIComponent(tenant.id) + '&n=' + encodeURIComponent(tenant.name || '');
+      var _c = 'childcare-app.html?t=' + encodeURIComponent(tenant.id) + '&n=' + encodeURIComponent(tenant.name || '');
       window.open(_c, '_blank', 'noopener,noreferrer');
       return;
     }

@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Charis Childcare OS</title>
   <link rel="icon" type="image/png" href="../../uploads/NEXT Favicon Transperent Logo@3x.png">
+  <link rel="manifest" href="armani-manifest.json">
   
   <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -51,7 +52,7 @@
   <div id="root"></div>
 
   <!-- Load the shared Childcare UI component -->
-  <script type="text/babel" src="../../os-childcare.jsx"></script>
+  <script type="text/babel" src="./os-childcare.jsx"></script>
 
   <script type="text/babel">
     // Wait for the component to attach to window
@@ -65,6 +66,29 @@
         document.getElementById('root').innerHTML = '<div style="color:red">Failed to load ChildcareOSPage component.</div>';
       }
     }, 100);
+
+    // PWA Install Button Logic
+    let deferredPrompt;
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      // Expose globally so React can bind a button to it
+      window.triggerPWAInstall = async () => {
+        if (deferredPrompt) {
+          deferredPrompt.prompt();
+          const { outcome } = await deferredPrompt.userChoice;
+          if (outcome === 'accepted') {
+            console.log('User accepted the install prompt');
+          }
+          deferredPrompt = null;
+        } else {
+          alert('Install prompt is not available yet, or app is already installed.');
+        }
+      };
+      
+      // Dispatch an event so React knows it's installable
+      window.dispatchEvent(new Event('pwa-installable'));
+    });
   </script>
 </body>
 </html>

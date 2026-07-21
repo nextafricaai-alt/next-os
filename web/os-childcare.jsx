@@ -642,6 +642,16 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
     const [notificationsEnabled, setNotificationsEnabled] = React.useState(
       typeof Notification !== 'undefined' && Notification.permission === 'granted'
     );
+    const [isInstallable, setIsInstallable] = React.useState(false);
+
+    React.useEffect(() => {
+      const handleInstallable = () => setIsInstallable(true);
+      if (typeof window !== 'undefined') {
+        window.addEventListener('pwa-installable', handleInstallable);
+        if (window.triggerPWAInstall) setIsInstallable(true);
+        return () => window.removeEventListener('pwa-installable', handleInstallable);
+      }
+    }, []);
 
     const handleEnableNotifications = () => {
       if (!('Notification' in window)) {
@@ -727,6 +737,11 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
             <div style={{ fontSize: 14, color: 'var(--text-secondary)' }}>
               {child.present ? 'Checked In' : 'Absent'} {child.nap ? ' • Napping' : ''}
             </div>
+            {isInstallable && (
+              <button onClick={() => window.triggerPWAInstall && window.triggerPWAInstall()} style={{ marginTop: 12, padding: '8px 16px', background: 'var(--mint)', color: '#000', border: 'none', borderRadius: 20, fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                📱 Install App
+              </button>
+            )}
           </div>
 
           {/* Navigation */}
