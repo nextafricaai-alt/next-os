@@ -649,6 +649,7 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
       typeof Notification !== 'undefined' && Notification.permission === 'granted'
     );
     const [isInstallable, setIsInstallable] = React.useState(false);
+    const [isEditingProfile, setIsEditingProfile] = React.useState(false);
 
     React.useEffect(() => {
       const handleInstallable = () => setIsInstallable(true);
@@ -748,6 +749,9 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
                 📱 Install App
               </button>
             )}
+            <button onClick={() => setIsEditingProfile(true)} style={{ marginTop: 12, padding: '8px 16px', background: 'var(--bg-elevated)', color: 'var(--text-secondary)', border: '1px solid var(--border-subtle)', borderRadius: 20, fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              ✏️ Edit Profile
+            </button>
           </div>
 
           {/* Navigation */}
@@ -1202,6 +1206,39 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
                 <div style={{ fontSize: 11, fontWeight: activeTab === nav.id ? 700 : 500 }}>{nav.label}</div>
               </div>
             ))}
+          </div>
+        )}
+
+        {isEditingProfile && (
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+            <div style={{ background: 'var(--bg-elevated)', borderRadius: 16, padding: 32, width: '100%', maxWidth: 500, position: 'relative', maxHeight: '90vh', overflowY: 'auto' }}>
+              <button onClick={() => setIsEditingProfile(false)} style={{ position: 'absolute', top: 16, right: 16, background: 'none', border: 'none', color: 'var(--text-tertiary)', fontSize: 24, cursor: 'pointer' }}>×</button>
+              <h2 style={{ fontSize: 24, margin: '0 0 20px', color: 'var(--text-primary)', fontFamily: 'var(--font-display)' }}>Complete Profile</h2>
+              <form onSubmit={e => {
+                e.preventDefault();
+                const fd = new FormData(e.target);
+                const updates = {};
+                if (fd.get('photoUrl')) updates.photoUrl = fd.get('photoUrl');
+                if (fd.get('emergencyContact')) updates.emergencyContact = fd.get('emergencyContact');
+                if (fd.get('homeAddress')) updates.homeAddress = fd.get('homeAddress');
+                if (fd.get('doctorInfo')) updates.doctorInfo = fd.get('doctorInfo');
+                if (fd.get('favouriteMeals')) updates.favouriteMeals = fd.get('favouriteMeals');
+                
+                if (setChildrenData) {
+                  setChildrenData(prev => prev.map(c => c.id === child.id ? { ...c, ...updates } : c));
+                }
+                setIsEditingProfile(false);
+              }}>
+                <div style={{ display: 'grid', gap: 16, marginBottom: 24 }}>
+                  <div><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Child's Photo URL (Optional)</label><input name="photoUrl" defaultValue={child.photoUrl?.includes('unsplash') ? '' : child.photoUrl} placeholder="https://..." style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }} /></div>
+                  <div><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Emergency Contact (Name & Phone)</label><input name="emergencyContact" defaultValue={child.emergencyContact || ''} required style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }} /></div>
+                  <div><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Home Address</label><input name="homeAddress" defaultValue={child.homeAddress || ''} style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }} /></div>
+                  <div><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Doctor's Name & Clinic</label><input name="doctorInfo" defaultValue={child.doctorInfo || ''} style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }} /></div>
+                  <div><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Favourite Meals</label><input name="favouriteMeals" defaultValue={child.favouriteMeals === 'To be determined' ? '' : child.favouriteMeals} style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }} /></div>
+                </div>
+                <button type="submit" style={{ width: '100%', padding: 14, background: 'var(--mint)', color: '#000', border: 'none', borderRadius: 12, fontSize: 15, fontWeight: 700, cursor: 'pointer' }}>Save Profile</button>
+              </form>
+            </div>
           </div>
         )}
       </div>
@@ -2208,7 +2245,7 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
     }
 
     if (currentUser.role === 'parent') {
-      return <ParentApp user={currentUser} childrenData={childrenData} scheduleData={TODAY_SCHEDULE} onLogout={() => setCurrentUser(null)} globalMessages={globalMessages} setGlobalMessages={setGlobalMessages} setParentFeedback={setParentFeedback} />;
+      return <ParentApp user={currentUser} childrenData={childrenData} setChildrenData={setChildrenData} scheduleData={TODAY_SCHEDULE} onLogout={() => setCurrentUser(null)} globalMessages={globalMessages} setGlobalMessages={setGlobalMessages} setParentFeedback={setParentFeedback} />;
     }
 
     const tabs = [
@@ -3054,7 +3091,7 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
                     setOnboardingReport(newChild);
                   }}>
                     <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 16, marginBottom: 16 }}>
-                      <div style={{ gridColumn: '1 / -1' }}><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Digital Passport Photo URL</label><input name="photoUrl" placeholder="https://..." style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }} /></div>
+                      <div style={{ gridColumn: '1 / -1' }}><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Digital Passport Photo URL (Optional)</label><input name="photoUrl" placeholder="https://..." style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }} /></div>
                       <div><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Full Name</label><input required name="name" style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }} /></div>
                       <div><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Age (years)</label><input required name="age" type="number" value={onboardingAgeYears} onChange={e => setOnboardingAgeYears(e.target.value)} style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }} /></div>
                       <div><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Birthday</label><input required name="birthday" type="date" value={onboardingBirthday} onChange={e => setOnboardingBirthday(e.target.value)} style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }} /></div>
