@@ -1939,9 +1939,22 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
 
     React.useEffect(() => {
       const hash = window.location.hash.replace('#', '');
-      if (!hash) return;
+      const urlParams = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
+      const rParam = urlParams.get('r');
+      const tParam = urlParams.get('t');
       
       const allChildren = centersData.flatMap(c => c.children);
+
+      // Handle Parent Personal Link Auto-Login
+      if (rParam && tParam === 'charis-childcare') {
+        const child = allChildren.find(c => c.parent === rParam);
+        if (child) {
+          setCurrentUser({ role: 'parent', name: child.parent, childId: child.id });
+          return;
+        }
+      }
+      
+      if (!hash) return;
       
       if (hash === 'director') {
         setCurrentUser({ role: 'director', name: 'Global Director' });
