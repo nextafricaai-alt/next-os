@@ -929,10 +929,14 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
                   </div>
                   <div style={{ padding: 16, borderTop: '1px solid var(--border-subtle)', background: 'var(--bg-deep)', display: 'flex', gap: 12 }}>
                     <input value={msgText} onChange={e => setMsgText(e.target.value)} placeholder="Message the Branch Manager..." style={{ flex: 1, background: 'var(--bg-elevated)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '12px 16px', borderRadius: 8, fontSize: 15, outline: 'none' }} />
-                    <button onClick={() => {
+                    <button onClick={async () => {
                       if (!msgText.trim()) return;
-                      setGlobalMessages([...globalMessages, { id: Date.now(), threadId: `parent-${child.id}`, fromRole: 'parent', fromName: user.name, toRole: 'manager', toName: 'Branch Manager', branchId: 'charis-kampala', text: msgText, time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) }]);
+                      const newMsg = { id: Date.now(), threadId: `parent-${child.id}`, fromRole: 'parent', fromName: user.name, toRole: 'manager', toName: 'Branch Manager', branchId: 'charis-kampala', text: msgText, time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) };
+                      setGlobalMessages([...globalMessages, newMsg]);
                       setMsgText('');
+                      if (window.supabase) {
+                        await window.supabase.createClient('https://eztgwiujujaxswlslqbf.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV6dGd3aXVqdWpheHN3bHNscWJmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMxNzE5NjEsImV4cCI6MjA5ODc0Nzk2MX0.mzyC4DLlC-s3YznfQLTfNxa227_hQlLAt0VhL_dGxr0').from('global_messages').insert([{...newMsg, id: undefined}]);
+                      }
                     }} style={{ background: 'var(--mint)', color: '#000', border: 'none', padding: '0 24px', borderRadius: 8, fontWeight: 700, cursor: 'pointer', fontSize: 15 }}>Send</button>
                   </div>
                 </div>
@@ -1594,11 +1598,17 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
     );
   };
 
+// ── Initialize Supabase ────────────────────────────────────────────────────
+  const supabaseUrl = 'https://eztgwiujujaxswlslqbf.supabase.co';
+  const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV6dGd3aXVqdWpheHN3bHNscWJmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMxNzE5NjEsImV4cCI6MjA5ODc0Nzk2MX0.mzyC4DLlC-s3YznfQLTfNxa227_hQlLAt0VhL_dGxr0';
+  const supabase = window.supabase ? window.supabase.createClient(supabaseUrl, supabaseKey) : null;
+
 // ── Main Page Component ──────────────────────────────────────────────────
   const ChildcareOSPage = ({ onNavigate }) => {
     const [windowWidth] = useWindowSize();
     const isMobile = windowWidth < 768;
     const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
+    const [isSupabaseLoading, setIsSupabaseLoading] = React.useState(true);
 
     const [currentUser, setCurrentUser] = React.useState(null);
     const [globalMessages, setGlobalMessages] = React.useState(INITIAL_GLOBAL_MESSAGES);
@@ -1607,10 +1617,40 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
     const [selectedCenterId, setSelectedCenterId] = React.useState('all');
 
     React.useEffect(() => {
+      const fetchData = async () => {
+        if (!supabase) {
+          setIsSupabaseLoading(false);
+          return;
+        }
+        try {
+          const { data: childrenData, error: childErr } = await supabase.from('children').select('*');
+          if (childErr) throw childErr;
+          
+          const { data: messagesData, error: msgErr } = await supabase.from('global_messages').select('*');
+          if (msgErr) throw msgErr;
+
+          if (childrenData && childrenData.length > 0) {
+             const updatedCenters = [...CENTERS];
+             updatedCenters[0].children = childrenData.sort((a,b) => a.id - b.id);
+             setCentersData(updatedCenters);
+          }
+          if (messagesData && messagesData.length > 0) {
+             setGlobalMessages(messagesData.sort((a,b) => a.id - b.id));
+          }
+        } catch (e) {
+          console.error("Error fetching Supabase data:", e);
+        } finally {
+          setIsSupabaseLoading(false);
+        }
+      };
+      fetchData();
+    }, []);
+
+    React.useEffect(() => {
       const hash = window.location.hash.replace('#', '');
       if (!hash) return;
       
-      const allChildren = CENTERS.flatMap(c => c.children);
+      const allChildren = centersData.flatMap(c => c.children);
       
       if (hash === 'director') {
         setCurrentUser({ role: 'director', name: 'Global Director' });
@@ -1625,12 +1665,13 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
         setActiveTab('operations');
       } else if (hash.startsWith('parent/')) {
         const childId = hash.split('/')[1];
-        const child = allChildren.find(c => c.id === childId);
+        // Parse childId as integer because SQL table uses integer IDs
+        const child = allChildren.find(c => c.id === parseInt(childId) || c.id === childId);
         if (child) {
           setCurrentUser({ role: 'parent', name: child.parent, childId: child.id });
         }
       }
-    }, []);
+    }, [centersData]);
     const [selectedChild, setSelectedChild] = React.useState(null);
     const [niaOpen, setNiaOpen] = React.useState(false);
     const [centersData, setCentersData] = React.useState(CENTERS);
@@ -1820,6 +1861,17 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
         'Hello ' + child.parent + ', this is a message from the Armani team regarding ' + child.name + '. '
       );
       window.open(url, '_blank', 'noopener,noreferrer');
+    }
+
+    if (isSupabaseLoading) {
+      return (
+        <div style={{ width: '100%', height: '100%', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-deepest)', fontFamily: 'var(--font-body)', color: 'var(--mint)' }}>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: 40, marginBottom: 16 }}>☁️</div>
+            <div style={{ fontSize: 18, fontWeight: 600 }}>Syncing with Supabase...</div>
+          </div>
+        </div>
+      );
     }
 
     if (!currentUser) {
