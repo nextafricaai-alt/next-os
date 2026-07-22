@@ -2055,7 +2055,8 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
           if (session && isMounted) {
             const role = (session.user && session.user.user_metadata && session.user.user_metadata.role) || 'parent';
             const fullName = (session.user && session.user.user_metadata && session.user.user_metadata.full_name) || (session.user && session.user.email) || 'User';
-            let updatedUser = { ...session.user, role, name: fullName };
+            const childId = (session.user && session.user.user_metadata && session.user.user_metadata.childId) || null;
+            let updatedUser = { ...session.user, role, name: fullName, childId };
             setCurrentUser(updatedUser);
             if (role === 'director' || role === 'investor') setActiveTab('owner-view');
             else if (role === 'manager') setActiveTab('operations');
@@ -2066,7 +2067,8 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
           if (session && isMounted) {
             const role = (session.user && session.user.user_metadata && session.user.user_metadata.role) || 'parent';
             const fullName = (session.user && session.user.user_metadata && session.user.user_metadata.full_name) || (session.user && session.user.email) || 'User';
-            let updatedUser = { ...session.user, role, name: fullName };
+            const childId = (session.user && session.user.user_metadata && session.user.user_metadata.childId) || null;
+            let updatedUser = { ...session.user, role, name: fullName, childId };
             setCurrentUser(updatedUser);
             if (role === 'director' || role === 'investor') setActiveTab('owner-view');
             else if (role === 'manager') setActiveTab('operations');
@@ -2396,7 +2398,8 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
           onLogin={(user) => {
             const role = (user && user.user_metadata && user.user_metadata.role) || 'parent';
             const fullName = (user && user.user_metadata && user.user_metadata.full_name) || (user && user.email) || 'User';
-            let updatedUser = { ...user, role, name: fullName };
+            const childId = (user && user.user_metadata && user.user_metadata.childId) || null;
+            let updatedUser = { ...user, role, name: fullName, childId };
             if (role === 'director' || role === 'investor') {
               setActiveTab('owner-view');
             } else if (role === 'manager') {
