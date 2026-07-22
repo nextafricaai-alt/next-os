@@ -3335,8 +3335,8 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
                             // Create Parent Auth Account in Supabase using a temporary client to prevent logging the manager out
                             if (supabase) {
                               const tempSupabase = window.supabase.createClient(
-                                supabase.supabaseUrl, 
-                                supabase.supabaseKey, 
+                                supabaseUrl, 
+                                supabaseKey, 
                                 { auth: { storage: { getItem: () => null, setItem: () => null, removeItem: () => null } } }
                               );
 
