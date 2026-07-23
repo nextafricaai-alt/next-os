@@ -1,8 +1,8 @@
 {
-  "name": "Armani Childcare",
-  "short_name": "Armani",
-  "description": "Armani — the smart operating system for your childcare centre. Daily logs, milestones, billing, and parent communication in one place.",
-  "start_url": "armani.html",
+  "name": "Amani Childcare",
+  "short_name": "Amani",
+  "description": "Amani — the smart operating system for your childcare centre. Daily logs, milestones, billing, and parent communication in one place.",
+  "start_url": "amani.html",
   "scope": "./",
   "display": "standalone",
   "orientation": "any",
@@ -18,14 +18,14 @@
       "name": "Director View",
       "short_name": "Director",
       "description": "Open Global Director dashboard",
-      "url": "armani.html#director",
+      "url": "amani.html#director",
       "icons": [{ "src": "icon-192.png", "sizes": "192x192" }]
     },
     {
       "name": "Operations Wall",
       "short_name": "Operations",
       "description": "Open Operations Wall for Kampala",
-      "url": "armani.html#manager/charis-kampala",
+      "url": "amani.html#manager/charis-kampala",
       "icons": [{ "src": "icon-192.png", "sizes": "192x192" }]
     }
   ]

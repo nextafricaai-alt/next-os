@@ -1,4 +1,4 @@
-/* os-childcare.jsx — Armani OS Panel
+/* os-childcare.jsx — Amani OS Panel
    Renders as a full NEXT OS page when the 'childcare' tab is active.
    Supervised by Nia. Data mirrors os-data.jsx charis-childcare tenant.
 */
@@ -139,7 +139,64 @@ console.log("os-childcare.jsx is executing!");
 
 
 
-  // ── Helper: current time highlight for schedule ──────────────────────────
+  // ── Amani Finance Module Data ───────────────────────────────────────────
+  const CHART_OF_ACCOUNTS = {
+    // Income
+    4100: { code: '4100', name: 'Care fees - full day', type: 'Income' },
+    4110: { code: '4110', name: 'Care fees - half day', type: 'Income' },
+    4190: { code: '4190', name: 'Other income', type: 'Income' },
+    // Cost of care
+    5100: { code: '5100', name: 'Food & milk', type: 'Cost of care' },
+    5120: { code: '5120', name: 'Learning materials & toys', type: 'Cost of care' },
+    // Staff
+    6100: { code: '6100', name: 'Salaries gross', type: 'Staff' },
+    6110: { code: '6110', name: 'NSSF employer contribution', type: 'Staff' },
+    // Premises & Utilities
+    6600: { code: '6600', name: 'Rent', type: 'Premises' },
+    6610: { code: '6610', name: 'Electricity', type: 'Premises' },
+    // Admin
+    7100: { code: '7100', name: 'Licences & permits', type: 'Admin' },
+    // Assets
+    1100: { code: '1100', name: 'Cash - bank', type: 'Asset' },
+    1110: { code: '1110', name: 'Cash - MTN MoMo', type: 'Asset' },
+    1200: { code: '1200', name: 'Accounts receivable (parents)', type: 'Asset' },
+    1300: { code: '1300', name: 'Fixed assets', type: 'Asset' },
+    // Liabilities
+    2100: { code: '2100', name: 'Accounts payable', type: 'Liability' },
+    2300: { code: '2300', name: 'Investor loans', type: 'Liability' },
+    2400: { code: '2400', name: 'Parent prepayments', type: 'Liability' },
+    // Equity
+    3100: { code: '3100', name: 'Share capital / investor contributions', type: 'Equity' },
+    3200: { code: '3200', name: 'Retained earnings', type: 'Equity' }
+  };
+
+  const INITIAL_LEDGER = [
+    { id: 'le-1', date: '2026-07-01', memo: 'Investor Capital (Shalua)', centerId: 'all', lines: [
+        { account: '1100', debit: 5000000, credit: 0 },
+        { account: '3100', debit: 0, credit: 5000000 }
+      ], fundedByCapital: false },
+    { id: 'le-2', date: '2026-07-02', memo: 'Rent payment (Kampala)', centerId: 'charis-kampala', lines: [
+        { account: '6600', debit: 1200000, credit: 0 },
+        { account: '1100', debit: 0, credit: 1200000 }
+      ], fundedByCapital: true },
+    { id: 'le-3', date: '2026-07-05', memo: 'Fees Received (Aiden Nakamya)', centerId: 'charis-kampala', lines: [
+        { account: '1110', debit: 87500, credit: 0 },
+        { account: '1200', debit: 0, credit: 87500 }
+      ], fundedByCapital: false },
+    { id: 'le-4', date: '2026-07-08', memo: 'Toys purchase', centerId: 'charis-kampala', lines: [
+        { account: '5120', debit: 350000, credit: 0 },
+        { account: '1110', debit: 0, credit: 350000 }
+      ], fundedByCapital: true }
+  ];
+
+  const INVESTOR_DATA = {
+    name: 'Shalua',
+    contributed: 5000000,
+    totalEquity: 5000000,
+    type: 'equity'
+  };
+
+
   function getCurrentTimeSlot(schedule) {
     if (!schedule || !schedule.length) return -1;
     const now = new Date();
@@ -234,7 +291,7 @@ console.log("os-childcare.jsx is executing!");
       const fetchBrief = async () => {
         try {
           const vac = typeof calculateVaccineStatus !== 'undefined' ? calculateVaccineStatus(child) : {};
-          const systemPrompt = `You are Nia, the AI Chief of Staff for Armani. You are analyzing a child's profile to assist the childcare staff.
+          const systemPrompt = `You are Nia, the AI Chief of Staff for Amani. You are analyzing a child's profile to assist the childcare staff.
 Child Name: ${child.name}
 Age: ${child.age}
 Allergies: ${child.allergies}
@@ -504,7 +561,7 @@ Your task: Provide a brief, professional, and actionable 2-sentence assessment. 
 
   // ── Nia AI Chat Overlay ──────────────────────────────────────────────────
   const ChildcareNiaOverlay = ({ isOpen, onClose, contextData }) => {
-    const [messages, setMessages] = React.useState([{ role: 'assistant', content: 'Hello Hudson. I am monitoring Armani OS. What do you need to know?' }]);
+    const [messages, setMessages] = React.useState([{ role: 'assistant', content: 'Hello Hudson. I am monitoring Amani OS. What do you need to know?' }]);
     const [input, setInput] = React.useState('');
     const [pending, setPending] = React.useState(false);
     const messagesEndRef = React.useRef(null);
@@ -530,7 +587,7 @@ Your task: Provide a brief, professional, and actionable 2-sentence assessment. 
       const messagesStr = JSON.stringify(contextData.messages);
       const kpiStr = JSON.stringify(contextData.kpi);
 
-      const systemPrompt = `You are Nia, the AI Chief of Staff for NEXT OS. You are currently viewing the Armani OS dashboard for Hudson Tumusiime (Global Director).
+      const systemPrompt = `You are Nia, the AI Chief of Staff for NEXT OS. You are currently viewing the Amani OS dashboard for Hudson Tumusiime (Global Director).
 You have complete access to the current dashboard state. Answer the user's questions based ONLY on this data. Be concise, direct, and helpful. Do not use markdown headers.
 
 CURRENT DASHBOARD STATE:
@@ -617,9 +674,9 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
     
     let basePath = window.location.origin + window.location.pathname;
     if (!basePath.endsWith('.html')) {
-        basePath += basePath.endsWith('/') ? 'armani.html' : '/armani.html';
+        basePath += basePath.endsWith('/') ? 'amani.html' : '/amani.html';
     } else {
-        basePath = basePath.replace(/[^/]+$/, 'armani.html');
+        basePath = basePath.replace(/[^/]+$/, 'amani.html');
     }
     const url = basePath + hash;
     
@@ -630,7 +687,7 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
           <input readOnly value={url} style={{ flex: 1, background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', color: 'var(--text-secondary)', padding: '8px', borderRadius: 6, fontSize: 12 }} />
           <button onClick={() => { navigator.clipboard.writeText(url); alert('Link copied!'); }} style={{ background: 'var(--mint)', color: '#000', border: 'none', padding: '0 12px', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Copy</button>
         </div>
-        <button onClick={() => window.open('https://wa.me/?text=' + encodeURIComponent('Here is your Armani OS link: ' + url))} style={{ width: '100%', marginTop: 8, background: '#25D366', color: '#fff', border: 'none', padding: '8px', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+        <button onClick={() => window.open('https://wa.me/?text=' + encodeURIComponent('Here is your Amani OS link: ' + url))} style={{ width: '100%', marginTop: 8, background: '#25D366', color: '#fff', border: 'none', padding: '8px', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12.031 0C5.383 0 0 5.383 0 12.031c0 2.124.553 4.195 1.604 6.012L.211 23.789l5.882-1.543a11.96 11.96 0 005.938 1.57h.005c6.648 0 12.031-5.383 12.031-12.031S18.679 0 12.031 0zm0 21.848a9.98 9.98 0 01-5.093-1.385l-.365-.216-3.784.992.992-3.69-.237-.376a9.962 9.962 0 01-1.528-5.334c0-5.503-4.478-9.981-9.981-9.981 2.668 0 5.176 1.038 7.062 2.925a9.957 9.957 0 012.925 7.056c0 5.503-4.478 9.981-9.981 9.981zm5.474-7.48c-.3-.15-1.774-.876-2.048-.976-.274-.101-.474-.15-.674.15-.2.3-.775.976-.95 1.176-.175.2-.35.225-.65.075-.3-.15-1.266-.466-2.411-1.488-.89-.794-1.49-1.774-1.665-2.074-.175-.3-.02-.462.13-.612.135-.135.3-.35.45-.525.15-.175.2-.3.3-.5.1-.2.05-.375-.025-.525-.075-.15-.674-1.626-.924-2.226-.242-.582-.488-.5-.674-.51-.175-.01-.375-.01-.575-.01-.2 0-.525.075-.8.375-.275.3-1.05 1.026-1.05 2.502 0 1.476 1.075 2.902 1.225 3.102.15.2 2.115 3.227 5.124 4.526.717.31 1.275.495 1.711.635.718.23 1.371.197 1.884.12.574-.086 1.774-.726 2.024-1.426.25-.7.25-1.302.175-1.426-.075-.125-.275-.2-.575-.35z"/></svg>
           Share
         </button>
@@ -668,7 +725,7 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
       Notification.requestPermission().then(permission => {
         if (permission === 'granted') {
           setNotificationsEnabled(true);
-          new Notification('Armani OS', {
+          new Notification('Amani OS', {
             body: 'Notifications activated successfully!',
             icon: 'uploads/NEXT Favicon Transperent Logo@3x.png'
           });
@@ -1162,7 +1219,7 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
                   <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 16, padding: 48, textAlign: 'center' }}>
                     <div style={{ fontSize: 64, marginBottom: 24 }}>✨</div>
                     <div style={{ fontSize: 24, color: 'var(--text-primary)', fontWeight: 700, marginBottom: 8 }}>Thank you!</div>
-                    <div style={{ fontSize: 16, color: 'var(--text-secondary)' }}>Your input helps us continuously improve the Armani experience.</div>
+                    <div style={{ fontSize: 16, color: 'var(--text-secondary)' }}>Your input helps us continuously improve the Amani experience.</div>
                   </div>
                 ) : (
                   <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 16, padding: 32 }}>
@@ -1653,90 +1710,168 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
     );
   };
 
-// ── Finance Dashboard (Module 06) ────────────────────────────────────────
-  const FinanceDashboard = ({ 
-    currentUser, centersData, selectedCenterId, childrenData, ledgerRows, 
-    pettyCashTransactions, setPettyCashTransactions 
+// ── Amani Finance Module (Module 06) ────────────────────────────────────────
+  const FinanceTab = ({ 
+    currentUser, centersData, selectedCenterId, childrenData, 
+    ledgerEntries, setLedgerEntries,
+    expenseRequests, setExpenseRequests,
+    payrollRuns, setPayrollRuns,
+    recurringBills, setRecurringBills,
+    pettyCashTransactions, setPettyCashTransactions,
+    kpi
   }) => {
-    
     const isGlobal = currentUser.role === 'director' && selectedCenterId === 'all';
-    
-    const handlePettyCashRequest = () => {
-      const desc = prompt('Enter description for Petty Cash Request:');
-      if(!desc) return;
-      const amtStr = prompt('Enter amount (UGX):');
-      if(!amtStr) return;
-      const amount = parseInt(amtStr);
-      if(isNaN(amount)) return;
-      
-      const newReq = {
-        id: 'pc_'+Date.now(),
-        branch: selectedCenterId,
-        requester: currentUser.name,
-        description: desc,
-        amount: amount,
-        status: 'pending',
-        date: new Date().toISOString().split('T')[0]
-      };
-      setPettyCashTransactions([newReq, ...pettyCashTransactions]);
-      alert('Request submitted for Global Director approval.');
+    const isInvestor = currentUser.role === 'investor';
+    const isManager = currentUser.role === 'manager';
+    const [financeView, setFinanceView] = React.useState('dashboard');
+
+    const calcBalance = (accountCode) => {
+        return ledgerEntries.reduce((acc, entry) => {
+            return acc + entry.lines.reduce((lacc, line) => {
+                if (line.account === accountCode) {
+                    const type = CHART_OF_ACCOUNTS[accountCode].type;
+                    if (['Asset', 'Cost of care', 'Staff', 'Premises', 'Admin'].includes(type)) {
+                        return lacc + (line.debit - line.credit);
+                    } else {
+                        return lacc + (line.credit - line.debit);
+                    }
+                }
+                return lacc;
+            }, 0);
+        }, 0);
     };
 
-    const handleApprove = (id) => {
-      setPettyCashTransactions(pettyCashTransactions.map(t => t.id === id ? { ...t, status: 'approved' } : t));
-    };
+    const cashBank = calcBalance('1100');
+    const cashMoMo = calcBalance('1110');
+    const totalCash = cashBank + cashMoMo;
     
+    const totalRevenue = calcBalance('4100') + calcBalance('4110') + calcBalance('4190');
+    const costOfCare = calcBalance('5100') + calcBalance('5120');
+    const staffCost = calcBalance('6100') + calcBalance('6110');
+    const premisesCost = calcBalance('6600') + calcBalance('6610');
+    const totalExpenses = costOfCare + staffCost + premisesCost + calcBalance('7100');
+    const netIncome = totalRevenue - totalExpenses;
+    
+    const runwayMonths = totalExpenses > 0 ? (totalCash / (totalExpenses / 1)) : 0;
+
+    if (isInvestor) {
+        return (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 24, animation: 'fadeIn 0.3s ease' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <h2 style={{ fontSize: 24, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>Investor Dashboard</h2>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 16 }}>
+                    <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: 24 }}>
+                        <div style={{ fontSize: 13, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Capital Contribution</div>
+                        <div style={{ fontSize: 32, fontWeight: 800, color: '#fff' }}>UGX {INVESTOR_DATA.contributed.toLocaleString()}</div>
+                        <div style={{ fontSize: 13, color: 'var(--mint)', marginTop: 8 }}>100% Equity Ownership</div>
+                    </div>
+                    <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: 24 }}>
+                        <div style={{ fontSize: 13, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Available Runway</div>
+                        <div style={{ fontSize: 32, fontWeight: 800, color: '#fff' }}>{runwayMonths.toFixed(1)} Months</div>
+                        <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 8 }}>Based on current burn rate</div>
+                    </div>
+                </div>
+                <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: 24 }}>
+                    <h3 style={{ fontSize: 16, color: 'var(--text-primary)', marginTop: 0, marginBottom: 16 }}>Use of Funds</h3>
+                    <div style={{ display: 'flex', gap: 24, alignItems: 'center' }}>
+                        <div style={{ width: 120, height: 120, borderRadius: '50%', background: `conic-gradient(#FF4757 ${(staffCost/INVESTOR_DATA.contributed)*100}%, #FFB400 0 ${(staffCost+premisesCost)/INVESTOR_DATA.contributed*100}%, #00FC8F 0)` }}></div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><div style={{ width: 12, height: 12, background: '#FF4757', borderRadius: '50%' }}></div><span style={{ fontSize: 14, color: 'var(--text-secondary)' }}>Staffing (UGX {staffCost.toLocaleString()})</span></div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><div style={{ width: 12, height: 12, background: '#FFB400', borderRadius: '50%' }}></div><span style={{ fontSize: 14, color: 'var(--text-secondary)' }}>Premises (UGX {premisesCost.toLocaleString()})</span></div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><div style={{ width: 12, height: 12, background: '#00FC8F', borderRadius: '50%' }}></div><span style={{ fontSize: 14, color: 'var(--text-secondary)' }}>Remaining Cash (UGX {totalCash.toLocaleString()})</span></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 24, animation: 'fadeIn 0.3s ease', marginTop: 24 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 24, animation: 'fadeIn 0.3s ease' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>Financial Controls & Imprest</h2>
-          {currentUser.role === 'manager' && (
-            <button onClick={handlePettyCashRequest} style={{ background: 'var(--mint)', color: '#000', border: 'none', padding: '8px 16px', borderRadius: 8, fontWeight: 700, cursor: 'pointer' }}>
-              + Request Petty Cash
-            </button>
-          )}
+          <div style={{ display: 'flex', gap: 16 }}>
+             <button onClick={() => setFinanceView('dashboard')} style={{ background: 'transparent', border: 'none', fontSize: 16, fontWeight: 700, color: financeView === 'dashboard' ? 'var(--mint)' : 'var(--text-secondary)', cursor: 'pointer', padding: 0 }}>Dashboard</button>
+             <button onClick={() => setFinanceView('ledger')} style={{ background: 'transparent', border: 'none', fontSize: 16, fontWeight: 700, color: financeView === 'ledger' ? 'var(--mint)' : 'var(--text-secondary)', cursor: 'pointer', padding: 0 }}>Ledger</button>
+          </div>
         </div>
 
-        <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: 20 }}>
-          <h3 style={{ fontSize: 14, color: 'var(--text-primary)', marginBottom: 16, marginTop: 0, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Petty Cash Ledger</h3>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-            <thead>
-              <tr style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-                {['Date', 'Branch', 'Requester', 'Description', 'Amount (UGX)', 'Status', 'Action'].map(h => (
-                  <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontSize: 11, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {pettyCashTransactions.filter(t => isGlobal || t.branch === selectedCenterId).map(t => (
-                <tr key={t.id} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-                  <td style={{ padding: '12px 16px', color: 'var(--text-secondary)' }}>{t.date}</td>
-                  <td style={{ padding: '12px 16px', color: 'var(--text-primary)' }}>{t.branch}</td>
-                  <td style={{ padding: '12px 16px', color: 'var(--text-secondary)' }}>{t.requester}</td>
-                  <td style={{ padding: '12px 16px', color: 'var(--text-primary)' }}>{t.description}</td>
-                  <td style={{ padding: '12px 16px', fontFamily: 'var(--font-mono)', color: 'var(--text-primary)' }}>{t.amount.toLocaleString()}</td>
-                  <td style={{ padding: '12px 16px' }}>
-                    <span style={{ fontSize: 11, color: t.status === 'approved' ? '#00FC8F' : '#FFB400', fontWeight: 700, textTransform: 'uppercase' }}>{t.status}</span>
-                  </td>
-                  <td style={{ padding: '12px 16px' }}>
-                    {t.status === 'pending' && currentUser.role === 'director' && (
-                      <button onClick={() => handleApprove(t.id)} style={{ background: 'var(--mint)', color: '#000', border: 'none', padding: '4px 12px', borderRadius: 4, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>Approve</button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-              {pettyCashTransactions.filter(t => isGlobal || t.branch === selectedCenterId).length === 0 && (
-                <tr>
-                  <td colSpan="7" style={{ padding: 20, textAlign: 'center', color: 'var(--text-tertiary)' }}>No petty cash transactions found.</td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+        {financeView === 'dashboard' && (
+            <React.Fragment>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>
+                    <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: 20 }}>
+                        <div style={{ fontSize: 12, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Bank Balance</div>
+                        <div style={{ fontSize: 28, fontWeight: 800, color: '#00FC8F' }}>UGX {cashBank.toLocaleString()}</div>
+                    </div>
+                    <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: 20 }}>
+                        <div style={{ fontSize: 12, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Mobile Money (MoMo)</div>
+                        <div style={{ fontSize: 28, fontWeight: 800, color: '#00FC8F' }}>UGX {cashMoMo.toLocaleString()}</div>
+                    </div>
+                    <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: 20 }}>
+                        <div style={{ fontSize: 12, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Net Income</div>
+                        <div style={{ fontSize: 28, fontWeight: 800, color: netIncome >= 0 ? '#00FC8F' : '#FF4757' }}>UGX {netIncome.toLocaleString()}</div>
+                    </div>
+                </div>
+
+                <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: 20 }}>
+                    <h3 style={{ fontSize: 16, margin: '0 0 16px', color: 'var(--text-primary)' }}>Profit & Loss Overview</h3>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14 }}>
+                            <span style={{ color: 'var(--text-secondary)' }}>Total Revenue (4xxx)</span>
+                            <span style={{ color: '#00FC8F', fontFamily: 'var(--font-mono)' }}>UGX {totalRevenue.toLocaleString()}</span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14 }}>
+                            <span style={{ color: 'var(--text-secondary)' }}>Cost of Care (5xxx)</span>
+                            <span style={{ color: '#FF4757', fontFamily: 'var(--font-mono)' }}>UGX {costOfCare.toLocaleString()}</span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14 }}>
+                            <span style={{ color: 'var(--text-secondary)' }}>Staffing & Premises (6xxx)</span>
+                            <span style={{ color: '#FF4757', fontFamily: 'var(--font-mono)' }}>UGX {(staffCost + premisesCost).toLocaleString()}</span>
+                        </div>
+                        <div style={{ borderTop: '1px solid var(--border-subtle)', margin: '8px 0' }}></div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 16, fontWeight: 700 }}>
+                            <span style={{ color: 'var(--text-primary)' }}>Net Income</span>
+                            <span style={{ color: netIncome >= 0 ? '#00FC8F' : '#FF4757', fontFamily: 'var(--font-mono)' }}>UGX {netIncome.toLocaleString()}</span>
+                        </div>
+                    </div>
+                </div>
+            </React.Fragment>
+        )}
+
+        {financeView === 'ledger' && (
+            <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: 20 }}>
+                <h3 style={{ fontSize: 14, color: 'var(--text-primary)', marginBottom: 16, marginTop: 0, textTransform: 'uppercase', letterSpacing: '0.06em' }}>General Ledger</h3>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                    <thead>
+                    <tr style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+                        <th style={{ padding: '12px 16px', textAlign: 'left', color: 'var(--text-tertiary)' }}>Date</th>
+                        <th style={{ padding: '12px 16px', textAlign: 'left', color: 'var(--text-tertiary)' }}>Memo</th>
+                        <th style={{ padding: '12px 16px', textAlign: 'left', color: 'var(--text-tertiary)' }}>Account</th>
+                        <th style={{ padding: '12px 16px', textAlign: 'right', color: 'var(--text-tertiary)' }}>Debit</th>
+                        <th style={{ padding: '12px 16px', textAlign: 'right', color: 'var(--text-tertiary)' }}>Credit</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {ledgerEntries.map(entry => (
+                        <React.Fragment key={entry.id}>
+                            {entry.lines.map((line, idx) => (
+                                <tr key={`${entry.id}-${idx}`} style={{ borderBottom: idx === entry.lines.length - 1 ? '1px solid var(--border-subtle)' : 'none' }}>
+                                    <td style={{ padding: '8px 16px', color: 'var(--text-secondary)' }}>{idx === 0 ? entry.date : ''}</td>
+                                    <td style={{ padding: '8px 16px', color: 'var(--text-primary)' }}>{idx === 0 ? entry.memo : ''}</td>
+                                    <td style={{ padding: '8px 16px', color: 'var(--text-secondary)' }}>{CHART_OF_ACCOUNTS[line.account]?.name || line.account}</td>
+                                    <td style={{ padding: '8px 16px', textAlign: 'right', fontFamily: 'var(--font-mono)', color: line.debit > 0 ? '#00FC8F' : 'transparent' }}>{line.debit > 0 ? line.debit.toLocaleString() : '-'}</td>
+                                    <td style={{ padding: '8px 16px', textAlign: 'right', fontFamily: 'var(--font-mono)', color: line.credit > 0 ? '#FF4757' : 'transparent' }}>{line.credit > 0 ? line.credit.toLocaleString() : '-'}</td>
+                                </tr>
+                            ))}
+                        </React.Fragment>
+                    ))}
+                    </tbody>
+                </table>
+            </div>
+        )}
       </div>
     );
   };
-
 // ── Inventory System ─────────────────────────────────────────────────────
   const InventorySystem = ({ currentUser, inventoryItems, setInventoryItems }) => {
     return (
@@ -2018,7 +2153,7 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
           }
 
           // Agent Nia: Realtime Sync Subscription
-          subscription = supabase.channel('armani-os-sync')
+          subscription = supabase.channel('amani-os-sync')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'children' }, (payload) => {
                // Update local state when a child changes
                setCentersData(prevCenters => {
@@ -2213,6 +2348,16 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
       { id: 2, parent: 'Mr. Byaruhanga', rating: 3, comment: 'Pickup line was a bit slow on Tuesday.', date: '2026-07-18' }
     ]);
 
+    // Finance Module States
+    const [ledgerEntries, setLedgerEntries] = React.useState(INITIAL_LEDGER);
+    const [expenseRequests, setExpenseRequests] = React.useState([]);
+    const [payrollRuns, setPayrollRuns] = React.useState([]);
+    const [recurringBills, setRecurringBills] = React.useState([
+      { id: 'rb-1', vendor: 'Umeme (Electricity)', amount: 150000, frequency: 'monthly', nextDue: '2026-08-05' },
+      { id: 'rb-2', vendor: 'Kampala Rent', amount: 1200000, frequency: 'monthly', nextDue: '2026-08-01' }
+    ]);
+
+
     // Billing Engine State
     const [invoiceViewMode, setInvoiceViewMode] = React.useState('register'); // 'register' or 'ledger'
     const [ledgerRows, setLedgerRows] = React.useState([
@@ -2327,7 +2472,7 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
 
     function handleMessage(child) {
       const url = 'https://wa.me/' + child.parentPhone + '?text=' + encodeURIComponent(
-        'Hello ' + child.parent + ', this is a message from the Armani team regarding ' + child.name + '. '
+        'Hello ' + child.parent + ', this is a message from the Amani team regarding ' + child.name + '. '
       );
       window.open(url, '_blank', 'noopener,noreferrer');
     }
@@ -2428,7 +2573,7 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
       { id: 'children',  label: 'Children', icon: '🧒', roles: ['director', 'manager'] },
       { id: 'schedule',  label: 'Schedule', icon: '🗓️', roles: ['director', 'manager'] },
       { id: 'messages',  label: 'Messages', icon: '💬', badge: kpi.unreadParentMessages, roles: ['director', 'manager', 'investor'] },
-      { id: 'invoices',  label: selectedCenterId === 'all' ? 'Finances' : 'Invoices', icon: '💳', roles: ['director', 'manager', 'investor'] },
+      { id: 'finances',  label: 'Finances', icon: '📈', roles: ['director', 'manager', 'investor'] },
       { id: 'expansion', label: 'Expansion', icon: '🚀', roles: ['director', 'investor'] },
     ];
     if (selectedCenterId === 'all') tabs.push({ id: 'inventory', label: 'Inventory', icon: '📦', roles: ['director', 'manager'] });
@@ -2457,7 +2602,7 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
               }}>👶</div>
               <div>
                 <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 800, color: 'var(--text-primary)', margin: 0, lineHeight: 1.2 }}>
-                  Armani OS
+                  Amani OS
                 </h1>
                 <div style={{ fontSize: 11, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', marginTop: 2, textTransform: 'uppercase' }}>
                   {currentUser.role}
@@ -2772,7 +2917,7 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
             <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: 20 }}>
               <div style={{ fontSize: 12, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 16 }}>Quick Actions</div>
               {[
-                { label: '📣 Broadcast to All Parents', action: () => { const url = 'https://wa.me/?text=' + encodeURIComponent('Hello from Armani! '); window.open(url, '_blank'); } },
+                { label: '📣 Broadcast to All Parents', action: () => { const url = 'https://wa.me/?text=' + encodeURIComponent('Hello from Amani! '); window.open(url, '_blank'); } },
                 { label: '💬 View Messages', action: () => setActiveTab('messages') },
                 { label: selectedCenterId === 'all' ? '📊 View Finances' : '📋 View Invoices', action: () => setActiveTab('invoices') },
                 { label: '🛡️ Ask Nia for Advisory', action: () => setNiaOpen(true) },
@@ -2940,7 +3085,7 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
         {activeTab === 'cameras' && (
           <div style={{ animation: 'fadeIn 0.3s ease' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-              <div style={{ fontSize: 14, color: 'var(--text-secondary)' }}>Live feeds from Armani center. AI Milestone tracking is currently active.</div>
+              <div style={{ fontSize: 14, color: 'var(--text-secondary)' }}>Live feeds from Amani center. AI Milestone tracking is currently active.</div>
               <button style={{ background: 'transparent', border: '1px solid var(--border-default)', color: 'var(--text-secondary)', borderRadius: 8, padding: '8px 12px', fontSize: 12, cursor: 'pointer' }}>⚙️ Configure Video Sources</button>
             </div>
             
@@ -3038,180 +3183,25 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
           />
         )}
 
-        {/* ── INVOICES / FINANCES TAB ── */}
-        {activeTab === 'invoices' && (
-          <React.Fragment>
-            {selectedCenterId === 'all' ? (
-              <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 12, overflow: 'hidden', padding: 20 }}>
-                <div style={{ fontSize: 18, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 20 }}>Global Finances Overview — July 2026</div>
-                
-                {/* Revenue Breakdown */}
-                {(() => {
-                  const monthlyCount = childrenData.filter(c => c.carePlan === 'monthly').length;
-                  const weeklyCount = childrenData.filter(c => c.carePlan === 'weekly').length;
-                  const dailyCount = childrenData.filter(c => c.carePlan === 'daily').length;
-                  const monthlyRevenue = monthlyCount * 87500;
-                  const weeklyRevenue = weeklyCount * 25000;
-                  const dailyRevenue = dailyCount * 15000;
-                  const staffCost = (kpi.caretakers || 0) * 800000;
-                  const inventoryCost = 2170000;
-                  const utilitiesCost = 1200000;
-                  const grossMargin = (monthlyRevenue + weeklyRevenue + dailyRevenue) - (staffCost + inventoryCost + utilitiesCost);
-                  
-                  return (
-                    <React.Fragment>
-                      <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 12 }}>Revenue Stream</div>
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 16, marginBottom: 24 }}>
-                        <div style={{ background: 'var(--bg-deepest)', padding: 16, borderRadius: 8, border: '1px solid var(--border-subtle)' }}>
-                          <div style={{ fontSize: 11, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Monthly Care Plans</div>
-                          <div style={{ fontSize: 24, fontWeight: 700, color: '#00FC8F' }}>UGX {monthlyRevenue.toLocaleString()}</div>
-                          <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 4 }}>Based on {monthlyCount} kids</div>
-                        </div>
-                        <div style={{ background: 'var(--bg-deepest)', padding: 16, borderRadius: 8, border: '1px solid var(--border-subtle)' }}>
-                          <div style={{ fontSize: 11, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Weekly Packages</div>
-                          <div style={{ fontSize: 24, fontWeight: 700, color: '#00FC8F' }}>UGX {weeklyRevenue.toLocaleString()}</div>
-                          <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 4 }}>Based on {weeklyCount} kids</div>
-                        </div>
-                        <div style={{ background: 'var(--bg-deepest)', padding: 16, borderRadius: 8, border: '1px solid var(--border-subtle)' }}>
-                          <div style={{ fontSize: 11, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Daily Drop-ins</div>
-                          <div style={{ fontSize: 24, fontWeight: 700, color: '#00FC8F' }}>UGX {dailyRevenue.toLocaleString()}</div>
-                          <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 4 }}>Based on {dailyCount} kids</div>
-                        </div>
-                      </div>
-
-                      {/* Expenses Breakdown */}
-                      <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 12 }}>Expenditure</div>
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, marginBottom: 24 }}>
-                        <div style={{ background: 'var(--bg-deepest)', padding: 16, borderRadius: 8, border: '1px solid var(--border-subtle)' }}>
-                          <div style={{ fontSize: 11, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Staff Payment (Nannies/Workers)</div>
-                          <div style={{ fontSize: 24, fontWeight: 700, color: '#FF4757' }}>UGX {staffCost.toLocaleString()}</div>
-                          <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 4 }}>Based on {kpi.caretakers || 0} active staff</div>
-                        </div>
-                        <div style={{ background: 'var(--bg-deepest)', padding: 16, borderRadius: 8, border: '1px solid var(--border-subtle)' }}>
-                          <div style={{ fontSize: 11, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Inventory / Toys</div>
-                          <div style={{ fontSize: 24, fontWeight: 700, color: '#FF4757' }}>UGX {inventoryCost.toLocaleString()}</div>
-                          <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 4 }}>Purchases this month</div>
-                        </div>
-                        <div style={{ background: 'var(--bg-deepest)', padding: 16, borderRadius: 8, border: '1px solid var(--border-subtle)' }}>
-                          <div style={{ fontSize: 11, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Rent & Utilities</div>
-                          <div style={{ fontSize: 24, fontWeight: 700, color: '#FF4757' }}>UGX {utilitiesCost.toLocaleString()}</div>
-                          <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 4 }}>Fixed monthly</div>
-                        </div>
-                      </div>
-
-                      <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-                          <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-primary)' }}>Projected Gross Margin</div>
-                          <div style={{ fontSize: 24, fontWeight: 700, color: '#fff' }}>UGX {grossMargin.toLocaleString()}</div>
-                      </div>
-                    </React.Fragment>
-                  );
-                })()}
-
-                <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 12 }}>Attendance Impact</div>
-                <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: 20 }}>
-                  Currently, <strong style={{ color: '#fff' }}>{kpi.presentToday}</strong> out of <strong style={{ color: '#fff' }}>{kpi.enrolled}</strong> students are present today across all centers ({(kpi.attendanceRate * 100).toFixed(1)}% attendance). Consistent attendance is key for reliable revenue collection. Outstanding invoices currently total <strong style={{ color: '#FF4757' }}>UGX {kpi.overdueAmount.toLocaleString()}</strong>.
-                </div>
-                
-                <FinanceDashboard 
-                  currentUser={currentUser} 
-                  centersData={centersData} 
-                  selectedCenterId={selectedCenterId} 
-                  childrenData={childrenData} 
-                  ledgerRows={ledgerRows} 
-                  pettyCashTransactions={pettyCashTransactions} 
-                  setPettyCashTransactions={setPettyCashTransactions} 
-                />
-              </div>
-            ) : (
-              <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 12, overflow: 'hidden' }}>
-                <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div style={{ display: 'flex', gap: 16 }}>
-                    <button onClick={() => setInvoiceViewMode('register')} style={{ background: 'transparent', border: 'none', fontSize: 13, fontWeight: 600, color: invoiceViewMode === 'register' ? 'var(--mint)' : 'var(--text-secondary)', cursor: 'pointer', padding: 0 }}>Invoice Register</button>
-                    <button onClick={() => setInvoiceViewMode('ledger')} style={{ background: 'transparent', border: 'none', fontSize: 13, fontWeight: 600, color: invoiceViewMode === 'ledger' ? 'var(--mint)' : 'var(--text-secondary)', cursor: 'pointer', padding: 0 }}>Hours Ledger</button>
-                  </div>
-                  <span style={{ fontSize: 12, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)' }}>
-                    Collection: {Math.round(kpi.collectionRate * 100)}%
-                  </span>
-                </div>
-                
-                {invoiceViewMode === 'register' ? (
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-                    <thead>
-                      <tr style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-                        {['Child', 'Parent', 'Amount (UGX)', 'Status', 'Action'].map(h => (
-                          <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontSize: 11, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600, fontFamily: 'var(--font-mono)' }}>{h}</th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {childrenData.map(child => {
-                        const statusColor = child.invoiceStatus === 'overdue' ? '#FF4757' : child.invoiceStatus === 'due' ? '#FFB400' : '#00FC8F';
-                        const statusLabel = child.invoiceStatus === 'overdue' ? '⚠ OVERDUE 30d+' : child.invoiceStatus === 'due' ? '○ DUE' : '✓ PAID';
-                        return (
-                          <tr key={child.id} style={{ borderBottom: '1px solid var(--border-subtle)' }} className="member-row">
-                            <td style={{ padding: '12px 16px', color: 'var(--text-primary)', fontWeight: 500 }}>{child.name}</td>
-                            <td style={{ padding: '12px 16px', color: 'var(--text-secondary)' }}>{child.parent}</td>
-                            <td style={{ padding: '12px 16px', fontFamily: 'var(--font-mono)', color: 'var(--text-primary)' }}>87,500</td>
-                            <td style={{ padding: '12px 16px' }}>
-                              <span style={{ fontSize: 11, color: statusColor, fontWeight: 700, fontFamily: 'var(--font-mono)' }}>{statusLabel}</span>
-                            </td>
-                            <td style={{ padding: '12px 16px' }}>
-                              {child.invoiceStatus !== 'paid' && (
-                                <button onClick={() => handleMessage(child)} style={{
-                                  background: 'transparent', border: '1px solid var(--border-default)', borderRadius: 6,
-                                  padding: '5px 10px', fontSize: 11, color: 'var(--mint)', cursor: 'pointer', fontFamily: 'var(--font-body)',
-                                }} className="quick-action-btn">Send reminder</button>
-                              )}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                ) : (
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-                    <thead>
-                      <tr style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-                        {['Date', 'Child', 'Plan', 'In/Out', 'Hours', 'Cost (UGX)', 'Billing Status'].map(h => (
-                          <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontSize: 11, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600, fontFamily: 'var(--font-mono)' }}>{h}</th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {ledgerRows.filter(r => selectedCenterId === 'all' || childrenData.some(c => c.id === r.childId)).map(row => (
-                        <tr key={row.id} style={{ borderBottom: '1px solid var(--border-subtle)' }} className="member-row">
-                          <td style={{ padding: '12px 16px', color: 'var(--text-secondary)' }}>{row.date}</td>
-                          <td style={{ padding: '12px 16px', color: 'var(--text-primary)', fontWeight: 500 }}>{row.childName}</td>
-                          <td style={{ padding: '12px 16px', color: 'var(--text-secondary)' }}><span style={{ textTransform: 'capitalize' }}>{row.plan}</span></td>
-                          <td style={{ padding: '12px 16px', fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)', fontSize: 12 }}>{row.signIn} - {row.signOut}</td>
-                          <td style={{ padding: '12px 16px', fontFamily: 'var(--font-mono)', color: 'var(--text-primary)' }}>{row.hours}h</td>
-                          <td style={{ padding: '12px 16px', fontFamily: 'var(--font-mono)', color: row.cost > 0 ? '#FFB400' : 'var(--text-tertiary)' }}>{row.cost.toLocaleString()}</td>
-                          <td style={{ padding: '12px 16px' }}>
-                            <span style={{ fontSize: 11, color: row.status === 'billed' ? '#00FC8F' : 'var(--text-secondary)', fontWeight: 700, textTransform: 'uppercase', fontFamily: 'var(--font-mono)' }}>{row.status}</span>
-                          </td>
-                        </tr>
-                      ))}
-                      {ledgerRows.filter(r => selectedCenterId === 'all' || childrenData.some(c => c.id === r.childId)).length === 0 && (
-                        <tr>
-                          <td colSpan="7" style={{ padding: 32, textAlign: 'center', color: 'var(--text-tertiary)' }}>No hours logged yet. Sign out a child from the Operations board.</td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                )}
-                
-                <FinanceDashboard 
-                  currentUser={currentUser} 
-                  centersData={centersData} 
-                  selectedCenterId={selectedCenterId} 
-                  childrenData={childrenData} 
-                  ledgerRows={ledgerRows} 
-                  pettyCashTransactions={pettyCashTransactions} 
-                  setPettyCashTransactions={setPettyCashTransactions} 
-                />
-              </div>
-            )}
-          </React.Fragment>
+        {/* ── FINANCES TAB ── */}
+        {activeTab === 'finances' && (
+          <FinanceTab 
+            currentUser={currentUser}
+            selectedCenterId={selectedCenterId}
+            centersData={centersData}
+            childrenData={childrenData}
+            ledgerEntries={ledgerEntries}
+            setLedgerEntries={setLedgerEntries}
+            expenseRequests={expenseRequests}
+            setExpenseRequests={setExpenseRequests}
+            payrollRuns={payrollRuns}
+            setPayrollRuns={setPayrollRuns}
+            recurringBills={recurringBills}
+            setRecurringBills={setRecurringBills}
+            pettyCashTransactions={pettyCashTransactions}
+            setPettyCashTransactions={setPettyCashTransactions}
+            kpi={kpi}
+          />
         )}
 
         {/* ── INVENTORY TAB ── */}
@@ -3414,7 +3404,7 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
                       <div style={{ background: 'var(--bg-deepest)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: 16 }}>
                         <div style={{ fontSize: 12, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8, fontWeight: 700 }}>Parent Portal Link</div>
                         <div style={{ display: 'flex', gap: 8 }}>
-                          <input readOnly value={`https://armani.app/parent/${onboardingReport.id}`} style={{ flex: 1, background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '8px 12px', borderRadius: 6, fontSize: 12 }} />
+                          <input readOnly value={`https://amani.app/parent/${onboardingReport.id}`} style={{ flex: 1, background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '8px 12px', borderRadius: 6, fontSize: 12 }} />
                           <button onClick={() => alert('Link Copied!')} style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '8px 12px', borderRadius: 6, fontSize: 12, cursor: 'pointer' }}>Copy</button>
                         </div>
                       </div>
