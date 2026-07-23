@@ -1725,6 +1725,56 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
     const isManager = currentUser.role === 'manager';
     const [financeView, setFinanceView] = React.useState('dashboard');
 
+    const [showTxForm, setShowTxForm] = React.useState(false);
+    const [txType, setTxType] = React.useState('income');
+    const [txAccount, setTxAccount] = React.useState('4100');
+    const [txAmount, setTxAmount] = React.useState('');
+    const [txMemo, setTxMemo] = React.useState('');
+    const [txDate, setTxDate] = React.useState(new Date().toISOString().split('T')[0]);
+
+    const incomeAccounts = Object.values(CHART_OF_ACCOUNTS).filter(a => a.type === 'Income');
+    const expenseAccounts = Object.values(CHART_OF_ACCOUNTS).filter(a => ['Cost of care', 'Staff', 'Premises', 'Admin'].includes(a.type));
+    const activeAccounts = txType === 'income' ? incomeAccounts : expenseAccounts;
+
+    const handleAddTx = (e) => {
+        e.preventDefault();
+        if (!txAmount || isNaN(txAmount)) return;
+        const amount = parseInt(txAmount);
+        
+        let lines = [];
+        if (txType === 'income') {
+            lines = [
+                { account: '1100', debit: amount, credit: 0 },
+                { account: txAccount, debit: 0, credit: amount }
+            ];
+        } else {
+            lines = [
+                { account: txAccount, debit: amount, credit: 0 },
+                { account: '1100', debit: 0, credit: amount }
+            ];
+        }
+
+        const newEntry = {
+            id: 'le-' + Date.now(),
+            date: txDate,
+            memo: txMemo || (txType === 'income' ? 'Income entry' : 'Expense entry'),
+            centerId: selectedCenterId === 'all' ? centersData[0].id : selectedCenterId,
+            lines: lines,
+            fundedByCapital: false
+        };
+
+        setLedgerEntries([newEntry, ...ledgerEntries]);
+        setShowTxForm(false);
+        setTxAmount('');
+        setTxMemo('');
+    };
+
+    const handleDeleteTx = (id) => {
+        if (confirm('Are you sure you want to delete this transaction?')) {
+            setLedgerEntries(ledgerEntries.filter(e => e.id !== id));
+        }
+    };
+
     const calcBalance = (accountCode) => {
         return ledgerEntries.reduce((acc, entry) => {
             return acc + entry.lines.reduce((lacc, line) => {
@@ -1794,6 +1844,11 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
              <button onClick={() => setFinanceView('dashboard')} style={{ background: 'transparent', border: 'none', fontSize: 16, fontWeight: 700, color: financeView === 'dashboard' ? 'var(--mint)' : 'var(--text-secondary)', cursor: 'pointer', padding: 0 }}>Dashboard</button>
              <button onClick={() => setFinanceView('ledger')} style={{ background: 'transparent', border: 'none', fontSize: 16, fontWeight: 700, color: financeView === 'ledger' ? 'var(--mint)' : 'var(--text-secondary)', cursor: 'pointer', padding: 0 }}>Ledger</button>
           </div>
+          {financeView === 'ledger' && (
+              <button onClick={() => setShowTxForm(!showTxForm)} style={{ background: 'var(--mint)', color: '#000', border: 'none', padding: '8px 16px', borderRadius: 8, fontWeight: 700, cursor: 'pointer' }}>
+                  {showTxForm ? 'Cancel' : '+ Add Transaction'}
+              </button>
+          )}
         </div>
 
         {financeView === 'dashboard' && (
@@ -1839,40 +1894,89 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
         )}
 
         {financeView === 'ledger' && (
-            <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: 20 }}>
-                <h3 style={{ fontSize: 14, color: 'var(--text-primary)', marginBottom: 16, marginTop: 0, textTransform: 'uppercase', letterSpacing: '0.06em' }}>General Ledger</h3>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-                    <thead>
-                    <tr style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-                        <th style={{ padding: '12px 16px', textAlign: 'left', color: 'var(--text-tertiary)' }}>Date</th>
-                        <th style={{ padding: '12px 16px', textAlign: 'left', color: 'var(--text-tertiary)' }}>Memo</th>
-                        <th style={{ padding: '12px 16px', textAlign: 'left', color: 'var(--text-tertiary)' }}>Account</th>
-                        <th style={{ padding: '12px 16px', textAlign: 'right', color: 'var(--text-tertiary)' }}>Debit</th>
-                        <th style={{ padding: '12px 16px', textAlign: 'right', color: 'var(--text-tertiary)' }}>Credit</th>
-                    </tr>
-                    </thead>
-                    <tbody>
-                    {ledgerEntries.map(entry => (
-                        <React.Fragment key={entry.id}>
-                            {entry.lines.map((line, idx) => (
-                                <tr key={`${entry.id}-${idx}`} style={{ borderBottom: idx === entry.lines.length - 1 ? '1px solid var(--border-subtle)' : 'none' }}>
-                                    <td style={{ padding: '8px 16px', color: 'var(--text-secondary)' }}>{idx === 0 ? entry.date : ''}</td>
-                                    <td style={{ padding: '8px 16px', color: 'var(--text-primary)' }}>{idx === 0 ? entry.memo : ''}</td>
-                                    <td style={{ padding: '8px 16px', color: 'var(--text-secondary)' }}>{CHART_OF_ACCOUNTS[line.account]?.name || line.account}</td>
-                                    <td style={{ padding: '8px 16px', textAlign: 'right', fontFamily: 'var(--font-mono)', color: line.debit > 0 ? '#00FC8F' : 'transparent' }}>{line.debit > 0 ? line.debit.toLocaleString() : '-'}</td>
-                                    <td style={{ padding: '8px 16px', textAlign: 'right', fontFamily: 'var(--font-mono)', color: line.credit > 0 ? '#FF4757' : 'transparent' }}>{line.credit > 0 ? line.credit.toLocaleString() : '-'}</td>
-                                </tr>
-                            ))}
-                        </React.Fragment>
-                    ))}
-                    </tbody>
-                </table>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                {showTxForm && (
+                    <form onSubmit={handleAddTx} style={{ background: 'var(--bg-elevated)', border: '1px solid var(--mint)', borderRadius: 12, padding: 20, display: 'flex', flexDirection: 'column', gap: 16 }}>
+                        <div style={{ display: 'flex', gap: 16 }}>
+                            <div style={{ flex: 1 }}>
+                                <label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 8 }}>Type</label>
+                                <select value={txType} onChange={e => {
+                                    setTxType(e.target.value);
+                                    setTxAccount(e.target.value === 'income' ? '4100' : '5100');
+                                }} style={{ width: '100%', padding: '10px 12px', background: 'var(--bg-deepest)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)', borderRadius: 8 }}>
+                                    <option value="income">Income</option>
+                                    <option value="expense">Expenditure</option>
+                                </select>
+                            </div>
+                            <div style={{ flex: 1 }}>
+                                <label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 8 }}>Category</label>
+                                <select value={txAccount} onChange={e => setTxAccount(e.target.value)} style={{ width: '100%', padding: '10px 12px', background: 'var(--bg-deepest)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)', borderRadius: 8 }}>
+                                    {activeAccounts.map(a => (
+                                        <option key={a.code} value={a.code}>{a.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
+                        <div style={{ display: 'flex', gap: 16 }}>
+                            <div style={{ flex: 1 }}>
+                                <label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 8 }}>Amount (UGX)</label>
+                                <input type="number" required value={txAmount} onChange={e => setTxAmount(e.target.value)} placeholder="0" style={{ width: '100%', padding: '10px 12px', background: 'var(--bg-deepest)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)', borderRadius: 8 }} />
+                            </div>
+                            <div style={{ flex: 1 }}>
+                                <label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 8 }}>Date</label>
+                                <input type="date" required value={txDate} onChange={e => setTxDate(e.target.value)} style={{ width: '100%', padding: '10px 12px', background: 'var(--bg-deepest)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)', borderRadius: 8 }} />
+                            </div>
+                        </div>
+                        <div>
+                            <label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 8 }}>Memo</label>
+                            <input type="text" required value={txMemo} onChange={e => setTxMemo(e.target.value)} placeholder="E.g. Parent fee payment, Toy restock..." style={{ width: '100%', padding: '10px 12px', background: 'var(--bg-deepest)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)', borderRadius: 8 }} />
+                        </div>
+                        <button type="submit" style={{ background: 'var(--mint)', color: '#000', border: 'none', padding: '10px 16px', borderRadius: 8, fontWeight: 700, cursor: 'pointer', alignSelf: 'flex-start' }}>
+                            Save Transaction
+                        </button>
+                    </form>
+                )}
+
+                <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: 20 }}>
+                    <h3 style={{ fontSize: 14, color: 'var(--text-primary)', marginBottom: 16, marginTop: 0, textTransform: 'uppercase', letterSpacing: '0.06em' }}>General Ledger</h3>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                        <thead>
+                        <tr style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+                            <th style={{ padding: '12px 16px', textAlign: 'left', color: 'var(--text-tertiary)' }}>Date</th>
+                            <th style={{ padding: '12px 16px', textAlign: 'left', color: 'var(--text-tertiary)' }}>Memo</th>
+                            <th style={{ padding: '12px 16px', textAlign: 'left', color: 'var(--text-tertiary)' }}>Account</th>
+                            <th style={{ padding: '12px 16px', textAlign: 'right', color: 'var(--text-tertiary)' }}>Debit</th>
+                            <th style={{ padding: '12px 16px', textAlign: 'right', color: 'var(--text-tertiary)' }}>Credit</th>
+                            <th style={{ padding: '12px 16px', textAlign: 'right', color: 'var(--text-tertiary)' }}></th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        {ledgerEntries.map((entry, entryIndex) => (
+                            <React.Fragment key={entry.id}>
+                                {entry.lines.map((line, idx) => (
+                                    <tr key={`${entry.id}-${idx}`} style={{ borderBottom: idx === entry.lines.length - 1 ? '1px solid var(--border-subtle)' : 'none' }}>
+                                        <td style={{ padding: '8px 16px', color: 'var(--text-secondary)' }}>{idx === 0 ? entry.date : ''}</td>
+                                        <td style={{ padding: '8px 16px', color: 'var(--text-primary)' }}>{idx === 0 ? entry.memo : ''}</td>
+                                        <td style={{ padding: '8px 16px', color: 'var(--text-secondary)' }}>{CHART_OF_ACCOUNTS[line.account]?.name || line.account}</td>
+                                        <td style={{ padding: '8px 16px', textAlign: 'right', fontFamily: 'var(--font-mono)', color: line.debit > 0 ? '#00FC8F' : 'transparent' }}>{line.debit > 0 ? line.debit.toLocaleString() : '-'}</td>
+                                        <td style={{ padding: '8px 16px', textAlign: 'right', fontFamily: 'var(--font-mono)', color: line.credit > 0 ? '#FF4757' : 'transparent' }}>{line.credit > 0 ? line.credit.toLocaleString() : '-'}</td>
+                                        <td style={{ padding: '8px 16px', textAlign: 'right' }}>
+                                            {idx === 0 && (
+                                                <button onClick={() => handleDeleteTx(entry.id)} style={{ background: 'transparent', border: 'none', color: '#FF4757', cursor: 'pointer', fontSize: 16 }}>×</button>
+                                            )}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </React.Fragment>
+                        ))}
+                        </tbody>
+                    </table>
+                </div>
             </div>
         )}
       </div>
     );
-  };
-// ── Inventory System ─────────────────────────────────────────────────────
+  };// ── Inventory System ─────────────────────────────────────────────────────
   const InventorySystem = ({ currentUser, inventoryItems, setInventoryItems }) => {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 24, animation: 'fadeIn 0.3s ease' }}>
