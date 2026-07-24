@@ -53,8 +53,8 @@ console.log("os-childcare.jsx is executing!");
         { id: 5, parent: 'Mr. Lubega',    time: '11:05 AM', text: 'Please give Ethan his medication at 1pm. Thanks.',       read: false, answered: false },
       ],
       cameras: [
-        { id: 'cam1', mjpegUrl: 'http://[USERNAME]:[PASSWORD]@192.168.100.18/Streaming/channels/102/httppreview', name: 'Playroom A - North View', source: 'camera_mock_1', children: [{ name: 'Ivy Kyomuhendo', milestone: 'Puzzle (12 pieces)', x: 60, y: 40 }, { name: 'Aiden Nakamya', milestone: 'First full sentence', x: 20, y: 70 }] },
-        { id: 'cam2', mjpegUrl: 'http://[USERNAME]:[PASSWORD]@192.168.100.18/Streaming/channels/202/httppreview', name: 'Nap Area - East Wing', source: 'camera_mock_2', children: [{ name: 'Henry Kato', milestone: 'Sleeping calmly', x: 40, y: 50 }] },
+        { id: 'cam1', mjpegUrl: 'http://t92hudson%40gmail.com:Mbarara1@192.168.1.100/Streaming/channels/102/httppreview', name: 'Playroom A - North View', source: 'camera_mock_1', children: [{ name: 'Ivy Kyomuhendo', milestone: 'Puzzle (12 pieces)', x: 60, y: 40 }, { name: 'Aiden Nakamya', milestone: 'First full sentence', x: 20, y: 70 }] },
+        { id: 'cam2', mjpegUrl: 'http://t92hudson%40gmail.com:Mbarara1@192.168.1.100/Streaming/channels/202/httppreview', name: 'Nap Area - East Wing', source: 'camera_mock_2', children: [{ name: 'Henry Kato', milestone: 'Sleeping calmly', x: 40, y: 50 }] },
       ]
     },
     {
