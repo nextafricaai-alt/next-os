@@ -1957,7 +1957,7 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
                                     <tr key={`${entry.id}-${idx}`} style={{ borderBottom: idx === entry.lines.length - 1 ? '1px solid var(--border-subtle)' : 'none' }}>
                                         <td style={{ padding: '8px 16px', color: 'var(--text-secondary)' }}>{idx === 0 ? entry.date : ''}</td>
                                         <td style={{ padding: '8px 16px', color: 'var(--text-primary)' }}>{idx === 0 ? entry.memo : ''}</td>
-                                        <td style={{ padding: '8px 16px', color: 'var(--text-secondary)' }}>{CHART_OF_ACCOUNTS[line.account]?.name || line.account}</td>
+                                        <td style={{ padding: '8px 16px', color: 'var(--text-secondary)' }}>{CHART_OF_ACCOUNTS[line.account] ? CHART_OF_ACCOUNTS[line.account].name : line.account}</td>
                                         <td style={{ padding: '8px 16px', textAlign: 'right', fontFamily: 'var(--font-mono)', color: line.debit > 0 ? '#00FC8F' : 'transparent' }}>{line.debit > 0 ? line.debit.toLocaleString() : '-'}</td>
                                         <td style={{ padding: '8px 16px', textAlign: 'right', fontFamily: 'var(--font-mono)', color: line.credit > 0 ? '#FF4757' : 'transparent' }}>{line.credit > 0 ? line.credit.toLocaleString() : '-'}</td>
                                         <td style={{ padding: '8px 16px', textAlign: 'right' }}>
