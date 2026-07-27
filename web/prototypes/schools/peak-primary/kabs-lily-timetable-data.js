@@ -22,56 +22,51 @@
 
   // Grid definition by Day (1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri)
   const RAW_GRID = {
-    // ─── UPPER CLASSES (P.4 - P.7) ───
+    // ─── UPPER & LOWER CLASSES (P.1 - P.7) ───
     1: { // MONDAY
+      'P1': ['LIT', 'LUG', 'ENG', 'READING', 'MTC', 'R.E', 'Games / Reading'],
+      'P2': ['ENG', 'READING', 'MTC', 'R.E', 'LIT', 'LUG', 'Games / Reading'],
+      'P3': ['R.E', 'MTC', 'LIT', 'LUG', 'ENG', 'READING', 'Games / Reading'],
       'P4': ['SST', 'ENG', 'MTC', 'MTC', 'SCI', 'SCI', 'Clubs / Games'],
       'P5': ['ENG', 'SST', 'SCI', 'SCI', 'MTC', 'MTC', 'SST (Extra)'],
       'P6': ['MTC', 'ENG', 'SCI', 'SCI', 'SST', 'SST', 'ENG (Extra)'],
       'P7': ['SCI', 'SST', 'ENG', 'ENG', 'MTC', 'MTC', 'MTC (Extra)'],
-      // LOWER
-      'P1': ['LIT', 'LUG', 'ENG', 'READING', 'MTC', 'R.E'],
-      'P2': ['ENG', 'READING', 'MTC', 'R.E', 'LIT', 'LUG'],
-      'P3': ['R.E', 'MTC', 'LIT', 'LUG', 'ENG', 'READING'],
     },
     2: { // TUESDAY
+      'P1': ['ENG', 'READING', 'MTC', 'R.E', 'READING', 'ENG', 'Games / Reading'],
+      'P2': ['MTC', 'R.E', 'READING', 'ENG', 'LUG', 'LIT', 'Games / Reading'],
+      'P3': ['LIT', 'LUG', 'ENG', 'READING', 'MTC', 'MTC', 'Games / Reading'],
       'P4': ['SCI', 'ENG', 'MTC', 'MTC', 'SST', 'SST', 'Clubs / Games'],
       'P5': ['MTC', 'SCI', 'SST', 'SST', 'ENG', 'ENG', 'ENG (Extra)'],
       'P6': ['ENG', 'MTC', 'SCI', 'SCI', 'SST', 'SST', 'MTC (Extra)'],
       'P7': ['MTC', 'SST', 'ENG', 'ENG', 'SCI', 'SCI', 'SCI (Extra)'],
-      // LOWER
-      'P1': ['ENG', 'READING', 'MTC', 'R.E', 'READING', 'ENG'],
-      'P2': ['MTC', 'R.E', 'READING', 'ENG', 'LUG', 'LIT'],
-      'P3': ['LIT', 'LUG', 'ENG', 'READING', 'MTC', 'MTC'],
     },
     3: { // WEDNESDAY
+      'P1': ['MTC', 'R.E', 'LIT', 'LUG', 'ENG', 'READING', 'Games / Reading'],
+      'P2': ['ENG', 'READING', 'MTC', 'R.E', 'LIT', 'LUG', 'Games / Reading'],
+      'P3': ['LUG', 'LIT', 'ENG', 'WRITING', 'MTC', 'MTC', 'Games / Reading'],
       'P4': ['SST', 'MTC', 'SCI', 'SCI', 'ENG', 'ENG', 'Clubs / Games'],
       'P5': ['ENG', 'SCI', 'MTC', 'MTC', 'SST', 'SST', 'SST (Extra)'],
       'P6': ['MTC', 'SCI', 'ENG', 'ENG', 'SST', 'SST', 'SCI (Extra)'],
       'P7': ['SCI', 'SST', 'MTC', 'MTC', 'ENG', 'ENG', 'ENG (Extra)'],
-      // LOWER
-      'P1': ['MTC', 'R.E', 'LIT', 'LUG', 'ENG', 'READING'],
-      'P2': ['ENG', 'READING', 'MTC', 'R.E', 'LIT', 'LUG'],
-      'P3': ['LUG', 'LIT', 'ENG', 'WRITING', 'MTC', 'MTC'],
     },
     4: { // THURSDAY
+      'P1': ['P.E', 'READING', 'R.E', 'MTC', 'LUG', 'LIT', 'Games / Reading'],
+      'P2': ['P.E', 'LIT', 'LUG', 'LIT', 'WRITING', 'ENG', 'Games / Reading'],
+      'P3': ['P.E', 'R.E', 'ENG', 'READING', 'R.E', 'R.E', 'Games / Reading'],
       'P4': ['ENG', 'SST', 'MTC', 'MTC', 'SCI', 'SCI', 'Clubs / Games'],
       'P5': ['SCI', 'MTC', 'SST', 'SST', 'ENG', 'ENG', 'ENG (Extra)'],
       'P6': ['SCI', 'MTC', 'ENG', 'ENG', 'SST', 'SST', 'MTC (Extra)'],
       'P7': ['ENG', 'SST', 'SCI', 'SCI', 'MTC', 'MTC', 'SST (Extra)'],
-      // LOWER
-      'P1': ['P.E', 'READING', 'R.E', 'MTC', 'LUG', 'LIT'],
-      'P2': ['P.E', 'LIT', 'LUG', 'LIT', 'WRITING', 'ENG'],
-      'P3': ['P.E', 'R.E', 'ENG', 'READING', 'R.E', 'R.E'],
     },
     5: { // FRIDAY
+      'P1': ['LIT', 'LUG', 'WRITING', 'ENG', 'LUG', 'LUG', 'Games / Reading'],
+      'P2': ['ENG', 'WRITING', 'R.E', 'MTC', 'READING', 'READING', 'Games / Reading'],
+      'P3': ['R.E', 'MTC', 'LUG', 'LIT', 'READING', 'READING', 'Games / Reading'],
       'P4': ['ENG', 'SST', 'SCI', 'SCI', 'MTC', 'MTC', 'Clubs / Games'],
       'P5': ['SCI', 'MTC', 'ENG', 'ENG', 'SST', 'SST', 'SCI (Extra)'],
       'P6': ['MTC', 'ENG', 'SCI', 'SCI', 'SST', 'SST', 'ENG (Extra)'],
       'P7': ['ENG', 'SST', 'MTC', 'MTC', 'SCI', 'SCI', 'MTC (Extra)'],
-      // LOWER
-      'P1': ['LIT', 'LUG', 'WRITING', 'ENG', 'LUG', 'LUG'],
-      'P2': ['ENG', 'WRITING', 'R.E', 'MTC', 'READING', 'READING'],
-      'P3': ['R.E', 'MTC', 'LUG', 'LIT', 'READING', 'READING'],
     },
   };
 
