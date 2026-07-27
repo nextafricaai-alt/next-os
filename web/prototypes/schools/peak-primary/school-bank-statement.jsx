@@ -8,8 +8,8 @@
 
   const SchoolBankStatement = ({
     period,
-    summary,
-    transactions,
+    summary: initialSummary,
+    transactions: initialTransactions,
     weeklyTrend
   }) => {
     const brand = window.SCHOOL_BRAND;
@@ -17,13 +17,36 @@
 
     const [currentPage, setCurrentPage] = useState(1);
     const [animatedCollection, setAnimatedCollection] = useState(0);
+    const [fundMode, setFundMode] = useState('all');
     const itemsPerPage = 20;
+
+    const transactions = React.useMemo(() => {
+      if (fundMode === 'all') return initialTransactions;
+      return initialTransactions.filter(t => t.fund === fundMode);
+    }, [initialTransactions, fundMode]);
+
+    const summary = React.useMemo(() => {
+      if (fundMode === 'all') return initialSummary;
+      const totalIncome = transactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.credit, 0);
+      const totalExpenses = transactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.debit, 0);
+      const netBalance = totalIncome - totalExpenses;
+      return {
+        ...initialSummary,
+        totalIncome,
+        totalExpenses,
+        netBalance
+      };
+    }, [initialSummary, transactions, fundMode]);
+
+    useEffect(() => {
+      setCurrentPage(1);
+    }, [fundMode]);
 
     useEffect(() => {
       setTimeout(() => {
         setAnimatedCollection(summary.collectionRate * 100);
       }, 300);
-    }, [summary.collectionRate]);
+    }, [summary.collectionRate, fundMode]);
 
     if (!brand || !Header) {
       return (
@@ -98,6 +121,55 @@
           <div style={{ textAlign: 'center', marginBottom: '30px', fontWeight: 'bold', fontSize: '1.25rem' }}>
             {period.label} ({new Date(period.from).toLocaleDateString()} - {new Date(period.to).toLocaleDateString()})
           </div>
+
+          {/* Fund Switcher Filter Bar */}
+          <div className="no-print" style={{ display: 'flex', gap: '10px', marginBottom: '20px', justifyContent: 'center', flexWrap: 'wrap' }}>
+            <button
+              onClick={() => setFundMode('all')}
+              style={{
+                ...btnStyle(fundMode === 'all' ? brand.colors.primary : '#f3f4f6'),
+                color: fundMode === 'all' ? 'white' : '#4b5563'
+              }}
+            >
+              📊 Combined Ledger
+            </button>
+            <button
+              onClick={() => setFundMode('day')}
+              style={{
+                ...btnStyle(fundMode === 'day' ? brand.colors.primary : '#f3f4f6'),
+                color: fundMode === 'day' ? 'white' : '#4b5563'
+              }}
+            >
+              ☀️ Day Scholar Fund (45.2M UGX)
+            </button>
+            <button
+              onClick={() => setFundMode('boarding')}
+              style={{
+                ...btnStyle(fundMode === 'boarding' ? brand.colors.primary : '#f3f4f6'),
+                color: fundMode === 'boarding' ? 'white' : '#4b5563'
+              }}
+            >
+              🌙 Boarding Scholar Fund (24.5M UGX)
+            </button>
+          </div>
+
+          {/* Ring-Fenced Ledger Banner */}
+          {(fundMode === 'boarding' || fundMode === 'all') && (
+            <div style={{
+              backgroundColor: '#eff6ff',
+              color: '#1e3a8a',
+              padding: '12px 16px',
+              borderRadius: '8px',
+              marginBottom: '20px',
+              fontSize: '0.875rem',
+              display: 'flex',
+              alignItems: 'center',
+              border: '1px solid #bfdbfe'
+            }}>
+              <span style={{ marginRight: '8px' }}>🛡️</span>
+              <span><strong>Ring-Fenced Boarding Ledger:</strong> Boarding revenue is tracked separately to ensure boarding expenses do not encroach on day scholar resources.</span>
+            </div>
+          )}
 
           {/* Summary Boxes */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '15px', marginBottom: '30px' }}>
@@ -247,10 +319,11 @@
         type: i % 4 === 0 ? 'expense' : 'income',
         category: i % 4 === 0 ? 'Supplies' : 'Tuition',
         description: i % 4 === 0 ? 'Bought stationery' : 'Term 2 Fee Payment',
-        reference: \`REF-\${1000 + i}\`,
+        reference: `REF-${1000 + i}`,
         debit: i % 4 === 0 ? 500000 : 0,
         credit: i % 4 !== 0 ? 350000 : 0,
-        runningBalance: 10000000 + (i * 100000)
+        runningBalance: 10000000 + (i * 100000),
+        fund: i % 3 === 0 ? 'boarding' : 'day'
       }))
     };
 
