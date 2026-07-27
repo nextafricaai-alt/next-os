@@ -136,13 +136,85 @@
         subject: s.subject,
         label: s.label,
       }));
-      try {
-        await sb.from('timetable_slots').delete().eq('tenant_id', tid);
-        await sb.from('timetable_slots').insert(dbRows);
-      } catch (err) {
-        console.warn('[KabsLily] Supabase seed warning:', err);
+  window.getKabsLilyDigitalGrid = function () {
+    const classes = ['P1', 'P2', 'P3', 'P4', 'P5', 'P6', 'P7'];
+    const daysMap = { 1: 'Mon', 2: 'Tue', 3: 'Wed', 4: 'Thu', 5: 'Fri' };
+    const grid = {};
+
+    classes.forEach(c => {
+      grid[c] = {};
+      ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'].forEach(d => {
+        // 10 cells total: 3 morning, Break, 3 mid-day, Lunch, 2 evening
+        grid[c][d] = [
+          { subject: '', teacher: '' },
+          { subject: '', teacher: '' },
+          { subject: '', teacher: '' },
+          { brk: true },
+          { subject: '', teacher: '' },
+          { subject: '', teacher: '' },
+          { subject: '', teacher: '' },
+          { brk: true },
+          { subject: '', teacher: '' },
+          { subject: '', teacher: '' },
+        ];
+      });
+    });
+
+    for (let dow = 1; dow <= 5; dow++) {
+      const dayName = daysMap[dow];
+      const dayGrid = RAW_GRID[dow];
+      if (!dayGrid) continue;
+
+      for (const [cls, subjs] of Object.entries(dayGrid)) {
+        if (!grid[cls] || !grid[cls][dayName]) continue;
+        const cellArr = grid[cls][dayName];
+        // Map 6 subjects onto period indices: [0, 1, 2, brk, 4, 5, brk, 8, 9]
+        const pIndices = [0, 1, 4, 5, 8, 9];
+        subjs.forEach((sub, idx) => {
+          const pi = pIndices[idx];
+          if (pi !== undefined && cellArr[pi]) {
+            cellArr[pi] = { subject: sub, teacher: '' };
+          }
+        });
       }
     }
-    return slots;
+    return grid;
   };
+
+  // Auto-push grid to Sentinel Worker API on load
+  const syncToSentinel = async function (tenantSlug) {
+    const slug = tenantSlug || 'kabs-lily-junior-school-and-kindercare-centre';
+    const grid = window.getKabsLilyDigitalGrid();
+    const periods = [
+      { l: 'P1', s: '08:00', e: '09:00' },
+      { l: 'P2', s: '09:00', e: '10:30' },
+      { l: 'P3', s: '10:00', e: '10:30' },
+      { l: 'Break', s: '10:30', e: '11:00', brk: true },
+      { l: 'P4', s: '11:00', e: '12:00' },
+      { l: 'P5', s: '12:00', e: '13:00' },
+      { l: 'P6', s: '12:20', e: '13:00' },
+      { l: 'Lunch', s: '13:00', e: '14:00', brk: true },
+      { l: 'P7', s: '14:00', e: '15:30' },
+      { l: 'P8', s: '15:30', e: '17:00' },
+    ];
+    const payload = { level: 'primary', periods, grid, updatedAt: new Date().toISOString() };
+    const WK = 'https://nextos-sentinel.nextafricaai.workers.dev';
+
+    try {
+      await fetch(WK + '/os-data/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ kind: 'timetable', tenant: slug, record: payload })
+      });
+    } catch (_) {}
+  };
+
+  window.syncKabsLilyToSentinel = syncToSentinel;
+
+  // Auto-init on script load
+  setTimeout(() => {
+    syncToSentinel('kabs-lily-junior-school-and-kindercare-centre');
+    syncToSentinel('kabs-lily');
+    syncToSentinel('peak-primary');
+  }, 1000);
 })();
