@@ -138,20 +138,44 @@
     const daysMap = { 1: 'Mon', 2: 'Tue', 3: 'Wed', 4: 'Thu', 5: 'Fri' };
     const grid = {};
 
+    const nurseryGrid = {
+      'Mon': {
+        'Baby':   [ {subject:'LA 1',teacher:'Tr. Jus'}, {subject:'LA 1',teacher:'Tr. Jus'}, {brk:true}, {subject:'LA 2',teacher:'Tr. Mayira'}, {subject:'LA 2',teacher:'Tr. Mayira'}, {brk:true}, {subject:'Rest & Play',teacher:'Tr. Jus'}, {subject:'Rest & Play',teacher:'Tr. Jus'}, {subject:'Departure',teacher:''} ],
+        'Middle': [ {subject:'LA 1',teacher:'Tr. Jemima'}, {subject:'LA 1',teacher:'Tr. Jemima'}, {brk:true}, {subject:'LA 3',teacher:'Tr. Jus'}, {subject:'LA 3',teacher:'Tr. Jus'}, {brk:true}, {subject:'Rest & Play',teacher:'Tr. Jemima'}, {subject:'Rest & Play',teacher:'Tr. Jemima'}, {subject:'Departure',teacher:''} ],
+        'Top':    [ {subject:'LA 1',teacher:'Tr. Mayira'}, {subject:'LA 1',teacher:'Tr. Mayira'}, {brk:true}, {subject:'LA 2',teacher:'Tr. Jemima'}, {subject:'LA 2',teacher:'Tr. Jemima'}, {brk:true}, {subject:'Evening LA 5 (2:00-3:30pm)',teacher:'Tr. Mayira'}, {subject:'Evening LA 5',teacher:'Tr. Mayira'}, {subject:'Guided Revision',teacher:'Tr. Mayira'} ]
+      },
+      'Tue': {
+        'Baby':   [ {subject:'LA 1',teacher:'Tr. Jemima'}, {subject:'LA 1',teacher:'Tr. Jemima'}, {brk:true}, {subject:'LA 4',teacher:'Tr. Jus'}, {subject:'LA 4',teacher:'Tr. Jus'}, {brk:true}, {subject:'Rest & Play',teacher:'Tr. Jemima'}, {subject:'Rest & Play',teacher:'Tr. Jemima'}, {subject:'Departure',teacher:''} ],
+        'Middle': [ {subject:'LA 2',teacher:'Tr. Mayira'}, {subject:'LA 2',teacher:'Tr. Mayira'}, {brk:true}, {subject:'LA 1',teacher:'Tr. Jemima'}, {subject:'LA 1',teacher:'Tr. Jemima'}, {brk:true}, {subject:'Rest & Play',teacher:'Tr. Mayira'}, {subject:'Rest & Play',teacher:'Tr. Mayira'}, {subject:'Departure',teacher:''} ],
+        'Top':    [ {subject:'LA 3',teacher:'Tr. Jus'}, {subject:'LA 3',teacher:'Tr. Jus'}, {brk:true}, {subject:'LA 2',teacher:'Tr. Mayira'}, {subject:'LA 2',teacher:'Tr. Mayira'}, {brk:true}, {subject:'Evening LA',teacher:'Tr. Jus'}, {subject:'Evening LA',teacher:'Tr. Jus'}, {subject:'Guided Revision',teacher:'Tr. Jus'} ]
+      },
+      'Wed': {
+        'Baby':   [ {subject:'P.E (8:00-8:30) / LA 4',teacher:'Tr. Jus'}, {subject:'LA 4',teacher:'Tr. Jus'}, {brk:true}, {subject:'LA 5',teacher:'Tr. Mayira'}, {subject:'LA 5',teacher:'Tr. Mayira'}, {brk:true}, {subject:'Rest & Play',teacher:'Tr. Mayira'}, {subject:'Rest & Play',teacher:'Tr. Mayira'}, {subject:'Departure',teacher:''} ],
+        'Middle': [ {subject:'P.E (8:00-8:30) / LA 4',teacher:'Tr. Jemima'}, {subject:'LA 4',teacher:'Tr. Jemima'}, {brk:true}, {subject:'LA 3',teacher:'Tr. Jus'}, {subject:'LA 3',teacher:'Tr. Jus'}, {brk:true}, {subject:'Rest & Play',teacher:'Tr. Jus'}, {subject:'Rest & Play',teacher:'Tr. Jus'}, {subject:'Departure',teacher:''} ],
+        'Top':    [ {subject:'P.E (8:00-8:30) / LA 2',teacher:'Tr. Mayira'}, {subject:'LA 2',teacher:'Tr. Mayira'}, {brk:true}, {subject:'LA 1',teacher:'Tr. Jemima'}, {subject:'LA 1',teacher:'Tr. Jemima'}, {brk:true}, {subject:'Evening LA',teacher:'Tr. Mayira'}, {subject:'Evening LA',teacher:'Tr. Mayira'}, {subject:'Guided Revision',teacher:'Tr. Mayira'} ]
+      },
+      'Thu': {
+        'Baby':   [ {subject:'LA 3',teacher:'Tr. Jus'}, {subject:'LA 3',teacher:'Tr. Jus'}, {brk:true}, {subject:'LA 1',teacher:'Tr. Jemima'}, {subject:'LA 1',teacher:'Tr. Jemima'}, {brk:true}, {subject:'Rest & Play',teacher:'Tr. Jemima'}, {subject:'Rest & Play',teacher:'Tr. Jemima'}, {subject:'Departure',teacher:''} ],
+        'Middle': [ {subject:'LA 1',teacher:'Tr. Jemima'}, {subject:'LA 1',teacher:'Tr. Jemima'}, {brk:true}, {subject:'LA 5',teacher:'Tr. Mayira'}, {subject:'LA 5',teacher:'Tr. Mayira'}, {brk:true}, {subject:'Rest & Play',teacher:'Tr. Mayira'}, {subject:'Rest & Play',teacher:'Tr. Mayira'}, {subject:'Departure',teacher:''} ],
+        'Top':    [ {subject:'LA 4',teacher:'Tr. Mayira'}, {subject:'LA 4',teacher:'Tr. Mayira'}, {brk:true}, {subject:'LA 3',teacher:'Tr. Jus'}, {subject:'LA 3',teacher:'Tr. Jus'}, {brk:true}, {subject:'Evening LA',teacher:'Tr. Jus'}, {subject:'Evening LA',teacher:'Tr. Jus'}, {subject:'Guided Revision',teacher:'Tr. Jus'} ]
+      },
+      'Fri': {
+        'Baby':   [ {subject:'P.E (9:00-9:30) / LA 4',teacher:'Tr. Jus'}, {subject:'LA 4',teacher:'Tr. Jus'}, {brk:true}, {subject:'LA 2',teacher:'Tr. Jus'}, {subject:'LA 2',teacher:'Tr. Jus'}, {brk:true}, {subject:'Evening LA (2:00-3:00pm)',teacher:'Tr. Jus'}, {subject:'Evening Activities',teacher:'Tr. Jus'}, {subject:'Departure',teacher:''} ],
+        'Middle': [ {subject:'P.E (9:00-9:30) / LA 1',teacher:'Tr. Jemima'}, {subject:'LA 1',teacher:'Tr. Jemima'}, {brk:true}, {subject:'LA 1',teacher:'Tr. Jemima'}, {subject:'LA 1',teacher:'Tr. Jemima'}, {brk:true}, {subject:'Evening LA (2:00-3:00pm)',teacher:'Tr. Jemima'}, {subject:'Evening Activities',teacher:'Tr. Jemima'}, {subject:'Departure',teacher:''} ],
+        'Top':    [ {subject:'P.E (9:00-9:30) / LA 4',teacher:'Tr. Mayira'}, {subject:'LA 4',teacher:'Tr. Mayira'}, {brk:true}, {subject:'LA 5 / LA 2',teacher:'Tr. Mayira'}, {subject:'LA 5 / LA 2',teacher:'Tr. Mayira'}, {brk:true}, {subject:'Evening LA (2:00-3:00pm)',teacher:'Tr. Mayira'}, {subject:'Evening Activities',teacher:'Tr. Mayira'}, {subject:'Departure',teacher:''} ]
+      }
+    };
+
     classes.forEach(c => {
       grid[c] = {};
       ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'].forEach(d => {
-        // 9 cells total: Period 1, Period 2, Break, Period 3, Period 4, Lunch, Period 5, Period 6, Period 7
         grid[c][d] = [
-          { subject: c in ['Baby','Middle','Top'] ? 'Music & Movement' : '', teacher: '' },
-          { subject: c in ['Baby','Middle','Top'] ? 'Storytime' : '', teacher: '' },
+          { subject: '', teacher: '' }, { subject: '', teacher: '' },
           { brk: true },
-          { subject: c in ['Baby','Middle','Top'] ? 'Play & Physical' : '', teacher: '' },
-          { subject: c in ['Baby','Middle','Top'] ? 'Life Skills' : '', teacher: '' },
+          { subject: '', teacher: '' }, { subject: '', teacher: '' },
           { brk: true },
-          { subject: c in ['Baby','Middle','Top'] ? 'Art & Craft' : '', teacher: '' },
-          { subject: c in ['Baby','Middle','Top'] ? 'Numeracy' : '', teacher: '' },
-          { subject: c in ['Baby','Middle','Top'] ? 'Literacy' : '', teacher: '' },
+          { subject: '', teacher: '' }, { subject: '', teacher: '' },
+          { subject: '', teacher: '' },
         ];
       });
     });
@@ -164,7 +188,6 @@
       for (const [cls, subjs] of Object.entries(dayGrid)) {
         if (!grid[cls] || !grid[cls][dayName]) continue;
         const cellArr = grid[cls][dayName];
-        // Map subjects onto period indices: [0 (Period 1), 1 (Period 2), 3 (Period 3), 4 (Period 4), 6 (Period 5), 7 (Period 6), 8 (Period 7)]
         const pIndices = [0, 1, 3, 4, 6, 7, 8];
         subjs.forEach((sub, idx) => {
           const pi = pIndices[idx];
@@ -174,6 +197,13 @@
         });
       }
     }
+
+    ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'].forEach(d => {
+      ['Baby', 'Middle', 'Top'].forEach(cls => {
+        grid[cls][d] = nurseryGrid[d][cls];
+      });
+    });
+
     return grid;
   };
 
