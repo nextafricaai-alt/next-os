@@ -9,22 +9,16 @@
 */
 (function () {
   const UPPER_TIMES = [
-    { period: 1, start: '08:00:00', end: '09:00:00', label: '8:00 - 9:00 AM' },
-    { period: 2, start: '09:00:00', end: '10:30:00', label: '9:00 - 10:30 AM' },
-    { period: 3, start: '11:00:00', end: '12:00:00', label: '11:00 - 12:00 PM' },
-    { period: 4, start: '12:00:00', end: '13:00:00', label: '12:00 - 1:00 PM' },
-    { period: 5, start: '14:00:00', end: '15:30:00', label: '2:00 - 3:30 PM' },
-    { period: 6, start: '15:30:00', end: '17:00:00', label: '3:30 - 5:00 PM' },
+    { period: 1, start: '08:00:00', end: '09:00:00', label: 'Period 1 (8:00 - 9:00 AM)' },
+    { period: 2, start: '09:00:00', end: '10:00:00', label: 'Period 2 (9:00 - 10:00 AM)' },
+    { period: 3, start: '11:00:00', end: '12:00:00', label: 'Period 3 (11:00 - 12:00 PM)' },
+    { period: 4, start: '12:00:00', end: '13:00:00', label: 'Period 4 (12:00 - 1:00 PM)' },
+    { period: 5, start: '14:00:00', end: '15:00:00', label: 'Period 5 (2:00 - 3:00 PM)' },
+    { period: 6, start: '15:00:00', end: '16:00:00', label: 'Period 6 (3:00 - 4:00 PM)' },
+    { period: 7, start: '16:00:00', end: '17:00:00', label: 'Period 7 (4:00 - 5:00 PM)' },
   ];
 
-  const LOWER_TIMES = [
-    { period: 1, start: '08:00:00', end: '09:30:00', label: '8:00 - 9:30 AM' },
-    { period: 2, start: '09:30:00', end: '10:30:00', label: '9:30 - 10:30 AM' },
-    { period: 3, start: '11:00:00', end: '12:00:00', label: '11:00 - 12:00 PM' },
-    { period: 4, start: '12:00:00', end: '13:00:00', label: '12:00 - 1:00 PM' },
-    { period: 5, start: '14:00:00', end: '15:00:00', label: '2:00 - 3:00 PM' },
-    { period: 6, start: '15:00:00', end: '16:00:00', label: '3:00 - 4:00 PM' },
-  ];
+  const LOWER_TIMES = UPPER_TIMES;
 
   // Grid definition by Day (1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri)
   const RAW_GRID = {
@@ -137,25 +131,24 @@
         label: s.label,
       }));
   window.getKabsLilyDigitalGrid = function () {
-    const classes = ['P1', 'P2', 'P3', 'P4', 'P5', 'P6', 'P7'];
+    const classes = ['Baby', 'Middle', 'Top', 'P1', 'P2', 'P3', 'P4', 'P5', 'P6', 'P7'];
     const daysMap = { 1: 'Mon', 2: 'Tue', 3: 'Wed', 4: 'Thu', 5: 'Fri' };
     const grid = {};
 
     classes.forEach(c => {
       grid[c] = {};
       ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'].forEach(d => {
-        // 10 cells total: 3 morning, Break, 3 mid-day, Lunch, 2 evening
+        // 9 cells total: Period 1, Period 2, Break, Period 3, Period 4, Lunch, Period 5, Period 6, Period 7
         grid[c][d] = [
-          { subject: '', teacher: '' },
-          { subject: '', teacher: '' },
-          { subject: '', teacher: '' },
+          { subject: c in ['Baby','Middle','Top'] ? 'Music & Movement' : '', teacher: '' },
+          { subject: c in ['Baby','Middle','Top'] ? 'Storytime' : '', teacher: '' },
           { brk: true },
-          { subject: '', teacher: '' },
-          { subject: '', teacher: '' },
-          { subject: '', teacher: '' },
+          { subject: c in ['Baby','Middle','Top'] ? 'Play & Physical' : '', teacher: '' },
+          { subject: c in ['Baby','Middle','Top'] ? 'Life Skills' : '', teacher: '' },
           { brk: true },
-          { subject: '', teacher: '' },
-          { subject: '', teacher: '' },
+          { subject: c in ['Baby','Middle','Top'] ? 'Art & Craft' : '', teacher: '' },
+          { subject: c in ['Baby','Middle','Top'] ? 'Numeracy' : '', teacher: '' },
+          { subject: c in ['Baby','Middle','Top'] ? 'Literacy' : '', teacher: '' },
         ];
       });
     });
@@ -168,8 +161,8 @@
       for (const [cls, subjs] of Object.entries(dayGrid)) {
         if (!grid[cls] || !grid[cls][dayName]) continue;
         const cellArr = grid[cls][dayName];
-        // Map 6 subjects onto period indices: [0, 1, 2, brk, 4, 5, brk, 8, 9]
-        const pIndices = [0, 1, 4, 5, 8, 9];
+        // Map 6 subjects onto period indices: [0 (Period 1), 1 (Period 2), 3 (Period 3), 4 (Period 4), 6 (Period 5), 7 (Period 6)]
+        const pIndices = [0, 1, 3, 4, 6, 7];
         subjs.forEach((sub, idx) => {
           const pi = pIndices[idx];
           if (pi !== undefined && cellArr[pi]) {
@@ -186,16 +179,15 @@
     const slug = tenantSlug || 'kabs-lily-junior-school-and-kindercare-centre';
     const grid = window.getKabsLilyDigitalGrid();
     const periods = [
-      { l: 'P1', s: '08:00', e: '09:00' },
-      { l: 'P2', s: '09:00', e: '10:30' },
-      { l: 'P3', s: '10:00', e: '10:30' },
-      { l: 'Break', s: '10:30', e: '11:00', brk: true },
-      { l: 'P4', s: '11:00', e: '12:00' },
-      { l: 'P5', s: '12:00', e: '13:00' },
-      { l: 'P6', s: '12:20', e: '13:00' },
-      { l: 'Lunch', s: '13:00', e: '14:00', brk: true },
-      { l: 'P7', s: '14:00', e: '15:30' },
-      { l: 'P8', s: '15:30', e: '17:00' },
+      { l: 'Period 1', s: '08:00', e: '09:00' },
+      { l: 'Period 2', s: '09:00', e: '10:00' },
+      { l: 'Break',    s: '10:00', e: '11:00', brk: true },
+      { l: 'Period 3', s: '11:00', e: '12:00' },
+      { l: 'Period 4', s: '12:00', e: '13:00' },
+      { l: 'Lunch',    s: '13:00', e: '14:00', brk: true },
+      { l: 'Period 5', s: '14:00', e: '15:00' },
+      { l: 'Period 6', s: '15:00', e: '16:00' },
+      { l: 'Period 7', s: '16:00', e: '17:00' },
     ];
     const payload = { level: 'primary', periods, grid, updatedAt: new Date().toISOString() };
     const WK = 'https://nextos-sentinel.nextafricaai.workers.dev';
