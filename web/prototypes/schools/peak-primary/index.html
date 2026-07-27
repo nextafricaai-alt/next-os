@@ -417,6 +417,13 @@
   <script src="school-brand.js"></script>
   <script src="kabs-lily-timetable-data.js"></script>
 
+  <!-- Transport Telemetry Engine -->
+  <script src="transport-telemetry.js"></script>
+
+  <!-- Leaflet Map Library for Live Transport Tracking -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="anonymous" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin="anonymous"></script>
+
   <!-- Three.js + GSAP for Nia Design Studio -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" crossorigin="anonymous"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js" crossorigin="anonymous"></script>
@@ -433,6 +440,8 @@
   <script type="text/babel" src="school-fee-statement.jsx"></script>
   <script type="text/babel" src="school-bank-statement.jsx"></script>
   <script type="text/babel" src="school-brand-admin.jsx"></script>
+  <script type="text/babel" src="driver-view.jsx"></script>
+  <script type="text/babel" src="head-transport-panel.jsx"></script>
 
   <!-- Role router + teacher shell (INLINED to work over file:// — external src is CORS-blocked) -->
   <script type="text/babel" data-src="role-router.jsx">
@@ -472,19 +481,20 @@
   function getRole() {
     const p = getProfile();
     const r = (p && p.role) ? String(p.role).toLowerCase() : 'head';
-    if (r === 'admin' || r === 'head' || r === 'bursar' || r === 'teacher') return r;
+    if (r === 'admin' || r === 'head' || r === 'bursar' || r === 'teacher' || r === 'driver') return r;
     return 'head';
   }
 
   // ─── Which nav items each role can see ────────────────────────────────
   // Admin + Head: everything
   // Bursar: only finance-relevant screens
-  // Teacher: doesn't use the sidebar at all (different shell)
+  // Teacher / Driver: use dedicated mobile shell
   const ROLE_NAV_WHITELIST = {
     admin:   null, // null = show all
     head:    null,
-    bursar:  new Set(['dash', 'fees', 'rep', 'exam', 'finance']),
-    teacher: new Set(), // teacher uses its own shell, sidebar not rendered
+    bursar:  new Set(['dash', 'fees', 'rep', 'exam', 'finance', 'trans']),
+    teacher: new Set(),
+    driver:  new Set(['driver', 'trans']),
   };
 
   function canSeeNavKey(key) {
@@ -505,8 +515,9 @@
   function defaultRouteForRole() {
     const role = getRole();
     if (role === 'bursar')  return 'fees';
-    if (role === 'teacher') return 'teacher-home'; // handled by TeacherShell
-    return 'today'; // admin / head land on Today
+    if (role === 'driver')  return 'driver';
+    if (role === 'teacher') return 'teacher-home';
+    return 'today';
   }
 
   // ─── Pretty label for the sidebar profile chip ───────────────────────
