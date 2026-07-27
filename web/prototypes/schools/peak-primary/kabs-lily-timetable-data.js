@@ -175,6 +175,54 @@
       });
     });
 
+    const getTeacherForSubject = function(cls, subject) {
+      if (!subject || subject === 'Break' || subject === 'Lunch' || subject.includes('DISMISSAL') || subject === 'Home') return '';
+      if (cls === 'P1') {
+        if (subject.includes('LUG') || subject.includes('LIT') || subject.includes('WRITING')) return 'Tr. Harriet';
+        if (subject.includes('ENG') || subject.includes('READING')) return 'Tr. Harriet';
+        if (subject.includes('MTC')) return 'Tr. Jane';
+        if (subject.includes('R.E')) return 'Tr. Harriet';
+        return 'Tr. Harriet';
+      }
+      if (cls === 'P2') {
+        if (subject.includes('ENG') || subject.includes('LIT') || subject.includes('READING')) return 'Tr. Christine';
+        if (subject.includes('MTC')) return 'Tr. Jane';
+        if (subject.includes('R.E') || subject.includes('LUG')) return 'Tr. Christine';
+        return 'Tr. Christine';
+      }
+      if (cls === 'P3') {
+        if (subject.includes('MTC') || subject.includes('R.E')) return 'Tr. Jane';
+        if (subject.includes('ENG') || subject.includes('LIT') || subject.includes('READING') || subject.includes('LUG')) return 'Tr. Joyce';
+        return 'Tr. Jane';
+      }
+      if (cls === 'P4') {
+        if (subject.includes('MTC')) return 'Tr. Elijah';
+        if (subject.includes('ENG') || subject.includes('LIT')) return 'Tr. Joyce';
+        if (subject.includes('SCI')) return 'Tr. Harriet';
+        if (subject.includes('SST')) return 'Tr. Esther';
+        return 'Tr. Elijah';
+      }
+      if (cls === 'P5') {
+        if (subject.includes('SST') || subject.includes('SCI')) return 'Tr. Esther';
+        if (subject.includes('MTC')) return 'Tr. Elijah';
+        if (subject.includes('ENG')) return 'Tr. Joyce';
+        return 'Tr. Esther';
+      }
+      if (cls === 'P6') {
+        if (subject.includes('SCI') || subject.includes('MTC')) return 'Tr. Ronnie';
+        if (subject.includes('ENG')) return 'Tr. Paul';
+        if (subject.includes('SST')) return 'Tr. Sam';
+        return 'Tr. Ronnie';
+      }
+      if (cls === 'P7') {
+        if (subject.includes('ENG') || subject.includes('R.E')) return 'Tr. Paul';
+        if (subject.includes('SST')) return 'Tr. Sam';
+        if (subject.includes('SCI') || subject.includes('MTC')) return 'Tr. Ronnie';
+        return 'Tr. Paul';
+      }
+      return '';
+    };
+
     for (let dow = 1; dow <= 5; dow++) {
       const dayName = daysMap[dow];
       const dayGrid = RAW_GRID[dow];
@@ -187,7 +235,7 @@
         subjs.forEach((sub, idx) => {
           const pi = pIndices[idx];
           if (pi !== undefined && cellArr[pi]) {
-            cellArr[pi] = { subject: sub, teacher: '' };
+            cellArr[pi] = { subject: sub, teacher: getTeacherForSubject(cls, sub) };
           }
         });
       }
