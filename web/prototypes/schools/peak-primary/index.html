@@ -398,9 +398,29 @@
   })();
   </script>
 
+  <!-- Nia Memory Engine — must load before React components -->
+  <script src="../../../../nia-memory.js"></script>
+
+  <!-- School Brand Engine & Extracted Timetable -->
+  <script src="school-brand.js"></script>
+  <script src="kabs-lily-timetable-data.js"></script>
+
+  <!-- Three.js + GSAP for Nia Design Studio -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js" crossorigin="anonymous"></script>
+  <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js" crossorigin="anonymous"></script>
+
   <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" crossorigin="anonymous"></script>
   <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" crossorigin="anonymous"></script>
   <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" crossorigin="anonymous"></script>
+
+  <!-- School Document & Brand Admin Components + Nia Design Studio -->
+  <script type="text/babel" src="../../../../nia-design-studio.jsx"></script>
+  <script type="text/babel" src="school-document-header.jsx"></script>
+  <script type="text/babel" src="school-report-card.jsx"></script>
+  <script type="text/babel" src="school-fee-statement.jsx"></script>
+  <script type="text/babel" src="school-bank-statement.jsx"></script>
+  <script type="text/babel" src="school-brand-admin.jsx"></script>
 
   <!-- Role router + teacher shell (INLINED to work over file:// — external src is CORS-blocked) -->
   <script type="text/babel" data-src="role-router.jsx">

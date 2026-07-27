@@ -96,6 +96,146 @@
     };
   }
 
+  // ─── Nia Predictive Intelligence Card ─────────────────────────────
+  // Appears at the top of the staff panel, powered by Nia's memory.
+  // Shows today's pattern-based intelligence: who's likely to be absent,
+  // which classes are at attendance risk, what Nia observed this week.
+  function NiaPredictiveCard({ tenantId, enriched, stats }) {
+    const [patterns, setPatterns] = useState(null);
+    const [insight, setInsight] = useState(null);
+
+    useEffect(() => {
+      if (!window.NIA_MEMORY) return;
+      try {
+        const p = window.NIA_MEMORY.getPatterns(tenantId);
+        setPatterns(p);
+        const i = window.NIA_MEMORY.getInsight(tenantId, 'staff absence pattern');
+        setInsight(i);
+      } catch (_) { /* silent */ }
+    }, [tenantId, enriched.length]);
+
+    // Risk-flag absent teachers based on memory patterns
+    const absentTeachers = enriched.filter(t => t.status === 'absent');
+    const memoryInsights = patterns && patterns.insights ? patterns.insights.slice(0, 2) : [];
+    const hasMemory = patterns && (patterns.observations || 0) >= 3;
+
+    return (
+      <div style={{
+        background: 'linear-gradient(135deg, rgba(0,252,143,0.05) 0%, rgba(14,22,52,0.95) 100%)',
+        border: '1px solid rgba(0,252,143,0.18)',
+        borderRadius: 14, padding: 22, marginBottom: 24,
+        position: 'relative', overflow: 'hidden',
+      }}>
+        {/* Glow accent */}
+        <div style={{
+          position: 'absolute', top: -20, right: -20, width: 120, height: 120,
+          borderRadius: '50%', background: 'rgba(0,252,143,0.07)',
+          filter: 'blur(30px)', pointerEvents: 'none',
+        }} />
+
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+          <div style={{
+            width: 38, height: 38, borderRadius: 10,
+            background: 'rgba(0,252,143,0.15)', color: T.green,
+            display: 'grid', placeItems: 'center',
+            fontFamily: T.serif, fontSize: 20, fontWeight: 700,
+            border: '1px solid rgba(0,252,143,0.3)',
+            boxShadow: '0 0 16px rgba(0,252,143,0.15)',
+          }}>N</div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 9.5, fontFamily: T.mono, letterSpacing: 1.5, color: T.green, fontWeight: 700 }}>
+              NIA · {hasMemory ? 'PATTERN INTELLIGENCE' : 'MONITORING MODE'}
+            </div>
+            <div style={{ fontSize: 15, fontWeight: 600, color: T.ink, marginTop: 2 }}>
+              {stats.absent === 0
+                ? 'Full house — all staff accounted for'
+                : stats.absent + ' teacher' + (stats.absent === 1 ? '' : 's') + ' not yet checked in'
+              }
+            </div>
+          </div>
+          {hasMemory && (
+            <span style={{
+              fontSize: 9.5, fontFamily: T.mono, letterSpacing: 1, color: T.green,
+              background: 'rgba(0,252,143,0.1)', border: '1px solid rgba(0,252,143,0.2)',
+              padding: '4px 10px', borderRadius: 999,
+            }}>◆ MEMORY ACTIVE</span>
+          )}
+        </div>
+
+        {/* Intelligence rows */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+
+          {/* Live absent teachers */}
+          {absentTeachers.slice(0, 3).map(t => (
+            <div key={t.id} style={{
+              display: 'flex', alignItems: 'center', gap: 12,
+              padding: '10px 14px',
+              background: 'rgba(255,180,0,0.07)',
+              border: '1px solid rgba(255,180,0,0.18)',
+              borderRadius: 10,
+            }}>
+              <span style={{
+                width: 28, height: 28, borderRadius: 8,
+                background: T.gold, color: T.bg,
+                display: 'grid', placeItems: 'center',
+                fontSize: 13, fontWeight: 700, flexShrink: 0,
+              }}>◦</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: T.ink }}>{t.full_name} — not checked in</div>
+                <div style={{ fontSize: 11.5, color: T.ink3, marginTop: 2 }}>
+                  {t.streamsRolled.length === 0
+                    ? 'No roll call taken yet today.'
+                    : t.streamsRolled.join(', ') + ' roll call done.'}
+                </div>
+              </div>
+            </div>
+          ))}
+
+          {/* Memory-powered insights */}
+          {memoryInsights.map((ins, i) => (
+            <div key={i} style={{
+              display: 'flex', alignItems: 'flex-start', gap: 12,
+              padding: '10px 14px',
+              background: 'rgba(59,130,246,0.07)',
+              border: '1px solid rgba(59,130,246,0.15)',
+              borderRadius: 10,
+            }}>
+              <span style={{
+                width: 28, height: 28, borderRadius: 8,
+                background: T.blue, color: T.bg,
+                display: 'grid', placeItems: 'center',
+                fontSize: 11, fontWeight: 700, flexShrink: 0,
+              }}>◆</span>
+              <div>
+                <div style={{ fontSize: 10, fontFamily: T.mono, letterSpacing: 1, color: T.blue, marginBottom: 3 }}>NIA PATTERN</div>
+                <div style={{ fontSize: 12.5, color: T.ink2, lineHeight: 1.5 }}>{ins}</div>
+              </div>
+            </div>
+          ))}
+
+          {/* All-clear or baseline message */}
+          {absentTeachers.length === 0 && memoryInsights.length === 0 && (
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 12,
+              padding: '10px 14px',
+              background: 'rgba(0,252,143,0.06)',
+              border: '1px solid rgba(0,252,143,0.14)',
+              borderRadius: 10,
+            }}>
+              <span style={{ color: T.green, fontSize: 18 }}>✓</span>
+              <div style={{ fontSize: 12.5, color: T.ink3, lineHeight: 1.5 }}>
+                {hasMemory
+                  ? 'All clear. No unusual patterns today based on ' + patterns.observations + ' past observations.'
+                  : 'Nia is watching. Patterns build after a few days of check-in data.'}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   function StaffStatusPill({ status }) {
     const styles = {
       in:   { bg: 'rgba(0,252,143,0.14)',  fg: T.green, dot: T.green, label: 'ON CAMPUS' },
@@ -172,11 +312,14 @@
       return { total, inNow, left, absent };
     }, [enriched]);
 
+    const SchoolBadgeStrip = window.SchoolBadgeStrip;
+
     return (
       <div style={{
         minHeight: '100vh', background: T.bg, color: T.ink,
         fontFamily: T.font, padding: '32px 36px 60px',
       }}>
+        {SchoolBadgeStrip && <SchoolBadgeStrip pageName="STAFF & CAMPUS" />}
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24, gap: 12, flexWrap: 'wrap' }}>
           <div>
@@ -195,6 +338,9 @@
             fontSize: 12, cursor: data.loading ? 'wait' : 'pointer', fontFamily: T.font,
           }}>{data.loading ? 'Refreshing…' : '↻ Refresh'}</button>
         </div>
+
+        {/* Nia Predictive Intelligence */}
+        <NiaPredictiveCard tenantId={profile.tenantId} enriched={enriched} stats={stats} />
 
         {/* Stat cards */}
         <div style={{

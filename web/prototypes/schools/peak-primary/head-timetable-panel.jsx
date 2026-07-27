@@ -47,40 +47,51 @@
     if (!t) return '';
     return t.slice(0, 5);
   };
-  const STREAMS = ['P1V','P1P','P2V','P2P','P3V','P3P','P4V','P4P','P5V','P5P','P6V','P6P','P7V','P7P'];
+  const STREAMS = ['P1','P2','P3','P4','P5','P6','P7','P1V','P1P','P2V','P2P','P3V','P3P','P4V','P4P','P5V','P5P','P6V','P6P','P7V','P7P'];
 
   async function loadTimetable(tenantId) {
     const sb = window.NextSession?.sb;
-    if (!sb) return { error: 'No session' };
     const today = isoDate();
     const dow = todayDow();
+    let slots = [];
+    let teachers = [];
+    let checkins = [];
+    let rollCalls = [];
 
-    // Today's slots, joined with teacher name
-    const { data: slots } = await sb
-      .from('timetable_slots')
-      .select('id, period, start_time, end_time, stream, subject, teacher_id, label')
-      .eq('tenant_id', tenantId)
-      .eq('day_of_week', dow)
-      .order('period', { ascending: true });
+    if (sb) {
+      const { data: s } = await sb
+        .from('timetable_slots')
+        .select('id, period, start_time, end_time, stream, subject, teacher_id, label')
+        .eq('tenant_id', tenantId)
+        .eq('day_of_week', dow)
+        .order('period', { ascending: true });
+      slots = s || [];
 
-    const { data: teachers } = await sb
-      .from('teachers')
-      .select('id, full_name')
-      .eq('tenant_id', tenantId);
+      const { data: t } = await sb
+        .from('teachers')
+        .select('id, full_name')
+        .eq('tenant_id', tenantId);
+      teachers = t || [];
 
-    // Today's check-ins (latest per teacher)
-    const { data: checkins } = await sb
-      .from('teacher_checkins')
-      .select('teacher_id, checked_in_at, checked_out_at')
-      .eq('tenant_id', tenantId)
-      .gte('checked_in_at', today + 'T00:00:00');
+      const { data: c } = await sb
+        .from('teacher_checkins')
+        .select('teacher_id, checked_in_at, checked_out_at')
+        .eq('tenant_id', tenantId)
+        .gte('checked_in_at', today + 'T00:00:00');
+      checkins = c || [];
 
-    // Today's roll call records
-    const { data: rollCalls } = await sb
-      .from('student_roll_call')
-      .select('teacher_id, stream')
-      .eq('tenant_id', tenantId)
-      .eq('roll_date', today);
+      const { data: r } = await sb
+        .from('student_roll_call')
+        .select('teacher_id, stream')
+        .eq('tenant_id', tenantId)
+        .eq('roll_date', today);
+      rollCalls = r || [];
+    }
+
+    // Fallback to Kabs Lily extracted timetable if Supabase has no slots seeded
+    if (slots.length === 0 && window.getKabsLilySlotsForDay) {
+      slots = window.getKabsLilySlotsForDay(dow);
+    }
 
     return {
       slots: slots || [],
@@ -196,11 +207,14 @@
       return c;
     }, [data, ctx]);
 
+    const SchoolBadgeStrip = window.SchoolBadgeStrip;
+
     return (
       <div style={{
         minHeight: '100vh', background: T.bg, color: T.ink,
         fontFamily: T.font, padding: '32px 36px 60px',
       }}>
+        {SchoolBadgeStrip && <SchoolBadgeStrip pageName="TIMETABLE CONTROL" />}
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24, gap: 12, flexWrap: 'wrap' }}>
           <div>

@@ -1,6 +1,10 @@
-/* os-agent.jsx — Sentinel: Chief of Staff WITH HANDS (Phase 2).
-   Tools: read_fleet, read_tenant, read_finance, read_projects,
-   evaluate_health, draft_message. Read-only or draft-only — never sends.
+/* os-agent.jsx — Sentinel / Nia: Growing Intelligence (Phase 3).
+   Tools: read_fleet, read_tenant, read_finance, read_projects, evaluate_health,
+          draft_message, notify, open_whatsapp, send_whatsapp, open_childcare_os,
+          read_childcare_schedule,
+          read_memory, write_memory, predict_risk, escalate_concern, generate_graphic
+   Nia learns from every interaction. Memory-first reasoning. Role-aware.
+   One intelligence, multiple context levels: Hudson (CEO) | Head Teacher | Teacher | Bursar.
 */
 (function () {
   const KEY_API_KEY      = 'nextos.agent.apiKey.v1';
@@ -8,107 +12,169 @@
   const KEY_CONVERSATION = 'nextos.agent.conversation.v2';
   const DEFAULT_PROVIDER = 'nia-free';
   const DEFAULT_MODEL = { anthropic: 'claude-sonnet-4-5-20250929', openai: 'gpt-4o', 'nia-free': 'llama-3.3-70b' };
-  const TOOL_LOOP_MAX = 5;
-  // Free-tier Nia worker (Cloudflare Workers AI · Llama 3.3 70B · no key needed).
-  // Override at runtime: window.NEXT_OS_SENTINEL_ENDPOINT = 'https://...';
+  const TOOL_LOOP_MAX = 8;  // Raised: memory + prediction chains need more loops
   const NIA_FREE_ENDPOINT = 'https://nextos-sentinel.nextafricaai.workers.dev';
 
-  const SYSTEM_PROMPT = `You are Sentinel (Nia), Chief of Staff for Hudson Tumusiime — founder of NEXT (Uganda). You live inside NEXT OS.
+  // ── Role context builder: same Nia, different depth of knowledge per caller ──
+  function buildRoleContext() {
+    const session = window.NextSession;
+    const role = (session && session.profile && session.profile.role) || 'admin';
+    const tenant = (session && session.profile && session.profile.tenantId) || null;
+    if (role === 'teacher') {
+      return `\nCURRENT CALLER CONTEXT: You are talking to a TEACHER at ${tenant || 'a school'}.
+- Keep your language simple and operational. No business finance jargon.
+- Focus on: their classes, student wellbeing, roll call status, lesson plans, health incidents.
+- When they log roll call or a health record, acknowledge it warmly and surface one insight.
+- You may suggest actions but you never override the Head Teacher's decisions.
+- Coaching tone: encouraging, never critical. You are their intelligent assistant.
+`;
+    }
+    if (role === 'bursar') {
+      return `\nCURRENT CALLER CONTEXT: You are talking to a BURSAR at ${tenant || 'a school'}.
+- Focus on: fee collection rates, overdue accounts, payment records, monthly reports.
+- You may draft fee reminder messages. Always warm tone — never threatening.
+- You have read access to finance data only. You cannot modify student academic records.
+`;
+    }
+    if (role === 'head') {
+      return `\nCURRENT CALLER CONTEXT: You are talking to the HEAD TEACHER at ${tenant || 'a school'}.
+- You have full school visibility: staff, students, fees, timetable, health.
+- Surface your most important insight first (what needs attention NOW).
+- When you flag a staff issue, always be discreet — this is a leadership conversation.
+- Recommend actions at the system level, not task level.
+`;
+    }
+    // Default: Hudson / admin — full CEO-level access
+    return '';
+  }
 
-PERSON
-Hudson: visionary, not a developer. Talks in CEO terms. Wants direct answers, not consulting jargon. Runs Charis Creations alongside NEXT.
+  const SYSTEM_PROMPT = `You are Nia — Sentinel Intelligence for NEXT (Uganda). You supervise the entire NEXT fleet: schools, childcare programs, NGOs, and future verticals. You are one intelligence accessed at different levels depending on who is speaking to you.
+
+YOUR NATURE
+You learn. Every tenant you observe, every fee pattern you track, every attendance dip you flag — goes into your memory. Over weeks and months you become the most knowledgeable person in the room about each school. You speak from that accumulated knowledge, not just live data.
+
+You grow with each school. You remember that Peak Primary's P4V class always has lower attendance on Fridays. You remember that the Nakamya family has paid late for 3 consecutive months. You use this memory to predict, not just react.
+
+HUDSON (your primary principal)
+Visionary, not a developer. Talks in CEO terms. Wants direct answers. Runs NEXT + Charis Creations + Gear Plug. Patience is his wife. African context: UGX, WhatsApp dominant, M-Pesa, warm interpersonal tone.
 
 HARD RULES — VIOLATE NONE
-1. Tools first, words second. Never claim a tenant fact you didn't read via read_tenant or read_fleet.
-2. Tenant IDs are EXACT slugs. The only valid IDs are: peak-primary, st-marys-demo, grace-chapel-demo, hope-program-demo, next-services-demo, community-association-demo, charis-childcare. Never invent or misspell.
-3. NEVER use the word "sent" unless a tool returned {"sent": true}. After draft_message → say "Draft ready." After open_whatsapp → say "WhatsApp opened — tap Send to deliver." After send_whatsapp returning {sent:true} → only then say "Sent."
-4. You cannot move money, sign contracts, or send anything outside the OS without a tool. No fictional actions.
-5. NEVER narrate your own actions ("I'll call the tool", "I'm waiting for the response", "let me check"). Just call the tool silently, then respond with the answer when you have it. Hudson sees the tool chips automatically — he doesn't need a play-by-play.
+1. Memory first, live data second. Before answering a pattern question, call read_memory. Before raising a risk, call predict_risk. Live data confirms what memory already suspects.
+2. Tools first, words second. Never claim a tenant fact you didn't read via a tool.
+3. Tenant IDs are EXACT slugs: peak-primary, st-marys-demo, grace-chapel-demo, hope-program-demo, next-services-demo, community-association-demo, charis-childcare. Never invent or misspell.
+4. NEVER use the word "sent" unless a tool returned {"sent": true}.
+5. NEVER narrate your own actions. Call tools silently, respond with the answer.
+6. Self-healing: if you detect a data anomaly (attendance 0%, fees suddenly 300% of normal), call escalate_concern with type 'data_anomaly' before drawing conclusions.
+7. Write memory: after every evaluate_health call, call write_memory to record what you observed. This is how you grow.
 
 VOICE
-Short. Direct. Warm. Money first, judgment second. African business context (UGX, M-Pesa, WhatsApp dominant). No "as an AI" disclaimers, no excessive caveats.
+Short. Direct. Warm. Precise. African business context. No 'as an AI' disclaimers.
 
-DEFAULTS
+MEMORY-AWARE DEFAULTS
+- "Is this attendance dip unusual?" → read_memory(tenantId, 'attendance_dip', 30) → compare pattern → answer from evidence.
+- "Which parents are likely to pay late?" → read_memory(tenantId, 'fee_late', 60) → pattern analysis → ranked list.
+- "How has Peak Primary been trending?" → read_memory('peak-primary', null, 30) + read_tenant → holistic summary.
+- After every evaluate_health → write_memory to log what you observed today.
+
+STANDARD DEFAULTS
 - "How's the fleet?" → read_fleet → 3-line summary, names + flags only.
-- "What's at Peak Primary?" → read_tenant("peak-primary") → THEN evaluate_health("peak-primary") → reply with the verticalKpis (286 students, 71% collection, 3 overdue, 12 at-risk).
-- "What's happening at the childcare?" → read_tenant("charis-childcare") → THEN evaluate_health("charis-childcare") → reply with: enrolled count, today's attendance, invoice status, unread parent messages.
-- "Open the childcare" → open_childcare_os() → navigate Hudson to the Childcare OS panel.
-- "What's today's schedule at the childcare?" → read_childcare_schedule() → reply with activities.
-- "Draft / write a WhatsApp" → draft_message first → THEN write the draft in a code block. Stop. Ask Hudson if he wants you to open WhatsApp.
-- "Send a WhatsApp to <number>" → open_whatsapp(phone, message) (Path A). If Hudson says "actually send" or "use Cloud API", call send_whatsapp.
-- "Notify me about X" → notify(severity, title, body).
+- "What's at Peak Primary?" → read_tenant("peak-primary") → evaluate_health("peak-primary") → write_memory → reply with KPIs + pattern context.
+- "Open the childcare" → open_childcare_os().
+- "Draft a WhatsApp" → draft_message → code block → ask if Hudson wants to open WhatsApp.
+- "Send a WhatsApp to <number>" → open_whatsapp (default). Cloud API send only if explicitly requested.
+- "Generate a graphic" → generate_graphic(prompt, style) → Design Studio renders.
+- "Show me attendance visually" → generate_graphic("attendance chart for peak-primary", "data-art").
 
-WHATSAPP TOOLS
-- open_whatsapp(phone, message): opens WhatsApp on Hudson's device, message pre-filled. Free. DEFAULT.
-- send_whatsapp(phone, message): real auto-send via Meta Cloud API. Use only when Hudson asked for auto-send explicitly.
-- Phone format: digits only, country code, no +. Uganda example: 256772123456.
-- If you don't have a number, ASK Hudson. Never guess.
+DESIGN STUDIO
+You can generate pro graphics on command via generate_graphic. Available styles: data-art, report, brand-asset, dashboard-skin.
+Examples:
+- "Show me fee collection as a chart" → generate_graphic("fee collection waterfall peak-primary", "data-art")
+- "Generate a school report" → generate_graphic("term 2 report for peak-primary", "report")
+- "Make a student certificate for Amara" → generate_graphic("certificate for Amara P4V", "brand-asset")
 
-PEAK PRIMARY SCHOOL (your main wired client)
-286 students. 38 teachers. 14 streams (P1-P7 · Vigilant + Prudent). Term 2 Week 6. Currently: 71% fee collection, 3 accounts overdue 30+ days (1.08M UGX outstanding), 12 at-risk students, 4 enrollment inquiries waiting. Open the live prototype at prototypes/schools/peak-primary/index.html.
+PEAK PRIMARY SCHOOL
+286 students. 38 teachers. 14 streams (P1-P7 · Vigilant + Prudent). Term 2 Week 6.
+71% fee collection, 3 accounts overdue 30+ days (1.08M UGX), 12 at-risk students, 4 enrollment inquiries waiting.
 
-CHARIS CHILDCARE OS (NEXT's newest wired vertical — Hudson's own program)
-24 enrolled children. 3 caretakers led by Ms. Maria L. Parents communicate via WhatsApp. July cohort active.
-Live signals: 21 present today (3 absent), 3 invoices due this month, 1 family (Nakamya) 30+ days overdue (UGX 300K), 5 unread parent messages (2 unanswered 24h+), 7 milestones logged this week, 4 activities scheduled today.
-Hudson is the Global Director of this program. Nia supervises it under the childcare vertical.
-To navigate Hudson to the childcare panel: open_childcare_os(). To see today's timetable: read_childcare_schedule().
-
-EXAMPLES — match these patterns
-
-User: "What's happening at Peak Primary?"
-You: [call read_tenant("peak-primary")] [call evaluate_health("peak-primary")] "Term 2 Week 6, three signals worth noting: (1) Fee collection at 71% — 3 accounts overdue more than 30 days (1.08M UGX). (2) Weekly attendance 88%, twelve students flagged at-risk. (3) Four new P1/P3 enrollment inquiries waiting in WhatsApp. Want me to draft the reminder to the three overdue guardians?"
-
-User: "What's happening at the childcare?"
-You: [call read_tenant("charis-childcare")] [call evaluate_health("charis-childcare")] "Childcare update: 21 of 24 children present today (87.5%). Two items need attention: (1) Nakamya family invoice overdue 30+ days — UGX 300K outstanding. (2) 2 parent messages unanswered for 24h+. Want me to draft a WhatsApp to the Nakamya family?"
-
-User: "Yes draft it."
-You: [call draft_message("whatsapp", "Guardian", "Gentle reminder of overdue Term 2 fees")] "Draft ready:" [code block with warm message] "Want me to open WhatsApp to send it to the Nakamya family?"
-
-User: "Send a WhatsApp to 256772111222 saying we have a meeting at 4pm."
-You: [call open_whatsapp("256772111222", "Quick note — meeting at 4pm today. Confirm?")] "WhatsApp opened with the draft. Tap Send when ready."
-
-User: "Open the childcare"
-You: [call open_childcare_os()] "Childcare OS is open."
+CHARIS CHILDCARE OS
+24 enrolled children. 3 caretakers (Ms. Maria L., Ms. Faith A., Ms. Ruth K.). July 2026 cohort.
+21 present today. Nakamya family 30+ days overdue (UGX 300K). 5 unread parent messages (2 unanswered 24h+). 7 milestones this week.
 `;
 
 
   const TOOLS = [
+    // ── Core data tools ──────────────────────────────────────────────────────
     { name: 'read_fleet', description: 'Returns current state of every tenant under supervision: id, name, vertical, health, KPIs, latest advisory.',
       input_schema: { type: 'object', properties: {}, required: [] } },
     { name: 'read_tenant', description: 'Full details for one tenant by id (slug).',
-      input_schema: { type: 'object', properties: { tenant_id: { type: 'string', description: 'Tenant slug, e.g. st-marys-demo' } }, required: ['tenant_id'] } },
+      input_schema: { type: 'object', properties: { tenant_id: { type: 'string', description: 'Tenant slug, e.g. peak-primary' } }, required: ['tenant_id'] } },
     { name: 'read_finance', description: "NEXT's own finance: revenue/expense series + recent transactions.",
       input_schema: { type: 'object', properties: {}, required: [] } },
     { name: 'read_projects', description: 'Active client projects: name, client, status, progress, deadline.',
       input_schema: { type: 'object', properties: {}, required: [] } },
-    { name: 'evaluate_health', description: 'Threshold checks for one tenant — returns concerns array.',
+    { name: 'evaluate_health', description: 'Threshold checks for one tenant — returns concerns array. ALWAYS call write_memory after this to record what you observed.',
       input_schema: { type: 'object', properties: { tenant_id: { type: 'string' } }, required: ['tenant_id'] } },
-    { name: 'draft_message', description: 'Signal you are about to compose a draft. Compose the actual text in your next reply as a fenced code block. Never sends.',
+    // ── Memory & learning tools ──────────────────────────────────────────────
+    { name: 'read_memory', description: 'Read Nia\'s accumulated memory for a tenant. Use BEFORE answering pattern questions like "is this unusual?", "who pays late?", "what is the trend?". Returns array of past observations.',
       input_schema: { type: 'object', properties: {
-        channel: { type: 'string', enum: ['whatsapp', 'email', 'in-app', 'sms'] },
-        recipient_role: { type: 'string', description: 'e.g. Head Teacher, Pastor, Donor' },
-        intent: { type: 'string', description: 'One-line goal' }
+        tenant_id:  { type: 'string', description: 'Tenant slug' },
+        event_type: { type: 'string', description: 'Filter by event type: attendance_dip, fee_late, fee_paid, staff_absent, milestone_logged, health_incident, data_anomaly. Omit for all.' },
+        days:       { type: 'number', description: 'How many days back to look. Default 30.' }
+      }, required: ['tenant_id'] } },
+    { name: 'write_memory', description: 'Record an observation into Nia\'s memory. Call this after every evaluate_health and after any significant event (fee paid, attendance spike, new enrollment). This is how Nia grows.',
+      input_schema: { type: 'object', properties: {
+        tenant_id:      { type: 'string' },
+        event_type:     { type: 'string', description: 'e.g. attendance_dip, fee_late, fee_paid, staff_absent, milestone_logged, health_incident, enrollment_inquiry, data_anomaly' },
+        data:           { type: 'object', description: 'Structured data about the event, e.g. { rate: 0.88, below_target: true, at_risk_count: 12 }' },
+        severity:       { type: 'string', enum: ['info', 'warn', 'critical'], description: 'How urgent is this observation?' },
+        embedding_text: { type: 'string', description: 'Human-readable one-sentence summary for this memory entry.' }
+      }, required: ['tenant_id', 'event_type', 'data'] } },
+    { name: 'predict_risk', description: 'Run pattern-based risk prediction for a tenant. Analyses Nia\'s memory to identify which students are likely to be absent, which guardians are likely to pay late, or which staff are at absenteeism risk. Returns ranked risk list.',
+      input_schema: { type: 'object', properties: {
+        tenant_id:       { type: 'string' },
+        prediction_type: { type: 'string', enum: ['attendance_risk', 'fee_default', 'staff_absent'], description: 'What kind of risk to predict.' }
+      }, required: ['tenant_id', 'prediction_type'] } },
+    { name: 'escalate_concern', description: 'Raise the severity of a concern that has been flagged multiple times without resolution, or when a data anomaly is detected. Creates a critical notification and writes to memory.',
+      input_schema: { type: 'object', properties: {
+        tenant_id:    { type: 'string' },
+        concern_type: { type: 'string', description: 'e.g. fees_overdue_persistent, attendance_freefall, data_anomaly, staff_crisis' },
+        reason:       { type: 'string', description: 'Why is this being escalated? What evidence triggered this?' },
+        severity:     { type: 'string', enum: ['warn', 'critical'] }
+      }, required: ['tenant_id', 'concern_type', 'reason'] } },
+    // ── Design Studio tool ───────────────────────────────────────────────────
+    { name: 'generate_graphic', description: 'Trigger Nia Design Studio to render a pro graphic or visualization. Use when asked to visualize data, create a report, generate a certificate, or redesign a panel.',
+      input_schema: { type: 'object', properties: {
+        prompt:       { type: 'string', description: 'Describe what to generate, e.g. "attendance sphere for peak-primary", "fee collection waterfall", "certificate for Amara P4V"' },
+        style:        { type: 'string', enum: ['data-art', 'report', 'brand-asset', 'dashboard-skin'], description: 'Which studio mode to use.' },
+        target_panel: { type: 'string', description: 'Optional: which OS panel this graphic is for.' }
+      }, required: ['prompt', 'style'] } },
+    // ── Communication tools ──────────────────────────────────────────────────
+    { name: 'draft_message', description: 'Signal you are about to compose a message draft. Compose the actual text in your next reply as a fenced code block. Never sends.',
+      input_schema: { type: 'object', properties: {
+        channel:        { type: 'string', enum: ['whatsapp', 'email', 'in-app', 'sms'] },
+        recipient_role: { type: 'string', description: 'e.g. Head Teacher, Guardian, Bursar' },
+        intent:         { type: 'string', description: 'One-line goal' }
       }, required: ['channel', 'recipient_role', 'intent'] } },
-    { name: 'notify', description: 'Push a pop-up notification toast to Hudson inside NEXT OS. Use this when you spot something worth surfacing right now (overdue fees, attendance dip, top performers, deal closing, etc.). Severity guidance: info = signal, success = good news, warn = needs attention soon, critical = act now.',
+    { name: 'notify', description: 'Push a notification toast to the user inside NEXT OS. Severity: info=signal, success=good news, warn=needs attention, critical=act now.',
       input_schema: { type: 'object', properties: {
-        severity: { type: 'string', enum: ['info', 'success', 'warn', 'critical'] },
-        title:    { type: 'string', description: 'One short line, < 60 chars' },
-        body:     { type: 'string', description: 'One sentence of context, < 160 chars' },
-        tenant_id:{ type: 'string', description: 'Optional tenant slug if it relates to a fleet member' }
+        severity:  { type: 'string', enum: ['info', 'success', 'warn', 'critical'] },
+        title:     { type: 'string', description: 'One short line, < 60 chars' },
+        body:      { type: 'string', description: 'One sentence of context, < 160 chars' },
+        tenant_id: { type: 'string', description: 'Optional tenant slug' }
       }, required: ['severity', 'title'] } },
-    { name: 'open_whatsapp', description: 'Open WhatsApp on Hudson\'s device with a pre-filled message to a phone number. Hudson taps Send manually. Use for personal, sensitive, or first-time messages. Free, instant.',
+    { name: 'open_whatsapp', description: 'Open WhatsApp with a pre-filled message. Hudson taps Send manually. DEFAULT for all WhatsApp actions.',
       input_schema: { type: 'object', properties: {
-        phone:   { type: 'string', description: 'International format, digits only, no + (e.g. 256772123456)' },
-        message: { type: 'string', description: 'The message text to pre-fill' }
+        phone:   { type: 'string', description: 'Digits only, country code, no + (e.g. 256772123456)' },
+        message: { type: 'string' }
       }, required: ['phone', 'message'] } },
-    { name: 'send_whatsapp', description: 'Actually send a WhatsApp message via Meta Cloud API. Requires Hudson\'s WhatsApp Business API configured. Use ONLY for routine, low-stakes, repeat messages (fee reminders, attendance alerts). When unsure, use open_whatsapp instead.',
+    { name: 'send_whatsapp', description: 'Auto-send via Meta Cloud API. Use ONLY when explicitly requested.',
       input_schema: { type: 'object', properties: {
-        phone:   { type: 'string', description: 'International format, digits only, no + (e.g. 256772123456)' },
-        message: { type: 'string', description: 'The message text to send' }
+        phone:   { type: 'string' },
+        message: { type: 'string' }
       }, required: ['phone', 'message'] } },
-    { name: 'open_childcare_os', description: 'Navigate Hudson to the Childcare OS panel inside NEXT OS. Use when Hudson asks to open, view, or switch to the childcare dashboard.',
+    { name: 'open_childcare_os', description: 'Navigate to the Childcare OS panel.',
       input_schema: { type: 'object', properties: {}, required: [] } },
-    { name: 'read_childcare_schedule', description: "Returns today's activity schedule for the Charis Childcare program — what activities are planned, timings, and which caretaker leads each.",
+    { name: 'read_childcare_schedule', description: "Returns today's activity schedule for Charis Childcare.",
       input_schema: { type: 'object', properties: {}, required: [] } },
   ];
 
@@ -303,6 +369,98 @@ You: [call open_childcare_os()] "Childcare OS is open."
           ];
           return JSON.stringify({ date: new Date().toDateString(), activitiesCount: schedule.length, schedule });
         }
+        // ── Memory & Intelligence Tools ──────────────────────────────────
+        case 'read_memory': {
+          if (window.NIA_MEMORY && typeof window.NIA_MEMORY.read === 'function') {
+            const entries = await window.NIA_MEMORY.read(
+              input.tenant_id,
+              input.event_type || null,
+              input.days || 30
+            );
+            const patterns = window.NIA_MEMORY.getPatterns ? window.NIA_MEMORY.getPatterns(input.tenant_id) : null;
+            return JSON.stringify({
+              tenant_id: input.tenant_id,
+              entries_found: entries.length,
+              entries: entries.slice(0, 20),
+              patterns: patterns,
+              memory_status: 'live'
+            });
+          }
+          return JSON.stringify({ entries_found: 0, entries: [], memory_status: 'not_initialized',
+            note: 'NIA_MEMORY not loaded yet. Memory will be available after nia-memory.js loads.' });
+        }
+        case 'write_memory': {
+          if (window.NIA_MEMORY && typeof window.NIA_MEMORY.write === 'function') {
+            await window.NIA_MEMORY.write(
+              input.tenant_id,
+              input.event_type,
+              input.data || {},
+              input.severity || 'info',
+              input.embedding_text || ''
+            );
+            return JSON.stringify({ written: true, tenant_id: input.tenant_id, event_type: input.event_type });
+          }
+          return JSON.stringify({ written: false, note: 'NIA_MEMORY not loaded. Observation not persisted.' });
+        }
+        case 'predict_risk': {
+          if (window.NIA_MEMORY && typeof window.NIA_MEMORY.readPredictions === 'function') {
+            // Read recent memory and compute risk from patterns
+            const memories = await window.NIA_MEMORY.read(input.tenant_id, null, 60);
+            const predictions = await window.NIA_MEMORY.readPredictions(input.tenant_id, input.prediction_type);
+            // Pattern analysis: count repeating events per subject
+            const eventCounts = {};
+            memories.forEach(m => {
+              const key = (m.data && m.data.subject_id) ? m.data.subject_id : m.event_type;
+              eventCounts[key] = (eventCounts[key] || 0) + 1;
+            });
+            const ranked = Object.entries(eventCounts)
+              .sort((a, b) => b[1] - a[1])
+              .slice(0, 10)
+              .map(([subject, count]) => ({
+                subject_id: subject,
+                risk_score: Math.min(count / 10, 1.0),
+                occurrences: count,
+                prediction_type: input.prediction_type
+              }));
+            return JSON.stringify({
+              tenant_id: input.tenant_id,
+              prediction_type: input.prediction_type,
+              predictions: ranked,
+              stored_predictions: predictions.slice(0, 5),
+              analysis_window_days: 60
+            });
+          }
+          return JSON.stringify({ predictions: [], note: 'NIA_MEMORY not available for prediction.' });
+        }
+        case 'escalate_concern': {
+          // Write a critical memory entry and fire a notification
+          const escalationData = { concern_type: input.concern_type, reason: input.reason, escalated_at: new Date().toISOString() };
+          if (window.NIA_MEMORY && typeof window.NIA_MEMORY.write === 'function') {
+            await window.NIA_MEMORY.write(input.tenant_id, 'escalation', escalationData, input.severity || 'critical', input.reason);
+          }
+          if (window.NEXT_OS && typeof window.NEXT_OS.notify === 'function') {
+            window.NEXT_OS.notify({
+              severity: input.severity || 'critical',
+              title: '⚠ Escalated: ' + (input.concern_type || '').replace(/_/g, ' '),
+              body: (input.reason || '').slice(0, 160),
+              source: 'Nia · Auto-Escalation',
+              tenantId: input.tenant_id
+            });
+          }
+          return JSON.stringify({ escalated: true, tenant_id: input.tenant_id, concern_type: input.concern_type, severity: input.severity || 'critical' });
+        }
+        case 'generate_graphic': {
+          // Trigger Nia Design Studio if available
+          if (window.NIA_DESIGN_STUDIO && typeof window.NIA_DESIGN_STUDIO.generate === 'function') {
+            const result = window.NIA_DESIGN_STUDIO.generate(input.prompt, input.style, input.target_panel);
+            // Navigate to Design Studio panel
+            if (window.NEXT_OS_NAVIGATE) window.NEXT_OS_NAVIGATE('design-studio');
+            return JSON.stringify({ rendered: true, prompt: input.prompt, style: input.style, result });
+          }
+          // Fallback: open design studio panel if it exists but generate isn't wired yet
+          if (window.NEXT_OS_NAVIGATE) window.NEXT_OS_NAVIGATE('design-studio');
+          return JSON.stringify({ rendered: false, note: 'Design Studio opening. Enter your prompt there.', prompt: input.prompt, style: input.style });
+        }
         default: return JSON.stringify({ error: 'Unknown tool: ' + name });
 
       }
@@ -376,12 +534,17 @@ You: [call open_childcare_os()] "Childcare OS is open."
       let convo = messages.concat(userMsg);
       setMessages(convo); saveConvo(convo);
       setPending(true); setError(null);
-      // Pull the 2 most relevant Nia Brain docs for THIS query and inject.
-      // The base prompt teaches Nia how to behave; the brain teaches her what to know.
+      // Build role-aware context (teacher vs head vs hudson) + brain knowledge
+      const roleContext = buildRoleContext();
       const brainSnippet = (window.NIA_BRAIN && typeof window.NIA_BRAIN.systemPrompt === 'function')
         ? window.NIA_BRAIN.systemPrompt(trimmed, 2)
         : '';
-      const augmentedSystem = SYSTEM_PROMPT + brainSnippet;
+      // Memory insight: if question seems pattern-related, prime Nia with a memory note
+      const memoryPrime = (window.NIA_MEMORY && typeof window.NIA_MEMORY.getInsight === 'function' &&
+        /pattern|trend|usual|history|before|last (week|month|time)|always|never|often/i.test(trimmed))
+        ? '\n\n=== NIA MEMORY PRIME ===\nMemory is available. Call read_memory before answering pattern questions.\n=== END ===\n'
+        : '';
+      const augmentedSystem = SYSTEM_PROMPT + roleContext + brainSnippet + memoryPrime;
       try {
         let apiMessages = convo.map(m => ({ role: m.role, content: m.apiContent !== undefined ? m.apiContent : m.content }));
         for (let loop = 0; loop < TOOL_LOOP_MAX; loop++) {
@@ -511,7 +674,7 @@ You: [call open_childcare_os()] "Childcare OS is open."
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16, height: 'calc(100vh - 130px)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
           <div>
-            <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', letterSpacing: 2, color: 'var(--text-tertiary)', marginBottom: 6 }}>YOUR CHIEF OF STAFF · 9 TOOLS WIRED</div>
+            <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', letterSpacing: 2, color: 'var(--text-tertiary)', marginBottom: 6 }}>YOUR CHIEF OF STAFF · 16 TOOLS · MEMORY ACTIVE</div>
             <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 32, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>Talk to Nia</h1>
             <div style={{ marginTop: 8, color: 'var(--text-secondary)', fontSize: 13 }}>
               {ready

@@ -209,6 +209,14 @@
   <script src="vendor/react-dom.development.js"></script>
   <script src="vendor/babel.min.js"></script>
 
+  <!-- Nia Memory Engine — must load before React components -->
+  <script src="../nia-memory.js"></script>
+
+  <!-- Three.js + GSAP + html2canvas for Nia Design Studio -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js" crossorigin="anonymous"></script>
+  <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js" crossorigin="anonymous"></script>
+
   <!-- Components -->
   <script type="text/babel">
 /* os-data.jsx — single source of truth for NEXT OS page data.

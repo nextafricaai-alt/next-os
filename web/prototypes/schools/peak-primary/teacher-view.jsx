@@ -347,6 +347,26 @@
       });
     }
 
+    // 6. Memory-powered insight (if Nia has enough historical data)
+    // This nudge only appears after Nia has accumulated 7+ observations
+    if (window.NIA_MEMORY && typeof window.NIA_MEMORY.getPatterns === 'function') {
+      try {
+        const tenantId = (window.NextSession && window.NextSession.profile && window.NextSession.profile.tenantId) || 'peak-primary';
+        const patterns = window.NIA_MEMORY.getPatterns(tenantId);
+        if (patterns && patterns.insights && patterns.insights.length > 0) {
+          const insight = patterns.insights[0];
+          nudges.push({
+            id: 'nia-memory-insight',
+            tone: 'info',
+            icon: '◆',
+            title: 'Nia pattern insight',
+            body: insight,
+            action: 'none',
+          });
+        }
+      } catch (_) { /* memory not ready, silent */ }
+    }
+
     // If absolutely nothing to nudge about, give an "all clear" message
     if (nudges.length === 0) {
       nudges.push({
@@ -1258,8 +1278,40 @@
     const onCheckedIn = (checkin) => setData(prev => ({ ...prev, checkin }));
     const onCheckedOut = (checkin) => setData(prev => ({ ...prev, checkin }));
     const onRollCallSaved = (newRecords) => {
+      // Update local roll call state
       const updated = [...(data.rollCalls || []).filter(rc => !newRecords.find(nr => nr.student_id === rc.student_id)), ...newRecords];
       setData(prev => ({ ...prev, rollCalls: updated }));
+
+      // ★ Nia Memory: record this attendance observation so Nia learns the class pattern
+      if (window.NIA_MEMORY && typeof window.NIA_MEMORY.write === 'function') {
+        const total = newRecords.length;
+        const present = newRecords.filter(r => r.status === 'present').length;
+        const absent = newRecords.filter(r => r.status === 'absent').length;
+        const late = newRecords.filter(r => r.status === 'late').length;
+        const rate = total > 0 ? (present / total) : 1;
+        const stream = newRecords[0] && newRecords[0].stream;
+        const tenantId = (window.NextSession && window.NextSession.profile && window.NextSession.profile.tenantId) || 'peak-primary';
+        const isLow = rate < 0.88;
+        window.NIA_MEMORY.write(
+          tenantId,
+          isLow ? 'attendance_dip' : 'attendance_ok',
+          { stream, total, present, absent, late, rate: Math.round(rate * 100) / 100, day: new Date().getDay(), weekOfTerm: 6 },
+          isLow ? 'warn' : 'info',
+          `${stream} roll call: ${present}/${total} present (${Math.round(rate * 100)}%) on ${new Date().toDateString()}`
+        );
+        // Surface a Nia insight toast based on what she knows
+        if (window.NIA_MEMORY.getInsight) {
+          const insight = window.NIA_MEMORY.getInsight(tenantId, 'attendance');
+          if (insight && window.NEXT_OS && window.NEXT_OS.notify) {
+            window.NEXT_OS.notify({
+              severity: isLow ? 'warn' : 'info',
+              title: 'Nia · ' + stream + ' roll call recorded',
+              body: insight,
+              source: 'Nia · School Coach',
+            });
+          }
+        }
+      }
     };
 
     const greeting = (() => {
@@ -1269,8 +1321,11 @@
       return 'Good evening';
     })();
 
+    const SchoolBadgeStrip = window.SchoolBadgeStrip;
+
     return (
       <div style={{ minHeight: '100vh', background: T.bg, color: T.ink, fontFamily: T.font }}>
+        {SchoolBadgeStrip && <SchoolBadgeStrip pageName="TEACHER PORTAL" />}
         <header style={{
           padding: '20px 32px', borderBottom: '1px solid ' + T.border,
           display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap',
