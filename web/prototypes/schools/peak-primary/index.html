@@ -370,6 +370,18 @@
   </script>
 
   <script>
+  window.getOSActiveTenant = function() {
+    try {
+      var bp = new URLSearchParams(location.search);
+      var slug = bp.get('s') || bp.get('t') || (location.pathname.match(/\/(?:s|school)\/([A-Za-z0-9_-]+)/)||[])[1] || '';
+      if (slug) return slug;
+      var pf = JSON.parse(localStorage.getItem('nextos.profile') || 'null');
+      if (pf && pf.tenantId) return pf.tenantId;
+      var last = localStorage.getItem('nextos.lastTenant');
+      if (last) return last;
+    } catch(e) {}
+    return 'peak-primary';
+  };
   /* Nia's identity guard — notices if THIS page is branded for the wrong school and reports it.
      This is the watcher Hudson asked for: "I'm seeing the bare-foot app but a Peak login." */
   (function(){
@@ -7619,7 +7631,7 @@ window.PEAK_MARKING = (function () {
   const T = window.V4.T;
   const WK = 'https://nextos-sentinel.nextafricaai.workers.dev';
   function prof() { return (window.PEAK_ROLE && window.PEAK_ROLE.getProfile && window.PEAK_ROLE.getProfile()) || { tenantId: 'peak-primary' }; }
-  function tenant() { return prof().tenantId || 'peak-primary'; }
+  function tenant() { return window.getOSActiveTenant(); }
   function osGet(kind) { return fetch(WK + '/os-data?kind=' + kind + '&tenant=' + encodeURIComponent(tenant())).then(r => r.json()).then(d => (d && d.records) || []).catch(() => []); }
   function osSave(kind, record, id) { return fetch(WK + '/os-data/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(id ? { kind, tenant: tenant(), record, id } : { kind, tenant: tenant(), record }) }).then(r => r.json()).catch(e => ({ error: String(e && e.message || e) })); }
   const card = { background: T.surface, border: '1px solid ' + T.border, borderRadius: 12, padding: 18 };
@@ -7835,7 +7847,7 @@ window.PEAK_PACKAGES = (function () {
   const T = window.V4.T;
   const WK = 'https://nextos-sentinel.nextafricaai.workers.dev';
   function prof() { return (window.PEAK_ROLE && window.PEAK_ROLE.getProfile && window.PEAK_ROLE.getProfile()) || { tenantId: 'peak-primary' }; }
-  function tenant() { return prof().tenantId || 'peak-primary'; }
+  function tenant() { return window.getOSActiveTenant(); }
   function osGet(kind) { return fetch(WK + '/os-data?kind=' + kind + '&tenant=' + encodeURIComponent(tenant())).then(r => r.json()).then(d => (d && d.records) || []).catch(() => []); }
   function osSave(kind, record, id) { return fetch(WK + '/os-data/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(id ? { kind, tenant: tenant(), record, id } : { kind, tenant: tenant(), record }) }).then(r => r.json()).catch(e => ({ error: String(e && e.message || e) })); }
   const card = { background: T.surface, border: '1px solid ' + T.border, borderRadius: 12, padding: 18 };
@@ -8168,7 +8180,7 @@ window.PEAK_EVENTS = (function () {
   const T = window.V4.T;
   const WK = 'https://nextos-sentinel.nextafricaai.workers.dev';
   function prof() { return (window.PEAK_ROLE && window.PEAK_ROLE.getProfile && window.PEAK_ROLE.getProfile()) || { tenantId: 'peak-primary' }; }
-  function tenant() { return prof().tenantId || 'peak-primary'; }
+  function tenant() { return window.getOSActiveTenant(); }
   function osGet(kind) { return fetch(WK + '/os-data?kind=' + kind + '&tenant=' + encodeURIComponent(tenant())).then(r => r.json()).then(d => (d && d.records) || []).catch(() => []); }
   function osSave(kind, record, id) { return fetch(WK + '/os-data/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(id ? { kind, tenant: tenant(), record, id } : { kind, tenant: tenant(), record }) }).then(r => r.json()).catch(e => ({ error: String(e && e.message || e) })); }
   function osDel(id) { return fetch(WK + '/os-data/delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) }).then(r => r.json()).catch(() => ({})); }
@@ -8283,7 +8295,7 @@ window.PEAK_WATCH = (function () {
   const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
   const norm = (x) => String(x || '').toLowerCase().trim();
   function prof() { return (window.PEAK_ROLE && window.PEAK_ROLE.getProfile && window.PEAK_ROLE.getProfile()) || { tenantId: 'peak-primary' }; }
-  function tenant() { return prof().tenantId || 'peak-primary'; }
+  function tenant() { return window.getOSActiveTenant(); }
   function osGet(kind) { return fetch(WK + '/os-data?kind=' + kind + '&tenant=' + encodeURIComponent(tenant())).then(r => r.json()).then(d => (d && d.records) || []).catch(() => []); }
   function osSave(kind, record, id) { return fetch(WK + '/os-data/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(id ? { kind, tenant: tenant(), record, id } : { kind, tenant: tenant(), record }) }).then(r => r.json()).catch(() => ({})); }
   const card = { background: T.surface, border: '1px solid ' + T.border, borderRadius: 12, padding: 18 };
@@ -9799,7 +9811,7 @@ window.PEAK_LEARNING = (function () {
   const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
   const norm = (x) => String(x || '').toLowerCase().trim();
   function prof() { return (window.PEAK_ROLE && window.PEAK_ROLE.getProfile && window.PEAK_ROLE.getProfile()) || { tenantId: 'peak-primary' }; }
-  function tenant() { return prof().tenantId || 'peak-primary'; }
+  function tenant() { return window.getOSActiveTenant(); }
   function osGet(kind) { return fetch(WK + '/os-data?kind=' + kind + '&tenant=' + encodeURIComponent(tenant())).then(r => r.json()).then(d => (d && d.records) || []).catch(() => []); }
   function osSave(kind, record, id) { return fetch(WK + '/os-data/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(id ? { kind, tenant: tenant(), record, id } : { kind, tenant: tenant(), record }) }).then(r => r.json()).catch(e => ({ error: String(e && e.message || e) })); }
   const card = { background: T.surface, border: '1px solid ' + T.border, borderRadius: 12, padding: 18 };
@@ -10160,17 +10172,21 @@ window.PEAK_TIMETABLE = (function () {
   const T = window.V4.T;
   const WK = 'https://nextos-sentinel.nextafricaai.workers.dev';
   function prof() { return (window.PEAK_ROLE && window.PEAK_ROLE.getProfile && window.PEAK_ROLE.getProfile()) || { tenantId: 'peak-primary' }; }
-  function tenant() { return prof().tenantId || 'peak-primary'; }
+  function tenant() { return window.getOSActiveTenant(); }
   const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
   const norm = (x) => String(x || '').toLowerCase().trim();
 
   const PERIODS = {
     primary: [
-      { l: 'P1', s: '08:00', e: '08:40' }, { l: 'P2', s: '08:40', e: '09:20' }, { l: 'P3', s: '09:20', e: '10:00' },
-      { l: 'Break', s: '10:00', e: '10:20', brk: true },
-      { l: 'P4', s: '10:20', e: '11:00' }, { l: 'P5', s: '11:00', e: '11:40' }, { l: 'P6', s: '11:40', e: '12:20' },
-      { l: 'Lunch', s: '12:20', e: '13:20', brk: true },
-      { l: 'P7', s: '13:20', e: '14:00' }, { l: 'P8', s: '14:00', e: '14:40' },
+      { l: 'Period 1', s: '08:00', e: '09:00' },
+      { l: 'Period 2', s: '09:00', e: '10:00' },
+      { l: 'Break',    s: '10:00', e: '11:00', brk: true },
+      { l: 'Period 3', s: '11:00', e: '12:00' },
+      { l: 'Period 4', s: '12:00', e: '13:00' },
+      { l: 'Lunch',    s: '13:00', e: '14:00', brk: true },
+      { l: 'Period 5', s: '14:00', e: '15:00' },
+      { l: 'Period 6', s: '15:00', e: '16:00' },
+      { l: 'Period 7', s: '16:00', e: '17:00' },
     ],
     secondary: [
       { l: 'P1', s: '08:00', e: '08:40' }, { l: 'P2', s: '08:40', e: '09:20' }, { l: 'P3', s: '09:20', e: '10:00' }, { l: 'P4', s: '10:00', e: '10:40' },
@@ -10476,7 +10492,7 @@ window.PEAK_STAFF = (function () {
   const T = window.V4.T;
   const WK = 'https://nextos-sentinel.nextafricaai.workers.dev';
   function prof() { return (window.PEAK_ROLE && window.PEAK_ROLE.getProfile && window.PEAK_ROLE.getProfile()) || { tenantId: 'peak-primary' }; }
-  function tenant() { return prof().tenantId || 'peak-primary'; }
+  function tenant() { return window.getOSActiveTenant(); }
   async function headToken() { try { const sb = window.NextSession && window.NextSession.sb; if (!sb) return ''; const { data } = await sb.auth.getSession(); return (data && data.session && data.session.access_token) || ''; } catch (e) { return ''; } }
   const classesNow = () => ((window.SCHOOL_CONFIG && window.SCHOOL_CONFIG.classes) || []);
   const vocab = () => ((window.SCHOOL_CONFIG && window.SCHOOL_CONFIG.vocab) || { staff: 'Teacher', sub: 'Subject', unit: 'Class' });
