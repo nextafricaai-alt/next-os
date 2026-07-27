@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Staff Information & HR Form — Kabs Lily Kindercare Center</title>
+  
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: #0A1029;
+      color: #F5F6FA;
+      font-family: 'Inter', -apple-system, sans-serif;
+      padding: 20px 12px 60px;
+    }
+    .form-container {
+      max-width: 760px;
+      margin: 0 auto;
+      background: #141E3C;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+    }
+    .header-banner {
+      background: linear-gradient(135deg, #1E3A8A 0%, #0F172A 100%);
+      padding: 28px 24px;
+      border-bottom: 3px solid #3B82F6;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+    .school-title {
+      font-family: 'Instrument Serif', Georgia, serif;
+      font-size: 28px;
+      font-weight: 700;
+      color: #FFFFFF;
+    }
+    .form-badge {
+      background: #3B82F6;
+      color: #FFFFFF;
+      font-weight: 800;
+      font-size: 11px;
+      letter-spacing: 1px;
+      padding: 6px 14px;
+      border-radius: 999px;
+      text-transform: uppercase;
+    }
+    .intro-box {
+      background: rgba(59, 130, 246, 0.1);
+      border-left: 4px solid #3B82F6;
+      padding: 14px 18px;
+      margin: 20px 24px 0;
+      font-size: 12.5px;
+      color: rgba(245, 246, 250, 0.85);
+      line-height: 1.5;
+      border-radius: 4px;
+    }
+    .section-header {
+      background: #1A2548;
+      padding: 12px 24px;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      color: #00FC8F;
+      text-transform: uppercase;
+      margin-top: 24px;
+      border-top: 1px solid rgba(255,255,255,0.06);
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+      padding: 20px 24px;
+    }
+    .full-width { grid-column: span 2; }
+    @media (max-width: 600px) {
+      .form-grid { grid-template-columns: 1fr; }
+      .full-width { grid-column: span 1; }
+    }
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    label {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      color: rgba(245, 246, 250, 0.7);
+      text-transform: uppercase;
+    }
+    input[type="text"], input[type="date"], input[type="email"], select, textarea {
+      width: 100%;
+      background: #0A1029;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 8px;
+      padding: 10px 14px;
+      color: #FFFFFF;
+      font-size: 13.5px;
+      font-family: inherit;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    input:focus, select:focus, textarea:focus {
+      border-color: #3B82F6;
+    }
+    .checkbox-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 13px;
+      cursor: pointer;
+      margin-top: 4px;
+    }
+    .checkbox-group input {
+      width: 18px;
+      height: 18px;
+      accent-color: #3B82F6;
+      cursor: pointer;
+    }
+    .submit-bar {
+      padding: 24px;
+      background: #1A2548;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 14px;
+    }
+    .btn-submit {
+      background: #3B82F6;
+      color: #FFFFFF;
+      border: none;
+      padding: 14px 28px;
+      border-radius: 10px;
+      font-weight: 800;
+      font-size: 14px;
+      cursor: pointer;
+      transition: transform 0.1s;
+    }
+    .btn-submit:active { transform: scale(0.98); }
+    .btn-share {
+      background: #25D366;
+      color: #FFFFFF;
+      border: none;
+      padding: 12px 20px;
+      border-radius: 10px;
+      font-weight: 700;
+      font-size: 13px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      text-decoration: none;
+    }
+    .success-modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(10, 16, 41, 0.9);
+      backdrop-filter: blur(8px);
+      place-items: center;
+      z-index: 999;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="form-container">
+    <div class="header-banner">
+      <div>
+        <div class="school-title">Kabs Lily Kindercare Center</div>
+        <div style="fontSize: 12px; color: rgba(255,255,255,0.7); marginTop: 2px;">Kindergarten & Junior School</div>
+      </div>
+      <div class="form-badge">Staff Information & HR Form</div>
+    </div>
+
+    <div class="intro-box">
+      This form applies to all staff — teaching and non-teaching. Information feeds directly into the school's payroll, attendance, and HR records.
+    </div>
+
+    <form id="staffHrForm" onsubmit="submitHrForm(event)">
+      <!-- A. Personal Details -->
+      <div class="section-header">A. Personal Details</div>
+      <div class="form-grid">
+        <div class="form-group full-width">
+          <label>Full Name *</label>
+          <input type="text" id="staffName" required placeholder="e.g. Ule Harriet">
+        </div>
+        <div class="form-group">
+          <label>Date of Birth *</label>
+          <input type="date" id="dob" required>
+        </div>
+        <div class="form-group">
+          <label>Sex *</label>
+          <select id="sex" required>
+            <option value="Female">Female</option>
+            <option value="Male">Male</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>National ID / NIN *</label>
+          <input type="text" id="nin" required placeholder="CM...">
+        </div>
+        <div class="form-group">
+          <label>Nationality</label>
+          <input type="text" id="nationality" value="Ugandan">
+        </div>
+        <div class="form-group">
+          <label>Phone Number (Primary) *</label>
+          <input type="text" id="phonePrimary" required placeholder="0701647582">
+        </div>
+        <div class="form-group">
+          <label>Phone Number (Alternative)</label>
+          <input type="text" id="phoneAlt" placeholder="0771234567">
+        </div>
+        <div class="form-group full-width">
+          <label>Email Address</label>
+          <input type="email" id="email" placeholder="harriet@kabs-lily.ac.ug">
+        </div>
+      </div>
+
+      <!-- B. Role & Employment Details -->
+      <div class="section-header">B. Role & Employment Details</div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Position / Title *</label>
+          <input type="text" id="position" required placeholder="e.g. Class Teacher / Bursar">
+        </div>
+        <div class="form-group">
+          <label>Assigned Class / Department *</label>
+          <input type="text" id="classAssigned" required placeholder="e.g. Primary One (P.1)">
+        </div>
+        <div class="form-group">
+          <label>Subjects Taught</label>
+          <input type="text" id="subjects" placeholder="e.g. Luganda, LIT 1">
+        </div>
+        <div class="form-group">
+          <label>Agreed Monthly Salary (UGX) *</label>
+          <input type="text" id="salary" required placeholder="300,000">
+        </div>
+      </div>
+
+      <!-- F. Payroll & Banking Details -->
+      <div class="section-header">F. Payroll & Banking Details</div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Mobile Money Number (for Salary)</label>
+          <input type="text" id="momoNumber" placeholder="0701647582">
+        </div>
+        <div class="form-group">
+          <label>Bank Name (Optional)</label>
+          <input type="text" id="bankName" placeholder="e.g. Stanbic Bank">
+        </div>
+        <div class="form-group full-width">
+          <label>Account Number (Optional)</label>
+          <input type="text" id="accountNumber" placeholder="903000...">
+        </div>
+      </div>
+
+      <!-- G. Declaration -->
+      <div class="section-header">G. Declaration & Consent</div>
+      <div class="form-grid">
+        <div class="form-group full-width">
+          <label class="checkbox-group">
+            <input type="checkbox" required checked>
+            <span>I confirm that the information provided above is true and accurate.</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="submit-bar">
+        <button type="button" class="btn-share" onclick="shareHrOnWhatsApp()">
+          💬 Share HR Form on WhatsApp
+        </button>
+        <button type="submit" class="btn-submit">
+          Submit HR Information →
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Success Modal -->
+  <div id="successModal" class="success-modal">
+    <div style="background: #141E3C; border: 1px solid #3B82F6; border-radius: 16px; padding: 32px; max-width: 440px; text-align: center; color: #F5F6FA;">
+      <div style="font-size: 48px; margin-bottom: 12px;">✅</div>
+      <h2 style="font-size: 22px; font-weight: 700; color: #3B82F6; margin-bottom: 8px;">HR Record Submitted!</h2>
+      <p style="font-size: 13px; color: rgba(245,246,250,0.8); line-height: 1.5; margin-bottom: 20px;">
+        Staff profile & salary entry have been added to the Head Teacher's staff panel & payroll system!
+      </p>
+      <button onclick="window.location.href='/prototypes/schools/peak-primary/index.html'" style="background: #3B82F6; color: #FFFFFF; border: none; padding: 12px 24px; border-radius: 8px; font-weight: 800; cursor: pointer;">
+        Go to Staff Directory →
+      </button>
+    </div>
+  </div>
+
+  <script>
+    function submitHrForm(e) {
+      e.preventDefault();
+      const staffData = {
+        id: 'STAFF-' + Math.floor(1000 + Math.random() * 9000),
+        full_name: document.getElementById('staffName').value,
+        phone: document.getElementById('phonePrimary').value,
+        email: document.getElementById('email').value,
+        classAssigned: document.getElementById('classAssigned').value,
+        subjects: document.getElementById('subjects').value.split(',').map(s => s.trim()),
+        salary: Number(document.getElementById('salary').value.replace(/[^0-9]/g, '')) || 300000,
+        status: 'in',
+        submittedAt: new Date().toISOString()
+      };
+
+      try {
+        const existing = JSON.parse(localStorage.getItem('kabs_lily_new_teachers') || '[]');
+        existing.unshift(staffData);
+        localStorage.setItem('kabs_lily_new_teachers', JSON.stringify(existing));
+      } catch (_) {}
+
+      document.getElementById('successModal').style.display = 'grid';
+    }
+
+    function shareHrOnWhatsApp() {
+      const url = window.location.href;
+      const text = encodeURIComponent("Hello! Please complete your Staff HR Form for Kabs Lily Kindercare Center here: " + url);
+      window.open("https://wa.me/?text=" + text, "_blank");
+    }
+  </script>
+
+</body>
+</html>

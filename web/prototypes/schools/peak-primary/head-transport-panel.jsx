@@ -91,9 +91,15 @@
         <div style={{ padding: '24px', flex: 1, display: 'flex', flexDirection: 'column', gap: '24px' }}>
           
           {/* Top Control Bar */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: T.bgCard, padding: '16px 24px', borderRadius: '12px', border: `1px solid ${T.border}` }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: T.bgCard, padding: '16px 24px', borderRadius: '12px', border: `1px solid ${T.border}`, flexWrap: 'wrap', gap: '12px' }}>
             <h1 style={{ margin: 0, fontSize: '20px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '1px' }}>Fleet Command & Live Tracking</h1>
-            <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+            <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+              <button 
+                onClick={() => window.open('/prototypes/schools/peak-primary/driver-dashboard.html', '_blank')}
+                style={{ background: '#3B82F6', color: '#FFFFFF', border: 'none', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer', fontWeight: '700', fontSize: '13px' }}
+              >
+                Open Driver App 🚌
+              </button>
               <select 
                 value={activeVan} 
                 onChange={e => setActiveVan(e.target.value)}

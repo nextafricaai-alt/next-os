@@ -4694,6 +4694,7 @@ const PD_Students = (function () {
                 <Pill tone="brand">1 selected</Pill>
                 <div style={{ display: 'flex', gap: 6 }}>
                   <button style={{ background: 'transparent', border: '1px solid ' + T.border, color: T.ink2, padding: '6px 12px', borderRadius: 7, fontSize: 12, cursor: 'pointer' }}>Send WhatsApp</button>
+                  <button onClick={() => window.open('/prototypes/schools/peak-primary/student-enrollment-form.html', '_blank')} style={{ background: 'rgba(0,252,143,0.12)', border: '1px solid rgba(0,252,143,0.25)', color: T.green, padding: '6px 12px', borderRadius: 7, fontSize: 12, cursor: 'pointer', fontWeight: 600 }}>Share Enrollment Form 🔗</button>
                   <button style={{ background: 'transparent', border: '1px solid ' + T.border, color: T.ink2, padding: '6px 12px', borderRadius: 7, fontSize: 12, cursor: 'pointer' }}>Generate report</button>
                   <button onClick={() => window.peakExportRoster && window.peakExportRoster()} style={{ background: 'transparent', border: '1px solid ' + T.border, color: T.ink2, padding: '6px 12px', borderRadius: 7, fontSize: 12, cursor: 'pointer' }}>Export CSV</button>
                 </div>

@@ -349,12 +349,20 @@
               fontFamily: T.serif, letterSpacing: '-0.01em',
             }}>Who's on campus right now</h1>
           </div>
-          <button onClick={refresh} disabled={data.loading} style={{
-            background: 'transparent', color: T.ink2,
-            border: '1px solid ' + T.borderStr,
-            padding: '8px 16px', borderRadius: 8,
-            fontSize: 12, cursor: data.loading ? 'wait' : 'pointer', fontFamily: T.font,
-          }}>{data.loading ? 'Refreshing…' : '↻ Refresh'}</button>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button onClick={() => window.open('/prototypes/schools/peak-primary/staff-hr-form.html', '_blank')} style={{
+              background: 'rgba(59,130,246,0.12)', color: T.blue,
+              border: '1px solid rgba(59,130,246,0.3)',
+              padding: '8px 16px', borderRadius: 8,
+              fontSize: 12, cursor: 'pointer', fontFamily: T.font, fontWeight: 600,
+            }}>Share Staff HR Form 🔗</button>
+            <button onClick={refresh} disabled={data.loading} style={{
+              background: 'transparent', color: T.ink2,
+              border: '1px solid ' + T.borderStr,
+              padding: '8px 16px', borderRadius: 8,
+              fontSize: 12, cursor: data.loading ? 'wait' : 'pointer', fontFamily: T.font,
+            }}>{data.loading ? 'Refreshing…' : '↻ Refresh'}</button>
+          </div>
         </div>
 
         {/* Nia Predictive Intelligence */}

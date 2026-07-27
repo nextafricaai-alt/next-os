@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Driver App — Kabs Lily Transport Tracker</title>
+  
+  <!-- React & Babel Standalone -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <!-- Leaflet CSS & JS for Live Interactive Navigation Map -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: #0F172A;
+      color: #F8FAFC;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+      overflow-x: hidden;
+    }
+    #root {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    .driver-btn {
+      transition: transform 0.1s active, background-color 0.2s;
+    }
+    .driver-btn:active {
+      transform: scale(0.97);
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <!-- Load Telemetry & Driver View JS -->
+  <script src="/prototypes/schools/peak-primary/transport-telemetry.js"></script>
+  <script type="text/babel" src="/prototypes/schools/peak-primary/driver-view.jsx"></script>
+
+  <script type="text/babel">
+    const { useEffect, useState } = React;
+
+    function App() {
+      const [telemetryState, setTelemetryState] = useState(null);
+
+      useEffect(() => {
+        // Start live GPS telemetry broadcasting on mount
+        if (window.TRANSPORT_TELEMETRY) {
+          window.TRANSPORT_TELEMETRY.startBroadcasting('van-01', {
+            driverName: 'Mr. Bbosa Yusufu',
+            plate: 'UAR 218 V',
+            route: 'Kireka / Ntinda Circuit'
+          });
+
+          const unsub = window.TRANSPORT_TELEMETRY.subscribe('van-01', (data) => {
+            setTelemetryState(data);
+          });
+          return () => unsub();
+        }
+      }, []);
+
+      const DriverView = window.DriverView;
+
+      return (
+        <div style={{ width: '100%', maxWidth: '500px', margin: '0 auto', paddingBottom: '20px' }}>
+          {/* Top Status Bar */}
+          <div style={{
+            background: '#1E293B',
+            padding: '12px 18px',
+            borderBottom: '1px solid #334155',
+            display: 'flex',
+            alignItems: 'center',
+            justify: 'space-between'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span style={{ fontSize: '20px' }}>🚌</span>
+              <div>
+                <div style={{ fontSize: '14px', fontWeight: '700', color: '#F8FAFC' }}>Kabs Lily Shuttle #1</div>
+                <div style={{ fontSize: '11px', color: '#94A3B8' }}>Driver: Mr. Bbosa Yusufu · UAR 218 V</div>
+              </div>
+            </div>
+            <div style={{
+              background: 'rgba(16, 185, 129, 0.15)',
+              color: '#10B981',
+              border: '1px solid rgba(16, 185, 129, 0.3)',
+              padding: '4px 10px',
+              borderRadius: '999px',
+              fontSize: '11px',
+              fontWeight: '700',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px'
+            }}>
+              <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10B981', display: 'inline-block' }}></span>
+              LIVE GPS
+            </div>
+          </div>
+
+          {/* Render Driver View */}
+          {DriverView ? (
+            <DriverView vanId="van-01" />
+          ) : (
+            <div style={{ padding: '40px', textAlign: 'center', color: '#94A3B8' }}>
+              Loading Driver Interface...
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
