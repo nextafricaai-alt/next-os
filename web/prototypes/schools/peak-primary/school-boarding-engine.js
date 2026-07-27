@@ -46,15 +46,27 @@
   // The Engine Singleton
   const SchoolBoardingEngine = {
     /**
+     * Updates the operating model of the school and stores it in localStorage.
+     * @param {string} tenantId 
+     * @param {'day_only' | 'boarding_only' | 'mixed_day_boarding'} modelType 
+     */
+    setSchoolModel: function(tenantId, modelType) {
+      localStorage.setItem(`nextos.school_model.${tenantId}`, modelType);
+      window.dispatchEvent(new CustomEvent('school-operating-model-changed', {
+        detail: { tenantId, modelType }
+      }));
+    },
+
+    /**
      * Determines the operating model of the school based on tenant ID.
      * @param {string} tenantId 
      * @returns {'day_only' | 'boarding_only' | 'mixed_day_boarding'}
      */
     getSchoolModel: function(tenantId) {
-      if (tenantId === 'kabs-lily-junior-school-and-kindercare-centre' || tenantId === 'peak-primary') {
-        return 'mixed_day_boarding';
-      }
-      return 'day_only'; // Default fallback
+      const storedModel = localStorage.getItem(`nextos.school_model.${tenantId}`);
+      if (storedModel) return storedModel;
+      
+      return 'mixed_day_boarding'; // Default fallback
     },
 
     /**
@@ -84,7 +96,12 @@
      */
     getBoardingRoster: function(tenantId) {
       // In a real app, this would filter by tenantId.
-      return BOARDING_ROSTER;
+      return BOARDING_ROSTER.map(student => ({
+        ...student,
+        residenceType: 'boarding',
+        tagLabel: '🌙 Boarder',
+        tagColor: '#3B82F6'
+      }));
     },
 
     /**

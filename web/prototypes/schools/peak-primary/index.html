@@ -444,6 +444,7 @@
   <script type="text/babel" src="/prototypes/schools/peak-primary/driver-view.jsx"></script>
   <script type="text/babel" src="/prototypes/schools/peak-primary/head-transport-panel.jsx"></script>
   <script type="text/babel" src="/prototypes/schools/peak-primary/head-boarding-panel.jsx"></script>
+  <script type="text/babel" src="/prototypes/schools/peak-primary/school-onboarding-modal.jsx"></script>
 
   <!-- Role router + teacher shell (INLINED to work over file:// — external src is CORS-blocked) -->
   <script type="text/babel" data-src="role-router.jsx">
@@ -6753,6 +6754,7 @@ window.PEAK_FORMS = (function () {
     const _COMBOS = (window.SCHOOL_CONFIG && window.SCHOOL_CONFIG.combinations) || [];
     const [name, setName] = useState('');
     const [stream, setStream] = useState(_CL[0] || 'P1V');
+    const [residenceType, setResidenceType] = useState('day');
     const [combination, setCombination] = useState('');
     const [guardian, setGuardian] = useState('');
     const [phone, setPhone] = useState('');
@@ -6771,6 +6773,7 @@ window.PEAK_FORMS = (function () {
       store.addStudent({
         name: name.trim(),
         stream,
+        residenceType,
         combination: combination || null,
         guardian: guardian.trim(),
         phone: phone.trim(),
@@ -6778,7 +6781,7 @@ window.PEAK_FORMS = (function () {
         balance: bal,
         dob: dob || null,
       });
-      window.peakToast(name.trim() + ' added to ' + stream, 'success', 'Guardian ' + guardian + ' will receive a welcome WhatsApp.');
+      window.peakToast(name.trim() + ' added to ' + stream + ' (' + (residenceType === 'boarding' ? 'Boarder 🌙' : 'Day ☀️') + ')', 'success', 'Guardian ' + guardian + ' will receive a welcome WhatsApp.');
       window.peakModal.close();
     };
 
@@ -6795,6 +6798,12 @@ window.PEAK_FORMS = (function () {
           </Field>
           <Field label="Class · stream" hint={(window.SCHOOL_CONFIG && window.SCHOOL_CONFIG.type === 'secondary') ? 'S1–S6' : ((window.SCHOOL_CONFIG && (window.SCHOOL_CONFIG.type === 'nursery' || window.SCHOOL_CONFIG.type === 'nursery-primary')) ? 'Baby–Top / P1–P7' : 'P1–P7')}>
             <Select value={stream} onChange={setStream} options={_CL.map(c => ({ value: c, label: c }))} />
+          </Field>
+          <Field label="Residence Type" hint="Day Scholar or Boarder">
+            <Select value={residenceType} onChange={setResidenceType} options={[
+              { value: 'day',      label: '☀️ Day Scholar' },
+              { value: 'boarding', label: '🌙 Boarder (Hostel)' },
+            ]} />
           </Field>
           {_COMBOS.length > 0 && (
             <Field label="Combination" hint="A-Level (S5/S6)">
