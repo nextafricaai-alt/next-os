@@ -20,7 +20,29 @@
     }
   };
 
-  const getBrand = () => window.SCHOOL_BRAND || DEFAULT_BRAND;
+  const getBrand = () => {
+    const b = window.SCHOOL_BRAND || {};
+    const c = b.colors || {};
+    const f = b.fonts || {};
+    return {
+      name: b.name || DEFAULT_BRAND.name,
+      motto: b.motto || DEFAULT_BRAND.motto,
+      address: b.address || DEFAULT_BRAND.address,
+      phone: b.phone || DEFAULT_BRAND.phone,
+      email: b.email || DEFAULT_BRAND.email,
+      badgeUrl: b.badgeUrl || null,
+      getBadgeSvg: typeof b.getBadgeSvg === 'function' ? b.getBadgeSvg.bind(b) : null,
+      colors: {
+        primary: c.primary || DEFAULT_BRAND.colors.primary,
+        secondary: c.secondary || DEFAULT_BRAND.colors.secondary,
+        accent: c.accent || DEFAULT_BRAND.colors.accent,
+      },
+      fonts: {
+        heading: f.heading || DEFAULT_BRAND.fonts.heading,
+        body: f.body || DEFAULT_BRAND.fonts.body,
+      }
+    };
+  };
 
   const SchoolDocumentHeader = ({ docType = "DOCUMENT", subtitle, children }) => {
     const brand = getBrand();

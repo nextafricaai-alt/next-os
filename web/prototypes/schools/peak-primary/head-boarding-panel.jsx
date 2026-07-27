@@ -77,19 +77,23 @@
       );
     };
 
-    const SchoolBadgeStrip = window.SchoolBadgeStrip || (({ pageName }) => (
-      <div style={{ padding: '12px 24px', backgroundColor: T.panelBg, borderBottom: `1px solid ${T.border}`, color: T.textMuted, fontSize: '13px', fontWeight: 600, letterSpacing: '0.05em' }}>
-        {pageName}
+    const HeaderStrip = () => (
+      <div style={{ padding: '16px 32px', backgroundColor: T.panelBg, borderBottom: `1px solid ${T.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{ width: '36px', height: '36px', borderRadius: '50%', backgroundColor: T.accent, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '14px' }}>KL</div>
+          <div>
+            <div style={{ fontSize: '15px', fontWeight: 700, color: T.text }}>Kabs Lily Junior School & KinderCare Centre</div>
+            <div style={{ fontSize: '12px', color: T.textMuted }}>Boarding & Hostel Command Center · Term 2 — 2026</div>
+          </div>
+        </div>
+        <span style={{ fontSize: '12px', padding: '4px 12px', borderRadius: '99px', backgroundColor: T.successMuted, color: T.success, border: `1px solid ${T.successMuted}`, fontWeight: 600 }}>🏠 Mixed Day & Boarding</span>
       </div>
-    ));
+    );
 
     const filteredRoster = roster.filter(student => {
-      const matchesDorm = activeDormTab === 'All Hostels' || student.dorm.includes(activeDormTab.replace(/👦|👧|St. /g, '').trim());
       const matchesSearch = student.name.toLowerCase().includes(searchQuery.toLowerCase()) || student.guardian.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesClass = classFilter === 'All Boarders' || student.class === classFilter;
-      // Note: The logic for dorm matching is slightly fuzzy here for demo purposes, 
-      // since the tab name has emojis. A robust implementation would use IDs.
-      const isDormMatch = activeDormTab === 'All Hostels' || student.dorm === activeDormTab.replace(/ (👦|👧)/, '');
+      const isDormMatch = activeDormTab === 'All Hostels' || student.dorm.includes(activeDormTab.replace(/ (👦|👧)/, ''));
       
       return isDormMatch && matchesSearch && matchesClass;
     });
@@ -103,7 +107,7 @@
         display: 'flex',
         flexDirection: 'column'
       }}>
-        <SchoolBadgeStrip pageName="BOARDING & HOSTEL MANAGEMENT" />
+        <HeaderStrip />
         
         <div style={{ padding: '32px 48px', flex: 1, display: 'flex', flexDirection: 'column', gap: '32px' }}>
           

@@ -12,8 +12,19 @@
     transactions: initialTransactions,
     weeklyTrend
   }) => {
-    const brand = window.SCHOOL_BRAND;
-    const Header = window.SchoolDocumentHeader;
+    const brand = window.SCHOOL_BRAND || {
+      name: "Kabs Lily Junior School & KinderCare Centre",
+      colors: { primary: "#1e3a8a", secondary: "#f59e0b", accent: "#3b82f6" }
+    };
+    const Header = window.SchoolDocumentHeader || (({ docType }) => (
+      <div style={{ borderBottom: '2px solid #3b82f6', paddingBottom: '12px', marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div>
+          <h2 style={{ margin: 0, color: '#1e3a8a' }}>Kabs Lily Junior School & KinderCare Centre</h2>
+          <div style={{ fontSize: '12px', color: '#6b7280' }}>Financial & Resource Ledger · Term 2 — 2026</div>
+        </div>
+        <span style={{ backgroundColor: '#1e3a8a', color: '#fff', padding: '6px 16px', borderRadius: '99px', fontSize: '13px', fontWeight: 'bold' }}>{docType}</span>
+      </div>
+    ));
 
     const [currentPage, setCurrentPage] = useState(1);
     const [animatedCollection, setAnimatedCollection] = useState(0);
