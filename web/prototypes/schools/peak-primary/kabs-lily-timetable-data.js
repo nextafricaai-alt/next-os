@@ -15,7 +15,7 @@
     { period: 4, start: '12:00:00', end: '13:00:00', label: 'Period 4 (12:00 - 1:00 PM)' },
     { period: 5, start: '14:00:00', end: '15:00:00', label: 'Period 5 (2:00 - 3:00 PM)' },
     { period: 6, start: '15:00:00', end: '16:00:00', label: 'Period 6 (3:00 - 4:00 PM)' },
-    { period: 7, start: '16:00:00', end: '17:00:00', label: 'Period 7 (4:00 - 5:00 PM)' },
+    { period: 7, start: '16:00:00', end: '17:00:00', label: 'Extra Period (4:00 - 5:00 PM)' },
   ];
 
   const LOWER_TIMES = UPPER_TIMES;
@@ -190,7 +190,7 @@
       { l: 'Lunch',    s: '13:00', e: '14:00', brk: true },
       { l: 'Period 5', s: '14:00', e: '15:00' },
       { l: 'Period 6', s: '15:00', e: '16:00' },
-      { l: 'Period 7', s: '16:00', e: '17:00' },
+      { l: 'Extra Period', s: '16:00', e: '17:00' },
     ];
     const payload = { level: 'primary', periods, grid, updatedAt: new Date().toISOString() };
     const WK = 'https://nextos-sentinel.nextafricaai.workers.dev';
