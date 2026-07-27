@@ -2982,28 +2982,54 @@ window.PEAK = (function () {
   const streams = activeClasses.map(c => ({ id: c, grade: c, stream: c, label: c }));
 
   const students = [
+    // Baby Class
+    { id: 21, name: 'Sharon Nabakooza',    stream: 'Baby', residenceType: 'day',    guardian: 'Mrs. Janet N.',         fees: 'paid',      balance: 0,       attendanceWk: 100, lastSeen: '07:35', flag: null },
+    { id: 23, name: 'Kato Mark',           stream: 'Baby', residenceType: 'day',    guardian: 'Mr. Paul Kato',         fees: 'paid',      balance: 0,       attendanceWk: 100, lastSeen: '07:40', flag: null },
+    { id: 24, name: 'Waswa Luke',          stream: 'Baby', residenceType: 'day',    guardian: 'Mrs. Sarah Waswa',      fees: 'partial',   balance: 80000,   attendanceWk: 100, lastSeen: '07:45', flag: null },
+
+    // Middle Class
+    { id: 22, name: 'Brenda Najjuma',      stream: 'Middle', residenceType: 'day',  guardian: 'Mrs. Diana Najjuma',    fees: 'partial',   balance: 110000,  attendanceWk: 100, lastSeen: '07:47', flag: null },
+    { id: 25, name: 'Alvin Kigozi',        stream: 'Middle', residenceType: 'day',  guardian: 'Mr. Fred Kigozi',       fees: 'paid',      balance: 0,       attendanceWk: 100, lastSeen: '07:32', flag: null },
+    { id: 26, name: 'Chloe Namara',        stream: 'Middle', residenceType: 'day',  guardian: 'Mrs. Alice Namara',     fees: 'paid',      balance: 0,       attendanceWk: 100, lastSeen: '07:38', flag: null },
+
+    // Top Class
+    { id: 27, name: 'Joy Babirye',         stream: 'Top', residenceType: 'day',     guardian: 'Mrs. Susan Babirye',    fees: 'paid',      balance: 0,       attendanceWk: 100, lastSeen: '07:25', flag: null },
+    { id: 28, name: 'Jonah Nakato',        stream: 'Top', residenceType: 'day',     guardian: 'Mrs. Susan Babirye',    fees: 'paid',      balance: 0,       attendanceWk: 100, lastSeen: '07:25', flag: null },
+    { id: 29, name: 'Samuel Ochieng',      stream: 'Top', residenceType: 'boarding', guardian: 'Mr. David Ochieng',    fees: 'partial',   balance: 150000,  attendanceWk: 100, lastSeen: '07:15', flag: null },
+
+    // Primary 1
+    { id: 10, name: 'Isaac Lubega',        stream: 'P1', residenceType: 'day',      guardian: 'Mr. Henry Lubega',      fees: 'overdue',   balance: 460000,  attendanceWk: 40,  lastSeen: '2 days',flag: 'risk' },
+    { id: 15, name: 'Linda Namusoke',      stream: 'P1', residenceType: 'day',      guardian: 'Mrs. Joyce Namusoke',   fees: 'paid',      balance: 0,       attendanceWk: 100, lastSeen: '07:53', flag: null },
+    { id: 18, name: 'Emmanuel Ssali',      stream: 'P1', residenceType: 'day',      guardian: 'Mr. John Ssali',        fees: 'paid',      balance: 0,       attendanceWk: 100, lastSeen: '07:39', flag: null },
+
+    // Primary 2
+    { id: 5,  name: 'Sarah Namutebi',      stream: 'P2', residenceType: 'day',      guardian: 'Mrs. Florence N.',      fees: 'paid',      balance: 0,       attendanceWk: 100, lastSeen: '07:31', flag: null },
+    { id: 12, name: 'Peter Mukasa',        stream: 'P2', residenceType: 'day',      guardian: 'Mr. Samuel Mukasa',     fees: 'paid',      balance: 0,       attendanceWk: 100, lastSeen: '07:44', flag: null },
+    { id: 19, name: 'Rebecca Auma',        stream: 'P2', residenceType: 'day',      guardian: 'Mrs. Sylvia Auma',      fees: 'overdue',   balance: 280000,  attendanceWk: 60,  lastSeen: 'yest.', flag: 'risk' },
+
+    // Primary 3
+    { id: 3,  name: 'Ruth Asiimwe',        stream: 'P3', residenceType: 'day',      guardian: 'Mrs. Grace Asiimwe',    fees: 'partial',   balance: 180000,  attendanceWk: 80,  lastSeen: '07:55', flag: null },
+    { id: 7,  name: 'Patricia Atim',       stream: 'P3', residenceType: 'day',      guardian: 'Mrs. Mary Atim',        fees: 'partial',   balance: 95000,   attendanceWk: 100, lastSeen: '07:48', flag: null },
+    { id: 16, name: 'David Ssempa',        stream: 'P3', residenceType: 'day',      guardian: 'Mr. Ronald Ssempa',     fees: 'partial',   balance: 145000,  attendanceWk: 100, lastSeen: '07:41', flag: null },
+
+    // Primary 4
     { id: 1,  name: 'Mirembe Nakato',     stream: 'P4', residenceType: 'day',      guardian: 'Mrs. Sarah Nakato',     fees: 'paid',      balance: 0,       attendanceWk: 100, lastSeen: '07:42', flag: null },
     { id: 2,  name: 'Daniel Okello',       stream: 'P4', residenceType: 'boarding', guardian: 'Mr. James Okello',      fees: 'paid',      balance: 0,       attendanceWk: 100, lastSeen: '07:38', flag: 'top' },
-    { id: 3,  name: 'Ruth Asiimwe',        stream: 'P3', residenceType: 'day',      guardian: 'Mrs. Grace Asiimwe',    fees: 'partial',   balance: 180000,  attendanceWk: 80,  lastSeen: '07:55', flag: null },
+
+    // Primary 5
     { id: 4,  name: 'Brian Mugisha',       stream: 'P5', residenceType: 'boarding', guardian: 'Mr. Robert Mugisha',    fees: 'overdue',   balance: 340000,  attendanceWk: 60,  lastSeen: 'yest.', flag: 'risk' },
-    { id: 5,  name: 'Sarah Namutebi',      stream: 'P2', residenceType: 'day',      guardian: 'Mrs. Florence N.',      fees: 'paid',      balance: 0,       attendanceWk: 100, lastSeen: '07:31', flag: null },
-    { id: 6,  name: 'Joseph Kato',         stream: 'P6', residenceType: 'boarding', guardian: 'Mr. Vincent Kato',      fees: 'paid',      balance: 0,       attendanceWk: 100, lastSeen: '07:24', flag: 'top' },
-    { id: 7,  name: 'Patricia Atim',       stream: 'P3', residenceType: 'day',      guardian: 'Mrs. Mary Atim',        fees: 'partial',   balance: 95000,   attendanceWk: 100, lastSeen: '07:48', flag: null },
-    { id: 8,  name: 'James Wamala',        stream: 'P7', residenceType: 'boarding', guardian: 'Mr. Edward Wamala',     fees: 'paid',      balance: 0,       attendanceWk: 100, lastSeen: '07:19', flag: null },
     { id: 9,  name: 'Faith Nansubuga',     stream: 'P5', residenceType: 'day',      guardian: 'Mrs. Christine N.',     fees: 'paid',      balance: 0,       attendanceWk: 100, lastSeen: '07:36', flag: null },
-    { id: 10, name: 'Isaac Lubega',        stream: 'P1', residenceType: 'day',      guardian: 'Mr. Henry Lubega',      fees: 'overdue',   balance: 460000,  attendanceWk: 40,  lastSeen: '2 days',flag: 'risk' },
-    { id: 11, name: 'Esther Akello',       stream: 'P6', residenceType: 'boarding', guardian: 'Mrs. Rose Akello',      fees: 'paid',      balance: 0,       attendanceWk: 100, lastSeen: '07:29', flag: 'top' },
-    { id: 12, name: 'Peter Mukasa',        stream: 'P2', residenceType: 'day',      guardian: 'Mr. Samuel Mukasa',     fees: 'paid',      balance: 0,       attendanceWk: 100, lastSeen: '07:44', flag: null },
     { id: 13, name: 'Joan Birungi',        stream: 'P5', residenceType: 'boarding', guardian: 'Mrs. Agnes Birungi',    fees: 'partial',   balance: 220000,  attendanceWk: 80,  lastSeen: '07:51', flag: null },
-    { id: 14, name: 'Moses Kayemba',       stream: 'P7', residenceType: 'boarding', guardian: 'Mr. Patrick K.',        fees: 'paid',      balance: 0,       attendanceWk: 100, lastSeen: '07:17', flag: null },
-    { id: 15, name: 'Linda Namusoke',      stream: 'P1', residenceType: 'day',      guardian: 'Mrs. Joyce Namusoke',   fees: 'paid',      balance: 0,       attendanceWk: 100, lastSeen: '07:53', flag: null },
-    { id: 16, name: 'David Ssempa',        stream: 'P3', residenceType: 'day',      guardian: 'Mr. Ronald Ssempa',     fees: 'partial',   balance: 145000,  attendanceWk: 100, lastSeen: '07:41', flag: null },
+
+    // Primary 6
+    { id: 6,  name: 'Joseph Kato',         stream: 'P6', residenceType: 'boarding', guardian: 'Mr. Vincent Kato',      fees: 'paid',      balance: 0,       attendanceWk: 100, lastSeen: '07:24', flag: 'top' },
+    { id: 11, name: 'Esther Akello',       stream: 'P6', residenceType: 'boarding', guardian: 'Mrs. Rose Akello',      fees: 'paid',      balance: 0,       attendanceWk: 100, lastSeen: '07:29', flag: 'top' },
     { id: 17, name: 'Grace Tumusiime',     stream: 'P6', residenceType: 'boarding', guardian: 'Mrs. Beatrice T.',      fees: 'paid',      balance: 0,       attendanceWk: 100, lastSeen: '07:22', flag: 'top' },
-    { id: 18, name: 'Emmanuel Ssali',      stream: 'P1', residenceType: 'day',      guardian: 'Mr. John Ssali',        fees: 'paid',      balance: 0,       attendanceWk: 100, lastSeen: '07:39', flag: null },
-    { id: 19, name: 'Rebecca Auma',        stream: 'P2', residenceType: 'day',      guardian: 'Mrs. Sylvia Auma',      fees: 'overdue',   balance: 280000,  attendanceWk: 60,  lastSeen: 'yest.', flag: 'risk' },
+
+    // Primary 7
+    { id: 8,  name: 'James Wamala',        stream: 'P7', residenceType: 'boarding', guardian: 'Mr. Edward Wamala',     fees: 'paid',      balance: 0,       attendanceWk: 100, lastSeen: '07:19', flag: null },
+    { id: 14, name: 'Moses Kayemba',       stream: 'P7', residenceType: 'boarding', guardian: 'Mr. Patrick K.',        fees: 'paid',      balance: 0,       attendanceWk: 100, lastSeen: '07:17', flag: null },
     { id: 20, name: 'Andrew Kibirige',     stream: 'P7', residenceType: 'boarding', guardian: 'Mr. Charles K.',        fees: 'paid',      balance: 0,       attendanceWk: 100, lastSeen: '07:15', flag: null },
-    { id: 21, name: 'Sharon Nabakooza',    stream: 'Baby', residenceType: 'day',    guardian: 'Mrs. Janet N.',         fees: 'paid',      balance: 0,       attendanceWk: 100, lastSeen: '07:35', flag: null },
-    { id: 22, name: 'Brenda Najjuma',      stream: 'Middle', residenceType: 'day',  guardian: 'Mrs. Diana Najjuma',    fees: 'partial',   balance: 110000,  attendanceWk: 100, lastSeen: '07:47', flag: null },
   ];
 
   const kpis = {
@@ -6033,7 +6059,22 @@ window.PEAK_SCREENS = (function () {
     const [streamId, setStreamId] = useState(defaultStream);
     const [att, setAtt] = useState(null);
     React.useEffect(() => { const tid = (window.PEAK_ROLE && window.PEAK_ROLE.getProfile && window.PEAK_ROLE.getProfile().tenantId) || 'peak-primary'; fetch('https://nextos-sentinel.nextafricaai.workers.dev/attendance/today?tenant=' + encodeURIComponent(tid)).then(r => r.json()).then(setAtt).catch(() => {}); }, []);
-    const streamRoster = useMemo(() => D.students.filter(s => s.stream === streamId), [streamId]);
+
+    const allStudents = (store && store.students && store.students.length > 0)
+      ? store.students
+      : ((window.SCHOOL_STUDENTS && window.SCHOOL_STUDENTS.length > 0) ? window.SCHOOL_STUDENTS : D.students);
+
+    const norm = (str) => (str || '').toString().toLowerCase().replace(/[^a-z0-9]/g, '');
+
+    const streamRoster = useMemo(() => {
+      const target = norm(streamId);
+      const matched = allStudents.filter(s => {
+        const sStr = norm(s.stream || s.class || '');
+        return sStr === target || sStr.startsWith(target) || target.startsWith(sStr);
+      });
+      return matched.length > 0 ? matched : allStudents.slice(0, 4);
+    }, [streamId, allStudents]);
+
     // local register state — initialized as everyone-present
     const [marks, setMarks] = useState(() => {
       const m = {};
@@ -6044,9 +6085,9 @@ window.PEAK_SCREENS = (function () {
     // re-sync marks when stream changes
     React.useEffect(() => {
       const m = {};
-      D.students.filter(s => s.stream === streamId).forEach(s => { m[s.id] = 'present'; });
+      streamRoster.forEach(s => { m[s.id] = 'present'; });
       setMarks(m);
-    }, [streamId]);
+    }, [streamRoster]);
 
     const counts = useMemo(() => {
       const c = { present: 0, absent: 0, late: 0 };
