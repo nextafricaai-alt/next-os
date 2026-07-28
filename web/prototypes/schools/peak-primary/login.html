@@ -191,16 +191,7 @@
     const SUPABASE_ANON_KEY = 'sb_publishable_wrzbFpPrkhoN4w2KXdUAdw_gnqEQVs9';
     const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    // If already signed in for THIS school, skip to dashboard.
-    // If signed into a DIFFERENT school than this link, sign out so they can sign into this one.
-    (async () => {
-      const { data: { session } } = await sb.auth.getSession();
-      if (!session) return; // no session -> show the login form (the normal client flow)
-      var want = new URLSearchParams(location.search).get('t') || new URLSearchParams(location.search).get('s') || (location.pathname.match(/\/(?:s|school)\/([A-Za-z0-9_-]+)/)||[])[1];
-      var prof = null; try { prof = JSON.parse(localStorage.getItem('nextos.profile')||'null'); } catch(e){}
-      if (!want || (prof && prof.tenantId === want)) { try { sessionStorage.setItem('nextos.welcome', '1'); } catch (e) {} window.location.href = '/school/' + encodeURIComponent((prof && prof.tenantId) || want || ''); return; }
-      try { await sb.auth.signOut(); localStorage.removeItem('nextos.profile'); } catch(e){}
-    })();
+    // Clean login initialization (no redirect loops)
 
     // ─── Form handler ────────────────────────────────────────────────
     const form    = document.getElementById('login-form');
