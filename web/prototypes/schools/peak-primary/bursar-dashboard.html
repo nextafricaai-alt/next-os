@@ -392,21 +392,8 @@
         const reader = new FileReader();
         reader.onload = () => {
           const text = reader.result || '';
-          const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
-          if (lines.length > 1) {
-            const rows = lines.slice(1).map(line => {
-              const parts = line.split(',').map(p => p.replace(/^"|"$/g, '').trim());
-              return {
-                name: parts[0] || '',
-                class: parts[1] || 'N/A',
-                feeType: parts[2] || 'School Fees (Tuition)',
-                amount: Number(parts[3] || 0),
-                balance: Number(parts[4] || 0),
-                notes: parts[6] || ''
-              };
-            }).filter(r => r.name);
-            setParsedCsvRows(rows);
-          }
+          const rows = SS && SS.parseFeesCsv ? SS.parseFeesCsv(text) : [];
+          setParsedCsvRows(rows);
         };
         reader.readAsText(file);
       };
@@ -415,9 +402,14 @@
         if (!parsedCsvRows.length) return;
         setIsImporting(true);
         if (SS && SS.importFees) {
-          await SS.importFees(parsedCsvRows);
-          setIncomes(SS.getIncomes());
-          alert(`Successfully imported ${parsedCsvRows.length} fee records into Supabase!`);
+          const res = await SS.importFees(parsedCsvRows);
+          if (res && res.success) {
+            setIncomes(SS.getIncomes());
+            setExpenses(SS.getExpenses());
+            alert(`✅ Successfully imported ${res.count} fee records into Supabase! Both Head Teacher and Bursar dashboards are now live in sync.`);
+          } else {
+            alert(`❌ Import Failed: ${res?.error || 'Unknown Supabase error'}`);
+          }
         }
         setIsImporting(false);
         setShowImportFeesModal(false);

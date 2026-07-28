@@ -414,30 +414,121 @@
       }
     },
 
-    async importFees(rows) {
-      if (!Array.isArray(rows) || !rows.length) return;
+    parseFeesCsv(text) {
+      if (!text || typeof text !== 'string') return [];
+      const lines = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n').map(l => l.trim()).filter(Boolean);
+      if (lines.length < 2) return [];
 
-      if (sb && tenantId) {
+      function splitCsvLine(line) {
+        const out = [];
+        let cur = '', inQuotes = false;
+        for (let i = 0; i < line.length; i++) {
+          const c = line[i];
+          if (c === '"') {
+            if (inQuotes && line[i + 1] === '"') { cur += '"'; i++; }
+            else { inQuotes = !inQuotes; }
+          } else if (c === ',' && !inQuotes) {
+            out.push(cur.trim());
+            cur = '';
+          } else {
+            cur += c;
+          }
+        }
+        out.push(cur.trim());
+        return out;
+      }
+
+      const headers = splitCsvLine(lines[0]).map(h => h.toLowerCase().replace(/[^a-z0-9]/g, ''));
+      
+      const nameIdx = headers.findIndex(h => h.includes('name') || h.includes('student') || h.includes('pupil') || h.includes('learner'));
+      const classIdx = headers.findIndex(h => h.includes('class') || h.includes('stream') || h.includes('grade'));
+      const feeTypeIdx = headers.findIndex(h => h.includes('type') || h.includes('category'));
+      const fullFeeIdx = headers.findIndex(h => h.includes('full') || h.includes('total') || h.includes('charge') || h.includes('billed') || h.includes('expected'));
+      const paidIdx = headers.findIndex(h => h.includes('paid') || h.includes('received') || h.includes('deposit') || h.includes('cleared'));
+      const balanceIdx = headers.findIndex(h => h.includes('balance') || h.includes('due') || h.includes('arrears') || h.includes('owing'));
+      const notesIdx = headers.findIndex(h => h.includes('note') || h.includes('remark') || h.includes('comment'));
+
+      const rows = [];
+      for (let i = 1; i < lines.length; i++) {
+        const parts = splitCsvLine(lines[i]);
+        const name = nameIdx >= 0 ? parts[nameIdx] : parts[0];
+        if (!name || name.toLowerCase().includes('total') || name.toLowerCase().includes('student name')) continue;
+
+        const studentClass = classIdx >= 0 ? parts[classIdx] : (parts[1] || 'N/A');
+        const feeTypeRaw = feeTypeIdx >= 0 ? parts[feeTypeIdx] : (parts[2] || 'Tuition');
+        const fullFee = fullFeeIdx >= 0 ? Number((parts[fullFeeIdx] || '0').replace(/[^0-9.]/g, '')) : Number((parts[3] || '0').replace(/[^0-9.]/g, ''));
+        const amountPaid = paidIdx >= 0 ? Number((parts[paidIdx] || '0').replace(/[^0-9.]/g, '')) : Number((parts[4] || '0').replace(/[^0-9.]/g, ''));
+        let balance = balanceIdx >= 0 ? Number((parts[balanceIdx] || '0').replace(/[^0-9.]/g, '')) : (fullFee - amountPaid);
+        if (isNaN(balance)) balance = Math.max(0, fullFee - amountPaid);
+
+        const notes = notesIdx >= 0 ? parts[notesIdx] : (parts[7] || parts[6] || '');
+
+        const isBoarding = feeTypeRaw.toLowerCase().includes('boarding') || notes.toLowerCase().includes('boarding');
+        const feeType = isBoarding ? 'School Fees (Boarding)' : 'School Fees (Tuition)';
+
+        rows.push({
+          name,
+          class: studentClass,
+          feeType,
+          fullFees: fullFee || 250000,
+          paidAmount: amountPaid || 0,
+          balance: balance,
+          notes
+        });
+      }
+
+      return rows;
+    },
+
+    async importFees(rows) {
+      if (!Array.isArray(rows) || !rows.length) {
+        return { success: false, error: 'No fee rows to import' };
+      }
+
+      if (!sb || !tenantId) {
+        return { success: false, error: 'Supabase engine not initialized' };
+      }
+
+      try {
+        // Clear prior income entries for this tenant before fresh bulk import
+        await sb.from('school_income').delete().eq('tenant_id', tenantId);
+
         const payload = rows.map(r => ({
           tenant_id: tenantId,
-          student_name: r.studentName || r.name,
-          class: r.class || r.stream || 'N/A',
+          student_name: r.name || r.studentName,
+          class: r.class || 'N/A',
           source_type: r.feeType || 'School Fees (Tuition)',
           amount: Number(r.fullFees || r.amount || 0),
-          unspent_balance: Number(r.balance || r.unspentBalance || r.amount || 0),
-          payment_method: r.paymentMethod || 'Cash',
+          unspent_balance: Number(r.balance ?? (r.fullFees - r.paidAmount) ?? 0),
+          payment_method: 'Cash',
+          received_by: 'Nalukenge Jane',
           notes: r.notes || '',
           logged_by: 'bursar'
         }));
 
-        const { data } = await sb.from('school_income').insert(payload).select();
-        if (data) {
-          const fresh = await sb.from('school_income').select('*').eq('tenant_id', tenantId).order('date', { ascending: false });
-          if (fresh.data) {
-            state.incomes = fresh.data.map(mapIncomeToApp);
-            notify();
-          }
+        const { data, error } = await sb.from('school_income').insert(payload).select();
+
+        if (error) {
+          console.error("Supabase import error:", error);
+          return { success: false, error: error.message };
         }
+
+        // Refresh state from DB
+        const fresh = await sb.from('school_income').select('*').eq('tenant_id', tenantId).order('date', { ascending: false });
+        if (fresh.data) {
+          state.incomes = fresh.data.map(mapIncomeToApp);
+          
+          const stuRes = await sb.from('students').select('*').eq('tenant_id', tenantId);
+          if (stuRes.data) {
+            state.students = stuRes.data.map(s => mapStudentToApp(s, state.incomes));
+          }
+          notify();
+        }
+
+        return { success: true, count: payload.length };
+      } catch (err) {
+        console.error("importFees exception:", err);
+        return { success: false, error: err.message || String(err) };
       }
     }
   };
