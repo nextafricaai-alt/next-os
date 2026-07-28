@@ -59,16 +59,4 @@
     },
   };
 
-  // Gate check: allow local profiles OR active Supabase session
-  (async () => {
-    // Do NOT run gate check if on login page
-    if (window.location.pathname.includes('login')) {
-      return;
-    }
-
-    const hasProfile = !!localStorage.getItem('nextos.profile');
-    if (!hasProfile) {
-      window.location.href = loginUrl();
-    }
-  })();
 })();
