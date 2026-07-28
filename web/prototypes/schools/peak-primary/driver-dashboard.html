@@ -53,16 +53,20 @@
       useEffect(() => {
         // Start live GPS telemetry broadcasting on mount
         if (window.TRANSPORT_TELEMETRY) {
-          window.TRANSPORT_TELEMETRY.startBroadcasting('van-01', {
-            driverName: 'Mr. Bbosa Yusufu',
-            plate: 'UAR 218 V',
-            route: 'Kireka / Ntinda Circuit'
-          });
+          if (typeof window.TRANSPORT_TELEMETRY.startBroadcasting === 'function') {
+            window.TRANSPORT_TELEMETRY.startBroadcasting('van-01', {
+              driverName: 'Mr. Bbosa Yusufu',
+              plate: 'UAR 218 V',
+              route: 'Kireka / Ntinda Circuit'
+            });
+          }
 
-          const unsub = window.TRANSPORT_TELEMETRY.subscribe('van-01', (data) => {
-            setTelemetryState(data);
-          });
-          return () => unsub();
+          if (typeof window.TRANSPORT_TELEMETRY.subscribe === 'function') {
+            const unsub = window.TRANSPORT_TELEMETRY.subscribe('van-01', (data) => {
+              setTelemetryState(data);
+            });
+            return () => { if (typeof unsub === 'function') unsub(); };
+          }
         }
       }, []);
 

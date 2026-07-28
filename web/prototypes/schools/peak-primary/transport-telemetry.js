@@ -312,6 +312,21 @@
         };
     }
 
+    function subscribe(vanId, callback) {
+        if (typeof callback !== 'function') return () => {};
+        const handler = (e) => {
+            if (!vanId || (e.detail && e.detail.vanId === vanId)) {
+                callback(e.detail);
+            }
+        };
+        window.addEventListener('transport-telemetry-updated', handler);
+        window.addEventListener('transport-student-status-changed', handler);
+        return () => {
+            window.removeEventListener('transport-telemetry-updated', handler);
+            window.removeEventListener('transport-student-status-changed', handler);
+        };
+    }
+
     // --- Public API ---
     window.TRANSPORT_TELEMETRY = {
         startBroadcasting,
@@ -320,7 +335,8 @@
         calculateShortestRoute,
         updateStudentStatus,
         getStudentManifest,
-        getKampalaSampleRoute
+        getKampalaSampleRoute,
+        subscribe
     };
 
     console.log('Next OS: Transport Telemetry Engine initialized.');
