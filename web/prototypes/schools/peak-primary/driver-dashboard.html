@@ -48,26 +48,25 @@
     .driver-btn {
       transition: transform 0.1s active, background-color 0.2s;
     }
-    .driver-btn:active {
-      transform: scale(0.97);
+    /* Desktop & Tablet Full-Width Responsiveness */
+    @media (max-width: 767px) {
+      .driver-app-shell { max-width: 480px !important; width: 100% !important; margin: 0 auto; }
+      .desktop-only-manifest { display: none !important; }
     }
-    /* Mobile Layout */
-    @media (max-width: 899px) {
-      .driver-app-shell { max-width: 480px !important; }
-      .desktop-split-panel { display: none !important; }
-    }
-    /* Desktop Layout (Laptops, iMacs, 1080p, 4K monitors) */
-    @media (min-width: 900px) {
-      body { padding: 16px; }
+    @media (min-width: 768px) {
+      body { padding: 12px; height: 100vh; }
+      #root { padding: 0; height: 100vh; }
       .driver-app-shell {
-        max-width: 1280px !important;
+        max-width: 100% !important;
+        width: 100% !important;
+        height: calc(100vh - 24px) !important;
         border-radius: 16px !important;
         border: 1px solid rgba(255,255,255,0.12) !important;
         box-shadow: 0 25px 60px rgba(0,0,0,0.7) !important;
         overflow: hidden !important;
       }
-      .mobile-drawer-manifest { display: none !important; }
-      .desktop-split-panel {
+      .mobile-drawer-toggle { display: none !important; }
+      .desktop-main-split {
         display: flex !important;
         flex: 1;
         width: 100%;
@@ -79,14 +78,14 @@
         position: relative;
         height: 100%;
       }
-      .desktop-sidebar {
-        width: 400px;
+      .desktop-sidebar-side {
+        width: 420px;
         background: #0F172A;
         border-left: 1px solid rgba(255,255,255,0.1);
         display: flex;
         flex-direction: column;
         height: 100%;
-        overflow: hidden;
+        overflow-y: auto;
       }
     }
   </style>

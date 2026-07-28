@@ -145,7 +145,33 @@
       // 4. Draw Initial Route Polyline
       drawRoute(map, 'normal');
 
+      // 5. Animated Moving Shuttle Bus Marker
+      const carIcon = L.divIcon({
+        className: 'custom-car-icon',
+        html: `<div style="background:#00FC8F; color:#0A1029; font-size:20px; width:42px; height:42px; border-radius:50%; display:flex; align-items:center; justify-content:center; border:3px solid #FFF; box-shadow:0 0 20px #00FC8F;">🚐</div>`,
+        iconSize: [42, 42],
+        iconAnchor: [21, 21]
+      });
+
+      const routePoints = [
+        [0.3472, 32.6325],
+        [0.3485, 32.6482],
+        [0.3685, 32.6285],
+        [0.3542, 32.6142],
+        [0.3600, 32.6250]
+      ];
+      let pIdx = 0;
+
+      const carMarker = L.marker(routePoints[0], { icon: carIcon }).addTo(map)
+        .bindPopup(`<b>🚐 Kabs Lily Shuttle #1 (Live GPS)</b><br/>Driver: Mr. Bbosa Yusufu<br/>Speed: 38 km/h`);
+
+      const moveTimer = setInterval(() => {
+        pIdx = (pIdx + 1) % routePoints.length;
+        carMarker.setLatLng(routePoints[pIdx]);
+      }, 2500);
+
       return () => {
+        clearInterval(moveTimer);
         if (mapInstance.current) {
           mapInstance.current.remove();
           mapInstance.current = null;
