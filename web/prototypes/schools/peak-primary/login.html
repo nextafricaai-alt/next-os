@@ -233,6 +233,11 @@
       if (role === 'bursar') { emailEl.value = 'bursar@kabs-lily.ac.ug'; passEl.value = 'password'; }
       if (role === 'driver') { emailEl.value = 'driver.bbosa@kabs-lily.ac.ug'; passEl.value = 'password'; }
       if (role === 'parent') { emailEl.value = 'Brian Mukasa'; passEl.value = 'KL-2026-042'; }
+      
+      // Auto submit on role chip click
+      if (form && typeof form.requestSubmit === 'function') {
+        form.requestSubmit();
+      }
     };
 
     form.addEventListener('submit', async (e) => {
@@ -241,10 +246,21 @@
       btn.disabled = true; btn.textContent = 'Signing in...';
 
       const email    = document.getElementById('email').value.trim();
-      const password = document.getElementById('password').value;
+      const password = document.getElementById('password').value.trim();
+      const emailLower = email.toLowerCase();
+      const passLower = password.toLowerCase();
 
-      // Quick offline/demo parent sign-in
-      if (email.includes('parent') || email.includes('Brian') || email.includes('Mukasa') || email.includes('KL-') || password.includes('KL-')) {
+      // Quick offline/demo parent sign-in (case insensitive)
+      if (
+        emailLower.includes('parent') || 
+        emailLower.includes('brian') || 
+        emailLower.includes('mukasa') || 
+        emailLower.includes('grace') || 
+        emailLower.includes('kintu') || 
+        emailLower.includes('sarah') || 
+        emailLower.includes('kl-') || 
+        passLower.includes('kl-')
+      ) {
         const profile = {
           email: email,
           fullName: 'Mrs. Sarah Mukasa (Parent)',
@@ -259,7 +275,7 @@
       }
 
       // Quick offline/demo driver sign-in
-      if (email.includes('driver') || email.includes('bbosa')) {
+      if (emailLower.includes('driver') || emailLower.includes('bbosa')) {
         const profile = {
           email: email,
           fullName: 'Mr. Bbosa Yusufu (Driver)',
