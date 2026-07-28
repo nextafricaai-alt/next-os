@@ -868,8 +868,22 @@
               <p style={{ fontSize:'12px', color:'var(--muted)', marginBottom:'14px' }}>
                 Upload your fee ledger CSV file (e.g. <code>kabs_lily_fees.csv</code>). The rows will write directly to Supabase and update all dashboards in real-time.
               </p>
-              <Field label="Choose CSV File">
+              <Field label="Option A: Choose CSV File">
                 <input type="file" accept=".csv" onChange={handleCsvFileChange} style={{ background:'var(--surf2)', color:'var(--text)', padding:'10px', borderRadius:'8px', width:'100%' }} />
+              </Field>
+
+              <Field label="Option B: Or Paste CSV / Excel Data">
+                <textarea
+                  rows="4"
+                  placeholder="Paste CSV rows here (e.g. Student Name, Class, Fee Type, Full Fees, Amount Paid)..."
+                  onChange={(e) => {
+                    const text = e.target.value || '';
+                    const store = window.SCHOOL_STORE || SS;
+                    const rows = store && store.parseFeesCsv ? store.parseFeesCsv(text) : [];
+                    setParsedCsvRows(rows);
+                  }}
+                  style={{ background:'var(--surf2)', color:'var(--text)', padding:'10px', borderRadius:'8px', width:'100%', fontFamily:'var(--mono)', fontSize:'11px', outline:'none' }}
+                />
               </Field>
 
               {parsedCsvRows.length > 0 && (
@@ -893,7 +907,7 @@
                           <td style={{ padding:'4px 0' }}>{r.name}</td>
                           <td>{r.class}</td>
                           <td>{r.feeType}</td>
-                          <td>{FMT(r.amount)}</td>
+                          <td>{FMT(r.fullFees || r.amount)}</td>
                           <td style={{ color: r.balance > 0 ? '#FF4757' : '#00FC8F' }}>{FMT(r.balance)}</td>
                         </tr>
                       ))}

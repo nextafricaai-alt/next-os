@@ -853,13 +853,30 @@
 
               <div style={{ marginBottom: '16px' }}>
                 <label style={{ fontSize: '12px', fontWeight: '700', color: T.textMuted, display: 'block', marginBottom: '6px' }}>
-                  Select CSV File:
+                  Option A: Choose CSV File
                 </label>
                 <input
                   type="file"
                   accept=".csv"
                   onChange={handleCsvFileChange}
                   style={{ background: T.surface2, color: T.text, padding: '10px', borderRadius: '8px', width: '100%', border: `1px solid ${T.border}` }}
+                />
+              </div>
+
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ fontSize: '12px', fontWeight: '700', color: T.textMuted, display: 'block', marginBottom: '6px' }}>
+                  Option B: Or Paste CSV / Excel Data
+                </label>
+                <textarea
+                  rows="4"
+                  placeholder="Paste CSV rows here (e.g. Student Name, Class, Fee Type, Full Fees, Amount Paid)..."
+                  onChange={(e) => {
+                    const text = e.target.value || '';
+                    const store = window.SCHOOL_STORE || SS;
+                    const rows = store && store.parseFeesCsv ? store.parseFeesCsv(text) : [];
+                    setParsedCsvRows(rows);
+                  }}
+                  style={{ background: T.surface2, color: T.text, padding: '10px', borderRadius: '8px', width: '100%', border: `1px solid ${T.border}`, fontFamily: 'monospace', fontSize: '11px', outline: 'none' }}
                 />
               </div>
 
@@ -884,7 +901,7 @@
                           <td style={{ padding: '4px' }}>{r.name}</td>
                           <td style={{ padding: '4px' }}>{r.class}</td>
                           <td style={{ padding: '4px' }}>{r.feeType}</td>
-                          <td style={{ padding: '4px' }}>{formatUgx(r.amount)}</td>
+                          <td style={{ padding: '4px' }}>{formatUgx(r.fullFees || r.amount)}</td>
                           <td style={{ padding: '4px', color: r.balance > 0 ? T.red : T.mint }}>{formatUgx(r.balance)}</td>
                         </tr>
                       ))}
