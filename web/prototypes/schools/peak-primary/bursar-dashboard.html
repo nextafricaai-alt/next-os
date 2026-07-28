@@ -406,7 +406,7 @@
           if (res && res.success) {
             setIncomes(SS.getIncomes());
             setExpenses(SS.getExpenses());
-            alert(`✅ Successfully imported ${res.count} fee records into Supabase! Both Head Teacher and Bursar dashboards are now live in sync.`);
+            alert(`✅ Successfully imported ${res.count} unique student fee records into Supabase!\n\n• Boarding Students: ${res.boardingCount}\n• Day Scholars: ${res.dayCount}\n\nBoth Head Teacher and Bursar dashboards are now live in sync.`);
           } else {
             alert(`❌ Import Failed: ${res?.error || 'Unknown Supabase error'}`);
           }

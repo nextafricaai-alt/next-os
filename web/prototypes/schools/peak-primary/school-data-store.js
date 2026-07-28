@@ -175,30 +175,33 @@
   }
 
   function mapStudentToApp(dbRow, incomesList = state.incomes) {
-    const sName = (dbRow.name || '').trim().toLowerCase();
+    const studentFullName = dbRow.full_name || dbRow.name || 'Unknown Student';
+    const sName = studentFullName.trim().toLowerCase();
     const inc = (incomesList || []).find(i => {
       const iName = (i.studentName || i.student_name || '').trim().toLowerCase();
-      return iName && sName && (iName.includes(sName) || sName.includes(iName));
+      return iName && sName && (iName === sName || iName.includes(sName) || sName.includes(iName));
     });
 
-    const isBoarding = (inc && (inc.sourceType || inc.source_type || '').toLowerCase().includes('boarding')) || 
+    const isBoarding = dbRow.is_boarding === true ||
+                       (inc && (inc.sourceType || inc.source_type || '').toLowerCase().includes('boarding')) || 
                        (inc && (inc.notes || '').toLowerCase().includes('boarding')) ||
                        (dbRow.stream || '').toLowerCase().includes('boarding');
 
     const termFee = inc ? Number(inc.amount) : (isBoarding ? 500000 : 250000);
-    const balance = inc ? Number(inc.unspentBalance ?? inc.unspent_balance ?? 0) : termFee;
+    const balance = inc ? Number(inc.unspentBalance ?? inc.unspent_balance ?? 0) : (isBoarding ? 250000 : 100000);
     const paidAmount = Math.max(0, termFee - balance);
 
     return {
       id: dbRow.id,
-      name: dbRow.name || 'Unknown Student',
-      class: dbRow.stream || 'Unknown Class',
+      name: studentFullName,
+      class: dbRow.stream || dbRow.class || 'Unknown Class',
       type: isBoarding ? 'Boarding' : 'Day Scholar',
+      boarding: isBoarding,
       termFee: termFee,
       paidAmount: paidAmount,
       balance: balance,
-      guardian: dbRow.guardian_name || 'N/A',
-      guardianPhone: dbRow.guardian_phone || ''
+      guardian: dbRow.guardian_name || `Parent of ${studentFullName}`,
+      guardianPhone: dbRow.guardian_phone || '+256700000000'
     };
   }
 
@@ -490,42 +493,76 @@
       }
 
       try {
-        // Clear prior income entries for this tenant before fresh bulk import
+        // Deduplicate rows by student name
+        const uniqueMap = new Map();
+        for (const r of rows) {
+          const name = (r.name || r.studentName || '').trim();
+          if (!name || name.toLowerCase().includes('total')) continue;
+          if (!uniqueMap.has(name.toLowerCase())) {
+            uniqueMap.set(name.toLowerCase(), r);
+          }
+        }
+        const cleanRows = Array.from(uniqueMap.values());
+
+        // Wipe previous entries to prevent duplicate multiplication
         await sb.from('school_income').delete().eq('tenant_id', tenantId);
 
-        const payload = rows.map(r => ({
-          tenant_id: tenantId,
-          student_name: r.name || r.studentName,
-          class: r.class || 'N/A',
-          source_type: r.feeType || 'School Fees (Tuition)',
-          amount: Number(r.fullFees || r.amount || 0),
-          unspent_balance: Number(r.balance ?? (r.fullFees - r.paidAmount) ?? 0),
-          payment_method: 'Cash',
-          received_by: 'Nalukenge Jane',
-          notes: r.notes || '',
-          logged_by: 'bursar'
-        }));
+        const payloadIncome = cleanRows.map(r => {
+          const isBoarding = (r.feeType || '').toLowerCase().includes('boarding') || (r.notes || '').toLowerCase().includes('boarding');
+          return {
+            tenant_id: tenantId,
+            student_name: r.name || r.studentName,
+            class: r.class || 'N/A',
+            source_type: isBoarding ? 'School Fees (Boarding)' : 'School Fees (Tuition)',
+            amount: Number(r.fullFees || r.amount || (isBoarding ? 500000 : 250000)),
+            unspent_balance: Number(r.balance ?? (r.fullFees - r.paidAmount) ?? 0),
+            payment_method: 'Cash',
+            received_by: 'Nalukenge Jane',
+            notes: r.notes || (isBoarding ? 'Boarding student fee ledger' : 'Day scholar fee ledger'),
+            logged_by: 'head'
+          };
+        });
 
-        const { data, error } = await sb.from('school_income').insert(payload).select();
-
-        if (error) {
-          console.error("Supabase import error:", error);
-          return { success: false, error: error.message };
+        const { error: incErr } = await sb.from('school_income').insert(payloadIncome);
+        if (incErr) {
+          console.error("Supabase import income error:", incErr);
+          return { success: false, error: incErr.message };
         }
 
-        // Refresh state from DB
-        const fresh = await sb.from('school_income').select('*').eq('tenant_id', tenantId).order('date', { ascending: false });
-        if (fresh.data) {
-          state.incomes = fresh.data.map(mapIncomeToApp);
-          
-          const stuRes = await sb.from('students').select('*').eq('tenant_id', tenantId);
-          if (stuRes.data) {
-            state.students = stuRes.data.map(s => mapStudentToApp(s, state.incomes));
-          }
-          notify();
-        }
+        // Also update students table so Boarding vs Day scholar status is permanently saved
+        await sb.from('students').delete().eq('tenant_id', tenantId);
+        const payloadStudents = cleanRows.map((r, idx) => {
+          const isBoarding = (r.feeType || '').toLowerCase().includes('boarding') || (r.notes || '').toLowerCase().includes('boarding');
+          return {
+            tenant_id: tenantId,
+            full_name: r.name || r.studentName,
+            stream: r.class || 'N/A',
+            is_boarding: isBoarding,
+            guardian_name: `Parent of ${r.name || r.studentName}`,
+            guardian_phone: `+256700000${String(idx + 1).padStart(3, '0')}`
+          };
+        });
+        await sb.from('students').insert(payloadStudents);
 
-        return { success: true, count: payload.length };
+        // Re-read fresh state from Supabase
+        const freshInc = await sb.from('school_income').select('*').eq('tenant_id', tenantId).order('date', { ascending: false });
+        const freshStu = await sb.from('students').select('*').eq('tenant_id', tenantId);
+
+        if (freshInc.data) state.incomes = freshInc.data.map(mapIncomeToApp);
+        if (freshStu.data) rawStudents = freshStu.data;
+
+        state.students = rawStudents.map(s => mapStudentToApp(s, state.incomes));
+        notify();
+
+        const boardingCount = state.students.filter(s => s.type === 'Boarding').length;
+        const dayCount = state.students.length - boardingCount;
+
+        return { 
+          success: true, 
+          count: state.students.length, 
+          boardingCount: boardingCount,
+          dayCount: dayCount
+        };
       } catch (err) {
         console.error("importFees exception:", err);
         return { success: false, error: err.message || String(err) };
