@@ -50,14 +50,21 @@
     { id: 's13', name: 'Joy Babirye', class: 'Top', guardian: 'Mrs. Susan Babirye', phone: '+256 700 000333', address: 'Kisaasi Central Stage', landmark: 'Near Kisaasi Medical Centre', status: 'waiting', lat: 0.3660, lng: 32.5850, distance: '9.1 km', time: '27 mins' },
   ];
 
-  // Real Interactive Leaflet Map with Zoom, Live Traffic, Student Markers & Rerouting
+  // Real Interactive Leaflet Map with Zoom, Satellite Aerial Imagery, Live Traffic, Student Markers & Rerouting
   const RealLeafletMap = ({ students, activeStudent }) => {
     const mapRef = React.useRef(null);
     const mapInstance = React.useRef(null);
-    const [trafficMode, setTrafficMode] = useState(true);
+    const tileLayerRef = React.useRef(null);
+    const [mapStyle, setMapStyle] = useState('dark'); // 'dark' | 'satellite' | 'street'
     const [routePath, setRoutePath] = useState('normal');
     const trafficLayers = React.useRef([]);
     const routePolyline = React.useRef(null);
+
+    const tileSources = {
+      dark: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+      satellite: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+      street: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
+    };
 
     useEffect(() => {
       if (!mapRef.current || mapInstance.current) return;
@@ -73,8 +80,8 @@
       });
       mapInstance.current = map;
 
-      // Dark theme OpenStreetMap Carto tiles
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+      // Initial Carto Dark tiles
+      tileLayerRef.current = L.tileLayer(tileSources.dark, {
         maxZoom: 19,
         subdomains: 'abcd',
       }).addTo(map);
@@ -146,6 +153,19 @@
       };
     }, []);
 
+    // Switch between Satellite, Dark, and Street Map tiles
+    const switchMapStyle = (style) => {
+      setMapStyle(style);
+      if (mapInstance.current && tileLayerRef.current) {
+        const L = window.L;
+        mapInstance.current.removeLayer(tileLayerRef.current);
+        tileLayerRef.current = L.tileLayer(tileSources[style], {
+          maxZoom: 19,
+          subdomains: 'abcd'
+        }).addTo(mapInstance.current);
+      }
+    };
+
     // Draw route & traffic lines
     const drawRoute = (map, mode) => {
       if (!map) return;
@@ -181,7 +201,7 @@
         dashArray: mode === 'bypass' ? '8, 8' : null
       }).addTo(map);
 
-      // Traffic flow indicators (Red = Jinja Rd jam, Green = Bypass clear)
+      // Traffic flow indicators
       const jamSegment = L.polyline([[0.3472, 32.6325], [0.3485, 32.6482]], { color: '#EF4444', weight: 4, opacity: 0.9 }).addTo(map);
       const clearSegment = L.polyline([[0.3685, 32.6285], [0.3600, 32.6250]], { color: '#10B981', weight: 4, opacity: 0.9 }).addTo(map);
       trafficLayers.current.push(jamSegment, clearSegment);
@@ -197,7 +217,7 @@
       <div style={{ width: '100%', height: '100%', position: 'relative' }}>
         <div ref={mapRef} style={{ width: '100%', height: '100%', borderRadius: T.radii.lg, background: '#0F172A' }}></div>
 
-        {/* Live Traffic & Reroute Controls */}
+        {/* Satellite & Map View Switcher + Traffic Reroute Controls */}
         <div style={{
           position: 'absolute',
           top: '12px',
@@ -205,17 +225,76 @@
           zIndex: 1000,
           display: 'flex',
           flexDirection: 'column',
-          gap: '6px'
+          gap: '6px',
+          alignItems: 'flex-end'
         }}>
+          {/* Map Layer Switcher */}
+          <div style={{
+            display: 'flex',
+            background: 'rgba(15, 23, 42, 0.92)',
+            backdropFilter: 'blur(4px)',
+            padding: '3px',
+            borderRadius: '8px',
+            border: '1px solid rgba(255,255,255,0.15)',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.5)'
+          }}>
+            <button
+              onClick={() => switchMapStyle('dark')}
+              style={{
+                background: mapStyle === 'dark' ? '#3B82F6' : 'transparent',
+                color: '#FFF',
+                border: 'none',
+                padding: '4px 8px',
+                borderRadius: '6px',
+                fontSize: '10px',
+                fontWeight: '700',
+                cursor: 'pointer'
+              }}
+            >
+              🗺️ Dark
+            </button>
+            <button
+              onClick={() => switchMapStyle('satellite')}
+              style={{
+                background: mapStyle === 'satellite' ? '#00FC8F' : 'transparent',
+                color: mapStyle === 'satellite' ? '#0A1029' : '#FFF',
+                border: 'none',
+                padding: '4px 8px',
+                borderRadius: '6px',
+                fontSize: '10px',
+                fontWeight: '800',
+                cursor: 'pointer'
+              }}
+            >
+              📡 Satellite
+            </button>
+            <button
+              onClick={() => switchMapStyle('street')}
+              style={{
+                background: mapStyle === 'street' ? '#3B82F6' : 'transparent',
+                color: '#FFF',
+                border: 'none',
+                padding: '4px 8px',
+                borderRadius: '6px',
+                fontSize: '10px',
+                fontWeight: '700',
+                cursor: 'pointer'
+              }}
+            >
+              🗺️ Street
+            </button>
+          </div>
+
+          {/* Reroute Control */}
           <button
             onClick={toggleReroute}
             style={{
               background: routePath === 'bypass' ? '#00FC8F' : 'rgba(15, 23, 42, 0.92)',
               color: routePath === 'bypass' ? '#0A1029' : '#FFF',
               border: '1px solid #00FC8F',
-              padding: '8px 12px',
+              padding: '6px 10px',
               borderRadius: '8px',
-              fontSize: '11px',
+              fontSize: '10.5px',
               fontWeight: '800',
               cursor: 'pointer',
               boxShadow: '0 4px 12px rgba(0,0,0,0.4)'
