@@ -33,102 +33,227 @@
     }
   };
 
-  // Complete bus-riding students manifest across Kabs Lily routes
+  // Complete bus-riding students manifest across Kabs Lily routes with real GPS coordinates
   const mockStudents = [
-    { id: 's1', name: 'Brian Mukasa', class: 'P.4', guardian: 'Sarah Mukasa', phone: '+256 772 111222', address: 'Plot 14, Acacia Ave, Kireka', landmark: 'Near Kireka Police Station', status: 'waiting', distance: '0.8 km', time: '3 mins' },
-    { id: 's2', name: 'Esther Namuli', class: 'P.2', guardian: 'Peter Namuli', phone: '+256 752 333444', address: 'Kisaasi, Bahai Road Stage', landmark: 'Opposite Bahai Temple Gate', status: 'waiting', distance: '1.4 km', time: '5 mins' },
-    { id: 's3', name: 'Joshua Kigozi', class: 'P.6', guardian: 'Mary Kigozi', phone: '+256 701 555666', address: 'Ntinda, Minister\'s Village', landmark: 'Near Ntinda Shopping Complex', status: 'waiting', distance: '2.1 km', time: '7 mins' },
-    { id: 's4', name: 'Mirembe Nakato', class: 'P.1', guardian: 'Mrs. Sarah Nakato', phone: '+256 772 416902', address: 'Bweyogerere Trading Centre', landmark: 'Behind Shell Station Bweyogerere', status: 'waiting', distance: '2.8 km', time: '9 mins' },
-    { id: 's5', name: 'Daniel Okello', class: 'P.4', guardian: 'Mr. James Okello', phone: '+256 701 884553', address: 'Naalya Housing Estate, Block B', landmark: 'Near Quality Shopping Mall', status: 'waiting', distance: '3.4 km', time: '11 mins' },
-    { id: 's6', name: 'Ruth Asiimwe', class: 'P.3', guardian: 'Mrs. Grace Asiimwe', phone: '+256 752 220119', address: 'Kyaliwajjala Stage, Plot 8', landmark: 'Near Kyaliwajjala Catholic Church', status: 'waiting', distance: '4.2 km', time: '13 mins' },
-    { id: 's7', name: 'Sarah Namutebi', class: 'P.2', guardian: 'Mrs. Florence N.', phone: '+256 779 446200', address: 'Kiwatule Recreation Centre Road', landmark: 'Kiwatule Flyover Junction', status: 'waiting', distance: '5.0 km', time: '15 mins' },
-    { id: 's8', name: 'Joseph Kato', class: 'P.6', guardian: 'Mr. Vincent Kato', phone: '+256 705 117040', address: 'Banda Hill Road, House 12', landmark: 'Opposite Kyambogo University Gate 2', status: 'waiting', distance: '5.6 km', time: '17 mins' },
-    { id: 's9', name: 'Patricia Atim', class: 'P.3', guardian: 'Mrs. Mary Atim', phone: '+256 776 901220', address: 'Mutungo Hill, Plot 45', landmark: 'Near Mutungo Water Tank', status: 'waiting', distance: '6.3 km', time: '19 mins' },
-    { id: 's10', name: 'James Wamala', class: 'P.7', guardian: 'Mr. Edward Wamala', phone: '+256 752 488916', address: 'Luzira Stage, Port Bell Road', landmark: 'Near Luzira Church of Uganda', status: 'waiting', distance: '7.1 km', time: '21 mins' },
-    { id: 's11', name: 'Sharon Nabakooza', class: 'Baby', guardian: 'Mrs. Janet N.', phone: '+256 700 000111', address: 'Kireka Kamuli Road', landmark: 'Near Kamuli Stage', status: 'waiting', distance: '7.8 km', time: '23 mins' },
-    { id: 's12', name: 'Brenda Najjuma', class: 'Middle', guardian: 'Mrs. Diana Najjuma', phone: '+256 700 000222', address: 'Ntinda St. Mbaaga Road', landmark: 'Near St. Mbaaga Library', status: 'waiting', distance: '8.5 km', time: '25 mins' },
-    { id: 's13', name: 'Joy Babirye', class: 'Top', guardian: 'Mrs. Susan Babirye', phone: '+256 700 000333', address: 'Kisaasi Central Stage', landmark: 'Near Kisaasi Medical Centre', status: 'waiting', distance: '9.1 km', time: '27 mins' },
+    { id: 's1', name: 'Brian Mukasa', class: 'P.4', guardian: 'Sarah Mukasa', phone: '+256 772 111222', address: 'Plot 14, Acacia Ave, Kireka', landmark: 'Near Kireka Police Station', status: 'waiting', lat: 0.3472, lng: 32.6325, distance: '0.8 km', time: '3 mins' },
+    { id: 's2', name: 'Esther Namuli', class: 'P.2', guardian: 'Peter Namuli', phone: '+256 752 333444', address: 'Kisaasi, Bahai Road Stage', landmark: 'Opposite Bahai Temple Gate', status: 'waiting', lat: 0.3625, lng: 32.5895, distance: '1.4 km', time: '5 mins' },
+    { id: 's3', name: 'Joshua Kigozi', class: 'P.6', guardian: 'Mary Kigozi', phone: '+256 701 555666', address: 'Ntinda, Minister\'s Village', landmark: 'Near Ntinda Shopping Complex', status: 'waiting', lat: 0.3542, lng: 32.6142, distance: '2.1 km', time: '7 mins' },
+    { id: 's4', name: 'Mirembe Nakato', class: 'P.1', guardian: 'Mrs. Sarah Nakato', phone: '+256 772 416902', address: 'Bweyogerere Trading Centre', landmark: 'Behind Shell Station Bweyogerere', status: 'waiting', lat: 0.3485, lng: 32.6482, distance: '2.8 km', time: '9 mins' },
+    { id: 's5', name: 'Daniel Okello', class: 'P.4', guardian: 'Mr. James Okello', phone: '+256 701 884553', address: 'Naalya Housing Estate, Block B', landmark: 'Near Quality Shopping Mall', status: 'waiting', lat: 0.3685, lng: 32.6285, distance: '3.4 km', time: '11 mins' },
+    { id: 's6', name: 'Ruth Asiimwe', class: 'P.3', guardian: 'Mrs. Grace Asiimwe', phone: '+256 752 220119', address: 'Kyaliwajjala Stage, Plot 8', landmark: 'Near Kyaliwajjala Catholic Church', status: 'waiting', lat: 0.3752, lng: 32.6420, distance: '4.2 km', time: '13 mins' },
+    { id: 's7', name: 'Sarah Namutebi', class: 'P.2', guardian: 'Mrs. Florence N.', phone: '+256 779 446200', address: 'Kiwatule Recreation Centre Road', landmark: 'Kiwatule Flyover Junction', status: 'waiting', lat: 0.3610, lng: 32.6190, distance: '5.0 km', time: '15 mins' },
+    { id: 's8', name: 'Joseph Kato', class: 'P.6', guardian: 'Mr. Vincent Kato', phone: '+256 705 117040', address: 'Banda Hill Road, House 12', landmark: 'Opposite Kyambogo University Gate 2', status: 'waiting', lat: 0.3420, lng: 32.6220, distance: '5.6 km', time: '17 mins' },
+    { id: 's9', name: 'Patricia Atim', class: 'P.3', guardian: 'Mrs. Mary Atim', phone: '+256 776 901220', address: 'Mutungo Hill, Plot 45', landmark: 'Near Mutungo Water Tank', status: 'waiting', lat: 0.3280, lng: 32.6250, distance: '6.3 km', time: '19 mins' },
+    { id: 's10', name: 'James Wamala', class: 'P.7', guardian: 'Mr. Edward Wamala', phone: '+256 752 488916', address: 'Luzira Stage, Port Bell Road', landmark: 'Near Luzira Church of Uganda', status: 'waiting', lat: 0.3150, lng: 32.6350, distance: '7.1 km', time: '21 mins' },
+    { id: 's11', name: 'Sharon Nabakooza', class: 'Baby', guardian: 'Mrs. Janet N.', phone: '+256 700 000111', address: 'Kireka Kamuli Road', landmark: 'Near Kamuli Stage', status: 'waiting', lat: 0.3520, lng: 32.6380, distance: '7.8 km', time: '23 mins' },
+    { id: 's12', name: 'Brenda Najjuma', class: 'Middle', guardian: 'Mrs. Diana Najjuma', phone: '+256 700 000222', address: 'Ntinda St. Mbaaga Road', landmark: 'Near St. Mbaaga Library', status: 'waiting', lat: 0.3580, lng: 32.6100, distance: '8.5 km', time: '25 mins' },
+    { id: 's13', name: 'Joy Babirye', class: 'Top', guardian: 'Mrs. Susan Babirye', phone: '+256 700 000333', address: 'Kisaasi Central Stage', landmark: 'Near Kisaasi Medical Centre', status: 'waiting', lat: 0.3660, lng: 32.5850, distance: '9.1 km', time: '27 mins' },
   ];
 
-  // Surrounding Places & Landmarks around Kampala / Kireka route
-  const surroundingPlaces = [
-    { name: '🏫 Kabs Lily School Gate', x: 340, y: 50, color: '#00FC8F' },
-    { name: '🏬 Ntinda Complex', x: 200, y: 140, color: '#3B82F6' },
-    { name: '🛒 Naalya Quality Mall', x: 280, y: 90, color: '#3B82F6' },
-    { name: '⛽ Bweyogerere Shell', x: 140, y: 200, color: '#F59E0B' },
-    { name: '🚓 Kireka Police Stage', x: 60, y: 240, color: '#EF4444' },
-    { name: '⛪ Bahai Temple Gate', x: 110, y: 160, color: '#A855F7' },
-  ];
+  // Real Interactive Leaflet Map with Zoom, Live Traffic, Student Markers & Rerouting
+  const RealLeafletMap = ({ students, activeStudent }) => {
+    const mapRef = React.useRef(null);
+    const mapInstance = React.useRef(null);
+    const [trafficMode, setTrafficMode] = useState(true);
+    const [routePath, setRoutePath] = useState('normal');
+    const trafficLayers = React.useRef([]);
+    const routePolyline = React.useRef(null);
 
-  // Map Component with Route, Student Pins & Surrounding Places
-  const SvgMap = () => (
-    <div style={{
-      width: '100%',
-      height: '100%',
-      backgroundColor: '#0B1120',
-      position: 'relative',
-      overflow: 'hidden',
-      borderRadius: T.radii.lg,
-      border: `1px solid ${T.colors.border}`,
-    }}>
-      <svg width="100%" height="100%" viewBox="0 0 400 300" preserveAspectRatio="xMidYMid slice" style={{ opacity: 0.9 }}>
-        <pattern id="grid" width="30" height="30" patternUnits="userSpaceOnUse">
-          <path d="M 30 0 L 0 0 0 30" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="1"/>
-        </pattern>
-        <rect width="100%" height="100%" fill="url(#grid)" />
-        
-        {/* Main Route Line */}
-        <path d="M 50 260 Q 120 220 180 150 T 340 50" fill="none" stroke={T.colors.primary} strokeWidth="5" strokeDasharray="6, 6" />
-        
-        {/* Surrounding Places Badges */}
-        {surroundingPlaces.map((place, idx) => (
-          <g key={idx} transform={`translate(${place.x}, ${place.y})`}>
-            <rect x="-40" y="-12" width="80" height="18" rx="4" fill="rgba(15, 23, 42, 0.85)" stroke={place.color} strokeWidth="1" />
-            <text x="0" y="0" fontSize="7.5" fill="#FFF" textAnchor="middle" fontWeight="bold">{place.name}</text>
-          </g>
-        ))}
+    useEffect(() => {
+      if (!mapRef.current || mapInstance.current) return;
+      if (typeof window.L === 'undefined') return;
 
-        {/* Next Stop Pin */}
-        <g transform="translate(180, 150)">
-          <circle cx="0" cy="0" r="14" fill={T.colors.warning} />
-          <text x="0" y="4" fontSize="11" fill="#000" textAnchor="middle" fontWeight="bold">1</text>
-        </g>
-        
-        {/* Driver position */}
-        <g transform="translate(60, 250)">
-          <circle cx="0" cy="0" r="18" fill={T.colors.primary} opacity="0.3">
-            <animate attributeName="r" values="18; 26; 18" dur="2s" repeatCount="indefinite" />
-          </circle>
-          <circle cx="0" cy="0" r="9" fill={T.colors.primary} />
-          <text x="0" y="3" fontSize="8" fill="#FFF" textAnchor="middle" fontWeight="bold">🚌</text>
-        </g>
-      </svg>
+      const L = window.L;
+      // Initialize Leaflet map centered at Kabs Lily / Kireka / Ntinda area
+      const map = L.map(mapRef.current, {
+        center: [0.3540, 32.6200],
+        zoom: 13,
+        zoomControl: true,
+        attributionControl: false
+      });
+      mapInstance.current = map;
 
-      {/* Surrounding Places Bar Overlay */}
-      <div style={{
-        position: 'absolute',
-        bottom: '8px',
-        left: '8px',
-        right: '8px',
-        background: 'rgba(15, 23, 42, 0.9)',
-        padding: '6px 10px',
-        borderRadius: '6px',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '8px',
-        overflowX: 'auto',
-        fontSize: '10px',
-        color: '#94A3B8'
-      }}>
-        <span style={{ fontWeight: '700', color: '#00FC8F' }}>SURROUNDING PLACES:</span>
-        <span>🏫 Kabs Lily School Gate</span> ·
-        <span>🏬 Ntinda Complex</span> ·
-        <span>🛒 Naalya Mall</span> ·
-        <span>⛽ Bweyogerere Shell</span> ·
-        <span>🚓 Kireka Police</span>
+      // Dark theme OpenStreetMap Carto tiles
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+        maxZoom: 19,
+        subdomains: 'abcd',
+      }).addTo(map);
+
+      // 1. Add School Gate Destination Marker
+      const schoolIcon = L.divIcon({
+        className: 'custom-div-icon',
+        html: `<div style="background:#00FC8F; color:#0A1029; font-weight:bold; font-size:11px; padding:4px 8px; border-radius:12px; border:2px solid #FFF; white-space:nowrap; box-shadow:0 0 10px #00FC8F;">🏫 Kabs Lily School</div>`,
+        iconSize: [110, 30],
+        iconAnchor: [55, 15]
+      });
+      L.marker([0.3600, 32.6250], { icon: schoolIcon }).addTo(map)
+        .bindPopup(`<b>🏫 Kabs Lily Kindercare Center</b><br/>Destination Campus`);
+
+      // 2. Add Surrounding Places Markers
+      const landmarks = [
+        { name: '🏬 Ntinda Complex', lat: 0.3542, lng: 32.6142, color: '#3B82F6' },
+        { name: '🛒 Naalya Quality Mall', lat: 0.3685, lng: 32.6285, color: '#3B82F6' },
+        { name: '⛽ Bweyogerere Shell', lat: 0.3485, lng: 32.6482, color: '#F59E0B' },
+        { name: '🚓 Kireka Police Stage', lat: 0.3472, lng: 32.6325, color: '#EF4444' },
+        { name: '⛪ Bahai Temple Gate', lat: 0.3625, lng: 32.5895, color: '#A855F7' },
+      ];
+
+      landmarks.forEach(l => {
+        const icon = L.divIcon({
+          className: 'custom-div-icon',
+          html: `<div style="background:${l.color}; color:#FFF; font-size:10px; font-weight:bold; padding:2px 6px; border-radius:8px; border:1px solid #FFF; white-space:nowrap;">${l.name}</div>`,
+          iconSize: [100, 22],
+          iconAnchor: [50, 11]
+        });
+        L.marker([l.lat, l.lng], { icon }).addTo(map)
+          .bindPopup(`<b>${l.name}</b><br/>Surrounding Landmark`);
+      });
+
+      // 3. Add Student Pickup Pins
+      students.forEach((s, idx) => {
+        if (!s.lat || !s.lng) return;
+        const isPicked = s.status === 'picked_up';
+        const isSkipped = s.status === 'skipped';
+        const color = isPicked ? '#10B981' : isSkipped ? '#F59E0B' : '#3B82F6';
+        
+        const pinIcon = L.divIcon({
+          className: 'custom-pin-icon',
+          html: `<div style="background:${color}; color:#FFF; width:26px; height:26px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:11px; border:2px solid #FFF; box-shadow:0 2px 8px rgba(0,0,0,0.5);">${idx+1}</div>`,
+          iconSize: [26, 26],
+          iconAnchor: [13, 13]
+        });
+
+        const popupContent = `
+          <div style="font-family:sans-serif; padding:4px;">
+            <b style="font-size:14px; color:#0F172A;">${s.name} (${s.class})</b><br/>
+            <span style="color:#D97706; font-weight:bold;">📍 ${s.address}</span><br/>
+            <span style="color:#475569;">🏛️ ${s.landmark || ''}</span><br/>
+            <span style="font-size:12px; color:#334155;">📞 Guardian: ${s.phone}</span><br/>
+            <a href="tel:${s.phone}" style="display:inline-block; margin-top:6px; padding:4px 8px; background:#3B82F6; color:#fff; text-decoration:none; border-radius:4px; font-size:11px; font-weight:bold;">📞 Call Parent</a>
+          </div>
+        `;
+        L.marker([s.lat, s.lng], { icon: pinIcon }).addTo(map).bindPopup(popupContent);
+      });
+
+      // 4. Draw Initial Route Polyline
+      drawRoute(map, 'normal');
+
+      return () => {
+        if (mapInstance.current) {
+          mapInstance.current.remove();
+          mapInstance.current = null;
+        }
+      };
+    }, []);
+
+    // Draw route & traffic lines
+    const drawRoute = (map, mode) => {
+      if (!map) return;
+      const L = window.L;
+      if (!L) return;
+
+      if (routePolyline.current) map.removeLayer(routePolyline.current);
+      trafficLayers.current.forEach(l => map.removeLayer(l));
+      trafficLayers.current = [];
+
+      const normalCoords = [
+        [0.3472, 32.6325], // Kireka
+        [0.3485, 32.6482], // Bweyogerere
+        [0.3685, 32.6285], // Naalya
+        [0.3542, 32.6142], // Ntinda
+        [0.3600, 32.6250]  // Kabs Lily
+      ];
+
+      const bypassCoords = [
+        [0.3472, 32.6325], // Kireka
+        [0.3752, 32.6420], // Kyaliwajjala Bypass
+        [0.3685, 32.6285], // Naalya Flyover
+        [0.3600, 32.6250]  // Kabs Lily
+      ];
+
+      const coords = mode === 'bypass' ? bypassCoords : normalCoords;
+      const polyColor = mode === 'bypass' ? '#00FC8F' : '#3B82F6';
+
+      routePolyline.current = L.polyline(coords, {
+        color: polyColor,
+        weight: 6,
+        opacity: 0.85,
+        dashArray: mode === 'bypass' ? '8, 8' : null
+      }).addTo(map);
+
+      // Traffic flow indicators (Red = Jinja Rd jam, Green = Bypass clear)
+      const jamSegment = L.polyline([[0.3472, 32.6325], [0.3485, 32.6482]], { color: '#EF4444', weight: 4, opacity: 0.9 }).addTo(map);
+      const clearSegment = L.polyline([[0.3685, 32.6285], [0.3600, 32.6250]], { color: '#10B981', weight: 4, opacity: 0.9 }).addTo(map);
+      trafficLayers.current.push(jamSegment, clearSegment);
+    };
+
+    const toggleReroute = () => {
+      const nextMode = routePath === 'normal' ? 'bypass' : 'normal';
+      setRoutePath(nextMode);
+      if (mapInstance.current) drawRoute(mapInstance.current, nextMode);
+    };
+
+    return (
+      <div style={{ width: '100%', height: '100%', position: 'relative' }}>
+        <div ref={mapRef} style={{ width: '100%', height: '100%', borderRadius: T.radii.lg, background: '#0F172A' }}></div>
+
+        {/* Live Traffic & Reroute Controls */}
+        <div style={{
+          position: 'absolute',
+          top: '12px',
+          right: '12px',
+          zIndex: 1000,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '6px'
+        }}>
+          <button
+            onClick={toggleReroute}
+            style={{
+              background: routePath === 'bypass' ? '#00FC8F' : 'rgba(15, 23, 42, 0.92)',
+              color: routePath === 'bypass' ? '#0A1029' : '#FFF',
+              border: '1px solid #00FC8F',
+              padding: '8px 12px',
+              borderRadius: '8px',
+              fontSize: '11px',
+              fontWeight: '800',
+              cursor: 'pointer',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.4)'
+            }}
+          >
+            {routePath === 'bypass' ? '⚡ Rerouted via Bypass' : '🚦 Avoid Jam (Reroute)'}
+          </button>
+        </div>
+
+        {/* Surrounding Places Bar Overlay */}
+        <div style={{
+          position: 'absolute',
+          bottom: '8px',
+          left: '8px',
+          right: '8px',
+          background: 'rgba(15, 23, 42, 0.92)',
+          backdropFilter: 'blur(4px)',
+          padding: '6px 10px',
+          borderRadius: '6px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          overflowX: 'auto',
+          fontSize: '10px',
+          color: '#94A3B8',
+          zIndex: 1000,
+          border: '1px solid rgba(255,255,255,0.1)'
+        }}>
+          <span style={{ fontWeight: '700', color: '#00FC8F' }}>SURROUNDING PLACES:</span>
+          <span>🏫 Kabs Lily School</span> ·
+          <span>🏬 Ntinda Complex</span> ·
+          <span>🛒 Naalya Mall</span> ·
+          <span>⛽ Bweyogerere Shell</span> ·
+          <span>🚓 Kireka Police</span>
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   const DriverView = ({ vanId = 'van-01' }) => {
     const [students, setStudents] = useState(mockStudents);
@@ -238,7 +363,7 @@
           {/* Map Panel */}
           <div style={{ flex: 1, position: 'relative', display: 'flex', flexDirection: 'column' }}>
             <div style={{ flex: 1, padding: '12px' }}>
-               <SvgMap />
+               <RealLeafletMap students={students} activeStudent={activeStudent} />
             </div>
             
             {activeStudent && (
