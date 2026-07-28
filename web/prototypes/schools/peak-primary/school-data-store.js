@@ -61,13 +61,14 @@
         sb.from('staff_attendance').select('*, teachers(full_name, role)').eq('tenant_id', tenantId).order('date', { ascending: false })
       ]);
 
+      let rawStudents = stuRes.data || [];
       if (incRes.data && !incRes.error) state.incomes = incRes.data.map(mapIncomeToApp);
       else state.incomes = SEED_INCOMES; // Table might not exist yet
 
       if (expRes.data && !expRes.error) state.expenses = expRes.data.map(mapExpenseToApp);
       else state.expenses = SEED_EXPENSES;
 
-      if (stuRes.data) state.students = stuRes.data.map(mapStudentToApp);
+      if (rawStudents.length) state.students = rawStudents.map(s => mapStudentToApp(s, state.incomes));
       if (tchRes.data) state.teachers = tchRes.data.map(mapTeacherToApp);
       if (feeRes.data) state.payments = feeRes.data;
       if (attRes && attRes.data) state.attendance = attRes.data.map(mapAttendanceToApp);
@@ -80,7 +81,11 @@
         sb.channel('public:school_income')
           .on('postgres_changes', { event: '*', schema: 'public', table: 'school_income', filter: `tenant_id=eq.${tenantId}` }, async () => {
             const r = await sb.from('school_income').select('*').eq('tenant_id', tenantId).order('date', { ascending: false });
-            if (r.data) { state.incomes = r.data.map(mapIncomeToApp); notify(); }
+            if (r.data) {
+              state.incomes = r.data.map(mapIncomeToApp);
+              if (rawStudents.length) state.students = rawStudents.map(s => mapStudentToApp(s, state.incomes));
+              notify();
+            }
           }).subscribe();
       }
       
@@ -169,15 +174,29 @@
     };
   }
 
-  function mapStudentToApp(dbRow) {
+  function mapStudentToApp(dbRow, incomesList = state.incomes) {
+    const sName = (dbRow.name || '').trim().toLowerCase();
+    const inc = (incomesList || []).find(i => {
+      const iName = (i.studentName || i.student_name || '').trim().toLowerCase();
+      return iName && sName && (iName.includes(sName) || sName.includes(iName));
+    });
+
+    const isBoarding = (inc && (inc.sourceType || inc.source_type || '').toLowerCase().includes('boarding')) || 
+                       (inc && (inc.notes || '').toLowerCase().includes('boarding')) ||
+                       (dbRow.stream || '').toLowerCase().includes('boarding');
+
+    const termFee = inc ? Number(inc.amount) : (isBoarding ? 500000 : 250000);
+    const balance = inc ? Number(inc.unspentBalance ?? inc.unspent_balance ?? 0) : termFee;
+    const paidAmount = Math.max(0, termFee - balance);
+
     return {
       id: dbRow.id,
       name: dbRow.name || 'Unknown Student',
       class: dbRow.stream || 'Unknown Class',
-      type: 'Day Scholar', // Not in standard DB schema yet
-      termFee: 750000,     // Default dummy for prototype view
-      paidAmount: 0,
-      balance: 750000,
+      type: isBoarding ? 'Boarding' : 'Day Scholar',
+      termFee: termFee,
+      paidAmount: paidAmount,
+      balance: balance,
       guardian: dbRow.guardian_name || 'N/A',
       guardianPhone: dbRow.guardian_phone || ''
     };
@@ -372,7 +391,55 @@
       }
     },
 
-    addPayment: () => {}
+    async addPayment(entry) {
+      const tempId = 'temp-' + Date.now();
+      const newAppEntry = { ...entry, id: tempId };
+      state.payments = [newAppEntry, ...state.payments];
+      notify();
+
+      if (sb && tenantId) {
+        // If student_id is provided, use it; otherwise search or skip constraint
+        const { data } = await sb.from('fees').insert([{
+          tenant_id: tenantId,
+          student_id: entry.studentId || 1, // Fallback student ID if not passed
+          kind: 'payment',
+          amount: Number(entry.amount),
+          notes: entry.notes || entry.description || 'Fee payment'
+        }]).select().single();
+
+        if (data) {
+          state.payments = state.payments.map(p => p.id === tempId ? data : p);
+          notify();
+        }
+      }
+    },
+
+    async importFees(rows) {
+      if (!Array.isArray(rows) || !rows.length) return;
+
+      if (sb && tenantId) {
+        const payload = rows.map(r => ({
+          tenant_id: tenantId,
+          student_name: r.studentName || r.name,
+          class: r.class || r.stream || 'N/A',
+          source_type: r.feeType || 'School Fees (Tuition)',
+          amount: Number(r.fullFees || r.amount || 0),
+          unspent_balance: Number(r.balance || r.unspentBalance || r.amount || 0),
+          payment_method: r.paymentMethod || 'Cash',
+          notes: r.notes || '',
+          logged_by: 'bursar'
+        }));
+
+        const { data } = await sb.from('school_income').insert(payload).select();
+        if (data) {
+          const fresh = await sb.from('school_income').select('*').eq('tenant_id', tenantId).order('date', { ascending: false });
+          if (fresh.data) {
+            state.incomes = fresh.data.map(mapIncomeToApp);
+            notify();
+          }
+        }
+      }
+    }
   };
 
 })();
