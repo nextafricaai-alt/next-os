@@ -4,9 +4,13 @@
 -- and restore EXACTLY 131 Students (22 Boarding + 109 Day Scholars)
 -- ====================================================================
 
+-- 0. Ensure is_boarding column exists on students table
+ALTER TABLE IF EXISTS students ADD COLUMN IF NOT EXISTS is_boarding boolean DEFAULT false;
+
 DO $$
 DECLARE
   v_tenant_id text := 'kabs-lily-junior-school-and-kindercare-centre';
+  s_rec RECORD;
 BEGIN
 
   -- 1. Clear previous duplicate records for this tenant
@@ -17,7 +21,6 @@ BEGIN
   DELETE FROM students WHERE tenant_id = v_tenant_id;
 
   -- 2. Insert the EXACT 131 Unique Students (22 Boarding, 109 Day Scholars)
-  -- Uses column "name" matching public.students table schema
   INSERT INTO students (tenant_id, name, stream, is_boarding, guardian_name, guardian_phone) VALUES
   -- Baby Class
   (v_tenant_id, 'Namala Leticia', 'Baby Class', false, 'Parent of Namala Leticia', '+256700000001'),
