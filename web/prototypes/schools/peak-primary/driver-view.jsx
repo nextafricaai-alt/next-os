@@ -521,26 +521,16 @@
     }, [students, filter]);
 
     return (
-      <div style={{
-        backgroundColor: '#000',
+      <div className="driver-app-shell" style={{
         color: T.colors.text,
         fontFamily: T.fonts.sans,
         width: '100%',
-        height: '100vh',
-        height: '100dvh',
+        height: '100%',
         display: 'flex',
-        justifyContent: 'center',
-        overflow: 'hidden',
+        flexDirection: 'column',
+        backgroundColor: T.colors.background,
+        position: 'relative',
       }}>
-        <div className="driver-app-shell" style={{
-          width: '100%',
-          maxWidth: '1280px',
-          height: '100%',
-          display: 'flex',
-          flexDirection: 'column',
-          backgroundColor: T.colors.background,
-          position: 'relative',
-        }}>
           
           {/* Header */}
           <div style={{
@@ -632,133 +622,266 @@
             </div>
           </div>
 
-          {/* Map Panel */}
-          <div style={{ flex: 1, position: 'relative', display: 'flex', flexDirection: 'column' }}>
-            <div style={{ flex: 1, padding: '12px' }}>
-               <RealLeafletMap students={students} activeStudent={activeStudent} />
-            </div>
-            
-            {activeStudent && (
-              <div style={{
-                position: 'absolute',
-                top: '24px',
-                left: '24px',
-                right: '24px',
-                backgroundColor: 'rgba(30, 41, 59, 0.95)',
-                backdropFilter: 'blur(8px)',
-                padding: '14px 16px',
-                borderRadius: T.radii.lg,
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                boxShadow: T.shadows.md,
-                border: `1px solid ${T.colors.border}`,
-              }}>
-                <div style={{ fontSize: '15px', fontWeight: 'bold' }}>
-                  Next: {activeStudent.name}
-                </div>
-                <div style={{ fontSize: '13px', color: T.colors.primary, fontWeight: '600' }}>
-                  {activeStudent.distance} · ~{activeStudent.time}
-                </div>
-              </div>
-            )}
-            
-            <button style={{
-              margin: '0 12px 12px',
-              padding: '12px',
-              backgroundColor: T.colors.surface,
-              color: T.colors.text,
-              border: `1px solid ${T.colors.border}`,
-              borderRadius: T.radii.md,
-              fontSize: '14px',
-              fontWeight: '600',
-              cursor: 'pointer',
-            }}>
-              📍 Recalculate Shortest Route
-            </button>
-          </div>
+          {/* ═══ DESKTOP SPLIT LAYOUT ═══ */}
+          <div className="desktop-main-split" style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
 
-          {/* Action Card */}
-          {activeStudent ? (
-            <div style={{
-              backgroundColor: T.colors.surface,
-              padding: '20px',
-              paddingBottom: 'max(20px, env(safe-area-inset-bottom))',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '16px',
-              boxShadow: '0 -4px 16px rgba(0,0,0,0.3)',
-              zIndex: 20,
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            {/* LEFT: Map Panel */}
+            <div className="desktop-map-side" style={{ position: 'relative', display: 'flex', flexDirection: 'column' }}>
+              <div style={{ flex: 1, padding: '12px', minHeight: 0 }}>
+                <RealLeafletMap students={students} activeStudent={activeStudent} />
+              </div>
+
+              {activeStudent && (
                 <div style={{
-                  width: '60px', height: '60px',
-                  borderRadius: T.radii.full,
-                  backgroundColor: T.colors.primary,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: '22px', fontWeight: 'bold',
+                  position: 'absolute',
+                  top: '24px',
+                  left: '24px',
+                  right: '24px',
+                  backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                  backdropFilter: 'blur(10px)',
+                  padding: '12px 16px',
+                  borderRadius: T.radii.lg,
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  boxShadow: '0 4px 24px rgba(0,0,0,0.6)',
+                  border: '1px solid rgba(59,130,246,0.4)',
+                  zIndex: 10,
                 }}>
-                  {activeStudent.name.split(' ').map(n => n[0]).join('')}
-                </div>
-                <div>
-                  <div style={{ fontSize: '20px', fontWeight: 'bold' }}>{activeStudent.name}</div>
-                  <div style={{ color: T.colors.primary, fontWeight: '600', marginTop: '2px' }}>{activeStudent.class}</div>
-                  <div style={{ fontSize: '13.5px', color: T.colors.textMuted, marginTop: '4px', lineHeight: 1.45 }}>
-                    <b>Guardian:</b> {activeStudent.guardian} · {activeStudent.phone} <br/>
-                    <span style={{ color: '#F59E0B' }}>📍 <b>Pickup:</b> {activeStudent.address}</span> <br/>
-                    {activeStudent.landmark && <span style={{ color: '#94A3B8' }}>🏛️ <b>Landmark:</b> {activeStudent.landmark}</span>}
+                  <div>
+                    <div style={{ fontSize: '11px', color: T.colors.textMuted, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Next Stop</div>
+                    <div style={{ fontSize: '15px', fontWeight: 'bold', marginTop: '2px' }}>
+                      {activeStudent.name}
+                    </div>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontSize: '13px', color: T.colors.primary, fontWeight: '700' }}>
+                      {activeStudent.distance}
+                    </div>
+                    <div style={{ fontSize: '11px', color: T.colors.textMuted }}>~{activeStudent.time}</div>
                   </div>
                 </div>
-              </div>
+              )}
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '4px' }}>
-                {activeStudent.status === 'waiting' && (
-                  <button 
-                    onClick={() => updateStatus(activeStudent.id, 'arrived')}
+              <button style={{
+                margin: '0 12px 12px',
+                padding: '10px',
+                backgroundColor: 'rgba(30, 41, 59, 0.8)',
+                color: T.colors.text,
+                border: `1px solid ${T.colors.border}`,
+                borderRadius: T.radii.md,
+                fontSize: '13px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                backdropFilter: 'blur(8px)',
+              }}>
+                📍 Recalculate Shortest Route
+              </button>
+            </div>
+
+            {/* RIGHT: Desktop Sidebar — Route Manifest + Action Card */}
+            <div className="desktop-sidebar-side">
+
+              {/* Active Stop Action Card */}
+              {activeStudent ? (
+                <div style={{
+                  padding: '20px',
+                  borderBottom: `1px solid ${T.colors.border}`,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '14px',
+                  background: 'linear-gradient(135deg, rgba(59,130,246,0.05) 0%, transparent 100%)',
+                }}>
+                  <div style={{ fontSize: '11px', color: T.colors.textMuted, textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: '600' }}>
+                    ▶ Active Stop
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                    <div style={{
+                      width: '52px', height: '52px',
+                      borderRadius: T.radii.full,
+                      background: 'linear-gradient(135deg, #3B82F6, #8B5CF6)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: '18px', fontWeight: 'bold', flexShrink: 0,
+                    }}>
+                      {activeStudent.name.split(' ').map(n => n[0]).join('')}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: '16px', fontWeight: 'bold', lineHeight: 1.2 }}>{activeStudent.name}</div>
+                      <div style={{ color: T.colors.primary, fontWeight: '600', fontSize: '12px', marginTop: '2px' }}>{activeStudent.class}</div>
+                      <div style={{ fontSize: '12px', color: '#F59E0B', marginTop: '4px', lineHeight: 1.4 }}>
+                        📍 {activeStudent.address}
+                      </div>
+                      {activeStudent.landmark && (
+                        <div style={{ fontSize: '11px', color: T.colors.textMuted, marginTop: '2px' }}>
+                          🏛️ {activeStudent.landmark}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div style={{ fontSize: '12px', color: T.colors.textMuted, lineHeight: 1.4 }}>
+                    <b style={{ color: T.colors.text }}>Guardian:</b> {activeStudent.guardian} · <a href={`tel:${activeStudent.phone}`} style={{ color: '#60A5FA', textDecoration: 'none' }}>{activeStudent.phone}</a>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {activeStudent.status === 'waiting' && (
+                      <button 
+                        onClick={() => updateStatus(activeStudent.id, 'arrived')}
+                        style={{
+                          padding: '14px', backgroundColor: T.colors.warning, color: '#000',
+                          border: 'none', borderRadius: T.radii.md, fontSize: '15px', fontWeight: '800', cursor: 'pointer',
+                          letterSpacing: '0.03em',
+                        }}
+                      >
+                        📍 ARRIVED AT STOP
+                      </button>
+                    )}
+                    
+                    {activeStudent.status === 'arrived' && (
+                      <button 
+                        onClick={() => handlePickedUp(activeStudent.id)}
+                        style={{
+                          padding: '16px', backgroundColor: T.colors.success, color: '#fff',
+                          border: 'none', borderRadius: T.radii.md, fontSize: '17px', fontWeight: '900', cursor: 'pointer',
+                          boxShadow: '0 4px 20px rgba(16,185,129,0.4)',
+                        }}
+                      >
+                        🟢 CHILD PICKED UP
+                      </button>
+                    )}
+
+                    <button 
+                      onClick={() => setSkipModalOpen(activeStudent.id)}
+                      style={{
+                        padding: '12px', backgroundColor: 'transparent', color: T.colors.warning,
+                        border: `1.5px solid ${T.colors.warning}`, borderRadius: T.radii.md, fontSize: '13px', fontWeight: '700', cursor: 'pointer',
+                      }}
+                    >
+                      🟠 SKIPPED / ABSENT
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div style={{
+                  padding: '28px 20px', borderBottom: `1px solid ${T.colors.border}`,
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px', textAlign: 'center',
+                }}>
+                  <div style={{ fontSize: '28px' }}>🎉</div>
+                  <div style={{ fontSize: '16px', fontWeight: 'bold' }}>All Stops Completed</div>
+                  <div style={{ color: T.colors.textMuted, fontSize: '13px' }}>Drive safely back to campus.</div>
+                </div>
+              )}
+
+              {/* Route Manifest Filter Chips */}
+              <div style={{ display: 'flex', gap: '6px', padding: '12px 16px', overflowX: 'auto', borderBottom: `1px solid ${T.colors.border}`, flexShrink: 0 }}>
+                {['All', 'Waiting', 'Picked Up', 'Done'].map(f => (
+                  <button
+                    key={f}
+                    onClick={() => setFilter(f)}
                     style={{
-                      height: '56px', backgroundColor: T.colors.warning, color: '#000',
-                      border: 'none', borderRadius: T.radii.md, fontSize: '18px', fontWeight: '800', cursor: 'pointer',
+                      padding: '6px 12px',
+                      backgroundColor: filter === f ? T.colors.primary : T.colors.surface,
+                      color: filter === f ? '#fff' : T.colors.text,
+                      border: 'none', borderRadius: T.radii.full, fontSize: '12px', fontWeight: '600', cursor: 'pointer', whiteSpace: 'nowrap',
                     }}
                   >
-                    📍 ARRIVED AT STOP
+                    {f} ({f === 'All' ? stats.all : f === 'Waiting' ? stats.waiting : f === 'Picked Up' ? stats.pickedUp : stats.done})
                   </button>
-                )}
-                
-                {activeStudent.status === 'arrived' && (
-                  <button 
-                    onClick={() => handlePickedUp(activeStudent.id)}
-                    style={{
-                      height: '64px', backgroundColor: T.colors.success, color: '#fff',
-                      border: 'none', borderRadius: T.radii.md, fontSize: '20px', fontWeight: '900', cursor: 'pointer',
-                    }}
-                  >
-                    🟢 CHILD PICKED UP
-                  </button>
-                )}
+                ))}
+              </div>
 
-                <button 
-                  onClick={() => setSkipModalOpen(activeStudent.id)}
-                  style={{
-                    height: '48px', backgroundColor: 'transparent', color: T.colors.warning,
-                    border: `2px solid ${T.colors.warning}`, borderRadius: T.radii.md, fontSize: '16px', fontWeight: 'bold', cursor: 'pointer',
-                  }}
-                >
-                  🟠 SKIPPED / ABSENT
-                </button>
+              {/* Desktop Route Manifest List */}
+              <div style={{ overflowY: 'auto', flex: 1, padding: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {filteredStudents.map((s, idx) => (
+                  <div key={s.id} style={{
+                    display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px',
+                    backgroundColor: s.id === (activeStudent && activeStudent.id) ? 'rgba(59,130,246,0.12)' : T.colors.surface,
+                    borderRadius: T.radii.md,
+                    border: s.id === (activeStudent && activeStudent.id) ? '1px solid rgba(59,130,246,0.4)' : `1px solid ${T.colors.border}`,
+                  }}>
+                    <div style={{ fontSize: '13px', fontWeight: 'bold', color: T.colors.textMuted, width: '20px', flexShrink: 0, textAlign: 'center' }}>{idx + 1}</div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: '600', fontSize: '13px', lineHeight: 1.2 }}>{s.name} <span style={{ color: T.colors.textMuted, fontWeight: 'normal', fontSize: '11px' }}>({s.class})</span></div>
+                      <div style={{ fontSize: '11px', color: '#F59E0B', fontWeight: '600', marginTop: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>📍 {s.address}</div>
+                      {s.landmark && <div style={{ fontSize: '10.5px', color: '#94A3B8', marginTop: '1px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>🏛️ {s.landmark}</div>}
+                    </div>
+                    <div style={{
+                      padding: '3px 8px',
+                      backgroundColor: s.status === 'picked_up' ? 'rgba(16, 185, 129, 0.15)' : s.status === 'skipped' ? 'rgba(245, 158, 11, 0.15)' : 'rgba(59, 130, 246, 0.15)',
+                      color: s.status === 'picked_up' ? T.colors.success : s.status === 'skipped' ? T.colors.warning : T.colors.primary,
+                      borderRadius: T.radii.full, fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase', flexShrink: 0,
+                    }}>
+                      {s.status === 'picked_up' ? '✓' : s.status === 'skipped' ? '✗' : '•'} {s.status.replace('_', ' ')}
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
-          ) : (
-            <div style={{
-              backgroundColor: T.colors.surface, padding: '32px 20px',
-              display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '12px', zIndex: 20,
-            }}>
-               <div style={{ fontSize: '20px', fontWeight: 'bold' }}>🎉 All Stops Completed</div>
-               <div style={{ color: T.colors.textMuted }}>Drive safely back to the campus.</div>
-            </div>
-          )}
+          </div>
 
-          {/* Drawer Overlay */}
-          <div style={{
+          {/* ═══ MOBILE ONLY: Active Stop Action Card ═══ */}
+          <div className="mobile-drawer-overlay" style={{ position: 'static', height: 'auto', transform: 'none', transition: 'none', borderRadius: 0, boxShadow: 'none', zIndex: 20, background: 'transparent' }}>
+            {activeStudent ? (
+              <div style={{
+                backgroundColor: '#1E293B',
+                padding: '16px 16px max(16px, env(safe-area-inset-bottom))',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '12px',
+                boxShadow: '0 -2px 16px rgba(0,0,0,0.3)',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div style={{
+                    width: '48px', height: '48px',
+                    borderRadius: '50%',
+                    background: 'linear-gradient(135deg, #3B82F6, #8B5CF6)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: '16px', fontWeight: 'bold', flexShrink: 0,
+                  }}>
+                    {activeStudent.name.split(' ').map(n => n[0]).join('')}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: '15px', fontWeight: 'bold', lineHeight: 1.2 }}>{activeStudent.name}</div>
+                    <div style={{ fontSize: '12px', color: '#F59E0B', marginTop: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>📍 {activeStudent.address}</div>
+                  </div>
+                  <div style={{ fontSize: '12px', color: '#60A5FA', fontWeight: '700', textAlign: 'right' }}>
+                    {activeStudent.distance}<br/><span style={{ color: '#94A3B8', fontWeight: 'normal' }}>{activeStudent.time}</span>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  {activeStudent.status === 'waiting' && (
+                    <button 
+                      onClick={() => updateStatus(activeStudent.id, 'arrived')}
+                      style={{ flex: 1, padding: '14px 8px', backgroundColor: '#F59E0B', color: '#000', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: '800', cursor: 'pointer' }}
+                    >
+                      📍 ARRIVED
+                    </button>
+                  )}
+                  {activeStudent.status === 'arrived' && (
+                    <button 
+                      onClick={() => handlePickedUp(activeStudent.id)}
+                      style={{ flex: 1, padding: '14px 8px', backgroundColor: '#10B981', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: '900', cursor: 'pointer' }}
+                    >
+                      🟢 PICKED UP
+                    </button>
+                  )}
+                  <button 
+                    onClick={() => setSkipModalOpen(activeStudent.id)}
+                    style={{ flex: '0 0 auto', padding: '14px 12px', backgroundColor: 'transparent', color: '#F59E0B', border: '1.5px solid #F59E0B', borderRadius: '8px', fontSize: '13px', fontWeight: '700', cursor: 'pointer' }}
+                  >
+                    🟠 Skip
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div style={{ padding: '20px', textAlign: 'center', color: '#94A3B8', fontSize: '14px' }}>
+                🎉 All stops completed — drive safely!
+              </div>
+            )}
+          </div>
+
+          {/* ═══ MOBILE ONLY: Swipe Drawer ═══ */}
+          <div className="mobile-drawer-overlay" style={{
             position: 'absolute', bottom: 0, left: 0, right: 0,
             backgroundColor: T.colors.background,
             borderTopLeftRadius: T.radii.xl, borderTopRightRadius: T.radii.xl,
@@ -1003,7 +1126,6 @@
             </div>
           )}
 
-        </div>
       </div>
     );
   };
