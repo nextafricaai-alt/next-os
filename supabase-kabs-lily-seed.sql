@@ -88,10 +88,10 @@ BEGIN
   (v_tenant_id, 'Utilities', 'Yaka Electricity Token', 120000, 'UMEME', v_inc_1, 'Monthly prepaid token for main block', false, 'bursar');
 
   -- Seed Fees (Payment history)
-  INSERT INTO fees (tenant_id, student_id, kind, amount, description, due_date, status) VALUES
-  (v_tenant_id, v_student_1, 'payment', 750000, 'School Fees (Tuition)', current_date, 'paid');
-  INSERT INTO fees (tenant_id, student_id, kind, amount, description, due_date, status) VALUES
-  (v_tenant_id, v_student_3, 'payment', 120000, 'Transport (Shuttle)', current_date, 'paid');
+  INSERT INTO fees (tenant_id, student_id, kind, amount, notes) VALUES
+  (v_tenant_id, v_student_1, 'payment', 750000, 'School Fees (Tuition)');
+  INSERT INTO fees (tenant_id, student_id, kind, amount, notes) VALUES
+  (v_tenant_id, v_student_3, 'payment', 120000, 'Transport (Shuttle)');
 
   -- Seed Gate Attendance (attendance table)
   INSERT INTO attendance (tenant_id, student_id, date, present, notes) VALUES
