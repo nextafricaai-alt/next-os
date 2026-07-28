@@ -112,6 +112,30 @@
           }).subscribe();
       }
 
+      if (!stuRes?.error) {
+        sb.channel('public:students')
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'students', filter: `tenant_id=eq.${tenantId}` }, async () => {
+            const r = await sb.from('students').select('*').eq('tenant_id', tenantId);
+            if (r.data) { state.students = r.data.map(mapStudentToApp); notify(); }
+          }).subscribe();
+      }
+
+      if (!tchRes?.error) {
+        sb.channel('public:teachers')
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'teachers', filter: `tenant_id=eq.${tenantId}` }, async () => {
+            const r = await sb.from('teachers').select('*').eq('tenant_id', tenantId);
+            if (r.data) { state.teachers = r.data.map(mapTeacherToApp); notify(); }
+          }).subscribe();
+      }
+
+      if (!feeRes?.error) {
+        sb.channel('public:fees')
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'fees', filter: `tenant_id=eq.${tenantId}` }, async () => {
+            const r = await sb.from('fees').select('*').eq('tenant_id', tenantId).eq('kind', 'payment').order('id', { ascending: false });
+            if (r.data) { state.payments = r.data; notify(); }
+          }).subscribe();
+      }
+
     } catch (e) {
       console.error("SCHOOL_STORE Init Error:", e);
     }
