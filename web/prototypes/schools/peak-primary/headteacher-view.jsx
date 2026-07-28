@@ -138,9 +138,11 @@
     // Filtered Expense Log
     const filteredExpenses = expenses.filter(e => {
       const matchCat = filterCategory === 'All' ? true : e.category === filterCategory;
-      const matchSearch = e.description.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                          e.studentSource.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          e.paidTo.toLowerCase().includes(searchQuery.toLowerCase());
+      const srcObj = incomes.find(i => i.id === e.incomeSourceId);
+      const studentSourceStr = e.studentSource || (srcObj ? `${srcObj.studentName} (${srcObj.class})` : 'General Operating Pool');
+      const matchSearch = (e.description || '').toLowerCase().includes(searchQuery.toLowerCase()) || 
+                          studentSourceStr.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          (e.paidTo || '').toLowerCase().includes(searchQuery.toLowerCase());
       return matchCat && matchSearch;
     });
 
@@ -415,7 +417,7 @@
                         <td style={{ padding: '14px 16px' }}>
                           <div style={{ background: 'rgba(0,252,143,0.1)', border: `1px dashed ${T.mint}`, padding: '6px 10px', borderRadius: '6px', display: 'inline-block' }}>
                             <div style={{ fontWeight: '700', color: T.mint, fontSize: '12px' }}>
-                              🎓 {exp.studentSource}
+                              🎓 {exp.studentSource || (incomes.find(i => i.id === exp.incomeSourceId) ? `${incomes.find(i => i.id === exp.incomeSourceId).studentName} (${incomes.find(i => i.id === exp.incomeSourceId).class})` : 'General Operating Pool')}
                             </div>
                             <div style={{ fontSize: '10px', color: T.textMuted, marginTop: '2px' }}>
                               Source Ref: {exp.incomeSourceId}
