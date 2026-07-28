@@ -1,0 +1,721 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Bursar Dashboard — Kabs Lily Kindercare &amp; Primary School</title>
+  <meta name="description" content="Bursar / Administrator cash control hub for Nalukenge Jane — Kabs Lily Kindercare" />
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&family=Instrument+Serif&display=swap" rel="stylesheet">
+
+  <!-- React & Babel -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <!-- Supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <style>
+    :root {
+      --bg:      #07090F;
+      --surface: #0F172A;
+      --surf2:   #1E293B;
+      --surf3:   #334155;
+      --border:  rgba(255,255,255,0.08);
+      --borderB: rgba(255,255,255,0.15);
+      --text:    #F8FAFC;
+      --muted:   rgba(248,250,252,0.55);
+      --mint:    #00FC8F;
+      --gold:    #FFB400;
+      --red:     #FF4757;
+      --blue:    #3B82F6;
+      --purple:  #8B5CF6;
+      --font:    'Inter', -apple-system, system-ui, sans-serif;
+      --mono:    'JetBrains Mono', ui-monospace, monospace;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { background: var(--bg); color: var(--text); font-family: var(--font); min-height: 100vh; -webkit-font-smoothing: antialiased; }
+    #root { min-height: 100vh; display: flex; flex-direction: column; }
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--surf3); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--mint); }
+    @keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+    @keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:0.4;} }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useMemo, useRef } = React;
+
+    /* ─────────────────────────────────────────────
+       SAMPLE DATA (pre-filled realistic Kabs Lily data
+       matching the role spec requirements)
+    ───────────────────────────────────────────── */
+    const INITIAL_INCOMES = [
+      { id: 'INC-001', date: '2026-07-28 07:30', studentName: 'Brian Mukasa', class: 'P.4', sourceType: 'School Fees (Tuition)', amount: 750000, unspentBalance: 580000, paymentMethod: 'Cash', receivedBy: 'Nalukenge Jane', notes: 'Term 2 fees — full payment' },
+      { id: 'INC-002', date: '2026-07-28 08:15', studentName: 'Grace Kintu', class: 'Baby Class', sourceType: 'School Fees (Tuition)', amount: 350000, unspentBalance: 305000, paymentMethod: 'Cash', receivedBy: 'Nalukenge Jane', notes: 'Full fee clearance' },
+      { id: 'INC-003', date: '2026-07-28 09:10', studentName: 'Alvin Mwesigwa', class: 'P.1', sourceType: 'Admission & Books', amount: 350000, unspentBalance: 245000, paymentMethod: 'Mobile Money', receivedBy: 'Nalukenge Jane', notes: 'Materials & registration fee' },
+      { id: 'INC-004', date: '2026-07-28 10:00', studentName: 'Daniel Okello', class: 'P.4', sourceType: 'School Fees (Tuition)', amount: 600000, unspentBalance: 600000, paymentMethod: 'Cash', receivedBy: 'Nalukenge Jane', notes: 'Term 2 fees — partial balance' },
+      { id: 'INC-005', date: '2026-07-28 11:30', studentName: 'Ruth Asiimwe', class: 'P.3', sourceType: 'Other Income', amount: 80000, unspentBalance: 80000, paymentMethod: 'Cash', receivedBy: 'Nalukenge Jane', notes: 'Swimming levy contribution' },
+    ];
+
+    const INITIAL_EXPENSES = [
+      { id: 'EXP-001', date: '2026-07-28 08:00', category: 'Fuel & Transport', description: 'Shuttle Van Diesel (Mr. Bbosa)', amount: 50000, paidTo: 'Total Energies Kireka', incomeSourceId: 'INC-001', notes: 'Morning shuttle route fuel', receiptAttached: true },
+      { id: 'EXP-002', date: '2026-07-28 08:45', category: 'Food & Kitchen', description: 'Posho & Beans — Weekly Supply', amount: 120000, paidTo: 'Kireka Market Wholesale', incomeSourceId: 'INC-001', notes: 'Weekly lunch grains for 40 children', receiptAttached: true },
+      { id: 'EXP-003', date: '2026-07-28 09:30', category: 'Supplies & Stationery', description: 'Chalk, Exercise Books — Baby Class', amount: 45000, paidTo: 'Aristoc Booklex', incomeSourceId: 'INC-002', notes: 'Baby class stationery restocking', receiptAttached: true },
+      { id: 'EXP-004', date: '2026-07-28 10:15', category: 'Repairs & Maintenance', description: 'Plumbing — P.1 Washroom Tap', amount: 105000, paidTo: 'Fundi James', incomeSourceId: 'INC-003', notes: 'Emergency pipe replacement', receiptAttached: false },
+    ];
+
+    const GATE_ATTENDANCE = [
+      { id: 1, name: 'Brian Mukasa', class: 'P.4', time: '07:42 AM', status: 'Present', method: 'RFID Tag' },
+      { id: 2, name: 'Grace Kintu', class: 'Baby Class', time: '07:45 AM', status: 'Present', method: 'Manual Check-in' },
+      { id: 3, name: 'Alvin Mwesigwa', class: 'P.1', time: '07:50 AM', status: 'Present', method: 'Shuttle Dropoff' },
+      { id: 4, name: 'Divine Okello', class: 'P.7', time: '07:55 AM', status: 'Present', method: 'Shuttle Dropoff' },
+      { id: 5, name: 'Joy Babirye', class: 'Top Class', time: '08:10 AM', status: 'Late', method: 'Parent Dropoff' },
+      { id: 6, name: 'Sharon Nabakooza', class: 'Baby Class', time: '—', status: 'Absent', method: '—' },
+    ];
+
+    const STAFF_SIGNINS = [
+      { id: 1, name: 'Nalukenge Jane', role: 'Bursar / Administrator', time: '06:45 AM', status: 'On Duty' },
+      { id: 2, name: 'Mr. Bbosa Yusufu', role: 'Shuttle Driver', time: '06:30 AM', status: 'On Route' },
+      { id: 3, name: 'Tr. Sarah Namuli', role: 'P.4 Class Teacher', time: '07:15 AM', status: 'In Class' },
+      { id: 4, name: 'Tr. Moses K.', role: 'P.1 Teacher', time: '07:20 AM', status: 'In Class' },
+      { id: 5, name: 'Tr. Patience N.', role: 'Baby Class', time: '07:10 AM', status: 'In Class' },
+    ];
+
+    const FMT = (n) => 'UGX ' + Number(n).toLocaleString();
+    const now = () => new Date().toISOString().slice(0, 16).replace('T', ' ');
+
+    /* ─────────────────────────────────────────────
+       MODAL COMPONENT
+    ───────────────────────────────────────────── */
+    function Modal({ title, onClose, children }) {
+      return (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.75)', backdropFilter:'blur(8px)', zIndex:200, display:'flex', alignItems:'center', justifyContent:'center', padding:'16px' }}>
+          <div style={{ background:'#0F172A', border:'1px solid rgba(255,255,255,0.12)', borderRadius:'16px', width:'100%', maxWidth:'520px', maxHeight:'90vh', overflowY:'auto', animation:'fadeIn 0.2s ease' }}>
+            <div style={{ padding:'20px 24px', borderBottom:'1px solid rgba(255,255,255,0.08)', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+              <h3 style={{ fontSize:'16px', fontWeight:'700' }}>{title}</h3>
+              <button onClick={onClose} style={{ background:'none', border:'none', color:'rgba(248,250,252,0.5)', fontSize:'20px', cursor:'pointer', lineHeight:1 }}>×</button>
+            </div>
+            <div style={{ padding:'24px' }}>{children}</div>
+          </div>
+        </div>
+      );
+    }
+
+    /* ─────────────────────────────────────────────
+       INPUT COMPONENT
+    ───────────────────────────────────────────── */
+    function Field({ label, children }) {
+      return (
+        <div style={{ marginBottom:'14px' }}>
+          <label style={{ display:'block', fontSize:'11px', fontFamily:'var(--mono)', letterSpacing:'0.08em', color:'var(--muted)', marginBottom:'6px', textTransform:'uppercase' }}>{label}</label>
+          {children}
+        </div>
+      );
+    }
+    const inputStyle = { width:'100%', background:'rgba(10,16,41,0.6)', border:'1px solid rgba(255,255,255,0.1)', borderRadius:'8px', padding:'10px 12px', color:'#F8FAFC', fontFamily:'var(--font)', fontSize:'14px', outline:'none' };
+
+    /* ─────────────────────────────────────────────
+       STAT CARD
+    ───────────────────────────────────────────── */
+    function StatCard({ label, value, sub, color = '#00FC8F', icon }) {
+      return (
+        <div style={{ background:'#0F172A', border:'1px solid rgba(255,255,255,0.08)', borderRadius:'12px', padding:'18px 20px', flex:1, minWidth:'160px' }}>
+          <div style={{ fontSize:'22px', marginBottom:'6px' }}>{icon}</div>
+          <div style={{ fontSize:'13px', color:'var(--muted)', marginBottom:'4px', fontWeight:'500' }}>{label}</div>
+          <div style={{ fontSize:'20px', fontWeight:'800', color, letterSpacing:'-0.01em' }}>{value}</div>
+          {sub && <div style={{ fontSize:'11px', color:'var(--muted)', marginTop:'4px' }}>{sub}</div>}
+        </div>
+      );
+    }
+
+    /* ─────────────────────────────────────────────
+       BADGE
+    ───────────────────────────────────────────── */
+    function Badge({ label, color = '#3B82F6', bg }) {
+      return (
+        <span style={{ display:'inline-block', padding:'3px 8px', borderRadius:'999px', fontSize:'10px', fontWeight:'700', textTransform:'uppercase', letterSpacing:'0.06em', background: bg || `${color}22`, color, border:`1px solid ${color}44` }}>
+          {label}
+        </span>
+      );
+    }
+
+    /* ─────────────────────────────────────────────
+       MAIN BURSAR DASHBOARD APP
+    ───────────────────────────────────────────── */
+    function BursarDashboard() {
+      const [tab, setTab] = useState('cash'); // cash | report | supervision | reconcile
+      const [incomes, setIncomes] = useState(INITIAL_INCOMES);
+      const [expenses, setExpenses] = useState(INITIAL_EXPENSES);
+
+      // Modals
+      const [showIncModal, setShowIncModal] = useState(false);
+      const [showExpModal, setShowExpModal] = useState(false);
+      const [showRecModal, setShowRecModal] = useState(false);
+
+      // Income form
+      const [incStudent, setIncStudent] = useState('');
+      const [incClass, setIncClass] = useState('P.1');
+      const [incAmount, setIncAmount] = useState('');
+      const [incSource, setIncSource] = useState('School Fees (Tuition)');
+      const [incMethod, setIncMethod] = useState('Cash');
+      const [incNotes, setIncNotes] = useState('');
+
+      // Expense form
+      const [expCat, setExpCat] = useState('Fuel & Transport');
+      const [expDesc, setExpDesc] = useState('');
+      const [expAmount, setExpAmount] = useState('');
+      const [expPaidTo, setExpPaidTo] = useState('');
+      const [expSrcId, setExpSrcId] = useState(INITIAL_INCOMES[0].id);
+      const [expNotes, setExpNotes] = useState('');
+
+      // Reconciliation
+      const [actualCash, setActualCash] = useState('');
+      const [reconResult, setReconResult] = useState(null);
+
+      // Filters
+      const [reportFilter, setReportFilter] = useState('All');
+      const [reportSearch, setReportSearch] = useState('');
+
+      /* ── Totals ── */
+      const totalIn = useMemo(() => incomes.reduce((s, i) => s + i.amount, 0), [incomes]);
+      const totalOut = useMemo(() => expenses.reduce((s, e) => s + e.amount, 0), [expenses]);
+      const cashBalance = totalIn - totalOut;
+      const totalUnspent = useMemo(() => incomes.reduce((s, i) => s + i.unspentBalance, 0), [incomes]);
+
+      /* ── Add Income ── */
+      const handleAddIncome = () => {
+        const amt = parseInt(incAmount.replace(/,/g,''));
+        if (!incStudent || isNaN(amt) || amt <= 0) return;
+        const id = 'INC-' + String(incomes.length + 1).padStart(3,'0');
+        const entry = { id, date: now(), studentName: incStudent, class: incClass, sourceType: incSource, amount: amt, unspentBalance: amt, paymentMethod: incMethod, receivedBy: 'Nalukenge Jane', notes: incNotes };
+        setIncomes(prev => [entry, ...prev]);
+        setExpSrcId(id);
+        setShowIncModal(false);
+        setIncStudent(''); setIncAmount(''); setIncNotes('');
+      };
+
+      /* ── Add Expense with source attribution ── */
+      const handleAddExpense = () => {
+        const amt = parseInt(expAmount.replace(/,/g,''));
+        if (!expDesc || isNaN(amt) || amt <= 0) return;
+        const src = incomes.find(i => i.id === expSrcId);
+        if (!src) return;
+
+        // Block over-allocation (spec requirement)
+        if (amt > src.unspentBalance) {
+          alert(`⚠️ Cannot allocate more than the unspent balance of ${FMT(src.unspentBalance)} from ${src.id}.`);
+          return;
+        }
+
+        const id = 'EXP-' + String(expenses.length + 1).padStart(3,'0');
+        const entry = { id, date: now(), category: expCat, description: expDesc, amount: amt, paidTo: expPaidTo, incomeSourceId: expSrcId, notes: expNotes, receiptAttached: false };
+        setExpenses(prev => [entry, ...prev]);
+
+        // Deduct from the income entry's unspent balance
+        setIncomes(prev => prev.map(i => i.id === expSrcId ? { ...i, unspentBalance: i.unspentBalance - amt } : i));
+        setShowExpModal(false);
+        setExpDesc(''); setExpAmount(''); setExpPaidTo(''); setExpNotes('');
+      };
+
+      /* ── End-of-day reconciliation ── */
+      const handleReconcile = () => {
+        const actual = parseInt(actualCash.replace(/,/g,''));
+        if (isNaN(actual)) return;
+        const diff = actual - cashBalance;
+        setReconResult({ expected: cashBalance, actual, diff });
+      };
+
+      /* ── Report filter ── */
+      const filteredIncomes = useMemo(() => {
+        return incomes.filter(i => {
+          if (reportSearch && !i.studentName.toLowerCase().includes(reportSearch.toLowerCase()) && !i.id.toLowerCase().includes(reportSearch.toLowerCase())) return false;
+          if (reportFilter !== 'All' && i.sourceType !== reportFilter) return false;
+          return true;
+        });
+      }, [incomes, reportFilter, reportSearch]);
+
+      const getExpensesFor = (incId) => expenses.filter(e => e.incomeSourceId === incId);
+
+      /* ── Profile strip ── */
+      let profile = null;
+      try { profile = JSON.parse(localStorage.getItem('nextos.profile') || 'null'); } catch(e) {}
+      const userName = (profile && profile.fullName) ? profile.fullName : 'Nalukenge Jane';
+
+      /* ── Tabs ── */
+      const TABS = [
+        { k:'cash',       label:'💰 Cash Flow',     desc:'Income & Expenditure' },
+        { k:'report',     label:'📊 Full Report',   desc:'Income → Expense Trail' },
+        { k:'supervision',label:'👁️ Supervision',   desc:'Attendance & Staff' },
+        { k:'reconcile',  label:'🧾 Reconcile',     desc:'End-of-Day Balance' },
+      ];
+
+      return (
+        <div style={{ minHeight:'100vh', background:'var(--bg)', display:'flex', flexDirection:'column' }}>
+
+          {/* ── TOPBAR ── */}
+          <div style={{ background:'#0F172A', borderBottom:'1px solid rgba(255,255,255,0.08)', padding:'0 24px', display:'flex', alignItems:'center', justifyContent:'space-between', height:'60px', position:'sticky', top:0, zIndex:100 }}>
+            <div style={{ display:'flex', alignItems:'center', gap:'14px' }}>
+              <div style={{ width:'36px', height:'36px', borderRadius:'9px', background:'linear-gradient(135deg,#FFB400,#FF7A00)', display:'flex', alignItems:'center', justifyContent:'center', fontWeight:'900', color:'#0a1029', fontSize:'16px' }}>₿</div>
+              <div>
+                <div style={{ fontWeight:'800', fontSize:'14px', letterSpacing:'0.04em' }}>KABS LILY — BURSAR OFFICE</div>
+                <div style={{ fontSize:'11px', color:'var(--muted)', fontFamily:'var(--mono)' }}>Cash Control &amp; Admin Hub · {userName}</div>
+              </div>
+            </div>
+            <div style={{ display:'flex', alignItems:'center', gap:'12px' }}>
+              <div style={{ display:'flex', alignItems:'center', gap:'6px', padding:'5px 12px', borderRadius:'999px', background:'rgba(0,252,143,0.1)', border:'1px solid rgba(0,252,143,0.3)', fontSize:'12px', fontWeight:'700', color:'#00FC8F' }}>
+                <span style={{ width:'7px', height:'7px', borderRadius:'50%', background:'#00FC8F', display:'inline-block', animation:'pulse 2s infinite' }}></span>
+                Live Session
+              </div>
+              <button
+                onClick={() => {
+                  if (window.NextSession && window.NextSession.signOut) { window.NextSession.signOut(); }
+                  else { localStorage.removeItem('nextos.profile'); window.location.href = '/prototypes/schools/peak-primary/login.html'; }
+                }}
+                style={{ background:'rgba(255,71,87,0.1)', border:'1px solid rgba(255,71,87,0.3)', color:'#FF4757', borderRadius:'8px', padding:'7px 14px', fontSize:'12px', fontWeight:'700', cursor:'pointer' }}
+              >
+                Sign Out
+              </button>
+            </div>
+          </div>
+
+          {/* ── STAT CARDS ── */}
+          <div style={{ padding:'20px 24px 0', display:'flex', gap:'12px', flexWrap:'wrap' }}>
+            <StatCard icon="📥" label="Total Received Today" value={FMT(totalIn)} sub={`${incomes.length} income entries`} color="#00FC8F" />
+            <StatCard icon="📤" label="Total Spent Today" value={FMT(totalOut)} sub={`${expenses.length} expense entries`} color="#FF4757" />
+            <StatCard icon="💵" label="Cash on Hand (Expected)" value={FMT(cashBalance)} sub="Income minus Expenditure" color="#FFB400" />
+            <StatCard icon="🔓" label="Total Unallocated Balance" value={FMT(totalUnspent)} sub="Unspent across income entries" color="#3B82F6" />
+          </div>
+
+          {/* ── TAB NAV ── */}
+          <div style={{ padding:'16px 24px 0', display:'flex', gap:'8px', borderBottom:'1px solid rgba(255,255,255,0.07)', marginTop:'16px', flexWrap:'wrap' }}>
+            {TABS.map(t => (
+              <button key={t.k} onClick={() => setTab(t.k)} style={{
+                padding:'10px 18px', borderRadius:'10px 10px 0 0', border:'none', fontSize:'13px', fontWeight:'700',
+                background: tab === t.k ? '#0F172A' : 'transparent',
+                color: tab === t.k ? '#F8FAFC' : 'rgba(248,250,252,0.5)',
+                borderBottom: tab === t.k ? '2px solid #FFB400' : '2px solid transparent',
+                cursor:'pointer', transition:'all 0.15s',
+              }}>
+                {t.label}
+              </button>
+            ))}
+          </div>
+
+          {/* ── MAIN CONTENT ── */}
+          <div style={{ flex:1, padding:'24px', animation:'fadeIn 0.2s ease' }}>
+
+            {/* ═══ CASH FLOW TAB ═══ */}
+            {tab === 'cash' && (
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'20px' }}>
+
+                {/* Income Section */}
+                <div>
+                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'14px' }}>
+                    <h2 style={{ fontSize:'15px', fontWeight:'800', color:'#00FC8F' }}>📥 Income Log</h2>
+                    <button onClick={() => setShowIncModal(true)} style={{ background:'rgba(0,252,143,0.15)', border:'1px solid rgba(0,252,143,0.4)', color:'#00FC8F', padding:'8px 14px', borderRadius:'8px', fontSize:'12px', fontWeight:'700', cursor:'pointer' }}>
+                      + Log Income
+                    </button>
+                  </div>
+                  <div style={{ display:'flex', flexDirection:'column', gap:'10px' }}>
+                    {incomes.map(inc => (
+                      <div key={inc.id} style={{ background:'#0F172A', border:'1px solid rgba(255,255,255,0.08)', borderRadius:'12px', padding:'14px 16px' }}>
+                        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:'6px' }}>
+                          <div>
+                            <span style={{ fontFamily:'var(--mono)', fontSize:'10px', color:'#00FC8F', fontWeight:'600' }}>{inc.id}</span>
+                            <div style={{ fontWeight:'700', fontSize:'14px', marginTop:'2px' }}>{inc.studentName} <span style={{ color:'var(--muted)', fontWeight:'400', fontSize:'12px' }}>({inc.class})</span></div>
+                          </div>
+                          <div style={{ textAlign:'right' }}>
+                            <div style={{ fontWeight:'800', fontSize:'16px', color:'#00FC8F' }}>{FMT(inc.amount)}</div>
+                            <div style={{ fontSize:'10px', color:'var(--muted)' }}>Unspent: {FMT(inc.unspentBalance)}</div>
+                          </div>
+                        </div>
+                        <div style={{ display:'flex', gap:'6px', flexWrap:'wrap', marginTop:'6px' }}>
+                          <Badge label={inc.sourceType} color="#00FC8F" />
+                          <Badge label={inc.paymentMethod} color="#3B82F6" />
+                        </div>
+                        {inc.notes && <div style={{ fontSize:'11px', color:'var(--muted)', marginTop:'6px', fontStyle:'italic' }}>{inc.notes}</div>}
+                        <div style={{ fontSize:'10px', color:'var(--muted)', marginTop:'4px', fontFamily:'var(--mono)' }}>{inc.date} · Received by {inc.receivedBy}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Expenditure Section */}
+                <div>
+                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'14px' }}>
+                    <h2 style={{ fontSize:'15px', fontWeight:'800', color:'#FF4757' }}>📤 Expenditure Log</h2>
+                    <button onClick={() => setShowExpModal(true)} style={{ background:'rgba(255,71,87,0.12)', border:'1px solid rgba(255,71,87,0.4)', color:'#FF4757', padding:'8px 14px', borderRadius:'8px', fontSize:'12px', fontWeight:'700', cursor:'pointer' }}>
+                      + Log Expense
+                    </button>
+                  </div>
+                  <div style={{ display:'flex', flexDirection:'column', gap:'10px' }}>
+                    {expenses.map(exp => {
+                      const src = incomes.find(i => i.id === exp.incomeSourceId);
+                      return (
+                        <div key={exp.id} style={{ background:'#0F172A', border:'1px solid rgba(255,255,255,0.08)', borderRadius:'12px', padding:'14px 16px' }}>
+                          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:'6px' }}>
+                            <div>
+                              <span style={{ fontFamily:'var(--mono)', fontSize:'10px', color:'#FF4757', fontWeight:'600' }}>{exp.id}</span>
+                              <div style={{ fontWeight:'700', fontSize:'14px', marginTop:'2px' }}>{exp.description}</div>
+                              <div style={{ fontSize:'11px', color:'var(--muted)' }}>Paid to: {exp.paidTo}</div>
+                            </div>
+                            <div style={{ fontWeight:'800', fontSize:'16px', color:'#FF4757', flexShrink:0, marginLeft:'8px' }}>{FMT(exp.amount)}</div>
+                          </div>
+                          {/* Source attribution — the CORE feature */}
+                          <div style={{ background:'rgba(255,180,0,0.08)', border:'1px solid rgba(255,180,0,0.25)', borderRadius:'8px', padding:'8px 10px', marginTop:'8px' }}>
+                            <div style={{ fontSize:'10px', fontWeight:'700', color:'#FFB400', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:'3px' }}>🔗 Funded From</div>
+                            <div style={{ fontSize:'12px', fontWeight:'600' }}>
+                              {src ? `${src.studentName} (${src.class}) — ${src.sourceType}` : exp.incomeSourceId}
+                            </div>
+                            <div style={{ fontSize:'10px', color:'var(--muted)', fontFamily:'var(--mono)' }}>{exp.incomeSourceId}</div>
+                          </div>
+                          <div style={{ display:'flex', gap:'6px', marginTop:'8px', flexWrap:'wrap' }}>
+                            <Badge label={exp.category} color="#FFB400" />
+                            {exp.receiptAttached && <Badge label="Receipt ✓" color="#00FC8F" />}
+                            {!exp.receiptAttached && <Badge label="No Receipt" color="#FF4757" />}
+                          </div>
+                          {exp.notes && <div style={{ fontSize:'11px', color:'var(--muted)', marginTop:'6px', fontStyle:'italic' }}>{exp.notes}</div>}
+                          <div style={{ fontSize:'10px', color:'var(--muted)', marginTop:'4px', fontFamily:'var(--mono)' }}>{exp.date}</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ═══ FULL REPORT TAB ═══ */}
+            {tab === 'report' && (
+              <div>
+                <div style={{ display:'flex', gap:'12px', marginBottom:'20px', flexWrap:'wrap', alignItems:'center', justifyContent:'space-between' }}>
+                  <h2 style={{ fontSize:'16px', fontWeight:'800' }}>📊 Full Income → Expenditure Trail</h2>
+                  <div style={{ display:'flex', gap:'8px', flexWrap:'wrap' }}>
+                    <input
+                      value={reportSearch} onChange={e => setReportSearch(e.target.value)}
+                      placeholder="Search by student name or ID…"
+                      style={{ ...inputStyle, width:'220px', fontSize:'13px', padding:'8px 12px' }}
+                    />
+                    <select value={reportFilter} onChange={e => setReportFilter(e.target.value)} style={{ ...inputStyle, width:'auto', fontSize:'13px', padding:'8px 12px' }}>
+                      <option>All</option>
+                      <option>School Fees (Tuition)</option>
+                      <option>Admission & Books</option>
+                      <option>Other Income</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div style={{ display:'flex', flexDirection:'column', gap:'16px' }}>
+                  {filteredIncomes.map(inc => {
+                    const linked = getExpensesFor(inc.id);
+                    const spent = linked.reduce((s, e) => s + e.amount, 0);
+                    return (
+                      <div key={inc.id} style={{ background:'#0F172A', border:'1px solid rgba(255,255,255,0.08)', borderRadius:'14px', overflow:'hidden' }}>
+                        {/* Income header */}
+                        <div style={{ padding:'14px 18px', background:'rgba(0,252,143,0.06)', borderBottom: linked.length ? '1px solid rgba(255,255,255,0.06)' : 'none', display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:'8px' }}>
+                          <div style={{ display:'flex', gap:'12px', alignItems:'center' }}>
+                            <span style={{ fontFamily:'var(--mono)', fontSize:'11px', color:'#00FC8F', fontWeight:'700' }}>{inc.id}</span>
+                            <div>
+                              <div style={{ fontWeight:'700', fontSize:'14px' }}>{inc.studentName} · {inc.class}</div>
+                              <div style={{ fontSize:'12px', color:'var(--muted)' }}>{inc.sourceType} · {inc.paymentMethod} · {inc.date}</div>
+                            </div>
+                          </div>
+                          <div style={{ textAlign:'right' }}>
+                            <div style={{ fontWeight:'900', fontSize:'18px', color:'#00FC8F' }}>{FMT(inc.amount)}</div>
+                            <div style={{ fontSize:'11px', color: inc.unspentBalance > 0 ? '#FFB400' : 'var(--muted)' }}>
+                              Unspent: {FMT(inc.unspentBalance)}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Linked expenditures */}
+                        {linked.length > 0 ? (
+                          <div style={{ padding:'8px 0' }}>
+                            {linked.map((exp, idx) => (
+                              <div key={exp.id} style={{ display:'flex', alignItems:'center', padding:'10px 18px', gap:'12px', borderBottom: idx < linked.length-1 ? '1px solid rgba(255,255,255,0.04)' : 'none' }}>
+                                <div style={{ width:'2px', height:'32px', background:'rgba(255,180,0,0.4)', borderRadius:'1px', flexShrink:0 }}></div>
+                                <div style={{ flex:1 }}>
+                                  <div style={{ fontSize:'13px', fontWeight:'600' }}>{exp.description}</div>
+                                  <div style={{ fontSize:'11px', color:'var(--muted)' }}>{exp.category} · Paid to: {exp.paidTo} · {exp.date}</div>
+                                </div>
+                                <div style={{ fontWeight:'700', fontSize:'14px', color:'#FF4757', flexShrink:0 }}>−{FMT(exp.amount)}</div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div style={{ padding:'12px 18px', fontSize:'12px', color:'var(--muted)', fontStyle:'italic' }}>No expenses linked to this income entry yet.</div>
+                        )}
+
+                        {/* Summary line */}
+                        {linked.length > 0 && (
+                          <div style={{ padding:'10px 18px', borderTop:'1px solid rgba(255,255,255,0.06)', display:'flex', justifyContent:'space-between', fontSize:'12px', fontWeight:'700' }}>
+                            <span style={{ color:'var(--muted)' }}>Spent from {inc.id}: {FMT(spent)}</span>
+                            <span style={{ color: inc.unspentBalance > 0 ? '#FFB400' : '#00FC8F' }}>Remaining: {FMT(inc.unspentBalance)}</span>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* ═══ SUPERVISION TAB ═══ */}
+            {tab === 'supervision' && (
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'20px' }}>
+
+                {/* Attendance */}
+                <div>
+                  <h2 style={{ fontSize:'15px', fontWeight:'800', marginBottom:'14px' }}>🏫 Gate Attendance — Today</h2>
+                  <div style={{ background:'#0F172A', border:'1px solid rgba(255,255,255,0.08)', borderRadius:'12px', overflow:'hidden' }}>
+                    <div style={{ display:'flex', gap:'0', borderBottom:'1px solid rgba(255,255,255,0.08)', padding:'10px 14px', fontSize:'11px', fontWeight:'700', color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.06em' }}>
+                      <span style={{ flex:1 }}>Student</span>
+                      <span style={{ width:'80px' }}>Class</span>
+                      <span style={{ width:'80px' }}>Time</span>
+                      <span style={{ width:'70px' }}>Status</span>
+                    </div>
+                    {GATE_ATTENDANCE.map(a => (
+                      <div key={a.id} style={{ display:'flex', padding:'10px 14px', borderBottom:'1px solid rgba(255,255,255,0.04)', fontSize:'13px', alignItems:'center' }}>
+                        <span style={{ flex:1, fontWeight:'600' }}>{a.name}</span>
+                        <span style={{ width:'80px', color:'var(--muted)', fontSize:'12px' }}>{a.class}</span>
+                        <span style={{ width:'80px', fontFamily:'var(--mono)', fontSize:'11px', color:'var(--muted)' }}>{a.time}</span>
+                        <Badge
+                          label={a.status}
+                          color={a.status === 'Present' ? '#00FC8F' : a.status === 'Late' ? '#FFB400' : '#FF4757'}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ marginTop:'10px', fontSize:'12px', color:'var(--muted)' }}>
+                    Present: {GATE_ATTENDANCE.filter(a=>a.status==='Present').length} · Late: {GATE_ATTENDANCE.filter(a=>a.status==='Late').length} · Absent: {GATE_ATTENDANCE.filter(a=>a.status==='Absent').length}
+                  </div>
+                </div>
+
+                {/* Staff Sign-ins */}
+                <div>
+                  <h2 style={{ fontSize:'15px', fontWeight:'800', marginBottom:'14px' }}>👤 Staff Sign-ins — Today</h2>
+                  <div style={{ background:'#0F172A', border:'1px solid rgba(255,255,255,0.08)', borderRadius:'12px', overflow:'hidden' }}>
+                    {STAFF_SIGNINS.map((s, idx) => (
+                      <div key={s.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'12px 16px', borderBottom: idx < STAFF_SIGNINS.length-1 ? '1px solid rgba(255,255,255,0.04)' : 'none' }}>
+                        <div style={{ display:'flex', gap:'10px', alignItems:'center' }}>
+                          <div style={{ width:'32px', height:'32px', borderRadius:'50%', background:'linear-gradient(135deg,#3B82F6,#8B5CF6)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'12px', fontWeight:'700' }}>
+                            {s.name.split(' ').map(n=>n[0]).join('').slice(0,2)}
+                          </div>
+                          <div>
+                            <div style={{ fontWeight:'600', fontSize:'13px' }}>{s.name}</div>
+                            <div style={{ fontSize:'11px', color:'var(--muted)' }}>{s.role}</div>
+                          </div>
+                        </div>
+                        <div style={{ textAlign:'right' }}>
+                          <div style={{ fontFamily:'var(--mono)', fontSize:'11px', color:'var(--muted)' }}>{s.time}</div>
+                          <Badge
+                            label={s.status}
+                            color={s.status === 'On Duty' || s.status === 'In Class' ? '#00FC8F' : '#3B82F6'}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Today's Activity Summary */}
+                  <div style={{ marginTop:'16px', background:'#0F172A', border:'1px solid rgba(255,255,255,0.08)', borderRadius:'12px', padding:'16px' }}>
+                    <div style={{ fontWeight:'700', fontSize:'13px', marginBottom:'12px' }}>📈 Today's Quick Summary</div>
+                    <div style={{ display:'flex', flexDirection:'column', gap:'8px', fontSize:'13px' }}>
+                      <div style={{ display:'flex', justifyContent:'space-between' }}>
+                        <span style={{ color:'var(--muted)' }}>Income entries logged</span>
+                        <span style={{ fontWeight:'700', color:'#00FC8F' }}>{incomes.length}</span>
+                      </div>
+                      <div style={{ display:'flex', justifyContent:'space-between' }}>
+                        <span style={{ color:'var(--muted)' }}>Expense entries logged</span>
+                        <span style={{ fontWeight:'700', color:'#FF4757' }}>{expenses.length}</span>
+                      </div>
+                      <div style={{ display:'flex', justifyContent:'space-between' }}>
+                        <span style={{ color:'var(--muted)' }}>Students present</span>
+                        <span style={{ fontWeight:'700' }}>{GATE_ATTENDANCE.filter(a=>a.status==='Present').length}/{GATE_ATTENDANCE.length}</span>
+                      </div>
+                      <div style={{ display:'flex', justifyContent:'space-between' }}>
+                        <span style={{ color:'var(--muted)' }}>Staff on duty</span>
+                        <span style={{ fontWeight:'700' }}>{STAFF_SIGNINS.length}</span>
+                      </div>
+                      <div style={{ borderTop:'1px solid rgba(255,255,255,0.08)', paddingTop:'8px', marginTop:'2px', display:'flex', justifyContent:'space-between' }}>
+                        <span style={{ fontWeight:'700' }}>Cash Balance (Expected)</span>
+                        <span style={{ fontWeight:'900', color:'#FFB400', fontSize:'15px' }}>{FMT(cashBalance)}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ═══ RECONCILE TAB ═══ */}
+            {tab === 'reconcile' && (
+              <div style={{ maxWidth:'500px', margin:'0 auto' }}>
+                <h2 style={{ fontSize:'16px', fontWeight:'800', marginBottom:'6px' }}>🧾 End-of-Day Cash Reconciliation</h2>
+                <p style={{ fontSize:'13px', color:'var(--muted)', marginBottom:'24px', lineHeight:1.55 }}>
+                  The system has calculated the expected cash on hand based on all income logged minus all expenditure. Enter the actual physical cash you are holding to verify the balance matches.
+                </p>
+
+                <div style={{ background:'#0F172A', border:'1px solid rgba(255,255,255,0.08)', borderRadius:'14px', padding:'20px', marginBottom:'20px' }}>
+                  <div style={{ display:'flex', justifyContent:'space-between', padding:'10px 0', borderBottom:'1px solid rgba(255,255,255,0.06)' }}>
+                    <span style={{ color:'var(--muted)' }}>Total Income Received</span>
+                    <span style={{ fontWeight:'700', color:'#00FC8F' }}>{FMT(totalIn)}</span>
+                  </div>
+                  <div style={{ display:'flex', justifyContent:'space-between', padding:'10px 0', borderBottom:'1px solid rgba(255,255,255,0.06)' }}>
+                    <span style={{ color:'var(--muted)' }}>Total Expenditure Made</span>
+                    <span style={{ fontWeight:'700', color:'#FF4757' }}>−{FMT(totalOut)}</span>
+                  </div>
+                  <div style={{ display:'flex', justifyContent:'space-between', padding:'12px 0 0' }}>
+                    <span style={{ fontWeight:'700', fontSize:'15px' }}>Expected Cash on Hand</span>
+                    <span style={{ fontWeight:'900', fontSize:'18px', color:'#FFB400' }}>{FMT(cashBalance)}</span>
+                  </div>
+                </div>
+
+                <Field label="Actual Cash You Are Holding (UGX)">
+                  <input
+                    type="number"
+                    value={actualCash}
+                    onChange={e => { setActualCash(e.target.value); setReconResult(null); }}
+                    placeholder="e.g. 1155000"
+                    style={inputStyle}
+                  />
+                </Field>
+                <button
+                  onClick={handleReconcile}
+                  disabled={!actualCash}
+                  style={{ width:'100%', padding:'14px', background:'#FFB400', color:'#0a1029', border:'none', borderRadius:'10px', fontSize:'15px', fontWeight:'800', cursor:'pointer', marginTop:'6px' }}
+                >
+                  Verify Cash Balance
+                </button>
+
+                {reconResult && (
+                  <div style={{ marginTop:'20px', background: reconResult.diff === 0 ? 'rgba(0,252,143,0.08)' : 'rgba(255,71,87,0.08)', border:`1px solid ${reconResult.diff === 0 ? 'rgba(0,252,143,0.3)' : 'rgba(255,71,87,0.3)'}`, borderRadius:'12px', padding:'18px' }}>
+                    <div style={{ fontWeight:'800', fontSize:'16px', marginBottom:'10px', color: reconResult.diff === 0 ? '#00FC8F' : '#FF4757' }}>
+                      {reconResult.diff === 0 ? '✅ Cash Balanced!' : reconResult.diff > 0 ? `⚠️ Surplus of ${FMT(reconResult.diff)}` : `❌ Shortfall of ${FMT(Math.abs(reconResult.diff))}`}
+                    </div>
+                    <div style={{ fontSize:'13px', color:'var(--muted)', lineHeight:1.6 }}>
+                      <div>Expected: <b style={{ color:'#FFB400' }}>{FMT(reconResult.expected)}</b></div>
+                      <div>Actual: <b style={{ color:'#F8FAFC' }}>{FMT(reconResult.actual)}</b></div>
+                      <div style={{ marginTop:'8px' }}>
+                        {reconResult.diff === 0
+                          ? 'All income and expenditure recorded correctly. The books balance.'
+                          : reconResult.diff > 0
+                          ? 'You are holding more cash than expected. Check if any income entry was not recorded.'
+                          : 'You are holding less cash than expected. Check if any expense was not recorded.'
+                        }
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* ═══ INCOME MODAL ═══ */}
+          {showIncModal && (
+            <Modal title="📥 Log New Income" onClose={() => setShowIncModal(false)}>
+              <Field label="Student Name *">
+                <input style={inputStyle} value={incStudent} onChange={e => setIncStudent(e.target.value)} placeholder="e.g. Brian Mukasa" />
+              </Field>
+              <Field label="Class">
+                <select style={inputStyle} value={incClass} onChange={e => setIncClass(e.target.value)}>
+                  {['Baby Class','Middle Class','Top Class','P.1','P.2','P.3','P.4','P.5','P.6','P.7'].map(c => <option key={c}>{c}</option>)}
+                </select>
+              </Field>
+              <Field label="Amount (UGX) *">
+                <input style={inputStyle} type="number" value={incAmount} onChange={e => setIncAmount(e.target.value)} placeholder="e.g. 500000" />
+              </Field>
+              <Field label="Source Type">
+                <select style={inputStyle} value={incSource} onChange={e => setIncSource(e.target.value)}>
+                  {['School Fees (Tuition)','Admission & Books','Transport Levy','Meals Levy','Other Income'].map(s => <option key={s}>{s}</option>)}
+                </select>
+              </Field>
+              <Field label="Payment Method">
+                <select style={inputStyle} value={incMethod} onChange={e => setIncMethod(e.target.value)}>
+                  {['Cash','Mobile Money','Bank Transfer','Cheque'].map(m => <option key={m}>{m}</option>)}
+                </select>
+              </Field>
+              <Field label="Notes">
+                <input style={inputStyle} value={incNotes} onChange={e => setIncNotes(e.target.value)} placeholder="e.g. Term 2 fees — full payment" />
+              </Field>
+              <div style={{ padding:'10px', background:'rgba(0,252,143,0.06)', border:'1px solid rgba(0,252,143,0.2)', borderRadius:'8px', fontSize:'12px', color:'#00FC8F', marginBottom:'16px' }}>
+                Received by: <b>Nalukenge Jane</b> · This entry will get a unique ID and a running unspent balance.
+              </div>
+              <button onClick={handleAddIncome} disabled={!incStudent || !incAmount} style={{ width:'100%', padding:'13px', background: incStudent && incAmount ? '#00FC8F' : '#334155', color: incStudent && incAmount ? '#0a1029' : 'var(--muted)', border:'none', borderRadius:'10px', fontSize:'15px', fontWeight:'800', cursor: incStudent && incAmount ? 'pointer' : 'not-allowed' }}>
+                Save Income Entry
+              </button>
+            </Modal>
+          )}
+
+          {/* ═══ EXPENSE MODAL ═══ */}
+          {showExpModal && (
+            <Modal title="📤 Log New Expenditure" onClose={() => setShowExpModal(false)}>
+              <Field label="Category">
+                <select style={inputStyle} value={expCat} onChange={e => setExpCat(e.target.value)}>
+                  {['Fuel & Transport','Food & Kitchen','Supplies & Stationery','Repairs & Maintenance','Staff Wages','Utilities','Other'].map(c => <option key={c}>{c}</option>)}
+                </select>
+              </Field>
+              <Field label="Description *">
+                <input style={inputStyle} value={expDesc} onChange={e => setExpDesc(e.target.value)} placeholder="e.g. Diesel for shuttle van" />
+              </Field>
+              <Field label="Amount (UGX) *">
+                <input style={inputStyle} type="number" value={expAmount} onChange={e => setExpAmount(e.target.value)} placeholder="e.g. 50000" />
+              </Field>
+              <Field label="Paid To">
+                <input style={inputStyle} value={expPaidTo} onChange={e => setExpPaidTo(e.target.value)} placeholder="e.g. Total Energies Kireka" />
+              </Field>
+              <Field label="🔗 Funded From (Source Income Entry) *">
+                <select style={inputStyle} value={expSrcId} onChange={e => setExpSrcId(e.target.value)}>
+                  {incomes.map(i => (
+                    <option key={i.id} value={i.id}>
+                      {i.id} — {i.studentName} ({i.class}) · Unspent: {FMT(i.unspentBalance)}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <div style={{ padding:'8px 10px', background:'rgba(255,180,0,0.07)', border:'1px solid rgba(255,180,0,0.25)', borderRadius:'8px', fontSize:'11px', color:'#FFB400', marginBottom:'8px' }}>
+                System will deduct this expense from the selected income entry's unspent balance. Over-allocation is blocked.
+              </div>
+              <Field label="Notes">
+                <input style={inputStyle} value={expNotes} onChange={e => setExpNotes(e.target.value)} placeholder="e.g. Emergency repair — approved by Admin" />
+              </Field>
+              <button onClick={handleAddExpense} disabled={!expDesc || !expAmount} style={{ width:'100%', padding:'13px', background: expDesc && expAmount ? '#FF4757' : '#334155', color:'#fff', border:'none', borderRadius:'10px', fontSize:'15px', fontWeight:'800', cursor: expDesc && expAmount ? 'pointer' : 'not-allowed' }}>
+                Save Expenditure Entry
+              </button>
+            </Modal>
+          )}
+
+        </div>
+      );
+    }
+
+    /* ─── Bootstrap ── */
+    (function boot() {
+      // Soft session check — if no profile in localStorage redirect to login
+      let profile = null;
+      try { profile = JSON.parse(localStorage.getItem('nextos.profile') || 'null'); } catch(e) {}
+
+      if (!profile) {
+        window.location.href = '/prototypes/schools/peak-primary/login.html';
+        return;
+      }
+
+      // Role guard — only bursar (or head/admin who might share this view)
+      const allowed = ['bursar','head','admin'];
+      if (!allowed.includes(String(profile.role).toLowerCase())) {
+        window.location.href = '/prototypes/schools/peak-primary/login.html';
+        return;
+      }
+
+      const root = ReactDOM.createRoot(document.getElementById('root'));
+      root.render(<BursarDashboard />);
+    })();
+  </script>
+</body>
+</html>
