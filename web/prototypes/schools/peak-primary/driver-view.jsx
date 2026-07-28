@@ -438,10 +438,11 @@
         const updated = { isOnDuty: false, signOutTime: nowStr, checkInTime: shiftStatus.checkInTime, totalShifts: shiftStatus.totalShifts };
         setShiftStatus(updated);
         localStorage.setItem(`nextos.driver.shift.${vanId}`, JSON.stringify(updated));
+        try { localStorage.removeItem('nextos.profile'); } catch (e) {}
         if (window.TRANSPORT_TELEMETRY && typeof window.TRANSPORT_TELEMETRY.stopBroadcasting === 'function') {
           window.TRANSPORT_TELEMETRY.stopBroadcasting();
         }
-        alert(`🔴 Driver Shift Signed Out at ${nowStr}. Shuttle GPS telemetry paused.`);
+        window.location.href = '/prototypes/schools/peak-primary/login.html';
       } else {
         const nowStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         const updated = { isOnDuty: true, checkInTime: nowStr, totalShifts: shiftStatus.totalShifts + 1 };
