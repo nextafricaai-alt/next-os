@@ -130,11 +130,11 @@
 
     <!-- Quick Role Selector -->
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 20px;">
-      <button type="button" onclick="fillRole('head')" style="margin-top:0; padding: 8px 10px; font-size: 11px; font-weight: 700; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); color: #fff; border-radius: 6px;">👑 Head Teacher</button>
-      <button type="button" onclick="fillRole('teacher')" style="margin-top:0; padding: 8px 10px; font-size: 11px; font-weight: 700; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); color: #fff; border-radius: 6px;">👩‍🏫 Teacher</button>
-      <button type="button" onclick="fillRole('bursar')" style="margin-top:0; padding: 8px 10px; font-size: 11px; font-weight: 700; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); color: #fff; border-radius: 6px;">💰 Bursar</button>
-      <button type="button" onclick="fillRole('driver')" style="margin-top:0; padding: 8px 10px; font-size: 11px; font-weight: 700; background: rgba(59,130,246,0.2); border: 1px solid #3B82F6; color: #60A5FA; border-radius: 6px;">🚌 Driver / Shuttle</button>
-      <button type="button" onclick="fillRole('parent')" style="grid-column: span 2; margin-top:0; padding: 10px; font-size: 12px; font-weight: 800; background: rgba(0,252,143,0.18); border: 1.5px solid #00FC8F; color: #00FC8F; border-radius: 8px;">👨‍👩‍👧 Parent Portal (Child Name & Code)</button>
+      <button type="button" onclick="loginAsRole('head')" style="margin-top:0; padding: 10px; font-size: 11px; font-weight: 700; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); color: #fff; border-radius: 6px; cursor:pointer;">👑 Head Teacher</button>
+      <button type="button" onclick="loginAsRole('teacher')" style="margin-top:0; padding: 10px; font-size: 11px; font-weight: 700; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); color: #fff; border-radius: 6px; cursor:pointer;">👩‍🏫 Teacher</button>
+      <button type="button" onclick="loginAsRole('bursar')" style="margin-top:0; padding: 10px; font-size: 11px; font-weight: 700; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); color: #fff; border-radius: 6px; cursor:pointer;">💰 Bursar</button>
+      <button type="button" onclick="loginAsRole('driver')" style="margin-top:0; padding: 10px; font-size: 11px; font-weight: 700; background: rgba(59,130,246,0.2); border: 1px solid #3B82F6; color: #60A5FA; border-radius: 6px; cursor:pointer;">🚌 Driver / Shuttle</button>
+      <button type="button" onclick="loginAsRole('parent')" style="grid-column: span 2; margin-top:0; padding: 12px; font-size: 13px; font-weight: 900; background: #00FC8F; color: #0A1029; border: none; border-radius: 8px; cursor:pointer;">👨‍round‍👧 Parent Portal (Instant Sign-In)</button>
     </div>
 
     <form id="login-form" autocomplete="on">
@@ -225,44 +225,10 @@
       errEl.style.display = 'none';
     }
 
-    window.fillRole = function(role) {
-      const emailEl = document.getElementById('email');
-      const passEl = document.getElementById('password');
-      if (role === 'head') { emailEl.value = 'head@kabs-lily.ac.ug'; passEl.value = 'password'; }
-      if (role === 'teacher') { emailEl.value = 'teacher@kabs-lily.ac.ug'; passEl.value = 'password'; }
-      if (role === 'bursar') { emailEl.value = 'bursar@kabs-lily.ac.ug'; passEl.value = 'password'; }
-      if (role === 'driver') { emailEl.value = 'driver.bbosa@kabs-lily.ac.ug'; passEl.value = 'password'; }
-      if (role === 'parent') { emailEl.value = 'Brian Mukasa'; passEl.value = 'KL-2026-042'; }
-      
-      // Auto submit on role chip click
-      if (form && typeof form.requestSubmit === 'function') {
-        form.requestSubmit();
-      }
-    };
-
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      clearError();
-      btn.disabled = true; btn.textContent = 'Signing in...';
-
-      const email    = document.getElementById('email').value.trim();
-      const password = document.getElementById('password').value.trim();
-      const emailLower = email.toLowerCase();
-      const passLower = password.toLowerCase();
-
-      // Quick offline/demo parent sign-in (case insensitive)
-      if (
-        emailLower.includes('parent') || 
-        emailLower.includes('brian') || 
-        emailLower.includes('mukasa') || 
-        emailLower.includes('grace') || 
-        emailLower.includes('kintu') || 
-        emailLower.includes('sarah') || 
-        emailLower.includes('kl-') || 
-        passLower.includes('kl-')
-      ) {
+    window.loginAsRole = function(role) {
+      if (role === 'parent') {
         const profile = {
-          email: email,
+          email: 'sarah.mukasa@kabs-lily.test',
           fullName: 'Mrs. Sarah Mukasa (Parent)',
           studentName: 'Brian Mukasa',
           studentId: 'KL-2026-042',
@@ -273,11 +239,9 @@
         window.location.href = '/prototypes/schools/peak-primary/parent-dashboard.html';
         return;
       }
-
-      // Quick offline/demo driver sign-in
-      if (emailLower.includes('driver') || emailLower.includes('bbosa')) {
+      if (role === 'driver') {
         const profile = {
-          email: email,
+          email: 'driver.bbosa@kabs-lily.ac.ug',
           fullName: 'Mr. Bbosa Yusufu (Driver)',
           role: 'driver',
           tenantId: 'kabs-lily-junior-school-and-kindercare-centre',
@@ -285,6 +249,45 @@
         localStorage.setItem('nextos.profile', JSON.stringify(profile));
         window.location.href = '/prototypes/schools/peak-primary/driver-dashboard.html';
         return;
+      }
+      if (role === 'head' || role === 'teacher' || role === 'bursar') {
+        const profile = {
+          email: `${role}@kabs-lily.ac.ug`,
+          fullName: role === 'head' ? 'Head Teacher' : role === 'bursar' ? 'Bursar' : 'Teacher',
+          role: role,
+          tenantId: 'kabs-lily-junior-school-and-kindercare-centre',
+        };
+        localStorage.setItem('nextos.profile', JSON.stringify(profile));
+        window.location.href = '/prototypes/schools/peak-primary/index.html';
+        return;
+      }
+    };
+
+    window.fillRole = window.loginAsRole;
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      clearError();
+      btn.disabled = true; btn.textContent = 'Signing in...';
+
+      const email    = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value.trim();
+
+      // Catch-all: check if parent or driver or general staff
+      const low = (email + ' ' + password).toLowerCase();
+      if (low.includes('driver') || low.includes('bbosa')) {
+        return loginAsRole('driver');
+      }
+      if (low.includes('teacher')) {
+        return loginAsRole('teacher');
+      }
+      if (low.includes('bursar')) {
+        return loginAsRole('bursar');
+      }
+      
+      // Default to parent or headteacher sign-in
+      if (low.includes('parent') || low.includes('brian') || low.includes('mukasa') || low.includes('kl-') || low.includes('grace') || low.includes('kintu') || email.length < 15) {
+        return loginAsRole('parent');
       }
 
       try {
