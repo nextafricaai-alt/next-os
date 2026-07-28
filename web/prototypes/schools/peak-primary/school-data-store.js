@@ -530,7 +530,9 @@
         }
 
         // Also update students table so Boarding vs Day scholar status is permanently saved
+        await sb.from('fees').delete().eq('tenant_id', tenantId);
         await sb.from('students').delete().eq('tenant_id', tenantId);
+        
         const payloadStudents = cleanRows.map((r, idx) => {
           const isBoarding = (r.feeType || '').toLowerCase().includes('boarding') || (r.notes || '').toLowerCase().includes('boarding');
           return {
@@ -542,7 +544,45 @@
             guardian_phone: `+256700000${String(idx + 1).padStart(3, '0')}`
           };
         });
-        await sb.from('students').insert(payloadStudents);
+
+        const { data: insertedStudents } = await sb.from('students').insert(payloadStudents).select();
+
+        // Write directly to public.fees table linked by student_id
+        if (insertedStudents && insertedStudents.length) {
+          const feesPayload = [];
+          insertedStudents.forEach((stuRow, idx) => {
+            const orig = cleanRows[idx] || {};
+            const isBoarding = stuRow.is_boarding;
+            const fullFee = Number(orig.fullFees || orig.amount || (isBoarding ? 500000 : 250000));
+            const paid = Number(orig.paidAmount || (fullFee - (orig.balance || 0)));
+
+            feesPayload.push({
+              tenant_id: tenantId,
+              student_id: stuRow.id,
+              term: 'Term 2 2026',
+              kind: 'charge',
+              amount: fullFee,
+              channel: 'Cash',
+              reference: 'FEE-CHARGE-2026',
+              notes: isBoarding ? 'Boarding Student Full Fee' : 'Day Scholar Full Fee'
+            });
+
+            if (paid > 0) {
+              feesPayload.push({
+                tenant_id: tenantId,
+                student_id: stuRow.id,
+                term: 'Term 2 2026',
+                kind: 'payment',
+                amount: -paid,
+                channel: 'Cash',
+                reference: 'FEE-PAY-2026',
+                notes: 'Fee Payment Received'
+              });
+            }
+          });
+
+          await sb.from('fees').insert(feesPayload);
+        }
 
         // Re-read fresh state from Supabase
         const freshInc = await sb.from('school_income').select('*').eq('tenant_id', tenantId).order('date', { ascending: false });
