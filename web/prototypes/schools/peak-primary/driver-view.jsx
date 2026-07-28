@@ -145,33 +145,79 @@
       // 4. Draw Initial Route Polyline
       drawRoute(map, 'normal');
 
-      // 5. Animated Moving Shuttle Bus Marker
+      // 5. Real Device Hardware GPS Tracking & Shuttle Car Marker
       const carIcon = L.divIcon({
         className: 'custom-car-icon',
-        html: `<div style="background:#00FC8F; color:#0A1029; font-size:20px; width:42px; height:42px; border-radius:50%; display:flex; align-items:center; justify-content:center; border:3px solid #FFF; box-shadow:0 0 20px #00FC8F;">🚐</div>`,
-        iconSize: [42, 42],
-        iconAnchor: [21, 21]
+        html: `<div style="background:#00FC8F; color:#0A1029; font-size:22px; width:44px; height:44px; border-radius:50%; display:flex; align-items:center; justify-content:center; border:3px solid #FFF; box-shadow:0 0 24px #00FC8F;">🚐</div>`,
+        iconSize: [44, 44],
+        iconAnchor: [22, 22]
       });
 
-      const routePoints = [
-        [0.3472, 32.6325],
-        [0.3485, 32.6482],
-        [0.3685, 32.6285],
-        [0.3542, 32.6142],
-        [0.3600, 32.6250]
-      ];
-      let pIdx = 0;
+      const carMarker = L.marker([0.3540, 32.6200], { icon: carIcon }).addTo(map)
+        .bindPopup(`<b>🚐 Kabs Lily Shuttle #1 (Live Device GPS)</b><br/>Locating device...`);
 
-      const carMarker = L.marker(routePoints[0], { icon: carIcon }).addTo(map)
-        .bindPopup(`<b>🚐 Kabs Lily Shuttle #1 (Live GPS)</b><br/>Driver: Mr. Bbosa Yusufu<br/>Speed: 38 km/h`);
+      let liveGpsPolyline = null;
 
-      const moveTimer = setInterval(() => {
-        pIdx = (pIdx + 1) % routePoints.length;
-        carMarker.setLatLng(routePoints[pIdx]);
-      }, 2500);
+      const updateCarPosition = (lat, lng, speed = 0) => {
+        if (!mapInstance.current) return;
+        const newPos = [lat, lng];
+        carMarker.setLatLng(newPos);
+        carMarker.setPopupContent(`
+          <b>🚐 Kabs Lily Shuttle #1 (LIVE HARDWARE GPS)</b><br/>
+          <b>📍 Current Location:</b> ${lat.toFixed(4)}, ${lng.toFixed(4)}<br/>
+          <b>⚡ Speed:</b> ${speed ? speed.toFixed(1) : '0.0'} km/h<br/>
+          <span style="color:#00FC8F; font-weight:bold;">🟢 Live GPS Streaming Active</span>
+        `);
+
+        // Re-center map onto user's physical GPS location
+        mapInstance.current.panTo(newPos);
+
+        // Draw live re-routing line from user's current physical position to school
+        if (liveGpsPolyline) mapInstance.current.removeLayer(liveGpsPolyline);
+        liveGpsPolyline = L.polyline([newPos, [0.3600, 32.6250]], {
+          color: '#00FC8F',
+          weight: 5,
+          opacity: 0.9,
+          dashArray: '6, 6'
+        }).addTo(mapInstance.current);
+      };
+
+      // Watch real device hardware GPS sensor
+      let geoWatchId = null;
+      if ('geolocation' in navigator) {
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            const { latitude, longitude, speed } = pos.coords;
+            map.setView([latitude, longitude], 15);
+            updateCarPosition(latitude, longitude, speed ? speed * 3.6 : 0);
+          },
+          (err) => console.warn('Device GPS permission pending/denied:', err.message),
+          { enableHighAccuracy: true, timeout: 10000 }
+        );
+
+        geoWatchId = navigator.geolocation.watchPosition(
+          (pos) => {
+            const { latitude, longitude, speed } = pos.coords;
+            updateCarPosition(latitude, longitude, speed ? speed * 3.6 : 0);
+          },
+          (err) => console.warn('Device GPS watch error:', err.message),
+          { enableHighAccuracy: true, maximumAge: 0, timeout: 5000 }
+        );
+      }
+
+      // Also listen to window TRANSPORT_TELEMETRY events
+      const handleTelemetryUpdate = (e) => {
+        if (e.detail && e.detail.lat && e.detail.lng) {
+          updateCarPosition(e.detail.lat, e.detail.lng, e.detail.speed || 0);
+        }
+      };
+      window.addEventListener('transport-telemetry-update', handleTelemetryUpdate);
 
       return () => {
-        clearInterval(moveTimer);
+        if (geoWatchId !== null && 'geolocation' in navigator) {
+          navigator.geolocation.clearWatch(geoWatchId);
+        }
+        window.removeEventListener('transport-telemetry-update', handleTelemetryUpdate);
         if (mapInstance.current) {
           mapInstance.current.remove();
           mapInstance.current = null;
