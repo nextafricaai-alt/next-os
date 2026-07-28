@@ -9,7 +9,7 @@ DECLARE
   v_tenant_id text := 'kabs-lily-junior-school-and-kindercare-centre';
 BEGIN
 
-  -- 1. Clear previous records for this tenant
+  -- 1. Clear previous duplicate records for this tenant
   DELETE FROM school_income WHERE tenant_id = v_tenant_id;
   DELETE FROM school_expenses WHERE tenant_id = v_tenant_id;
   DELETE FROM fees WHERE tenant_id = v_tenant_id;
@@ -17,7 +17,8 @@ BEGIN
   DELETE FROM students WHERE tenant_id = v_tenant_id;
 
   -- 2. Insert the EXACT 131 Unique Students (22 Boarding, 109 Day Scholars)
-  INSERT INTO students (tenant_id, full_name, stream, is_boarding, guardian_name, guardian_phone) VALUES
+  -- Uses column "name" matching public.students table schema
+  INSERT INTO students (tenant_id, name, stream, is_boarding, guardian_name, guardian_phone) VALUES
   -- Baby Class
   (v_tenant_id, 'Namala Leticia', 'Baby Class', false, 'Parent of Namala Leticia', '+256700000001'),
   (v_tenant_id, 'Arinaitwe Elijah', 'Baby Class', true, 'Parent of Arinaitwe Elijah', '+256700000002'),
@@ -171,7 +172,7 @@ BEGIN
   INSERT INTO school_income (tenant_id, student_name, class, source_type, amount, unspent_balance, payment_method, notes, logged_by)
   SELECT 
     v_tenant_id,
-    s.full_name,
+    s.name,
     s.stream,
     CASE WHEN s.is_boarding THEN 'School Fees (Boarding)' ELSE 'School Fees (Tuition)' END,
     CASE WHEN s.is_boarding THEN 500000 ELSE 250000 END,
@@ -181,5 +182,34 @@ BEGIN
     'bursar'
   FROM students s
   WHERE s.tenant_id = v_tenant_id;
+
+  -- 4. Populate public.fees table linking student_id
+  FOR s_rec IN SELECT id, name, stream, is_boarding FROM students WHERE tenant_id = v_tenant_id LOOP
+    
+    INSERT INTO fees (tenant_id, student_id, term, kind, amount, channel, reference, notes)
+    VALUES (
+      v_tenant_id,
+      s_rec.id,
+      'Term 2 2026',
+      'charge',
+      CASE WHEN s_rec.is_boarding THEN 500000 ELSE 250000 END,
+      'Cash',
+      'FEE-CHARGE-2026-T2',
+      CASE WHEN s_rec.is_boarding THEN 'Boarding Student Full Fee' ELSE 'Day Scholar Full Fee' END
+    );
+
+    INSERT INTO fees (tenant_id, student_id, term, kind, amount, channel, reference, notes)
+    VALUES (
+      v_tenant_id,
+      s_rec.id,
+      'Term 2 2026',
+      'payment',
+      CASE WHEN s_rec.is_boarding THEN -250000 ELSE -150000 END,
+      'Cash',
+      'FEE-PAY-2026-T2',
+      'Fee Payment Received'
+    );
+
+  END LOOP;
 
 END $$;

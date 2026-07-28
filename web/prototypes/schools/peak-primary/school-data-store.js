@@ -537,7 +537,7 @@
           const isBoarding = (r.feeType || '').toLowerCase().includes('boarding') || (r.notes || '').toLowerCase().includes('boarding');
           return {
             tenant_id: tenantId,
-            full_name: r.name || r.studentName,
+            name: r.name || r.studentName,
             stream: r.class || 'N/A',
             is_boarding: isBoarding,
             guardian_name: `Parent of ${r.name || r.studentName}`,
