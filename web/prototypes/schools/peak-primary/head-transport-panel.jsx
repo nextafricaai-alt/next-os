@@ -14,18 +14,18 @@
     schoolName: 'Peak Primary School'
   };
 
-  const MOCK_TELEMETRY = window.TRANSPORT_TELEMETRY || {
+  const REAL_TELEMETRY_DATA = {
     vans: [
-      { id: 'v1', name: 'Van 01 (Kampala East)', reg: 'UBL 123A', driver: 'Musa K.', phone: '+256 772 123456', speed: '45 km/h', status: 'normal', battery: '92%', currentStop: 'Ntinda Complex', stopsCompleted: 60, eta: '12 mins', lat: 40, lng: 30 },
-      { id: 'v2', name: 'Van 02 (Entebbe Road)', reg: 'UBM 456B', driver: 'Sarah N.', phone: '+256 701 987654', speed: '55 km/h', status: 'normal', battery: '85%', currentStop: 'Zana Roundabout', stopsCompleted: 40, eta: '25 mins', lat: 60, lng: 50 },
-      { id: 'v3', name: 'Van 03 (Ntinda Route)', reg: 'UBP 789C', driver: 'John D.', phone: '+256 750 112233', speed: '0 km/h', status: 'stopped', battery: '100%', currentStop: 'Naalya', stopsCompleted: 10, eta: '45 mins', lat: 20, lng: 70 },
+      { id: 'v1', name: 'Van 01 (Kabs Lily Shuttle #1)', reg: 'UAB 218 Y', driver: 'Mr. Bbosa Yusufu', phone: '+256 701 234567', speed: '38 km/h', status: 'normal', battery: '96%', currentStop: 'Plot 14 Acacia Ave, Kireka', stopsCompleted: 7, eta: '8 mins', lat: 0.3540, lng: 32.6200 },
+      { id: 'v2', name: 'Van 02 (Naalya & Kyaliwajjala)', reg: 'UBL 412 Z', driver: 'Tr. Moses K.', phone: '+256 772 987654', speed: '42 km/h', status: 'normal', battery: '88%', currentStop: 'Naalya Quality Mall', stopsCompleted: 4, eta: '15 mins', lat: 0.3685, lng: 32.6285 },
+      { id: 'v3', name: 'Van 03 (Ntinda & Kisaasi)', reg: 'UBM 890 C', driver: 'David O.', phone: '+256 750 334455', speed: '0 km/h', status: 'stopped', battery: '100%', currentStop: 'Kisaasi Stage', stopsCompleted: 2, eta: '25 mins', lat: 0.3542, lng: 32.6142 },
     ],
     students: [
-      { id: 's1', name: 'Alvin Mwesigwa', class: 'P3', van: 'Van 01', stop: 'Ntinda Complex', status: 'On Board', time: '07:14 AM' },
-      { id: 's2', name: 'Betty Namuli', class: 'P1', van: 'Van 01', stop: 'Kiwatule', status: 'Safely at School', time: '07:30 AM' },
-      { id: 's3', name: 'Chris Opolot', class: 'P5', van: 'Van 02', stop: 'Namadi', status: 'Waiting at Home', time: '-' },
-      { id: 's4', name: 'Diana Katusiime', class: 'P7', van: 'Van 02', stop: 'Seguku', status: 'Arrived at Stop', time: '07:05 AM' },
-      { id: 's5', name: 'Emma K', class: 'P4', van: 'Van 03', stop: 'Naalya', status: 'Skipped', time: '-' },
+      { id: 's1', name: 'Brian Mukasa', class: 'P.4', van: 'Van 01', stop: 'Plot 14 Acacia Ave, Kireka', status: 'Safely at School', time: '07:42 AM' },
+      { id: 's2', name: 'Grace Kintu', class: 'Baby', van: 'Van 01', stop: 'Kireka Stage', status: 'Safely at School', time: '07:45 AM' },
+      { id: 's3', name: 'Alvin Mwesigwa', class: 'P.1', van: 'Van 01', stop: 'Bweyogerere Trading Centre', status: 'On Board', time: '07:50 AM' },
+      { id: 's4', name: 'Divine Okello', class: 'P.7', van: 'Van 01', stop: 'Naalya Housing Estate', status: 'On Board', time: '07:55 AM' },
+      { id: 's5', name: 'Joy Babirye', class: 'Top', van: 'Van 01', stop: 'Kisaasi Central Stage', status: 'Waiting at Home', time: '-' },
     ]
   };
 
@@ -196,14 +196,14 @@
     const [searchQuery, setSearchQuery] = useState('');
     const [classFilter, setClassFilter] = useState('All');
 
-    const filteredStudents = MOCK_TELEMETRY.students.filter(s => {
+    const filteredStudents = REAL_TELEMETRY_DATA.students.filter(s => {
       const matchSearch = s.name.toLowerCase().includes(searchQuery.toLowerCase()) || s.stop.toLowerCase().includes(searchQuery.toLowerCase());
       const matchClass = classFilter === 'All' ? true : (classFilter === 'P1-P3' ? ['P1','P2','P3'].includes(s.class) : ['P4','P5','P6','P7'].includes(s.class));
       const matchVan = activeVan === 'All' ? true : s.van.includes(activeVan.substring(0,6)); // matching "Van 01" etc
       return matchSearch && matchClass && matchVan;
     });
 
-    const activeVansToDisplay = activeVan === 'All' ? MOCK_TELEMETRY.vans : MOCK_TELEMETRY.vans.filter(v => v.name === activeVan);
+    const activeVansToDisplay = activeVan === 'All' ? REAL_TELEMETRY_DATA.vans : REAL_TELEMETRY_DATA.vans.filter(v => v.name === activeVan);
 
     return (
       <div style={{ fontFamily: T.fontMain, background: T.bgMain, color: T.textPrimary, minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
@@ -226,8 +226,8 @@
                 onChange={e => setActiveVan(e.target.value)}
                 style={{ background: '#000', color: T.textPrimary, border: `1px solid ${T.border}`, padding: '8px 12px', borderRadius: '6px', outline: 'none' }}
               >
-                <option value="All">All Vans ({MOCK_TELEMETRY.vans.length})</option>
-                {MOCK_TELEMETRY.vans.map(v => <option key={v.id} value={v.name}>{v.name}</option>)}
+                <option value="All">All Vans ({REAL_TELEMETRY_DATA.vans.length})</option>
+                {REAL_TELEMETRY_DATA.vans.map(v => <option key={v.id} value={v.name}>{v.name}</option>)}
               </select>
               
               <div style={{ display: 'flex', background: '#000', borderRadius: '6px', padding: '4px' }}>
