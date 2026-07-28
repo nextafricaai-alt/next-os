@@ -13,7 +13,7 @@
 (function () {
   'use strict';
 
-  // Fallback seed data in case Supabase tables aren't created yet
+  // Clean empty fallback seed data (no mock data)
   const SEED_INCOMES = [];
   const SEED_EXPENSES = [];
 
@@ -39,12 +39,21 @@
 
   async function initSupabase() {
     sb = window.NextSession?.sb;
-    tenantId = window.NextSession?.profile?.tenantId || new URLSearchParams(location.search).get('t');
+    if (!sb && window.supabase) {
+      try {
+        sb = window.supabase.createClient('https://llxhvqkkgftqwefmrofn.supabase.co', 'sb_publishable_wrzbFpPrkhoN4w2KXdUAdw_gnqEQVs9');
+      } catch(e) {}
+    }
 
-    if (!sb || !tenantId) {
-      console.warn("SCHOOL_STORE: No active Supabase session or tenant found. Falling back to local/seed mode.");
-      state.incomes = SEED_INCOMES;
-      state.expenses = SEED_EXPENSES;
+    tenantId = window.NextSession?.profile?.tenantId || 
+               new URLSearchParams(location.search).get('t') || 
+               localStorage.getItem('nextos.tenant_id') || 
+               'kabs-lily-junior-school-and-kindercare-centre';
+
+    if (!sb) {
+      console.warn("SCHOOL_STORE: No active Supabase connection found.");
+      state.incomes = [];
+      state.expenses = [];
       notify();
       return;
     }
