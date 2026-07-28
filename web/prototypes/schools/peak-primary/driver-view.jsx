@@ -337,6 +337,10 @@
   const DriverView = ({ vanId = 'van-01' }) => {
     const [students, setStudents] = useState(mockStudents);
     const [isEmergencyModalOpen, setIsEmergencyModalOpen] = useState(false);
+    const [isKmModalOpen, setIsKmModalOpen] = useState(false);
+    const [skipModalOpen, setSkipModalOpen] = useState(null);
+    const [drawerOpen, setDrawerOpen] = useState(false);
+    const [filter, setFilter] = useState('All');
     const [isAddChildModalOpen, setIsAddChildModalOpen] = useState(false);
     const [newChildName, setNewChildName] = useState('');
     const [newChildClass, setNewChildClass] = useState('P.1');
