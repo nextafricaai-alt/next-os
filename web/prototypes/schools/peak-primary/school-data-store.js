@@ -331,9 +331,51 @@
       }
     },
 
-    // Stubbed additions for UI functionality
-    addTeacher: () => {},
-    addStudent: () => {},
+    async addStudent(entry) {
+      const tempId = 'temp-' + Date.now();
+      const newAppEntry = { ...entry, id: tempId };
+      state.students = [newAppEntry, ...state.students];
+      notify();
+
+      if (sb && tenantId) {
+        const { data } = await sb.from('students').insert([{
+          tenant_id: tenantId,
+          name: entry.name,
+          stream: entry.class,
+          guardian_name: entry.guardian,
+          guardian_phone: entry.guardianPhone,
+          date_of_birth: entry.dob || null
+        }]).select().single();
+
+        if (data) {
+          state.students = state.students.map(s => s.id === tempId ? mapStudentToApp(data) : s);
+          notify();
+        }
+      }
+    },
+
+    async addTeacher(entry) {
+      const tempId = 'temp-' + Date.now();
+      const newAppEntry = { ...entry, id: tempId };
+      state.teachers = [newAppEntry, ...state.teachers];
+      notify();
+
+      if (sb && tenantId) {
+        const { data } = await sb.from('teachers').insert([{
+          tenant_id: tenantId,
+          full_name: entry.name,
+          phone: entry.phone,
+          email: entry.email,
+          monthly_salary: entry.salary || 500000
+        }]).select().single();
+
+        if (data) {
+          state.teachers = state.teachers.map(t => t.id === tempId ? mapTeacherToApp(data) : t);
+          notify();
+        }
+      }
+    },
+
     addPayment: () => {}
   };
 
