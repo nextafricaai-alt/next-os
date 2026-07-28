@@ -29,26 +29,16 @@
   function readIncomes() { return SS ? SS.getIncomes() : []; }
   function readExpenses() { return SS ? SS.getExpenses() : []; }
 
-  const GATE_ATTENDANCE = [
-    { id: 1, name: 'Brian Mukasa', class: 'P.4', time: '07:42 AM', status: 'Present', gate: 'Main Gate', method: 'RFID Tag' },
-    { id: 2, name: 'Grace Kintu', class: 'Baby Class', time: '07:45 AM', status: 'Present', gate: 'Main Gate', method: 'Manual Check-in' },
-    { id: 3, name: 'Alvin Mwesigwa', class: 'P.1', time: '07:50 AM', status: 'Present', gate: 'Main Gate', method: 'Shuttle Dropoff' },
-    { id: 4, name: 'Divine Okello', class: 'P.7', time: '07:55 AM', status: 'Present', gate: 'Main Gate', method: 'Shuttle Dropoff' },
-    { id: 5, name: 'Joy Babirye', class: 'Top Class', time: '08:10 AM', status: 'Late', gate: 'Main Gate', method: 'Parent Dropoff' },
-  ];
-
-  const STAFF_SIGNINS = [
-    { id: 1, name: 'Nalukenge Jane', role: 'Head Teacher', time: '06:45 AM', status: 'On Duty', room: 'Administration' },
-    { id: 2, name: 'Mr. Bbosa Yusufu', role: 'Shuttle Driver', time: '06:30 AM', status: 'On Route', vehicle: 'UAB 218 Y' },
-    { id: 3, name: 'Tr. Sarah Namuli', role: 'P.4 Class Teacher', time: '07:15 AM', status: 'In Class', room: 'Room 4A' },
-    { id: 4, name: 'Tr. Moses K.', role: 'P.1 Teacher', time: '07:20 AM', status: 'In Class', room: 'Room 1B' },
-  ];
+  function readAttendance() { return SS ? SS.getAttendance() : []; }
+  function readStaffSignins() { return SS ? SS.getStaffSignins() : []; }
 
   function HeadTeacherView() {
     const [activeTab, setActiveTab] = useState('cash'); // 'cash' | 'gate' | 'transport' | 'staff'
     // Read from shared store so bursar entries appear here too
     const [incomes, setIncomes] = useState(() => readIncomes());
     const [expenses, setExpenses] = useState(() => readExpenses());
+    const [gateAttendance, setGateAttendance] = useState(() => readAttendance());
+    const [staffSignins, setStaffSignins] = useState(() => readStaffSignins());
     const [showIncomeModal, setShowIncomeModal] = useState(false);
     const [showExpenseModal, setShowExpenseModal] = useState(false);
     const [showReconcileModal, setShowReconcileModal] = useState(false);
@@ -61,6 +51,8 @@
       const refresh = () => {
         setIncomes(SS.getIncomes());
         setExpenses(SS.getExpenses());
+        setGateAttendance(readAttendance());
+        setStaffSignins(readStaffSignins());
       };
       SS.onChange(refresh);
     }, []);
@@ -300,7 +292,7 @@
                 padding: '10px 18px', borderRadius: '8px', fontWeight: '800', cursor: 'pointer', fontSize: '13px'
               }}
             >
-              📋 Gate Attendance & Check-Ins ({GATE_ATTENDANCE.length})
+              📋 Gate Attendance & Check-Ins ({gateAttendance.length})
             </button>
 
             <button
@@ -324,7 +316,7 @@
                 padding: '10px 18px', borderRadius: '8px', fontWeight: '800', cursor: 'pointer', fontSize: '13px'
               }}
             >
-              👩‍🏫 Staff Duty Roster & Attendance ({STAFF_SIGNINS.length})
+              👩‍🏫 Staff Duty Roster & Attendance ({staffSignins.length})
             </button>
           </div>
 
@@ -496,7 +488,7 @@
                   </tr>
                 </thead>
                 <tbody>
-                  {GATE_ATTENDANCE.map(s => (
+                  {gateAttendance.map(s => (
                     <tr key={s.id} style={{ borderBottom: `1px solid ${T.border}` }}>
                       <td style={{ padding: '12px', color: T.textMuted }}>{s.time}</td>
                       <td style={{ padding: '12px', fontWeight: '800' }}>{s.name}</td>
@@ -549,7 +541,7 @@
                   </tr>
                 </thead>
                 <tbody>
-                  {STAFF_SIGNINS.map(st => (
+                  {staffSignins.map(st => (
                     <tr key={st.id} style={{ borderBottom: `1px solid ${T.border}` }}>
                       <td style={{ padding: '12px', fontWeight: '800' }}>{st.name}</td>
                       <td style={{ padding: '12px', color: T.textMuted }}>{st.role}</td>

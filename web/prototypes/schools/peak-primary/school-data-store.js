@@ -30,7 +30,9 @@
     expenses: [],
     teachers: [],
     students: [],
-    payments: []
+    payments: [],
+    attendance: [],
+    staffSignins: []
   };
 
   const listeners = new Set();
@@ -53,12 +55,14 @@
 
     try {
       // Fetch initial data concurrently
-      const [incRes, expRes, stuRes, tchRes, feeRes] = await Promise.all([
+      const [incRes, expRes, stuRes, tchRes, feeRes, attRes, staffAttRes] = await Promise.all([
         sb.from('school_income').select('*').eq('tenant_id', tenantId).order('date', { ascending: false }),
         sb.from('school_expenses').select('*').eq('tenant_id', tenantId).order('date', { ascending: false }),
         sb.from('students').select('*').eq('tenant_id', tenantId),
         sb.from('teachers').select('*').eq('tenant_id', tenantId),
-        sb.from('fees').select('*').eq('tenant_id', tenantId).eq('kind', 'payment').order('id', { ascending: false })
+        sb.from('fees').select('*').eq('tenant_id', tenantId).eq('kind', 'payment').order('id', { ascending: false }),
+        sb.from('attendance').select('*, students(name, stream)').eq('tenant_id', tenantId).order('date', { ascending: false }),
+        sb.from('staff_attendance').select('*, teachers(full_name, role)').eq('tenant_id', tenantId).order('date', { ascending: false })
       ]);
 
       if (incRes.data && !incRes.error) state.incomes = incRes.data.map(mapIncomeToApp);
@@ -70,6 +74,8 @@
       if (stuRes.data) state.students = stuRes.data.map(mapStudentToApp);
       if (tchRes.data) state.teachers = tchRes.data.map(mapTeacherToApp);
       if (feeRes.data) state.payments = feeRes.data;
+      if (attRes && attRes.data) state.attendance = attRes.data.map(mapAttendanceToApp);
+      if (staffAttRes && staffAttRes.data) state.staffSignins = staffAttRes.data.map(mapStaffAttendanceToApp);
 
       notify();
 
@@ -87,6 +93,22 @@
           .on('postgres_changes', { event: '*', schema: 'public', table: 'school_expenses', filter: `tenant_id=eq.${tenantId}` }, async () => {
             const r = await sb.from('school_expenses').select('*').eq('tenant_id', tenantId).order('date', { ascending: false });
             if (r.data) { state.expenses = r.data.map(mapExpenseToApp); notify(); }
+          }).subscribe();
+      }
+
+      if (!attRes?.error) {
+        sb.channel('public:attendance')
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'attendance', filter: `tenant_id=eq.${tenantId}` }, async () => {
+            const r = await sb.from('attendance').select('*, students(name, stream)').eq('tenant_id', tenantId).order('date', { ascending: false });
+            if (r.data) { state.attendance = r.data.map(mapAttendanceToApp); notify(); }
+          }).subscribe();
+      }
+
+      if (!staffAttRes?.error) {
+        sb.channel('public:staff_attendance')
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'staff_attendance', filter: `tenant_id=eq.${tenantId}` }, async () => {
+            const r = await sb.from('staff_attendance').select('*, teachers(full_name, role)').eq('tenant_id', tenantId).order('date', { ascending: false });
+            if (r.data) { state.staffSignins = r.data.map(mapStaffAttendanceToApp); notify(); }
           }).subscribe();
       }
 
@@ -156,6 +178,46 @@
     };
   }
 
+  function mapAttendanceToApp(dbRow) {
+    // Attempt to extract method and gate from notes string, e.g. "07:45 AM - Main Gate - RFID Tag"
+    const notesParts = (dbRow.notes || '').split(' - ');
+    const time = notesParts[0] || '00:00 AM';
+    const gate = notesParts[1] || 'Main Gate';
+    const method = notesParts[2] || 'Manual Check-in';
+
+    return {
+      id: dbRow.id,
+      name: dbRow.students?.name || 'Unknown Student',
+      class: dbRow.students?.stream || 'N/A',
+      time: time,
+      status: dbRow.present ? 'Present' : 'Late',
+      gate: gate,
+      method: method
+    };
+  }
+
+  function mapStaffAttendanceToApp(dbRow) {
+    // Assuming time_in is 'HH:MM:SS'
+    let timeFormatted = dbRow.time_in;
+    if (timeFormatted && timeFormatted.length >= 5) {
+      const parts = timeFormatted.split(':');
+      let h = parseInt(parts[0], 10);
+      const ampm = h >= 12 ? 'PM' : 'AM';
+      h = h % 12 || 12;
+      timeFormatted = `${h < 10 ? '0'+h : h}:${parts[1]} ${ampm}`;
+    }
+
+    return {
+      id: dbRow.id,
+      name: dbRow.teachers?.full_name || 'Unknown Teacher',
+      role: dbRow.teachers?.role || 'Staff',
+      time: timeFormatted || '00:00 AM',
+      status: dbRow.status || 'On Duty',
+      room: dbRow.room,
+      vehicle: dbRow.vehicle
+    };
+  }
+
 
 
   // Kickoff initialization
@@ -174,6 +236,8 @@
     getTeachers: () => state.teachers,
     getStudents: () => state.students,
     getPayments: () => state.payments,
+    getAttendance: () => state.attendance,
+    getStaffSignins: () => state.staffSignins,
 
     async addIncome(entry) {
       // Optimistic update for UI feel
