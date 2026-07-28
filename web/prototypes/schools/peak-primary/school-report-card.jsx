@@ -146,7 +146,7 @@
                 <span style={{ fontWeight: 'bold' }}>{headTeacherName}</span> (Head Teacher)
               </div>
               {/* Stamp placeholder */}
-              <div style={{ position: 'absolute', bottom: -10, right: 10, width: 80, height: 80, borderRadius: '50%', border: \`2px dashed \${brand.colors.primary}\`, opacity: 0.3, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: brand.colors.primary, transform: 'rotate(-15deg)' }}>
+              <div style={{ position: 'absolute', bottom: -10, right: 10, width: 80, height: 80, borderRadius: '50%', border: `2px dashed ${brand.colors.primary}`, opacity: 0.3, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: brand.colors.primary, transform: 'rotate(-15deg)' }}>
                 OFFICIAL STAMP
               </div>
             </div>
