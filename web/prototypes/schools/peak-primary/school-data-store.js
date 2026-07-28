@@ -67,8 +67,8 @@
       if (expRes.data && !expRes.error) state.expenses = expRes.data.map(mapExpenseToApp);
       else state.expenses = SEED_EXPENSES;
 
-      if (stuRes.data) state.students = stuRes.data;
-      if (tchRes.data) state.teachers = tchRes.data;
+      if (stuRes.data) state.students = stuRes.data.map(mapStudentToApp);
+      if (tchRes.data) state.teachers = tchRes.data.map(mapTeacherToApp);
       if (feeRes.data) state.payments = feeRes.data;
 
       notify();
@@ -126,6 +126,36 @@
       loggedBy: dbRow.logged_by
     };
   }
+
+  function mapStudentToApp(dbRow) {
+    return {
+      id: dbRow.id,
+      name: dbRow.name || 'Unknown Student',
+      class: dbRow.stream || 'Unknown Class',
+      type: 'Day Scholar', // Not in standard DB schema yet
+      termFee: 750000,     // Default dummy for prototype view
+      paidAmount: 0,
+      balance: 750000,
+      guardian: dbRow.guardian_name || 'N/A',
+      guardianPhone: dbRow.guardian_phone || ''
+    };
+  }
+
+  function mapTeacherToApp(dbRow) {
+    return {
+      id: dbRow.id,
+      name: dbRow.full_name || 'Unknown Teacher',
+      role: dbRow.role || 'Teacher',
+      subject: dbRow.department || 'General',
+      class: 'N/A',
+      phone: dbRow.phone_number || '',
+      email: dbRow.email || '',
+      salary: 500000, // Dummy
+      status: 'Active',
+      joinDate: dbRow.joined_at ? new Date(dbRow.joined_at).toLocaleDateString() : 'Unknown'
+    };
+  }
+
 
 
   // Kickoff initialization
