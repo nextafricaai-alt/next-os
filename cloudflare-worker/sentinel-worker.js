@@ -2277,9 +2277,13 @@ async function handleFeesBalances(tenant, env, cors) {
   if (!tenant) return J({ error: 'tenant required' }, 400);
   if (!env.SUPABASE_URL || !env.SUPABASE_KEY) return J({ error: 'Supabase not configured.' }, 500);
   try {
-    const rows = await sbFetch(env, '/fees?tenant_id=eq.' + encodeURIComponent(tenant) + '&select=student_id,amount&limit=20000');
+    const rows = await sbFetch(env, '/fees?tenant_id=eq.' + encodeURIComponent(tenant) + '&select=student_id,kind,amount&limit=20000');
     const bal = {};
-    (rows || []).forEach(r => { bal[r.student_id] = (bal[r.student_id] || 0) + Number(r.amount || 0); });
+    (rows || []).forEach(r => {
+      let amt = Number(r.amount || 0);
+      if (r.kind === 'payment' && amt > 0) amt = -amt;
+      bal[r.student_id] = (bal[r.student_id] || 0) + amt;
+    });
     return J({ tenant, balances: bal });
   } catch (e) { return J({ error: String((e && e.message) || e), tenant }, 200); }
 }
