@@ -5,155 +5,378 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>Bursar Dashboard — Kabs Lily Kindercare &amp; Primary School</title>
   <meta name="description" content="Bursar / Administrator cash control hub for Nalukenge Jane — Kabs Lily Kindercare" />
-
-  <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&family=Instrument+Serif&display=swap" rel="stylesheet">
-
-  <!-- React & Babel -->
   <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  <!-- Supabase -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
+  <!-- Shared Data Store (MUST load before the React app) -->
+  <script src="/prototypes/schools/peak-primary/school-data-store.js"></script>
   <style>
     :root {
-      --bg:      #07090F;
-      --surface: #0F172A;
-      --surf2:   #1E293B;
-      --surf3:   #334155;
-      --border:  rgba(255,255,255,0.08);
-      --borderB: rgba(255,255,255,0.15);
-      --text:    #F8FAFC;
-      --muted:   rgba(248,250,252,0.55);
-      --mint:    #00FC8F;
-      --gold:    #FFB400;
-      --red:     #FF4757;
-      --blue:    #3B82F6;
-      --purple:  #8B5CF6;
-      --font:    'Inter', -apple-system, system-ui, sans-serif;
-      --mono:    'JetBrains Mono', ui-monospace, monospace;
+      --bg:#07090F; --surface:#0F172A; --surf2:#1E293B; --surf3:#334155;
+      --border:rgba(255,255,255,0.08); --borderB:rgba(255,255,255,0.15);
+      --text:#F8FAFC; --muted:rgba(248,250,252,0.55);
+      --mint:#00FC8F; --gold:#FFB400; --red:#FF4757; --blue:#3B82F6; --purple:#8B5CF6;
+      --font:'Inter',-apple-system,system-ui,sans-serif;
+      --mono:'JetBrains Mono',ui-monospace,monospace;
     }
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    html, body { background: var(--bg); color: var(--text); font-family: var(--font); min-height: 100vh; -webkit-font-smoothing: antialiased; }
-    #root { min-height: 100vh; display: flex; flex-direction: column; }
-    ::-webkit-scrollbar { width: 5px; height: 5px; }
-    ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: var(--surf3); border-radius: 3px; }
-    ::-webkit-scrollbar-thumb:hover { background: var(--mint); }
-    @keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
-    @keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:0.4;} }
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+    html,body{background:var(--bg);color:var(--text);font-family:var(--font);min-height:100vh;-webkit-font-smoothing:antialiased;}
+    #root{min-height:100vh;display:flex;flex-direction:column;}
+    ::-webkit-scrollbar{width:5px;height:5px;}
+    ::-webkit-scrollbar-track{background:transparent;}
+    ::-webkit-scrollbar-thumb{background:var(--surf3);border-radius:3px;}
+    ::-webkit-scrollbar-thumb:hover{background:var(--mint);}
+    @keyframes fadeIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
+    @keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.4;}}
+    @keyframes slideIn{from{transform:translateX(100%);}to{transform:translateX(0);}}
+
+    /* Layout */
+    .app-shell{display:flex;flex-direction:column;min-height:100vh;}
+    .main-layout{display:flex;flex:1;overflow:hidden;}
+    .content-area{flex:1;overflow-y:auto;padding:24px;}
+    .side-panel{width:380px;min-width:380px;border-left:1px solid var(--border);overflow-y:auto;background:var(--surface);transition:width 0.25s ease,min-width 0.25s ease;}
+    .side-panel.collapsed{width:0;min-width:0;overflow:hidden;}
+
+    @media(max-width:1100px){
+      .side-panel{position:fixed;top:60px;right:0;bottom:0;z-index:50;animation:slideIn 0.25s ease;box-shadow:-8px 0 32px rgba(0,0,0,0.5);}
+      .side-panel.collapsed{position:static;animation:none;}
+    }
+    @media(max-width:768px){
+      .content-area{padding:16px;}
+      .stat-grid{grid-template-columns:1fr 1fr!important;}
+    }
   </style>
 </head>
 <body>
   <div id="root"></div>
-
   <script type="text/babel">
-    const { useState, useEffect, useMemo, useRef } = React;
+    const { useState, useEffect, useMemo, useCallback } = React;
+    const SS = window.SCHOOL_STORE;
 
-    /* ─────────────────────────────────────────────
-       SAMPLE DATA (pre-filled realistic Kabs Lily data
-       matching the role spec requirements)
-    ───────────────────────────────────────────── */
-    const INITIAL_INCOMES = [
-      { id: 'INC-001', date: '2026-07-28 07:30', studentName: 'Brian Mukasa', class: 'P.4', sourceType: 'School Fees (Tuition)', amount: 750000, unspentBalance: 580000, paymentMethod: 'Cash', receivedBy: 'Nalukenge Jane', notes: 'Term 2 fees — full payment' },
-      { id: 'INC-002', date: '2026-07-28 08:15', studentName: 'Grace Kintu', class: 'Baby Class', sourceType: 'School Fees (Tuition)', amount: 350000, unspentBalance: 305000, paymentMethod: 'Cash', receivedBy: 'Nalukenge Jane', notes: 'Full fee clearance' },
-      { id: 'INC-003', date: '2026-07-28 09:10', studentName: 'Alvin Mwesigwa', class: 'P.1', sourceType: 'Admission & Books', amount: 350000, unspentBalance: 245000, paymentMethod: 'Mobile Money', receivedBy: 'Nalukenge Jane', notes: 'Materials & registration fee' },
-      { id: 'INC-004', date: '2026-07-28 10:00', studentName: 'Daniel Okello', class: 'P.4', sourceType: 'School Fees (Tuition)', amount: 600000, unspentBalance: 600000, paymentMethod: 'Cash', receivedBy: 'Nalukenge Jane', notes: 'Term 2 fees — partial balance' },
-      { id: 'INC-005', date: '2026-07-28 11:30', studentName: 'Ruth Asiimwe', class: 'P.3', sourceType: 'Other Income', amount: 80000, unspentBalance: 80000, paymentMethod: 'Cash', receivedBy: 'Nalukenge Jane', notes: 'Swimming levy contribution' },
-    ];
+    const FMT = n => 'UGX ' + Number(n || 0).toLocaleString();
+    const NOW = () => new Date().toISOString().slice(0,16).replace('T',' ');
 
-    const INITIAL_EXPENSES = [
-      { id: 'EXP-001', date: '2026-07-28 08:00', category: 'Fuel & Transport', description: 'Shuttle Van Diesel (Mr. Bbosa)', amount: 50000, paidTo: 'Total Energies Kireka', incomeSourceId: 'INC-001', notes: 'Morning shuttle route fuel', receiptAttached: true },
-      { id: 'EXP-002', date: '2026-07-28 08:45', category: 'Food & Kitchen', description: 'Posho & Beans — Weekly Supply', amount: 120000, paidTo: 'Kireka Market Wholesale', incomeSourceId: 'INC-001', notes: 'Weekly lunch grains for 40 children', receiptAttached: true },
-      { id: 'EXP-003', date: '2026-07-28 09:30', category: 'Supplies & Stationery', description: 'Chalk, Exercise Books — Baby Class', amount: 45000, paidTo: 'Aristoc Booklex', incomeSourceId: 'INC-002', notes: 'Baby class stationery restocking', receiptAttached: true },
-      { id: 'EXP-004', date: '2026-07-28 10:15', category: 'Repairs & Maintenance', description: 'Plumbing — P.1 Washroom Tap', amount: 105000, paidTo: 'Fundi James', incomeSourceId: 'INC-003', notes: 'Emergency pipe replacement', receiptAttached: false },
-    ];
-
-    const GATE_ATTENDANCE = [
-      { id: 1, name: 'Brian Mukasa', class: 'P.4', time: '07:42 AM', status: 'Present', method: 'RFID Tag' },
-      { id: 2, name: 'Grace Kintu', class: 'Baby Class', time: '07:45 AM', status: 'Present', method: 'Manual Check-in' },
-      { id: 3, name: 'Alvin Mwesigwa', class: 'P.1', time: '07:50 AM', status: 'Present', method: 'Shuttle Dropoff' },
-      { id: 4, name: 'Divine Okello', class: 'P.7', time: '07:55 AM', status: 'Present', method: 'Shuttle Dropoff' },
-      { id: 5, name: 'Joy Babirye', class: 'Top Class', time: '08:10 AM', status: 'Late', method: 'Parent Dropoff' },
-      { id: 6, name: 'Sharon Nabakooza', class: 'Baby Class', time: '—', status: 'Absent', method: '—' },
-    ];
-
-    const STAFF_SIGNINS = [
-      { id: 1, name: 'Nalukenge Jane', role: 'Bursar / Administrator', time: '06:45 AM', status: 'On Duty' },
-      { id: 2, name: 'Mr. Bbosa Yusufu', role: 'Shuttle Driver', time: '06:30 AM', status: 'On Route' },
-      { id: 3, name: 'Tr. Sarah Namuli', role: 'P.4 Class Teacher', time: '07:15 AM', status: 'In Class' },
-      { id: 4, name: 'Tr. Moses K.', role: 'P.1 Teacher', time: '07:20 AM', status: 'In Class' },
-      { id: 5, name: 'Tr. Patience N.', role: 'Baby Class', time: '07:10 AM', status: 'In Class' },
-    ];
-
-    const FMT = (n) => 'UGX ' + Number(n).toLocaleString();
-    const now = () => new Date().toISOString().slice(0, 16).replace('T', ' ');
-
-    /* ─────────────────────────────────────────────
-       MODAL COMPONENT
-    ───────────────────────────────────────────── */
-    function Modal({ title, onClose, children }) {
+    /* ─── Shared small components ─── */
+    function Badge({ label, color='#3B82F6' }) {
+      return <span style={{ display:'inline-block', padding:'2px 8px', borderRadius:'999px', fontSize:'10px', fontWeight:'700', textTransform:'uppercase', letterSpacing:'0.06em', background:`${color}22`, color, border:`1px solid ${color}44` }}>{label}</span>;
+    }
+    function Field({ label, children }) {
       return (
-        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.75)', backdropFilter:'blur(8px)', zIndex:200, display:'flex', alignItems:'center', justifyContent:'center', padding:'16px' }}>
-          <div style={{ background:'#0F172A', border:'1px solid rgba(255,255,255,0.12)', borderRadius:'16px', width:'100%', maxWidth:'520px', maxHeight:'90vh', overflowY:'auto', animation:'fadeIn 0.2s ease' }}>
-            <div style={{ padding:'20px 24px', borderBottom:'1px solid rgba(255,255,255,0.08)', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-              <h3 style={{ fontSize:'16px', fontWeight:'700' }}>{title}</h3>
-              <button onClick={onClose} style={{ background:'none', border:'none', color:'rgba(248,250,252,0.5)', fontSize:'20px', cursor:'pointer', lineHeight:1 }}>×</button>
+        <div style={{ marginBottom:'13px' }}>
+          <label style={{ display:'block', fontSize:'10px', fontFamily:'var(--mono)', letterSpacing:'0.08em', color:'var(--muted)', marginBottom:'5px', textTransform:'uppercase' }}>{label}</label>
+          {children}
+        </div>
+      );
+    }
+    const IS = { width:'100%', background:'rgba(10,16,41,0.7)', border:'1px solid rgba(255,255,255,0.1)', borderRadius:'8px', padding:'9px 12px', color:'#F8FAFC', fontFamily:'var(--font)', fontSize:'13px', outline:'none' };
+    function Modal({ title, onClose, children, wide }) {
+      return (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.8)', backdropFilter:'blur(8px)', zIndex:300, display:'flex', alignItems:'center', justifyContent:'center', padding:'16px' }}>
+          <div style={{ background:'#0F172A', border:'1px solid rgba(255,255,255,0.12)', borderRadius:'16px', width:'100%', maxWidth: wide ? '640px' : '500px', maxHeight:'90vh', overflowY:'auto', animation:'fadeIn 0.2s ease' }}>
+            <div style={{ padding:'18px 22px', borderBottom:'1px solid rgba(255,255,255,0.08)', display:'flex', justifyContent:'space-between', alignItems:'center', position:'sticky', top:0, background:'#0F172A', zIndex:1 }}>
+              <h3 style={{ fontSize:'15px', fontWeight:'800' }}>{title}</h3>
+              <button onClick={onClose} style={{ background:'none', border:'none', color:'rgba(248,250,252,0.4)', fontSize:'22px', cursor:'pointer', lineHeight:1 }}>×</button>
             </div>
-            <div style={{ padding:'24px' }}>{children}</div>
+            <div style={{ padding:'22px' }}>{children}</div>
           </div>
         </div>
       );
     }
 
-    /* ─────────────────────────────────────────────
-       INPUT COMPONENT
-    ───────────────────────────────────────────── */
-    function Field({ label, children }) {
+    /* ─────────────────────────────────────────────────────────
+       SIDE PANEL — Teachers, Students, Payment Records
+    ───────────────────────────────────────────────────────── */
+    function SidePanel({ onClose, tick }) {
+      const [panelTab, setPanelTab] = useState('teachers');
+      const [search, setSearch] = useState('');
+      const [typeFilter, setTypeFilter] = useState('All');
+      const [showAddTeacher, setShowAddTeacher] = useState(false);
+      const [showAddStudent, setShowAddStudent] = useState(false);
+
+      // Form state — teacher
+      const [tName, setTName] = useState('');
+      const [tRole, setTRole] = useState('Class Teacher');
+      const [tSubject, setTSubject] = useState('');
+      const [tClass, setTClass] = useState('');
+      const [tPhone, setTPhone] = useState('');
+      const [tEmail, setTEmail] = useState('');
+      const [tSalary, setTSalary] = useState('');
+      const [tQual, setTQual] = useState('Grade III Certificate');
+
+      // Form state — student
+      const [sName, setSName] = useState('');
+      const [sClass, setSClass] = useState('P.1');
+      const [sType, setSType] = useState('Day Scholar');
+      const [sFee, setSFee] = useState('');
+      const [sGuardian, setSGuardian] = useState('');
+      const [sPhone, setSPhone] = useState('');
+
+      const teachers = useMemo(() => SS.getTeachers(), [tick]);
+      const students = useMemo(() => SS.getStudents(), [tick]);
+      const payments = useMemo(() => SS.getPayments(), [tick]);
+
+      const totalSalaryBill = useMemo(() => teachers.reduce((s,t) => s+(t.salary||0), 0), [teachers]);
+
+      const filteredStudents = useMemo(() => {
+        return students.filter(s => {
+          const matchType = typeFilter === 'All' || s.type === typeFilter;
+          const matchSearch = !search || s.name.toLowerCase().includes(search.toLowerCase()) || s.class.toLowerCase().includes(search.toLowerCase());
+          return matchType && matchSearch;
+        });
+      }, [students, typeFilter, search, tick]);
+
+      const filteredPayments = useMemo(() => {
+        return payments.filter(p =>
+          !search || p.studentName.toLowerCase().includes(search.toLowerCase()) || p.id.toLowerCase().includes(search.toLowerCase())
+        );
+      }, [payments, search, tick]);
+
+      const handleAddTeacher = () => {
+        if (!tName || !tSalary) return;
+        SS.addTeacher({ name:tName, role:tRole, subject:tSubject, class:tClass||'—', phone:tPhone, email:tEmail, salary:parseInt(tSalary.replace(/,/g,'')), status:'On Duty', joinDate:new Date().toISOString().slice(0,10), qualification:tQual, photo:null });
+        setShowAddTeacher(false);
+        setTName(''); setTSalary(''); setTPhone(''); setTEmail(''); setTSubject(''); setTClass('');
+      };
+
+      const handleAddStudent = () => {
+        if (!sName || !sFee) return;
+        const fee = parseInt(sFee.replace(/,/g,''));
+        SS.addStudent({ name:sName, class:sClass, type:sType, termFee:fee, paidAmount:0, balance:fee, guardian:sGuardian, guardianPhone:sPhone, admissionDate:new Date().toISOString().slice(0,10), dob:'' });
+        setShowAddStudent(false);
+        setSName(''); setSFee(''); setSGuardian(''); setSPhone('');
+      };
+
+      const PTABS = [
+        { k:'teachers', label:'👩‍🏫 Teachers' },
+        { k:'students', label:'🎒 Students' },
+        { k:'payments', label:'🧾 Payment Records' },
+      ];
+
       return (
-        <div style={{ marginBottom:'14px' }}>
-          <label style={{ display:'block', fontSize:'11px', fontFamily:'var(--mono)', letterSpacing:'0.08em', color:'var(--muted)', marginBottom:'6px', textTransform:'uppercase' }}>{label}</label>
-          {children}
+        <div style={{ display:'flex', flexDirection:'column', height:'100%' }}>
+          {/* Panel Header */}
+          <div style={{ padding:'16px 18px', borderBottom:'1px solid var(--border)', display:'flex', justifyContent:'space-between', alignItems:'center', flexShrink:0, background:'var(--surf2)' }}>
+            <div style={{ fontWeight:'800', fontSize:'14px' }}>School Registry</div>
+            <button onClick={onClose} style={{ background:'none', border:'none', color:'var(--muted)', fontSize:'20px', cursor:'pointer', lineHeight:1 }}>×</button>
+          </div>
+
+          {/* Panel Tabs */}
+          <div style={{ display:'flex', borderBottom:'1px solid var(--border)', flexShrink:0 }}>
+            {PTABS.map(t => (
+              <button key={t.k} onClick={() => { setPanelTab(t.k); setSearch(''); }} style={{
+                flex:1, padding:'10px 4px', border:'none', fontSize:'11px', fontWeight:'700',
+                background: panelTab===t.k ? 'rgba(255,180,0,0.1)' : 'transparent',
+                color: panelTab===t.k ? '#FFB400' : 'var(--muted)',
+                borderBottom: panelTab===t.k ? '2px solid #FFB400' : '2px solid transparent',
+                cursor:'pointer', transition:'all 0.15s',
+              }}>{t.label}</button>
+            ))}
+          </div>
+
+          {/* Search */}
+          <div style={{ padding:'12px 14px', flexShrink:0 }}>
+            <input value={search} onChange={e=>setSearch(e.target.value)} placeholder={`Search ${panelTab}…`} style={{ ...IS, fontSize:'12px', padding:'8px 10px' }} />
+          </div>
+
+          {/* ── TEACHERS ── */}
+          {panelTab === 'teachers' && (
+            <div style={{ flex:1, overflowY:'auto', padding:'0 14px 14px' }}>
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'12px' }}>
+                <div style={{ fontSize:'11px', color:'var(--muted)' }}>
+                  {teachers.length} staff · Monthly bill: <b style={{ color:'#FF4757' }}>{FMT(totalSalaryBill)}</b>
+                </div>
+                <button onClick={() => setShowAddTeacher(true)} style={{ background:'rgba(0,252,143,0.12)', border:'1px solid rgba(0,252,143,0.3)', color:'#00FC8F', borderRadius:'6px', padding:'5px 10px', fontSize:'11px', fontWeight:'700', cursor:'pointer' }}>+ Add</button>
+              </div>
+
+              <div style={{ display:'flex', flexDirection:'column', gap:'10px' }}>
+                {teachers.filter(t => !search || t.name.toLowerCase().includes(search.toLowerCase())).map(t => (
+                  <div key={t.id} style={{ background:'var(--surf2)', borderRadius:'10px', padding:'13px 14px', border:'1px solid var(--border)' }}>
+                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start' }}>
+                      <div style={{ display:'flex', gap:'10px', alignItems:'center' }}>
+                        <div style={{ width:'38px', height:'38px', borderRadius:'50%', background:'linear-gradient(135deg,#3B82F6,#8B5CF6)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'13px', fontWeight:'800', flexShrink:0 }}>
+                          {t.name.split(' ').map(n=>n[0]).join('').slice(0,2)}
+                        </div>
+                        <div>
+                          <div style={{ fontWeight:'700', fontSize:'13px' }}>{t.name}</div>
+                          <div style={{ fontSize:'11px', color:'var(--muted)' }}>{t.role} · {t.class}</div>
+                        </div>
+                      </div>
+                      <Badge label={t.status} color={t.status==='On Duty'||t.status==='In Class' ? '#00FC8F' : '#3B82F6'} />
+                    </div>
+                    <div style={{ marginTop:'10px', display:'grid', gridTemplateColumns:'1fr 1fr', gap:'6px', fontSize:'11px' }}>
+                      <div style={{ color:'var(--muted)' }}>Subject: <b style={{ color:'var(--text)' }}>{t.subject||'—'}</b></div>
+                      <div style={{ color:'var(--muted)' }}>Phone: <b style={{ color:'var(--text)' }}>{t.phone||'—'}</b></div>
+                      <div style={{ color:'var(--muted)' }}>Joined: <b style={{ color:'var(--text)' }}>{t.joinDate}</b></div>
+                      <div style={{ color:'var(--muted)' }}>Qual: <b style={{ color:'var(--text)' }}>{t.qualification}</b></div>
+                    </div>
+                    <div style={{ marginTop:'10px', display:'flex', justifyContent:'space-between', alignItems:'center', background:'rgba(255,71,87,0.08)', border:'1px solid rgba(255,71,87,0.2)', borderRadius:'6px', padding:'7px 10px' }}>
+                      <span style={{ fontSize:'11px', color:'var(--muted)', fontWeight:'600' }}>Monthly Salary</span>
+                      <span style={{ fontSize:'14px', fontWeight:'900', color:'#FF4757' }}>{FMT(t.salary)}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ── STUDENTS ── */}
+          {panelTab === 'students' && (
+            <div style={{ flex:1, overflowY:'auto', padding:'0 14px 14px' }}>
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'10px', flexWrap:'wrap', gap:'6px' }}>
+                <div style={{ display:'flex', gap:'6px' }}>
+                  {['All','Day Scholar','Boarding'].map(f => (
+                    <button key={f} onClick={() => setTypeFilter(f)} style={{
+                      padding:'4px 10px', borderRadius:'999px', border:'none', fontSize:'10px', fontWeight:'700', cursor:'pointer',
+                      background: typeFilter===f ? '#FFB400' : 'rgba(255,255,255,0.07)',
+                      color: typeFilter===f ? '#0a1029' : 'var(--muted)',
+                    }}>{f}</button>
+                  ))}
+                </div>
+                <button onClick={() => setShowAddStudent(true)} style={{ background:'rgba(0,252,143,0.12)', border:'1px solid rgba(0,252,143,0.3)', color:'#00FC8F', borderRadius:'6px', padding:'5px 10px', fontSize:'11px', fontWeight:'700', cursor:'pointer' }}>+ Add</button>
+              </div>
+
+              <div style={{ display:'flex', flexDirection:'column', gap:'8px' }}>
+                {filteredStudents.map(s => (
+                  <div key={s.id} style={{ background:'var(--surf2)', borderRadius:'10px', padding:'12px 13px', border:'1px solid var(--border)' }}>
+                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:'6px' }}>
+                      <div>
+                        <div style={{ fontWeight:'700', fontSize:'13px' }}>{s.name}</div>
+                        <div style={{ fontSize:'11px', color:'var(--muted)' }}>{s.class} · <span style={{ color: s.type==='Boarding' ? '#8B5CF6' : '#3B82F6' }}>{s.type}</span></div>
+                      </div>
+                      <Badge label={s.balance===0 ? 'CLEARED' : 'BALANCE DUE'} color={s.balance===0 ? '#00FC8F' : '#FF4757'} />
+                    </div>
+                    <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:'4px', marginTop:'8px' }}>
+                      {[
+                        { label:'Term Fee', val: FMT(s.termFee), color:'var(--text)' },
+                        { label:'Paid', val: FMT(s.paidAmount), color:'#00FC8F' },
+                        { label:'Balance', val: FMT(s.balance), color: s.balance>0 ? '#FF4757' : 'var(--muted)' },
+                      ].map(x => (
+                        <div key={x.label} style={{ background:'rgba(255,255,255,0.04)', borderRadius:'6px', padding:'6px 8px', textAlign:'center' }}>
+                          <div style={{ fontSize:'9px', color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.06em' }}>{x.label}</div>
+                          <div style={{ fontSize:'12px', fontWeight:'800', color:x.color, marginTop:'2px' }}>{x.val}</div>
+                        </div>
+                      ))}
+                    </div>
+                    <div style={{ fontSize:'10px', color:'var(--muted)', marginTop:'7px' }}>Guardian: {s.guardian} · {s.guardianPhone}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ── PAYMENT RECORDS ── */}
+          {panelTab === 'payments' && (
+            <div style={{ flex:1, overflowY:'auto', padding:'0 14px 14px' }}>
+              <div style={{ fontSize:'11px', color:'var(--muted)', marginBottom:'10px' }}>
+                {payments.length} payment records · Total collected: <b style={{ color:'#00FC8F' }}>{FMT(payments.reduce((s,p)=>s+p.amount,0))}</b>
+              </div>
+              <div style={{ display:'flex', flexDirection:'column', gap:'8px' }}>
+                {filteredPayments.map(p => (
+                  <div key={p.id} style={{ background:'var(--surf2)', borderRadius:'9px', padding:'11px 13px', border:'1px solid var(--border)' }}>
+                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start' }}>
+                      <div>
+                        <span style={{ fontFamily:'var(--mono)', fontSize:'9px', color:'#00FC8F', fontWeight:'600' }}>{p.id}</span>
+                        <div style={{ fontWeight:'700', fontSize:'13px', marginTop:'2px' }}>{p.studentName}</div>
+                        <div style={{ fontSize:'11px', color:'var(--muted)' }}>{p.class} · {p.type}</div>
+                      </div>
+                      <div style={{ textAlign:'right' }}>
+                        <div style={{ fontWeight:'900', fontSize:'15px', color:'#00FC8F' }}>{FMT(p.amount)}</div>
+                        <Badge label={p.status} color={p.status==='Cleared' ? '#00FC8F' : '#FFB400'} />
+                      </div>
+                    </div>
+                    <div style={{ marginTop:'7px', display:'flex', justifyContent:'space-between', fontSize:'10px', color:'var(--muted)' }}>
+                      <span>{p.method} · {p.term}</span>
+                      <span>{p.date}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Add Teacher Modal */}
+          {showAddTeacher && (
+            <Modal title="👩‍🏫 Add Staff Member" onClose={() => setShowAddTeacher(false)}>
+              <Field label="Full Name *"><input style={IS} value={tName} onChange={e=>setTName(e.target.value)} placeholder="e.g. Tr. Mary Nakato" /></Field>
+              <Field label="Role">
+                <select style={IS} value={tRole} onChange={e=>setTRole(e.target.value)}>
+                  {['Head Teacher','Class Teacher','Shuttle Driver','Bursar','School Nurse','Cleaner','Cook','Security Guard'].map(r=><option key={r}>{r}</option>)}
+                </select>
+              </Field>
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px' }}>
+                <Field label="Subject / Dept"><input style={IS} value={tSubject} onChange={e=>setTSubject(e.target.value)} placeholder="e.g. Math & SST" /></Field>
+                <Field label="Class Assigned"><input style={IS} value={tClass} onChange={e=>setTClass(e.target.value)} placeholder="e.g. P.3" /></Field>
+                <Field label="Phone"><input style={IS} value={tPhone} onChange={e=>setTPhone(e.target.value)} placeholder="+256 7XX XXX XXX" /></Field>
+                <Field label="Email"><input style={IS} value={tEmail} onChange={e=>setTEmail(e.target.value)} placeholder="email@school.ac.ug" /></Field>
+              </div>
+              <Field label="Monthly Salary (UGX) *"><input style={IS} type="number" value={tSalary} onChange={e=>setTSalary(e.target.value)} placeholder="e.g. 600000" /></Field>
+              <Field label="Qualification">
+                <select style={IS} value={tQual} onChange={e=>setTQual(e.target.value)}>
+                  {['Grade III Certificate','Diploma in Education','ECD Certificate','Degree in Education','Class B Driving Permit','Other'].map(q=><option key={q}>{q}</option>)}
+                </select>
+              </Field>
+              <button onClick={handleAddTeacher} disabled={!tName||!tSalary} style={{ width:'100%', padding:'12px', background: tName&&tSalary ? '#00FC8F' : '#334155', color: tName&&tSalary ? '#0a1029' : 'var(--muted)', border:'none', borderRadius:'9px', fontSize:'14px', fontWeight:'800', cursor: tName&&tSalary ? 'pointer' : 'not-allowed', marginTop:'4px' }}>
+                Save Staff Member
+              </button>
+            </Modal>
+          )}
+
+          {/* Add Student Modal */}
+          {showAddStudent && (
+            <Modal title="🎒 Add Student" onClose={() => setShowAddStudent(false)}>
+              <Field label="Full Name *"><input style={IS} value={sName} onChange={e=>setSName(e.target.value)} placeholder="e.g. Aisha Nanteza" /></Field>
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px' }}>
+                <Field label="Class">
+                  <select style={IS} value={sClass} onChange={e=>setSClass(e.target.value)}>
+                    {['Baby Class','Middle Class','Top Class','P.1','P.2','P.3','P.4','P.5','P.6','P.7'].map(c=><option key={c}>{c}</option>)}
+                  </select>
+                </Field>
+                <Field label="Type">
+                  <select style={IS} value={sType} onChange={e=>setSType(e.target.value)}>
+                    <option>Day Scholar</option><option>Boarding</option>
+                  </select>
+                </Field>
+              </div>
+              <Field label="Term Fee (UGX) *"><input style={IS} type="number" value={sFee} onChange={e=>setSFee(e.target.value)} placeholder={sType==='Boarding' ? 'e.g. 1500000' : 'e.g. 650000'} /></Field>
+              <Field label="Guardian Name"><input style={IS} value={sGuardian} onChange={e=>setSGuardian(e.target.value)} placeholder="e.g. Mr. Nanteza Joseph" /></Field>
+              <Field label="Guardian Phone"><input style={IS} value={sPhone} onChange={e=>setSPhone(e.target.value)} placeholder="+256 7XX XXX XXX" /></Field>
+              <div style={{ padding:'9px 11px', background:'rgba(59,130,246,0.08)', border:'1px solid rgba(59,130,246,0.2)', borderRadius:'8px', fontSize:'11px', color:'#60A5FA', marginBottom:'14px' }}>
+                Day Scholar fees: UGX 350,000 – 850,000 · Boarding fees: UGX 1,200,000 – 1,600,000
+              </div>
+              <button onClick={handleAddStudent} disabled={!sName||!sFee} style={{ width:'100%', padding:'12px', background: sName&&sFee ? '#3B82F6' : '#334155', color:'#fff', border:'none', borderRadius:'9px', fontSize:'14px', fontWeight:'800', cursor: sName&&sFee ? 'pointer' : 'not-allowed' }}>
+                Enrol Student
+              </button>
+            </Modal>
+          )}
         </div>
       );
     }
-    const inputStyle = { width:'100%', background:'rgba(10,16,41,0.6)', border:'1px solid rgba(255,255,255,0.1)', borderRadius:'8px', padding:'10px 12px', color:'#F8FAFC', fontFamily:'var(--font)', fontSize:'14px', outline:'none' };
 
-    /* ─────────────────────────────────────────────
-       STAT CARD
-    ───────────────────────────────────────────── */
-    function StatCard({ label, value, sub, color = '#00FC8F', icon }) {
-      return (
-        <div style={{ background:'#0F172A', border:'1px solid rgba(255,255,255,0.08)', borderRadius:'12px', padding:'18px 20px', flex:1, minWidth:'160px' }}>
-          <div style={{ fontSize:'22px', marginBottom:'6px' }}>{icon}</div>
-          <div style={{ fontSize:'13px', color:'var(--muted)', marginBottom:'4px', fontWeight:'500' }}>{label}</div>
-          <div style={{ fontSize:'20px', fontWeight:'800', color, letterSpacing:'-0.01em' }}>{value}</div>
-          {sub && <div style={{ fontSize:'11px', color:'var(--muted)', marginTop:'4px' }}>{sub}</div>}
-        </div>
-      );
-    }
-
-    /* ─────────────────────────────────────────────
-       BADGE
-    ───────────────────────────────────────────── */
-    function Badge({ label, color = '#3B82F6', bg }) {
-      return (
-        <span style={{ display:'inline-block', padding:'3px 8px', borderRadius:'999px', fontSize:'10px', fontWeight:'700', textTransform:'uppercase', letterSpacing:'0.06em', background: bg || `${color}22`, color, border:`1px solid ${color}44` }}>
-          {label}
-        </span>
-      );
-    }
-
-    /* ─────────────────────────────────────────────
-       MAIN BURSAR DASHBOARD APP
-    ───────────────────────────────────────────── */
+    /* ─────────────────────────────────────────────────────────
+       MAIN BURSAR APP
+    ───────────────────────────────────────────────────────── */
     function BursarDashboard() {
-      const [tab, setTab] = useState('cash'); // cash | report | supervision | reconcile
-      const [incomes, setIncomes] = useState(INITIAL_INCOMES);
-      const [expenses, setExpenses] = useState(INITIAL_EXPENSES);
+      const [tab, setTab] = useState('cash');
+      const [sidePanelOpen, setSidePanelOpen] = useState(true);
+      const [tick, setTick] = useState(0); // increment to re-render when store changes
+
+      // Data from shared store
+      const [incomes, setIncomes] = useState(() => SS.getIncomes());
+      const [expenses, setExpenses] = useState(() => SS.getExpenses());
+
+      // Refresh from store on any change (cross-tab sync)
+      useEffect(() => {
+        const refresh = () => {
+          setIncomes(SS.getIncomes());
+          setExpenses(SS.getExpenses());
+          setTick(t => t + 1);
+        };
+        SS.onChange(refresh);
+      }, []);
 
       // Modals
       const [showIncModal, setShowIncModal] = useState(false);
@@ -173,481 +396,402 @@
       const [expDesc, setExpDesc] = useState('');
       const [expAmount, setExpAmount] = useState('');
       const [expPaidTo, setExpPaidTo] = useState('');
-      const [expSrcId, setExpSrcId] = useState(INITIAL_INCOMES[0].id);
+      const [expSrcId, setExpSrcId] = useState('');
       const [expNotes, setExpNotes] = useState('');
 
-      // Reconciliation
+      // Reconcile
       const [actualCash, setActualCash] = useState('');
       const [reconResult, setReconResult] = useState(null);
 
-      // Filters
-      const [reportFilter, setReportFilter] = useState('All');
+      // Report filters
       const [reportSearch, setReportSearch] = useState('');
+      const [reportFilter, setReportFilter] = useState('All');
 
       /* ── Totals ── */
-      const totalIn = useMemo(() => incomes.reduce((s, i) => s + i.amount, 0), [incomes]);
-      const totalOut = useMemo(() => expenses.reduce((s, e) => s + e.amount, 0), [expenses]);
-      const cashBalance = totalIn - totalOut;
-      const totalUnspent = useMemo(() => incomes.reduce((s, i) => s + i.unspentBalance, 0), [incomes]);
+      const totalIn  = useMemo(() => incomes.reduce((s,i) => s+i.amount,  0), [incomes]);
+      const totalOut = useMemo(() => expenses.reduce((s,e) => s+e.amount, 0), [expenses]);
+      const cashBal  = totalIn - totalOut;
 
       /* ── Add Income ── */
       const handleAddIncome = () => {
         const amt = parseInt(incAmount.replace(/,/g,''));
         if (!incStudent || isNaN(amt) || amt <= 0) return;
-        const id = 'INC-' + String(incomes.length + 1).padStart(3,'0');
-        const entry = { id, date: now(), studentName: incStudent, class: incClass, sourceType: incSource, amount: amt, unspentBalance: amt, paymentMethod: incMethod, receivedBy: 'Nalukenge Jane', notes: incNotes };
-        setIncomes(prev => [entry, ...prev]);
-        setExpSrcId(id);
+        const entry = SS.addIncome({ date:NOW(), studentName:incStudent, class:incClass, sourceType:incSource, amount:amt, unspentBalance:amt, paymentMethod:incMethod, receivedBy:'Nalukenge Jane', notes:incNotes, loggedBy:'bursar' });
+        setIncomes(SS.getIncomes());
+        if (!expSrcId) setExpSrcId(entry.id);
         setShowIncModal(false);
         setIncStudent(''); setIncAmount(''); setIncNotes('');
       };
 
-      /* ── Add Expense with source attribution ── */
+      /* ── Add Expense ── */
       const handleAddExpense = () => {
         const amt = parseInt(expAmount.replace(/,/g,''));
         if (!expDesc || isNaN(amt) || amt <= 0) return;
-        const src = incomes.find(i => i.id === expSrcId);
+        const src = incomes.find(i => i.id === expSrcId) || incomes[0];
         if (!src) return;
-
-        // Block over-allocation (spec requirement)
-        if (amt > src.unspentBalance) {
-          alert(`⚠️ Cannot allocate more than the unspent balance of ${FMT(src.unspentBalance)} from ${src.id}.`);
+        if (amt > (src.unspentBalance || 0)) {
+          alert(`⚠️ Cannot allocate more than unspent balance of ${FMT(src.unspentBalance)} from ${src.id}.`);
           return;
         }
-
-        const id = 'EXP-' + String(expenses.length + 1).padStart(3,'0');
-        const entry = { id, date: now(), category: expCat, description: expDesc, amount: amt, paidTo: expPaidTo, incomeSourceId: expSrcId, notes: expNotes, receiptAttached: false };
-        setExpenses(prev => [entry, ...prev]);
-
-        // Deduct from the income entry's unspent balance
-        setIncomes(prev => prev.map(i => i.id === expSrcId ? { ...i, unspentBalance: i.unspentBalance - amt } : i));
+        SS.addExpense({ date:NOW(), category:expCat, description:expDesc, amount:amt, paidTo:expPaidTo, incomeSourceId:src.id, notes:expNotes, receiptAttached:false, loggedBy:'bursar' });
+        setIncomes(SS.getIncomes());
+        setExpenses(SS.getExpenses());
         setShowExpModal(false);
         setExpDesc(''); setExpAmount(''); setExpPaidTo(''); setExpNotes('');
       };
 
-      /* ── End-of-day reconciliation ── */
+      /* ── Reconcile ── */
       const handleReconcile = () => {
         const actual = parseInt(actualCash.replace(/,/g,''));
         if (isNaN(actual)) return;
-        const diff = actual - cashBalance;
-        setReconResult({ expected: cashBalance, actual, diff });
+        setReconResult({ expected:cashBal, actual, diff:actual-cashBal });
       };
 
       /* ── Report filter ── */
       const filteredIncomes = useMemo(() => {
         return incomes.filter(i => {
-          if (reportSearch && !i.studentName.toLowerCase().includes(reportSearch.toLowerCase()) && !i.id.toLowerCase().includes(reportSearch.toLowerCase())) return false;
           if (reportFilter !== 'All' && i.sourceType !== reportFilter) return false;
+          if (reportSearch && !i.studentName.toLowerCase().includes(reportSearch.toLowerCase()) && !i.id.toLowerCase().includes(reportSearch.toLowerCase())) return false;
           return true;
         });
       }, [incomes, reportFilter, reportSearch]);
 
-      const getExpensesFor = (incId) => expenses.filter(e => e.incomeSourceId === incId);
+      const getExpensesFor = id => expenses.filter(e => e.incomeSourceId === id);
 
-      /* ── Profile strip ── */
+      /* ── Profile ── */
       let profile = null;
-      try { profile = JSON.parse(localStorage.getItem('nextos.profile') || 'null'); } catch(e) {}
-      const userName = (profile && profile.fullName) ? profile.fullName : 'Nalukenge Jane';
+      try { profile = JSON.parse(localStorage.getItem('nextos.profile')||'null'); } catch(e){}
+      const userName = profile?.fullName || 'Nalukenge Jane';
 
-      /* ── Tabs ── */
       const TABS = [
-        { k:'cash',       label:'💰 Cash Flow',     desc:'Income & Expenditure' },
-        { k:'report',     label:'📊 Full Report',   desc:'Income → Expense Trail' },
-        { k:'supervision',label:'👁️ Supervision',   desc:'Attendance & Staff' },
-        { k:'reconcile',  label:'🧾 Reconcile',     desc:'End-of-Day Balance' },
+        { k:'cash',        label:'💰 Cash Flow' },
+        { k:'report',      label:'📊 Full Report' },
+        { k:'supervision', label:'👁️ Supervision' },
+        { k:'reconcile',   label:'🧾 Reconcile' },
       ];
 
       return (
-        <div style={{ minHeight:'100vh', background:'var(--bg)', display:'flex', flexDirection:'column' }}>
+        <div className="app-shell">
 
           {/* ── TOPBAR ── */}
-          <div style={{ background:'#0F172A', borderBottom:'1px solid rgba(255,255,255,0.08)', padding:'0 24px', display:'flex', alignItems:'center', justifyContent:'space-between', height:'60px', position:'sticky', top:0, zIndex:100 }}>
+          <div style={{ background:'#0F172A', borderBottom:'1px solid rgba(255,255,255,0.08)', padding:'0 20px', display:'flex', alignItems:'center', justifyContent:'space-between', height:'60px', flexShrink:0, position:'sticky', top:0, zIndex:100 }}>
             <div style={{ display:'flex', alignItems:'center', gap:'14px' }}>
-              <div style={{ width:'36px', height:'36px', borderRadius:'9px', background:'linear-gradient(135deg,#FFB400,#FF7A00)', display:'flex', alignItems:'center', justifyContent:'center', fontWeight:'900', color:'#0a1029', fontSize:'16px' }}>₿</div>
+              <div style={{ width:'34px', height:'34px', borderRadius:'9px', background:'linear-gradient(135deg,#FFB400,#FF7A00)', display:'flex', alignItems:'center', justifyContent:'center', fontWeight:'900', color:'#0a1029', fontSize:'15px', flexShrink:0 }}>₿</div>
               <div>
-                <div style={{ fontWeight:'800', fontSize:'14px', letterSpacing:'0.04em' }}>KABS LILY — BURSAR OFFICE</div>
-                <div style={{ fontSize:'11px', color:'var(--muted)', fontFamily:'var(--mono)' }}>Cash Control &amp; Admin Hub · {userName}</div>
+                <div style={{ fontWeight:'800', fontSize:'13px', letterSpacing:'0.04em' }}>KABS LILY — BURSAR OFFICE</div>
+                <div style={{ fontSize:'10px', color:'var(--muted)', fontFamily:'var(--mono)' }}>Cash Control Hub · {userName}</div>
               </div>
             </div>
-            <div style={{ display:'flex', alignItems:'center', gap:'12px' }}>
-              <div style={{ display:'flex', alignItems:'center', gap:'6px', padding:'5px 12px', borderRadius:'999px', background:'rgba(0,252,143,0.1)', border:'1px solid rgba(0,252,143,0.3)', fontSize:'12px', fontWeight:'700', color:'#00FC8F' }}>
-                <span style={{ width:'7px', height:'7px', borderRadius:'50%', background:'#00FC8F', display:'inline-block', animation:'pulse 2s infinite' }}></span>
-                Live Session
+            <div style={{ display:'flex', alignItems:'center', gap:'8px' }}>
+              <div style={{ display:'flex', alignItems:'center', gap:'5px', padding:'4px 10px', borderRadius:'999px', background:'rgba(0,252,143,0.1)', border:'1px solid rgba(0,252,143,0.3)', fontSize:'11px', fontWeight:'700', color:'#00FC8F' }}>
+                <span style={{ width:'6px', height:'6px', borderRadius:'50%', background:'#00FC8F', display:'inline-block', animation:'pulse 2s infinite' }}></span>
+                Live
               </div>
-              <button
-                onClick={() => {
-                  if (window.NextSession && window.NextSession.signOut) { window.NextSession.signOut(); }
-                  else { localStorage.removeItem('nextos.profile'); window.location.href = '/prototypes/schools/peak-primary/login.html'; }
-                }}
-                style={{ background:'rgba(255,71,87,0.1)', border:'1px solid rgba(255,71,87,0.3)', color:'#FF4757', borderRadius:'8px', padding:'7px 14px', fontSize:'12px', fontWeight:'700', cursor:'pointer' }}
-              >
-                Sign Out
+              <button onClick={() => setSidePanelOpen(o => !o)} style={{ background: sidePanelOpen ? 'rgba(255,180,0,0.12)' : 'rgba(255,255,255,0.06)', border:`1px solid ${sidePanelOpen ? 'rgba(255,180,0,0.4)' : 'rgba(255,255,255,0.12)'}`, color: sidePanelOpen ? '#FFB400' : 'var(--muted)', borderRadius:'8px', padding:'6px 12px', fontSize:'12px', fontWeight:'700', cursor:'pointer' }}>
+                {sidePanelOpen ? '◀ Registry' : '▶ Registry'}
               </button>
+              <button onClick={() => { localStorage.removeItem('nextos.profile'); window.location.href='/prototypes/schools/peak-primary/login.html'; }} style={{ background:'rgba(255,71,87,0.1)', border:'1px solid rgba(255,71,87,0.3)', color:'#FF4757', borderRadius:'8px', padding:'6px 12px', fontSize:'12px', fontWeight:'700', cursor:'pointer' }}>Sign Out</button>
             </div>
           </div>
 
-          {/* ── STAT CARDS ── */}
-          <div style={{ padding:'20px 24px 0', display:'flex', gap:'12px', flexWrap:'wrap' }}>
-            <StatCard icon="📥" label="Total Received Today" value={FMT(totalIn)} sub={`${incomes.length} income entries`} color="#00FC8F" />
-            <StatCard icon="📤" label="Total Spent Today" value={FMT(totalOut)} sub={`${expenses.length} expense entries`} color="#FF4757" />
-            <StatCard icon="💵" label="Cash on Hand (Expected)" value={FMT(cashBalance)} sub="Income minus Expenditure" color="#FFB400" />
-            <StatCard icon="🔓" label="Total Unallocated Balance" value={FMT(totalUnspent)} sub="Unspent across income entries" color="#3B82F6" />
-          </div>
+          {/* ── BODY ── */}
+          <div className="main-layout" style={{ flex:1, overflow:'hidden' }}>
 
-          {/* ── TAB NAV ── */}
-          <div style={{ padding:'16px 24px 0', display:'flex', gap:'8px', borderBottom:'1px solid rgba(255,255,255,0.07)', marginTop:'16px', flexWrap:'wrap' }}>
-            {TABS.map(t => (
-              <button key={t.k} onClick={() => setTab(t.k)} style={{
-                padding:'10px 18px', borderRadius:'10px 10px 0 0', border:'none', fontSize:'13px', fontWeight:'700',
-                background: tab === t.k ? '#0F172A' : 'transparent',
-                color: tab === t.k ? '#F8FAFC' : 'rgba(248,250,252,0.5)',
-                borderBottom: tab === t.k ? '2px solid #FFB400' : '2px solid transparent',
-                cursor:'pointer', transition:'all 0.15s',
-              }}>
-                {t.label}
-              </button>
-            ))}
-          </div>
-
-          {/* ── MAIN CONTENT ── */}
-          <div style={{ flex:1, padding:'24px', animation:'fadeIn 0.2s ease' }}>
-
-            {/* ═══ CASH FLOW TAB ═══ */}
-            {tab === 'cash' && (
-              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'20px' }}>
-
-                {/* Income Section */}
-                <div>
-                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'14px' }}>
-                    <h2 style={{ fontSize:'15px', fontWeight:'800', color:'#00FC8F' }}>📥 Income Log</h2>
-                    <button onClick={() => setShowIncModal(true)} style={{ background:'rgba(0,252,143,0.15)', border:'1px solid rgba(0,252,143,0.4)', color:'#00FC8F', padding:'8px 14px', borderRadius:'8px', fontSize:'12px', fontWeight:'700', cursor:'pointer' }}>
-                      + Log Income
-                    </button>
+            {/* ── CONTENT ── */}
+            <div className="content-area">
+              {/* Stat Cards */}
+              <div className="stat-grid" style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:'12px', marginBottom:'20px' }}>
+                {[
+                  { icon:'📥', label:'Total Received', val:FMT(totalIn), sub:`${incomes.length} entries`, color:'#00FC8F' },
+                  { icon:'📤', label:'Total Spent', val:FMT(totalOut), sub:`${expenses.length} entries`, color:'#FF4757' },
+                  { icon:'💵', label:'Cash on Hand', val:FMT(cashBal), sub:'Expected balance', color:'#FFB400' },
+                  { icon:'🎒', label:'Students Enrolled', val:SS.getStudents().length, sub:`${SS.getStudents().filter(s=>s.type==='Boarding').length} boarding`, color:'#3B82F6' },
+                ].map(s => (
+                  <div key={s.label} style={{ background:'#0F172A', border:'1px solid rgba(255,255,255,0.08)', borderRadius:'12px', padding:'16px 18px' }}>
+                    <div style={{ fontSize:'20px', marginBottom:'4px' }}>{s.icon}</div>
+                    <div style={{ fontSize:'11px', color:'var(--muted)', marginBottom:'3px', fontWeight:'500' }}>{s.label}</div>
+                    <div style={{ fontSize:'18px', fontWeight:'900', color:s.color, letterSpacing:'-0.01em' }}>{s.val}</div>
+                    <div style={{ fontSize:'10px', color:'var(--muted)', marginTop:'2px' }}>{s.sub}</div>
                   </div>
-                  <div style={{ display:'flex', flexDirection:'column', gap:'10px' }}>
-                    {incomes.map(inc => (
-                      <div key={inc.id} style={{ background:'#0F172A', border:'1px solid rgba(255,255,255,0.08)', borderRadius:'12px', padding:'14px 16px' }}>
-                        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:'6px' }}>
-                          <div>
-                            <span style={{ fontFamily:'var(--mono)', fontSize:'10px', color:'#00FC8F', fontWeight:'600' }}>{inc.id}</span>
-                            <div style={{ fontWeight:'700', fontSize:'14px', marginTop:'2px' }}>{inc.studentName} <span style={{ color:'var(--muted)', fontWeight:'400', fontSize:'12px' }}>({inc.class})</span></div>
+                ))}
+              </div>
+
+              {/* Tab Nav */}
+              <div style={{ display:'flex', gap:'6px', borderBottom:'1px solid rgba(255,255,255,0.07)', marginBottom:'20px', flexWrap:'wrap' }}>
+                {TABS.map(t => (
+                  <button key={t.k} onClick={() => setTab(t.k)} style={{
+                    padding:'9px 16px', borderRadius:'9px 9px 0 0', border:'none', fontSize:'12px', fontWeight:'700',
+                    background: tab===t.k ? '#0F172A' : 'transparent',
+                    color: tab===t.k ? '#F8FAFC' : 'rgba(248,250,252,0.45)',
+                    borderBottom: tab===t.k ? '2px solid #FFB400' : '2px solid transparent',
+                    cursor:'pointer', transition:'all 0.15s',
+                  }}>{t.label}</button>
+                ))}
+              </div>
+
+              {/* ═══ CASH FLOW TAB ═══ */}
+              {tab === 'cash' && (
+                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'18px' }}>
+                  {/* Income */}
+                  <div>
+                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'12px' }}>
+                      <h2 style={{ fontSize:'14px', fontWeight:'800', color:'#00FC8F' }}>📥 Income Log</h2>
+                      <button onClick={() => setShowIncModal(true)} style={{ background:'rgba(0,252,143,0.12)', border:'1px solid rgba(0,252,143,0.35)', color:'#00FC8F', padding:'6px 12px', borderRadius:'7px', fontSize:'11px', fontWeight:'700', cursor:'pointer' }}>+ Log Income</button>
+                    </div>
+                    <div style={{ display:'flex', flexDirection:'column', gap:'9px' }}>
+                      {incomes.map(inc => (
+                        <div key={inc.id} style={{ background:'#0F172A', border:'1px solid rgba(255,255,255,0.07)', borderRadius:'11px', padding:'13px 15px' }}>
+                          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:'5px' }}>
+                            <div>
+                              <span style={{ fontFamily:'var(--mono)', fontSize:'9px', color:'#00FC8F', fontWeight:'600' }}>{inc.id}</span>
+                              <div style={{ fontWeight:'700', fontSize:'13px', marginTop:'2px' }}>{inc.studentName} <span style={{ color:'var(--muted)', fontWeight:'400', fontSize:'11px' }}>({inc.class})</span></div>
+                            </div>
+                            <div style={{ textAlign:'right' }}>
+                              <div style={{ fontWeight:'900', fontSize:'15px', color:'#00FC8F' }}>{FMT(inc.amount)}</div>
+                              <div style={{ fontSize:'9px', color:'var(--muted)' }}>Unspent: {FMT(inc.unspentBalance)}</div>
+                            </div>
                           </div>
-                          <div style={{ textAlign:'right' }}>
-                            <div style={{ fontWeight:'800', fontSize:'16px', color:'#00FC8F' }}>{FMT(inc.amount)}</div>
-                            <div style={{ fontSize:'10px', color:'var(--muted)' }}>Unspent: {FMT(inc.unspentBalance)}</div>
+                          <div style={{ display:'flex', gap:'5px', flexWrap:'wrap' }}>
+                            <Badge label={inc.sourceType} color="#00FC8F" />
+                            <Badge label={inc.paymentMethod} color="#3B82F6" />
                           </div>
+                          {inc.notes && <div style={{ fontSize:'10px', color:'var(--muted)', marginTop:'5px', fontStyle:'italic' }}>{inc.notes}</div>}
+                          <div style={{ fontSize:'9px', color:'var(--muted)', marginTop:'3px', fontFamily:'var(--mono)' }}>{inc.date}</div>
                         </div>
-                        <div style={{ display:'flex', gap:'6px', flexWrap:'wrap', marginTop:'6px' }}>
-                          <Badge label={inc.sourceType} color="#00FC8F" />
-                          <Badge label={inc.paymentMethod} color="#3B82F6" />
-                        </div>
-                        {inc.notes && <div style={{ fontSize:'11px', color:'var(--muted)', marginTop:'6px', fontStyle:'italic' }}>{inc.notes}</div>}
-                        <div style={{ fontSize:'10px', color:'var(--muted)', marginTop:'4px', fontFamily:'var(--mono)' }}>{inc.date} · Received by {inc.receivedBy}</div>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Expenses */}
+                  <div>
+                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'12px' }}>
+                      <h2 style={{ fontSize:'14px', fontWeight:'800', color:'#FF4757' }}>📤 Expenditure Log</h2>
+                      <button onClick={() => { setExpSrcId(incomes[0]?.id||''); setShowExpModal(true); }} style={{ background:'rgba(255,71,87,0.10)', border:'1px solid rgba(255,71,87,0.35)', color:'#FF4757', padding:'6px 12px', borderRadius:'7px', fontSize:'11px', fontWeight:'700', cursor:'pointer' }}>+ Log Expense</button>
+                    </div>
+                    <div style={{ display:'flex', flexDirection:'column', gap:'9px' }}>
+                      {expenses.map(exp => {
+                        const src = incomes.find(i => i.id === exp.incomeSourceId);
+                        return (
+                          <div key={exp.id} style={{ background:'#0F172A', border:'1px solid rgba(255,255,255,0.07)', borderRadius:'11px', padding:'13px 15px' }}>
+                            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:'5px' }}>
+                              <div>
+                                <span style={{ fontFamily:'var(--mono)', fontSize:'9px', color:'#FF4757', fontWeight:'600' }}>{exp.id}</span>
+                                <div style={{ fontWeight:'700', fontSize:'13px', marginTop:'2px' }}>{exp.description}</div>
+                                <div style={{ fontSize:'10px', color:'var(--muted)' }}>→ {exp.paidTo}</div>
+                              </div>
+                              <div style={{ fontWeight:'900', fontSize:'15px', color:'#FF4757', flexShrink:0, marginLeft:'8px' }}>{FMT(exp.amount)}</div>
+                            </div>
+                            <div style={{ background:'rgba(255,180,0,0.07)', border:'1px solid rgba(255,180,0,0.2)', borderRadius:'7px', padding:'7px 9px', marginTop:'7px' }}>
+                              <div style={{ fontSize:'9px', fontWeight:'700', color:'#FFB400', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:'2px' }}>🔗 Funded From</div>
+                              <div style={{ fontSize:'11px', fontWeight:'600' }}>{src ? `${src.studentName} (${src.class}) — ${src.sourceType}` : exp.incomeSourceId}</div>
+                            </div>
+                            <div style={{ display:'flex', gap:'5px', marginTop:'7px', flexWrap:'wrap' }}>
+                              <Badge label={exp.category} color="#FFB400" />
+                              <Badge label={exp.receiptAttached ? 'Receipt ✓' : 'No Receipt'} color={exp.receiptAttached ? '#00FC8F' : '#FF4757'} />
+                            </div>
+                            <div style={{ fontSize:'9px', color:'var(--muted)', marginTop:'4px', fontFamily:'var(--mono)' }}>{exp.date}</div>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
+              )}
 
-                {/* Expenditure Section */}
+              {/* ═══ FULL REPORT ═══ */}
+              {tab === 'report' && (
                 <div>
-                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'14px' }}>
-                    <h2 style={{ fontSize:'15px', fontWeight:'800', color:'#FF4757' }}>📤 Expenditure Log</h2>
-                    <button onClick={() => setShowExpModal(true)} style={{ background:'rgba(255,71,87,0.12)', border:'1px solid rgba(255,71,87,0.4)', color:'#FF4757', padding:'8px 14px', borderRadius:'8px', fontSize:'12px', fontWeight:'700', cursor:'pointer' }}>
-                      + Log Expense
-                    </button>
+                  <div style={{ display:'flex', gap:'10px', marginBottom:'18px', flexWrap:'wrap', justifyContent:'space-between', alignItems:'center' }}>
+                    <h2 style={{ fontSize:'15px', fontWeight:'800' }}>📊 Income → Expenditure Trail</h2>
+                    <div style={{ display:'flex', gap:'8px', flexWrap:'wrap' }}>
+                      <input value={reportSearch} onChange={e=>setReportSearch(e.target.value)} placeholder="Search student or ID…" style={{ ...IS, width:'200px', fontSize:'12px', padding:'7px 10px' }} />
+                      <select value={reportFilter} onChange={e=>setReportFilter(e.target.value)} style={{ ...IS, width:'auto', fontSize:'12px', padding:'7px 10px' }}>
+                        <option>All</option>
+                        <option>School Fees (Tuition)</option>
+                        <option>Admission & Books</option>
+                        <option>Other Income</option>
+                      </select>
+                    </div>
                   </div>
-                  <div style={{ display:'flex', flexDirection:'column', gap:'10px' }}>
-                    {expenses.map(exp => {
-                      const src = incomes.find(i => i.id === exp.incomeSourceId);
+                  <div style={{ display:'flex', flexDirection:'column', gap:'14px' }}>
+                    {filteredIncomes.map(inc => {
+                      const linked = getExpensesFor(inc.id);
+                      const spent = linked.reduce((s,e) => s+e.amount, 0);
                       return (
-                        <div key={exp.id} style={{ background:'#0F172A', border:'1px solid rgba(255,255,255,0.08)', borderRadius:'12px', padding:'14px 16px' }}>
-                          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:'6px' }}>
-                            <div>
-                              <span style={{ fontFamily:'var(--mono)', fontSize:'10px', color:'#FF4757', fontWeight:'600' }}>{exp.id}</span>
-                              <div style={{ fontWeight:'700', fontSize:'14px', marginTop:'2px' }}>{exp.description}</div>
-                              <div style={{ fontSize:'11px', color:'var(--muted)' }}>Paid to: {exp.paidTo}</div>
+                        <div key={inc.id} style={{ background:'#0F172A', border:'1px solid rgba(255,255,255,0.08)', borderRadius:'13px', overflow:'hidden' }}>
+                          <div style={{ padding:'13px 16px', background:'rgba(0,252,143,0.05)', borderBottom: linked.length ? '1px solid rgba(255,255,255,0.06)' : 'none', display:'flex', justifyContent:'space-between', flexWrap:'wrap', gap:'8px' }}>
+                            <div style={{ display:'flex', gap:'10px', alignItems:'center' }}>
+                              <span style={{ fontFamily:'var(--mono)', fontSize:'10px', color:'#00FC8F', fontWeight:'700' }}>{inc.id}</span>
+                              <div>
+                                <div style={{ fontWeight:'700', fontSize:'13px' }}>{inc.studentName} · {inc.class}</div>
+                                <div style={{ fontSize:'11px', color:'var(--muted)' }}>{inc.sourceType} · {inc.paymentMethod} · {inc.date}</div>
+                              </div>
                             </div>
-                            <div style={{ fontWeight:'800', fontSize:'16px', color:'#FF4757', flexShrink:0, marginLeft:'8px' }}>{FMT(exp.amount)}</div>
-                          </div>
-                          {/* Source attribution — the CORE feature */}
-                          <div style={{ background:'rgba(255,180,0,0.08)', border:'1px solid rgba(255,180,0,0.25)', borderRadius:'8px', padding:'8px 10px', marginTop:'8px' }}>
-                            <div style={{ fontSize:'10px', fontWeight:'700', color:'#FFB400', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:'3px' }}>🔗 Funded From</div>
-                            <div style={{ fontSize:'12px', fontWeight:'600' }}>
-                              {src ? `${src.studentName} (${src.class}) — ${src.sourceType}` : exp.incomeSourceId}
+                            <div style={{ textAlign:'right' }}>
+                              <div style={{ fontWeight:'900', fontSize:'17px', color:'#00FC8F' }}>{FMT(inc.amount)}</div>
+                              <div style={{ fontSize:'10px', color: inc.unspentBalance>0 ? '#FFB400' : 'var(--muted)' }}>Unspent: {FMT(inc.unspentBalance)}</div>
                             </div>
-                            <div style={{ fontSize:'10px', color:'var(--muted)', fontFamily:'var(--mono)' }}>{exp.incomeSourceId}</div>
                           </div>
-                          <div style={{ display:'flex', gap:'6px', marginTop:'8px', flexWrap:'wrap' }}>
-                            <Badge label={exp.category} color="#FFB400" />
-                            {exp.receiptAttached && <Badge label="Receipt ✓" color="#00FC8F" />}
-                            {!exp.receiptAttached && <Badge label="No Receipt" color="#FF4757" />}
-                          </div>
-                          {exp.notes && <div style={{ fontSize:'11px', color:'var(--muted)', marginTop:'6px', fontStyle:'italic' }}>{exp.notes}</div>}
-                          <div style={{ fontSize:'10px', color:'var(--muted)', marginTop:'4px', fontFamily:'var(--mono)' }}>{exp.date}</div>
+                          {linked.length > 0 && linked.map((exp,idx) => (
+                            <div key={exp.id} style={{ display:'flex', alignItems:'center', padding:'9px 16px', gap:'10px', borderBottom: idx<linked.length-1 ? '1px solid rgba(255,255,255,0.04)' : 'none' }}>
+                              <div style={{ width:'2px', height:'30px', background:'rgba(255,180,0,0.4)', borderRadius:'1px', flexShrink:0 }}></div>
+                              <div style={{ flex:1 }}>
+                                <div style={{ fontSize:'12px', fontWeight:'600' }}>{exp.description}</div>
+                                <div style={{ fontSize:'10px', color:'var(--muted)' }}>{exp.category} · {exp.paidTo} · {exp.date}</div>
+                              </div>
+                              <div style={{ fontWeight:'700', fontSize:'13px', color:'#FF4757' }}>−{FMT(exp.amount)}</div>
+                            </div>
+                          ))}
+                          {linked.length === 0 && <div style={{ padding:'10px 16px', fontSize:'11px', color:'var(--muted)', fontStyle:'italic' }}>No expenses linked yet.</div>}
+                          {linked.length > 0 && (
+                            <div style={{ padding:'8px 16px', borderTop:'1px solid rgba(255,255,255,0.05)', display:'flex', justifyContent:'space-between', fontSize:'11px', fontWeight:'700' }}>
+                              <span style={{ color:'var(--muted)' }}>Spent: {FMT(spent)}</span>
+                              <span style={{ color: inc.unspentBalance>0 ? '#FFB400' : '#00FC8F' }}>Remaining: {FMT(inc.unspentBalance)}</span>
+                            </div>
+                          )}
                         </div>
                       );
                     })}
                   </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            {/* ═══ FULL REPORT TAB ═══ */}
-            {tab === 'report' && (
-              <div>
-                <div style={{ display:'flex', gap:'12px', marginBottom:'20px', flexWrap:'wrap', alignItems:'center', justifyContent:'space-between' }}>
-                  <h2 style={{ fontSize:'16px', fontWeight:'800' }}>📊 Full Income → Expenditure Trail</h2>
-                  <div style={{ display:'flex', gap:'8px', flexWrap:'wrap' }}>
-                    <input
-                      value={reportSearch} onChange={e => setReportSearch(e.target.value)}
-                      placeholder="Search by student name or ID…"
-                      style={{ ...inputStyle, width:'220px', fontSize:'13px', padding:'8px 12px' }}
-                    />
-                    <select value={reportFilter} onChange={e => setReportFilter(e.target.value)} style={{ ...inputStyle, width:'auto', fontSize:'13px', padding:'8px 12px' }}>
-                      <option>All</option>
-                      <option>School Fees (Tuition)</option>
-                      <option>Admission & Books</option>
-                      <option>Other Income</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div style={{ display:'flex', flexDirection:'column', gap:'16px' }}>
-                  {filteredIncomes.map(inc => {
-                    const linked = getExpensesFor(inc.id);
-                    const spent = linked.reduce((s, e) => s + e.amount, 0);
-                    return (
-                      <div key={inc.id} style={{ background:'#0F172A', border:'1px solid rgba(255,255,255,0.08)', borderRadius:'14px', overflow:'hidden' }}>
-                        {/* Income header */}
-                        <div style={{ padding:'14px 18px', background:'rgba(0,252,143,0.06)', borderBottom: linked.length ? '1px solid rgba(255,255,255,0.06)' : 'none', display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:'8px' }}>
-                          <div style={{ display:'flex', gap:'12px', alignItems:'center' }}>
-                            <span style={{ fontFamily:'var(--mono)', fontSize:'11px', color:'#00FC8F', fontWeight:'700' }}>{inc.id}</span>
-                            <div>
-                              <div style={{ fontWeight:'700', fontSize:'14px' }}>{inc.studentName} · {inc.class}</div>
-                              <div style={{ fontSize:'12px', color:'var(--muted)' }}>{inc.sourceType} · {inc.paymentMethod} · {inc.date}</div>
-                            </div>
-                          </div>
-                          <div style={{ textAlign:'right' }}>
-                            <div style={{ fontWeight:'900', fontSize:'18px', color:'#00FC8F' }}>{FMT(inc.amount)}</div>
-                            <div style={{ fontSize:'11px', color: inc.unspentBalance > 0 ? '#FFB400' : 'var(--muted)' }}>
-                              Unspent: {FMT(inc.unspentBalance)}
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Linked expenditures */}
-                        {linked.length > 0 ? (
-                          <div style={{ padding:'8px 0' }}>
-                            {linked.map((exp, idx) => (
-                              <div key={exp.id} style={{ display:'flex', alignItems:'center', padding:'10px 18px', gap:'12px', borderBottom: idx < linked.length-1 ? '1px solid rgba(255,255,255,0.04)' : 'none' }}>
-                                <div style={{ width:'2px', height:'32px', background:'rgba(255,180,0,0.4)', borderRadius:'1px', flexShrink:0 }}></div>
-                                <div style={{ flex:1 }}>
-                                  <div style={{ fontSize:'13px', fontWeight:'600' }}>{exp.description}</div>
-                                  <div style={{ fontSize:'11px', color:'var(--muted)' }}>{exp.category} · Paid to: {exp.paidTo} · {exp.date}</div>
-                                </div>
-                                <div style={{ fontWeight:'700', fontSize:'14px', color:'#FF4757', flexShrink:0 }}>−{FMT(exp.amount)}</div>
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <div style={{ padding:'12px 18px', fontSize:'12px', color:'var(--muted)', fontStyle:'italic' }}>No expenses linked to this income entry yet.</div>
-                        )}
-
-                        {/* Summary line */}
-                        {linked.length > 0 && (
-                          <div style={{ padding:'10px 18px', borderTop:'1px solid rgba(255,255,255,0.06)', display:'flex', justifyContent:'space-between', fontSize:'12px', fontWeight:'700' }}>
-                            <span style={{ color:'var(--muted)' }}>Spent from {inc.id}: {FMT(spent)}</span>
-                            <span style={{ color: inc.unspentBalance > 0 ? '#FFB400' : '#00FC8F' }}>Remaining: {FMT(inc.unspentBalance)}</span>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* ═══ SUPERVISION TAB ═══ */}
-            {tab === 'supervision' && (
-              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'20px' }}>
-
-                {/* Attendance */}
-                <div>
-                  <h2 style={{ fontSize:'15px', fontWeight:'800', marginBottom:'14px' }}>🏫 Gate Attendance — Today</h2>
-                  <div style={{ background:'#0F172A', border:'1px solid rgba(255,255,255,0.08)', borderRadius:'12px', overflow:'hidden' }}>
-                    <div style={{ display:'flex', gap:'0', borderBottom:'1px solid rgba(255,255,255,0.08)', padding:'10px 14px', fontSize:'11px', fontWeight:'700', color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.06em' }}>
-                      <span style={{ flex:1 }}>Student</span>
-                      <span style={{ width:'80px' }}>Class</span>
-                      <span style={{ width:'80px' }}>Time</span>
-                      <span style={{ width:'70px' }}>Status</span>
-                    </div>
-                    {GATE_ATTENDANCE.map(a => (
-                      <div key={a.id} style={{ display:'flex', padding:'10px 14px', borderBottom:'1px solid rgba(255,255,255,0.04)', fontSize:'13px', alignItems:'center' }}>
-                        <span style={{ flex:1, fontWeight:'600' }}>{a.name}</span>
-                        <span style={{ width:'80px', color:'var(--muted)', fontSize:'12px' }}>{a.class}</span>
-                        <span style={{ width:'80px', fontFamily:'var(--mono)', fontSize:'11px', color:'var(--muted)' }}>{a.time}</span>
-                        <Badge
-                          label={a.status}
-                          color={a.status === 'Present' ? '#00FC8F' : a.status === 'Late' ? '#FFB400' : '#FF4757'}
-                        />
-                      </div>
-                    ))}
-                  </div>
-                  <div style={{ marginTop:'10px', fontSize:'12px', color:'var(--muted)' }}>
-                    Present: {GATE_ATTENDANCE.filter(a=>a.status==='Present').length} · Late: {GATE_ATTENDANCE.filter(a=>a.status==='Late').length} · Absent: {GATE_ATTENDANCE.filter(a=>a.status==='Absent').length}
-                  </div>
-                </div>
-
-                {/* Staff Sign-ins */}
-                <div>
-                  <h2 style={{ fontSize:'15px', fontWeight:'800', marginBottom:'14px' }}>👤 Staff Sign-ins — Today</h2>
-                  <div style={{ background:'#0F172A', border:'1px solid rgba(255,255,255,0.08)', borderRadius:'12px', overflow:'hidden' }}>
-                    {STAFF_SIGNINS.map((s, idx) => (
-                      <div key={s.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'12px 16px', borderBottom: idx < STAFF_SIGNINS.length-1 ? '1px solid rgba(255,255,255,0.04)' : 'none' }}>
-                        <div style={{ display:'flex', gap:'10px', alignItems:'center' }}>
-                          <div style={{ width:'32px', height:'32px', borderRadius:'50%', background:'linear-gradient(135deg,#3B82F6,#8B5CF6)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'12px', fontWeight:'700' }}>
-                            {s.name.split(' ').map(n=>n[0]).join('').slice(0,2)}
-                          </div>
+              {/* ═══ SUPERVISION ═══ */}
+              {tab === 'supervision' && (
+                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'18px' }}>
+                  <div>
+                    <h2 style={{ fontSize:'14px', fontWeight:'800', marginBottom:'12px' }}>🏫 Gate Attendance</h2>
+                    <div style={{ background:'#0F172A', border:'1px solid rgba(255,255,255,0.08)', borderRadius:'11px', overflow:'hidden' }}>
+                      {[
+                        { name:'Brian Mukasa', class:'P.4', time:'07:42 AM', status:'Present', method:'RFID Tag' },
+                        { name:'Grace Kintu', class:'Baby Class', time:'07:45 AM', status:'Present', method:'Manual' },
+                        { name:'Alvin Mwesigwa', class:'P.1', time:'07:50 AM', status:'Present', method:'Shuttle' },
+                        { name:'Divine Okello', class:'P.7', time:'07:55 AM', status:'Present', method:'Shuttle' },
+                        { name:'Joy Babirye', class:'Top Class', time:'08:10 AM', status:'Late', method:'Parent Dropoff' },
+                        { name:'Sharon Nabakooza', class:'Baby Class', time:'—', status:'Absent', method:'—' },
+                      ].map((a,i,arr) => (
+                        <div key={a.name} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'9px 14px', borderBottom: i<arr.length-1 ? '1px solid rgba(255,255,255,0.04)' : 'none', fontSize:'12px' }}>
                           <div>
-                            <div style={{ fontWeight:'600', fontSize:'13px' }}>{s.name}</div>
-                            <div style={{ fontSize:'11px', color:'var(--muted)' }}>{s.role}</div>
+                            <div style={{ fontWeight:'600' }}>{a.name}</div>
+                            <div style={{ fontSize:'10px', color:'var(--muted)' }}>{a.class} · {a.method}</div>
+                          </div>
+                          <div style={{ display:'flex', gap:'8px', alignItems:'center' }}>
+                            <span style={{ fontFamily:'var(--mono)', fontSize:'10px', color:'var(--muted)' }}>{a.time}</span>
+                            <Badge label={a.status} color={a.status==='Present'?'#00FC8F':a.status==='Late'?'#FFB400':'#FF4757'} />
                           </div>
                         </div>
-                        <div style={{ textAlign:'right' }}>
-                          <div style={{ fontFamily:'var(--mono)', fontSize:'11px', color:'var(--muted)' }}>{s.time}</div>
-                          <Badge
-                            label={s.status}
-                            color={s.status === 'On Duty' || s.status === 'In Class' ? '#00FC8F' : '#3B82F6'}
-                          />
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <h2 style={{ fontSize:'14px', fontWeight:'800', marginBottom:'12px' }}>👤 Staff Sign-ins</h2>
+                    <div style={{ background:'#0F172A', border:'1px solid rgba(255,255,255,0.08)', borderRadius:'11px', overflow:'hidden' }}>
+                      {SS.getTeachers().slice(0,5).map((s,i,arr) => (
+                        <div key={s.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'10px 14px', borderBottom: i<arr.length-1 ? '1px solid rgba(255,255,255,0.04)' : 'none' }}>
+                          <div style={{ display:'flex', gap:'9px', alignItems:'center' }}>
+                            <div style={{ width:'30px', height:'30px', borderRadius:'50%', background:'linear-gradient(135deg,#3B82F6,#8B5CF6)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'10px', fontWeight:'800' }}>
+                              {s.name.split(' ').map(n=>n[0]).join('').slice(0,2)}
+                            </div>
+                            <div>
+                              <div style={{ fontWeight:'600', fontSize:'12px' }}>{s.name}</div>
+                              <div style={{ fontSize:'10px', color:'var(--muted)' }}>{s.role}</div>
+                            </div>
+                          </div>
+                          <Badge label={s.status} color={['On Duty','In Class'].includes(s.status)?'#00FC8F':'#3B82F6'} />
                         </div>
+                      ))}
+                    </div>
+                    <div style={{ marginTop:'14px', background:'#0F172A', border:'1px solid rgba(255,255,255,0.08)', borderRadius:'11px', padding:'14px' }}>
+                      <div style={{ fontWeight:'700', fontSize:'12px', marginBottom:'10px' }}>📈 Today's Summary</div>
+                      {[
+                        { label:'Income entries', val:incomes.length, color:'#00FC8F' },
+                        { label:'Expense entries', val:expenses.length, color:'#FF4757' },
+                        { label:'Total Students', val:SS.getStudents().length, color:'#3B82F6' },
+                        { label:'Staff on duty', val:SS.getTeachers().length, color:'var(--text)' },
+                        { label:'Cash Balance', val:FMT(cashBal), color:'#FFB400' },
+                      ].map(x => (
+                        <div key={x.label} style={{ display:'flex', justifyContent:'space-between', marginBottom:'6px', fontSize:'12px' }}>
+                          <span style={{ color:'var(--muted)' }}>{x.label}</span>
+                          <span style={{ fontWeight:'700', color:x.color }}>{x.val}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* ═══ RECONCILE ═══ */}
+              {tab === 'reconcile' && (
+                <div style={{ maxWidth:'480px', margin:'0 auto' }}>
+                  <h2 style={{ fontSize:'15px', fontWeight:'800', marginBottom:'6px' }}>🧾 End-of-Day Cash Reconciliation</h2>
+                  <p style={{ fontSize:'12px', color:'var(--muted)', marginBottom:'22px', lineHeight:1.55 }}>Enter the actual physical cash you're holding. The system will verify it against all logged income and expenditure.</p>
+                  <div style={{ background:'#0F172A', border:'1px solid rgba(255,255,255,0.08)', borderRadius:'13px', padding:'18px', marginBottom:'18px' }}>
+                    {[
+                      { label:'Total Income', val:FMT(totalIn), color:'#00FC8F' },
+                      { label:'Total Expenditure', val:FMT(totalOut), color:'#FF4757', prefix:'−' },
+                    ].map(x=>(
+                      <div key={x.label} style={{ display:'flex', justifyContent:'space-between', padding:'9px 0', borderBottom:'1px solid rgba(255,255,255,0.05)' }}>
+                        <span style={{ color:'var(--muted)', fontSize:'13px' }}>{x.label}</span>
+                        <span style={{ fontWeight:'700', color:x.color }}>{x.prefix||''}{x.val}</span>
                       </div>
                     ))}
-                  </div>
-
-                  {/* Today's Activity Summary */}
-                  <div style={{ marginTop:'16px', background:'#0F172A', border:'1px solid rgba(255,255,255,0.08)', borderRadius:'12px', padding:'16px' }}>
-                    <div style={{ fontWeight:'700', fontSize:'13px', marginBottom:'12px' }}>📈 Today's Quick Summary</div>
-                    <div style={{ display:'flex', flexDirection:'column', gap:'8px', fontSize:'13px' }}>
-                      <div style={{ display:'flex', justifyContent:'space-between' }}>
-                        <span style={{ color:'var(--muted)' }}>Income entries logged</span>
-                        <span style={{ fontWeight:'700', color:'#00FC8F' }}>{incomes.length}</span>
-                      </div>
-                      <div style={{ display:'flex', justifyContent:'space-between' }}>
-                        <span style={{ color:'var(--muted)' }}>Expense entries logged</span>
-                        <span style={{ fontWeight:'700', color:'#FF4757' }}>{expenses.length}</span>
-                      </div>
-                      <div style={{ display:'flex', justifyContent:'space-between' }}>
-                        <span style={{ color:'var(--muted)' }}>Students present</span>
-                        <span style={{ fontWeight:'700' }}>{GATE_ATTENDANCE.filter(a=>a.status==='Present').length}/{GATE_ATTENDANCE.length}</span>
-                      </div>
-                      <div style={{ display:'flex', justifyContent:'space-between' }}>
-                        <span style={{ color:'var(--muted)' }}>Staff on duty</span>
-                        <span style={{ fontWeight:'700' }}>{STAFF_SIGNINS.length}</span>
-                      </div>
-                      <div style={{ borderTop:'1px solid rgba(255,255,255,0.08)', paddingTop:'8px', marginTop:'2px', display:'flex', justifyContent:'space-between' }}>
-                        <span style={{ fontWeight:'700' }}>Cash Balance (Expected)</span>
-                        <span style={{ fontWeight:'900', color:'#FFB400', fontSize:'15px' }}>{FMT(cashBalance)}</span>
-                      </div>
+                    <div style={{ display:'flex', justifyContent:'space-between', padding:'11px 0 0' }}>
+                      <span style={{ fontWeight:'700', fontSize:'14px' }}>Expected Cash on Hand</span>
+                      <span style={{ fontWeight:'900', fontSize:'17px', color:'#FFB400' }}>{FMT(cashBal)}</span>
                     </div>
                   </div>
+                  <Field label="Actual Cash You Are Holding (UGX)">
+                    <input type="number" value={actualCash} onChange={e=>{ setActualCash(e.target.value); setReconResult(null); }} placeholder="e.g. 1155000" style={IS} />
+                  </Field>
+                  <button onClick={handleReconcile} disabled={!actualCash} style={{ width:'100%', padding:'13px', background:'#FFB400', color:'#0a1029', border:'none', borderRadius:'10px', fontSize:'14px', fontWeight:'800', cursor:'pointer', marginTop:'4px' }}>Verify Cash Balance</button>
+                  {reconResult && (
+                    <div style={{ marginTop:'18px', background: reconResult.diff===0 ? 'rgba(0,252,143,0.08)' : 'rgba(255,71,87,0.08)', border:`1px solid ${reconResult.diff===0 ? 'rgba(0,252,143,0.3)' : 'rgba(255,71,87,0.3)'}`, borderRadius:'12px', padding:'16px' }}>
+                      <div style={{ fontWeight:'800', fontSize:'15px', marginBottom:'8px', color: reconResult.diff===0 ? '#00FC8F' : '#FF4757' }}>
+                        {reconResult.diff===0 ? '✅ Cash Balanced!' : reconResult.diff>0 ? `⚠️ Surplus: +${FMT(reconResult.diff)}` : `❌ Shortfall: ${FMT(Math.abs(reconResult.diff))}`}
+                      </div>
+                      <div style={{ fontSize:'12px', color:'var(--muted)', lineHeight:1.6 }}>
+                        <div>Expected: <b style={{ color:'#FFB400' }}>{FMT(reconResult.expected)}</b></div>
+                        <div>Actual: <b style={{ color:'var(--text)' }}>{FMT(reconResult.actual)}</b></div>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              </div>
-            )}
+              )}
+            </div>
 
-            {/* ═══ RECONCILE TAB ═══ */}
-            {tab === 'reconcile' && (
-              <div style={{ maxWidth:'500px', margin:'0 auto' }}>
-                <h2 style={{ fontSize:'16px', fontWeight:'800', marginBottom:'6px' }}>🧾 End-of-Day Cash Reconciliation</h2>
-                <p style={{ fontSize:'13px', color:'var(--muted)', marginBottom:'24px', lineHeight:1.55 }}>
-                  The system has calculated the expected cash on hand based on all income logged minus all expenditure. Enter the actual physical cash you are holding to verify the balance matches.
-                </p>
-
-                <div style={{ background:'#0F172A', border:'1px solid rgba(255,255,255,0.08)', borderRadius:'14px', padding:'20px', marginBottom:'20px' }}>
-                  <div style={{ display:'flex', justifyContent:'space-between', padding:'10px 0', borderBottom:'1px solid rgba(255,255,255,0.06)' }}>
-                    <span style={{ color:'var(--muted)' }}>Total Income Received</span>
-                    <span style={{ fontWeight:'700', color:'#00FC8F' }}>{FMT(totalIn)}</span>
-                  </div>
-                  <div style={{ display:'flex', justifyContent:'space-between', padding:'10px 0', borderBottom:'1px solid rgba(255,255,255,0.06)' }}>
-                    <span style={{ color:'var(--muted)' }}>Total Expenditure Made</span>
-                    <span style={{ fontWeight:'700', color:'#FF4757' }}>−{FMT(totalOut)}</span>
-                  </div>
-                  <div style={{ display:'flex', justifyContent:'space-between', padding:'12px 0 0' }}>
-                    <span style={{ fontWeight:'700', fontSize:'15px' }}>Expected Cash on Hand</span>
-                    <span style={{ fontWeight:'900', fontSize:'18px', color:'#FFB400' }}>{FMT(cashBalance)}</span>
-                  </div>
-                </div>
-
-                <Field label="Actual Cash You Are Holding (UGX)">
-                  <input
-                    type="number"
-                    value={actualCash}
-                    onChange={e => { setActualCash(e.target.value); setReconResult(null); }}
-                    placeholder="e.g. 1155000"
-                    style={inputStyle}
-                  />
-                </Field>
-                <button
-                  onClick={handleReconcile}
-                  disabled={!actualCash}
-                  style={{ width:'100%', padding:'14px', background:'#FFB400', color:'#0a1029', border:'none', borderRadius:'10px', fontSize:'15px', fontWeight:'800', cursor:'pointer', marginTop:'6px' }}
-                >
-                  Verify Cash Balance
-                </button>
-
-                {reconResult && (
-                  <div style={{ marginTop:'20px', background: reconResult.diff === 0 ? 'rgba(0,252,143,0.08)' : 'rgba(255,71,87,0.08)', border:`1px solid ${reconResult.diff === 0 ? 'rgba(0,252,143,0.3)' : 'rgba(255,71,87,0.3)'}`, borderRadius:'12px', padding:'18px' }}>
-                    <div style={{ fontWeight:'800', fontSize:'16px', marginBottom:'10px', color: reconResult.diff === 0 ? '#00FC8F' : '#FF4757' }}>
-                      {reconResult.diff === 0 ? '✅ Cash Balanced!' : reconResult.diff > 0 ? `⚠️ Surplus of ${FMT(reconResult.diff)}` : `❌ Shortfall of ${FMT(Math.abs(reconResult.diff))}`}
-                    </div>
-                    <div style={{ fontSize:'13px', color:'var(--muted)', lineHeight:1.6 }}>
-                      <div>Expected: <b style={{ color:'#FFB400' }}>{FMT(reconResult.expected)}</b></div>
-                      <div>Actual: <b style={{ color:'#F8FAFC' }}>{FMT(reconResult.actual)}</b></div>
-                      <div style={{ marginTop:'8px' }}>
-                        {reconResult.diff === 0
-                          ? 'All income and expenditure recorded correctly. The books balance.'
-                          : reconResult.diff > 0
-                          ? 'You are holding more cash than expected. Check if any income entry was not recorded.'
-                          : 'You are holding less cash than expected. Check if any expense was not recorded.'
-                        }
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
+            {/* ── SIDE PANEL ── */}
+            <div className={`side-panel ${sidePanelOpen ? '' : 'collapsed'}`}>
+              {sidePanelOpen && <SidePanel onClose={() => setSidePanelOpen(false)} tick={tick} />}
+            </div>
           </div>
 
           {/* ═══ INCOME MODAL ═══ */}
           {showIncModal && (
             <Modal title="📥 Log New Income" onClose={() => setShowIncModal(false)}>
-              <Field label="Student Name *">
-                <input style={inputStyle} value={incStudent} onChange={e => setIncStudent(e.target.value)} placeholder="e.g. Brian Mukasa" />
-              </Field>
-              <Field label="Class">
-                <select style={inputStyle} value={incClass} onChange={e => setIncClass(e.target.value)}>
-                  {['Baby Class','Middle Class','Top Class','P.1','P.2','P.3','P.4','P.5','P.6','P.7'].map(c => <option key={c}>{c}</option>)}
-                </select>
-              </Field>
-              <Field label="Amount (UGX) *">
-                <input style={inputStyle} type="number" value={incAmount} onChange={e => setIncAmount(e.target.value)} placeholder="e.g. 500000" />
-              </Field>
-              <Field label="Source Type">
-                <select style={inputStyle} value={incSource} onChange={e => setIncSource(e.target.value)}>
-                  {['School Fees (Tuition)','Admission & Books','Transport Levy','Meals Levy','Other Income'].map(s => <option key={s}>{s}</option>)}
-                </select>
-              </Field>
-              <Field label="Payment Method">
-                <select style={inputStyle} value={incMethod} onChange={e => setIncMethod(e.target.value)}>
-                  {['Cash','Mobile Money','Bank Transfer','Cheque'].map(m => <option key={m}>{m}</option>)}
-                </select>
-              </Field>
-              <Field label="Notes">
-                <input style={inputStyle} value={incNotes} onChange={e => setIncNotes(e.target.value)} placeholder="e.g. Term 2 fees — full payment" />
-              </Field>
-              <div style={{ padding:'10px', background:'rgba(0,252,143,0.06)', border:'1px solid rgba(0,252,143,0.2)', borderRadius:'8px', fontSize:'12px', color:'#00FC8F', marginBottom:'16px' }}>
-                Received by: <b>Nalukenge Jane</b> · This entry will get a unique ID and a running unspent balance.
+              <Field label="Student Name *"><input style={IS} value={incStudent} onChange={e=>setIncStudent(e.target.value)} placeholder="e.g. Brian Mukasa" /></Field>
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px' }}>
+                <Field label="Class">
+                  <select style={IS} value={incClass} onChange={e=>setIncClass(e.target.value)}>
+                    {['Baby Class','Middle Class','Top Class','P.1','P.2','P.3','P.4','P.5','P.6','P.7'].map(c=><option key={c}>{c}</option>)}
+                  </select>
+                </Field>
+                <Field label="Payment Method">
+                  <select style={IS} value={incMethod} onChange={e=>setIncMethod(e.target.value)}>
+                    {['Cash','Mobile Money','Bank Transfer','Cheque'].map(m=><option key={m}>{m}</option>)}
+                  </select>
+                </Field>
               </div>
-              <button onClick={handleAddIncome} disabled={!incStudent || !incAmount} style={{ width:'100%', padding:'13px', background: incStudent && incAmount ? '#00FC8F' : '#334155', color: incStudent && incAmount ? '#0a1029' : 'var(--muted)', border:'none', borderRadius:'10px', fontSize:'15px', fontWeight:'800', cursor: incStudent && incAmount ? 'pointer' : 'not-allowed' }}>
+              <Field label="Amount (UGX) *"><input style={IS} type="number" value={incAmount} onChange={e=>setIncAmount(e.target.value)} placeholder="e.g. 750000" /></Field>
+              <Field label="Source Type">
+                <select style={IS} value={incSource} onChange={e=>setIncSource(e.target.value)}>
+                  {['School Fees (Tuition)','School Fees (Boarding)','Admission & Books','Transport Levy','Meals Levy','Other Income'].map(s=><option key={s}>{s}</option>)}
+                </select>
+              </Field>
+              <Field label="Notes"><input style={IS} value={incNotes} onChange={e=>setIncNotes(e.target.value)} placeholder="e.g. Term 2 — full payment" /></Field>
+              <div style={{ padding:'9px 11px', background:'rgba(0,252,143,0.06)', border:'1px solid rgba(0,252,143,0.2)', borderRadius:'8px', fontSize:'11px', color:'#00FC8F', marginBottom:'14px' }}>
+                Received by: <b>Nalukenge Jane</b> · Entry auto-syncs to Head Teacher Dashboard &amp; Payment Records.
+              </div>
+              <button onClick={handleAddIncome} disabled={!incStudent||!incAmount} style={{ width:'100%', padding:'12px', background: incStudent&&incAmount ? '#00FC8F' : '#334155', color: incStudent&&incAmount ? '#0a1029' : 'var(--muted)', border:'none', borderRadius:'9px', fontSize:'14px', fontWeight:'800', cursor: incStudent&&incAmount ? 'pointer':'not-allowed' }}>
                 Save Income Entry
               </button>
             </Modal>
@@ -655,66 +799,46 @@
 
           {/* ═══ EXPENSE MODAL ═══ */}
           {showExpModal && (
-            <Modal title="📤 Log New Expenditure" onClose={() => setShowExpModal(false)}>
+            <Modal title="📤 Log Expenditure" onClose={() => setShowExpModal(false)}>
               <Field label="Category">
-                <select style={inputStyle} value={expCat} onChange={e => setExpCat(e.target.value)}>
-                  {['Fuel & Transport','Food & Kitchen','Supplies & Stationery','Repairs & Maintenance','Staff Wages','Utilities','Other'].map(c => <option key={c}>{c}</option>)}
+                <select style={IS} value={expCat} onChange={e=>setExpCat(e.target.value)}>
+                  {['Fuel & Transport','Food & Kitchen','Supplies & Stationery','Repairs & Maintenance','Staff Wages','Utilities','Other'].map(c=><option key={c}>{c}</option>)}
                 </select>
               </Field>
-              <Field label="Description *">
-                <input style={inputStyle} value={expDesc} onChange={e => setExpDesc(e.target.value)} placeholder="e.g. Diesel for shuttle van" />
-              </Field>
-              <Field label="Amount (UGX) *">
-                <input style={inputStyle} type="number" value={expAmount} onChange={e => setExpAmount(e.target.value)} placeholder="e.g. 50000" />
-              </Field>
-              <Field label="Paid To">
-                <input style={inputStyle} value={expPaidTo} onChange={e => setExpPaidTo(e.target.value)} placeholder="e.g. Total Energies Kireka" />
-              </Field>
-              <Field label="🔗 Funded From (Source Income Entry) *">
-                <select style={inputStyle} value={expSrcId} onChange={e => setExpSrcId(e.target.value)}>
-                  {incomes.map(i => (
-                    <option key={i.id} value={i.id}>
-                      {i.id} — {i.studentName} ({i.class}) · Unspent: {FMT(i.unspentBalance)}
-                    </option>
+              <Field label="Description *"><input style={IS} value={expDesc} onChange={e=>setExpDesc(e.target.value)} placeholder="e.g. Diesel for shuttle van" /></Field>
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px' }}>
+                <Field label="Amount (UGX) *"><input style={IS} type="number" value={expAmount} onChange={e=>setExpAmount(e.target.value)} placeholder="e.g. 50000" /></Field>
+                <Field label="Paid To"><input style={IS} value={expPaidTo} onChange={e=>setExpPaidTo(e.target.value)} placeholder="e.g. Total Energies" /></Field>
+              </div>
+              <Field label="🔗 Funded From (Income Entry) *">
+                <select style={IS} value={expSrcId} onChange={e=>setExpSrcId(e.target.value)}>
+                  {incomes.map(i=>(
+                    <option key={i.id} value={i.id}>{i.id} — {i.studentName} ({i.class}) · Unspent: {FMT(i.unspentBalance)}</option>
                   ))}
                 </select>
               </Field>
-              <div style={{ padding:'8px 10px', background:'rgba(255,180,0,0.07)', border:'1px solid rgba(255,180,0,0.25)', borderRadius:'8px', fontSize:'11px', color:'#FFB400', marginBottom:'8px' }}>
-                System will deduct this expense from the selected income entry's unspent balance. Over-allocation is blocked.
+              <div style={{ padding:'7px 10px', background:'rgba(255,180,0,0.07)', border:'1px solid rgba(255,180,0,0.22)', borderRadius:'7px', fontSize:'10px', color:'#FFB400', marginBottom:'10px' }}>
+                System deducts from selected income entry's unspent balance. Over-allocation is blocked.
               </div>
-              <Field label="Notes">
-                <input style={inputStyle} value={expNotes} onChange={e => setExpNotes(e.target.value)} placeholder="e.g. Emergency repair — approved by Admin" />
-              </Field>
-              <button onClick={handleAddExpense} disabled={!expDesc || !expAmount} style={{ width:'100%', padding:'13px', background: expDesc && expAmount ? '#FF4757' : '#334155', color:'#fff', border:'none', borderRadius:'10px', fontSize:'15px', fontWeight:'800', cursor: expDesc && expAmount ? 'pointer' : 'not-allowed' }}>
+              <Field label="Notes"><input style={IS} value={expNotes} onChange={e=>setExpNotes(e.target.value)} placeholder="e.g. Emergency repair" /></Field>
+              <button onClick={handleAddExpense} disabled={!expDesc||!expAmount} style={{ width:'100%', padding:'12px', background: expDesc&&expAmount ? '#FF4757' : '#334155', color:'#fff', border:'none', borderRadius:'9px', fontSize:'14px', fontWeight:'800', cursor: expDesc&&expAmount ? 'pointer':'not-allowed' }}>
                 Save Expenditure Entry
               </button>
             </Modal>
           )}
-
         </div>
       );
     }
 
     /* ─── Bootstrap ── */
     (function boot() {
-      // Soft session check — if no profile in localStorage redirect to login
       let profile = null;
-      try { profile = JSON.parse(localStorage.getItem('nextos.profile') || 'null'); } catch(e) {}
-
-      if (!profile) {
-        window.location.href = '/prototypes/schools/peak-primary/login.html';
-        return;
+      try { profile = JSON.parse(localStorage.getItem('nextos.profile')||'null'); } catch(e){}
+      if (!profile) { window.location.href = '/prototypes/schools/peak-primary/login.html'; return; }
+      if (!['bursar','head','admin'].includes(String(profile.role).toLowerCase())) {
+        window.location.href = '/prototypes/schools/peak-primary/login.html'; return;
       }
-
-      // Role guard — only bursar (or head/admin who might share this view)
-      const allowed = ['bursar','head','admin'];
-      if (!allowed.includes(String(profile.role).toLowerCase())) {
-        window.location.href = '/prototypes/schools/peak-primary/login.html';
-        return;
-      }
-
-      const root = ReactDOM.createRoot(document.getElementById('root'));
-      root.render(<BursarDashboard />);
+      ReactDOM.createRoot(document.getElementById('root')).render(<BursarDashboard />);
     })();
   </script>
 </body>

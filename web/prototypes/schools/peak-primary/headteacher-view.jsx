@@ -6,6 +6,8 @@
 (function () {
   const React = window.React;
   const { useState, useEffect, useRef } = React;
+  // Shared data store — synced with Bursar Dashboard
+  const SS = window.SCHOOL_STORE;
 
   const T = {
     bg: '#0a1029',
@@ -22,19 +24,10 @@
     purple: '#8B5CF6'
   };
 
-  // Pre-populated realistic initial data matching Nalukenge Jane's daily cash flow
-  const INITIAL_INCOMES = [
-    { id: 'INC-2026-001', date: '2026-07-28 07:30 AM', studentName: 'Brian Mukasa', class: 'P.4', sourceType: 'School Fees (Tuition)', amount: 750000, unspentBalance: 580000, paymentMethod: 'Cash', receivedBy: 'Nalukenge Jane', notes: 'Term 2 fees payment' },
-    { id: 'INC-2026-002', date: '2026-07-28 08:15 AM', studentName: 'Grace Kintu', class: 'Baby', sourceType: 'School Fees (Tuition)', amount: 350000, unspentBalance: 305000, paymentMethod: 'Cash', receivedBy: 'Nalukenge Jane', notes: 'Full fee clearance' },
-    { id: 'INC-2026-003', date: '2026-07-28 09:10 AM', studentName: 'Alvin Mwesigwa', class: 'P.1', sourceType: 'Admission & Books', amount: 350000, unspentBalance: 245000, paymentMethod: 'Mobile Money', receivedBy: 'Nalukenge Jane', notes: 'Materials & Reg fee' },
-  ];
-
-  const INITIAL_EXPENSES = [
-    { id: 'EXP-2026-001', date: '2026-07-28 08:00 AM', category: 'Fuel & Transport', description: 'Shuttle Van Diesel (Mr. Bbosa)', amount: 50000, paidTo: 'Total Energies Kireka', incomeSourceId: 'INC-2026-001', studentSource: 'Brian Mukasa (P.4)', notes: 'Morning shuttle route fuel', receiptAttached: true },
-    { id: 'EXP-2026-002', date: '2026-07-28 08:45 AM', category: 'Food & Groceries', description: 'Kitchen Posho & Beans Supply', amount: 120000, paidTo: 'Kireka Market Wholesale', incomeSourceId: 'INC-2026-001', studentSource: 'Brian Mukasa (P.4)', notes: 'Weekly lunch grains', receiptAttached: true },
-    { id: 'EXP-2026-003', date: '2026-07-28 09:30 AM', category: 'Supplies', description: 'Classroom Chalk & Exercise Books', amount: 45000, paidTo: 'Aristoc Booklex', incomeSourceId: 'INC-2026-002', studentSource: 'Grace Kintu (Baby)', notes: 'Baby class supplies', receiptAttached: true },
-    { id: 'EXP-2026-004', date: '2026-07-28 10:15 AM', category: 'Repairs & Maintenance', description: 'Plumbing Repair (P.1 Washroom Tap)', amount: 105000, paidTo: 'Fundi James', incomeSourceId: 'INC-2026-003', studentSource: 'Alvin Mwesigwa (P.1)', notes: 'Emergency pipe replacement', receiptAttached: false },
-  ];
+  // ── Data now comes from shared SCHOOL_STORE (synced with Bursar Dashboard) ──
+  // Falls back gracefully if the store isn't loaded yet (older pages).
+  function readIncomes() { return SS ? SS.getIncomes() : []; }
+  function readExpenses() { return SS ? SS.getExpenses() : []; }
 
   const GATE_ATTENDANCE = [
     { id: 1, name: 'Brian Mukasa', class: 'P.4', time: '07:42 AM', status: 'Present', gate: 'Main Gate', method: 'RFID Tag' },
@@ -53,13 +46,24 @@
 
   function HeadTeacherView() {
     const [activeTab, setActiveTab] = useState('cash'); // 'cash' | 'gate' | 'transport' | 'staff'
-    const [incomes, setIncomes] = useState(INITIAL_INCOMES);
-    const [expenses, setExpenses] = useState(INITIAL_EXPENSES);
+    // Read from shared store so bursar entries appear here too
+    const [incomes, setIncomes] = useState(() => readIncomes());
+    const [expenses, setExpenses] = useState(() => readExpenses());
     const [showIncomeModal, setShowIncomeModal] = useState(false);
     const [showExpenseModal, setShowExpenseModal] = useState(false);
     const [showReconcileModal, setShowReconcileModal] = useState(false);
     const [filterCategory, setFilterCategory] = useState('All');
     const [searchQuery, setSearchQuery] = useState('');
+
+    // Cross-tab + same-tab sync: re-read store when bursar (or anyone) adds an entry
+    useEffect(() => {
+      if (!SS) return;
+      const refresh = () => {
+        setIncomes(SS.getIncomes());
+        setExpenses(SS.getExpenses());
+      };
+      SS.onChange(refresh);
+    }, []);
 
     // Income Form State
     const [incStudent, setIncStudent] = useState('');
@@ -74,7 +78,7 @@
     const [expDesc, setExpDesc] = useState('');
     const [expAmount, setExpAmount] = useState('');
     const [expPaidTo, setExpPaidTo] = useState('');
-    const [expIncomeSourceId, setExpIncomeSourceId] = useState(INITIAL_INCOMES[0].id);
+    const [expIncomeSourceId, setExpIncomeSourceId] = useState('');
     const [expNotes, setExpNotes] = useState('');
 
     // Calculated Totals
@@ -82,65 +86,52 @@
     const totalExpenses = expenses.reduce((sum, item) => sum + Number(item.amount), 0);
     const cashOnHand = totalIncome - totalExpenses;
 
-    // Handle Income Add
+    // Handle Income Add — writes to shared SCHOOL_STORE (bursar sees it immediately)
     const handleAddIncome = (e) => {
       e.preventDefault();
       if (!incStudent || !incAmount) return;
       const amt = Number(incAmount);
-      const newInc = {
-        id: `INC-2026-00${incomes.length + 1}`,
-        date: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + ' Today',
-        studentName: incStudent,
-        class: incClass,
-        sourceType: incSource,
-        amount: amt,
-        unspentBalance: amt,
-        paymentMethod: incMethod,
-        receivedBy: 'Nalukenge Jane',
-        notes: incNotes || 'Direct cash received by Head Teacher'
-      };
-      setIncomes([newInc, ...incomes]);
-      setIncStudent('');
-      setIncAmount('');
-      setIncNotes('');
+      if (SS) {
+        SS.addIncome({
+          date: new Date().toISOString().slice(0,16).replace('T',' '),
+          studentName: incStudent, class: incClass, sourceType: incSource,
+          amount: amt, unspentBalance: amt, paymentMethod: incMethod,
+          receivedBy: 'Nalukenge Jane',
+          notes: incNotes || 'Direct cash received by Head Teacher',
+          loggedBy: 'head'
+        });
+        setIncomes(SS.getIncomes());
+        setExpenses(SS.getExpenses());
+      } else {
+        setIncomes(prev => [{ id:'INC-HT-'+Date.now(), date: new Date().toLocaleTimeString()+' Today', studentName:incStudent, class:incClass, sourceType:incSource, amount:amt, unspentBalance:amt, paymentMethod:incMethod, receivedBy:'Nalukenge Jane', notes:incNotes }, ...prev]);
+      }
+      setIncStudent(''); setIncAmount(''); setIncNotes('');
       setShowIncomeModal(false);
     };
 
-    // Handle Expense Add with Source Attribution Linkage
+    // Handle Expense Add — writes to shared SCHOOL_STORE (bursar sees it immediately)
     const handleAddExpense = (e) => {
       e.preventDefault();
       if (!expDesc || !expAmount) return;
       const amt = Number(expAmount);
-
       const targetInc = incomes.find(i => i.id === expIncomeSourceId) || incomes[0];
-      
-      // Update unspent balance of source income
-      const updatedIncomes = incomes.map(inc => {
-        if (inc.id === targetInc.id) {
-          return { ...inc, unspentBalance: Math.max(0, inc.unspentBalance - amt) };
-        }
-        return inc;
-      });
-      setIncomes(updatedIncomes);
-
-      const newExp = {
-        id: `EXP-2026-00${expenses.length + 1}`,
-        date: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + ' Today',
-        category: expCategory,
-        description: expDesc,
-        amount: amt,
-        paidTo: expPaidTo || 'Vendor / Driver',
-        incomeSourceId: targetInc.id,
-        studentSource: `${targetInc.studentName} (${targetInc.class})`,
-        notes: expNotes || 'Logged & linked by Nalukenge Jane',
-        receiptAttached: true
-      };
-
-      setExpenses([newExp, ...expenses]);
-      setExpDesc('');
-      setExpAmount('');
-      setExpPaidTo('');
-      setExpNotes('');
+      if (!targetInc) return;
+      if (SS) {
+        SS.addExpense({
+          date: new Date().toISOString().slice(0,16).replace('T',' '),
+          category: expCategory, description: expDesc, amount: amt,
+          paidTo: expPaidTo || 'Vendor / Driver', incomeSourceId: targetInc.id,
+          notes: expNotes || 'Logged & linked by Head Teacher',
+          receiptAttached: true, loggedBy: 'head'
+        });
+        setIncomes(SS.getIncomes());
+        setExpenses(SS.getExpenses());
+      } else {
+        const updatedIncomes = incomes.map(inc => inc.id === targetInc.id ? { ...inc, unspentBalance: Math.max(0, inc.unspentBalance - amt) } : inc);
+        setIncomes(updatedIncomes);
+        setExpenses(prev => [{ id:'EXP-HT-'+Date.now(), date:new Date().toLocaleTimeString()+' Today', category:expCategory, description:expDesc, amount:amt, paidTo:expPaidTo||'Vendor', incomeSourceId:targetInc.id, studentSource:`${targetInc.studentName} (${targetInc.class})`, notes:expNotes, receiptAttached:true }, ...prev]);
+      }
+      setExpDesc(''); setExpAmount(''); setExpPaidTo(''); setExpNotes('');
       setShowExpenseModal(false);
     };
 
