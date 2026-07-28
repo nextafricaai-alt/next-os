@@ -1,5 +1,12 @@
 {
   "dependencies": {
     "@babel/parser": "^7.29.7"
+  },
+  "devDependencies": {
+    "wrangler": "^4.114.0"
+  },
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "preview": "wrangler dev"
   }
 }
