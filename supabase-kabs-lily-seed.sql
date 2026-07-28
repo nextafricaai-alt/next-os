@@ -5,7 +5,7 @@
 CREATE TABLE IF NOT EXISTS staff_attendance (
   id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   tenant_id   text NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
-  teacher_id  uuid NOT NULL REFERENCES teachers(id) ON DELETE CASCADE,
+  teacher_id  bigint NOT NULL REFERENCES teachers(id) ON DELETE CASCADE,
   date        date NOT NULL DEFAULT current_date,
   time_in     time NOT NULL,
   status      text NOT NULL, -- 'On Duty', 'In Class', 'On Route'
@@ -31,10 +31,10 @@ DECLARE
   v_student_3 bigint;
   v_student_4 bigint;
   v_student_5 bigint;
-  v_teacher_1 uuid;
-  v_teacher_2 uuid;
-  v_teacher_3 uuid;
-  v_teacher_4 uuid;
+  v_teacher_1 bigint;
+  v_teacher_2 bigint;
+  v_teacher_3 bigint;
+  v_teacher_4 bigint;
   v_inc_1 uuid;
 BEGIN
   -- We assume the tenant exists. If not, insert it (safe fallback).
