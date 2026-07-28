@@ -337,12 +337,17 @@
   const DriverView = ({ vanId = 'van-01' }) => {
     const [students, setStudents] = useState(mockStudents);
     const [isEmergencyModalOpen, setIsEmergencyModalOpen] = useState(false);
-    const [isKmModalOpen, setIsKmModalOpen] = useState(false);
-    const [skipModalOpen, setSkipModalOpen] = useState(null);
-    const [drawerOpen, setDrawerOpen] = useState(false);
-    const [filter, setFilter] = useState('All');
-    
-    // Kilometer Odometer State & History
+    const [isAddChildModalOpen, setIsAddChildModalOpen] = useState(false);
+    const [newChildName, setNewChildName] = useState('');
+    const [newChildClass, setNewChildClass] = useState('P.1');
+    const [newChildGuardian, setNewChildGuardian] = useState('');
+    const [newChildPhone, setNewChildPhone] = useState('');
+    const [newChildAddress, setNewChildAddress] = useState('');
+    const [newChildLandmark, setNewChildLandmark] = useState('');
+    const [newChildLat, setNewChildLat] = useState('0.3500');
+    const [newChildLng, setNewChildLng] = useState('32.6200');
+
+    // Kilometers Odometer State & History
     const [kmData, setKmData] = useState(() => {
       if (window.TRANSPORT_TELEMETRY && typeof window.TRANSPORT_TELEMETRY.getKilometers === 'function') {
         return window.TRANSPORT_TELEMETRY.getKilometers(vanId);
@@ -354,7 +359,7 @@
 
     const completedStopsKm = useMemo(() => {
       const count = students.filter(s => s.status === 'picked_up').length;
-      return (count * 1.4).toFixed(1); // average 1.4 km per pickup stop
+      return (count * 1.4).toFixed(1);
     }, [students]);
 
     const grandTotalKm = useMemo(() => {
@@ -380,6 +385,28 @@
       setKmReasonInput('');
     };
 
+    const handleAddChildToRoute = () => {
+      if (!newChildName.trim() || !newChildAddress.trim()) return;
+      const newStudent = {
+        id: 's_' + Date.now(),
+        name: newChildName.trim(),
+        class: newChildClass,
+        guardian: newChildGuardian.trim() || 'Guardian',
+        phone: newChildPhone.trim() || '+256 700 000000',
+        address: newChildAddress.trim(),
+        landmark: newChildLandmark.trim() || 'Near Stage',
+        status: 'waiting',
+        lat: parseFloat(newChildLat) || 0.3500,
+        lng: parseFloat(newChildLng) || 32.6200,
+        distance: '1.5 km',
+        time: '5 mins'
+      };
+
+      setStudents(prev => [newStudent, ...prev]);
+      setIsAddChildModalOpen(false);
+      setNewChildName(''); setNewChildGuardian(''); setNewChildPhone(''); setNewChildAddress(''); setNewChildLandmark('');
+    };
+
     const activeStudent = useMemo(() => students.find(s => s.status === 'waiting' || s.status === 'arrived'), [students]);
 
     const updateStatus = (id, status) => {
@@ -395,9 +422,7 @@
         osc.connect(ctx.destination);
         osc.start();
         osc.stop(ctx.currentTime + 0.1);
-      } catch (e) {
-        // Audio fallback
-      }
+      } catch (e) {}
     };
 
     const handlePickedUp = (id) => {
@@ -426,13 +451,14 @@
         fontFamily: T.fonts.sans,
         width: '100%',
         height: '100vh',
+        height: '100dvh',
         display: 'flex',
         justifyContent: 'center',
         overflow: 'hidden',
       }}>
-        <div style={{
+        <div className="driver-app-shell" style={{
           width: '100%',
-          maxWidth: '480px',
+          maxWidth: '1280px',
           height: '100%',
           display: 'flex',
           flexDirection: 'column',
@@ -450,14 +476,29 @@
             gap: '12px',
             zIndex: 10,
           }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
               <div>
-                <div style={{ fontSize: '18px', fontWeight: 'bold' }}>🚐 VAN 01 — MORNING PICKUP</div>
-                <div style={{ fontSize: '14px', color: T.colors.textMuted, marginTop: '4px' }}>
-                  Driver: Tr. Moses K. · +256 701 234567
+                <div style={{ fontSize: '18px', fontWeight: 'bold' }}>🚐 VAN 01 — LIVE SHUTTLE COMMAND</div>
+                <div style={{ fontSize: '14px', color: T.colors.textMuted, marginTop: '2px' }}>
+                  Driver: Mr. Bbosa Yusufu · +256 701 234567
                 </div>
               </div>
-              <div style={{ display: 'flex', gap: '8px' }}>
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                <button 
+                  onClick={() => setIsAddChildModalOpen(true)}
+                  style={{
+                    backgroundColor: '#3B82F6',
+                    color: '#FFF',
+                    border: 'none',
+                    borderRadius: T.radii.md,
+                    padding: '8px 12px',
+                    fontWeight: 'bold',
+                    fontSize: '12px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  👶 Add Kid & Location
+                </button>
                 <button 
                   onClick={() => setIsKmModalOpen(true)}
                   style={{
@@ -763,7 +804,71 @@
              </div>
           )}
 
-           {/* Kilometers Log Modal */}
+           {/* Add Real Kid & Location Modal */}
+          {isAddChildModalOpen && (
+            <div style={{
+              position: 'absolute', inset: 0, backgroundColor: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(6px)',
+              zIndex: 80, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px',
+            }}>
+              <div style={{
+                backgroundColor: T.colors.surface, padding: '24px', borderRadius: T.radii.xl,
+                width: '100%', maxWidth: '440px', display: 'flex', flexDirection: 'column', gap: '14px', border: '1px solid #3B82F6',
+              }}>
+                <h3 style={{ margin: 0, fontSize: '18px', color: '#60A5FA' }}>👶 Add Child to Shuttle Route</h3>
+                <p style={{ margin: 0, fontSize: '12px', color: T.colors.textMuted }}>
+                  Enter real child info & pickup location to display on live Satellite map.
+                </p>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  <input
+                    type="text" placeholder="Child Name (e.g. Alvin Mwesigwa)"
+                    value={newChildName} onChange={e => setNewChildName(e.target.value)}
+                    style={{ gridColumn: 'span 2', background: '#0F172A', color: '#FFF', border: `1px solid ${T.colors.border}`, padding: '10px', borderRadius: '8px', fontSize: '13px', outline: 'none' }}
+                  />
+                  <select
+                    value={newChildClass} onChange={e => setNewChildClass(e.target.value)}
+                    style={{ background: '#0F172A', color: '#FFF', border: `1px solid ${T.colors.border}`, padding: '10px', borderRadius: '8px', fontSize: '13px', outline: 'none' }}
+                  >
+                    {['Baby', 'Middle', 'Top', 'P.1', 'P.2', 'P.3', 'P.4', 'P.5', 'P.6', 'P.7'].map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                  <input
+                    type="text" placeholder="Guardian Phone (+256...)"
+                    value={newChildPhone} onChange={e => setNewChildPhone(e.target.value)}
+                    style={{ background: '#0F172A', color: '#FFF', border: `1px solid ${T.colors.border}`, padding: '10px', borderRadius: '8px', fontSize: '13px', outline: 'none' }}
+                  />
+                  <input
+                    type="text" placeholder="Guardian Name"
+                    value={newChildGuardian} onChange={e => setNewChildGuardian(e.target.value)}
+                    style={{ gridColumn: 'span 2', background: '#0F172A', color: '#FFF', border: `1px solid ${T.colors.border}`, padding: '10px', borderRadius: '8px', fontSize: '13px', outline: 'none' }}
+                  />
+                  <input
+                    type="text" placeholder="Pickup Address (e.g. Kireka Kamuli Rd)"
+                    value={newChildAddress} onChange={e => setNewChildAddress(e.target.value)}
+                    style={{ gridColumn: 'span 2', background: '#0F172A', color: '#FFF', border: `1px solid ${T.colors.border}`, padding: '10px', borderRadius: '8px', fontSize: '13px', outline: 'none' }}
+                  />
+                  <input
+                    type="text" placeholder="Landmark (e.g. Near Kamuli Stage)"
+                    value={newChildLandmark} onChange={e => setNewChildLandmark(e.target.value)}
+                    style={{ gridColumn: 'span 2', background: '#0F172A', color: '#FFF', border: `1px solid ${T.colors.border}`, padding: '10px', borderRadius: '8px', fontSize: '13px', outline: 'none' }}
+                  />
+                </div>
+
+                <button
+                  onClick={handleAddChildToRoute}
+                  disabled={!newChildName || !newChildAddress}
+                  style={{
+                    padding: '12px', backgroundColor: (newChildName && newChildAddress) ? '#3B82F6' : T.colors.surfaceHover,
+                    color: '#FFF', border: 'none', borderRadius: T.radii.md, fontSize: '15px', fontWeight: 'bold', cursor: (newChildName && newChildAddress) ? 'pointer' : 'not-allowed', marginTop: '4px'
+                  }}
+                >
+                  Add Child to Route Manifest 🟢
+                </button>
+                <button onClick={() => setIsAddChildModalOpen(false)} style={{ padding: '10px', backgroundColor: 'transparent', color: T.colors.textMuted, border: `1px solid ${T.colors.border}`, borderRadius: T.radii.md, fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}>Cancel</button>
+              </div>
+            </div>
+          )}
+
+          {/* Kilometers Log Modal */}
           {isKmModalOpen && (
             <div style={{
               position: 'absolute', inset: 0, backgroundColor: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(6px)',
