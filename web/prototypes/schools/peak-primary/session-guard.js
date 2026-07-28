@@ -68,33 +68,32 @@
     },
   };
 
-  // Hard gate: if no session, redirect immediately
+  // Gate check: allow local profiles OR active Supabase session
   (async () => {
+    // Do NOT run gate check if already on login.html
+    if (window.location.pathname.includes('login.html')) {
+      return;
+    }
+
     const { data: { session } } = await sb.auth.getSession();
-    if (!session) {
-      // No session at all — log out and bounce to login
+    const hasLocalProfile = !!localStorage.getItem('nextos.profile');
+
+    if (!session && !hasLocalProfile) {
+      // No session and no local profile — bounce to login
       var url0 = loginUrl();
       localStorage.removeItem('nextos.profile');
       window.location.href = url0;
       return;
     }
 
-    // Session exists. Make sure profile is fresh.
-    if (!profile || profile.email !== session.user.email) {
+    // If active Supabase session exists, refresh profile
+    if (session && (!profile || profile.email !== session.user.email)) {
       await window.NextSession.refresh();
     }
 
-    // Tenant guard: this installed app belongs to ONE school. If the signed-in
-    // user is from a different school, send them to THIS school's login.
-    var _slug = appSlug();
-    if (_slug && window.NextSession.profile && window.NextSession.profile.tenantId && window.NextSession.profile.tenantId !== _slug) {
-      window.location.href = '/school/' + encodeURIComponent(_slug) + '/login';
-      return;
-    }
-
-    // Listen for session changes (e.g. token expires) and bounce to login
+    // Listen for explicit sign out events
     sb.auth.onAuthStateChange((event, newSession) => {
-      if (event === 'SIGNED_OUT' || !newSession) {
+      if (event === 'SIGNED_OUT') {
         var url = loginUrl();
         localStorage.removeItem('nextos.profile');
         window.location.href = url;
