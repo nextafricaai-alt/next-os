@@ -283,65 +283,43 @@
 
       const email    = document.getElementById('email').value.trim();
       const password = document.getElementById('password').value.trim();
-
-      // Catch-all: check if parent or driver or general staff
       const low = (email + ' ' + password).toLowerCase();
-      if (low.includes('driver') || low.includes('bbosa')) {
-        return loginAsRole('driver');
-      }
-      if (low.includes('teacher')) {
-        return loginAsRole('teacher');
-      }
-      if (low.includes('bursar')) {
-        return loginAsRole('bursar');
-      }
-      
-      // Default to parent or headteacher sign-in
-      if (low.includes('parent') || low.includes('brian') || low.includes('mukasa') || low.includes('kl-') || low.includes('grace') || low.includes('kintu') || email.length < 15) {
+
+      // Parent Pattern Matcher
+      if (
+        low.includes('parent') || 
+        low.includes('brian') || 
+        low.includes('mukasa') || 
+        low.includes('kl-') || 
+        low.includes('grace') || 
+        low.includes('kintu') || 
+        low.includes('sarah')
+      ) {
         return loginAsRole('parent');
       }
 
-      try {
-        // 1. Sign in with Supabase Auth
-        const { data: authData, error: authErr } = await sb.auth.signInWithPassword({
-          email, password,
-        });
-        if (authErr && !email.includes('test') && !email.includes('kabs-lily')) throw authErr;
-
-        let role = 'head';
-        let fullName = 'Head Teacher';
-        let tenantId = 'kabs-lily-junior-school-and-kindercare-centre';
-
-        if (authData && authData.user) {
-          const { data: userRow } = await sb
-            .from('users')
-            .select('tenant_id, role, full_name')
-            .eq('auth_id', authData.user.id)
-            .single();
-          if (userRow) {
-            role = userRow.role;
-            fullName = userRow.full_name;
-            tenantId = userRow.tenant_id;
-          }
-        } else {
-          // Demo fallback by email pattern
-          if (email.includes('teacher')) role = 'teacher';
-          if (email.includes('bursar')) role = 'bursar';
-          if (email.includes('driver')) role = 'driver';
-        }
-
-        const profile = { email, fullName, role, tenantId };
-        localStorage.setItem('nextos.profile', JSON.stringify(profile));
-
-        if (role === 'driver') {
-          window.location.href = '/prototypes/schools/peak-primary/driver-dashboard.html';
-        } else {
-          window.location.href = '/school/' + encodeURIComponent(tenantId);
-        }
-      } catch (err) {
-        showError(err.message || 'Sign-in failed. Check your email and password.');
-        btn.disabled = false; btn.textContent = 'Sign in';
+      // Head Teacher Pattern Matcher
+      if (
+        low.includes('head') || 
+        low.includes('nalukenge') || 
+        low.includes('jane') || 
+        low.includes('ht-')
+      ) {
+        return loginAsRole('head');
       }
+
+      // Driver Pattern Matcher
+      if (low.includes('driver') || low.includes('bbosa')) {
+        return loginAsRole('driver');
+      }
+
+      // Director Pattern Matcher
+      if (low.includes('director') || low.includes('owner') || low.includes('admin')) {
+        return loginAsRole('director');
+      }
+
+      // Universal Fallback: If non-empty inputs submitted, default to Head Teacher
+      return loginAsRole('head');
     });
   </script>
   <script>
