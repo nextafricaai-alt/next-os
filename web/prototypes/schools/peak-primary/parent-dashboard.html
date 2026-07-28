@@ -35,7 +35,7 @@
 <body>
   <div id="root"></div>
 
-  <!-- Load dependencies & Parent View JS -->
+  <!-- Supabase CDN & Dependencies -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="/prototypes/schools/peak-primary/session-guard.js"></script>
   <script src="/prototypes/schools/peak-primary/school-brand.js"></script>
@@ -46,24 +46,15 @@
 
   <script type="text/babel">
     function ParentApp() {
-      const View = window.ParentView;
-      if (!View) {
-        return <div style={{ color: '#00FC8F', padding: '40px', textAlign: 'center', fontWeight: 'bold' }}>Loading Parent Portal...</div>;
-      }
-      return <View />;
+      return (
+        <React.Suspense fallback={<div style={{ color: '#00FC8F', padding: '40px', textAlign: 'center' }}>Loading Parent Portal...</div>}>
+          <window.ParentView />
+        </React.Suspense>
+      );
     }
 
-    let root = null;
-    const checkAndRender = () => {
-      const el = document.getElementById('root');
-      if (!el) return;
-      if (!root) root = ReactDOM.createRoot(el);
-      root.render(<ParentApp />);
-      if (!window.ParentView) {
-        setTimeout(checkAndRender, 50);
-      }
-    };
-    checkAndRender();
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<ParentApp />);
   </script>
 </body>
 </html>
