@@ -34,19 +34,20 @@
   function getRole() {
     const p = getProfile();
     const r = (p && p.role) ? String(p.role).toLowerCase() : 'head';
-    if (r === 'admin' || r === 'head' || r === 'bursar' || r === 'teacher') return r;
+    if (r === 'admin' || r === 'head' || r === 'bursar' || r === 'teacher' || r === 'driver') return r;
     return 'head';
   }
 
   // ─── Which nav items each role can see ────────────────────────────────
   // Admin + Head: everything
   // Bursar: only finance-relevant screens
-  // Teacher: doesn't use the sidebar at all (different shell)
+  // Teacher & Driver: use dedicated mobile/web app views
   const ROLE_NAV_WHITELIST = {
     admin:   null, // null = show all
     head:    null,
     bursar:  new Set(['spec', 'dash', 'fees', 'rep']),
-    teacher: new Set(), // teacher uses its own shell, sidebar not rendered
+    teacher: new Set(), // teacher uses its own shell
+    driver:  new Set(['trsp']), // driver uses driver app
   };
 
   function canSeeNavKey(key) {
@@ -67,7 +68,11 @@
   function defaultRouteForRole() {
     const role = getRole();
     if (role === 'bursar')  return 'fees';
-    if (role === 'teacher') return 'teacher-home'; // handled by TeacherShell
+    if (role === 'teacher') return 'teacher-home';
+    if (role === 'driver')  {
+      window.location.href = '/prototypes/schools/peak-primary/driver-dashboard.html';
+      return 'trsp';
+    }
     return 'spec'; // admin / head keep current default
   }
 
@@ -79,6 +84,7 @@
       head:    'Head Teacher',
       bursar:  'Bursar',
       teacher: 'Teacher',
+      driver:  'School Driver',
     })[role] || 'User';
   }
 

@@ -6832,6 +6832,12 @@ window.PEAK_FORMS = (function () {
           title="Enrol a new student"
           subtitle="Guardian gets an automatic welcome WhatsApp + parent-portal login."
         />
+        <div style={{ padding: '12px 26px', background: 'rgba(0,252,143,0.1)', borderBottom: '1px solid rgba(0,252,143,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+          <span style={{ fontSize: '12.5px', color: '#00FC8F', fontWeight: '600' }}>📄 Send parent full 3-page Kabs Lily Enrollment Form?</span>
+          <button onClick={() => window.open('/prototypes/schools/peak-primary/student-enrollment-form.html', '_blank')} style={{ background: '#00FC8F', color: '#0A1029', border: 'none', padding: '6px 14px', borderRadius: '6px', fontSize: '11.5px', fontWeight: '800', cursor: 'pointer' }}>
+            Open Digital Enrollment Form 🔗
+          </button>
+        </div>
         <div style={{ padding: 26, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
           <Field label="Student name" error={errors.name} span={2}>
             <TextInput value={name} onChange={v => { setName(v); setErrors(e => ({ ...e, name: null })); }} placeholder="e.g. Esther Nakimuli" />
@@ -6925,6 +6931,12 @@ window.PEAK_FORMS = (function () {
           title="Add a teacher"
           subtitle="Teacher will get login access to the classroom dashboard."
         />
+        <div style={{ padding: '12px 26px', background: 'rgba(59,130,246,0.1)', borderBottom: '1px solid rgba(59,130,246,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+          <span style={{ fontSize: '12.5px', color: '#3B82F6', fontWeight: '600' }}>💼 Send 2-page Digital HR & Payroll Form to staff/teacher?</span>
+          <button onClick={() => window.open('/prototypes/schools/peak-primary/staff-hr-form.html', '_blank')} style={{ background: '#3B82F6', color: '#FFFFFF', border: 'none', padding: '6px 14px', borderRadius: '6px', fontSize: '11.5px', fontWeight: '800', cursor: 'pointer' }}>
+            Open Digital Staff HR Form 🔗
+          </button>
+        </div>
         <div style={{ padding: 26, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
           <Field label="Full name" error={errors.name} span={2}>
             <TextInput value={name} onChange={v => { setName(v); setErrors(e => ({ ...e, name: null })); }} placeholder="Mrs. Sarah Namugga" />
