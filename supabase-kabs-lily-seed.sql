@@ -65,14 +65,14 @@ BEGIN
   (v_tenant_id, 'Joy Babirye', 'Top Class', 'Mrs. Babirye', '0779999888', '2019-01-05') RETURNING id INTO v_student_5;
 
   -- Seed Teachers
-  INSERT INTO teachers (tenant_id, user_id, full_name, role, department, phone_number, email) VALUES
-  (v_tenant_id, gen_random_uuid(), 'Nalukenge Jane', 'Head Teacher', 'Administration', '0771000001', 'jane@kabslily.edu.ug') RETURNING id INTO v_teacher_1;
-  INSERT INTO teachers (tenant_id, user_id, full_name, role, department, phone_number, email) VALUES
-  (v_tenant_id, gen_random_uuid(), 'Mr. Bbosa Yusufu', 'Shuttle Driver', 'Transport', '0771000002', 'bbosa@kabslily.edu.ug') RETURNING id INTO v_teacher_2;
-  INSERT INTO teachers (tenant_id, user_id, full_name, role, department, phone_number, email) VALUES
-  (v_tenant_id, gen_random_uuid(), 'Tr. Sarah Namuli', 'Class Teacher', 'P.4', '0771000003', 'sarah@kabslily.edu.ug') RETURNING id INTO v_teacher_3;
-  INSERT INTO teachers (tenant_id, user_id, full_name, role, department, phone_number, email) VALUES
-  (v_tenant_id, gen_random_uuid(), 'Tr. Moses K.', 'Class Teacher', 'P.1', '0771000004', 'moses@kabslily.edu.ug') RETURNING id INTO v_teacher_4;
+  INSERT INTO teachers (tenant_id, full_name, phone, email, monthly_salary) VALUES
+  (v_tenant_id, 'Nalukenge Jane', '0771000001', 'jane@kabslily.edu.ug', 1200000) RETURNING id INTO v_teacher_1;
+  INSERT INTO teachers (tenant_id, full_name, phone, email, monthly_salary) VALUES
+  (v_tenant_id, 'Mr. Bbosa Yusufu', '0771000002', 'bbosa@kabslily.edu.ug', 600000) RETURNING id INTO v_teacher_2;
+  INSERT INTO teachers (tenant_id, full_name, phone, email, monthly_salary) VALUES
+  (v_tenant_id, 'Tr. Sarah Namuli', '0771000003', 'sarah@kabslily.edu.ug', 550000) RETURNING id INTO v_teacher_3;
+  INSERT INTO teachers (tenant_id, full_name, phone, email, monthly_salary) VALUES
+  (v_tenant_id, 'Tr. Moses K.', '0771000004', 'moses@kabslily.edu.ug', 500000) RETURNING id INTO v_teacher_4;
 
   -- Seed Incomes
   INSERT INTO school_income (tenant_id, student_name, class, source_type, amount, unspent_balance, payment_method, received_by, notes, logged_by) VALUES

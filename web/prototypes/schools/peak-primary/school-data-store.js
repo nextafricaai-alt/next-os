@@ -167,14 +167,14 @@
     return {
       id: dbRow.id,
       name: dbRow.full_name || 'Unknown Teacher',
-      role: dbRow.role || 'Teacher',
-      subject: dbRow.department || 'General',
+      role: 'Teacher',
+      subject: Array.isArray(dbRow.subjects) ? dbRow.subjects.join(', ') : 'General',
       class: 'N/A',
-      phone: dbRow.phone_number || '',
+      phone: dbRow.phone || dbRow.phone_number || '',
       email: dbRow.email || '',
-      salary: 500000, // Dummy
-      status: 'Active',
-      joinDate: dbRow.joined_at ? new Date(dbRow.joined_at).toLocaleDateString() : 'Unknown'
+      salary: Number(dbRow.monthly_salary || 500000),
+      status: dbRow.status || 'Active',
+      joinDate: dbRow.hire_date ? new Date(dbRow.hire_date).toLocaleDateString() : (dbRow.created_at ? new Date(dbRow.created_at).toLocaleDateString() : 'Unknown')
     };
   }
 
