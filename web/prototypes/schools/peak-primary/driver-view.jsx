@@ -33,14 +33,34 @@
     }
   };
 
-  // Mock initial manifest data
+  // Complete bus-riding students manifest across Kabs Lily routes
   const mockStudents = [
-    { id: 's1', name: 'Brian Mukasa', class: 'P.4', guardian: 'Sarah Mukasa', phone: '+256 772 111222', address: 'Plot 14, Acacia Avenue', status: 'waiting', distance: '1.2 km', time: '4 mins' },
-    { id: 's2', name: 'Esther Namuli', class: 'P.2', guardian: 'Peter Namuli', phone: '+256 752 333444', address: 'Kisaasi, Bahai Road', status: 'waiting', distance: '2.5 km', time: '8 mins' },
-    { id: 's3', name: 'Joshua Kigozi', class: 'P.6', guardian: 'Mary Kigozi', phone: '+256 701 555666', address: 'Ntinda, Minister\'s Village', status: 'picked_up', distance: '-', time: '-' },
+    { id: 's1', name: 'Brian Mukasa', class: 'P.4', guardian: 'Sarah Mukasa', phone: '+256 772 111222', address: 'Plot 14, Acacia Ave, Kireka', landmark: 'Near Kireka Police Station', status: 'waiting', distance: '0.8 km', time: '3 mins' },
+    { id: 's2', name: 'Esther Namuli', class: 'P.2', guardian: 'Peter Namuli', phone: '+256 752 333444', address: 'Kisaasi, Bahai Road Stage', landmark: 'Opposite Bahai Temple Gate', status: 'waiting', distance: '1.4 km', time: '5 mins' },
+    { id: 's3', name: 'Joshua Kigozi', class: 'P.6', guardian: 'Mary Kigozi', phone: '+256 701 555666', address: 'Ntinda, Minister\'s Village', landmark: 'Near Ntinda Shopping Complex', status: 'waiting', distance: '2.1 km', time: '7 mins' },
+    { id: 's4', name: 'Mirembe Nakato', class: 'P.1', guardian: 'Mrs. Sarah Nakato', phone: '+256 772 416902', address: 'Bweyogerere Trading Centre', landmark: 'Behind Shell Station Bweyogerere', status: 'waiting', distance: '2.8 km', time: '9 mins' },
+    { id: 's5', name: 'Daniel Okello', class: 'P.4', guardian: 'Mr. James Okello', phone: '+256 701 884553', address: 'Naalya Housing Estate, Block B', landmark: 'Near Quality Shopping Mall', status: 'waiting', distance: '3.4 km', time: '11 mins' },
+    { id: 's6', name: 'Ruth Asiimwe', class: 'P.3', guardian: 'Mrs. Grace Asiimwe', phone: '+256 752 220119', address: 'Kyaliwajjala Stage, Plot 8', landmark: 'Near Kyaliwajjala Catholic Church', status: 'waiting', distance: '4.2 km', time: '13 mins' },
+    { id: 's7', name: 'Sarah Namutebi', class: 'P.2', guardian: 'Mrs. Florence N.', phone: '+256 779 446200', address: 'Kiwatule Recreation Centre Road', landmark: 'Kiwatule Flyover Junction', status: 'waiting', distance: '5.0 km', time: '15 mins' },
+    { id: 's8', name: 'Joseph Kato', class: 'P.6', guardian: 'Mr. Vincent Kato', phone: '+256 705 117040', address: 'Banda Hill Road, House 12', landmark: 'Opposite Kyambogo University Gate 2', status: 'waiting', distance: '5.6 km', time: '17 mins' },
+    { id: 's9', name: 'Patricia Atim', class: 'P.3', guardian: 'Mrs. Mary Atim', phone: '+256 776 901220', address: 'Mutungo Hill, Plot 45', landmark: 'Near Mutungo Water Tank', status: 'waiting', distance: '6.3 km', time: '19 mins' },
+    { id: 's10', name: 'James Wamala', class: 'P.7', guardian: 'Mr. Edward Wamala', phone: '+256 752 488916', address: 'Luzira Stage, Port Bell Road', landmark: 'Near Luzira Church of Uganda', status: 'waiting', distance: '7.1 km', time: '21 mins' },
+    { id: 's11', name: 'Sharon Nabakooza', class: 'Baby', guardian: 'Mrs. Janet N.', phone: '+256 700 000111', address: 'Kireka Kamuli Road', landmark: 'Near Kamuli Stage', status: 'waiting', distance: '7.8 km', time: '23 mins' },
+    { id: 's12', name: 'Brenda Najjuma', class: 'Middle', guardian: 'Mrs. Diana Najjuma', phone: '+256 700 000222', address: 'Ntinda St. Mbaaga Road', landmark: 'Near St. Mbaaga Library', status: 'waiting', distance: '8.5 km', time: '25 mins' },
+    { id: 's13', name: 'Joy Babirye', class: 'Top', guardian: 'Mrs. Susan Babirye', phone: '+256 700 000333', address: 'Kisaasi Central Stage', landmark: 'Near Kisaasi Medical Centre', status: 'waiting', distance: '9.1 km', time: '27 mins' },
   ];
 
-  // Map Component Fallback (Rich SVG)
+  // Surrounding Places & Landmarks around Kampala / Kireka route
+  const surroundingPlaces = [
+    { name: '🏫 Kabs Lily School Gate', x: 340, y: 50, color: '#00FC8F' },
+    { name: '🏬 Ntinda Complex', x: 200, y: 140, color: '#3B82F6' },
+    { name: '🛒 Naalya Quality Mall', x: 280, y: 90, color: '#3B82F6' },
+    { name: '⛽ Bweyogerere Shell', x: 140, y: 200, color: '#F59E0B' },
+    { name: '🚓 Kireka Police Stage', x: 60, y: 240, color: '#EF4444' },
+    { name: '⛪ Bahai Temple Gate', x: 110, y: 160, color: '#A855F7' },
+  ];
+
+  // Map Component with Route, Student Pins & Surrounding Places
   const SvgMap = () => (
     <div style={{
       width: '100%',
@@ -51,30 +71,62 @@
       borderRadius: T.radii.lg,
       border: `1px solid ${T.colors.border}`,
     }}>
-      <svg width="100%" height="100%" viewBox="0 0 400 300" preserveAspectRatio="xMidYMid slice" style={{ opacity: 0.8 }}>
-        <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
-          <path d="M 40 0 L 0 0 0 40" fill="none" stroke={T.colors.surface} strokeWidth="1"/>
+      <svg width="100%" height="100%" viewBox="0 0 400 300" preserveAspectRatio="xMidYMid slice" style={{ opacity: 0.9 }}>
+        <pattern id="grid" width="30" height="30" patternUnits="userSpaceOnUse">
+          <path d="M 30 0 L 0 0 0 30" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="1"/>
         </pattern>
         <rect width="100%" height="100%" fill="url(#grid)" />
         
-        {/* Route Path */}
-        <path d="M 50 250 Q 150 250 200 150 T 350 50" fill="none" stroke={T.colors.primary} strokeWidth="6" strokeDasharray="8, 8" />
+        {/* Main Route Line */}
+        <path d="M 50 260 Q 120 220 180 150 T 340 50" fill="none" stroke={T.colors.primary} strokeWidth="5" strokeDasharray="6, 6" />
         
+        {/* Surrounding Places Badges */}
+        {surroundingPlaces.map((place, idx) => (
+          <g key={idx} transform={`translate(${place.x}, ${place.y})`}>
+            <rect x="-40" y="-12" width="80" height="18" rx="4" fill="rgba(15, 23, 42, 0.85)" stroke={place.color} strokeWidth="1" />
+            <text x="0" y="0" fontSize="7.5" fill="#FFF" textAnchor="middle" fontWeight="bold">{place.name}</text>
+          </g>
+        ))}
+
         {/* Next Stop Pin */}
-        <g transform="translate(200, 150)">
-          <circle cx="0" cy="0" r="12" fill={T.colors.warning} />
-          <text x="0" y="4" fontSize="10" fill="#000" textAnchor="middle" fontWeight="bold">1</text>
+        <g transform="translate(180, 150)">
+          <circle cx="0" cy="0" r="14" fill={T.colors.warning} />
+          <text x="0" y="4" fontSize="11" fill="#000" textAnchor="middle" fontWeight="bold">1</text>
         </g>
         
         {/* Driver position */}
-        <g transform="translate(100, 250)">
-          <circle cx="0" cy="0" r="16" fill={T.colors.primary} opacity="0.3">
-            <animate attributeName="r" values="16; 24; 16" dur="2s" repeatCount="indefinite" />
+        <g transform="translate(60, 250)">
+          <circle cx="0" cy="0" r="18" fill={T.colors.primary} opacity="0.3">
+            <animate attributeName="r" values="18; 26; 18" dur="2s" repeatCount="indefinite" />
           </circle>
-          <circle cx="0" cy="0" r="8" fill={T.colors.primary} />
-          <polygon points="-4,-6 6,0 -4,6" fill="#fff" transform="rotate(-45)" />
+          <circle cx="0" cy="0" r="9" fill={T.colors.primary} />
+          <text x="0" y="3" fontSize="8" fill="#FFF" textAnchor="middle" fontWeight="bold">🚌</text>
         </g>
       </svg>
+
+      {/* Surrounding Places Bar Overlay */}
+      <div style={{
+        position: 'absolute',
+        bottom: '8px',
+        left: '8px',
+        right: '8px',
+        background: 'rgba(15, 23, 42, 0.9)',
+        padding: '6px 10px',
+        borderRadius: '6px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '8px',
+        overflowX: 'auto',
+        fontSize: '10px',
+        color: '#94A3B8'
+      }}>
+        <span style={{ fontWeight: '700', color: '#00FC8F' }}>SURROUNDING PLACES:</span>
+        <span>🏫 Kabs Lily School Gate</span> ·
+        <span>🏬 Ntinda Complex</span> ·
+        <span>🛒 Naalya Mall</span> ·
+        <span>⛽ Bweyogerere Shell</span> ·
+        <span>🚓 Kireka Police</span>
+      </div>
     </div>
   );
 
@@ -254,9 +306,10 @@
                 <div>
                   <div style={{ fontSize: '20px', fontWeight: 'bold' }}>{activeStudent.name}</div>
                   <div style={{ color: T.colors.primary, fontWeight: '600', marginTop: '2px' }}>{activeStudent.class}</div>
-                  <div style={{ fontSize: '14px', color: T.colors.textMuted, marginTop: '4px' }}>
-                    {activeStudent.guardian} · {activeStudent.phone} <br/>
-                    {activeStudent.address}
+                  <div style={{ fontSize: '13.5px', color: T.colors.textMuted, marginTop: '4px', lineHeight: 1.45 }}>
+                    <b>Guardian:</b> {activeStudent.guardian} · {activeStudent.phone} <br/>
+                    <span style={{ color: '#F59E0B' }}>📍 <b>Pickup:</b> {activeStudent.address}</span> <br/>
+                    {activeStudent.landmark && <span style={{ color: '#94A3B8' }}>🏛️ <b>Landmark:</b> {activeStudent.landmark}</span>}
                   </div>
                 </div>
               </div>
@@ -358,7 +411,8 @@
                       <div style={{ fontSize: '16px', fontWeight: 'bold', color: T.colors.textMuted, width: '24px' }}>{idx + 1}</div>
                       <div style={{ flex: 1 }}>
                         <div style={{ fontWeight: 'bold' }}>{s.name} <span style={{ color: T.colors.textMuted, fontWeight: 'normal' }}>({s.class})</span></div>
-                        <div style={{ fontSize: '13px', color: T.colors.textMuted }}>{s.address}</div>
+                        <div style={{ fontSize: '12.5px', color: '#F59E0B', fontWeight: '600', marginTop: '2px' }}>📍 {s.address}</div>
+                        {s.landmark && <div style={{ fontSize: '11.5px', color: '#94A3B8', marginTop: '1px' }}>🏛️ {s.landmark}</div>}
                       </div>
                       <div style={{
                         padding: '4px 10px',
