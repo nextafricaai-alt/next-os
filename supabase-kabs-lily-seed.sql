@@ -38,8 +38,8 @@ DECLARE
   v_inc_1 uuid;
 BEGIN
   -- We assume the tenant exists. If not, insert it (safe fallback).
-  INSERT INTO tenants (id, name, type, subdomain) 
-  VALUES (v_tenant_id, 'Kabs Lily Junior School', 'primary', 'kabs-lily')
+  INSERT INTO tenants (id, name, vertical, subdomain) 
+  VALUES (v_tenant_id, 'Kabs Lily Junior School', 'school', 'kabs-lily')
   ON CONFLICT (id) DO NOTHING;
 
   -- Clear existing mock data to avoid duplicates on re-run
