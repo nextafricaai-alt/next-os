@@ -14,12 +14,8 @@
   'use strict';
 
   // Fallback seed data in case Supabase tables aren't created yet
-  const SEED_INCOMES = [
-    { id: 'INC-001', date: '2026-07-28 07:30', student_name: 'Brian Mukasa', class: 'P.4', source_type: 'School Fees (Tuition)', amount: 750000, unspent_balance: 580000, payment_method: 'Cash', received_by: 'Nalukenge Jane', notes: 'Term 2 fees — full payment', logged_by: 'bursar' }
-  ];
-  const SEED_EXPENSES = [
-    { id: 'EXP-001', date: '2026-07-28 08:00', category: 'Fuel & Transport', description: 'Shuttle Van Diesel (Mr. Bbosa)', amount: 50000, paid_to: 'Total Energies Kireka', income_source_id: 'INC-001', notes: 'Morning shuttle route fuel', receipt_attached: true, logged_by: 'bursar' }
-  ];
+  const SEED_INCOMES = [];
+  const SEED_EXPENSES = [];
 
   let sb = null;
   let tenantId = null;
