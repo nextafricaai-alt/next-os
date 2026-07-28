@@ -258,9 +258,48 @@
   const DriverView = ({ vanId = 'van-01' }) => {
     const [students, setStudents] = useState(mockStudents);
     const [isEmergencyModalOpen, setIsEmergencyModalOpen] = useState(false);
+    const [isKmModalOpen, setIsKmModalOpen] = useState(false);
     const [skipModalOpen, setSkipModalOpen] = useState(null);
     const [drawerOpen, setDrawerOpen] = useState(false);
     const [filter, setFilter] = useState('All');
+    
+    // Kilometer Odometer State & History
+    const [kmData, setKmData] = useState(() => {
+      if (window.TRANSPORT_TELEMETRY && typeof window.TRANSPORT_TELEMETRY.getKilometers === 'function') {
+        return window.TRANSPORT_TELEMETRY.getKilometers(vanId);
+      }
+      return { totalKm: 14.8, logs: [] };
+    });
+    const [customKmInput, setCustomKmInput] = useState('');
+    const [kmReasonInput, setKmReasonInput] = useState('');
+
+    const completedStopsKm = useMemo(() => {
+      const count = students.filter(s => s.status === 'picked_up').length;
+      return (count * 1.4).toFixed(1); // average 1.4 km per pickup stop
+    }, [students]);
+
+    const grandTotalKm = useMemo(() => {
+      const base = parseFloat(kmData.totalKm) || 14.8;
+      const route = parseFloat(completedStopsKm) || 0;
+      return (base + route).toFixed(1);
+    }, [kmData, completedStopsKm]);
+
+    const handleAddKm = (amount, reason) => {
+      const val = parseFloat(amount);
+      if (isNaN(val) || val <= 0) return;
+      if (window.TRANSPORT_TELEMETRY && typeof window.TRANSPORT_TELEMETRY.logKilometers === 'function') {
+        const updated = window.TRANSPORT_TELEMETRY.logKilometers(vanId, val, reason);
+        setKmData(updated);
+      } else {
+        setKmData(prev => ({
+          totalKm: parseFloat(((prev.totalKm || 14.8) + val).toFixed(2)),
+          logs: [...(prev.logs || []), { addedKm: val, reason: reason || 'Manual entry', timestamp: new Date().toISOString() }]
+        }));
+      }
+      setIsKmModalOpen(false);
+      setCustomKmInput('');
+      setKmReasonInput('');
+    };
 
     const activeStudent = useMemo(() => students.find(s => s.status === 'waiting' || s.status === 'arrived'), [students]);
 
@@ -339,24 +378,61 @@
                   Driver: Tr. Moses K. · +256 701 234567
                 </div>
               </div>
-              <button 
-                onClick={() => setIsEmergencyModalOpen(true)}
-                style={{
-                  backgroundColor: 'rgba(239, 68, 68, 0.15)',
-                  color: T.colors.danger,
-                  border: `2px solid ${T.colors.danger}`,
-                  borderRadius: T.radii.full,
-                  padding: '8px 16px',
-                  fontWeight: 'bold',
-                  cursor: 'pointer',
-                }}
-              >
-                SOS
-              </button>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button 
+                  onClick={() => setIsKmModalOpen(true)}
+                  style={{
+                    backgroundColor: 'rgba(0, 252, 143, 0.15)',
+                    color: '#00FC8F',
+                    border: '1px solid #00FC8F',
+                    borderRadius: T.radii.md,
+                    padding: '8px 12px',
+                    fontWeight: 'bold',
+                    fontSize: '12px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  ➕ Log KM
+                </button>
+                <button 
+                  onClick={() => setIsEmergencyModalOpen(true)}
+                  style={{
+                    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+                    color: T.colors.danger,
+                    border: `2px solid ${T.colors.danger}`,
+                    borderRadius: T.radii.full,
+                    padding: '8px 16px',
+                    fontWeight: 'bold',
+                    cursor: 'pointer',
+                  }}
+                >
+                  SOS
+                </button>
+              </div>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: T.colors.success, fontWeight: '600' }}>
-              <div style={{ width: '8px', height: '8px', backgroundColor: T.colors.success, borderRadius: '50%', boxShadow: `0 0 8px ${T.colors.success}`, animation: 'pulse 2s infinite' }}></div>
-              GPS Live
+            
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: T.colors.success, fontWeight: '600' }}>
+                <div style={{ width: '8px', height: '8px', backgroundColor: T.colors.success, borderRadius: '50%', boxShadow: `0 0 8px ${T.colors.success}`, animation: 'pulse 2s infinite' }}></div>
+                GPS Live
+              </div>
+              
+              {/* Shuttle Odometer & KM Covered Badge */}
+              <div style={{
+                background: 'rgba(59, 130, 246, 0.15)',
+                border: '1px solid rgba(59, 130, 246, 0.3)',
+                padding: '4px 10px',
+                borderRadius: '8px',
+                fontSize: '12px',
+                fontWeight: '700',
+                color: '#60A5FA',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px'
+              }}>
+                <span>🛣️ Shuttle Distance:</span>
+                <span style={{ color: '#FFF', fontSize: '13px', fontWeight: '800' }}>{grandTotalKm} km</span>
+              </div>
             </div>
           </div>
 
@@ -606,6 +682,65 @@
                  </button>
                </div>
              </div>
+          )}
+
+           {/* Kilometers Log Modal */}
+          {isKmModalOpen && (
+            <div style={{
+              position: 'absolute', inset: 0, backgroundColor: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(6px)',
+              zIndex: 70, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px',
+            }}>
+              <div style={{
+                backgroundColor: T.colors.surface, padding: '24px', borderRadius: T.radii.xl,
+                width: '100%', display: 'flex', flexDirection: 'column', gap: '16px', border: '1px solid #00FC8F',
+              }}>
+                <h3 style={{ margin: 0, fontSize: '20px', color: '#00FC8F' }}>➕ Log Shuttle Kilometers</h3>
+                <p style={{ margin: 0, fontSize: '13px', color: T.colors.textMuted }}>
+                  Total Today: <b>{grandTotalKm} km</b> (Route: {completedStopsKm} km | Logged: {kmData.totalKm} km)
+                </p>
+
+                {/* Quick Add Chips */}
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                  <button onClick={() => handleAddKm(2.0, 'Fuel trip')} style={{ flex: 1, padding: '10px', background: 'rgba(0,252,143,0.15)', color: '#00FC8F', border: '1px solid #00FC8F', borderRadius: '8px', fontSize: '12px', fontWeight: '700', cursor: 'pointer' }}>+ 2.0 km<br/><span style={{ fontSize: '10px', opacity: 0.8 }}>Fuel Run</span></button>
+                  <button onClick={() => handleAddKm(5.0, 'Extra Pickup Route')} style={{ flex: 1, padding: '10px', background: 'rgba(59,130,246,0.15)', color: '#60A5FA', border: '1px solid #3B82F6', borderRadius: '8px', fontSize: '12px', fontWeight: '700', cursor: 'pointer' }}>+ 5.0 km<br/><span style={{ fontSize: '10px', opacity: 0.8 }}>Extra Pickup</span></button>
+                  <button onClick={() => handleAddKm(10.0, 'School Event Trip')} style={{ flex: 1, padding: '10px', background: 'rgba(245,158,11,0.15)', color: '#FBBF24', border: '1px solid #F59E0B', borderRadius: '8px', fontSize: '12px', fontWeight: '700', cursor: 'pointer' }}>+ 10.0 km<br/><span style={{ fontSize: '10px', opacity: 0.8 }}>Event Trip</span></button>
+                </div>
+
+                {/* Custom KM Input */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '6px' }}>
+                  <label style={{ fontSize: '12px', color: T.colors.textMuted }}>Custom Kilometers (KM):</label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    placeholder="e.g. 7.5"
+                    value={customKmInput}
+                    onChange={e => setCustomKmInput(e.target.value)}
+                    style={{ background: '#0F172A', color: '#FFF', border: `1px solid ${T.colors.border}`, padding: '12px', borderRadius: '8px', outline: 'none', fontSize: '16px' }}
+                  />
+                  <input
+                    type="text"
+                    placeholder="Trip reason (e.g. Bweyogerere extra dropoff)"
+                    value={kmReasonInput}
+                    onChange={e => setKmReasonInput(e.target.value)}
+                    style={{ background: '#0F172A', color: '#FFF', border: `1px solid ${T.colors.border}`, padding: '12px', borderRadius: '8px', outline: 'none', fontSize: '13px' }}
+                  />
+                </div>
+
+                <button
+                  onClick={() => handleAddKm(customKmInput, kmReasonInput || 'Driver manual entry')}
+                  disabled={!customKmInput}
+                  style={{
+                    padding: '14px', backgroundColor: customKmInput ? '#00FC8F' : T.colors.surfaceHover,
+                    color: customKmInput ? '#0A1029' : T.colors.textMuted, border: 'none', borderRadius: T.radii.md,
+                    fontSize: '16px', fontWeight: 'bold', cursor: customKmInput ? 'pointer' : 'not-allowed',
+                  }}
+                >
+                  Confirm & Save KM Log
+                </button>
+
+                <button onClick={() => setIsKmModalOpen(false)} style={{ padding: '12px', backgroundColor: 'transparent', color: T.colors.textMuted, border: `1px solid ${T.colors.border}`, borderRadius: T.radii.md, fontSize: '14px', fontWeight: '600', cursor: 'pointer' }}>Cancel</button>
+              </div>
+            </div>
           )}
 
         </div>

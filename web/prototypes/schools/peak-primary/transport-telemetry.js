@@ -312,6 +312,39 @@
         };
     }
 
+    function logKilometers(vanId, addedKm, reason) {
+        const key = `nextos.transport.km.${vanId || 'van-01'}`;
+        let record = { totalKm: 14.8, logs: [] };
+        try {
+            const stored = localStorage.getItem(key);
+            if (stored) record = JSON.parse(stored);
+        } catch (e) {}
+
+        const added = parseFloat(addedKm) || 0;
+        record.totalKm = parseFloat((record.totalKm + added).toFixed(2));
+        record.logs.push({
+            addedKm: added,
+            reason: reason || 'Manual odometer entry',
+            timestamp: new Date().toISOString()
+        });
+
+        try {
+            localStorage.setItem(key, JSON.stringify(record));
+        } catch (e) {}
+
+        emitEvent('transport-km-updated', { vanId, record });
+        return record;
+    }
+
+    function getKilometers(vanId) {
+        const key = `nextos.transport.km.${vanId || 'van-01'}`;
+        try {
+            const stored = localStorage.getItem(key);
+            if (stored) return JSON.parse(stored);
+        } catch (e) {}
+        return { totalKm: 14.8, logs: [] };
+    }
+
     function subscribe(vanId, callback) {
         if (typeof callback !== 'function') return () => {};
         const handler = (e) => {
@@ -321,9 +354,11 @@
         };
         window.addEventListener('transport-telemetry-updated', handler);
         window.addEventListener('transport-student-status-changed', handler);
+        window.addEventListener('transport-km-updated', handler);
         return () => {
             window.removeEventListener('transport-telemetry-updated', handler);
             window.removeEventListener('transport-student-status-changed', handler);
+            window.removeEventListener('transport-km-updated', handler);
         };
     }
 
@@ -332,10 +367,13 @@
         startBroadcasting,
         stopBroadcasting,
         getLiveTelemetry,
+        calculateHaversineDistance,
         calculateShortestRoute,
         updateStudentStatus,
         getStudentManifest,
         getKampalaSampleRoute,
+        logKilometers,
+        getKilometers,
         subscribe
     };
 
