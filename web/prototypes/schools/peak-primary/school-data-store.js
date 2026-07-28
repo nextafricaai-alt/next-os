@@ -465,18 +465,22 @@
         if (isNaN(balance)) balance = Math.max(0, fullFee - amountPaid);
 
         const notes = notesIdx >= 0 ? parts[notesIdx] : (parts[7] || parts[6] || '');
-
         const isBoarding = feeTypeRaw.toLowerCase().includes('boarding') || notes.toLowerCase().includes('boarding');
         const feeType = isBoarding ? 'School Fees (Boarding)' : 'School Fees (Tuition)';
+        const defaultFullFee = isBoarding ? 500000 : 250000;
 
         rows.push({
-          name,
+          name: name,
+          studentName: name,
           class: studentClass,
-          feeType,
-          fullFees: fullFee || 250000,
+          stream: studentClass,
+          feeType: feeType,
+          fullFees: fullFee || defaultFullFee,
+          amount: fullFee || defaultFullFee,
           paidAmount: amountPaid || 0,
           balance: balance,
-          notes
+          unspentBalance: balance,
+          notes: notes
         });
       }
 
@@ -488,8 +492,11 @@
         return { success: false, error: 'No fee rows to import' };
       }
 
-      if (!sb || !tenantId) {
-        return { success: false, error: 'Supabase engine not initialized' };
+      const storeClient = sb || (window.NextSession && window.NextSession.sb);
+      const activeTenant = tenantId || 'kabs-lily-junior-school-and-kindercare-centre';
+
+      if (!storeClient) {
+        return { success: false, error: 'Supabase database engine not initialized' };
       }
 
       try {
@@ -504,18 +511,21 @@
         }
         const cleanRows = Array.from(uniqueMap.values());
 
-        // Wipe previous entries to prevent duplicate multiplication
-        await sb.from('school_income').delete().eq('tenant_id', tenantId);
+        // Delete child tables first to avoid FK constraint errors on students
+        await storeClient.from('fees').delete().eq('tenant_id', activeTenant);
+        await storeClient.from('attendance').delete().eq('tenant_id', activeTenant);
+        await storeClient.from('school_income').delete().eq('tenant_id', activeTenant);
+        await storeClient.from('students').delete().eq('tenant_id', activeTenant);
 
         const payloadIncome = cleanRows.map(r => {
           const isBoarding = (r.feeType || '').toLowerCase().includes('boarding') || (r.notes || '').toLowerCase().includes('boarding');
           return {
-            tenant_id: tenantId,
+            tenant_id: activeTenant,
             student_name: r.name || r.studentName,
-            class: r.class || 'N/A',
+            class: r.class || r.stream || 'N/A',
             source_type: isBoarding ? 'School Fees (Boarding)' : 'School Fees (Tuition)',
             amount: Number(r.fullFees || r.amount || (isBoarding ? 500000 : 250000)),
-            unspent_balance: Number(r.balance ?? (r.fullFees - r.paidAmount) ?? 0),
+            unspent_balance: Number(r.balance ?? r.unspentBalance ?? 0),
             payment_method: 'Cash',
             received_by: 'Nalukenge Jane',
             notes: r.notes || (isBoarding ? 'Boarding student fee ledger' : 'Day scholar fee ledger'),
@@ -523,31 +533,32 @@
           };
         });
 
-        const { error: incErr } = await sb.from('school_income').insert(payloadIncome);
+        const { error: incErr } = await storeClient.from('school_income').insert(payloadIncome);
         if (incErr) {
           console.error("Supabase import income error:", incErr);
-          return { success: false, error: incErr.message };
+          return { success: false, error: 'Income table error: ' + incErr.message };
         }
 
-        // Also update students table so Boarding vs Day scholar status is permanently saved
-        await sb.from('fees').delete().eq('tenant_id', tenantId);
-        await sb.from('students').delete().eq('tenant_id', tenantId);
-        
+        // Insert students
         const payloadStudents = cleanRows.map((r, idx) => {
           const isBoarding = (r.feeType || '').toLowerCase().includes('boarding') || (r.notes || '').toLowerCase().includes('boarding');
           return {
-            tenant_id: tenantId,
+            tenant_id: activeTenant,
             name: r.name || r.studentName,
-            stream: r.class || 'N/A',
+            stream: r.class || r.stream || 'N/A',
             is_boarding: isBoarding,
             guardian_name: `Parent of ${r.name || r.studentName}`,
             guardian_phone: `+256700000${String(idx + 1).padStart(3, '0')}`
           };
         });
 
-        const { data: insertedStudents } = await sb.from('students').insert(payloadStudents).select();
+        const { data: insertedStudents, error: stuErr } = await storeClient.from('students').insert(payloadStudents).select();
+        if (stuErr) {
+          console.error("Supabase import students error:", stuErr);
+          return { success: false, error: 'Students table error: ' + stuErr.message };
+        }
 
-        // Write directly to public.fees table linked by student_id
+        // Insert fees (charges & payments)
         if (insertedStudents && insertedStudents.length) {
           const feesPayload = [];
           insertedStudents.forEach((stuRow, idx) => {
@@ -557,7 +568,7 @@
             const paid = Number(orig.paidAmount || (fullFee - (orig.balance || 0)));
 
             feesPayload.push({
-              tenant_id: tenantId,
+              tenant_id: activeTenant,
               student_id: stuRow.id,
               term: 'Term 2 2026',
               kind: 'charge',
@@ -569,7 +580,7 @@
 
             if (paid > 0) {
               feesPayload.push({
-                tenant_id: tenantId,
+                tenant_id: activeTenant,
                 student_id: stuRow.id,
                 term: 'Term 2 2026',
                 kind: 'payment',
@@ -581,12 +592,12 @@
             }
           });
 
-          await sb.from('fees').insert(feesPayload);
+          await storeClient.from('fees').insert(feesPayload);
         }
 
-        // Re-read fresh state from Supabase
-        const freshInc = await sb.from('school_income').select('*').eq('tenant_id', tenantId).order('date', { ascending: false });
-        const freshStu = await sb.from('students').select('*').eq('tenant_id', tenantId);
+        // Refresh state
+        const freshInc = await storeClient.from('school_income').select('*').eq('tenant_id', activeTenant).order('date', { ascending: false });
+        const freshStu = await storeClient.from('students').select('*').eq('tenant_id', activeTenant);
 
         if (freshInc.data) state.incomes = freshInc.data.map(mapIncomeToApp);
         if (freshStu.data) rawStudents = freshStu.data;
