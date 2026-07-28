@@ -382,6 +382,47 @@
       const [showIncModal, setShowIncModal] = useState(false);
       const [showExpModal, setShowExpModal] = useState(false);
       const [showRecModal, setShowRecModal] = useState(false);
+      const [showImportFeesModal, setShowImportFeesModal] = useState(false);
+      const [parsedCsvRows, setParsedCsvRows] = useState([]);
+      const [isImporting, setIsImporting] = useState(false);
+
+      const handleCsvFileChange = (e) => {
+        const file = e.target.files && e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+          const text = reader.result || '';
+          const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+          if (lines.length > 1) {
+            const rows = lines.slice(1).map(line => {
+              const parts = line.split(',').map(p => p.replace(/^"|"$/g, '').trim());
+              return {
+                name: parts[0] || '',
+                class: parts[1] || 'N/A',
+                feeType: parts[2] || 'School Fees (Tuition)',
+                amount: Number(parts[3] || 0),
+                balance: Number(parts[4] || 0),
+                notes: parts[6] || ''
+              };
+            }).filter(r => r.name);
+            setParsedCsvRows(rows);
+          }
+        };
+        reader.readAsText(file);
+      };
+
+      const handleDoImportFees = async () => {
+        if (!parsedCsvRows.length) return;
+        setIsImporting(true);
+        if (SS && SS.importFees) {
+          await SS.importFees(parsedCsvRows);
+          setIncomes(SS.getIncomes());
+          alert(`Successfully imported ${parsedCsvRows.length} fee records into Supabase!`);
+        }
+        setIsImporting(false);
+        setShowImportFeesModal(false);
+        setParsedCsvRows([]);
+      };
 
       // Income form
       const [incStudent, setIncStudent] = useState('');
@@ -536,7 +577,10 @@
                   <div>
                     <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'12px' }}>
                       <h2 style={{ fontSize:'14px', fontWeight:'800', color:'#00FC8F' }}>📥 Income Log</h2>
-                      <button onClick={() => setShowIncModal(true)} style={{ background:'rgba(0,252,143,0.12)', border:'1px solid rgba(0,252,143,0.35)', color:'#00FC8F', padding:'6px 12px', borderRadius:'7px', fontSize:'11px', fontWeight:'700', cursor:'pointer' }}>+ Log Income</button>
+                      <div style={{ display:'flex', gap:'8px' }}>
+                        <button onClick={() => setShowImportFeesModal(true)} style={{ background:'rgba(59,130,246,0.12)', border:'1px solid rgba(59,130,246,0.35)', color:'#3B82F6', padding:'6px 12px', borderRadius:'7px', fontSize:'11px', fontWeight:'700', cursor:'pointer' }}>📥 Import Fees CSV</button>
+                        <button onClick={() => setShowIncModal(true)} style={{ background:'rgba(0,252,143,0.12)', border:'1px solid rgba(0,252,143,0.35)', color:'#00FC8F', padding:'6px 12px', borderRadius:'7px', fontSize:'11px', fontWeight:'700', cursor:'pointer' }}>+ Log Income</button>
+                      </div>
                     </div>
                     <div style={{ display:'flex', flexDirection:'column', gap:'9px' }}>
                       {incomes.map(inc => (
@@ -826,6 +870,63 @@
               </button>
             </Modal>
           )}
+          {/* ═══ IMPORT FEES CSV MODAL ═══ */}
+          {showImportFeesModal && (
+            <Modal title="📥 Bulk Import Fees (CSV)" onClose={() => setShowImportFeesModal(false)}>
+              <p style={{ fontSize:'12px', color:'var(--muted)', marginBottom:'14px' }}>
+                Upload your fee ledger CSV file (e.g. <code>kabs_lily_fees.csv</code>). The rows will write directly to Supabase and update all dashboards in real-time.
+              </p>
+              <Field label="Choose CSV File">
+                <input type="file" accept=".csv" onChange={handleCsvFileChange} style={{ background:'var(--surf2)', color:'var(--text)', padding:'10px', borderRadius:'8px', width:'100%' }} />
+              </Field>
+
+              {parsedCsvRows.length > 0 && (
+                <div style={{ marginTop:'14px', background:'var(--surf2)', borderRadius:'9px', padding:'12px', maxHeight:'200px', overflowY:'auto' }}>
+                  <div style={{ fontWeight:'800', fontSize:'12px', color:'#00FC8F', marginBottom:'8px' }}>
+                    Previewing {parsedCsvRows.length} rows to import:
+                  </div>
+                  <table style={{ width:'100%', fontSize:'11px', borderCollapse:'collapse' }}>
+                    <thead>
+                      <tr style={{ color:'var(--muted)', textAlign:'left' }}>
+                        <th>Student</th>
+                        <th>Class</th>
+                        <th>Fee Type</th>
+                        <th>Full Fee</th>
+                        <th>Balance</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {parsedCsvRows.slice(0, 10).map((r, i) => (
+                        <tr key={i} style={{ borderTop:'1px solid var(--border)' }}>
+                          <td style={{ padding:'4px 0' }}>{r.name}</td>
+                          <td>{r.class}</td>
+                          <td>{r.feeType}</td>
+                          <td>{FMT(r.amount)}</td>
+                          <td style={{ color: r.balance > 0 ? '#FF4757' : '#00FC8F' }}>{FMT(r.balance)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {parsedCsvRows.length > 10 && <div style={{ fontSize:'10px', color:'var(--muted)', marginTop:'6px' }}>+ {parsedCsvRows.length - 10} more rows...</div>}
+                </div>
+              )}
+
+              <button
+                onClick={handleDoImportFees}
+                disabled={!parsedCsvRows.length || isImporting}
+                style={{
+                  width:'100%', padding:'12px', marginTop:'16px',
+                  background: parsedCsvRows.length ? '#3B82F6' : '#334155',
+                  color: parsedCsvRows.length ? '#ffffff' : 'var(--muted)',
+                  border:'none', borderRadius:'9px', fontSize:'14px', fontWeight:'800',
+                  cursor: parsedCsvRows.length ? 'pointer' : 'not-allowed'
+                }}
+              >
+                {isImporting ? 'Importing into Supabase...' : `Import ${parsedCsvRows.length} Fee Records →`}
+              </button>
+            </Modal>
+          )}
+
         </div>
       );
     }
