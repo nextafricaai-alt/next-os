@@ -130,8 +130,8 @@
 
     <!-- Quick Role Selector -->
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 20px;">
-      <button type="button" onclick="fillRole('director')" style="margin-top:0; padding: 8px 10px; font-size: 11px; font-weight: 700; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); color: #fff; border-radius: 6px;">👑 School Director</button>
-      <button type="button" onclick="fillRole('jane')" style="margin-top:0; padding: 8px 10px; font-size: 11px; font-weight: 700; background: rgba(0,252,143,0.15); border: 1px solid #00FC8F; color: #00FC8F; border-radius: 6px;">👩‍🏫 Head Teacher (Jane)</button>
+      <button type="button" onclick="fillRole('head')" style="margin-top:0; padding: 8px 10px; font-size: 11px; font-weight: 700; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); color: #fff; border-radius: 6px;">👑 Head Teacher</button>
+      <button type="button" onclick="fillRole('teacher')" style="margin-top:0; padding: 8px 10px; font-size: 11px; font-weight: 700; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); color: #fff; border-radius: 6px;">👩‍🏫 Teacher</button>
       <button type="button" onclick="fillRole('bursar')" style="margin-top:0; padding: 8px 10px; font-size: 11px; font-weight: 700; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); color: #fff; border-radius: 6px;">💰 Bursar</button>
       <button type="button" onclick="fillRole('driver')" style="margin-top:0; padding: 8px 10px; font-size: 11px; font-weight: 700; background: rgba(59,130,246,0.2); border: 1px solid #3B82F6; color: #60A5FA; border-radius: 6px;">🚌 Driver / Shuttle</button>
     </div>
@@ -139,11 +139,11 @@
     <form id="login-form" autocomplete="on">
       <label for="email">EMAIL / PHONE</label>
       <input id="email" type="text" required autocomplete="username"
-             placeholder="head@kabslilly.ug" />
+             placeholder="head@kabs-lily.ac.ug" />
 
       <label for="password">PASSWORD</label>
       <input id="password" type="password" required autocomplete="current-password"
-             placeholder="••••••••" value="jane1234" />
+             placeholder="••••••••" value="password" />
 
       <button id="submit" type="submit">Sign in</button>
       <div class="hint">Forgot password? Contact your school administrator.</div>
@@ -171,21 +171,46 @@
       if(logo){ var bl2=document.querySelector('.brand-logo'); if(bl2){ bl2.textContent=''; bl2.style.background='#fff'; var img=document.createElement('img'); img.src=decodeURIComponent(logo); img.style.cssText='width:100%;height:100%;object-fit:cover;border-radius:8px;'; bl2.appendChild(img); } }
     }
     var n=p.get('n'), c=p.get('c'), l=p.get('l'), sslug=p.get('s')||p.get('t')||(location.pathname.match(/\/(?:s|school)\/([A-Za-z0-9_-]+)/)||[])[1];
-    if(!sslug){ try{ sslug=localStorage.getItem('nextos.lastTenant')||''; }catch(e){} }
+    if(!sslug){ try{ sslug=localStorage.getItem('nextos.lastTenant')||''; }catch(e){} }       // recover the school this device belongs to
     if(sslug){ try{ localStorage.setItem('nextos.lastTenant', sslug); }catch(e){} }
+    // Paint a neutral, slug-derived name immediately so we NEVER flash another school's name.
     if(sslug && !n){ try{ var _dn=sslug.replace(/[-_]+/g,' ').replace(/\b\w/g,function(m){return m.toUpperCase();}); applyBrand(_dn,null,null); }catch(e){} }
     if(n||c){ applyBrand(n,c,l); }
     else if(sslug){ fetch('https://nextos-sentinel.nextafricaai.workers.dev/brand?s='+encodeURIComponent(sslug)).then(function(r){return r.ok?r.json():null;}).then(function(b){ if(b) applyBrand(b.name, b.primary_color, b.logo_url); }).catch(function(){}); }
+    // PWA: per-school installable app (manifest + icon + service worker)
+    try {
+      var WK='https://nextos-sentinel.nextafricaai.workers.dev';
+      if(sslug){
+        var _ml=document.createElement('link'); _ml.rel='manifest'; _ml.href='/manifest.php?s='+encodeURIComponent(sslug); document.head.appendChild(_ml);
+        var _ai=document.getElementById('nx-apple-icon'); if(_ai) _ai.href=WK+'/icon?s='+encodeURIComponent(sslug);
+      }
+      if('serviceWorker' in navigator){ navigator.serviceWorker.register('/sw.js').catch(function(){}); }
+      var _sh=document.getElementById('nx-share'); if(_sh){ _sh.addEventListener('click',function(){ var url = location.origin + '/s/' + encodeURIComponent(sslug||''); var nm=(window.__BRAND_NAME)||'our school'; var data={ title:nm, text:'Sign in to '+nm+' on NEXT OS', url:url }; if(navigator.share){ navigator.share(data).catch(function(){}); } else { try{ navigator.clipboard.writeText(url); _sh.textContent='✓ Link copied'; setTimeout(function(){_sh.innerHTML='🔗 Share this school&#39;s link';},1500); }catch(e){ prompt('Copy this link:', url); } } }); }
+    } catch(e){}
   })();
   </script>
 
   <!-- Supabase JS SDK -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script>
+    // ─── Supabase client ─────────────────────────────────────────────
     const SUPABASE_URL = 'https://llxhvqkkgftqwefmrofn.supabase.co';
+    // Publishable (anon) key — safe to use in browser; RLS enforces tenant isolation
     const SUPABASE_ANON_KEY = 'sb_publishable_wrzbFpPrkhoN4w2KXdUAdw_gnqEQVs9';
     const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+    // If already signed in for THIS school, skip to dashboard.
+    // If signed into a DIFFERENT school than this link, sign out so they can sign into this one.
+    (async () => {
+      const { data: { session } } = await sb.auth.getSession();
+      if (!session) return; // no session -> show the login form (the normal client flow)
+      var want = new URLSearchParams(location.search).get('t') || new URLSearchParams(location.search).get('s') || (location.pathname.match(/\/(?:s|school)\/([A-Za-z0-9_-]+)/)||[])[1];
+      var prof = null; try { prof = JSON.parse(localStorage.getItem('nextos.profile')||'null'); } catch(e){}
+      if (!want || (prof && prof.tenantId === want)) { try { sessionStorage.setItem('nextos.welcome', '1'); } catch (e) {} window.location.href = '/school/' + encodeURIComponent((prof && prof.tenantId) || want || ''); return; }
+      try { await sb.auth.signOut(); localStorage.removeItem('nextos.profile'); } catch(e){}
+    })();
+
+    // ─── Form handler ────────────────────────────────────────────────
     const form    = document.getElementById('login-form');
     const errEl   = document.getElementById('error');
     const btn     = document.getElementById('submit');
@@ -202,8 +227,7 @@
     window.fillRole = function(role) {
       const emailEl = document.getElementById('email');
       const passEl = document.getElementById('password');
-      if (role === 'director' || role === 'owner') { emailEl.value = 'director@kabs-lily.ac.ug'; passEl.value = 'password'; }
-      if (role === 'jane' || role === 'headteacher' || role === 'head') { emailEl.value = 'head@kabslilly.ug'; passEl.value = 'jane1234'; }
+      if (role === 'head') { emailEl.value = 'head@kabs-lily.ac.ug'; passEl.value = 'password'; }
       if (role === 'teacher') { emailEl.value = 'teacher@kabs-lily.ac.ug'; passEl.value = 'password'; }
       if (role === 'bursar') { emailEl.value = 'bursar@kabs-lily.ac.ug'; passEl.value = 'password'; }
       if (role === 'driver') { emailEl.value = 'driver.bbosa@kabs-lily.ac.ug'; passEl.value = 'password'; }
@@ -214,23 +238,10 @@
       clearError();
       btn.disabled = true; btn.textContent = 'Signing in...';
 
-      const email    = document.getElementById('email').value.trim().toLowerCase();
+      const email    = document.getElementById('email').value.trim();
       const password = document.getElementById('password').value;
 
-      // Head Teacher (Nalukenge Jane) quick sign-in
-      if (email === 'head@kabslilly.ug' || email.includes('kabslilly') || email.includes('jane')) {
-        const profile = {
-          email: 'head@kabslilly.ug',
-          fullName: 'Nalukenge Jane (Head Teacher)',
-          role: 'headteacher',
-          tenantId: 'kabs-lily-junior-school-and-kindercare-centre',
-        };
-        localStorage.setItem('nextos.profile', JSON.stringify(profile));
-        window.location.href = '/prototypes/schools/peak-primary/headteacher-dashboard.html';
-        return;
-      }
-
-      // Driver sign-in
+      // Quick offline/demo driver sign-in
       if (email.includes('driver') || email.includes('bbosa')) {
         const profile = {
           email: email,
@@ -244,13 +255,14 @@
       }
 
       try {
+        // 1. Sign in with Supabase Auth
         const { data: authData, error: authErr } = await sb.auth.signInWithPassword({
           email, password,
         });
         if (authErr && !email.includes('test') && !email.includes('kabs-lily')) throw authErr;
 
         let role = 'head';
-        let fullName = 'School Director';
+        let fullName = 'Head Teacher';
         let tenantId = 'kabs-lily-junior-school-and-kindercare-centre';
 
         if (authData && authData.user) {
@@ -264,14 +276,17 @@
             fullName = userRow.full_name;
             tenantId = userRow.tenant_id;
           }
+        } else {
+          // Demo fallback by email pattern
+          if (email.includes('teacher')) role = 'teacher';
+          if (email.includes('bursar')) role = 'bursar';
+          if (email.includes('driver')) role = 'driver';
         }
 
         const profile = { email, fullName, role, tenantId };
         localStorage.setItem('nextos.profile', JSON.stringify(profile));
 
-        if (role === 'headteacher') {
-          window.location.href = '/prototypes/schools/peak-primary/headteacher-dashboard.html';
-        } else if (role === 'driver') {
+        if (role === 'driver') {
           window.location.href = '/prototypes/schools/peak-primary/driver-dashboard.html';
         } else {
           window.location.href = '/school/' + encodeURIComponent(tenantId);
