@@ -46,15 +46,24 @@
 
   <script type="text/babel">
     function ParentApp() {
-      return (
-        <React.Suspense fallback={<div style={{ color: '#00FC8F', padding: '40px', textAlign: 'center' }}>Loading Parent Portal...</div>}>
-          <window.ParentView />
-        </React.Suspense>
-      );
+      const View = window.ParentView;
+      if (!View) {
+        return <div style={{ color: '#00FC8F', padding: '40px', textAlign: 'center', fontWeight: 'bold' }}>Loading Parent Portal...</div>;
+      }
+      return <View />;
     }
 
-    const root = ReactDOM.createRoot(document.getElementById('root'));
-    root.render(<ParentApp />);
+    let root = null;
+    const checkAndRender = () => {
+      const el = document.getElementById('root');
+      if (!el) return;
+      if (!root) root = ReactDOM.createRoot(el);
+      root.render(<ParentApp />);
+      if (!window.ParentView) {
+        setTimeout(checkAndRender, 50);
+      }
+    };
+    checkAndRender();
   </script>
 </body>
 </html>

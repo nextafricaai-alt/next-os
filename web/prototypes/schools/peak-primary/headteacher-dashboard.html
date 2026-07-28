@@ -64,13 +64,24 @@
 
   <script type="text/babel">
     function HeadTeacherApp() {
-      return (
-        <React.Suspense fallback={<div style={{ color: '#00FC8F', padding: '40px', textAlign: 'center', fontWeight: 'bold' }}>Loading Head Teacher Control Hub...</div>}>
-          <window.HeadTeacherView />
-        </React.Suspense>
-      );
+      const View = window.HeadTeacherView;
+      if (!View) {
+        return <div style={{ color: '#00FC8F', padding: '40px', textAlign: 'center', fontWeight: 'bold' }}>Loading Head Teacher Dashboard...</div>;
+      }
+      return <View />;
     }
-    ReactDOM.createRoot(document.getElementById('root')).render(<HeadTeacherApp />);
+
+    let root = null;
+    const checkAndRender = () => {
+      const el = document.getElementById('root');
+      if (!el) return;
+      if (!root) root = ReactDOM.createRoot(el);
+      root.render(<HeadTeacherApp />);
+      if (!window.HeadTeacherView) {
+        setTimeout(checkAndRender, 50);
+      }
+    };
+    checkAndRender();
   </script>
 </body>
 </html>
