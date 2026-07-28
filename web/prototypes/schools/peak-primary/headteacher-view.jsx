@@ -42,8 +42,50 @@
     const [showIncomeModal, setShowIncomeModal] = useState(false);
     const [showExpenseModal, setShowExpenseModal] = useState(false);
     const [showReconcileModal, setShowReconcileModal] = useState(false);
+    const [showImportModal, setShowImportModal] = useState(false);
+    const [parsedCsvRows, setParsedCsvRows] = useState([]);
+    const [isImporting, setIsImporting] = useState(false);
     const [filterCategory, setFilterCategory] = useState('All');
     const [searchQuery, setSearchQuery] = useState('');
+
+    const handleCsvFileChange = (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        const text = reader.result || '';
+        const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+        if (lines.length > 1) {
+          const rows = lines.slice(1).map(line => {
+            const parts = line.split(',').map(p => p.replace(/^"|"$/g, '').trim());
+            return {
+              name: parts[0] || '',
+              class: parts[1] || 'N/A',
+              feeType: parts[2] || 'School Fees (Tuition)',
+              amount: Number(parts[3] || 0),
+              balance: Number(parts[4] || 0),
+              notes: parts[6] || ''
+            };
+          }).filter(r => r.name);
+          setParsedCsvRows(rows);
+        }
+      };
+      reader.readAsText(file);
+    };
+
+    const handleDoImportFees = async () => {
+      if (!parsedCsvRows.length) return;
+      setIsImporting(true);
+      if (SS && SS.importFees) {
+        await SS.importFees(parsedCsvRows);
+        setIncomes(SS.getIncomes());
+        setExpenses(SS.getExpenses());
+        alert(`Successfully imported ${parsedCsvRows.length} fee records into Supabase!`);
+      }
+      setIsImporting(false);
+      setShowImportModal(false);
+      setParsedCsvRows([]);
+    };
 
     // Cross-tab + same-tab sync: re-read store when bursar (or anyone) adds an entry
     useEffect(() => {
@@ -215,15 +257,26 @@
               <div style={{ fontSize: '12px', color: T.textMuted, marginTop: '6px' }}>
                 {incomes.length} incoming fee payments recorded
               </div>
-              <button
-                onClick={() => setShowIncomeModal(true)}
-                style={{
-                  marginTop: '14px', width: '100%', background: T.mint, color: '#0A1029', border: 'none',
-                  padding: '10px', borderRadius: '8px', fontWeight: '800', fontSize: '13px', cursor: 'pointer'
-                }}
-              >
-                ➕ Log Incoming Cash / Fee
-              </button>
+              <div style={{ display: 'flex', gap: '8px', marginTop: '14px' }}>
+                <button
+                  onClick={() => setShowIncomeModal(true)}
+                  style={{
+                    flex: 1, background: T.mint, color: '#0A1029', border: 'none',
+                    padding: '10px', borderRadius: '8px', fontWeight: '800', fontSize: '13px', cursor: 'pointer'
+                  }}
+                >
+                  ➕ Log Fee
+                </button>
+                <button
+                  onClick={() => setShowImportModal(true)}
+                  style={{
+                    background: 'rgba(59,130,246,0.2)', color: T.blue, border: `1.5px solid ${T.blue}`,
+                    padding: '10px 14px', borderRadius: '8px', fontWeight: '800', fontSize: '13px', cursor: 'pointer'
+                  }}
+                >
+                  📥 Import CSV
+                </button>
+              </div>
             </div>
 
             {/* Today's Expenses Paid Out */}
@@ -341,6 +394,12 @@
                 </div>
 
                 <div style={{ display: 'flex', gap: '8px' }}>
+                  <button
+                    onClick={() => setShowImportModal(true)}
+                    style={{ background: 'rgba(59,130,246,0.2)', color: T.blue, border: `1px solid ${T.blue}`, padding: '8px 14px', borderRadius: '6px', fontWeight: '800', fontSize: '12px', cursor: 'pointer' }}
+                  >
+                    📥 Import CSV
+                  </button>
                   <button
                     onClick={() => setShowIncomeModal(true)}
                     style={{ background: T.mint, color: '#0A1029', border: 'none', padding: '8px 14px', borderRadius: '6px', fontWeight: '800', fontSize: '12px', cursor: 'pointer' }}
@@ -771,6 +830,100 @@
                 </button>
                 <button onClick={() => { alert('End-of-day cash reconciliation locked! Submitted to Director Dashboard.'); setShowReconcileModal(false); }} style={{ flex: 1, background: T.gold, color: '#000', border: 'none', padding: '10px', borderRadius: '6px', fontWeight: '900', cursor: 'pointer' }}>
                   Confirm & Lock Cash Log
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Bulk Import Fees Modal */}
+        {showImportModal && (
+          <div style={{
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+            background: 'rgba(10,16,41,0.85)', backdropFilter: 'blur(8px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '20px'
+          }}>
+            <div style={{
+              background: T.surface, border: `1px solid ${T.borderStrong}`, borderRadius: '16px',
+              padding: '24px', maxWidth: '520px', width: '100%', boxShadow: '0 20px 40px rgba(0,0,0,0.5)'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                <h2 style={{ fontSize: '18px', fontWeight: '800', color: T.mint, margin: 0 }}>
+                  📥 Bulk Import Fees (CSV)
+                </h2>
+                <button onClick={() => setShowImportModal(false)} style={{ background: 'transparent', border: 'none', color: T.textMuted, fontSize: '20px', cursor: 'pointer' }}>
+                  ✕
+                </button>
+              </div>
+
+              <p style={{ fontSize: '12px', color: T.textMuted, marginBottom: '14px', lineHeight: '1.5' }}>
+                Upload your fee ledger CSV file (e.g. <code>kabs_lily_fees.csv</code>). The rows will write directly to Supabase and update both Bursar and Head Teacher dashboards in real-time.
+              </p>
+
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ fontSize: '12px', fontWeight: '700', color: T.textMuted, display: 'block', marginBottom: '6px' }}>
+                  Select CSV File:
+                </label>
+                <input
+                  type="file"
+                  accept=".csv"
+                  onChange={handleCsvFileChange}
+                  style={{ background: T.surface2, color: T.text, padding: '10px', borderRadius: '8px', width: '100%', border: `1px solid ${T.border}` }}
+                />
+              </div>
+
+              {parsedCsvRows.length > 0 && (
+                <div style={{ background: T.surface2, borderRadius: '9px', padding: '12px', maxHeight: '200px', overflowY: 'auto', marginBottom: '16px' }}>
+                  <div style={{ fontWeight: '800', fontSize: '12px', color: T.mint, marginBottom: '8px' }}>
+                    Previewing {parsedCsvRows.length} rows to import:
+                  </div>
+                  <table style={{ width: '100%', fontSize: '11px', borderCollapse: 'collapse', textAlign: 'left' }}>
+                    <thead>
+                      <tr style={{ color: T.textMuted, borderBottom: `1px solid ${T.border}` }}>
+                        <th style={{ padding: '4px' }}>Student</th>
+                        <th style={{ padding: '4px' }}>Class</th>
+                        <th style={{ padding: '4px' }}>Fee Type</th>
+                        <th style={{ padding: '4px' }}>Full Fee</th>
+                        <th style={{ padding: '4px' }}>Balance</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {parsedCsvRows.slice(0, 8).map((r, i) => (
+                        <tr key={i} style={{ borderBottom: `1px solid ${T.border}` }}>
+                          <td style={{ padding: '4px' }}>{r.name}</td>
+                          <td style={{ padding: '4px' }}>{r.class}</td>
+                          <td style={{ padding: '4px' }}>{r.feeType}</td>
+                          <td style={{ padding: '4px' }}>{formatUgx(r.amount)}</td>
+                          <td style={{ padding: '4px', color: r.balance > 0 ? T.red : T.mint }}>{formatUgx(r.balance)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {parsedCsvRows.length > 8 && (
+                    <div style={{ fontSize: '10px', color: T.textMuted, marginTop: '6px' }}>
+                      + {parsedCsvRows.length - 8} more rows...
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <button
+                  onClick={() => setShowImportModal(false)}
+                  style={{ flex: 1, background: 'transparent', color: T.textMuted, border: `1px solid ${T.border}`, padding: '10px', borderRadius: '8px', cursor: 'pointer' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDoImportFees}
+                  disabled={!parsedCsvRows.length || isImporting}
+                  style={{
+                    flex: 2, background: parsedCsvRows.length ? T.mint : 'rgba(255,255,255,0.1)',
+                    color: parsedCsvRows.length ? '#0A1029' : T.textMuted, border: 'none', padding: '10px',
+                    borderRadius: '8px', fontWeight: '800', fontSize: '13px', cursor: parsedCsvRows.length ? 'pointer' : 'not-allowed'
+                  }}
+                >
+                  {isImporting ? 'Importing into Supabase...' : `Import ${parsedCsvRows.length} Fee Records →`}
                 </button>
               </div>
             </div>
