@@ -279,7 +279,10 @@
         } else {
           // Demo fallback by email pattern
           if (email.includes('teacher')) role = 'teacher';
-          if (email.includes('bursar')) role = 'bursar';
+          if (email.includes('bursar') || email.includes('jane') || email.includes('nalukenge')) {
+            role = 'bursar';
+            fullName = 'Nalukenge Jane (Bursar / Administrator)';
+          }
           if (email.includes('driver')) role = 'driver';
         }
 
