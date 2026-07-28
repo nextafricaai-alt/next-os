@@ -197,7 +197,7 @@
               <span>{(summary.collectionRate * 100).toFixed(1)}%</span>
             </div>
             <div style={{ height: '12px', backgroundColor: '#e5e7eb', borderRadius: '6px', overflow: 'hidden' }}>
-              <div style={{ height: '100%', backgroundColor: brand.colors.primary, width: `${animatedCollection}%`, transition: 'width 1s ease-out' }}></div>
+              <div style={{ height: '100%', backgroundColor: brand.colors.primary, width: \`\${animatedCollection}%\`, transition: 'width 1s ease-out' }}></div>
             </div>
             <div style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '5px' }}>
               Collected: {formatCurrency(summary.feesCollected)} / Expected: {formatCurrency(summary.feesCollected + summary.outstandingFees)}
@@ -213,7 +213,7 @@
                 const incomeHeight = (week.income / maxTrendValue) * 180;
                 const expenseHeight = (week.expenses / maxTrendValue) * 180;
                 return (
-                  <g key={i} transform={`translate(${i * totalWidth}%, 0)`}>
+                  <g key={i} transform={\`translate(\${i * totalWidth}%, 0)\`}>
                     <rect className="trend-bar" x="10%" y={180 - incomeHeight} width="35%" height={incomeHeight} fill={brand.colors.primary} />
                     <rect className="trend-bar" x="50%" y={180 - expenseHeight} width="35%" height={expenseHeight} fill="#ef4444" />
                     <text x="50%" y="200" textAnchor="middle" fontSize="12" fill="#6b7280">{week.week}</text>
@@ -245,7 +245,7 @@
               {paginatedTransactions.map((t, idx) => (
                 <tr key={idx} style={{ 
                   backgroundColor: idx % 2 === 0 ? 'white' : '#f9fafb',
-                  borderLeft: `4px solid ${t.type === 'income' ? '#10b981' : '#ef4444'}`,
+                  borderLeft: \`4px solid \${t.type === 'income' ? '#10b981' : '#ef4444'}\`,
                   borderBottom: '1px solid #e5e7eb'
                 }}>
                   <td style={tdStyle}>{new Date(t.date).toLocaleDateString()}</td>
@@ -299,7 +299,7 @@
   });
 
   const summaryBoxStyle = (bg, color, title, value) => (
-    <div style={{ backgroundColor: bg, color: color, padding: '20px', borderRadius: '8px', border: `1px solid ${color}33` }}>
+    <div style={{ backgroundColor: bg, color: color, padding: '20px', borderRadius: '8px', border: \`1px solid \${color}33\` }}>
       <div style={{ fontSize: '0.75rem', fontWeight: 'bold', marginBottom: '8px', opacity: 0.8 }}>{title.toUpperCase()}</div>
       <div style={{ fontSize: '1.5rem', fontWeight: '900' }}>{formatCurrency(value)}</div>
     </div>

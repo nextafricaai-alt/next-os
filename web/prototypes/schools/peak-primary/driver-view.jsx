@@ -423,38 +423,6 @@
     const [newChildLat, setNewChildLat] = useState('0.3500');
     const [newChildLng, setNewChildLng] = useState('32.6200');
 
-    // Driver Duty Shift Check-In & Sign-Out State
-    const [shiftStatus, setShiftStatus] = useState(() => {
-      try {
-        const stored = localStorage.getItem(`nextos.driver.shift.${vanId}`);
-        if (stored) return JSON.parse(stored);
-      } catch (e) {}
-      return { isOnDuty: true, checkInTime: '06:30 AM', totalShifts: 1 };
-    });
-
-    const handleToggleShift = () => {
-      if (shiftStatus.isOnDuty) {
-        const nowStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        const updated = { isOnDuty: false, signOutTime: nowStr, checkInTime: shiftStatus.checkInTime, totalShifts: shiftStatus.totalShifts };
-        setShiftStatus(updated);
-        localStorage.setItem(`nextos.driver.shift.${vanId}`, JSON.stringify(updated));
-        try { localStorage.removeItem('nextos.profile'); } catch (e) {}
-        if (window.TRANSPORT_TELEMETRY && typeof window.TRANSPORT_TELEMETRY.stopBroadcasting === 'function') {
-          window.TRANSPORT_TELEMETRY.stopBroadcasting();
-        }
-        window.location.href = '/prototypes/schools/peak-primary/login.html';
-      } else {
-        const nowStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        const updated = { isOnDuty: true, checkInTime: nowStr, totalShifts: shiftStatus.totalShifts + 1 };
-        setShiftStatus(updated);
-        localStorage.setItem(`nextos.driver.shift.${vanId}`, JSON.stringify(updated));
-        if (window.TRANSPORT_TELEMETRY && typeof window.TRANSPORT_TELEMETRY.startBroadcasting === 'function') {
-          window.TRANSPORT_TELEMETRY.startBroadcasting(vanId, { name: 'Mr. Bbosa Yusufu' });
-        }
-        alert(`🟢 Driver Shift Checked In at ${nowStr}. Live GPS Telemetry broadcasting!`);
-      }
-    };
-
     // Kilometers Odometer State & History
     const [kmData, setKmData] = useState(() => {
       if (window.TRANSPORT_TELEMETRY && typeof window.TRANSPORT_TELEMETRY.getKilometers === 'function') {
@@ -592,23 +560,6 @@
                 </div>
               </div>
               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                {/* Driver Duty Shift Check-In / Sign-Out Button */}
-                <button 
-                  onClick={handleToggleShift}
-                  style={{
-                    backgroundColor: shiftStatus.isOnDuty ? 'rgba(239, 68, 68, 0.2)' : 'rgba(0, 252, 143, 0.2)',
-                    color: shiftStatus.isOnDuty ? '#EF4444' : '#00FC8F',
-                    border: shiftStatus.isOnDuty ? '1.5px solid #EF4444' : '1.5px solid #00FC8F',
-                    borderRadius: T.radii.md,
-                    padding: '8px 14px',
-                    fontWeight: '900',
-                    fontSize: '12px',
-                    cursor: 'pointer',
-                  }}
-                >
-                  {shiftStatus.isOnDuty ? '🔴 Sign-Out Shift' : '🟢 Check-In Shift'}
-                </button>
-
                 <button 
                   onClick={() => setIsAddChildModalOpen(true)}
                   style={{
@@ -657,9 +608,9 @@
             </div>
             
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: shiftStatus.isOnDuty ? T.colors.success : T.colors.danger, fontWeight: '600' }}>
-                <div style={{ width: '8px', height: '8px', backgroundColor: shiftStatus.isOnDuty ? T.colors.success : T.colors.danger, borderRadius: '50%', boxShadow: `0 0 8px ${shiftStatus.isOnDuty ? T.colors.success : T.colors.danger}`, animation: 'pulse 2s infinite' }}></div>
-                {shiftStatus.isOnDuty ? `🟢 ON DUTY (Shift Started ${shiftStatus.checkInTime || '06:30 AM'})` : '🔴 OFF DUTY (Shift Signed Out)'}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: T.colors.success, fontWeight: '600' }}>
+                <div style={{ width: '8px', height: '8px', backgroundColor: T.colors.success, borderRadius: '50%', boxShadow: `0 0 8px ${T.colors.success}`, animation: 'pulse 2s infinite' }}></div>
+                GPS Live
               </div>
               
               {/* Shuttle Odometer & KM Covered Badge */}

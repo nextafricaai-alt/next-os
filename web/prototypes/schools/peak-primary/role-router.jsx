@@ -34,21 +34,20 @@
   function getRole() {
     const p = getProfile();
     const r = (p && p.role) ? String(p.role).toLowerCase() : 'head';
-    if (r === 'admin' || r === 'head' || r === 'bursar' || r === 'teacher' || r === 'driver' || r === 'parent') return r;
+    if (r === 'admin' || r === 'head' || r === 'bursar' || r === 'teacher' || r === 'driver') return r;
     return 'head';
   }
 
   // ─── Which nav items each role can see ────────────────────────────────
   // Admin + Head: everything
   // Bursar: only finance-relevant screens
-  // Teacher, Driver & Parent: use dedicated app views
+  // Teacher & Driver: use dedicated mobile/web app views
   const ROLE_NAV_WHITELIST = {
     admin:   null, // null = show all
     head:    null,
     bursar:  new Set(['spec', 'dash', 'fees', 'rep']),
     teacher: new Set(), // teacher uses its own shell
     driver:  new Set(['trsp']), // driver uses driver app
-    parent:  new Set(), // parent uses parent app
   };
 
   function canSeeNavKey(key) {
@@ -68,25 +67,24 @@
   // ─── Default landing screen after login ──────────────────────────────
   function defaultRouteForRole() {
     const role = getRole();
-    if (role === 'head' || role === 'headteacher') return 'headteacher';
     if (role === 'bursar')  return 'fees';
     if (role === 'teacher') return 'teacher-home';
-    if (role === 'driver')  return 'trsp';
-    if (role === 'parent')  return 'parent';
-    return 'spec'; // admin / director keep index.html
+    if (role === 'driver')  {
+      window.location.href = '/prototypes/schools/peak-primary/driver-dashboard.html';
+      return 'trsp';
+    }
+    return 'spec'; // admin / head keep current default
   }
 
   // ─── Pretty label for the sidebar profile chip ───────────────────────
   function roleLabel() {
     const role = getRole();
     return ({
-      admin:    'School Director / Owner',
-      director: 'School Director / Owner',
-      head:     'Head Teacher / Administrator (Nalukenge Jane)',
-      bursar:   'Bursar',
-      teacher:  'Teacher',
-      driver:   'School Driver',
-      parent:   'Parent',
+      admin:   'Administrator',
+      head:    'Head Teacher',
+      bursar:  'Bursar',
+      teacher: 'Teacher',
+      driver:  'School Driver',
     })[role] || 'User';
   }
 

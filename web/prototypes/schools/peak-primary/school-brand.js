@@ -162,7 +162,7 @@
      * Helper to get localStorage cache key.
      */
     getCacheKey: function() {
-      return 'nextos.brand.full.' + this.getTenantId();
+      return \`nextos.brand.full.\${this.getTenantId()}\`;
     },
 
     /**

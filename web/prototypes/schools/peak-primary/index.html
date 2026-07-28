@@ -50,8 +50,6 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Instrument+Serif&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <style>
     html, body { margin: 0; padding: 0; background: #0a1029; font-family: 'Inter', -apple-system, system-ui, sans-serif; color: #f5f6fa; -webkit-font-smoothing: antialiased; }
     *, *::before, *::after { box-sizing: border-box; }
@@ -1918,7 +1916,7 @@
 
     const signOut = async () => {
       if (window.NextSession && window.NextSession.signOut) await window.NextSession.signOut();
-      else { window.location.href = '/prototypes/schools/peak-primary/login.html'; }
+      else { var _t=''; try{var _p=JSON.parse(localStorage.getItem('nextos.profile')||'null'); _t=(_p&&_p.tenantId)||localStorage.getItem('nextos.lastTenant')||'';}catch(e){} window.location.href = _t ? ('/school/'+encodeURIComponent(_t)+'/login') : 'login.html'; }
     };
 
     const onCheckedIn = (checkin) => setData(prev => ({ ...prev, checkin }));
@@ -11523,7 +11521,7 @@ window.PEAK_STAFF = (function () {
     const save = () => { setBusy(true); const rec = { markdown: md, by: (prof.fullName || prof.email || ''), updatedAt: new Date().toISOString() }; fetch(WK + '/os-data/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(recId ? { kind: 'school_profile', tenant: ten, record: rec, id: recId } : { kind: 'school_profile', tenant: ten, record: rec }) }).then(r => r.json()).then(res => { setBusy(false); if (res && res.record && res.record.id) setRecId(res.record.id); window.__SCHOOL_PROFILE = md; setSaved(true); setTimeout(() => setSaved(false), 1800); window.peakToast && window.peakToast('Saved', 'success', 'Nia now understands your school.'); }).catch(() => setBusy(false)); };
     const toggleVoice = () => setVoice(p => { const n = !p; try { localStorage.setItem('peak.nia.voice', n ? '1' : '0'); } catch (e) {} try { window.dispatchEvent(new CustomEvent('peakVoiceToggle', { detail: n })); } catch (e) {} return n; });
     const toggleTut = () => setTut(p => { const n = !p; try { localStorage.setItem('nextos.schooltutorial', n ? '1' : '0'); } catch (e) {} return n; });
-    const signOut = async () => { try { if (window.NextSession && window.NextSession.signOut) { await window.NextSession.signOut(); return; } } catch (e) {} window.location.href = '/prototypes/schools/peak-primary/login.html'; };
+    const signOut = async () => { try { if (window.NextSession && window.NextSession.signOut) { await window.NextSession.signOut(); return; } } catch (e) {} var _t = ''; try { var _p = JSON.parse(localStorage.getItem('nextos.profile') || 'null'); _t = (_p && _p.tenantId) || localStorage.getItem('nextos.lastTenant') || ''; } catch (e) {} window.location.href = _t ? ('/school/' + encodeURIComponent(_t) + '/login') : 'login.html'; };
     const Toggle = ({ on, onTap, title, sub }) => (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '12px 0', borderBottom: '1px solid ' + T.border }}>
         <div><div style={{ fontSize: 13.5, fontWeight: 600 }}>{title}</div><div style={{ fontSize: 12, color: T.ink3, marginTop: 2 }}>{sub}</div></div>
@@ -11692,7 +11690,7 @@ window.PEAK_STAFF = (function () {
                 </div>
                 <span onClick={async () => {
                   if (window.NextSession && window.NextSession.signOut) await window.NextSession.signOut();
-                  else { window.location.href = '/prototypes/schools/peak-primary/login.html'; }
+                  else { var _t=''; try{var _p=JSON.parse(localStorage.getItem('nextos.profile')||'null'); _t=(_p&&_p.tenantId)||localStorage.getItem('nextos.lastTenant')||'';}catch(e){} window.location.href = _t ? ('/school/'+encodeURIComponent(_t)+'/login') : 'login.html'; }
                 }} title="Sign out" style={{ color: T.ink3, fontSize: 14, cursor: 'pointer' }}>⎋</span>
               </>
             );

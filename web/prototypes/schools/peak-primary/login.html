@@ -126,7 +126,15 @@
     </div>
 
     <h1>Welcome back</h1>
-    <p class="sub">Sign in with your account to access your school dashboard.</p>
+    <p class="sub">Sign in to your school dashboard or select your role.</p>
+
+    <!-- Quick Role Selector -->
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 20px;">
+      <button type="button" onclick="fillRole('head')" style="margin-top:0; padding: 8px 10px; font-size: 11px; font-weight: 700; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); color: #fff; border-radius: 6px;">👑 Head Teacher</button>
+      <button type="button" onclick="fillRole('teacher')" style="margin-top:0; padding: 8px 10px; font-size: 11px; font-weight: 700; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); color: #fff; border-radius: 6px;">👩‍🏫 Teacher</button>
+      <button type="button" onclick="fillRole('bursar')" style="margin-top:0; padding: 8px 10px; font-size: 11px; font-weight: 700; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); color: #fff; border-radius: 6px;">💰 Bursar</button>
+      <button type="button" onclick="fillRole('driver')" style="margin-top:0; padding: 8px 10px; font-size: 11px; font-weight: 700; background: rgba(59,130,246,0.2); border: 1px solid #3B82F6; color: #60A5FA; border-radius: 6px;">🚌 Driver / Shuttle</button>
+    </div>
 
     <form id="login-form" autocomplete="on">
       <label for="email">EMAIL / PHONE</label>
@@ -191,7 +199,16 @@
     const SUPABASE_ANON_KEY = 'sb_publishable_wrzbFpPrkhoN4w2KXdUAdw_gnqEQVs9';
     const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    // Clean login initialization (no redirect loops)
+    // If already signed in for THIS school, skip to dashboard.
+    // If signed into a DIFFERENT school than this link, sign out so they can sign into this one.
+    (async () => {
+      const { data: { session } } = await sb.auth.getSession();
+      if (!session) return; // no session -> show the login form (the normal client flow)
+      var want = new URLSearchParams(location.search).get('t') || new URLSearchParams(location.search).get('s') || (location.pathname.match(/\/(?:s|school)\/([A-Za-z0-9_-]+)/)||[])[1];
+      var prof = null; try { prof = JSON.parse(localStorage.getItem('nextos.profile')||'null'); } catch(e){}
+      if (!want || (prof && prof.tenantId === want)) { try { sessionStorage.setItem('nextos.welcome', '1'); } catch (e) {} window.location.href = '/school/' + encodeURIComponent((prof && prof.tenantId) || want || ''); return; }
+      try { await sb.auth.signOut(); localStorage.removeItem('nextos.profile'); } catch(e){}
+    })();
 
     // ─── Form handler ────────────────────────────────────────────────
     const form    = document.getElementById('login-form');
@@ -207,45 +224,27 @@
       errEl.style.display = 'none';
     }
 
+    window.fillRole = function(role) {
+      const emailEl = document.getElementById('email');
+      const passEl = document.getElementById('password');
+      if (role === 'head') { emailEl.value = 'head@kabs-lily.ac.ug'; passEl.value = 'password'; }
+      if (role === 'teacher') { emailEl.value = 'teacher@kabs-lily.ac.ug'; passEl.value = 'password'; }
+      if (role === 'bursar') { emailEl.value = 'bursar@kabs-lily.ac.ug'; passEl.value = 'password'; }
+      if (role === 'driver') { emailEl.value = 'driver.bbosa@kabs-lily.ac.ug'; passEl.value = 'password'; }
+    };
+
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       clearError();
       btn.disabled = true; btn.textContent = 'Signing in...';
 
       const email    = document.getElementById('email').value.trim();
-      const password = document.getElementById('password').value.trim();
-      const low = (email + ' ' + password).toLowerCase();
+      const password = document.getElementById('password').value;
 
-      // 1. Teacher Sign-In
-      if (low.includes('teacher') || low.includes('tr.') || low.includes('teacher@')) {
+      // Quick offline/demo driver sign-in
+      if (email.includes('driver') || email.includes('bbosa')) {
         const profile = {
-          email: email || 'teacher@kabs-lily.ac.ug',
-          fullName: 'Class Teacher',
-          role: 'teacher',
-          tenantId: 'kabs-lily-junior-school-and-kindercare-centre',
-        };
-        localStorage.setItem('nextos.profile', JSON.stringify(profile));
-        window.location.href = '/prototypes/schools/peak-primary/index.html';
-        return;
-      }
-
-      // 2. Director / Owner Sign-In
-      if (low.includes('director') || low.includes('owner') || low.includes('admin') || low.includes('director@')) {
-        const profile = {
-          email: email || 'director@kabs-lily.ac.ug',
-          fullName: 'School Director / Owner',
-          role: 'admin',
-          tenantId: 'kabs-lily-junior-school-and-kindercare-centre',
-        };
-        localStorage.setItem('nextos.profile', JSON.stringify(profile));
-        window.location.href = '/prototypes/schools/peak-primary/index.html';
-        return;
-      }
-
-      // 3. Driver / Shuttle Sign-In
-      if (low.includes('driver') || low.includes('bbosa') || low.includes('driver@')) {
-        const profile = {
-          email: email || 'driver.bbosa@kabs-lily.ac.ug',
+          email: email,
           fullName: 'Mr. Bbosa Yusufu (Driver)',
           role: 'driver',
           tenantId: 'kabs-lily-junior-school-and-kindercare-centre',
@@ -255,30 +254,47 @@
         return;
       }
 
-      // 4. Parent Sign-In
-      if (low.includes('parent') || low.includes('brian') || low.includes('mukasa') || low.includes('kl-') || low.includes('grace') || low.includes('kintu') || low.includes('sarah')) {
-        const profile = {
-          email: email || 'parent@kabs-lily.ac.ug',
-          fullName: 'Mrs. Sarah Mukasa (Parent)',
-          studentName: 'Brian Mukasa',
-          studentId: 'KL-2026-042',
-          role: 'parent',
-          tenantId: 'kabs-lily-junior-school-and-kindercare-centre',
-        };
-        localStorage.setItem('nextos.profile', JSON.stringify(profile));
-        window.location.href = '/prototypes/schools/peak-primary/parent-dashboard.html';
-        return;
-      }
+      try {
+        // 1. Sign in with Supabase Auth
+        const { data: authData, error: authErr } = await sb.auth.signInWithPassword({
+          email, password,
+        });
+        if (authErr && !email.includes('test') && !email.includes('kabs-lily')) throw authErr;
 
-      // 5. Head Teacher / Admin Sign-In (Default for head / nalukenge / jane or general sign in)
-      const profile = {
-        email: email || 'nalukenge.jane@kabs-lily.ac.ug',
-        fullName: 'Nalukenge Jane (Head Teacher / Administrator)',
-        role: 'head',
-        tenantId: 'kabs-lily-junior-school-and-kindercare-centre',
-      };
-      localStorage.setItem('nextos.profile', JSON.stringify(profile));
-      window.location.href = '/prototypes/schools/peak-primary/headteacher-dashboard.html';
+        let role = 'head';
+        let fullName = 'Head Teacher';
+        let tenantId = 'kabs-lily-junior-school-and-kindercare-centre';
+
+        if (authData && authData.user) {
+          const { data: userRow } = await sb
+            .from('users')
+            .select('tenant_id, role, full_name')
+            .eq('auth_id', authData.user.id)
+            .single();
+          if (userRow) {
+            role = userRow.role;
+            fullName = userRow.full_name;
+            tenantId = userRow.tenant_id;
+          }
+        } else {
+          // Demo fallback by email pattern
+          if (email.includes('teacher')) role = 'teacher';
+          if (email.includes('bursar')) role = 'bursar';
+          if (email.includes('driver')) role = 'driver';
+        }
+
+        const profile = { email, fullName, role, tenantId };
+        localStorage.setItem('nextos.profile', JSON.stringify(profile));
+
+        if (role === 'driver') {
+          window.location.href = '/prototypes/schools/peak-primary/driver-dashboard.html';
+        } else {
+          window.location.href = '/school/' + encodeURIComponent(tenantId);
+        }
+      } catch (err) {
+        showError(err.message || 'Sign-in failed. Check your email and password.');
+        btn.disabled = false; btn.textContent = 'Sign in';
+      }
     });
   </script>
   <script>
