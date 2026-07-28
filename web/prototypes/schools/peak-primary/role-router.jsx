@@ -34,20 +34,21 @@
   function getRole() {
     const p = getProfile();
     const r = (p && p.role) ? String(p.role).toLowerCase() : 'head';
-    if (r === 'admin' || r === 'head' || r === 'bursar' || r === 'teacher' || r === 'driver') return r;
+    if (r === 'admin' || r === 'head' || r === 'bursar' || r === 'teacher' || r === 'driver' || r === 'parent') return r;
     return 'head';
   }
 
   // ─── Which nav items each role can see ────────────────────────────────
   // Admin + Head: everything
   // Bursar: only finance-relevant screens
-  // Teacher & Driver: use dedicated mobile/web app views
+  // Teacher, Driver & Parent: use dedicated app views
   const ROLE_NAV_WHITELIST = {
     admin:   null, // null = show all
     head:    null,
     bursar:  new Set(['spec', 'dash', 'fees', 'rep']),
     teacher: new Set(), // teacher uses its own shell
     driver:  new Set(['trsp']), // driver uses driver app
+    parent:  new Set(), // parent uses parent app
   };
 
   function canSeeNavKey(key) {
@@ -72,6 +73,10 @@
     if (role === 'driver')  {
       window.location.href = '/prototypes/schools/peak-primary/driver-dashboard.html';
       return 'trsp';
+    }
+    if (role === 'parent')  {
+      window.location.href = '/prototypes/schools/peak-primary/parent-dashboard.html';
+      return 'parent';
     }
     return 'spec'; // admin / head keep current default
   }

@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Parent Portal — Kabs Lily Kindercare Center & Primary School</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>👨‍👩‍👧</text></svg>">
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  
+  <!-- React & Babel Standalone CDN -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      min-height: 100%;
+      background-color: #0B0F19;
+      color: #F8FAFC;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    #root {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <!-- Load dependencies & Parent View JS -->
+  <script src="/prototypes/schools/peak-primary/session-guard.js"></script>
+  <script src="/prototypes/schools/peak-primary/school-brand.js"></script>
+  <script type="text/babel" src="/prototypes/schools/peak-primary/school-document-header.jsx"></script>
+  <script type="text/babel" src="/prototypes/schools/peak-primary/school-fee-statement.jsx"></script>
+  <script type="text/babel" src="/prototypes/schools/peak-primary/school-report-card.jsx"></script>
+  <script type="text/babel" src="/prototypes/schools/peak-primary/parent-view.jsx"></script>
+
+  <script type="text/babel">
+    function ParentApp() {
+      return (
+        <React.Suspense fallback={<div style={{ color: '#00FC8F', padding: '40px', textAlign: 'center' }}>Loading Parent Portal...</div>}>
+          <window.ParentView />
+        </React.Suspense>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<ParentApp />);
+  </script>
+</body>
+</html>
