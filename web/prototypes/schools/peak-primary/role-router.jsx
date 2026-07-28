@@ -68,6 +68,10 @@
   // ─── Default landing screen after login ──────────────────────────────
   function defaultRouteForRole() {
     const role = getRole();
+    if (role === 'head' || role === 'headteacher') {
+      window.location.href = '/prototypes/schools/peak-primary/headteacher-dashboard.html';
+      return 'headteacher';
+    }
     if (role === 'bursar')  return 'fees';
     if (role === 'teacher') return 'teacher-home';
     if (role === 'driver')  {
@@ -78,18 +82,20 @@
       window.location.href = '/prototypes/schools/peak-primary/parent-dashboard.html';
       return 'parent';
     }
-    return 'spec'; // admin / head keep current default
+    return 'spec'; // admin / director keep index.html
   }
 
   // ─── Pretty label for the sidebar profile chip ───────────────────────
   function roleLabel() {
     const role = getRole();
     return ({
-      admin:   'Administrator',
-      head:    'Head Teacher',
-      bursar:  'Bursar',
-      teacher: 'Teacher',
-      driver:  'School Driver',
+      admin:    'School Director / Owner',
+      director: 'School Director / Owner',
+      head:     'Head Teacher / Administrator (Nalukenge Jane)',
+      bursar:   'Bursar',
+      teacher:  'Teacher',
+      driver:   'School Driver',
+      parent:   'Parent',
     })[role] || 'User';
   }
 

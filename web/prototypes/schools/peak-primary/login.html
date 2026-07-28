@@ -130,11 +130,11 @@
 
     <!-- Quick Role Selector -->
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 20px;">
-      <button type="button" onclick="loginAsRole('head')" style="margin-top:0; padding: 10px; font-size: 11px; font-weight: 700; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); color: #fff; border-radius: 6px; cursor:pointer;">👑 Head Teacher</button>
+      <button type="button" onclick="loginAsRole('director')" style="margin-top:0; padding: 10px; font-size: 11px; font-weight: 700; background: rgba(255,180,0,0.18); border: 1.5px solid #FFB400; color: #FFB400; border-radius: 6px; cursor:pointer;">👑 School Director / Owner</button>
+      <button type="button" onclick="loginAsRole('head')" style="margin-top:0; padding: 10px; font-size: 11px; font-weight: 700; background: rgba(0,252,143,0.18); border: 1.5px solid #00FC8F; color: #00FC8F; border-radius: 6px; cursor:pointer;">👩‍💼 Head Teacher (Nalukenge Jane)</button>
       <button type="button" onclick="loginAsRole('teacher')" style="margin-top:0; padding: 10px; font-size: 11px; font-weight: 700; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); color: #fff; border-radius: 6px; cursor:pointer;">👩‍🏫 Teacher</button>
-      <button type="button" onclick="loginAsRole('bursar')" style="margin-top:0; padding: 10px; font-size: 11px; font-weight: 700; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); color: #fff; border-radius: 6px; cursor:pointer;">💰 Bursar</button>
       <button type="button" onclick="loginAsRole('driver')" style="margin-top:0; padding: 10px; font-size: 11px; font-weight: 700; background: rgba(59,130,246,0.2); border: 1px solid #3B82F6; color: #60A5FA; border-radius: 6px; cursor:pointer;">🚌 Driver / Shuttle</button>
-      <button type="button" onclick="loginAsRole('parent')" style="grid-column: span 2; margin-top:0; padding: 12px; font-size: 13px; font-weight: 900; background: #00FC8F; color: #0A1029; border: none; border-radius: 8px; cursor:pointer;">👨‍round‍👧 Parent Portal (Instant Sign-In)</button>
+      <button type="button" onclick="loginAsRole('parent')" style="grid-column: span 2; margin-top:0; padding: 12px; font-size: 13px; font-weight: 900; background: #00FC8F; color: #0A1029; border: none; border-radius: 8px; cursor:pointer;">👨‍👩‍👧 Parent Portal (Instant Sign-In)</button>
     </div>
 
     <form id="login-form" autocomplete="on">
@@ -250,11 +250,22 @@
         window.location.href = '/prototypes/schools/peak-primary/driver-dashboard.html';
         return;
       }
-      if (role === 'head' || role === 'teacher' || role === 'bursar') {
+      if (role === 'head' || role === 'headteacher') {
+        const profile = {
+          email: 'nalukenge.jane@kabs-lily.ac.ug',
+          fullName: 'Nalukenge Jane (Head Teacher / Administrator)',
+          role: 'head',
+          tenantId: 'kabs-lily-junior-school-and-kindercare-centre',
+        };
+        localStorage.setItem('nextos.profile', JSON.stringify(profile));
+        window.location.href = '/prototypes/schools/peak-primary/headteacher-dashboard.html';
+        return;
+      }
+      if (role === 'director' || role === 'admin' || role === 'teacher' || role === 'bursar') {
         const profile = {
           email: `${role}@kabs-lily.ac.ug`,
-          fullName: role === 'head' ? 'Head Teacher' : role === 'bursar' ? 'Bursar' : 'Teacher',
-          role: role,
+          fullName: role === 'director' ? 'School Director / Owner' : role === 'bursar' ? 'Bursar' : 'Teacher',
+          role: role === 'director' ? 'admin' : role,
           tenantId: 'kabs-lily-junior-school-and-kindercare-centre',
         };
         localStorage.setItem('nextos.profile', JSON.stringify(profile));

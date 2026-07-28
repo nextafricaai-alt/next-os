@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Head Teacher Dashboard — Kabs Lily Kindercare & Primary School</title>
+  <link rel="icon" type="image/png" href="/prototypes/schools/peak-primary/assets/peak-logo.png" />
+  
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&family=Instrument+Serif&display=swap" rel="stylesheet">
+  
+  <!-- Leaflet Maps CSS & JS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <!-- React & Babel CDNs -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <style>
+    :root {
+      --bg-dark: #0a1029;
+      --bg-surface: #141e3c;
+      --bg-surface2: #1a2548;
+      --mint: #00FC8F;
+      --gold: #FFB400;
+      --red: #FF4757;
+      --blue: #3B82F6;
+      --font-body: 'Inter', -apple-system, system-ui, sans-serif;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      background: var(--bg-dark);
+      color: #f5f6fa;
+      font-family: var(--font-body);
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+    }
+    #root {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    /* Scrollbars */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); }
+    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(0,252,143,0.4); }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <!-- Load dependencies & Head Teacher View JS -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="/prototypes/schools/peak-primary/session-guard.js"></script>
+  <script src="/prototypes/schools/peak-primary/school-brand.js"></script>
+  <script type="text/babel" src="/prototypes/schools/peak-primary/school-document-header.jsx"></script>
+  <script type="text/babel" src="/prototypes/schools/peak-primary/school-fee-statement.jsx"></script>
+  <script type="text/babel" src="/prototypes/schools/peak-primary/headteacher-view.jsx"></script>
+
+  <script type="text/babel">
+    function HeadTeacherApp() {
+      return (
+        <React.Suspense fallback={<div style={{ color: '#00FC8F', padding: '40px', textAlign: 'center', fontWeight: 'bold' }}>Loading Head Teacher Control Hub...</div>}>
+          <window.HeadTeacherView />
+        </React.Suspense>
+      );
+    }
+    ReactDOM.createRoot(document.getElementById('root')).render(<HeadTeacherApp />);
+  </script>
+</body>
+</html>
