@@ -3646,11 +3646,14 @@ const V4 = (function () {
 
   // ─── secondary KPI strip ──────────────────────────────────────────────────
   function SecondaryKPIs() {
+    const _D = (typeof D !== 'undefined' && D) ? D : (window.PEAK || {});
+    const _k = _D.kpis || {};
+    const _fmt = _D.fmtUGXshort || (v => 'UGX ' + Number(v||0).toLocaleString());
     const items = [
-      { l: 'Absent today',  v: String(D.kpis.absentToday || 0),  sub: (D.kpis.students ? Math.round(100*(D.kpis.absentToday||0)/D.kpis.students)+'% of roll' : 'no roster'), tone: 'warn' },
-      { l: 'Overdue accounts', v: String(D.kpis.feesOutstandingStudents || 0), sub: D.fmtUGXshort(Math.max(0,(D.kpis.feesTargetTerm||0)-(D.kpis.feesCollectedTerm||0))) + ' due', tone: 'bad' },
-      { l: 'Fees collected', v: D.fmtUGXshort(D.kpis.feesCollectedTerm || 0), sub: 'this term', tone: 'good' },
-      { l: 'At-risk learners', v: String((D.students || []).filter(s => s.flag === 'risk' || (s.attendanceWk != null && s.attendanceWk < 70)).length), sub: 'need follow-up', tone: 'bad' },
+      { l: 'Absent today',  v: String(_k.absentToday || 0),  sub: (_k.students ? Math.round(100*(_k.absentToday||0)/_k.students)+'% of roll' : 'no roster'), tone: 'warn' },
+      { l: 'Overdue accounts', v: String(_k.feesOutstandingStudents || 0), sub: _fmt(Math.max(0,(_k.feesTargetTerm||0)-(_k.feesCollectedTerm||0))) + ' due', tone: 'bad' },
+      { l: 'Fees collected', v: _fmt(_k.feesCollectedTerm || 0), sub: 'this term', tone: 'good' },
+      { l: 'At-risk learners', v: String((_D.students || []).filter(s => s.flag === 'risk' || (s.attendanceWk != null && s.attendanceWk < 70)).length), sub: 'need follow-up', tone: 'bad' },
     ];
     return (
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 16 }}>
@@ -4041,7 +4044,7 @@ const V4 = (function () {
                   {(function(){var p=(window.PEAK_ROLE&&window.PEAK_ROLE.getProfile&&window.PEAK_ROLE.getProfile())||{};var n=((p.fullName||'').trim().split(' ')[0])||'there';var h=new Date().getHours();var g=h<12?'Good morning':h<17?'Good afternoon':'Good evening';return g+', '+n+'.';})()}
                 </div>
                 <div style={{ fontSize: 14, color: T.ink2, marginTop: 8, maxWidth: 620 }}>
-                  {D.kpis.presentToday} of {D.kpis.students} children on campus. Fees at {D.kpis.feesTargetTerm ? Math.round(100*D.kpis.feesCollectedTerm/D.kpis.feesTargetTerm) : 0}%. {D.hasData ? 'Here is what needs your attention today.' : 'No roster imported yet — add students to bring this dashboard to life.'}
+                  {(D.kpis || {}).presentToday || 0} of {(D.kpis || {}).students || 0} children on campus. Fees at {(D.kpis || {}).feesTargetTerm ? Math.round(100 * ((D.kpis || {}).feesCollectedTerm || 0) / (D.kpis || {}).feesTargetTerm) : 0}%. {D.hasData ? 'Here is what needs your attention today.' : 'No roster imported yet — add students to bring this dashboard to life.'}
                 </div>
               </div>
               <div style={{ display: 'flex', gap: 6, padding: 3, background: T.surface, border: '1px solid ' + T.border, borderRadius: 10 }}>
@@ -11823,7 +11826,8 @@ window.PEAK_STAFF = (function () {
           <div style={{ fontSize: 10, fontWeight: 700, color: T.ink4, padding: '10px 10px 8px', letterSpacing: '0.08em', textTransform: 'uppercase', fontFamily: T.mono }}>Operations</div>
           {(window.PEAK_ROLE ? window.PEAK_ROLE.filterNavItems(navItems) : navItems).map(n => {
             const isActive = route === n.k || (route === 'profile' && n.k === 'stud');
-            const count = n.countKey ? D.kpis[n.countKey] : null;
+            const _pk = (typeof D !== 'undefined' && D && D.kpis) ? D.kpis : (window.PEAK && window.PEAK.kpis ? window.PEAK.kpis : {});
+            const count = n.countKey && _pk ? _pk[n.countKey] : null;
             const locked = window.PEAK_PACKAGES && ({ comm: 1, finance: 1, learn: 1, marking: 1 })[n.k] && !window.PEAK_PACKAGES.entitled(n.k);
             return (
               <button key={n.k} onClick={() => onNav(n.k)} style={{
