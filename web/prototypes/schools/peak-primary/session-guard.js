@@ -68,37 +68,42 @@
     },
   };
 
-  // Hard gate: if no session, redirect immediately
+  // Non-blocking session check with 1.5s timeout
   (async () => {
-    const { data: { session } } = await sb.auth.getSession();
-    if (!session) {
-      // No session at all — log out and bounce to login
-      var url0 = loginUrl();
-      localStorage.removeItem('nextos.profile');
-      window.location.href = url0;
-      return;
-    }
-
-    // Session exists. Make sure profile is fresh.
-    if (!profile || profile.email !== session.user.email) {
-      await window.NextSession.refresh();
-    }
-
-    // Tenant guard: this installed app belongs to ONE school. If the signed-in
-    // user is from a different school, send them to THIS school's login.
-    var _slug = appSlug();
-    if (_slug && window.NextSession.profile && window.NextSession.profile.tenantId && window.NextSession.profile.tenantId !== _slug) {
-      window.location.href = '/school/' + encodeURIComponent(_slug) + '/login';
-      return;
-    }
-
-    // Listen for session changes (e.g. token expires) and bounce to login
-    sb.auth.onAuthStateChange((event, newSession) => {
-      if (event === 'SIGNED_OUT' || !newSession) {
-        var url = loginUrl();
+    try {
+      var timeoutPromise = new Promise(function(resolve) { setTimeout(function() { resolve(null); }, 1500); });
+      var sessionPromise = sb.auth.getSession().then(function(res) { return res && res.data ? res.data.session : null; }).catch(function() { return null; });
+      
+      var session = await Promise.race([sessionPromise, timeoutPromise]);
+      
+      // If no session and no cached profile, redirect to login
+      if (!session && !profile) {
+        var url0 = loginUrl();
         localStorage.removeItem('nextos.profile');
-        window.location.href = url;
+        window.location.href = url0;
+        return;
       }
-    });
+
+      // If session exists and profile missing/mismatched, refresh in background
+      if (session && (!profile || profile.email !== session.user.email)) {
+        window.NextSession.refresh().catch(function() {});
+      }
+
+      // Tenant guard: verify slug
+      var _slug = appSlug();
+      if (_slug && window.NextSession.profile && window.NextSession.profile.tenantId && window.NextSession.profile.tenantId !== _slug) {
+        window.location.href = '/school/' + encodeURIComponent(_slug) + '/login';
+        return;
+      }
+
+      // Listen for auth changes
+      sb.auth.onAuthStateChange(function(event, newSession) {
+        if (event === 'SIGNED_OUT') {
+          var url = loginUrl();
+          localStorage.removeItem('nextos.profile');
+          window.location.href = url;
+        }
+      });
+    } catch (e) {}
   })();
 })();
