@@ -85,7 +85,7 @@ WHERE tenant_id = 'kabs-lily-junior-school-and-kindercare-centre';
 DO $$
 DECLARE
   v_tenant  TEXT := 'kabs-lily-junior-school-and-kindercare-centre';
-  v_streams TEXT[] := ARRAY['P1', 'P2', 'P3', 'P4', 'P5', 'P6', 'P7', 'Baby', 'Middle', 'Top'];
+  v_streams TEXT[] := ARRAY['Primary Seven', 'Primary Six', 'Primary Five', 'Primary Four', 'Primary Three', 'Primary Two', 'Primary One', 'Top Class', 'Middle Class', 'Baby Class'];
   v_dow     INT;
   v_stream  TEXT;
 BEGIN
