@@ -133,12 +133,43 @@
       rollCalls = rc || [];
     }
 
-    // Recent health records for students in this teacher's streams
-    const allStudents = (window.PEAK && window.PEAK.students) || [];
-    const myStreamsSet = new Set((assignments || []).map(a => a.stream));
-    const myStudentIds = allStudents.filter(s => myStreamsSet.has(s.stream)).map(s => s.id);
+    // ── Fetch students from Supabase by stream (replaces window.PEAK.students) ──────────
+    const teacherStreams = (assignments || []).map(a => a.stream);
+    let streamStudents = [];
+    if (teacherStreams.length > 0 && sb) {
+      const { data: studs } = await sb
+        .from('students')
+        .select('id, name, stream, is_boarding, admission_number')
+        .eq('tenant_id', tenantId)
+        .in('stream', teacherStreams)
+        .order('name', { ascending: true });
+      streamStudents = studs || [];
+    }
+
+    // ── Fetch today's timetable slots for this teacher's streams ───────────────────────
+    // day_of_week: JS getDay() returns 0=Sun … 6=Sat; DB uses 1=Mon … 7=Sun
+    const jsDay = new Date().getDay();
+    const dbDow = jsDay === 0 ? 7 : jsDay; // convert Sun→7
+    let todaySlots = [];
+    if (teacherStreams.length > 0 && sb && dbDow <= 5) { // weekdays only
+      const { data: slots } = await sb
+        .from('timetable_slots')
+        .select('id, period, start_time, end_time, stream, subject, teacher_id, label')
+        .eq('tenant_id', tenantId)
+        .eq('day_of_week', dbDow)
+        .in('stream', teacherStreams)
+        .order('period', { ascending: true });
+      // Deduplicate by period (one slot per period across all streams is enough for lock)
+      const seen = new Set();
+      (slots || []).forEach(s => {
+        if (!seen.has(s.period)) { seen.add(s.period); todaySlots.push(s); }
+      });
+    }
+
+    // ── Recent health records ──────────────────────────────────────────────────────────
+    const myStudentIds = streamStudents.map(s => s.id);
     let healthRecords = [];
-    if (myStudentIds.length > 0) {
+    if (myStudentIds.length > 0 && sb) {
       const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
       const { data: hr } = await sb
         .from('student_health_records')
@@ -158,6 +189,8 @@
       checkin: (checkins && checkins[0]) || null,
       rollCalls,
       healthRecords,
+      streamStudents,   // ← from Supabase
+      todaySlots,       // ← timetable for today
     };
   }
 
@@ -227,14 +260,31 @@
   }
 
   async function writeRollCall(records) {
-    // records = [{ tenant_id, teacher_id, student_id, stream, status, notes? }, ...]
+    // records = [{ tenant_id, teacher_id, student_id, stream, status, period_number, period_start, period_end, notes? }, ...]
     const sb = window.NextSession?.sb;
     if (!sb) return { error: 'No session' };
-    // upsert each row (UNIQUE on student_id, roll_date) so re-saving overwrites
+    // upsert per student + date + period so a teacher can take multiple periods per day
     const { data, error } = await sb
       .from('student_roll_call')
-      .upsert(records, { onConflict: 'student_id,roll_date' })
-      .select('id, student_id, stream, status');
+      .upsert(records, { onConflict: 'student_id,roll_date,period_number' })
+      .select('id, student_id, stream, status, period_number');
+    return { data, error };
+  }
+
+  async function writeTeacherNote(studentId, teacherId, tenantId, note, noteType) {
+    const sb = window.NextSession?.sb;
+    if (!sb || !note || !note.trim()) return { error: 'No session or empty note' };
+    const { data, error } = await sb
+      .from('student_notes')
+      .insert({
+        tenant_id: tenantId || 'kabs-lily-junior-school-and-kindercare-centre',
+        student_id: studentId,
+        teacher_id: teacherId,
+        note: note.trim(),
+        note_type: noteType || 'general',
+      })
+      .select('id, created_at')
+      .maybeSingle();
     return { data, error };
   }
 
@@ -321,11 +371,37 @@
   }
 
 
+  // ─── Period lock helpers ─────────────────────────────────────────────
+  function getPeriodStatus(slot) {
+    if (!slot) return 'locked';
+    const now = new Date();
+    const [startH, startM] = slot.start_time.split(':').map(Number);
+    const [endH, endM]     = slot.end_time.split(':').map(Number);
+    const nowMins   = now.getHours() * 60 + now.getMinutes();
+    const startMins = startH * 60 + startM;
+    const endMins   = endH * 60 + endM;
+    const graceMins = endMins + 20; // 20-min grace after period ends
+    if (nowMins < startMins)   return 'locked'; // period hasn't started
+    if (nowMins > graceMins)   return 'past';   // past + grace expired
+    return 'active';                             // currently active
+  }
+
+  function formatTime(t) {
+    if (!t) return '—';
+    const [h, m] = t.split(':').map(Number);
+    const ampm = h >= 12 ? 'pm' : 'am';
+    const h12 = h % 12 || 12;
+    return `${h12}:${String(m).padStart(2, '0')}${ampm}`;
+  }
+
   // ─── Nia's intelligence layer ───────────────────────────────────────
-  function computeNiaNudges({ teacher, assignments, rollCalls, checkin, healthRecords }) {
+  function computeNiaNudges({ teacher, assignments, rollCalls, checkin, healthRecords, streamStudents, todaySlots }) {
     const nudges = [];
-    const allStudents = (window.PEAK && window.PEAK.students) || [];
     const myStreams = new Set(assignments.map(a => a.stream));
+    // Use Supabase students if available, fall back to window.PEAK for dev
+    const allStudents = streamStudents && streamStudents.length > 0
+      ? streamStudents
+      : ((window.PEAK && window.PEAK.students) || []);
     const myStudents = allStudents.filter(s => myStreams.has(s.stream));
     const today = new Date();
     const isWeekend = today.getDay() === 0 || today.getDay() === 6;
@@ -342,15 +418,18 @@
       });
     }
 
-    // 2. Roll call not taken for each assigned stream (weekdays only)
+    // 2. Roll call not taken for each assigned stream (weekdays only, only for active/past slots)
     if (!isWeekend) {
       assignments.forEach(a => {
+        const slot = (todaySlots || []).find(sl => sl.stream === a.stream);
+        const slotStatus = slot ? getPeriodStatus(slot) : 'active'; // if no timetable, always allow
+        if (slotStatus === 'locked') return; // skip — period not started yet
         const taken = rollCalls.filter(rc => rc.stream === a.stream).length;
         const expected = allStudents.filter(s => s.stream === a.stream).length;
         if (expected > 0 && taken < expected) {
           nudges.push({
             id: 'roll-' + a.stream,
-            tone: 'warn',
+            tone: slotStatus === 'active' ? 'warn' : 'info',
             icon: '☰',
             title: 'Take roll call for ' + a.stream + ' · ' + a.subject,
             body: taken === 0
@@ -779,28 +858,37 @@
     );
   }
 
-  // ─── Modal: Roll Call ──────────────────────────────────────────────
-  function RollCallModal({ stream, teacher, assignments, existingRollCalls, onClose, onSaved, profile }) {
-    const allStudents = (window.PEAK && window.PEAK.students) || [];
-    const streamStudents = useMemo(
-      () => allStudents.filter(s => s.stream === stream),
-      [allStudents, stream]
-    );
+  // ─── Modal: Roll Call (Period-Aware, Supabase Students, Teacher Notes) ─
+  function RollCallModal({ stream, slot, teacher, existingRollCalls, onClose, onSaved, profile, allStreamStudents }) {
+    // Students come from Supabase (passed via allStreamStudents), fallback to PEAK demo
+    const streamStudents = useMemo(() => {
+      const from = allStreamStudents && allStreamStudents.length > 0
+        ? allStreamStudents
+        : ((window.PEAK && window.PEAK.students) || []);
+      return from.filter(s => s.stream === stream);
+    }, [allStreamStudents, stream]);
 
-    // Hydrate from existing roll call records for today
+    const periodNumber = slot ? slot.period : 0;
+
+    // Hydrate from existing roll call records for today (matching period)
     const initialStatuses = useMemo(() => {
       const map = {};
       streamStudents.forEach(s => {
-        const existing = existingRollCalls.find(rc => rc.student_id === s.id);
+        const existing = existingRollCalls.find(rc =>
+          rc.student_id === s.id && (rc.period_number === periodNumber || periodNumber === 0)
+        );
         map[s.id] = existing ? existing.status : 'present';
       });
       return map;
-    }, [streamStudents, existingRollCalls]);
+    }, [streamStudents, existingRollCalls, periodNumber]);
 
-    const [statuses, setStatuses] = useState(initialStatuses);
-    const [saving, setSaving] = useState(false);
+    const [statuses, setStatuses]   = useState(initialStatuses);
+    const [notes,    setNotes]      = useState({});  // studentId → note text
+    const [showNote, setShowNote]   = useState({});  // studentId → boolean
+    const [saving,   setSaving]     = useState(false);
 
     const setStatus = (id, status) => setStatuses(prev => ({ ...prev, [id]: status }));
+    const toggleNote = (id) => setShowNote(prev => ({ ...prev, [id]: !prev[id] }));
 
     const counts = useMemo(() => {
       const c = { present: 0, absent: 0, late: 0, excused: 0 };
@@ -811,80 +899,160 @@
     const handleSave = async () => {
       if (saving) return;
       setSaving(true);
+      const tenantId = profile.tenantId || 'kabs-lily-junior-school-and-kindercare-centre';
       const records = streamStudents.map(s => ({
-        tenant_id: profile.tenantId,
+        tenant_id: tenantId,
         teacher_id: teacher.id,
         student_id: s.id,
-        stream: stream,
+        stream,
         status: statuses[s.id] || 'present',
+        period_number: periodNumber,
+        period_start: slot ? slot.start_time : null,
+        period_end:   slot ? slot.end_time   : null,
+        notes: notes[s.id] ? notes[s.id].trim() : null,
       }));
+
       const { error } = await writeRollCall(records);
-      setSaving(false);
       if (error) {
-        tinyToast('Roll call save failed: ' + error.message, 'error');
+        tinyToast('Roll call save failed: ' + (error.message || JSON.stringify(error)), 'error');
+        setSaving(false);
         return;
       }
-      tinyToast(`Roll call for ${stream} saved — head teacher sees it now.`, 'success');
+
+      // Save teacher notes for students who have them
+      const noteEntries = Object.entries(notes).filter(([, txt]) => txt && txt.trim());
+      for (const [sidStr, txt] of noteEntries) {
+        await writeTeacherNote(Number(sidStr), teacher.id, tenantId, txt, 'roll_call_note');
+      }
+
+      tinyToast(`Roll call for ${stream} (P${periodNumber}) saved — head teacher sees it now.`, 'success');
       onSaved(records);
+      setSaving(false);
       onClose();
     };
 
     const statusBtn = (current, value, label, color) => {
       const active = current === value;
       return (
-        <button onClick={(e) => { e.stopPropagation(); }} style={{
-          background: active ? color : 'transparent',
-          color: active ? T.bg : T.ink3,
-          border: '1px solid ' + (active ? color : T.borderStr),
-          padding: '5px 10px', borderRadius: 6,
-          fontSize: 11, fontWeight: 700, fontFamily: T.mono, letterSpacing: 0.5,
-          cursor: 'pointer',
-        }}>{label}</button>
+        <button
+          onClick={(e) => { e.stopPropagation(); setStatus(streamStudents.find(s => statuses[s.id] === current)?.id, value); }}
+          style={{
+            background: active ? color : 'transparent',
+            color: active ? T.bg : T.ink3,
+            border: '1px solid ' + (active ? color : T.borderStr),
+            padding: '5px 10px', borderRadius: 6,
+            fontSize: 11, fontWeight: 700, fontFamily: T.mono, letterSpacing: 0.5,
+            cursor: 'pointer',
+          }}>{label}</button>
       );
     };
 
+    const periodLabel = slot
+      ? `Period ${slot.period} · ${formatTime(slot.start_time)}–${formatTime(slot.end_time)} · ${slot.subject || ''}`
+      : 'Roll Call';
+
     return (
-      <Modal title={`Roll Call · ${stream}`} onClose={onClose} width={640}>
+      <Modal title={`Roll Call · ${stream}`} onClose={onClose} width={680}>
+        {/* Period info banner */}
         <div style={{
-          padding: '12px 14px', background: T.surface2, borderRadius: 10,
-          marginBottom: 16, display: 'flex', gap: 18, fontSize: 12, color: T.ink2, fontFamily: T.mono,
+          padding: '10px 14px', background: 'rgba(0,252,143,0.07)',
+          border: '1px solid rgba(0,252,143,0.2)', borderRadius: 10, marginBottom: 14,
+          display: 'flex', alignItems: 'center', gap: 10, fontSize: 12, color: T.green, fontFamily: T.mono,
+        }}>
+          <span style={{ fontSize: 16 }}>📋</span>
+          <span style={{ fontWeight: 700 }}>{periodLabel}</span>
+          <span style={{ marginLeft: 'auto', color: T.ink3 }}>{streamStudents.length} students</span>
+        </div>
+
+        {/* Live counts */}
+        <div style={{
+          padding: '10px 14px', background: T.surface2, borderRadius: 10,
+          marginBottom: 14, display: 'flex', gap: 18, fontSize: 12, color: T.ink2, fontFamily: T.mono,
         }}>
           <span><span style={{ color: T.green }}>● {counts.present}</span> present</span>
           <span><span style={{ color: T.red }}>● {counts.absent}</span> absent</span>
           <span><span style={{ color: T.gold }}>● {counts.late}</span> late</span>
           <span><span style={{ color: T.blue }}>● {counts.excused}</span> excused</span>
-          <span style={{ marginLeft: 'auto', color: T.ink3 }}>{streamStudents.length} students</span>
         </div>
 
         {streamStudents.length === 0 ? (
-          <Empty text={`No students seeded for ${stream} yet.`} />
+          <div style={{ padding: '20px 0', textAlign: 'center' }}>
+            <div style={{ fontSize: 13, color: T.ink3, marginBottom: 10 }}>No students found for {stream} in the database.</div>
+            <div style={{ fontSize: 11, color: T.ink4, fontFamily: T.mono }}>Run the SQL migration + import CSV to populate students.</div>
+          </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {streamStudents.map(s => {
               const current = statuses[s.id] || 'present';
+              const noteOpen = showNote[s.id];
+              const statusColor = current === 'present' ? T.green : current === 'absent' ? T.red : current === 'late' ? T.gold : T.blue;
               return (
                 <div key={s.id} style={{
-                  display: 'flex', alignItems: 'center', gap: 12,
-                  padding: '10px 12px', background: T.surface2, borderRadius: 8,
+                  background: T.surface2, borderRadius: 10, overflow: 'hidden',
+                  border: '1px solid ' + (current === 'absent' ? 'rgba(255,71,87,0.2)' : 'transparent'),
                 }}>
-                  <span style={{
-                    width: 32, height: 32, borderRadius: 999, background: T.surface3,
-                    display: 'grid', placeItems: 'center', fontSize: 11, color: T.ink2, fontWeight: 600, flexShrink: 0,
-                  }}>{s.name.split(' ').map(n => n[0]).join('').slice(0, 2)}</span>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 13, fontWeight: 500, color: T.ink }}>{s.name}</div>
-                    <div style={{ fontSize: 10.5, color: T.ink3, fontFamily: T.mono }}>
-                      {s.flag === 'risk' && <span style={{ color: T.red }}>AT RISK · </span>}
-                      {s.flag === 'top' && <span style={{ color: T.gold }}>TOP · </span>}
-                      attendance {s.attendanceWk}%
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px' }}>
+                    {/* Avatar */}
+                    <span style={{
+                      width: 34, height: 34, borderRadius: 999,
+                      background: 'rgba(255,255,255,0.06)',
+                      border: '2px solid ' + statusColor,
+                      display: 'grid', placeItems: 'center',
+                      fontSize: 11, color: statusColor, fontWeight: 700, flexShrink: 0,
+                    }}>{s.name.split(' ').map(n => n[0]).join('').slice(0, 2)}</span>
+
+                    {/* Name */}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: T.ink }}>{s.name}</div>
+                      <div style={{ fontSize: 10.5, color: T.ink3, fontFamily: T.mono }}>
+                        {s.is_boarding ? <span style={{ color: T.gold }}>BOARDING · </span> : ''}
+                        {s.stream}
+                      </div>
                     </div>
+
+                    {/* Status buttons */}
+                    <div style={{ display: 'flex', gap: 5, flexShrink: 0 }} onClick={e => e.stopPropagation()}>
+                      {[['present','P',T.green],['absent','A',T.red],['late','L',T.gold],['excused','E',T.blue]].map(([val, lbl, col]) => (
+                        <button key={val} onClick={() => setStatus(s.id, val)} style={{
+                          width: 32, height: 32, borderRadius: 7,
+                          background: current === val ? col : 'transparent',
+                          color: current === val ? T.bg : T.ink4,
+                          border: '1px solid ' + (current === val ? col : T.borderStr),
+                          fontSize: 11, fontWeight: 700, fontFamily: T.mono,
+                          cursor: 'pointer', flexShrink: 0,
+                        }}>{lbl}</button>
+                      ))}
+                    </div>
+
+                    {/* Note toggle */}
+                    <button onClick={() => toggleNote(s.id)} title="Add note" style={{
+                      width: 30, height: 30, borderRadius: 7, flexShrink: 0,
+                      background: notes[s.id] ? 'rgba(59,130,246,0.15)' : 'transparent',
+                      color: notes[s.id] ? T.blue : T.ink4,
+                      border: '1px solid ' + (notes[s.id] ? T.blue : T.borderStr),
+                      fontSize: 13, cursor: 'pointer',
+                    }}>✏</button>
                   </div>
-                  <div style={{ display: 'flex', gap: 6, flexShrink: 0 }} onClick={(e) => e.stopPropagation()}>
-                    <span onClick={() => setStatus(s.id, 'present')}>{statusBtn(current, 'present', 'PRESENT', T.green)}</span>
-                    <span onClick={() => setStatus(s.id, 'absent')}>{statusBtn(current, 'absent', 'ABSENT', T.red)}</span>
-                    <span onClick={() => setStatus(s.id, 'late')}>{statusBtn(current, 'late', 'LATE', T.gold)}</span>
-                    <span onClick={() => setStatus(s.id, 'excused')}>{statusBtn(current, 'excused', 'EXCUSED', T.blue)}</span>
-                  </div>
+
+                  {/* Expandable note input */}
+                  {noteOpen && (
+                    <div style={{ padding: '0 12px 10px' }}>
+                      <input
+                        value={notes[s.id] || ''}
+                        onChange={e => setNotes(prev => ({ ...prev, [s.id]: e.target.value }))}
+                        placeholder={`Note about ${s.name.split(' ')[0]}…`}
+                        style={{
+                          width: '100%', background: T.surface3,
+                          border: '1px solid ' + T.border, borderRadius: 7,
+                          padding: '8px 10px', color: T.ink, fontSize: 12,
+                          fontFamily: T.font, outline: 'none', boxSizing: 'border-box',
+                        }}
+                      />
+                      <div style={{ fontSize: 10, color: T.ink4, marginTop: 4, fontFamily: T.mono }}>
+                        Note will sync to {s.name.split(' ')[0]}'s profile instantly
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -902,7 +1070,7 @@
             padding: '10px 22px', borderRadius: 8, fontSize: 13, fontWeight: 700,
             cursor: saving ? 'wait' : 'pointer', fontFamily: T.font,
             opacity: saving ? 0.6 : 1,
-          }}>{saving ? 'Saving…' : 'Save Roll Call'}</button>
+          }}>{saving ? 'Saving…' : `Save Roll Call · ${streamStudents.length} students`}</button>
         </div>
       </Modal>
     );
@@ -1035,45 +1203,92 @@
     );
   }
 
-  // ─── Card: Today's Classes (with Take Roll Call buttons) ───────────
-  function TodaysClassesCard({ assignments, rollCalls, onTakeRollCall }) {
-    const today = new Date();
-    const todayName = DAY_NAMES[today.getDay()];
-    const isWeekend = today.getDay() === 0 || today.getDay() === 6;
-    const todaysClasses = isWeekend ? [] : assignments;
+  // ─── Card: Today's Classes — Period-Lock Aware ──────────────────────
+  function TodaysClassesCard({ assignments, rollCalls, todaySlots, streamStudents, onTakeRollCall, inProgressStream }) {
+    const today      = new Date();
+    const todayName  = DAY_NAMES[today.getDay()];
+    const isWeekend  = today.getDay() === 0 || today.getDay() === 6;
 
-    const allStudents = (window.PEAK && window.PEAK.students) || [];
-        const rollCountFor = (stream) => rollCalls.filter(rc => rc.stream === stream).length;
+    // Use Supabase students if available
+    const allStudents = streamStudents && streamStudents.length > 0
+      ? streamStudents
+      : ((window.PEAK && window.PEAK.students) || []);
+    const rollCountFor     = (stream) => rollCalls.filter(rc => rc.stream === stream).length;
     const studentsInStream = (stream) => allStudents.filter(s => s.stream === stream).length;
 
+    // Find slot for a stream (use first period slot since all streams share the same period times)
+    const slotForStream = (stream) => {
+      const direct = (todaySlots || []).find(sl => sl.stream === stream);
+      if (direct) return direct;
+      // If no stream-specific slot exists, use the first slot of the day as a proxy
+      return (todaySlots || [])[0] || null;
+    };
+
     return (
-      <Card title={"Today · " + todayName} subtitle="TODAY'S CLASSES" accent={T.green}>
+      <Card title={"Today · " + todayName} subtitle="TODAY'S CLASSES & ROLL CALL" accent={T.green}>
+        {/* Period reference bar */}
+        {!isWeekend && (todaySlots || []).length > 0 && (
+          <div style={{
+            display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 14,
+            padding: '10px 12px', background: T.surface2, borderRadius: 10,
+          }}>
+            {todaySlots.map(sl => {
+              const ps = getPeriodStatus(sl);
+              const color = ps === 'active' ? T.green : ps === 'past' ? T.ink3 : 'rgba(255,255,255,0.2)';
+              const bg    = ps === 'active' ? 'rgba(0,252,143,0.12)' : 'transparent';
+              return (
+                <span key={sl.id} style={{
+                  fontSize: 10, fontFamily: T.mono, fontWeight: 700,
+                  padding: '3px 8px', borderRadius: 6,
+                  background: bg, color,
+                  border: '1px solid ' + (ps === 'active' ? 'rgba(0,252,143,0.3)' : 'rgba(255,255,255,0.07)'),
+                  letterSpacing: 0.4,
+                }}>
+                  {ps === 'active' ? '● ' : ps === 'locked' ? '🔒 ' : '✓ '}
+                  P{sl.period} {formatTime(sl.start_time)}
+                </span>
+              );
+            })}
+          </div>
+        )}
+
         {isWeekend ? (
           <Empty text="No classes today — it's the weekend. Enjoy the rest." />
-        ) : todaysClasses.length === 0 ? (
+        ) : assignments.length === 0 ? (
           <Empty text="You have no class assignments yet. Ask your head teacher." />
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {todaysClasses.map(a => {
-              const done = rollCountFor(a.stream);
-              const total = studentsInStream(a.stream);
+            {assignments.map(a => {
+              const slot     = slotForStream(a.stream);
+              const ps       = slot ? getPeriodStatus(slot) : 'active';
+              const done     = rollCountFor(a.stream);
+              const total    = studentsInStream(a.stream);
               const rollDone = done > 0 && total > 0 && done >= total;
+              const isLocked = ps === 'locked';
+              // A teacher cannot open a NEW roll call if another is in-progress
+              const blocked  = !isLocked && inProgressStream && inProgressStream !== a.stream;
               return (
                 <div key={a.id} style={{
                   display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap',
-                  padding: '12px 14px', background: T.surface2, borderRadius: 10,
+                  padding: '12px 14px',
+                  background: isLocked ? 'rgba(255,255,255,0.02)' : T.surface2,
+                  borderRadius: 10, opacity: isLocked ? 0.55 : 1,
+                  transition: 'opacity 0.2s',
                 }}>
                   <div style={{
-                    width: 42, height: 42, borderRadius: 10, background: T.surface3,
+                    width: 42, height: 42, borderRadius: 10,
+                    background: isLocked ? T.surface3 : T.surface3,
                     display: 'grid', placeItems: 'center',
-                    fontFamily: T.mono, fontWeight: 700, fontSize: 13, color: T.green,
-                  }}>{a.stream}</div>
+                    fontFamily: T.mono, fontWeight: 700, fontSize: 13,
+                    color: isLocked ? T.ink4 : T.green,
+                  }}>{isLocked ? '🔒' : a.stream}</div>
+
                   <div style={{ flex: 1, minWidth: 140 }}>
-                    <div style={{ fontSize: 14, fontWeight: 600, color: T.ink }}>
-                      {a.subject} · {a.stream.replace(/(P\d)(.)/, '$1 $2')}
+                    <div style={{ fontSize: 14, fontWeight: 600, color: isLocked ? T.ink3 : T.ink }}>
+                      {a.subject} · {a.stream}
                     </div>
-                    <div style={{ fontSize: 11, color: T.ink3, marginTop: 2 }}>
-                      Subject: {a.subject}
+                    <div style={{ fontSize: 11, color: T.ink4, marginTop: 2, fontFamily: T.mono }}>
+                      {slot ? `${formatTime(slot.start_time)} – ${formatTime(slot.end_time)}` : 'No timetable slot'}
                       {a.is_class_teacher && (
                         <span style={{
                           marginLeft: 8, fontSize: 9.5, color: T.gold,
@@ -1081,22 +1296,36 @@
                           borderRadius: 999, letterSpacing: 0.5, fontWeight: 600,
                         }}>CLASS TEACHER</span>
                       )}
-                      {rollDone && (
+                      {rollDone && !isLocked && (
                         <span style={{
                           marginLeft: 8, fontSize: 9.5, color: T.green,
                           background: 'rgba(0,252,143,0.12)', padding: '2px 8px',
                           borderRadius: 999, letterSpacing: 0.5, fontWeight: 600,
                         }}>ROLL TAKEN · {done}/{total}</span>
                       )}
+                      {isLocked && slot && (
+                        <span style={{ marginLeft: 8, fontSize: 10, color: T.ink4 }}>
+                          Unlocks at {formatTime(slot.start_time)}
+                        </span>
+                      )}
                     </div>
                   </div>
-                  <button onClick={() => onTakeRollCall(a.stream)} style={{
-                    background: rollDone ? 'transparent' : T.green,
-                    color: rollDone ? T.green : T.bg,
-                    border: '1px solid ' + T.green,
-                    padding: '8px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600,
-                    cursor: 'pointer', fontFamily: T.font,
-                  }}>{rollDone ? 'Update Roll' : 'Take Roll Call'}</button>
+
+                  <button
+                    disabled={isLocked || !!blocked}
+                    onClick={() => !isLocked && !blocked && onTakeRollCall(a.stream, slot)}
+                    title={isLocked ? `Roll call locked until ${formatTime(slot && slot.start_time)}` : blocked ? 'Finish current roll call first' : ''}
+                    style={{
+                      background: isLocked || blocked ? 'transparent'
+                                : rollDone ? 'transparent' : T.green,
+                      color: isLocked || blocked ? T.ink4 : rollDone ? T.green : T.bg,
+                      border: '1px solid ' + (isLocked || blocked ? T.borderStr : T.green),
+                      padding: '8px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600,
+                      cursor: isLocked || blocked ? 'not-allowed' : 'pointer', fontFamily: T.font,
+                      transition: 'all 0.15s',
+                    }}>
+                    {isLocked ? '🔒 Locked' : blocked ? 'Finish Current' : rollDone ? 'Update Roll' : 'Take Roll Call'}
+                  </button>
                 </div>
               );
             })}
@@ -1323,9 +1552,11 @@
   }
 
   function TeacherShell() {
-    const [data, setData] = useState({ loading: true });
-    const [rollCallStream, setRollCallStream] = useState(null);
-    const [healthStudent, setHealthStudent] = useState(null);
+    const [data,           setData]           = useState({ loading: true });
+    const [rollCallStream, setRollCallStream]  = useState(null); // stream string
+    const [rollCallSlot,   setRollCallSlot]    = useState(null); // timetable slot object
+    const [inProgressStream, setInProgressStream] = useState(null); // tracks open but unsaved roll
+    const [healthStudent,  setHealthStudent]   = useState(null);
 
     const profile = (window.PEAK_ROLE && window.PEAK_ROLE.getProfile()) || { fullName: 'Teacher', role: 'teacher' };
     const initials = (window.PEAK_ROLE && window.PEAK_ROLE.initials()) || 'T';
@@ -1335,27 +1566,69 @@
     }, []);
     useEffect(() => { refresh(); }, [refresh]);
 
+    // ── Real-time subscription: update roll calls when DB changes ─────────────────
+    useEffect(() => {
+      const sb = window.NextSession?.sb;
+      if (!sb) return;
+      const tenantId = profile.tenantId || 'kabs-lily-junior-school-and-kindercare-centre';
+      const today = new Date().toISOString().split('T')[0];
+      const channel = sb.channel('teacher-roll-call-rt')
+        .on('postgres_changes', {
+          event: '*',
+          schema: 'public',
+          table: 'student_roll_call',
+          filter: `tenant_id=eq.${tenantId}`,
+        }, (payload) => {
+          // On any change, refresh the roll call data
+          refresh();
+        })
+        .subscribe();
+      return () => { sb.removeChannel(channel); };
+    }, []);
+
+    // ── Open roll call: enforce period lock and one-at-a-time rule ────────────────
+    const handleOpenRollCall = useCallback((stream, slot) => {
+      const ps = slot ? getPeriodStatus(slot) : 'active';
+      if (ps === 'locked') {
+        tinyToast(`🔒 Roll call for ${stream} is locked until ${formatTime(slot && slot.start_time)}`, 'error');
+        return;
+      }
+      if (inProgressStream && inProgressStream !== stream) {
+        tinyToast(`Finish the roll call for ${inProgressStream} first before starting a new one.`, 'error');
+        return;
+      }
+      setRollCallStream(stream);
+      setRollCallSlot(slot || null);
+      setInProgressStream(stream); // mark as in-progress
+    }, [inProgressStream]);
+
     const signOut = async () => {
       if (window.NextSession && window.NextSession.signOut) await window.NextSession.signOut();
       else window.location.href = 'login.html';
     };
 
-    const onCheckedIn = (checkin) => setData(prev => ({ ...prev, checkin }));
+    const onCheckedIn  = (checkin) => setData(prev => ({ ...prev, checkin }));
     const onCheckedOut = (checkin) => setData(prev => ({ ...prev, checkin }));
     const onRollCallSaved = (newRecords) => {
-      // Update local roll call state
-      const updated = [...(data.rollCalls || []).filter(rc => !newRecords.find(nr => nr.student_id === rc.student_id)), ...newRecords];
+      // Update local roll call state (merge by student_id + period_number)
+      const updated = [
+        ...(data.rollCalls || []).filter(rc =>
+          !newRecords.find(nr => nr.student_id === rc.student_id && nr.period_number === rc.period_number)
+        ),
+        ...newRecords,
+      ];
       setData(prev => ({ ...prev, rollCalls: updated }));
+      setInProgressStream(null); // roll call completed — unlock
 
-      // ★ Nia Memory: record this attendance observation so Nia learns the class pattern
+      // ★ Nia Memory: record this attendance observation
       if (window.NIA_MEMORY && typeof window.NIA_MEMORY.write === 'function') {
-        const total = newRecords.length;
+        const total   = newRecords.length;
         const present = newRecords.filter(r => r.status === 'present').length;
-        const absent = newRecords.filter(r => r.status === 'absent').length;
-        const late = newRecords.filter(r => r.status === 'late').length;
-        const rate = total > 0 ? (present / total) : 1;
-        const stream = newRecords[0] && newRecords[0].stream;
-        const tenantId = (window.NextSession && window.NextSession.profile && window.NextSession.profile.tenantId) || 'peak-primary';
+        const absent  = newRecords.filter(r => r.status === 'absent').length;
+        const late    = newRecords.filter(r => r.status === 'late').length;
+        const rate    = total > 0 ? (present / total) : 1;
+        const stream  = newRecords[0] && newRecords[0].stream;
+        const tenantId = (window.NextSession?.profile?.tenantId) || 'kabs-lily-junior-school-and-kindercare-centre';
         const isLow = rate < 0.88;
         window.NIA_MEMORY.write(
           tenantId,
@@ -1364,7 +1637,6 @@
           isLow ? 'warn' : 'info',
           `${stream} roll call: ${present}/${total} present (${Math.round(rate * 100)}%) on ${new Date().toDateString()}`
         );
-        // Surface a Nia insight toast based on what she knows
         if (window.NIA_MEMORY.getInsight) {
           const insight = window.NIA_MEMORY.getInsight(tenantId, 'attendance');
           if (insight && window.NEXT_OS && window.NEXT_OS.notify) {
@@ -1433,12 +1705,27 @@
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))', gap: 20 }}>
               <CheckInCard teacher={data.teacher} checkin={data.checkin} onCheckedIn={onCheckedIn} onCheckedOut={onCheckedOut} profile={profile} />
               <NiaCoachCard
-                data={{ teacher: data.teacher, assignments: data.assignments, rollCalls: data.rollCalls || [], checkin: data.checkin, healthRecords: data.healthRecords || [] }}
-                onTakeRollCall={setRollCallStream}
+                data={{
+                  teacher: data.teacher,
+                  assignments: data.assignments,
+                  rollCalls: data.rollCalls || [],
+                  checkin: data.checkin,
+                  healthRecords: data.healthRecords || [],
+                  streamStudents: data.streamStudents || [],
+                  todaySlots: data.todaySlots || [],
+                }}
+                onTakeRollCall={(stream) => handleOpenRollCall(stream, (data.todaySlots || []).find(sl => sl.stream === stream) || (data.todaySlots || [])[0])}
                 onLogHealth={setHealthStudent}
                 onScrollToCheckin={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
               />
-              <TodaysClassesCard assignments={data.assignments} rollCalls={data.rollCalls || []} onTakeRollCall={setRollCallStream} />
+              <TodaysClassesCard
+                assignments={data.assignments}
+                rollCalls={data.rollCalls || []}
+                todaySlots={data.todaySlots || []}
+                streamStudents={data.streamStudents || []}
+                onTakeRollCall={handleOpenRollCall}
+                inProgressStream={inProgressStream}
+              />
               <LessonsCard lessons={data.lessons} />
               <SyllabusCard syllabus={data.syllabus} />
               <StudentsCard assignments={data.assignments} onLogHealth={setHealthStudent} healthRecords={data.healthRecords || []} />
@@ -1461,12 +1748,13 @@
         {rollCallStream && data.teacher && (
           <RollCallModal
             stream={rollCallStream}
+            slot={rollCallSlot}
             teacher={data.teacher}
-            assignments={data.assignments}
             existingRollCalls={(data.rollCalls || []).filter(rc => rc.stream === rollCallStream)}
-            onClose={() => setRollCallStream(null)}
+            onClose={() => { setRollCallStream(null); setRollCallSlot(null); setInProgressStream(null); }}
             onSaved={onRollCallSaved}
             profile={profile}
+            allStreamStudents={data.streamStudents || []}
           />
         )}
 

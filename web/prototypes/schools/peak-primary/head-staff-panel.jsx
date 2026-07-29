@@ -288,9 +288,42 @@
 
     useEffect(() => {
       refresh();
-      const id = setInterval(refresh, 30000); // poll every 30s — live feel
+      const id = setInterval(refresh, 30000); // fallback poll every 30s
       return () => clearInterval(id);
     }, [refresh]);
+
+    // ── Real-time WebSocket push: instant update when any teacher takes roll call or checks in ──
+    useEffect(() => {
+      const sb = window.NextSession?.sb;
+      if (!sb) return;
+      const tenantId = profile.tenantId || 'kabs-lily-junior-school-and-kindercare-centre';
+
+      const channel = sb.channel('head-staff-rt-' + tenantId)
+        // Student roll call saved → refresh attendance live
+        .on('postgres_changes', {
+          event: '*',
+          schema: 'public',
+          table: 'student_roll_call',
+          filter: `tenant_id=eq.${tenantId}`,
+        }, () => { refresh(); })
+        // Teacher check-in / check-out → refresh staff status live
+        .on('postgres_changes', {
+          event: '*',
+          schema: 'public',
+          table: 'teacher_checkins',
+          filter: `tenant_id=eq.${tenantId}`,
+        }, () => { refresh(); })
+        // Teacher notes on students → refresh health watch
+        .on('postgres_changes', {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'student_notes',
+          filter: `tenant_id=eq.${tenantId}`,
+        }, () => { refresh(); })
+        .subscribe();
+
+      return () => { try { sb.removeChannel(channel); } catch (_) {} };
+    }, [profile.tenantId]);
 
     const enriched = useMemo(() => {
       if (!data.teachers) return [];
