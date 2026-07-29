@@ -3552,13 +3552,16 @@ const V4 = (function () {
 
   // ─── hero KPIs (the 3 big ones) ───────────────────────────────────────────
   function HeroKPIs() {
-    const k = D.kpis || {};
+    const _D = (typeof D !== 'undefined' && D) ? D : (window.PEAK || {});
+    const k = _D.kpis || {};
     const att = Number(k.attendancePct) || 0;
     const present = Math.min(Number(k.presentToday) || 0, Number(k.students) || 0);
     const collected = Number(k.feesCollectedTerm) || 0;
     const target = Number(k.feesTargetTerm) || 0;
     const feePct = target ? Math.round(100 * collected / target) : 0;
-    const outstanding = (D.students || []).reduce((a, s) => a + (Number(s.balance) || 0), 0);
+    const studs = _D.students || [];
+    const outstanding = studs.reduce((a, s) => a + (Number(s.balance) || 0), 0);
+    const fmt = _D.fmtUGXshort || (v => 'UGX ' + Number(v||0).toLocaleString());
     return (
       <div style={{ display: 'grid', gridTemplateColumns: '1.1fr 1fr 1fr', gap: 14, marginBottom: 16 }}>
         {/* Attendance — featured with Peak red accent */}
@@ -3605,15 +3608,15 @@ const V4 = (function () {
         <Card pad={24}>
           <div style={{ fontSize: 11, color: T.ink3, fontFamily: T.mono, letterSpacing: '0.08em', fontWeight: 600, marginBottom: 14 }}>FEES · TERM 2</div>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
-            <div style={{ fontSize: 40, fontWeight: 700, color: T.ink, lineHeight: 1, letterSpacing: '-0.03em', fontVariantNumeric: 'tabular-nums' }}>{collected > 0 ? D.fmtUGXshort(collected) : 'UGX 0'}</div>
+            <div style={{ fontSize: 40, fontWeight: 700, color: T.ink, lineHeight: 1, letterSpacing: '-0.03em', fontVariantNumeric: 'tabular-nums' }}>{collected > 0 ? fmt(collected) : 'UGX 0'}</div>
           </div>
-          <div style={{ fontSize: 12, color: T.ink3, marginTop: 8, fontFamily: T.mono }}>{target > 0 ? ('of ' + D.fmtUGXshort(target) + ' target · ' + feePct + '%') : 'collected this term'}</div>
+          <div style={{ fontSize: 12, color: T.ink3, marginTop: 8, fontFamily: T.mono }}>{target > 0 ? ('of ' + fmt(target) + ' target · ' + feePct + '%') : 'collected this term'}</div>
           <div style={{ position: 'relative', height: 10, borderRadius: 999, background: T.surface2, marginTop: 18, overflow: 'hidden' }}>
             <div style={{ height: '100%', width: (target ? feePct : 0) + '%', background: 'linear-gradient(90deg, ' + T.red + ' 0%, ' + T.gold + ' 100%)', borderRadius: 999 }} />
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10.5, color: T.ink3, fontFamily: T.mono, marginTop: 6 }}>
             <span>{target ? (feePct + '% collected') : (collected > 0 ? 'collected' : 'no fees recorded')}</span>
-            <span>{outstanding > 0 ? (D.fmtUGXshort(outstanding) + ' outstanding') : 'cleared'}</span>
+            <span>{outstanding > 0 ? (fmt(outstanding) + ' outstanding') : 'cleared'}</span>
           </div>
         </Card>
 
@@ -3801,7 +3804,8 @@ const V4 = (function () {
 
   // ─── fees breakdown card ──────────────────────────────────────────────────
   function FeesBreakdown() {
-    const studs = D.students || []; const k = D.kpis || {};
+    const _D = (typeof D !== 'undefined' && D) ? D : (window.PEAK || {});
+    const studs = _D.students || []; const k = _D.kpis || {};
     const collected = Number(k.feesCollectedTerm) || 0;
     const target = Number(k.feesTargetTerm) || 0;
     const outstanding = studs.reduce((a, s) => a + (Number(s.balance) || 0), 0);
@@ -3972,7 +3976,8 @@ const V4 = (function () {
 
   // ─── parent threads compact ───────────────────────────────────────────────
   function ThreadsCard() {
-    const _threads = (window.PEAK && window.PEAK.live) ? [] : (D.threads || []);
+    const _D = (typeof D !== 'undefined' && D) ? D : (window.PEAK || {});
+    const _threads = (window.PEAK && window.PEAK.live) ? [] : (_D.threads || []);
     if (_threads.length === 0) {
       return (
         <Card title="Parent threads" subtitle="No conversations yet" pad={0}>
@@ -4044,7 +4049,7 @@ const V4 = (function () {
                   {(function(){var p=(window.PEAK_ROLE&&window.PEAK_ROLE.getProfile&&window.PEAK_ROLE.getProfile())||{};var n=((p.fullName||'').trim().split(' ')[0])||'there';var h=new Date().getHours();var g=h<12?'Good morning':h<17?'Good afternoon':'Good evening';return g+', '+n+'.';})()}
                 </div>
                 <div style={{ fontSize: 14, color: T.ink2, marginTop: 8, maxWidth: 620 }}>
-                  {(D.kpis || {}).presentToday || 0} of {(D.kpis || {}).students || 0} children on campus. Fees at {(D.kpis || {}).feesTargetTerm ? Math.round(100 * ((D.kpis || {}).feesCollectedTerm || 0) / (D.kpis || {}).feesTargetTerm) : 0}%. {D.hasData ? 'Here is what needs your attention today.' : 'No roster imported yet — add students to bring this dashboard to life.'}
+                  {((typeof D !== 'undefined' && D && D.kpis) || (window.PEAK && window.PEAK.kpis) || {}).presentToday || 0} of {((typeof D !== 'undefined' && D && D.kpis) || (window.PEAK && window.PEAK.kpis) || {}).students || 0} children on campus. Fees at {((typeof D !== 'undefined' && D && D.kpis) || (window.PEAK && window.PEAK.kpis) || {}).feesTargetTerm ? Math.round(100 * (((typeof D !== 'undefined' && D && D.kpis) || (window.PEAK && window.PEAK.kpis) || {}).feesCollectedTerm || 0) / (((typeof D !== 'undefined' && D && D.kpis) || (window.PEAK && window.PEAK.kpis) || {}).feesTargetTerm || 1)) : 0}%. {((typeof D !== 'undefined' && D && D.hasData) || (window.PEAK && window.PEAK.hasData)) ? 'Here is what needs your attention today.' : 'No roster imported yet — add students to bring this dashboard to life.'}
                 </div>
               </div>
               <div style={{ display: 'flex', gap: 6, padding: 3, background: T.surface, border: '1px solid ' + T.border, borderRadius: 10 }}>
@@ -11343,6 +11348,7 @@ window.PEAK_STAFF = (function () {
       },
       applyLiveKpis(v) {
         if (!v) return;
+        if (!D.kpis) D.kpis = {};
         const k = D.kpis;
         k.students = v.students || 0;
         if (v.teachers) k.teachers = v.teachers;
@@ -11369,13 +11375,21 @@ window.PEAK_STAFF = (function () {
         var DAYS = this.attWindow || 7;
         try {
           var WK = 'https://nextos-sentinel.nextafricaai.workers.dev';
+          var fetchWithTimeout = function(url, ms) {
+            var ctrl = new AbortController();
+            var timer = setTimeout(function() { ctrl.abort(); }, ms || 2000);
+            return fetch(url, { signal: ctrl.signal })
+              .then(function(r) { clearTimeout(timer); return r.ok ? r.json() : null; })
+              .catch(function() { clearTimeout(timer); return null; });
+          };
           Promise.all([
-            fetch(WK + '/students?tenant=' + encodeURIComponent(tenantId)).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; }),
-            fetch(WK + '/fees-balances?tenant=' + encodeURIComponent(tenantId)).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; }),
-            fetch(WK + '/attendance-summary?tenant=' + encodeURIComponent(tenantId) + '&days=' + DAYS).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; }),
-            fetch(WK + '/teachers?tenant=' + encodeURIComponent(tenantId)).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; })
+            fetchWithTimeout(WK + '/students?tenant=' + encodeURIComponent(tenantId)),
+            fetchWithTimeout(WK + '/fees-balances?tenant=' + encodeURIComponent(tenantId)),
+            fetchWithTimeout(WK + '/attendance-summary?tenant=' + encodeURIComponent(tenantId) + '&days=' + DAYS),
+            fetchWithTimeout(WK + '/teachers?tenant=' + encodeURIComponent(tenantId))
           ]).then(function (res) {
             var d = res[0], fb = res[1], att = res[2], tch = res[3];
+            if (!D.kpis) D.kpis = {};
             if (tch && Array.isArray(tch.teachers)) { D.kpis.teachers = tch.teachers.length; notify(); }
             if (d && Array.isArray(d.students)) {
               var bal = (fb && fb.balances) || {};
