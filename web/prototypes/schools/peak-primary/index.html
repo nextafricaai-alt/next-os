@@ -3609,14 +3609,20 @@ const V4 = (function () {
       if (pct >= 88) return { bg: 'rgba(255,181,61,0.16)', border: 'rgba(255,181,61,0.35)', fg: T.warn };
       return { bg: 'rgba(226,58,82,0.18)', border: 'rgba(226,58,82,0.40)', fg: T.redInk };
     };
+    const CLASS_ORDER = ['Primary Seven', 'Primary Six', 'Primary Five', 'Primary Four', 'Primary Three', 'Primary Two', 'Primary One', 'Top Class', 'Middle Class', 'Baby Class'];
     const _studs = (window.PEAK && window.PEAK.students) || [];
     const _cfg = window.SCHOOL_CONFIG || {};
     const _cfgCls = (_cfg.classes && _cfg.classes.length) ? _cfg.classes.slice() : [];
-    const _studCls = Array.from(new Set(_studs.map(function (x) { return x.stream; }).filter(Boolean)));
-    const _classes = _cfgCls.length ? _cfgCls : _studCls;
+    const _studCls = Array.from(new Set(_studs.map(function (x) { return x.stream || x.class; }).filter(Boolean)));
+    const _rawClasses = _cfgCls.length ? _cfgCls : _studCls;
+    const _classes = _rawClasses.sort((a, b) => {
+      const ia = CLASS_ORDER.indexOf(a);
+      const ib = CLASS_ORDER.indexOf(b);
+      return (ia !== -1 ? ia : 99) - (ib !== -1 ? ib : 99);
+    });
     const _hasRoster = _studs.length > 0;
     const _rows = _classes.map(function (cls) {
-      const inC = _studs.filter(function (x) { return x.stream === cls; });
+      const inC = _studs.filter(function (x) { return (x.stream || x.class) === cls; });
       const wa = inC.filter(function (x) { return x.attendanceWk != null; });
       const pct = wa.length ? Math.round(wa.reduce(function (a, x) { return a + x.attendanceWk; }, 0) / wa.length) : null;
       return { cls: cls, total: inC.length, pct: pct };
@@ -6164,7 +6170,7 @@ window.PEAK_SCREENS = (function () {
   // ATTENDANCE · stream picker + register marking
   // ═════════════════════════════════════════════════════════════════════════
   function Attendance({ store }) {
-    const defaultStream = (D.streams && D.streams.length > 0) ? D.streams[0].id : 'P1';
+    const defaultStream = (D.streams && D.streams.length > 0) ? D.streams[0].id : 'Primary Seven';
     const [streamId, setStreamId] = useState(defaultStream);
     const [att, setAtt] = useState(null);
     React.useEffect(() => { const tid = (window.PEAK_ROLE && window.PEAK_ROLE.getProfile && window.PEAK_ROLE.getProfile().tenantId) || 'peak-primary'; fetch('https://nextos-sentinel.nextafricaai.workers.dev/attendance/today?tenant=' + encodeURIComponent(tid)).then(r => r.json()).then(setAtt).catch(() => {}); }, []);
