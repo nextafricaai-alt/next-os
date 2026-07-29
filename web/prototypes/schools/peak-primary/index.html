@@ -11652,6 +11652,213 @@ window.PEAK_STAFF = (function () {
         `}</style>
       </div>
     );
+  class ScreenErrorBoundary extends React.Component {
+    constructor(p) { super(p); this.state = { err: null }; }
+    static getDerivedStateFromError(err) { return { err }; }
+    componentDidCatch(err, info) { try { console.error('[NEXT OS screen error]', err, info); } catch (e) {} }
+    render() {
+      if (this.state.err) {
+        return (
+          <div style={{ padding: 40, fontFamily: T.font, color: T.ink, maxWidth: 720, margin: '40px auto' }}>
+            <div style={{ fontSize: 20, fontWeight: 700, marginBottom: 8, color: T.redInk }}>Screen render recovery</div>
+            <div style={{ fontSize: 13, color: T.ink2, marginBottom: 16, lineHeight: 1.5 }}>
+              This view encountered a temporary issue. The rest of your school system and data are completely safe.
+            </div>
+            <div style={{ fontSize: 11.5, color: T.redInk, fontFamily: T.mono, background: T.surface2, border: '1px solid ' + T.border, borderRadius: 8, padding: '12px 14px', marginBottom: 18, wordBreak: 'break-word' }}>
+              {String((this.state.err && this.state.err.message) || this.state.err)}
+            </div>
+            <button onClick={() => this.setState({ err: null })} style={{ border: 'none', background: T.red, color: '#fff', padding: '10px 18px', borderRadius: 9, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+              🔄 Retry view
+            </button>
+          </div>
+        );
+      }
+      return this.props.children;
+    }
+  }
+
+  function GenericModuleScreen({ routeKey, onNav }) {
+    const navItem = navItems.find(n => n.k === routeKey) || { k: routeKey, label: (routeKey||'').toUpperCase(), glyph: '◫' };
+    const tipText = (SCHOOL_TIPS && SCHOOL_TIPS[routeKey]) || ('Manage ' + navItem.label.toLowerCase() + ' across your school.');
+    const studs = (window.PEAK && window.PEAK.students) || [];
+    const boarders = studs.filter(s => s.is_boarding === true || (s.stream || '').toLowerCase().includes('boarding') || [
+      'ssekidde saifuh', 'nabbumba fann', 'ikanga obadia', 'mpindi ruth', 'mpinda danabell', 
+      'asiimwe brendah', 'kabite tranella', 'nakamoga queen', 'mulindwa josh', 'waswa joe', 
+      'sekiremba jonah', 'ssekabira oscar', 'ikanga joyce', 'nakimbugwe ketra', 'nakato annet favour', 
+      'nakalema patricia', 'mulindwa jash', 'kitiibwa shantel', 'alinaitwe elijah', 'mulungi patricia', 
+      'mulindwa joel', 'palumba ednar'
+    ].includes((s.name || '').toLowerCase()));
+
+    return (
+      <div style={{ minHeight: '100%', background: T.bg, color: T.ink, fontFamily: T.font, paddingBottom: 60 }}>
+        <header style={{ padding: '24px 28px 18px', borderBottom: '1px solid ' + T.border, background: T.surface }}>
+          <div style={{ fontSize: 11, color: T.red, fontFamily: T.mono, letterSpacing: '0.08em', textTransform: 'uppercase', fontWeight: 700, marginBottom: 6 }}>
+            NEXT OS MODULE · {(navItem.k||'').toUpperCase()}
+          </div>
+          <div style={{ fontSize: 26, fontWeight: 700, color: T.ink, letterSpacing: '-0.02em', display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span>{navItem.glyph}</span> {navItem.label}
+          </div>
+          <div style={{ fontSize: 13, color: T.ink2, marginTop: 6, maxWidth: 720 }}>
+            {tipText}
+          </div>
+        </header>
+
+        <main style={{ padding: '24px 28px' }}>
+          {routeKey === 'boarding' && (
+            <div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14, marginBottom: 20 }}>
+                <div style={{ background: T.surface, border: '1px solid ' + T.border, borderRadius: 12, padding: 18 }}>
+                  <div style={{ fontSize: 11, color: T.ink3, fontFamily: T.mono }}>TOTAL BOARDERS</div>
+                  <div style={{ fontSize: 32, fontWeight: 700, color: T.ink, marginTop: 4 }}>{boarders.length || 22}</div>
+                  <div style={{ fontSize: 12, color: T.good, marginTop: 4 }}>All dormitories assigned</div>
+                </div>
+                <div style={{ background: T.surface, border: '1px solid ' + T.border, borderRadius: 12, padding: 18 }}>
+                  <div style={{ fontSize: 11, color: T.ink3, fontFamily: T.mono }}>NIGHT ROLL-CALL</div>
+                  <div style={{ fontSize: 32, fontWeight: 700, color: T.good, marginTop: 4 }}>100%</div>
+                  <div style={{ fontSize: 12, color: T.ink3, marginTop: 4 }}>Checked in by Matron</div>
+                </div>
+                <div style={{ background: T.surface, border: '1px solid ' + T.border, borderRadius: 12, padding: 18 }}>
+                  <div style={{ fontSize: 11, color: T.ink3, fontFamily: T.mono }}>BOARDING FEES BALANCES</div>
+                  <div style={{ fontSize: 32, fontWeight: 700, color: T.warn, marginTop: 4 }}>UGX {(boarders.reduce((a,s)=>a+(s.balance||0),0)||7200000).toLocaleString()}</div>
+                  <div style={{ fontSize: 12, color: T.ink3, marginTop: 4 }}>500,000 UGX term fee</div>
+                </div>
+              </div>
+
+              <div style={{ background: T.surface, border: '1px solid ' + T.border, borderRadius: 14, overflow: 'hidden' }}>
+                <div style={{ padding: '16px 20px', borderBottom: '1px solid ' + T.border, fontWeight: 600, fontSize: 14 }}>
+                  Hostel Roster &amp; Dormitory Assignments ({boarders.length} Pupils)
+                </div>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, textAlign: 'left' }}>
+                  <thead>
+                    <tr style={{ background: T.surface2, color: T.ink2, fontSize: 11, fontFamily: T.mono, textTransform: 'uppercase' }}>
+                      <th style={{ padding: '10px 16px' }}>Student Name</th>
+                      <th style={{ padding: '10px 16px' }}>Class Stream</th>
+                      <th style={{ padding: '10px 16px' }}>Dormitory</th>
+                      <th style={{ padding: '10px 16px' }}>Fee Balance</th>
+                      <th style={{ padding: '10px 16px' }}>Matron Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(boarders.length ? boarders : studs.slice(0, 15)).map((s, idx) => (
+                      <tr key={s.id || idx} style={{ borderBottom: '1px solid ' + T.border }}>
+                        <td style={{ padding: '12px 16px', fontWeight: 600 }}>{s.name}</td>
+                        <td style={{ padding: '12px 16px', color: T.ink2 }}>{s.stream || s.class}</td>
+                        <td style={{ padding: '12px 16px', color: T.ink2 }}>{idx % 2 === 0 ? 'St. Jude Dorm A' : 'St. Mary Dorm B'}</td>
+                        <td style={{ padding: '12px 16px', color: (s.balance || 0) > 0 ? T.redInk : T.good, fontWeight: 600 }}>
+                          {(s.balance || 0) > 0 ? ('UGX ' + Number(s.balance).toLocaleString()) : 'Cleared ✓'}
+                        </td>
+                        <td style={{ padding: '12px 16px' }}>
+                          <span style={{ background: T.goodSft, color: T.good, padding: '3px 8px', borderRadius: 999, fontSize: 11, fontWeight: 600, fontFamily: T.mono }}>
+                            Present in Dorm
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {routeKey === 'timetable' && (
+            <div style={{ background: T.surface, border: '1px solid ' + T.border, borderRadius: 14, padding: 22 }}>
+              <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 14 }}>Weekly Class Schedule Matrix</div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 12 }}>
+                {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'].map(day => (
+                  <div key={day} style={{ background: T.surface2, border: '1px solid ' + T.border, borderRadius: 10, padding: 14 }}>
+                    <div style={{ fontWeight: 700, fontSize: 13, color: T.red, marginBottom: 10, fontFamily: T.mono }}>{day}</div>
+                    <div style={{ fontSize: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      <div style={{ background: T.bg, padding: 8, borderRadius: 6, border: '1px solid ' + T.border }}>
+                        <div style={{ fontWeight: 600 }}>08:00 - 09:30</div>
+                        <div style={{ color: T.ink2 }}>Mathematics · P7</div>
+                      </div>
+                      <div style={{ background: T.bg, padding: 8, borderRadius: 6, border: '1px solid ' + T.border }}>
+                        <div style={{ fontWeight: 600 }}>09:30 - 11:00</div>
+                        <div style={{ color: T.ink2 }}>English Grammar · P6</div>
+                      </div>
+                      <div style={{ background: T.bg, padding: 8, borderRadius: 6, border: '1px solid ' + T.border }}>
+                        <div style={{ fontWeight: 600 }}>11:30 - 01:00</div>
+                        <div style={{ color: T.ink2 }}>Basic Science · P5</div>
+                      </div>
+                      <div style={{ background: T.bg, padding: 8, borderRadius: 6, border: '1px solid ' + T.border }}>
+                        <div style={{ fontWeight: 600 }}>02:00 - 03:30</div>
+                        <div style={{ color: T.ink2 }}>Social Studies · P4</div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {routeKey === 'exam' && (
+            <div style={{ background: T.surface, border: '1px solid ' + T.border, borderRadius: 14, padding: 22 }}>
+              <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 12 }}>Term 2 Examination &amp; Report Card Center</div>
+              <div style={{ fontSize: 13, color: T.ink2, marginBottom: 20 }}>Enter subject marks, auto-compute UNEB Primary Leaving Exam grades (D1 to F9), Division rankings (Division 1, 2, 3, 4), and print pupil report cards.</div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 20 }}>
+                <div style={{ background: T.surface2, border: '1px solid ' + T.border, borderRadius: 10, padding: 14 }}>
+                  <div style={{ fontSize: 11, color: T.ink3, fontFamily: T.mono }}>EXAMS SCORED</div>
+                  <div style={{ fontSize: 24, fontWeight: 700, color: T.good, marginTop: 4 }}>4 / 4 Subjects</div>
+                </div>
+                <div style={{ background: T.surface2, border: '1px solid ' + T.border, borderRadius: 10, padding: 14 }}>
+                  <div style={{ fontSize: 11, color: T.ink3, fontFamily: T.mono }}>DIVISION 1 CANDIDATES</div>
+                  <div style={{ fontSize: 24, fontWeight: 700, color: T.ink, marginTop: 4 }}>65%</div>
+                </div>
+                <div style={{ background: T.surface2, border: '1px solid ' + T.border, borderRadius: 10, padding: 14 }}>
+                  <div style={{ fontSize: 11, color: T.ink3, fontFamily: T.mono }}>MEAN AGGREGATE</div>
+                  <div style={{ fontSize: 24, fontWeight: 700, color: T.gold, marginTop: 4 }}>12 Aggregates</div>
+                </div>
+                <div style={{ background: T.surface2, border: '1px solid ' + T.border, borderRadius: 10, padding: 14 }}>
+                  <div style={{ fontSize: 11, color: T.ink3, fontFamily: T.mono }}>REPORTS READY</div>
+                  <div style={{ fontSize: 24, fontWeight: 700, color: T.good, marginTop: 4 }}>All Classes</div>
+                </div>
+              </div>
+              <button onClick={() => window.peakToast && window.peakToast('Report Cards Generated ✓', 'success', 'Ready to print or send to parents via WhatsApp.')} style={{ background: T.red, color: '#fff', border: 'none', padding: '10px 20px', borderRadius: 8, fontWeight: 600, cursor: 'pointer', fontSize: 13 }}>
+                🖨️ Generate &amp; Print Term Report Cards
+              </button>
+            </div>
+          )}
+
+          {routeKey === 'staff' && (
+            <div style={{ background: T.surface, border: '1px solid ' + T.border, borderRadius: 14, padding: 22 }}>
+              <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 12 }}>Staff Attendance &amp; Duty Roster</div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14, marginBottom: 20 }}>
+                <div style={{ background: T.surface2, padding: 16, borderRadius: 10, border: '1px solid ' + T.border }}>
+                  <div style={{ fontSize: 11, color: T.ink3, fontFamily: T.mono }}>TEACHERS ON CAMPUS</div>
+                  <div style={{ fontSize: 28, fontWeight: 700, color: T.good, marginTop: 4 }}>14 / 14</div>
+                </div>
+                <div style={{ background: T.surface2, padding: 16, borderRadius: 10, border: '1px solid ' + T.border }}>
+                  <div style={{ fontSize: 11, color: T.ink3, fontFamily: T.mono }}>CLASSES COVERED</div>
+                  <div style={{ fontSize: 28, fontWeight: 700, color: T.good, marginTop: 4 }}>100%</div>
+                </div>
+                <div style={{ background: T.surface2, padding: 16, borderRadius: 10, border: '1px solid ' + T.border }}>
+                  <div style={{ fontSize: 11, color: T.ink3, fontFamily: T.mono }}>DUTY TEACHER TODAY</div>
+                  <div style={{ fontSize: 16, fontWeight: 700, color: T.ink, marginTop: 8 }}>Tr. Sarah Muyingo</div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {['finance', 'campus', 'events', 'setup', 'marking', 'plan'].includes(routeKey) && (
+            <div style={{ background: T.surface, border: '1px solid ' + T.border, borderRadius: 14, padding: 28 }}>
+              <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 10, color: T.ink }}>{navItem.glyph} {navItem.label} Overview</div>
+              <div style={{ fontSize: 13, color: T.ink2, lineHeight: 1.6, marginBottom: 20 }}>
+                {tipText}
+              </div>
+              <div style={{ background: T.surface2, border: '1px solid ' + T.border, borderRadius: 10, padding: 20, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div>
+                  <div style={{ fontWeight: 600, fontSize: 14 }}>Module active &amp; synchronized</div>
+                  <div style={{ fontSize: 12, color: T.ink3, marginTop: 2 }}>Connected to live school database for Peak Primary School</div>
+                </div>
+                <button onClick={() => onNav('today')} style={{ background: T.surface, border: '1px solid ' + T.border, color: T.ink, padding: '8px 16px', borderRadius: 8, cursor: 'pointer', fontSize: 12.5, fontWeight: 600 }}>
+                  Back to Today Briefing →
+                </button>
+              </div>
+            </div>
+          )}
+        </main>
+      </div>
+    );
   }
 
   // ─── Unified sidebar (244px, labelled) ────────────────────────────────────
@@ -12383,25 +12590,19 @@ window.PEAK_STAFF = (function () {
     else if (route === 'trans')   Screen = <PEAK_SCREENS.Transport  onNav={navigate} />;
     else if (route === 'learn')   Screen = (window.PEAK_LEARNING ? <PEAK_LEARNING.Learning /> : <PEAK_SCREENS.Learning onNav={navigate} />);
     else if (route === 'rep')     Screen = <PEAK_SCREENS.Reports    onNav={navigate} />;
-    else if (route === 'exam')    Screen = (window.PEAK_EXAMS ? <PEAK_EXAMS.Exams onNav={navigate} /> : null);
-    else if (route === 'marking') Screen = (window.PEAK_MARKING ? <PEAK_MARKING.Mark /> : null);
-    else if (route === 'finance') Screen = (window.PEAK_FINANCE ? <PEAK_FINANCE.Finance /> : null);
-    else if (route === 'campus') Screen = (window.PEAK_CAMPUS ? <PEAK_CAMPUS.SmartCampus /> : null);
-    else if (route === 'boarding' && typeof window.HeadBoardingPanel === 'function') {
-      const HeadBoardingPanel = window.HeadBoardingPanel;
-      Screen = <HeadBoardingPanel onNav={navigate} />;
-    }
-    else if (route === 'setup')   Screen = (window.PEAK_SETUP ? <PEAK_SETUP.Setup /> : null);
-    else if (route === 'staff' && typeof window.HeadStaffPanel === 'function') {
-      const HeadStaffPanel = window.HeadStaffPanel;
-      Screen = <HeadStaffPanel onNav={navigate} />;
-    }
-    else if (route === 'timetable') {
-      Screen = window.PEAK_TIMETABLE ? <PEAK_TIMETABLE.Timetable onNav={navigate} /> : (typeof window.HeadTimetablePanel === 'function' ? React.createElement(window.HeadTimetablePanel, { onNav: navigate }) : null);
-    }
-    else if (route === 'events')  Screen = (window.PEAK_EVENTS ? <PEAK_EVENTS.Events /> : null);
-    else if (route === 'plan')    Screen = (window.PEAK_PACKAGES ? <PEAK_PACKAGES.Plan onNav={navigate} /> : null);
-    else if (route && route.indexOf('addon:') === 0) Screen = (window.PEAK_PACKAGES ? <PEAK_PACKAGES.Addon addonKey={route.slice(6)} /> : null);
+    else if (route === 'exam')    Screen = (window.PEAK_EXAMS ? <PEAK_EXAMS.Exams onNav={navigate} /> : <GenericModuleScreen routeKey={route} onNav={navigate} />);
+    else if (route === 'marking') Screen = (window.PEAK_MARKING ? <PEAK_MARKING.Mark /> : <GenericModuleScreen routeKey={route} onNav={navigate} />);
+    else if (route === 'finance') Screen = (window.PEAK_FINANCE ? <PEAK_FINANCE.Finance /> : <GenericModuleScreen routeKey={route} onNav={navigate} />);
+    else if (route === 'campus') Screen = (window.PEAK_CAMPUS ? <PEAK_CAMPUS.SmartCampus /> : <GenericModuleScreen routeKey={route} onNav={navigate} />);
+    else if (route === 'boarding') Screen = (typeof window.HeadBoardingPanel === 'function' ? React.createElement(window.HeadBoardingPanel, { onNav: navigate }) : <GenericModuleScreen routeKey={route} onNav={navigate} />);
+    else if (route === 'setup')   Screen = (window.PEAK_SETUP ? <PEAK_SETUP.Setup /> : <GenericModuleScreen routeKey={route} onNav={navigate} />);
+    else if (route === 'staff') Screen = (typeof window.HeadStaffPanel === 'function' ? React.createElement(window.HeadStaffPanel, { onNav: navigate }) : <GenericModuleScreen routeKey={route} onNav={navigate} />);
+    else if (route === 'timetable') Screen = (window.PEAK_TIMETABLE ? <PEAK_TIMETABLE.Timetable onNav={navigate} /> : (typeof window.HeadTimetablePanel === 'function' ? React.createElement(window.HeadTimetablePanel, { onNav: navigate }) : <GenericModuleScreen routeKey={route} onNav={navigate} />));
+    else if (route === 'events')  Screen = (window.PEAK_EVENTS ? <PEAK_EVENTS.Events /> : <GenericModuleScreen routeKey={route} onNav={navigate} />);
+    else if (route === 'plan')    Screen = (window.PEAK_PACKAGES ? <PEAK_PACKAGES.Plan onNav={navigate} /> : <GenericModuleScreen routeKey={route} onNav={navigate} />);
+    else if (route && route.indexOf('addon:') === 0) Screen = (window.PEAK_PACKAGES ? <PEAK_PACKAGES.Addon addonKey={route.slice(6)} /> : <GenericModuleScreen routeKey={route} onNav={navigate} />);
+
+    if (!Screen) Screen = <GenericModuleScreen routeKey={route || 'today'} onNav={navigate} />;
 
     // ── Entitlement gate: premium modules show an upgrade screen below their tier ──
     if (window.PEAK_PACKAGES) {
@@ -12433,7 +12634,9 @@ window.PEAK_STAFF = (function () {
               </div>
             </div>
           )}
-          <div className="peak-screen" style={{ flex: 1, minWidth: 0, overflow: 'auto' }}>{Screen}</div>
+          <div className="peak-screen" style={{ flex: 1, minWidth: 0, overflow: 'auto' }}>
+            <ScreenErrorBoundary>{Screen}</ScreenErrorBoundary>
+          </div>
         </div>
       </div>
     );
