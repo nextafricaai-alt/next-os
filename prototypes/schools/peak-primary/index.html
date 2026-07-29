@@ -3632,16 +3632,64 @@ const PD_Students = (function () {
       let r = D.students.slice();
       if (query) r = r.filter(s => (s.name + s.guardian).toLowerCase().includes(query.toLowerCase()));
       if (streamFilter !== 'All') r = r.filter(s => s.stream === streamFilter);
-      if (feesFilter !== 'All')   r = r.filter(s => s.fees === feesFilter);
+    const normalizeClass = (str) => {
+      if (!str) return '';
+      const s = String(str).trim();
+      const lower = s.toLowerCase();
+      if (lower.includes('baby')) return 'Baby Class';
+      if (lower.includes('middle')) return 'Middle Class';
+      if (lower.includes('top')) return 'Top Class';
+      if (lower.includes('one') || lower === 'p1' || lower === 'p.1' || lower.includes('primary 1') || lower.includes('primary one')) return 'Primary One';
+      if (lower.includes('two') || lower === 'p2' || lower === 'p.2' || lower.includes('primary 2') || lower.includes('primary two')) return 'Primary Two';
+      if (lower.includes('three') || lower === 'p3' || lower === 'p.3' || lower.includes('primary 3') || lower.includes('primary three')) return 'Primary Three';
+      if (lower.includes('four') || lower === 'p4' || lower === 'p.4' || lower.includes('primary 4') || lower.includes('primary four')) return 'Primary Four';
+      if (lower.includes('five') || lower === 'p5' || lower === 'p.5' || lower.includes('primary 5') || lower.includes('primary five')) return 'Primary Five';
+      if (lower.includes('six') || lower === 'p6' || lower === 'p.6' || lower.includes('primary 6') || lower.includes('primary six')) return 'Primary Six';
+      if (lower.includes('seven') || lower === 'p7' || lower === 'p.7' || lower.includes('primary 7') || lower.includes('primary seven')) return 'Primary Seven';
+      return s;
+    };
+
+    const rows = useMemo(() => {
+      let r = D.students.slice();
+      if (query) r = r.filter(s => (s.name + (s.guardian || '')).toLowerCase().includes(query.toLowerCase()));
+      if (streamFilter !== 'All') {
+        const filterNorm = normalizeClass(streamFilter);
+        r = r.filter(s => {
+          const sClass = s.stream || s.class || '';
+          const sNorm = normalizeClass(sClass);
+          return sNorm === filterNorm || sClass.toLowerCase().includes(streamFilter.toLowerCase()) || streamFilter.toLowerCase().includes(sClass.toLowerCase());
+        });
+      }
+      if (feesFilter !== 'All') {
+        if (feesFilter === 'overdue') {
+          r = r.filter(s => s.balance > 0 || s.fees === 'overdue' || s.fees === 'partial');
+        } else if (feesFilter === 'paid') {
+          r = r.filter(s => s.balance <= 0 || s.fees === 'paid');
+        } else if (feesFilter === 'partial') {
+          r = r.filter(s => s.balance > 0 && (s.paidAmount > 0 || s.fees === 'partial'));
+        }
+      }
       if (sort === 'name') r.sort((a, b) => a.name.localeCompare(b.name));
-      if (sort === 'risk') r.sort((a, b) => a.attendanceWk - b.attendanceWk);
+      if (sort === 'risk') r.sort((a, b) => (a.attendanceWk == null ? 101 : a.attendanceWk) - (b.attendanceWk == null ? 101 : b.attendanceWk));
       if (sort === 'fees') r.sort((a, b) => b.balance - a.balance);
-      if (sort === 'recent') r.sort((a, b) => a.lastSeen.localeCompare(b.lastSeen));
+      if (sort === 'recent') r.sort((a, b) => (a.lastSeen || '').localeCompare(b.lastSeen || ''));
       return r;
     }, [query, streamFilter, feesFilter, sort, D.students.length]);
 
     const selected = D.students.find(s => s.id === selectedId);
-    const streamOpts = ['All', ...D.streams.map(s => s.id)];
+    const classOpts = [
+      { id: 'All', label: 'All classes' },
+      { id: 'Baby Class', label: 'Baby Class' },
+      { id: 'Middle Class', label: 'Middle Class' },
+      { id: 'Top Class', label: 'Top Class' },
+      { id: 'Primary One', label: 'Primary One (P1)' },
+      { id: 'Primary Two', label: 'Primary Two (P2)' },
+      { id: 'Primary Three', label: 'Primary Three (P3)' },
+      { id: 'Primary Four', label: 'Primary Four (P4)' },
+      { id: 'Primary Five', label: 'Primary Five (P5)' },
+      { id: 'Primary Six', label: 'Primary Six (P6)' },
+      { id: 'Primary Seven', label: 'Primary Seven (P7)' }
+    ];
 
     return (
       <div style={{
@@ -3657,8 +3705,8 @@ const PD_Students = (function () {
             <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 18 }}>
               <div>
                 <div style={{ fontSize: 11, color: T.ink3, fontFamily: T.mono, letterSpacing: '0.08em', fontWeight: 600, marginBottom: 8 }}>ROSTER</div>
-                <div style={{ fontSize: 24, fontWeight: 700, letterSpacing: '-0.02em', lineHeight: 1.05 }}>Students · 842 enrolled</div>
-                <div style={{ fontSize: 13, color: T.ink3, marginTop: 4 }}>14 streams · 38 teachers · Term 2, Week 6</div>
+                <div style={{ fontSize: 24, fontWeight: 700, letterSpacing: '-0.02em', lineHeight: 1.05 }}>Students · {(D.students || []).length} enrolled</div>
+                <div style={{ fontSize: 13, color: T.ink3, marginTop: 4 }}>{new Set((D.students || []).map(function (x) { return normalizeClass(x.stream || x.class); }).filter(Boolean)).size} classes · Term 2, Week 6</div>
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
                 <button onClick={() => window.peakToast && window.peakToast('CSV import — coming in Phase 2', 'info', 'Bulk upload from old register · with column mapping wizard.')} style={{ border: '1px solid ' + T.borderStr, background: 'transparent', color: T.ink2, padding: '8px 14px', borderRadius: 9, fontSize: 12.5, cursor: 'pointer' }}>Import CSV</button>
@@ -3678,7 +3726,7 @@ const PD_Students = (function () {
                 background: T.surface, border: '1px solid ' + T.border, color: T.ink, padding: '8px 12px',
                 borderRadius: 9, fontSize: 12.5, cursor: 'pointer', fontFamily: T.font,
               }}>
-                {streamOpts.map(c => <option key={c} value={c}>{c === 'All' ? 'All streams' : c}</option>)}
+                {classOpts.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
               </select>
               <select value={feesFilter} onChange={e => setFeesFilter(e.target.value)} style={{
                 background: T.surface, border: '1px solid ' + T.border, color: T.ink, padding: '8px 12px',
@@ -3687,7 +3735,7 @@ const PD_Students = (function () {
                 <option value="All">All fees</option>
                 <option value="paid">Paid</option>
                 <option value="partial">Partial</option>
-                <option value="overdue">Overdue</option>
+                <option value="overdue">Overdue / Unpaid</option>
               </select>
               <div style={{ flex: 1 }} />
               <div style={{ display: 'flex', gap: 4, padding: 3, background: T.surface, border: '1px solid ' + T.border, borderRadius: 9 }}>

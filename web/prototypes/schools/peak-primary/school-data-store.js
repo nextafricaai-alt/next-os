@@ -186,29 +186,42 @@
   function mapStudentToApp(dbRow, incomesList = state.incomes) {
     const studentFullName = dbRow.full_name || dbRow.name || 'Unknown Student';
     const sName = studentFullName.trim().toLowerCase();
-    const inc = (incomesList || []).find(i => {
+
+    // Match all income/payment entries for this student
+    const studentIncomes = (incomesList || []).filter(i => {
       const iName = (i.studentName || i.student_name || '').trim().toLowerCase();
       return iName && sName && (iName === sName || iName.includes(sName) || sName.includes(iName));
     });
 
+    // Check boarding status
     const isBoarding = dbRow.is_boarding === true ||
-                       (inc && (inc.sourceType || inc.source_type || '').toLowerCase().includes('boarding')) || 
-                       (inc && (inc.notes || '').toLowerCase().includes('boarding')) ||
-                       (dbRow.stream || '').toLowerCase().includes('boarding');
+                       (dbRow.stream || '').toLowerCase().includes('boarding') ||
+                       studentIncomes.some(inc => (inc.sourceType || inc.source_type || '').toLowerCase().includes('boarding') || (inc.notes || '').toLowerCase().includes('boarding'));
 
-    const termFee = inc ? Number(inc.amount) : (isBoarding ? 500000 : 250000);
-    const balance = inc ? Number(inc.unspentBalance ?? inc.unspent_balance ?? 0) : (isBoarding ? 250000 : 100000);
-    const paidAmount = Math.max(0, termFee - balance);
+    const termFee = Number(dbRow.term_fee) || (isBoarding ? 500000 : 250000);
+    
+    // Sum payments from income logs and fee payment records
+    const incomePaymentsSum = studentIncomes.reduce((sum, i) => sum + Number(i.amount || 0), 0);
+    const feeRecords = (state.payments || []).filter(p => p.student_id === dbRow.id && p.kind === 'payment');
+    const feeRecordsSum = feeRecords.reduce((sum, p) => sum + Math.abs(Number(p.amount || 0)), 0);
+    
+    const paidAmount = Math.max(incomePaymentsSum, feeRecordsSum);
+    const balance = Math.max(0, termFee - paidAmount);
+    const feeStatus = balance <= 0 ? 'paid' : (paidAmount > 0 ? 'partial' : 'overdue');
+
+    const className = dbRow.stream || dbRow.class || 'Unknown Class';
 
     return {
       id: dbRow.id,
       name: studentFullName,
-      class: dbRow.stream || dbRow.class || 'Unknown Class',
+      class: className,
+      stream: className,
       type: isBoarding ? 'Boarding' : 'Day Scholar',
       boarding: isBoarding,
       termFee: termFee,
       paidAmount: paidAmount,
       balance: balance,
+      fees: feeStatus,
       guardian: dbRow.guardian_name || `Parent of ${studentFullName}`,
       guardianPhone: dbRow.guardian_phone || '+256700000000'
     };

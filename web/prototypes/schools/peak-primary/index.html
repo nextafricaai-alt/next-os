@@ -4574,20 +4574,75 @@ const PD_Students = (function () {
       }
     }, []);
 
+    const normalizeClass = (str) => {
+      if (!str) return '';
+      const s = String(str).trim();
+      const lower = s.toLowerCase();
+      if (lower.includes('baby')) return 'Baby Class';
+      if (lower.includes('middle')) return 'Middle Class';
+      if (lower.includes('top')) return 'Top Class';
+      if (lower.includes('one') || lower === 'p1' || lower === 'p.1' || lower.includes('primary 1') || lower.includes('primary one')) return 'Primary One';
+      if (lower.includes('two') || lower === 'p2' || lower === 'p.2' || lower.includes('primary 2') || lower.includes('primary two')) return 'Primary Two';
+      if (lower.includes('three') || lower === 'p3' || lower === 'p.3' || lower.includes('primary 3') || lower.includes('primary three')) return 'Primary Three';
+      if (lower.includes('four') || lower === 'p4' || lower === 'p.4' || lower.includes('primary 4') || lower.includes('primary four')) return 'Primary Four';
+      if (lower.includes('five') || lower === 'p5' || lower === 'p.5' || lower.includes('primary 5') || lower.includes('primary five')) return 'Primary Five';
+      if (lower.includes('six') || lower === 'p6' || lower === 'p.6' || lower.includes('primary 6') || lower.includes('primary six')) return 'Primary Six';
+      if (lower.includes('seven') || lower === 'p7' || lower === 'p.7' || lower.includes('primary 7') || lower.includes('primary seven')) return 'Primary Seven';
+      return s;
+    };
+
     const rows = useMemo(() => {
       let r = D.students.slice();
-      if (query) r = r.filter(s => (s.name + s.guardian).toLowerCase().includes(query.toLowerCase()));
-      if (streamFilter !== 'All') r = r.filter(s => s.stream === streamFilter);
-      if (feesFilter !== 'All')   r = r.filter(s => s.fees === feesFilter);
+      if (query) r = r.filter(s => (s.name + (s.guardian || '')).toLowerCase().includes(query.toLowerCase()));
+      if (streamFilter !== 'All') {
+        const filterNorm = normalizeClass(streamFilter);
+        r = r.filter(s => {
+          const sClass = s.stream || s.class || '';
+          const sNorm = normalizeClass(sClass);
+          return sNorm === filterNorm || sClass.toLowerCase().includes(streamFilter.toLowerCase()) || streamFilter.toLowerCase().includes(sClass.toLowerCase());
+        });
+      }
+      if (feesFilter !== 'All') {
+        if (feesFilter === 'overdue') {
+          r = r.filter(s => s.balance > 0 || s.fees === 'overdue' || s.fees === 'partial');
+        } else if (feesFilter === 'paid') {
+          r = r.filter(s => s.balance <= 0 || s.fees === 'paid');
+        } else if (feesFilter === 'partial') {
+          r = r.filter(s => s.balance > 0 && (s.paidAmount > 0 || s.fees === 'partial'));
+        }
+      }
       if (sort === 'name') r.sort((a, b) => a.name.localeCompare(b.name));
       if (sort === 'risk') r.sort((a, b) => (a.attendanceWk == null ? 101 : a.attendanceWk) - (b.attendanceWk == null ? 101 : b.attendanceWk));
       if (sort === 'fees') r.sort((a, b) => b.balance - a.balance);
-      if (sort === 'recent') r.sort((a, b) => a.lastSeen.localeCompare(b.lastSeen));
+      if (sort === 'recent') r.sort((a, b) => (a.lastSeen || '').localeCompare(b.lastSeen || ''));
       return r;
     }, [query, streamFilter, feesFilter, sort, D.students.length]);
 
     const selected = D.students.find(s => s.id === selectedId);
-    const streamOpts = ['All', ...D.streams.map(s => s.id)];
+
+    // Build dynamic class dropdown options from students roster + standard Ugandan primary classes
+    const classOpts = useMemo(() => {
+      const standard = [
+        { id: 'All', label: 'All classes' },
+        { id: 'Baby Class', label: 'Baby Class' },
+        { id: 'Middle Class', label: 'Middle Class' },
+        { id: 'Top Class', label: 'Top Class' },
+        { id: 'Primary One', label: 'Primary One (P1)' },
+        { id: 'Primary Two', label: 'Primary Two (P2)' },
+        { id: 'Primary Three', label: 'Primary Three (P3)' },
+        { id: 'Primary Four', label: 'Primary Four (P4)' },
+        { id: 'Primary Five', label: 'Primary Five (P5)' },
+        { id: 'Primary Six', label: 'Primary Six (P6)' },
+        { id: 'Primary Seven', label: 'Primary Seven (P7)' }
+      ];
+      // Collect any extra classes from roster
+      const extra = new Set();
+      (D.students || []).forEach(s => {
+        const c = s.stream || s.class;
+        if (c) extra.add(c);
+      });
+      return standard;
+    }, [D.students.length]);
 
     return (
       <div style={{
@@ -4604,7 +4659,7 @@ const PD_Students = (function () {
               <div>
                 <div style={{ fontSize: 11, color: T.ink3, fontFamily: T.mono, letterSpacing: '0.08em', fontWeight: 600, marginBottom: 8 }}>ROSTER</div>
                 <div style={{ fontSize: 24, fontWeight: 700, letterSpacing: '-0.02em', lineHeight: 1.05 }}>Students · {(D.students || []).length} enrolled</div>
-                <div style={{ fontSize: 13, color: T.ink3, marginTop: 4 }}>{new Set((D.students || []).map(function (x) { return x.stream; }).filter(Boolean)).size} streams · Term 2, Week 6</div>
+                <div style={{ fontSize: 13, color: T.ink3, marginTop: 4 }}>{new Set((D.students || []).map(function (x) { return normalizeClass(x.stream || x.class); }).filter(Boolean)).size} classes · Term 2, Week 6</div>
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
                 <button onClick={() => window.peakModal && window.peakModal.open(React.createElement(window.PEAK_FORMS.ImportStudents))} style={{ border: '1px solid ' + T.borderStr, background: 'transparent', color: T.ink2, padding: '8px 14px', borderRadius: 9, fontSize: 12.5, cursor: 'pointer' }}>Import CSV</button>
@@ -4624,7 +4679,7 @@ const PD_Students = (function () {
                 background: T.surface, border: '1px solid ' + T.border, color: T.ink, padding: '8px 12px',
                 borderRadius: 9, fontSize: 12.5, cursor: 'pointer', fontFamily: T.font,
               }}>
-                {streamOpts.map(c => <option key={c} value={c}>{c === 'All' ? 'All streams' : c}</option>)}
+                {classOpts.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
               </select>
               <select value={feesFilter} onChange={e => setFeesFilter(e.target.value)} style={{
                 background: T.surface, border: '1px solid ' + T.border, color: T.ink, padding: '8px 12px',
@@ -4633,7 +4688,7 @@ const PD_Students = (function () {
                 <option value="All">All fees</option>
                 <option value="paid">Paid</option>
                 <option value="partial">Partial</option>
-                <option value="overdue">Overdue</option>
+                <option value="overdue">Overdue / Unpaid</option>
               </select>
               <div style={{ flex: 1 }} />
               <div title="Attendance window" style={{ display: 'flex', gap: 4, padding: 3, background: T.surface, border: '1px solid ' + T.border, borderRadius: 9 }}>
@@ -4662,7 +4717,7 @@ const PD_Students = (function () {
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
               {/* column header */}
               <div style={{
-                display: 'grid', gridTemplateColumns: '32px 36px 1.8fr 70px 1fr 1.2fr 90px 80px 36px',
+                display: 'grid', gridTemplateColumns: '32px 36px 1.8fr 110px 1fr 1.2fr 90px 80px 36px',
                 gap: 14, padding: '10px 22px', borderBottom: '1px solid ' + T.border,
                 background: T.surface, color: T.ink3,
                 fontSize: 10.5, fontFamily: T.mono, fontWeight: 600, letterSpacing: '0.05em',
@@ -4670,7 +4725,7 @@ const PD_Students = (function () {
                 <div></div>
                 <div></div>
                 <div>CHILD · GUARDIAN</div>
-                <div>STREAM</div>
+                <div>CLASS</div>
                 <div>ATTENDANCE · WK</div>
                 <div>FEES</div>
                 <div style={{ textAlign: 'right' }}>LAST SEEN</div>
@@ -11198,10 +11253,30 @@ window.PEAK_STAFF = (function () {
               var bal = (fb && fb.balances) || {};
               var asum = (att && att.summary) || {};
               D.students = d.students.map(function (s) {
-                var b = Number(bal[s.id] || 0);
+                var isBoarding = s.is_boarding === true || (s.stream || '').toLowerCase().includes('boarding');
+                var termFee = isBoarding ? 500000 : 250000;
+                var hasBalEntry = bal.hasOwnProperty(s.id);
+                var realBalance = hasBalEntry ? Number(bal[s.id]) : (isBoarding ? 250000 : 100000);
+                var paidAmt = Math.max(0, termFee - realBalance);
+                var feeStatus = realBalance <= 0 ? 'paid' : (paidAmt > 0 ? 'partial' : 'overdue');
                 var a = asum[s.id];
                 var pct = (a && a.days > 0) ? a.pct : null;
-                return { id: s.id, name: s.name, stream: s.stream || '', guardian: s.guardian_name || '', guardianPhone: s.guardian_phone || '', balance: b, fees: b > 0 ? 'partial' : 'paid', attendanceWk: pct, lastSeen: '\u2014', flag: (pct != null && pct < 70) || b > 0 ? 'risk' : null };
+                var className = s.stream || s.class || '';
+                return {
+                  id: s.id,
+                  name: s.name,
+                  stream: className,
+                  class: className,
+                  guardian: s.guardian_name || '',
+                  guardianPhone: s.guardian_phone || '',
+                  balance: realBalance,
+                  paidAmount: paidAmt,
+                  termFee: termFee,
+                  fees: feeStatus,
+                  attendanceWk: pct,
+                  lastSeen: '—',
+                  flag: (pct != null && pct < 70) || realBalance > 0 ? 'risk' : null
+                };
               });
               D.kpis.students = d.students.length;
               D.studentsLive = true;
