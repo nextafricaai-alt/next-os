@@ -236,6 +236,7 @@
         <div id="nx-loading-text">LOADING · NEXT SCHOOL OS</div>
         <div style="margin-top:12px;font-size:10px;opacity:0.5">build b110</div>
       </div>
+    </div>
   </div>
   <script>
     // Fail-safe escape timer: ensure loading screen never gets stuck
@@ -11662,6 +11663,8 @@ window.PEAK_STAFF = (function () {
         `}</style>
       </div>
     );
+  }
+
   class ScreenErrorBoundary extends React.Component {
     constructor(p) { super(p); this.state = { err: null }; }
     static getDerivedStateFromError(err) { return { err }; }
@@ -12749,9 +12752,11 @@ window.PEAK_STAFF = (function () {
         {window.PeakNiaOrb ? React.createElement(window.PeakNiaOrb) : null}
       </>
     );
-    window.App = App;
-    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
-  })();
+  }
+
+  window.App = App;
+  ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+})();
 
   </script>
   <script>
