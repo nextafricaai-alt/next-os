@@ -84,44 +84,44 @@ WHERE tenant_id = 'kabs-lily-junior-school-and-kindercare-centre';
 -- Streams at Kabs Lily Junior School
 DO $$
 DECLARE
-  v_tenant TEXT := 'kabs-lily-junior-school-and-kindercare-centre';
-  streams TEXT[] := ARRAY['P1', 'P2', 'P3', 'P4', 'P5', 'P6', 'P7', 'Baby', 'Middle', 'Top'];
-  dow     INT;
-  stream  TEXT;
+  v_tenant  TEXT := 'kabs-lily-junior-school-and-kindercare-centre';
+  v_streams TEXT[] := ARRAY['P1', 'P2', 'P3', 'P4', 'P5', 'P6', 'P7', 'Baby', 'Middle', 'Top'];
+  v_dow     INT;
+  v_stream  TEXT;
 BEGIN
-  FOREACH dow IN ARRAY ARRAY[1,2,3,4,5] LOOP  -- Mon–Fri
-    FOREACH stream IN ARRAY streams LOOP
+  FOREACH v_dow IN ARRAY ARRAY[1,2,3,4,5] LOOP  -- Mon–Fri
+    FOREACH v_stream IN ARRAY v_streams LOOP
       -- Period 1
       INSERT INTO timetable_slots (tenant_id, day_of_week, period, start_time, end_time, stream, subject, label)
-        VALUES (v_tenant, dow, 1, '07:30', '08:15', stream, 'English', 'Period 1 · English')
+        VALUES (v_tenant, v_dow, 1, '07:30', '08:15', v_stream, 'English', 'Period 1 · English')
         ON CONFLICT (tenant_id, day_of_week, period, stream) DO NOTHING;
       -- Period 2
       INSERT INTO timetable_slots (tenant_id, day_of_week, period, start_time, end_time, stream, subject, label)
-        VALUES (v_tenant, dow, 2, '08:15', '09:00', stream, 'Mathematics', 'Period 2 · Mathematics')
+        VALUES (v_tenant, v_dow, 2, '08:15', '09:00', v_stream, 'Mathematics', 'Period 2 · Mathematics')
         ON CONFLICT (tenant_id, day_of_week, period, stream) DO NOTHING;
       -- Period 3
       INSERT INTO timetable_slots (tenant_id, day_of_week, period, start_time, end_time, stream, subject, label)
-        VALUES (v_tenant, dow, 3, '09:00', '09:45', stream, 'Science', 'Period 3 · Science')
+        VALUES (v_tenant, v_dow, 3, '09:00', '09:45', v_stream, 'Science', 'Period 3 · Science')
         ON CONFLICT (tenant_id, day_of_week, period, stream) DO NOTHING;
       -- Period 4 (after 09:45–10:15 break)
       INSERT INTO timetable_slots (tenant_id, day_of_week, period, start_time, end_time, stream, subject, label)
-        VALUES (v_tenant, dow, 4, '10:15', '11:00', stream, 'Social Studies', 'Period 4 · Social Studies')
+        VALUES (v_tenant, v_dow, 4, '10:15', '11:00', v_stream, 'Social Studies', 'Period 4 · Social Studies')
         ON CONFLICT (tenant_id, day_of_week, period, stream) DO NOTHING;
       -- Period 5
       INSERT INTO timetable_slots (tenant_id, day_of_week, period, start_time, end_time, stream, subject, label)
-        VALUES (v_tenant, dow, 5, '11:00', '11:45', stream, 'CRE / MRE', 'Period 5 · CRE / MRE')
+        VALUES (v_tenant, v_dow, 5, '11:00', '11:45', v_stream, 'CRE / MRE', 'Period 5 · CRE / MRE')
         ON CONFLICT (tenant_id, day_of_week, period, stream) DO NOTHING;
       -- Period 6 (after 11:45–13:00 lunch)
       INSERT INTO timetable_slots (tenant_id, day_of_week, period, start_time, end_time, stream, subject, label)
-        VALUES (v_tenant, dow, 6, '13:00', '13:45', stream, 'English', 'Period 6 · English')
+        VALUES (v_tenant, v_dow, 6, '13:00', '13:45', v_stream, 'English', 'Period 6 · English')
         ON CONFLICT (tenant_id, day_of_week, period, stream) DO NOTHING;
       -- Period 7
       INSERT INTO timetable_slots (tenant_id, day_of_week, period, start_time, end_time, stream, subject, label)
-        VALUES (v_tenant, dow, 7, '13:45', '14:30', stream, 'Mathematics', 'Period 7 · Mathematics')
+        VALUES (v_tenant, v_dow, 7, '13:45', '14:30', v_stream, 'Mathematics', 'Period 7 · Mathematics')
         ON CONFLICT (tenant_id, day_of_week, period, stream) DO NOTHING;
       -- Period 8
       INSERT INTO timetable_slots (tenant_id, day_of_week, period, start_time, end_time, stream, subject, label)
-        VALUES (v_tenant, dow, 8, '14:30', '15:15', stream, 'Creative Arts', 'Period 8 · Creative Arts')
+        VALUES (v_tenant, v_dow, 8, '14:30', '15:15', v_stream, 'Creative Arts', 'Period 8 · Creative Arts')
         ON CONFLICT (tenant_id, day_of_week, period, stream) DO NOTHING;
     END LOOP;
   END LOOP;
