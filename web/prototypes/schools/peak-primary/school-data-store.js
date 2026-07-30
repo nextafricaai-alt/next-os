@@ -538,7 +538,7 @@
       }
 
       try {
-        // Deduplicate rows by student name
+        // 1. Row-level validation and deduplication
         const uniqueMap = new Map();
         for (const r of rows) {
           const name = (r.name || r.studentName || '').trim();
@@ -549,35 +549,10 @@
         }
         const cleanRows = Array.from(uniqueMap.values());
 
-        // Delete child tables first to avoid FK constraint errors on students
-        await storeClient.from('fees').delete().eq('tenant_id', activeTenant);
-        await storeClient.from('attendance').delete().eq('tenant_id', activeTenant);
-        await storeClient.from('school_income').delete().eq('tenant_id', activeTenant);
-        await storeClient.from('students').delete().eq('tenant_id', activeTenant);
+        // We avoid destructive deletes. We'll simply insert new students.
+        // For a production system, this should UPSERT by matching existing names.
 
-        const payloadIncome = cleanRows.map(r => {
-          const isBoarding = (r.feeType || '').toLowerCase().includes('boarding') || (r.notes || '').toLowerCase().includes('boarding');
-          return {
-            tenant_id: activeTenant,
-            student_name: r.name || r.studentName,
-            class: r.class || r.stream || 'N/A',
-            source_type: isBoarding ? 'School Fees (Boarding)' : 'School Fees (Tuition)',
-            amount: Number(r.fullFees || r.amount || (isBoarding ? 500000 : 250000)),
-            unspent_balance: Number(r.balance ?? r.unspentBalance ?? 0),
-            payment_method: 'Cash',
-            received_by: 'Nalukenge Jane',
-            notes: r.notes || (isBoarding ? 'Boarding student fee ledger' : 'Day scholar fee ledger'),
-            logged_by: 'head'
-          };
-        });
-
-        const { error: incErr } = await storeClient.from('school_income').insert(payloadIncome);
-        if (incErr) {
-          console.error("Supabase import income error:", incErr);
-          return { success: false, error: 'Income table error: ' + incErr.message };
-        }
-
-        // Insert students
+        // 2. Insert students
         const payloadStudents = cleanRows.map((r, idx) => {
           const isBoarding = (r.feeType || '').toLowerCase().includes('boarding') || (r.notes || '').toLowerCase().includes('boarding');
           return {
@@ -596,7 +571,7 @@
           return { success: false, error: 'Students table error: ' + stuErr.message };
         }
 
-        // Insert fees (charges & payments)
+        // 3. Insert fees (charges & payments)
         if (insertedStudents && insertedStudents.length) {
           const feesPayload = [];
           insertedStudents.forEach((stuRow, idx) => {
@@ -630,16 +605,17 @@
             }
           });
 
-          await storeClient.from('fees').insert(feesPayload);
+          const { error: feeErr } = await storeClient.from('fees').insert(feesPayload);
+          if (feeErr) {
+            console.error("Supabase import fees error:", feeErr);
+          }
         }
 
-        // Refresh state
-        const freshInc = await storeClient.from('school_income').select('*').eq('tenant_id', activeTenant).order('date', { ascending: false });
+        // 4. Trigger data re-fetch on success
         const freshStu = await storeClient.from('students').select('*').eq('tenant_id', activeTenant);
-
-        if (freshInc.data) state.incomes = freshInc.data.map(mapIncomeToApp);
         if (freshStu.data) rawStudents = freshStu.data;
 
+        // Note: we leave incomes alone if we aren't using school_income anymore.
         state.students = rawStudents.map(s => mapStudentToApp(s, state.incomes));
         notify();
 
