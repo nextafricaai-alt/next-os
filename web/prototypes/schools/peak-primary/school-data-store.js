@@ -33,6 +33,22 @@
 
   const listeners = new Set();
   const notify = () => {
+    if (window.PEAK) {
+      if (state.students && state.students.length > 0) {
+        window.PEAK.students = state.students;
+        if (!window.PEAK.kpis) window.PEAK.kpis = {};
+        window.PEAK.kpis.students = state.students.length;
+        window.PEAK.studentsLive = true;
+      }
+      if (state.teachers && state.teachers.length > 0) {
+        window.PEAK.teachers = state.teachers;
+        if (!window.PEAK.kpis) window.PEAK.kpis = {};
+        window.PEAK.kpis.teachers = state.teachers.length;
+      }
+      if (typeof window.notify === 'function') {
+        try { window.notify(); } catch(e) {}
+      }
+    }
     window.dispatchEvent(new CustomEvent('schoolStoreChange'));
     listeners.forEach(fn => fn());
   };

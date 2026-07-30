@@ -11388,6 +11388,46 @@ window.PEAK_STAFF = (function () {
         this._tenant = tenantId;
         var DAYS = this.attWindow || 7;
         try {
+          // Direct Supabase query for live students if authenticated or client exists
+          var sb = (window.NextSession && window.NextSession.sb) ||
+                   (window.SCHOOL_STORE && window.SCHOOL_STORE.getSupabase && window.SCHOOL_STORE.getSupabase()) ||
+                   (window.supabase && window.supabase.createClient && window.supabase.createClient('https://llxhvqkkgftqwefmrofn.supabase.co', 'sb_publishable_wrzbFpPrkhoN4w2KXdUAdw_gnqEQVs9'));
+          if (sb && typeof sb.from === 'function') {
+            sb.from('students').select('*').eq('tenant_id', tenantId).then(function(res) {
+              if (res && res.data && res.data.length > 0) {
+                D.students = res.data.map(function(s) {
+                  var isBoarding = s.is_boarding === true || (s.stream || '').toLowerCase().includes('boarding');
+                  var termFee = s.term_fee || (isBoarding ? 500000 : 250000);
+                  var realBalance = s.balance != null ? Number(s.balance) : (isBoarding ? 250000 : 100000);
+                  var paidAmt = Math.max(0, termFee - realBalance);
+                  var feeStatus = realBalance <= 0 ? 'paid' : (paidAmt > 0 ? 'partial' : 'overdue');
+                  var className = s.stream || s.class || '';
+                  return {
+                    id: s.id,
+                    name: s.name,
+                    stream: className,
+                    class: className,
+                    guardian: s.guardian_name || s.guardian || '',
+                    guardianPhone: s.guardian_phone || s.phone || '',
+                    balance: realBalance,
+                    paidAmount: paidAmt,
+                    termFee: termFee,
+                    fees: feeStatus,
+                    attendanceWk: s.attendance_wk != null ? s.attendance_wk : 95,
+                    lastSeen: '—',
+                    flag: realBalance > 0 ? 'risk' : null
+                  };
+                });
+                if (!D.kpis) D.kpis = {};
+                D.kpis.students = res.data.length;
+                D.studentsLive = true;
+                notify();
+              }
+            }).catch(function(err) {
+              console.warn('Supabase student fetch warning:', err);
+            });
+          }
+
           var WK = 'https://nextos-sentinel.nextafricaai.workers.dev';
           var fetchWithTimeout = function(url, ms) {
             var ctrl = new AbortController();
@@ -11405,7 +11445,7 @@ window.PEAK_STAFF = (function () {
             var d = res[0], fb = res[1], att = res[2], tch = res[3];
             if (!D.kpis) D.kpis = {};
             if (tch && Array.isArray(tch.teachers)) { D.kpis.teachers = tch.teachers.length; notify(); }
-            if (d && Array.isArray(d.students)) {
+            if (d && Array.isArray(d.students) && d.students.length > 0) {
               var bal = (fb && fb.balances) || {};
               var asum = (att && att.summary) || {};
               D.students = d.students.map(function (s) {
