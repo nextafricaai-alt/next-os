@@ -23,11 +23,15 @@
       const cached = JSON.parse(localStorage.getItem('nextos.profile') || 'null');
       if (cached) return cached;
     } catch (e) {}
+    // No session yet — derive the tenant from the URL (/school/<slug>) so a
+    // first-time visit to another school's page doesn't silently show
+    // Peak Primary's data under someone else's login screen.
+    const urlTenant = (typeof window.getOSActiveTenant === 'function') ? window.getOSActiveTenant() : '';
     return {
       email: 'demo@peakprimary.test',
       fullName: 'Demo User',
       role: 'head',
-      tenantId: 'peak-primary',
+      tenantId: urlTenant || 'peak-primary',
     };
   }
 
