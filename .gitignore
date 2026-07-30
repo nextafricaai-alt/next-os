@@ -41,3 +41,7 @@ build/
 # Personal scratch / experiments
 scratch/
 *.tmp
+
+.dev.vars*
+!.dev.vars.example
+!.env.example
