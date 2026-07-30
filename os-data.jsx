@@ -1,39 +1,18 @@
 /* os-data.jsx — single source of truth for NEXT OS page data.
-   Wrapped in an IIFE. Only window.OS_DATA escapes. Demo seeds plus a
-   localStorage layer for user-added tenants / projects / transactions.
-   When Supabase is wired, only this file changes.
+   Wired to Supabase production environment.
 */
 
 (function () {
-  const OS_DATA_MODE = 'demo';
-  const KEY_TENANTS      = 'nextos.tenants.v1';
-  const KEY_PROJECTS     = 'nextos.projects.v1';
-  const KEY_TRANSACTIONS = 'nextos.transactions.v1';
+  const OS_DATA_MODE = 'production';
+  const SUPABASE_URL = 'https://llxhvqkkgftqwefmrofn.supabase.co';
+  const SUPABASE_ANON_KEY = 'sb_publishable_wrzbFpPrkhoN4w2KXdUAdw_gnqEQVs9';
 
-  // ─── PROJECTS (seed) ─────────────────────────────────────────────────────
+  // ─── SEED DATA (Fallbacks) ───────────────────────────────────────────────
   const DEFAULT_PROJECTS = [
-    { id: 'proj-001', name: 'Digital Services Platform', client: 'Ministry of ICT, Uganda',
-      status: 'active', health: 'healthy', progress: 67, priority: 'high',
-      platform: 'Supabase + Next.js', domain: 'services.gov.ug',
-      team: ['HT', 'AO', 'DM'], startDate: '2026-01-15', deadline: '2026-07-30',
-      uptime: 99.7, lastDeploy: '2 days ago', errors24h: 0, warnings24h: 1 },
-    { id: 'proj-childcare', name: 'Charis Childcare OS', client: 'NEXT Internal · Charis Creations',
-      status: 'active', health: 'healthy', progress: 85, priority: 'high',
-      platform: 'Supabase + Vanilla JS', domain: 'childcare.nextafrica.ai',
-      team: ['HT'], startDate: '2026-06-01', deadline: '2026-08-01',
-      uptime: 99.9, lastDeploy: '1 hour ago', errors24h: 0, warnings24h: 0,
-      alerts: [],
-      milestones: [
-        { name: 'Phase 1 - Parent Portal & Auth', done: true },
-        { name: 'Phase 2 - Child Profiles & Attendance', done: true },
-        { name: 'Phase 3 - Timetable & Milestones', done: true },
-        { name: 'Phase 4 - Invoice & Payment System', done: true },
-        { name: 'Phase 5 - Nia Integration & Production', done: false },
-      ],
-    },
+    { id: 'proj-001', name: 'Digital Services Platform', client: 'Ministry of ICT, Uganda', status: 'active', health: 'healthy', progress: 67, priority: 'high', platform: 'Supabase + Next.js', domain: 'services.gov.ug', team: ['HT', 'AO', 'DM'], startDate: '2026-01-15', deadline: '2026-07-30', uptime: 99.7, lastDeploy: '2 days ago', errors24h: 0, warnings24h: 1 },
+    { id: 'proj-childcare', name: 'Charis Childcare OS', client: 'NEXT Internal · Charis Creations', status: 'active', health: 'healthy', progress: 85, priority: 'high', platform: 'Supabase + Vanilla JS', domain: 'childcare.nextafrica.ai', team: ['HT'], startDate: '2026-06-01', deadline: '2026-08-01', uptime: 99.9, lastDeploy: '1 hour ago', errors24h: 0, warnings24h: 0, alerts: [], milestones: [] },
   ];
 
-  // ─── FINANCE (seed) ──────────────────────────────────────────────────────
   const FINANCE = {
     months: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
     revenueSeries: [186, 210, 245, 262, 284, 310],
@@ -41,149 +20,160 @@
     currency: 'USD',
     unit: 'K',
   };
+
   const DEFAULT_TRANSACTIONS = [
-    { id: 'TXN-CC-001', date: '5 Jul 2026',  desc: 'Childcare OS - July Tuition Invoices (6 families)',   type: 'income',  amount: 1800,  category: 'Childcare',      status: 'completed' },
-    { id: 'TXN-CC-002', date: '4 Jul 2026',  desc: 'Childcare OS - Caretaker Payroll (Ms. Maria)',        type: 'expense', amount: 420,   category: 'Childcare',      status: 'completed' },
-    { id: 'TXN-CC-003', date: '3 Jul 2026',  desc: 'Childcare OS - Overdue Invoice (Nakamya family)',     type: 'income',  amount: 300,   category: 'Childcare',      status: 'pending'   },
-    { id: 'TXN-001', date: '20 May 2026', desc: 'Architect Membership - Kenya Ministry of Digital', type: 'income',  amount: 2999,  category: 'Membership',     status: 'completed' },
-    { id: 'TXN-002', date: '19 May 2026', desc: 'Safaricom - Process Automation Phase 2 Invoice',     type: 'income',  amount: 45000, category: 'Project',        status: 'completed' },
-    { id: 'TXN-003', date: '19 May 2026', desc: 'AWS Infrastructure - May billing',                   type: 'expense', amount: 8420,  category: 'Infrastructure', status: 'completed' },
-    { id: 'TXN-004', date: '18 May 2026', desc: 'Builder Membership x 4 - Monthly renewals',          type: 'income',  amount: 2996,  category: 'Membership',     status: 'completed' },
-    { id: 'TXN-005', date: '17 May 2026', desc: 'Supabase Pro Plan - 6 project instances',            type: 'expense', amount: 1500,  category: 'Infrastructure', status: 'completed' },
-    { id: 'TXN-006', date: '17 May 2026', desc: 'University of Lagos - Smart Campus milestone',       type: 'income',  amount: 32000, category: 'Project',        status: 'pending'   },
-    { id: 'TXN-007', date: '16 May 2026', desc: 'Team payroll - May cycle',                           type: 'expense', amount: 42000, category: 'Payroll',        status: 'completed' },
-    { id: 'TXN-008', date: '15 May 2026', desc: 'Catalyst Membership x 12 - Monthly renewals',        type: 'income',  amount: 1788,  category: 'Membership',     status: 'completed' },
-    { id: 'TXN-009', date: '15 May 2026', desc: 'Office lease - Kampala co-working space',            type: 'expense', amount: 3200,  category: 'Operations',     status: 'completed' },
-    { id: 'TXN-010', date: '14 May 2026', desc: 'KCCA Kampala - Citizen Portal retainer',             type: 'income',  amount: 15000, category: 'Project',        status: 'completed' },
-    { id: 'TXN-011', date: '13 May 2026', desc: 'Envato Elements - Annual subscription',              type: 'expense', amount: 198,   category: 'Tools',          status: 'completed' },
-    { id: 'TXN-012', date: '12 May 2026', desc: 'UBA Group - AI Operations consulting hours',         type: 'income',  amount: 8500,  category: 'Consulting',     status: 'completed' },
+    { id: 'TXN-CC-001', date: '5 Jul 2026', desc: 'Childcare OS - July Tuition Invoices (6 families)', type: 'income', amount: 1800, category: 'Childcare', status: 'completed' },
   ];
 
-  // ─── AI TOOLS (seed) ─────────────────────────────────────────────────────
   const AI_TOOLS = [
-    { id: 'doc-ai',       name: 'NEXT Docs',      usage: 847 },
-    { id: 'chat-ai',      name: 'NEXT Assistant', usage: 2340 },
-    { id: 'analytics-ai', name: 'NEXT Insights',  usage: 412 },
-    { id: 'auto-ai',      name: 'NEXT Flow',      usage: 658 },
+    { id: 'doc-ai', name: 'NEXT Docs', usage: 847 },
+    { id: 'chat-ai', name: 'NEXT Assistant', usage: 2340 },
+    { id: 'analytics-ai', name: 'NEXT Insights', usage: 412 },
+    { id: 'auto-ai', name: 'NEXT Flow', usage: 658 },
   ];
 
-  // ─── TENANT FLEET (seed) ─────────────────────────────────────────────────
   const DEFAULT_TENANTS = [
-    { id: 'peak-primary',          name: 'Peak Primary School',    vertical: 'school',       country: 'Uganda', currency: 'UGX',
-      health: 'advisory', lastSignalAt: '38s ago',
-      prototypeUrl: 'prototypes/schools/peak-primary/index.html',
-      kpis: { revenue: 412500000, expenses: 384200000 },
-      // School-specific KPIs surfaced to the agent under `verticalKpis`
-      verticalKpis: {
-        students: 286, teachers: 38, streams: 14,
-        feesCollectedTerm: 412500000, feesCollectionRate: 0.71,
-        feesOutstanding: 168800000, accountsOverdue30d: 3, overdueAmount: 1080000,
-        attendanceWeek: 0.88, atRiskStudents: 12, topPerformers: 24,
-        enrollmentInquiries: 4, lastSync: '38s ago',
-      },
-      latest: { severity: 'warn', title: '3 fee accounts overdue 30+ days', summary: 'UGX 1.08M outstanding · WhatsApp gentle reminder draft is queued for your approval.' } },
-    { id: 'st-marys-demo',         name: "St. Mary's Demo School", vertical: 'school',       country: 'Uganda', currency: 'UGX',
-      health: 'advisory', lastSignalAt: '2m ago',
-      kpis: { revenue: 1584000000, expenses: 1880000000 },
-      latest: { severity: 'warn', title: 'Cash flow needs board attention', summary: 'Expenses exceed revenue by 296M UGX this term.' } },
-    { id: 'grace-chapel-demo',     name: 'Grace Chapel',           vertical: 'church',       country: 'Uganda', currency: 'UGX',
-      health: 'healthy',  lastSignalAt: '5m ago',
-      kpis: { revenue: 48000000, expenses: 42000000 }, latest: null },
-    { id: 'hope-program-demo',     name: 'Hope Program',           vertical: 'ngo',          country: 'Uganda', currency: 'UGX',
-      health: 'advisory', lastSignalAt: '7m ago',
-      kpis: { revenue: 92000000, expenses: 80000000 },
-      latest: { severity: 'warn', title: 'Participation below capacity', summary: '1,850 of 2,000 beneficiaries active. Outreach summary recommended.' } },
-    { id: 'next-services-demo',    name: 'NEXT Services',          vertical: 'company',      country: 'Uganda', currency: 'UGX',
-      health: 'healthy',  lastSignalAt: '11m ago',
-      kpis: { revenue: 150000000, expenses: 54500000 }, latest: null },
-    { id: 'community-association-demo', name: 'Community Association', vertical: 'organisation', country: 'Uganda', currency: 'UGX',
-      health: 'advisory', lastSignalAt: '13m ago',
-      kpis: { revenue: 20000000, expenses: 14500000 },
-      latest: { severity: 'warn', title: 'Participation below threshold', summary: '430 active members vs. 500 target.' } },
-    // ─── Charis Childcare OS (wired vertical) ──────────────────────────────
-    { id: 'charis-childcare', name: 'Charis Childcare OS', vertical: 'childcare', country: 'Uganda', currency: 'UGX',
-      health: 'advisory', lastSignalAt: '12s ago',
-      prototypeUrl: '../index.html',
-      kpis: { revenue: 2100000, expenses: 840000 },
-      verticalKpis: {
-        enrolled: 24,
-        presentToday: 21,
-        absentToday: 3,
-        attendanceRate: 0.875,
-        caretakers: 3,
-        activeParents: 20,
-        invoicesDue: 3,
-        invoicesOverdue30d: 1,
-        overdueAmount: 300000,
-        totalInvoiced: 2100000,
-        collectionRate: 0.857,
-        unreadParentMessages: 5,
-        unansweredMessages24h: 2,
-        milestonesThisWeek: 7,
-        activitiesScheduledToday: 4,
-        lastSync: '12s ago',
-      },
-      latest: { severity: 'warn', title: '3 invoices due · 2 parent messages unanswered', summary: 'UGX 300K overdue (Nakamya family 30+ days). 2 parent messages have no reply in 24h.' } },
+    { id: 'peak-primary', name: 'Peak Primary School', vertical: 'school', country: 'Uganda', currency: 'UGX', health: 'advisory', lastSignalAt: '38s ago', prototypeUrl: 'prototypes/schools/peak-primary/index.html', kpis: { revenue: 412500000, expenses: 384200000 }, verticalKpis: { students: 286, teachers: 38, streams: 14, feesCollectedTerm: 412500000, feesCollectionRate: 0.71, feesOutstanding: 168800000, accountsOverdue30d: 3, overdueAmount: 1080000, attendanceWeek: 0.88, atRiskStudents: 12, topPerformers: 24, enrollmentInquiries: 4, lastSync: '38s ago' }, latest: { severity: 'warn', title: '3 fee accounts overdue 30+ days', summary: 'UGX 1.08M outstanding' } },
+    { id: 'charis-childcare', name: 'Charis Childcare OS', vertical: 'childcare', country: 'Uganda', currency: 'UGX', health: 'advisory', lastSignalAt: '12s ago', prototypeUrl: '../index.html', kpis: { revenue: 2100000, expenses: 840000 }, verticalKpis: { enrolled: 24, presentToday: 21, absentToday: 3, attendanceRate: 0.875, caretakers: 3, activeParents: 20, invoicesDue: 3, invoicesOverdue30d: 1, overdueAmount: 300000, totalInvoiced: 2100000, collectionRate: 0.857, unreadParentMessages: 5, unansweredMessages24h: 2, milestonesThisWeek: 7, activitiesScheduledToday: 4, lastSync: '12s ago' }, latest: { severity: 'warn', title: '3 invoices due', summary: 'UGX 300K overdue (Nakamya family 30+ days).' } },
   ];
 
-  // ─── Storage helpers ─────────────────────────────────────────────────────
-  function safeLoad(key) {
-    try {
-      const raw = window.localStorage && window.localStorage.getItem(key);
-      return raw ? JSON.parse(raw) : [];
-    } catch (e) { return []; }
-  }
-  function safeSave(key, list) {
-    try {
-      if (window.localStorage) window.localStorage.setItem(key, JSON.stringify(list));
-    } catch (e) { /* ignore */ }
-  }
+  // ─── STATE (In-Memory Caches) ────────────────────────────────────────────
+  let _tenantsCache = [];
+  let _projectsCache = [];
+  let _transactionsCache = [];
+  let _supabaseClient = null;
+  let _isInitialized = false;
+
   function makeSlug(name, prefix) {
-    const base = String(name || '').toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-+|-+$/g, '').slice(0, 60);
+    const base = String(name || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60);
     return base || ((prefix || 'item') + '-' + Date.now());
   }
 
-  // ─── Tenants CRUD ────────────────────────────────────────────────────────
-  let _tenantsCache = null;
-  function getTenants() {
-    if (_tenantsCache) return _tenantsCache;
-    _tenantsCache = DEFAULT_TENANTS.concat(safeLoad(KEY_TENANTS));
-    return _tenantsCache;
+  function dispatchUpdate() {
+    try { window.dispatchEvent(new CustomEvent('osdata:fleet', { detail: { count: _tenantsCache.length, source: 'supabase' } })); } catch (e) {}
   }
+
+  // Best-effort: log a failed Supabase write to sync_errors so the Sentinel
+  // worker's DB webhook can see it even if nobody has the tab open. Never
+  // throws — telemetry must not break the caller's own error handling.
+  function logSyncError(source, operation, tableName, tenantId, error) {
+    if (!_supabaseClient || !error) return;
+    _supabaseClient.from('sync_errors').insert({
+      tenant_id: tenantId || null,
+      source: source,
+      operation: operation,
+      table_name: tableName,
+      message: error.message || String(error),
+      detail: { code: error.code, hint: error.hint, details: error.details },
+    }).then(function () {}, function () {});
+  }
+
+  // ─── SUPABASE INITIALIZATION ─────────────────────────────────────────────
+  function initSupabase() {
+    if (_isInitialized) return Promise.resolve();
+    
+    return new Promise((resolve) => {
+      if (window.supabase) {
+        _supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        _isInitialized = true;
+        resolve();
+        return;
+      }
+      
+      const script = document.createElement('script');
+      script.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';
+      script.onload = () => {
+        _supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        _isInitialized = true;
+        resolve();
+      };
+      document.head.appendChild(script);
+    });
+  }
+
+  // ─── DATA FETCHING ───────────────────────────────────────────────────────
+  async function loadData() {
+    await initSupabase();
+    
+    // Fetch Tenants
+    const { data: tenantsData, error: tenantsError } = await _supabaseClient.from('tenants').select('*');
+    if (!tenantsError && tenantsData) {
+      _tenantsCache = tenantsData.map(t => Object.assign({}, t, t.meta || {}));
+      if (_tenantsCache.length === 0) _tenantsCache = DEFAULT_TENANTS.slice();
+    } else {
+      _tenantsCache = DEFAULT_TENANTS.slice();
+    }
+    
+    // Fetch Projects (stored in os_records)
+    const { data: projectsData, error: projectsError } = await _supabaseClient.from('os_records').select('*').eq('tenant', 'next').eq('kind', 'project');
+    if (!projectsError && projectsData) {
+      _projectsCache = projectsData.map(r => Object.assign({ id: r.id }, r.payload));
+      if (_projectsCache.length === 0) _projectsCache = DEFAULT_PROJECTS.slice();
+    } else {
+      _projectsCache = DEFAULT_PROJECTS.slice();
+    }
+    
+    // Fetch Transactions (stored in os_records)
+    const { data: txnData, error: txnError } = await _supabaseClient.from('os_records').select('*').eq('tenant', 'next').eq('kind', 'transaction');
+    if (!txnError && txnData) {
+      _transactionsCache = txnData.map(r => Object.assign({ dbId: r.id }, r.payload));
+      if (_transactionsCache.length === 0) _transactionsCache = DEFAULT_TRANSACTIONS.slice();
+    } else {
+      _transactionsCache = DEFAULT_TRANSACTIONS.slice();
+    }
+    
+    dispatchUpdate();
+  }
+
+  // ─── CRUD OPS ────────────────────────────────────────────────────────────
+  
+  // Tenants
+  function getTenants() { return _tenantsCache.length ? _tenantsCache : DEFAULT_TENANTS; }
+  
   function addTenant(input) {
+    const id = input.id || makeSlug(input.name, 'tenant');
     const tenant = {
-      id: input.id || makeSlug(input.name, 'tenant'),
+      id: id,
       name: input.name || 'Unnamed tenant',
       vertical: input.vertical || 'organisation',
       country: input.country || 'Uganda',
       currency: input.currency || 'UGX',
-      health: input.health || 'unknown',
-      lastSignalAt: 'just added',
-      kpis: { revenue: Number(input.revenue) || 0, expenses: Number(input.expenses) || 0 },
-      latest: null,
-      addedByUser: true,
-      addedAt: new Date().toISOString(),
+      meta: {
+        health: input.health || 'unknown',
+        lastSignalAt: 'just added',
+        kpis: { revenue: Number(input.revenue) || 0, expenses: Number(input.expenses) || 0 },
+        latest: null,
+      }
     };
-    const added = safeLoad(KEY_TENANTS); added.push(tenant); safeSave(KEY_TENANTS, added);
-    _tenantsCache = DEFAULT_TENANTS.concat(added);
-    return _tenantsCache;
-  }
-  function removeTenant(id) {
-    const added = safeLoad(KEY_TENANTS).filter(t => t.id !== id);
-    safeSave(KEY_TENANTS, added);
-    _tenantsCache = DEFAULT_TENANTS.concat(added);
+    
+    // Optimistic update
+    const flatTenant = Object.assign({}, tenant, tenant.meta);
+    _tenantsCache.push(flatTenant);
+    dispatchUpdate();
+    
+    // Remote
+    if (_supabaseClient) {
+      _supabaseClient.from('tenants').insert(tenant).then(({error}) => {
+        if (error) { console.error('Failed to add tenant', error); logSyncError('addTenant', 'insert', 'tenants', id, error); }
+      });
+    }
     return _tenantsCache;
   }
 
-  // ─── Projects CRUD ───────────────────────────────────────────────────────
-  let _projectsCache = null;
-  function getProjects() {
-    if (_projectsCache) return _projectsCache;
-    _projectsCache = DEFAULT_PROJECTS.concat(safeLoad(KEY_PROJECTS));
-    return _projectsCache;
+  function removeTenant(id) {
+    _tenantsCache = _tenantsCache.filter(t => t.id !== id);
+    dispatchUpdate();
+    if (_supabaseClient) {
+      _supabaseClient.from('tenants').delete().eq('id', id).then(({error}) => {
+         if (error) { console.error('Failed to delete tenant', error); logSyncError('removeTenant', 'delete', 'tenants', id, error); }
+      });
+    }
+    return _tenantsCache;
   }
+
+  // Projects
+  function getProjects() { return _projectsCache.length ? _projectsCache : DEFAULT_PROJECTS; }
+  
   function addProject(input) {
     const project = {
       id: input.id || makeSlug(input.name, 'proj'),
@@ -201,29 +191,34 @@
       uptime: 100, lastDeploy: 'never', errors24h: 0, warnings24h: 0,
       alerts: [], milestones: [],
       credentials: { supabaseUrl: '', supabaseKey: '', adminEmail: '' },
-      addedByUser: true,
-      addedAt: new Date().toISOString(),
     };
-    const added = safeLoad(KEY_PROJECTS); added.push(project); safeSave(KEY_PROJECTS, added);
-    _projectsCache = DEFAULT_PROJECTS.concat(added);
-    return _projectsCache;
-  }
-  function removeProject(id) {
-    const added = safeLoad(KEY_PROJECTS).filter(p => p.id !== id);
-    safeSave(KEY_PROJECTS, added);
-    _projectsCache = DEFAULT_PROJECTS.concat(added);
+    
+    _projectsCache.push(project);
+    dispatchUpdate();
+    
+    if (_supabaseClient) {
+      _supabaseClient.from('os_records').insert({ tenant: 'next', kind: 'project', payload: project }).then(({error}) => {
+         if (error) { console.error('Failed to add project', error); logSyncError('addProject', 'insert', 'os_records', 'next', error); }
+      });
+    }
     return _projectsCache;
   }
 
-  // ─── Transactions CRUD ───────────────────────────────────────────────────
-  let _transactionsCache = null;
-  function getTransactions() {
-    if (_transactionsCache) return _transactionsCache;
-    const added = safeLoad(KEY_TRANSACTIONS);
-    // Newest first.
-    _transactionsCache = added.concat(DEFAULT_TRANSACTIONS);
-    return _transactionsCache;
+  function removeProject(id) {
+    _projectsCache = _projectsCache.filter(p => p.id !== id);
+    dispatchUpdate();
+
+    if (_supabaseClient) {
+      _supabaseClient.from('os_records').delete().eq('tenant', 'next').eq('kind', 'project').contains('payload', { id }).then(({error}) => {
+         if (error) { console.error('Failed to delete project', error); logSyncError('removeProject', 'delete', 'os_records', 'next', error); }
+      });
+    }
+    return _projectsCache;
   }
+
+  // Transactions
+  function getTransactions() { return _transactionsCache.length ? _transactionsCache : DEFAULT_TRANSACTIONS; }
+  
   function addTransaction(input) {
     const today = new Date();
     const month = today.toLocaleString('en-US', { month: 'short' });
@@ -235,21 +230,89 @@
       amount: Number(input.amount) || 0,
       category: input.category || 'Other',
       status: input.status || 'completed',
-      addedByUser: true,
-      addedAt: new Date().toISOString(),
     };
-    const added = safeLoad(KEY_TRANSACTIONS); added.unshift(tx); safeSave(KEY_TRANSACTIONS, added);
-    _transactionsCache = added.concat(DEFAULT_TRANSACTIONS);
-    return _transactionsCache;
-  }
-  function removeTransaction(id) {
-    const added = safeLoad(KEY_TRANSACTIONS).filter(t => t.id !== id);
-    safeSave(KEY_TRANSACTIONS, added);
-    _transactionsCache = added.concat(DEFAULT_TRANSACTIONS);
+    
+    _transactionsCache.unshift(tx);
+    dispatchUpdate();
+    
+    if (_supabaseClient) {
+      _supabaseClient.from('os_records').insert({ tenant: 'next', kind: 'transaction', payload: tx }).then(({error}) => {
+         if (error) { console.error('Failed to add transaction', error); logSyncError('addTransaction', 'insert', 'os_records', 'next', error); }
+      });
+    }
     return _transactionsCache;
   }
 
-  // ─── Finance object (legacy shape kept for existing FinancePage) ─────────
+  function removeTransaction(id) {
+    _transactionsCache = _transactionsCache.filter(t => t.id !== id);
+    dispatchUpdate();
+    if (_supabaseClient) {
+      _supabaseClient.from('os_records').delete().eq('tenant', 'next').eq('kind', 'transaction').contains('payload', { id }).then(({error}) => {
+         if (error) { console.error('Failed to delete transaction', error); logSyncError('removeTransaction', 'delete', 'os_records', 'next', error); }
+      });
+    }
+    return _transactionsCache;
+  }
+
+  // ─── CSV IMPORT PIPELINE ─────────────────────────────────────────────────
+  // Generic CSV -> JSON parser (handles quoted fields with embedded commas).
+  function parseCsv(text) {
+    const lines = String(text || '').split(/\r\n|\n|\r/).filter(l => l.trim().length);
+    if (!lines.length) return [];
+    const splitRow = (line) => {
+      const cells = []; let cur = ''; let inQuotes = false;
+      for (let i = 0; i < line.length; i++) {
+        const ch = line[i];
+        if (inQuotes) {
+          if (ch === '"' && line[i + 1] === '"') { cur += '"'; i++; }
+          else if (ch === '"') { inQuotes = false; }
+          else { cur += ch; }
+        } else if (ch === '"') { inQuotes = true; }
+        else if (ch === ',') { cells.push(cur); cur = ''; }
+        else { cur += ch; }
+      }
+      cells.push(cur);
+      return cells.map(c => c.trim());
+    };
+    const headers = splitRow(lines[0]).map(h => h.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, ''));
+    return lines.slice(1).map(line => {
+      const cells = splitRow(line);
+      const row = {};
+      headers.forEach((h, i) => { row[h] = cells[i] !== undefined ? cells[i] : ''; });
+      return row;
+    });
+  }
+
+  // Bulk-insert parsed CSV rows into a Supabase table, stamping every row
+  // with the active tenant's id, then triggers a fleet re-fetch on success.
+  async function importCsv(tableName, tenantId, csvText, columnMap) {
+    await initSupabase();
+    if (!_supabaseClient) return { ok: false, error: 'Supabase not initialized' };
+    if (!tenantId) return { ok: false, error: 'tenant_id is required for CSV import' };
+
+    const rows = parseCsv(csvText);
+    if (!rows.length) return { ok: false, error: 'No rows found in CSV' };
+
+    const payload = rows.map(row => {
+      const mapped = { tenant_id: tenantId };
+      Object.keys(columnMap || {}).forEach(col => {
+        const source = columnMap[col];
+        mapped[col] = typeof source === 'function' ? source(row) : row[source];
+      });
+      return mapped;
+    });
+
+    const { data, error } = await _supabaseClient.from(tableName).insert(payload).select();
+    if (error) {
+      logSyncError('csv_import_' + tableName, 'insert', tableName, tenantId, error);
+      return { ok: false, error: error.message, imported: 0 };
+    }
+
+    await loadData();
+    return { ok: true, imported: (data || payload).length };
+  }
+
+  // ─── Finance object ──────────────────────────────────────────────────────
   function getFinance() {
     return Object.assign({}, FINANCE, { transactions: getTransactions() });
   }
@@ -271,31 +334,12 @@
     getTenants:      getTenants,      addTenant,      removeTenant,
     getProjects:     getProjects,     addProject,     removeProject,
     getTransactions: getTransactions, addTransaction, removeTransaction,
+    refreshFleet:    loadData,
+    parseCsv:        parseCsv,
+    importCsv:       importCsv,
   };
-})();
+  
+  // Start async data hydration immediately
+  loadData();
 
-/* os-fleet-live — pull the real fleet from Nia's worker; fall back to demo seed. Additive. */
-(function(){
-  var NIA = (window.NEXT_OS_SENTINEL_ENDPOINT) || 'https://nextos-sentinel.nextafricaai.workers.dev';
-  var _live = null, _patched = false;
-  function doFetch(){
-    return fetch(NIA + '/fleet').then(function(r){ return r.ok ? r.json() : null; }).then(function(d){
-      if (d && Array.isArray(d.tenants) && d.tenants.length){
-        _live = d.tenants;
-        try { window.dispatchEvent(new CustomEvent('osdata:fleet', { detail: { count: _live.length, source: d.source } })); } catch(e){}
-      }
-      return _live;
-    }).catch(function(){});
-  }
-  function patch(){
-    if (_patched || !window.OS_DATA) return;
-    _patched = true;
-    var _orig = window.OS_DATA.getTenants;
-    window.OS_DATA.getTenants = function(){ return (_live && _live.length) ? _live : _orig(); };
-    window.OS_DATA.fleetSource = function(){ return _live ? 'live' : 'seed'; };
-    window.OS_DATA.refreshFleet = doFetch;
-    doFetch();
-  }
-  var tries = 0;
-  (function wait(){ if (window.OS_DATA) { patch(); } else if (tries++ < 200) { setTimeout(wait, 100); } })();
 })();

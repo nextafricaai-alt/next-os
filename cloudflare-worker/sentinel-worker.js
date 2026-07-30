@@ -26,9 +26,11 @@ const ALLOWED_ORIGINS = [
   'https://nextafrica.ai',
   'https://www.nextafrica.ai',
   'https://nextos.nextafrica.ai',
+  'https://next-os.nextafricaai.workers.dev', // the actual Workers Assets deployment (production)
   'http://localhost:5500',
   'http://localhost:3000',
   'http://127.0.0.1:5500',
+  'http://127.0.0.1:8085',
   'null', // file:// origin during local OS testing
 ];
 
@@ -171,6 +173,15 @@ export default {
     if (request.method === 'OPTIONS') {
       return new Response(null, { status: 204, headers: cors });
     }
+    // ─── Route: POST /telemetry — receive frontend crashes ────────────
+    if (request.method === 'POST' && url.pathname === '/telemetry') {
+      return handleTelemetryPost(request, env, cors);
+    }
+    // ─── Route: POST /webhook/db-error — Supabase DB webhook for failed writes ──
+    if (request.method === 'POST' && url.pathname === '/webhook/db-error') {
+      return handleDbErrorWebhook(request, env, cors);
+    }
+
     // ─── Route: GET /briefs — list autonomous briefs from KV ────────────
     if (request.method === 'GET' && url.pathname === '/briefs') {
       return handleBriefsGet(request, env, cors);
@@ -1303,6 +1314,18 @@ async function sbWrite(env, path, body, method, prefer) {
   return txt ? JSON.parse(txt) : null;   // empty body (return=minimal / 201) → null, no crash
 }
 
+// Best-effort: log a failed write to sync_errors (fires the Supabase DB
+// webhook → /webhook/db-error → self-healing). Never throws.
+async function logSyncErrorWorker(env, source, tenantId, tableName, message) {
+  if (!env.SUPABASE_URL || !env.SUPABASE_KEY) return;
+  try {
+    await sbWrite(env, '/sync_errors', {
+      tenant_id: tenantId || null, source, operation: 'insert', table_name: tableName,
+      message: String(message).slice(0, 2000),
+    }, 'POST', 'return=minimal');
+  } catch (e) { /* telemetry must never break the caller */ }
+}
+
 // Discover a website's pages from sitemap.xml, falling back to internal links.
 async function handleSitePages(target, cors) {
   const J = (o, st) => new Response(JSON.stringify(o), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
@@ -1532,7 +1555,10 @@ async function handleStudentsImport(request, env, cors) {
       imported += Math.min(500, filtered.length - i);
     }
     return J({ ok: true, imported, skipped });
-  } catch (e) { return J({ error: String((e && e.message) || e) }, 200); }
+  } catch (e) {
+    logSyncErrorWorker(env, 'csv_import_students', tenant, 'students', e && e.message || e);
+    return J({ error: String((e && e.message) || e) }, 200);
+  }
 }
 
 async function handleFeesImport(request, env, cors) {
@@ -1580,7 +1606,10 @@ async function handleFeesImport(request, env, cors) {
     let imported = 0;
     for (let i = 0; i < inserts.length; i += 500) { await sbWrite(env, '/fees', inserts.slice(i, i + 500), 'POST', 'return=minimal'); imported += Math.min(500, inserts.length - i); }
     return J({ ok: true, imported, matched: matchedIds.size, students: matchedIds.size, term, unmatched });
-  } catch (e) { return J({ error: String((e && e.message) || e) }, 200); }
+  } catch (e) {
+    logSyncErrorWorker(env, 'csv_import_fees', tenant, 'fees', e && e.message || e);
+    return J({ error: String((e && e.message) || e) }, 200);
+  }
 }
 
 // ─── Billing / subscriptions (Flutterwave) ───────────────────────────────
@@ -3233,4 +3262,258 @@ function makeIconPng(letters, color, size) {
   for (let y=0;y<size;y++){ raw[y*stride]=0; raw.set(px.subarray(y*size*3,(y+1)*size*3), y*stride+1); }
   const ihdr=_pCat([_pU32(size),_pU32(size),new Uint8Array([8,2,0,0,0])]);
   return _pCat([new Uint8Array([137,80,78,71,13,10,26,10]), _pChunk('IHDR',ihdr), _pChunk('IDAT',_pZlib(raw)), _pChunk('IEND',new Uint8Array(0))]);
+}
+
+
+
+// ─── Self-Healing / Telemetry ──────────────────────────────────────────────
+
+async function handleTelemetryPost(request, env, cors) {
+  let body;
+  try {
+    body = await request.json();
+  } catch(e) {
+    return new Response(JSON.stringify({ error: 'bad body' }), { status: 400, headers: { ...cors, 'Content-Type': 'application/json' } });
+  }
+
+  const { message, stack, url: crashUrl } = body;
+  if (!message || !stack) {
+    return new Response(JSON.stringify({ error: 'missing message or stack' }), { status: 400, headers: { ...cors, 'Content-Type': 'application/json' } });
+  }
+
+  // 1. Log telemetry to KV
+  const incidentId = 'crash_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
+  if (env.BRIEFS_KV) {
+    await env.BRIEFS_KV.put(incidentId, JSON.stringify(body));
+  }
+
+  // 2. Fire and forget the self-healing routine
+  // In Cloudflare Workers, ctx.waitUntil() would be best, but we are inside fetch without ctx easily accessible here.
+  // We can just promise chain or execute directly.
+  triggerSelfHealing(body, env, incidentId).catch(e => console.error("Self-healing failed:", e));
+
+  return new Response(JSON.stringify({ ok: true, incidentId }), { headers: { ...cors, 'Content-Type': 'application/json' } });
+}
+
+// ─── Route: POST /webhook/db-error — Supabase Database Webhook for failed
+// writes (e.g. a rejected CSV import batch). Configured in the Supabase
+// dashboard against the `sync_errors` table (see
+// supabase-sync-errors-webhook.sql). Normalizes the webhook payload into
+// the same shape handleTelemetryPost already produces, then reuses the
+// same self-healing pipeline.
+async function handleDbErrorWebhook(request, env, cors) {
+  let body;
+  try {
+    body = await request.json();
+  } catch (e) {
+    return new Response(JSON.stringify({ error: 'bad body' }), { status: 400, headers: { ...cors, 'Content-Type': 'application/json' } });
+  }
+
+  const record = body.record || body.new || body;
+  const message = record.message || 'Supabase write failed';
+  const stack = [
+    'SyncError: ' + message,
+    '    at ' + (record.source || 'unknown_source') + ' (' + (record.table_name || 'unknown_table') + '.sql)',
+  ].join('\n');
+
+  const crashData = {
+    type: 'db_write_failure',
+    message: message,
+    stack: stack,
+    url: 'supabase://' + (record.table_name || 'unknown'),
+    tenant_id: record.tenant_id || null,
+    detail: record.detail || {},
+  };
+
+  const incidentId = 'dberr_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
+  if (env.BRIEFS_KV) {
+    await env.BRIEFS_KV.put(incidentId, JSON.stringify(crashData));
+  }
+  triggerSelfHealing(crashData, env, incidentId).catch(e => console.error("Self-healing failed:", e));
+
+  return new Response(JSON.stringify({ ok: true, incidentId }), { headers: { ...cors, 'Content-Type': 'application/json' } });
+}
+
+async function triggerSelfHealing(crashData, env, incidentId) {
+  if (!env.GITHUB_PAT || !env.GITHUB_REPO) {
+    console.log("Self-healing skipped: GITHUB_PAT or GITHUB_REPO missing.");
+    return;
+  }
+
+  // Basic heuristic: find the first .js or .jsx file in the stack trace
+  const fileMatch = (crashData.stack || '').match(/([a-zA-Z0-9_-]+\.(?:js|jsx|html))/);
+  if (!fileMatch) {
+    console.log("No identifiable file in stack trace.");
+    return;
+  }
+
+  const fileName = fileMatch[1];
+  console.log(`Attempting self-healing for file: ${fileName}`);
+
+  // Fetch the file from GitHub
+  const repo = env.GITHUB_REPO;
+  const pat = env.GITHUB_PAT;
+  const headers = {
+    'User-Agent': 'Cloudflare-Sentinel',
+    'Authorization': `Bearer ${pat}`,
+    'Accept': 'application/vnd.github.v3+json'
+  };
+
+  // Search for the file path in the repo using GitHub Search API
+  const searchRes = await fetch(`https://api.github.com/search/code?q=${fileName}+repo:${repo}`, { headers });
+  const searchData = await searchRes.json();
+  
+  if (!searchData.items || searchData.items.length === 0) {
+    console.log(`File ${fileName} not found in repo ${repo}.`);
+    return;
+  }
+  
+  const filePath = searchData.items[0].path;
+
+  // Get file content
+  const contentRes = await fetch(`https://api.github.com/repos/${repo}/contents/${filePath}`, { headers });
+  const contentData = await contentRes.json();
+  
+  if (!contentData.content) {
+    console.log("Could not read file content.");
+    return;
+  }
+  
+  // Base64 decode
+  // Cloudflare worker atob:
+  const fileContent = atob(contentData.content.replace(/\n/g, ''));
+  
+  // 3. Ask Llama to fix it
+  const prompt = `
+You are the NEXT OS autonomous self-healing agent.
+The application just crashed with the following error:
+${crashData.message}
+
+Stack trace:
+${crashData.stack}
+
+Here is the source code of the file where the error likely occurred (${filePath}):
+\`\`\`javascript
+${fileContent}
+\`\`\`
+
+Analyze the crash, locate the bug, and provide the FULL FIXED SOURCE CODE for this file. 
+Output ONLY the raw fixed source code, without any markdown formatting, backticks, or explanations.
+`;
+
+  const messages = [
+    { role: 'system', content: 'You are an autonomous repair agent. You only output raw source code.' },
+    { role: 'user', content: prompt }
+  ];
+  
+  const aiRes = await env.AI.run('@cf/meta/llama-3.3-70b-instruct-fp8-fast', { messages, max_tokens: 4096 });
+  let fixedCode = aiRes.response || '';
+  
+  // Strip markdown if Llama ignored instructions
+  fixedCode = fixedCode.replace(/^```[a-z]*\n/, '').replace(/\n```$/, '').trim();
+
+  // 4. Push the fix to a NEW branch (never straight to main) and open a PR
+  // for human review. Self-healing proposes; a person still merges.
+  const baseBranch = env.GITHUB_BASE_BRANCH || 'main';
+
+  // Get latest commit sha on the base branch
+  const refRes = await fetch(`https://api.github.com/repos/${repo}/git/refs/heads/${baseBranch}`, { headers });
+  const refData = await refRes.json();
+  const latestCommitSha = refData.object && refData.object.sha;
+  if (!latestCommitSha) {
+    console.log(`Self-healing aborted: could not resolve ${baseBranch} ref (${JSON.stringify(refData)}).`);
+    return;
+  }
+
+  // Get commit details to find tree
+  const commitRes = await fetch(`https://api.github.com/repos/${repo}/git/commits/${latestCommitSha}`, { headers });
+  const commitData = await commitRes.json();
+  const baseTreeSha = commitData.tree.sha;
+
+  // Create new blob
+  const blobRes = await fetch(`https://api.github.com/repos/${repo}/git/blobs`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ content: fixedCode, encoding: 'utf-8' })
+  });
+  const blobData = await blobRes.json();
+  const blobSha = blobData.sha;
+
+  // Create new tree
+  const treeRes = await fetch(`https://api.github.com/repos/${repo}/git/trees`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({
+      base_tree: baseTreeSha,
+      tree: [
+        {
+          path: filePath,
+          mode: '100644',
+          type: 'blob',
+          sha: blobSha
+        }
+      ]
+    })
+  });
+  const treeData = await treeRes.json();
+  const newTreeSha = treeData.sha;
+
+  // Create commit
+  const newCommitRes = await fetch(`https://api.github.com/repos/${repo}/git/commits`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({
+      message: `[Self-Healing] Sentinel automated fix for ${crashData.message}`,
+      tree: newTreeSha,
+      parents: [latestCommitSha]
+    })
+  });
+  const newCommitData = await newCommitRes.json();
+  const newCommitOutSha = newCommitData.sha;
+  if (!newCommitOutSha) {
+    console.log(`Self-healing aborted: commit creation failed (${JSON.stringify(newCommitData)}).`);
+    return;
+  }
+
+  // Create a new branch pointing at the fix commit (does NOT touch base branch)
+  const branchName = `sentinel/self-heal-${incidentId || Date.now()}`;
+  const createBranchRes = await fetch(`https://api.github.com/repos/${repo}/git/refs`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ ref: `refs/heads/${branchName}`, sha: newCommitOutSha })
+  });
+
+  if (!createBranchRes.ok) {
+    const errText = await createBranchRes.text();
+    console.log(`Self-healing push failed: could not create branch ${branchName}: ${errText}`);
+    return;
+  }
+
+  console.log(`Self-healing: pushed commit ${newCommitOutSha} fixing ${filePath} to branch ${branchName}`);
+
+  // Open a PR from the fix branch into the base branch for human review.
+  let prUrl = null;
+  try {
+    const prRes = await fetch(`https://api.github.com/repos/${repo}/pulls`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        title: `[Self-Healing] Fix: ${crashData.message}`.slice(0, 250),
+        head: branchName,
+        base: baseBranch,
+        body: `Sentinel detected a crash and proposed this fix automatically. Please review before merging.\n\n**Error:** ${crashData.message}\n\n**File:** ${filePath}\n\n**Incident:** ${incidentId || 'n/a'}\n\n\`\`\`\n${(crashData.stack || '').slice(0, 2000)}\n\`\`\``,
+      })
+    });
+    const prData = await prRes.json();
+    prUrl = prData && prData.html_url;
+    if (prUrl) console.log(`Self-healing: opened PR ${prUrl}`);
+  } catch (e) {
+    console.log(`Self-healing: branch pushed but PR creation failed: ${e && e.message}`);
+  }
+
+  if (env.BRIEFS_KV && incidentId) {
+    await env.BRIEFS_KV.put(incidentId + '_result', JSON.stringify({
+      status: 'fix_pushed', branch: branchName, filePath, prUrl, at: new Date().toISOString(),
+    }));
+  }
 }

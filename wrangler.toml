@@ -1,0 +1,13 @@
+name = "next-os"
+account_id = "b5aecdced030bf84d0a1fb6dcec80e09"
+compatibility_date = "2026-07-30"
+compatibility_flags = ["nodejs_compat"]
+
+# This is the folder that's actually live at next-os.nextafricaai.workers.dev
+# (confirmed byte-for-byte via a hash match against the deployed site).
+# Workers Builds (Cloudflare's GitHub integration) needs this file at the
+# repo root to know what to build/deploy on push — it didn't exist before,
+# which is why the "Workers Builds: next-os" check failed instantly on
+# every PR (nothing to build from).
+[assets]
+directory = "web"

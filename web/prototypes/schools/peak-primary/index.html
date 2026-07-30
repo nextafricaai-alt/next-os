@@ -12798,7 +12798,62 @@ window.PEAK_STAFF = (function () {
   }
 
   window.App = App;
-  ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+
+  class GlobalErrorBoundary extends React.Component {
+    constructor(props) {
+      super(props);
+      this.state = { hasError: false };
+    }
+    
+    static getDerivedStateFromError(error) {
+      return { hasError: true };
+    }
+    
+    componentDidCatch(error, errorInfo) {
+      console.error("Agent Telemetry Caught:", error, errorInfo);
+      
+      const payload = {
+        type: 'frontend_crash',
+        message: error.message,
+        stack: error.stack,
+        componentStack: errorInfo.componentStack,
+        url: window.location.href,
+        userAgent: navigator.userAgent,
+        tenant_id: window.NextSession?.tenant?.id || 'unknown'
+      };
+
+      const endpoint = window.SENTINEL_URL || 'http://localhost:8787/telemetry';
+      fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      }).catch(err => console.error("Telemetry failed to send:", err));
+    }
+    
+    render() {
+      if (this.state.hasError) {
+        return (
+          <div style={{ padding: 40, fontFamily: 'monospace', color: '#FF4757', background: '#0F1322', height: '100vh', boxSizing: 'border-box' }}>
+            <h2>System Failure Detected</h2>
+            <p>The Sentinel agent has been notified and is attempting to self-heal the system.</p>
+            <button 
+              onClick={() => window.location.reload()} 
+              style={{ padding: '10px 20px', background: '#FF4757', color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', marginTop: 20, fontWeight: 700 }}
+            >
+              Reload Application
+            </button>
+          </div>
+        );
+      }
+      return this.props.children;
+    }
+  }
+
+  ReactDOM.createRoot(document.getElementById('root')).render(
+    <GlobalErrorBoundary>
+      <App />
+    </GlobalErrorBoundary>
+  );
 })();
 
   </script>
