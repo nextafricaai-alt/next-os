@@ -4735,9 +4735,10 @@ const PD_Students = (function () {
       return s;
     };
 
+    const studs = (D && Array.isArray(D.students)) ? D.students : [];
     const rows = useMemo(() => {
-      let r = D.students.slice();
-      if (query) r = r.filter(s => (s.name + (s.guardian || '')).toLowerCase().includes(query.toLowerCase()));
+      let r = studs.slice();
+      if (query) r = r.filter(s => ((s.name || '') + (s.guardian || '')).toLowerCase().includes(query.toLowerCase()));
       if (streamFilter !== 'All') {
         const filterNorm = normalizeClass(streamFilter);
         r = r.filter(s => {
@@ -4748,21 +4749,21 @@ const PD_Students = (function () {
       }
       if (feesFilter !== 'All') {
         if (feesFilter === 'overdue') {
-          r = r.filter(s => s.balance > 0 || s.fees === 'overdue' || s.fees === 'partial');
+          r = r.filter(s => (s.balance || 0) > 0 || s.fees === 'overdue' || s.fees === 'partial');
         } else if (feesFilter === 'paid') {
-          r = r.filter(s => s.balance <= 0 || s.fees === 'paid');
+          r = r.filter(s => (s.balance || 0) <= 0 || s.fees === 'paid');
         } else if (feesFilter === 'partial') {
-          r = r.filter(s => s.balance > 0 && (s.paidAmount > 0 || s.fees === 'partial'));
+          r = r.filter(s => (s.balance || 0) > 0 && ((s.paidAmount || 0) > 0 || s.fees === 'partial'));
         }
       }
-      if (sort === 'name') r.sort((a, b) => a.name.localeCompare(b.name));
+      if (sort === 'name') r.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
       if (sort === 'risk') r.sort((a, b) => (a.attendanceWk == null ? 101 : a.attendanceWk) - (b.attendanceWk == null ? 101 : b.attendanceWk));
-      if (sort === 'fees') r.sort((a, b) => b.balance - a.balance);
+      if (sort === 'fees') r.sort((a, b) => (b.balance || 0) - (a.balance || 0));
       if (sort === 'recent') r.sort((a, b) => (a.lastSeen || '').localeCompare(b.lastSeen || ''));
       return r;
-    }, [query, streamFilter, feesFilter, sort, D.students.length]);
+    }, [query, streamFilter, feesFilter, sort, studs.length]);
 
-    const selected = D.students.find(s => s.id === selectedId);
+    const selected = studs.find(s => s.id === selectedId) || studs[0];
 
     // Build dynamic class dropdown options from students roster + standard Ugandan primary classes
     const classOpts = useMemo(() => {
@@ -4781,12 +4782,12 @@ const PD_Students = (function () {
       ];
       // Collect any extra classes from roster
       const extra = new Set();
-      (D.students || []).forEach(s => {
+      studs.forEach(s => {
         const c = s.stream || s.class;
         if (c) extra.add(c);
       });
       return standard;
-    }, [D.students.length]);
+    }, [studs.length]);
 
     return (
       <div style={{
@@ -6262,7 +6263,7 @@ window.PEAK_SCREENS = (function () {
 
     const allStudents = (store && store.students && store.students.length > 0)
       ? store.students
-      : ((window.SCHOOL_STUDENTS && window.SCHOOL_STUDENTS.length > 0) ? window.SCHOOL_STUDENTS : D.students);
+      : ((window.SCHOOL_STUDENTS && window.SCHOOL_STUDENTS.length > 0) ? window.SCHOOL_STUDENTS : ((D && D.students) || []));
 
     const norm = (str) => (str || '').toString().toLowerCase().replace(/[^a-z0-9]/g, '');
 
@@ -6431,24 +6432,25 @@ window.PEAK_SCREENS = (function () {
   // ═════════════════════════════════════════════════════════════════════════
   function Teachers({ onAddTeacher }) {
     const [query, setQuery] = useState('');
-    const [selectedId, setSelectedId] = useState(D.teachers[0].id);
+    const teachList = (D && Array.isArray(D.teachers)) ? D.teachers : [];
+    const [selectedId, setSelectedId] = useState(teachList[0] ? teachList[0].id : null);
 
     const filtered = useMemo(() => {
-      if (!query) return D.teachers;
+      if (!query) return teachList;
       const q = query.toLowerCase();
-      return D.teachers.filter(t =>
-        t.name.toLowerCase().includes(q) ||
-        t.role.toLowerCase().includes(q) ||
-        t.subjects.join(' ').toLowerCase().includes(q)
+      return teachList.filter(t =>
+        (t.name || '').toLowerCase().includes(q) ||
+        (t.role || '').toLowerCase().includes(q) ||
+        (Array.isArray(t.subjects) ? t.subjects.join(' ') : '').toLowerCase().includes(q)
       );
-    }, [query]);
+    }, [query, teachList]);
 
-    const selected = D.teachers.find(t => t.id === selectedId) || D.teachers[0];
+    const selected = (teachList.find(t => t.id === selectedId) || teachList[0]) || { name: 'Teacher', role: 'Staff', subjects: [], phone: '', email: '' };
 
     return (
       <div>
         <PageHeader
-          eyebrow={`Staff · ${D.teachers.length} teachers`}
+          eyebrow={`Staff · ${teachList.length} teachers`}
           title="Teachers"
           subtitle="Active staff, classes taught, and recent performance signals."
           actions={
@@ -7176,14 +7178,15 @@ window.PEAK_FORMS = (function () {
 
   // ─── Record Payment ───────────────────────────────────────────────────────
   function RecordPayment({ store, defaultStudentId, defaultAmount, defaultMethod }) {
-    const owing = D.students.filter(s => s.balance > 0);
-    const [studentId, setStudentId] = useState(defaultStudentId || (owing[0] && owing[0].id) || (D.students[0] && D.students[0].id));
+    const studs = (D && Array.isArray(D.students)) ? D.students : [];
+    const owing = studs.filter(s => (s.balance || 0) > 0);
+    const [studentId, setStudentId] = useState(defaultStudentId || (owing[0] && owing[0].id) || (studs[0] && studs[0].id));
     const [amount, setAmount] = useState(defaultAmount ? String(defaultAmount) : '');
     const [method, setMethod] = useState(defaultMethod || 'mtn');
     const [ref, setRef] = useState('');
     const [phone, setPhone] = useState('');
-    const student = D.students.find(s => s.id === Number(studentId));
-    const balance = student ? student.balance : 0;
+    const student = studs.find(s => s.id === Number(studentId));
+    const balance = student ? (student.balance || 0) : 0;
 
     const submit = async () => {
       const amt = Number(amount.replace(/[^0-9]/g, ''));
@@ -7215,8 +7218,8 @@ window.PEAK_FORMS = (function () {
         />
         <div style={{ padding: 26, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
           <Field label="Student" span={2}>
-            <Select value={studentId} onChange={setStudentId} options={D.students.map(s => ({
-              value: s.id, label: s.name + ' · ' + s.stream + (s.balance > 0 ? ' · ' + D.fmtUGXshort(s.balance) + ' due' : ' · paid'),
+            <Select value={studentId} onChange={setStudentId} options={studs.map(s => ({
+              value: s.id, label: (s.name || '') + ' · ' + (s.stream || '') + ((s.balance || 0) > 0 ? ' · ' + (D.fmtUGXshort ? D.fmtUGXshort(s.balance) : s.balance) + ' due' : ' · paid'),
             }))} />
           </Field>
           {student && (
