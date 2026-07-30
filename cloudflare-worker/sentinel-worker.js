@@ -26,9 +26,11 @@ const ALLOWED_ORIGINS = [
   'https://nextafrica.ai',
   'https://www.nextafrica.ai',
   'https://nextos.nextafrica.ai',
+  'https://next-os.nextafricaai.workers.dev', // the actual Workers Assets deployment (production)
   'http://localhost:5500',
   'http://localhost:3000',
   'http://127.0.0.1:5500',
+  'http://127.0.0.1:8085',
   'null', // file:// origin during local OS testing
 ];
 
