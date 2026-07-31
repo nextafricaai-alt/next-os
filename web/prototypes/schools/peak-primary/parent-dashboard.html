@@ -36,8 +36,27 @@
   <div id="root"></div>
 
   <!-- Supabase CDN & Dependencies -->
+  <!-- Deliberately NOT loading session-guard.js here: it's built for staff
+       (head/teacher/bursar) sessions and redirects anyone with no existing
+       session or cached profile to the staff login page — which would
+       bounce every real parent away before they ever saw this portal.
+       parent-view.jsx's own GuardianLookup screen is this page's actual
+       identification step. -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-  <script src="/prototypes/schools/peak-primary/session-guard.js"></script>
+  <script>
+    window.getOSActiveTenant = window.getOSActiveTenant || function () {
+      try {
+        var p = new URLSearchParams(location.search);
+        return p.get('s') || p.get('t') || (location.pathname.match(/\/(?:s|school)\/([A-Za-z0-9_-]+)/) || [])[1]
+          || 'kabs-lily-junior-school-and-kindercare-centre';
+      } catch (e) { return 'kabs-lily-junior-school-and-kindercare-centre'; }
+    };
+    window.NextSession = window.NextSession || {
+      sb: supabase.createClient('https://llxhvqkkgftqwefmrofn.supabase.co', 'sb_publishable_wrzbFpPrkhoN4w2KXdUAdw_gnqEQVs9'),
+      profile: null,
+      tenantId: window.getOSActiveTenant(),
+    };
+  </script>
   <script src="/prototypes/schools/peak-primary/school-brand.js"></script>
   <script type="text/babel" src="/prototypes/schools/peak-primary/school-document-header.jsx"></script>
   <script type="text/babel" src="/prototypes/schools/peak-primary/school-fee-statement.jsx"></script>

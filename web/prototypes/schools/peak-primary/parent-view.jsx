@@ -1,6 +1,23 @@
 /**
  * Parent Portal Component — School OS
  * Kabs Lily Kindercare Center & Junior School
+ *
+ * Real Supabase data (students/fees/student_roll_call/student_notes),
+ * scoped to whichever child(ren) the parent identifies. There's no parent
+ * login/auth system yet (no `parents` table, no guardian-to-auth-user
+ * linkage — see login.html, which only offers Head Teacher/Teacher/Bursar/
+ * Driver roles), so this gates on a lightweight lookup instead: search by
+ * child name or guardian phone against this tenant's real `students` table.
+ * guardian_phone is currently empty for most students (not collected during
+ * import), so name search is the practical path today — phone lookup will
+ * start working automatically once that field gets populated.
+ *
+ * This is app-level isolation (the query only ever returns rows matching
+ * what was searched, same permissive-RLS + client-filtering pattern used
+ * everywhere else in this app), not cryptographic per-user Postgres RLS —
+ * a true "only this auth'd parent can ever see this row" guarantee needs a
+ * real parent auth flow (magic-link/OTP tied to guardian_phone + a users
+ * row), which doesn't exist yet.
  */
 (function() {
   const { useState, useEffect, useMemo } = React;
@@ -24,80 +41,204 @@
     fonts: { sans: "'Inter', system-ui, -apple-system, sans-serif" }
   };
 
-  const mockChildren = [
-    {
-      id: 'KL-2026-042',
-      name: 'Brian Mukasa',
-      class: 'P.4 Blue',
-      admissionNo: 'KL-2026-042',
-      house: 'Nile House',
-      teacher: 'Nalukenge Jane (0750845160)',
-      driver: 'Mr. Bbosa Yusufu (Van 01)',
-      todayAttendance: 'present', // 'present' | 'absent' | 'late'
-      checkInTime: '07:42 AM',
-      attendanceRate: '96%',
-      totalTuition: 350000,
-      paidTuition: 200000,
-      balance: 150000,
-      teacherNotes: [
-        { date: 'Today, 09:30 AM', subject: 'Social Studies', note: 'Brian was very active in today\'s discussion on African physical features and scored 92% in the quick quiz!' },
-        { date: 'Yesterday, 02:15 PM', subject: 'Mathematics', note: 'Completed all fraction exercises accurately. Good progress in problem solving.' },
-      ],
-      shuttleStatus: {
-        riding: true,
-        vanName: 'Van 01',
-        eta: '8 mins',
-        currentStage: 'Kireka Police Stage',
-      }
-    },
-    {
-      id: 'KL-2026-015',
-      name: 'Grace Kintu',
-      class: 'Baby Class',
-      admissionNo: 'KL-2026-015',
-      house: 'Victoria House',
-      teacher: 'Ikubu Christine (0771791911)',
-      driver: 'Walker (Self Pickup)',
-      todayAttendance: 'present',
-      checkInTime: '08:05 AM',
-      attendanceRate: '98%',
-      totalTuition: 380000,
-      paidTuition: 380000,
-      balance: 0,
-      teacherNotes: [
-        { date: 'Today, 11:00 AM', subject: 'LIT 2 / Phonics', note: 'Grace learned sounds /s/ and /a/ today. Enjoyed building blocks during free play.' }
-      ],
-      shuttleStatus: { riding: false }
-    }
-  ];
+  const WK = 'https://nextos-sentinel.nextafricaai.workers.dev';
 
-  const mockHeadAnnouncements = [
-    { id: 1, title: '📢 Term 2 General Parents Association (PTA) Meeting', date: 'Sat, 15th Aug 2026', body: 'All parents are cordially invited to our Term 2 AGM at the campus main hall starting 10:00 AM. Refreshments provided.' },
-    { id: 2, title: '⚽ Annual Inter-House Sports Day', date: 'Fri, 28th Aug 2026', body: 'Sports uniforms are available at the bursar office. Please clear sports activity fees before 20th August.' },
-  ];
+  function getSb() {
+    return (window.NextSession && window.NextSession.sb) ||
+           (window.SCHOOL_STORE && window.SCHOOL_STORE.getSupabase && window.SCHOOL_STORE.getSupabase()) ||
+           (window.supabase && window.supabase.createClient && window.supabase.createClient('https://llxhvqkkgftqwefmrofn.supabase.co', 'sb_publishable_wrzbFpPrkhoN4w2KXdUAdw_gnqEQVs9'));
+  }
+  function getTenant() {
+    return (typeof window.getOSActiveTenant === 'function') ? window.getOSActiveTenant() : 'kabs-lily-junior-school-and-kindercare-centre';
+  }
+
+  // Loads everything the dashboard needs for one child: fee ledger,
+  // this week's roll call, and teacher notes.
+  async function loadChildData(studentId, tenantId) {
+    const sb = getSb();
+    if (!sb) return { fees: [], rollCalls: [], notes: [] };
+    const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const [feesRes, rollRes, notesRes] = await Promise.all([
+      sb.from('fees').select('kind, amount, term, notes, occurred_at').eq('tenant_id', tenantId).eq('student_id', studentId),
+      sb.from('student_roll_call').select('status, roll_date, taken_at').eq('tenant_id', tenantId).eq('student_id', studentId).gte('roll_date', weekAgo).order('roll_date', { ascending: false }),
+      sb.from('student_notes').select('note, note_type, created_at').eq('tenant_id', tenantId).eq('student_id', studentId).order('created_at', { ascending: false }).limit(10),
+    ]);
+    return {
+      fees: (feesRes && feesRes.data) || [],
+      rollCalls: (rollRes && rollRes.data) || [],
+      notes: (notesRes && notesRes.data) || [],
+    };
+  }
+
+  function summarizeFees(feeRows) {
+    let charged = 0, paid = 0;
+    feeRows.forEach(f => {
+      const amt = Number(f.amount || 0);
+      if (f.kind === 'charge') charged += amt;
+      else if (f.kind === 'payment') paid += Math.abs(amt);
+    });
+    return { totalTuition: charged, paidTuition: paid, balance: Math.max(0, charged - paid) };
+  }
+
+  // ─── Guardian lookup gate ──────────────────────────────────────────────
+  function GuardianLookup({ onFound }) {
+    const [query, setQuery] = useState('');
+    const [searching, setSearching] = useState(false);
+    const [results, setResults] = useState(null);
+    const [error, setError] = useState('');
+
+    const search = async () => {
+      const q = query.trim();
+      if (!q) return;
+      setSearching(true); setError(''); setResults(null);
+      const sb = getSb();
+      const tenantId = getTenant();
+      if (!sb) { setError('Not connected to the school database. Try again in a moment.'); setSearching(false); return; }
+      try {
+        const isPhoneish = /^[0-9+][0-9+\s-]{5,}$/.test(q);
+        const query_ = sb.from('students').select('id, name, stream, guardian_name, guardian_phone').eq('tenant_id', tenantId).limit(8);
+        const { data, error: err } = isPhoneish
+          ? await query_.eq('guardian_phone', q.replace(/[^0-9+]/g, ''))
+          : await query_.ilike('name', `%${q}%`);
+        if (err) { setError('Search failed: ' + err.message); setSearching(false); return; }
+        if (!data || !data.length) { setError('No student found matching "' + q + '". Check the spelling, or ask the school office for your child\'s exact name on file.'); setSearching(false); return; }
+        setResults(data);
+      } catch (e) {
+        setError('Search failed: ' + String((e && e.message) || e));
+      }
+      setSearching(false);
+    };
+
+    return (
+      <div style={{
+        minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
+        backgroundColor: T.colors.background, color: T.colors.text, fontFamily: T.fonts.sans, padding: 20,
+      }}>
+        <div style={{ width: '100%', maxWidth: 460, background: T.colors.surface, border: `1px solid ${T.colors.border}`, borderRadius: T.radii.xl, padding: 28 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 18 }}>
+            <div style={{ width: 42, height: 42, borderRadius: 12, background: 'linear-gradient(135deg, #00FC8F 0%, #3B82F6 100%)', color: '#0A1029', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: 18 }}>KL</div>
+            <div>
+              <h1 style={{ fontSize: 17, fontWeight: 800, margin: 0 }}>Parent Portal</h1>
+              <p style={{ fontSize: 12, color: T.colors.textMuted, margin: 0 }}>Find your child to continue</p>
+            </div>
+          </div>
+          <label style={{ fontSize: 12, color: T.colors.textMuted }}>Child's full name, or your registered phone number</label>
+          <input
+            autoFocus value={query} onChange={e => setQuery(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && search()}
+            placeholder="e.g. Arinaitwe Elijah, or 07XXXXXXXX"
+            style={{ width: '100%', marginTop: 8, background: '#0F172A', color: '#FFF', border: `1px solid ${T.colors.border}`, padding: 12, borderRadius: 8, fontSize: 14, outline: 'none', boxSizing: 'border-box' }}
+          />
+          <button onClick={search} disabled={searching || !query.trim()} style={{
+            width: '100%', marginTop: 12, padding: 12, background: searching ? T.colors.surfaceHover : T.colors.primary,
+            color: searching ? T.colors.textMuted : '#0A1029', border: 'none', borderRadius: 10, fontWeight: 800, fontSize: 14,
+            cursor: searching ? 'default' : 'pointer',
+          }}>{searching ? 'Searching…' : 'Find my child'}</button>
+          {error && <div style={{ marginTop: 12, fontSize: 12.5, color: T.colors.danger }}>{error}</div>}
+          {results && (
+            <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{ fontSize: 11, color: T.colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.5 }}>Is this your child?</div>
+              {results.map(s => (
+                <button key={s.id} onClick={() => onFound([s])} style={{
+                  textAlign: 'left', padding: '10px 14px', background: T.colors.surfaceHover, border: `1px solid ${T.colors.border}`,
+                  borderRadius: 9, color: T.colors.text, cursor: 'pointer', fontSize: 13.5,
+                }}>
+                  <div style={{ fontWeight: 700 }}>{s.name}</div>
+                  <div style={{ fontSize: 11.5, color: T.colors.textMuted, marginTop: 2 }}>{s.stream || '—'}{s.guardian_name ? ' · Guardian on file: ' + s.guardian_name : ''}</div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   const ParentView = () => {
+    const [children, setChildren] = useState(null); // null = not identified yet
     const [selectedChildIndex, setSelectedChildIndex] = useState(0);
-    const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'fees' | 'academics' | 'notices' | 'shuttle'
+    const [activeTab, setActiveTab] = useState('overview');
+    const [childData, setChildData] = useState({ fees: [], rollCalls: [], notes: [], loading: true });
     const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
-    const [paymentPhone, setPaymentPhone] = useState('0772111222');
+    const [paymentPhone, setPaymentPhone] = useState('');
     const [paymentAmount, setPaymentAmount] = useState('');
-    const [paymentMethod, setPaymentMethod] = useState('mtn'); // 'mtn' | 'airtel' | 'card'
-    const [paymentSuccessMsg, setPaymentSuccessMsg] = useState(null);
+    const [paymentEmail, setPaymentEmail] = useState('');
+    const [paymentBusy, setPaymentBusy] = useState(false);
+    const [paymentError, setPaymentError] = useState('');
 
-    const child = mockChildren[selectedChildIndex];
+    const rawChild = children && children[selectedChildIndex];
+    const fees = useMemo(() => summarizeFees(childData.fees || []), [childData.fees]);
+    const child = rawChild ? {
+      id: rawChild.id,
+      name: rawChild.name,
+      class: rawChild.stream || '—',
+      admissionNo: 'ID-' + rawChild.id,
+      teacher: rawChild.guardian_name || '—',
+      totalTuition: fees.totalTuition,
+      paidTuition: fees.paidTuition,
+      balance: fees.balance,
+    } : null;
 
-    const handleProcessPayment = () => {
-      const amt = parseFloat(paymentAmount) || child.balance;
-      setPaymentSuccessMsg(`SUCCESS! Received ${amt.toLocaleString()} UGX payment for ${child.name}. Balance updated.`);
-      setTimeout(() => {
-        child.paidTuition += amt;
-        child.balance = Math.max(0, child.balance - amt);
-        setIsPaymentModalOpen(false);
-        setPaymentSuccessMsg(null);
-        setPaymentAmount('');
-      }, 2500);
+    useEffect(() => {
+      if (!rawChild) return;
+      let alive = true;
+      setChildData(prev => ({ ...prev, loading: true }));
+      loadChildData(rawChild.id, getTenant()).then(d => { if (alive) setChildData({ ...d, loading: false }); });
+      return () => { alive = false; };
+    }, [rawChild && rawChild.id]);
+
+    // Real-time: refresh this child's data the moment a roll call, fee, or
+    // note comes in for them — the same live-sync pattern used elsewhere
+    // in this app (school-data-store.js's postgres_changes subscriptions).
+    useEffect(() => {
+      const sb = getSb();
+      if (!sb || !rawChild) return;
+      const ch = sb.channel('parent-watch-' + rawChild.id)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'student_roll_call', filter: 'student_id=eq.' + rawChild.id }, () => {
+          loadChildData(rawChild.id, getTenant()).then(setChildData);
+          window.peakToast && window.peakToast(child ? child.name + "'s attendance was just updated" : 'Attendance updated', 'info');
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'student_notes', filter: 'student_id=eq.' + rawChild.id }, () => {
+          loadChildData(rawChild.id, getTenant()).then(setChildData);
+          window.peakToast && window.peakToast('A teacher just logged a new note', 'info');
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'fees', filter: 'student_id=eq.' + rawChild.id }, () => {
+          loadChildData(rawChild.id, getTenant()).then(setChildData);
+        })
+        .subscribe();
+      return () => { try { sb.removeChannel(ch); } catch (e) {} };
+    }, [rawChild && rawChild.id]);
+
+    const todayIso = new Date().toISOString().slice(0, 10);
+    const todayRoll = (childData.rollCalls || []).find(r => r.roll_date === todayIso);
+    const weekDays = (childData.rollCalls || []).slice(0, 5);
+    const weekPresent = weekDays.filter(r => r.status === 'present' || r.status === 'late').length;
+    const weekRate = weekDays.length ? Math.round((weekPresent / weekDays.length) * 100) : null;
+
+    const handleProcessPayment = async () => {
+      if (!child) return;
+      const amt = Math.round(Number(paymentAmount) || child.balance);
+      if (!(amt > 0)) { setPaymentError('Enter an amount greater than 0.'); return; }
+      setPaymentBusy(true); setPaymentError('');
+      try {
+        const res = await fetch(WK + '/fees/checkout', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tenant: getTenant(), studentId: child.id, amount: amt, email: paymentEmail, phone: paymentPhone }),
+        }).then(r => r.json());
+        if (res && res.link) {
+          window.location.href = res.link; // hands off to Flutterwave's real checkout
+        } else {
+          setPaymentError((res && res.error) || 'Could not start payment. Try again shortly.');
+        }
+      } catch (e) {
+        setPaymentError('Could not reach the payment service: ' + String((e && e.message) || e));
+      }
+      setPaymentBusy(false);
     };
+
+    if (!children) {
+      return <GuardianLookup onFound={setChildren} />;
+    }
 
     return (
       <div style={{
@@ -130,35 +271,37 @@
               KL
             </div>
             <div>
-              <h1 style={{ fontSize: '18px', fontWeight: '800', margin: 0 }}>KABS LILY PARENT PORTAL</h1>
+              <h1 style={{ fontSize: '18px', fontWeight: '800', margin: 0 }}>PARENT PORTAL</h1>
               <p style={{ fontSize: '12px', color: T.colors.textMuted, margin: 0 }}>
-                Logged as: <b>Mrs. Sarah Mukasa</b> · Guardian Access Code: <b>KL-2026-042</b>
+                Viewing: <b>{child.name}</b>
+                <button onClick={() => setChildren(null)} style={{ marginLeft: 10, background: 'none', border: 'none', color: '#60A5FA', fontSize: 11.5, cursor: 'pointer', textDecoration: 'underline' }}>Not you? Search again</button>
               </p>
             </div>
           </div>
 
-          {/* Child Switcher if multiple children */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '12px', color: T.colors.textMuted }}>Select Child:</span>
-            {mockChildren.map((c, idx) => (
-              <button
-                key={c.id}
-                onClick={() => setSelectedChildIndex(idx)}
-                style={{
-                  padding: '6px 14px',
-                  borderRadius: T.radii.full,
-                  border: selectedChildIndex === idx ? '1.5px solid #00FC8F' : `1px solid ${T.colors.border}`,
-                  backgroundColor: selectedChildIndex === idx ? 'rgba(0, 252, 143, 0.15)' : T.colors.surface,
-                  color: selectedChildIndex === idx ? '#00FC8F' : T.colors.text,
-                  fontSize: '12px',
-                  fontWeight: '700',
-                  cursor: 'pointer'
-                }}
-              >
-                👶 {c.name} ({c.class})
-              </button>
-            ))}
-          </div>
+          {children.length > 1 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontSize: '12px', color: T.colors.textMuted }}>Select Child:</span>
+              {children.map((c, idx) => (
+                <button
+                  key={c.id}
+                  onClick={() => setSelectedChildIndex(idx)}
+                  style={{
+                    padding: '6px 14px',
+                    borderRadius: T.radii.full,
+                    border: selectedChildIndex === idx ? '1.5px solid #00FC8F' : `1px solid ${T.colors.border}`,
+                    backgroundColor: selectedChildIndex === idx ? 'rgba(0, 252, 143, 0.15)' : T.colors.surface,
+                    color: selectedChildIndex === idx ? '#00FC8F' : T.colors.text,
+                    fontSize: '12px',
+                    fontWeight: '700',
+                    cursor: 'pointer'
+                  }}
+                >
+                  👶 {c.name} ({c.stream || '—'})
+                </button>
+              ))}
+            </div>
+          )}
         </header>
 
         {/* Tab Navigation */}
@@ -173,9 +316,7 @@
           {[
             { id: 'overview', label: '📌 Overview & Attendance' },
             { id: 'fees', label: '💳 Tuition Clearance & Payments' },
-            { id: 'academics', label: '📊 Teacher Notes & Report Cards' },
-            { id: 'notices', label: '📢 Headteacher Notices' },
-            { id: 'shuttle', label: '🚐 Live Shuttle Tracker' },
+            { id: 'academics', label: '📝 Teacher Notes' },
           ].map(tab => (
             <button
               key={tab.id}
@@ -199,7 +340,7 @@
 
         {/* Main Content Area */}
         <main style={{ flex: 1, padding: '24px', maxWidth: '1280px', margin: '0 auto', width: '100%' }}>
-          
+
           {/* TAB 1: OVERVIEW & ATTENDANCE */}
           {activeTab === 'overview' && (
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
@@ -219,39 +360,27 @@
                     backgroundColor: '#3B82F6', color: '#FFF', display: 'flex',
                     alignItems: 'center', justifyContent: 'center', fontSize: '24px', fontWeight: 'bold'
                   }}>
-                    {child.name.split(' ').map(n=>n[0]).join('')}
+                    {child.name.split(' ').map(n=>n[0]).join('').slice(0, 2)}
                   </div>
                   <div>
                     <h2 style={{ margin: 0, fontSize: '20px', fontWeight: '800' }}>{child.name}</h2>
                     <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: '#60A5FA', fontWeight: '700' }}>
-                      Class: {child.class} · Admission No: {child.admissionNo}
+                      Class: {child.class} · {child.admissionNo}
                     </p>
-                  </div>
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginTop: '8px' }}>
-                  <div style={{ background: 'rgba(255,255,255,0.03)', padding: '12px', borderRadius: '8px' }}>
-                    <div style={{ fontSize: '11px', color: T.colors.textMuted }}>Class Teacher:</div>
-                    <div style={{ fontSize: '13px', fontWeight: '700', marginTop: '2px' }}>{child.teacher}</div>
-                  </div>
-                  <div style={{ background: 'rgba(255,255,255,0.03)', padding: '12px', borderRadius: '8px' }}>
-                    <div style={{ fontSize: '11px', color: T.colors.textMuted }}>House & Shuttle:</div>
-                    <div style={{ fontSize: '13px', fontWeight: '700', marginTop: '2px' }}>{child.house} · {child.driver}</div>
                   </div>
                 </div>
 
                 {/* Direct Action Buttons */}
                 <div style={{ display: 'flex', gap: '10px', marginTop: '8px' }}>
-                  <a
-                    href={`https://wa.me/256750845160?text=Hello%20Teacher,%20I%20am%20inquiring%20about%20${child.name}`}
-                    target="_blank"
+                  <button
+                    onClick={() => setActiveTab('academics')}
                     style={{
-                      flex: 1, padding: '10px', backgroundColor: '#10B981', color: '#FFF', textDecoration: 'none',
-                      borderRadius: T.radii.md, fontSize: '12px', fontWeight: '700', textAlign: 'center'
+                      flex: 1, padding: '10px', backgroundColor: 'rgba(59,130,246,0.15)', color: '#60A5FA',
+                      border: '1px solid #3B82F6', borderRadius: T.radii.md, fontSize: '12px', fontWeight: '700', cursor: 'pointer'
                     }}
                   >
-                    💬 WhatsApp Class Teacher
-                  </a>
+                    💬 Message the school
+                  </button>
                   <button
                     onClick={() => setActiveTab('fees')}
                     style={{
@@ -274,11 +403,14 @@
                 flexDirection: 'column',
                 gap: '16px'
               }}>
-                <h3 style={{ margin: 0, fontSize: '16px', color: '#00FC8F' }}>🟢 Live Attendance & Check-In</h3>
-                
+                <h3 style={{ margin: 0, fontSize: '16px', color: '#00FC8F' }}>🟢 Attendance</h3>
+
+                {childData.loading ? (
+                  <div style={{ fontSize: 13, color: T.colors.textMuted }}>Loading…</div>
+                ) : (
                 <div style={{
-                  background: 'rgba(16, 185, 129, 0.15)',
-                  border: '1px solid #10B981',
+                  background: todayRoll && todayRoll.status !== 'present' ? 'rgba(239,68,68,0.12)' : 'rgba(16, 185, 129, 0.15)',
+                  border: '1px solid ' + (todayRoll && todayRoll.status !== 'present' ? '#EF4444' : '#10B981'),
                   padding: '16px',
                   borderRadius: T.radii.md,
                   display: 'flex',
@@ -288,32 +420,40 @@
                   <div>
                     <div style={{ fontSize: '12px', color: '#A7F3D0', fontWeight: '600' }}>TODAY'S STATUS</div>
                     <div style={{ fontSize: '18px', fontWeight: '900', color: '#FFF', marginTop: '2px' }}>
-                      PRESENT AT CAMPUS 🟢
+                      {!todayRoll ? 'NOT MARKED YET' : todayRoll.status === 'present' ? 'PRESENT AT SCHOOL 🟢' : todayRoll.status === 'late' ? 'ARRIVED LATE 🟡' : todayRoll.status.toUpperCase() + ' 🔴'}
                     </div>
-                    <div style={{ fontSize: '12px', color: '#D1D5DB', marginTop: '2px' }}>
-                      Checked in at gate: <b>{child.checkInTime}</b>
-                    </div>
+                    {todayRoll && (
+                      <div style={{ fontSize: '12px', color: '#D1D5DB', marginTop: '2px' }}>
+                        Marked at <b>{new Date(todayRoll.taken_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</b>
+                      </div>
+                    )}
                   </div>
                   <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontSize: '24px', fontWeight: '900', color: '#00FC8F' }}>{child.attendanceRate}</div>
-                    <div style={{ fontSize: '11px', color: T.colors.textMuted }}>Term 2 Attendance Rate</div>
+                    <div style={{ fontSize: '24px', fontWeight: '900', color: '#00FC8F' }}>{weekRate == null ? '—' : weekRate + '%'}</div>
+                    <div style={{ fontSize: '11px', color: T.colors.textMuted }}>Last 5 school days</div>
                   </div>
                 </div>
+                )}
 
                 <div>
-                  <div style={{ fontSize: '12px', color: T.colors.textMuted, marginBottom: '8px' }}>Recent 5 Days Rhythm:</div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '8px' }}>
-                    {['Mon', 'Tue', 'Wed', 'Thu', 'Fri'].map((day, i) => (
-                      <div key={day} style={{
-                        background: 'rgba(255,255,255,0.04)', padding: '10px', borderRadius: '8px', textAlign: 'center',
-                        border: i === 4 ? '1px solid #10B981' : 'none'
-                      }}>
-                        <div style={{ fontSize: '11px', color: T.colors.textMuted }}>{day}</div>
-                        <div style={{ fontSize: '14px', marginTop: '4px' }}>🟢</div>
-                        <div style={{ fontSize: '10px', color: '#10B981', fontWeight: '700', marginTop: '2px' }}>Present</div>
-                      </div>
-                    ))}
-                  </div>
+                  <div style={{ fontSize: '12px', color: T.colors.textMuted, marginBottom: '8px' }}>Recent days:</div>
+                  {weekDays.length === 0 ? (
+                    <div style={{ fontSize: 12.5, color: T.colors.textMuted }}>No roll call recorded yet this week.</div>
+                  ) : (
+                    <div style={{ display: 'grid', gridTemplateColumns: `repeat(${weekDays.length}, 1fr)`, gap: '8px' }}>
+                      {weekDays.map((r, i) => {
+                        const icon = r.status === 'present' ? '🟢' : r.status === 'late' ? '🟡' : r.status === 'excused' ? '⚪' : '🔴';
+                        const color = r.status === 'present' || r.status === 'late' ? '#10B981' : '#EF4444';
+                        return (
+                          <div key={i} style={{ background: 'rgba(255,255,255,0.04)', padding: '10px', borderRadius: '8px', textAlign: 'center' }}>
+                            <div style={{ fontSize: '11px', color: T.colors.textMuted }}>{new Date(r.roll_date).toLocaleDateString([], { weekday: 'short' })}</div>
+                            <div style={{ fontSize: '14px', marginTop: '4px' }}>{icon}</div>
+                            <div style={{ fontSize: '10px', color, fontWeight: '700', marginTop: '2px', textTransform: 'capitalize' }}>{r.status}</div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -333,7 +473,7 @@
                 gap: '16px'
               }}>
                 <div style={{ background: 'rgba(255,255,255,0.03)', padding: '16px', borderRadius: T.radii.md }}>
-                  <div style={{ fontSize: '12px', color: T.colors.textMuted }}>Total Term Tuition:</div>
+                  <div style={{ fontSize: '12px', color: T.colors.textMuted }}>Total Charged:</div>
                   <div style={{ fontSize: '22px', fontWeight: '800', marginTop: '4px' }}>{child.totalTuition.toLocaleString()} UGX</div>
                 </div>
                 <div style={{ background: 'rgba(16, 185, 129, 0.1)', padding: '16px', borderRadius: T.radii.md, border: '1px solid rgba(16, 185, 129, 0.3)' }}>
@@ -361,46 +501,31 @@
                 gap: '16px'
               }}>
                 <div>
-                  <h3 style={{ margin: 0, fontSize: '18px', color: '#00FC8F' }}>💳 Online Tuition Clearance Portal</h3>
+                  <h3 style={{ margin: 0, fontSize: '18px', color: '#00FC8F' }}>💳 Online Tuition Clearance</h3>
                   <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: T.colors.textMuted }}>
-                    Clear tuition balances instantly via MTN Mobile Money (*165#), Airtel Money (*185#), or Visa/Mastercard.
+                    Pay via card or mobile money — this hands off to the school's real Flutterwave checkout.
                   </p>
                 </div>
-                <div style={{ display: 'flex', gap: '12px' }}>
-                  {child.balance > 0 ? (
-                    <button
-                      onClick={() => setIsPaymentModalOpen(true)}
-                      style={{
-                        padding: '12px 24px', backgroundColor: '#00FC8F', color: '#0A1029',
-                        border: 'none', borderRadius: T.radii.md, fontSize: '14px', fontWeight: '900', cursor: 'pointer'
-                      }}
-                    >
-                      💳 Pay Tuition Balance Now
-                    </button>
-                  ) : (
-                    <div style={{ padding: '10px 16px', background: 'rgba(16, 185, 129, 0.2)', color: '#10B981', borderRadius: '8px', fontWeight: '800' }}>
-                      ✅ Tuition Fully Cleared!
-                    </div>
-                  )}
+                {child.balance > 0 ? (
                   <button
-                    onClick={() => {
-                      if (window.SchoolFeeStatementDemo) {
-                        alert('Opening official fee statement preview...');
-                      }
-                    }}
+                    onClick={() => setIsPaymentModalOpen(true)}
                     style={{
-                      padding: '12px 20px', backgroundColor: 'transparent', color: '#FFF',
-                      border: `1px solid ${T.colors.border}`, borderRadius: T.radii.md, fontSize: '13px', fontWeight: '700', cursor: 'pointer'
+                      padding: '12px 24px', backgroundColor: '#00FC8F', color: '#0A1029',
+                      border: 'none', borderRadius: T.radii.md, fontSize: '14px', fontWeight: '900', cursor: 'pointer'
                     }}
                   >
-                    📄 Download Official Fee Statement
+                    💳 Pay Balance Now
                   </button>
-                </div>
+                ) : (
+                  <div style={{ padding: '10px 16px', background: 'rgba(16, 185, 129, 0.2)', color: '#10B981', borderRadius: '8px', fontWeight: '800' }}>
+                    ✅ Tuition Fully Cleared!
+                  </div>
+                )}
               </div>
             </div>
           )}
 
-          {/* TAB 3: ACADEMICS & TEACHER NOTES */}
+          {/* TAB 3: TEACHER NOTES */}
           {activeTab === 'academics' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
               <div style={{
@@ -409,108 +534,47 @@
                 padding: '24px',
                 border: `1px solid ${T.colors.border}`
               }}>
-                <h3 style={{ margin: '0 0 16px 0', fontSize: '18px', color: '#60A5FA' }}>📝 Teacher Logged Daily Notes</h3>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  {child.teacherNotes.map((note, i) => (
-                    <div key={i} style={{
-                      background: 'rgba(255,255,255,0.03)', padding: '16px', borderRadius: T.radii.md,
-                      borderLeft: '4px solid #3B82F6'
-                    }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: T.colors.textMuted }}>
-                        <span style={{ fontWeight: '700', color: '#60A5FA' }}>Subject: {note.subject}</span>
-                        <span>{note.date}</span>
+                <h3 style={{ margin: '0 0 16px 0', fontSize: '18px', color: '#60A5FA' }}>📝 Teacher Logged Notes</h3>
+                {childData.loading ? (
+                  <div style={{ fontSize: 13, color: T.colors.textMuted }}>Loading…</div>
+                ) : (childData.notes || []).length === 0 ? (
+                  <div style={{ fontSize: 13, color: T.colors.textMuted }}>No notes logged for {child.name} yet. Behavioral, academic, or roll-call notes teachers log will show up here.</div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    {childData.notes.map((note, i) => (
+                      <div key={i} style={{
+                        background: 'rgba(255,255,255,0.03)', padding: '16px', borderRadius: T.radii.md,
+                        borderLeft: '4px solid #3B82F6'
+                      }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: T.colors.textMuted }}>
+                          <span style={{ fontWeight: '700', color: '#60A5FA', textTransform: 'capitalize' }}>{(note.note_type || 'general').replace(/_/g, ' ')}</span>
+                          <span>{new Date(note.created_at).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                        </div>
+                        <p style={{ margin: '8px 0 0 0', fontSize: '14px', lineHeight: '1.5' }}>{note.note}</p>
                       </div>
-                      <p style={{ margin: '8px 0 0 0', fontSize: '14px', lineHeight: '1.5' }}>{note.note}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Term Report Cards Banner */}
-              <div style={{
-                backgroundColor: T.colors.surface,
-                borderRadius: T.radii.lg,
-                padding: '24px',
-                border: `1px solid ${T.colors.border}`,
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center'
-              }}>
-                <div>
-                  <h3 style={{ margin: 0, fontSize: '18px', color: '#00FC8F' }}>📊 Term 2 Official Report Card</h3>
-                  <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: T.colors.textMuted }}>
-                    View complete subject breakdown, grades, attendance, and head teacher remarks.
-                  </p>
-                </div>
-                <button
-                  onClick={() => alert(`Opening official report card for ${child.name}...`)}
-                  style={{
-                    padding: '12px 20px', backgroundColor: '#3B82F6', color: '#FFF',
-                    border: 'none', borderRadius: T.radii.md, fontSize: '13px', fontWeight: '800', cursor: 'pointer'
-                  }}
-                >
-                  📄 View Report Card
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* TAB 4: HEADTEACHER NOTICES */}
-          {activeTab === 'notices' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              {mockHeadAnnouncements.map(ann => (
-                <div key={ann.id} style={{
-                  backgroundColor: T.colors.surface,
-                  borderRadius: T.radii.lg,
-                  padding: '24px',
-                  border: `1px solid ${T.colors.border}`
-                }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <h3 style={{ margin: 0, fontSize: '18px', color: '#00FC8F' }}>{ann.title}</h3>
-                    <span style={{ fontSize: '12px', color: T.colors.textMuted }}>{ann.date}</span>
+                    ))}
                   </div>
-                  <p style={{ margin: '12px 0 0 0', fontSize: '14px', lineHeight: '1.6', color: T.colors.text }}>{ann.body}</p>
-                </div>
-              ))}
-            </div>
-          )}
+                )}
+              </div>
 
-          {/* TAB 5: SHUTTLE LIVE TRACKER */}
-          {activeTab === 'shuttle' && (
-            <div style={{
-              backgroundColor: T.colors.surface,
-              borderRadius: T.radii.lg,
-              padding: '24px',
-              border: `1px solid ${T.colors.border}`,
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '16px'
-            }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                  <h3 style={{ margin: 0, fontSize: '18px', color: '#00FC8F' }}>🚐 Live Shuttle GPS Tracker</h3>
-                  <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: T.colors.textMuted }}>
-                    Tracking <b>{child.shuttleStatus.vanName}</b> carrying {child.name}. ETA: <b>{child.shuttleStatus.eta}</b>
-                  </p>
-                </div>
+              <div style={{
+                backgroundColor: T.colors.surface, borderRadius: T.radii.lg, padding: '24px',
+                border: `1px solid ${T.colors.border}`,
+              }}>
+                <h3 style={{ margin: 0, fontSize: '18px', color: '#00FC8F' }}>💬 Message the school</h3>
+                <p style={{ margin: '4px 0 12px 0', fontSize: '13px', color: T.colors.textMuted }}>
+                  Real-time in-app messaging isn't wired up yet — reach the school directly for now.
+                </p>
                 <a
-                  href="/prototypes/schools/peak-primary/driver-dashboard.html"
+                  href={`https://wa.me/?text=${encodeURIComponent('Hello, I am the guardian of ' + child.name + ' (' + child.class + ') at Kabs Lily.')}`}
                   target="_blank"
                   style={{
-                    padding: '8px 16px', backgroundColor: 'rgba(59,130,246,0.15)', color: '#60A5FA',
-                    border: '1px solid #3B82F6', borderRadius: T.radii.md, textDecoration: 'none', fontSize: '12px', fontWeight: '800'
+                    display: 'inline-block', padding: '10px 18px', backgroundColor: '#10B981', color: '#FFF', textDecoration: 'none',
+                    borderRadius: T.radii.md, fontSize: '13px', fontWeight: '700',
                   }}
                 >
-                  🔗 Open Full Driver Telemetry App
+                  💬 WhatsApp the school
                 </a>
-              </div>
-
-              <div style={{ height: '360px', backgroundColor: '#0B0F19', borderRadius: T.radii.md, display: 'flex', alignItems: 'center', justifyContent: 'center', border: `1px solid ${T.colors.border}` }}>
-                <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: '48px' }}>🚐</div>
-                  <h4 style={{ margin: '8px 0 0 0', color: '#00FC8F' }}>{child.shuttleStatus.vanName} Live Location</h4>
-                  <p style={{ fontSize: '13px', color: T.colors.textMuted }}>Current Stage: <b>{child.shuttleStatus.currentStage}</b> · Speed: 38 km/h</p>
-                </div>
               </div>
             </div>
           )}
@@ -526,48 +590,44 @@
               backgroundColor: T.colors.surface, padding: '24px', borderRadius: T.radii.xl,
               width: '100%', maxWidth: '440px', display: 'flex', flexDirection: 'column', gap: '16px', border: '1px solid #00FC8F'
             }}>
-              <h3 style={{ margin: 0, fontSize: '18px', color: '#00FC8F' }}>💳 Mobile Money / Card Tuition Clearance</h3>
+              <h3 style={{ margin: 0, fontSize: '18px', color: '#00FC8F' }}>💳 Pay Tuition — {child.name}</h3>
               <p style={{ margin: 0, fontSize: '12px', color: T.colors.textMuted }}>
-                Pay tuition clearance for <b>{child.name}</b> ({child.class})
+                Outstanding balance: <b>{child.balance.toLocaleString()} UGX</b>
               </p>
 
-              {paymentSuccessMsg ? (
-                <div style={{ padding: '16px', background: 'rgba(16,185,129,0.2)', border: '1px solid #10B981', borderRadius: '8px', color: '#10B981', fontWeight: '700', textAlign: 'center' }}>
-                  {paymentSuccessMsg}
-                </div>
-              ) : (
-                <>
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <button onClick={() => setPaymentMethod('mtn')} style={{ flex: 1, padding: '10px', background: paymentMethod === 'mtn' ? '#FBBF24' : 'rgba(255,255,255,0.05)', color: paymentMethod === 'mtn' ? '#000' : '#FFF', border: 'none', borderRadius: '8px', fontWeight: '800', fontSize: '12px', cursor: 'pointer' }}>🟡 MTN MoMo</button>
-                    <button onClick={() => setPaymentMethod('airtel')} style={{ flex: 1, padding: '10px', background: paymentMethod === 'airtel' ? '#EF4444' : 'rgba(255,255,255,0.05)', color: '#FFF', border: 'none', borderRadius: '8px', fontWeight: '800', fontSize: '12px', cursor: 'pointer' }}>🔴 Airtel Money</button>
-                    <button onClick={() => setPaymentMethod('card')} style={{ flex: 1, padding: '10px', background: paymentMethod === 'card' ? '#3B82F6' : 'rgba(255,255,255,0.05)', color: '#FFF', border: 'none', borderRadius: '8px', fontWeight: '800', fontSize: '12px', cursor: 'pointer' }}>💳 Card</button>
-                  </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <label style={{ fontSize: '12px', color: T.colors.textMuted }}>Phone number (for the payment prompt):</label>
+                <input
+                  type="text" value={paymentPhone} onChange={e => setPaymentPhone(e.target.value)}
+                  placeholder="07XXXXXXXX"
+                  style={{ background: '#0F172A', color: '#FFF', border: `1px solid ${T.colors.border}`, padding: '12px', borderRadius: '8px', fontSize: '14px', outline: 'none' }}
+                />
+                <label style={{ fontSize: '12px', color: T.colors.textMuted }}>Email (for the receipt):</label>
+                <input
+                  type="email" value={paymentEmail} onChange={e => setPaymentEmail(e.target.value)}
+                  placeholder="you@example.com"
+                  style={{ background: '#0F172A', color: '#FFF', border: `1px solid ${T.colors.border}`, padding: '12px', borderRadius: '8px', fontSize: '14px', outline: 'none' }}
+                />
+                <label style={{ fontSize: '12px', color: T.colors.textMuted }}>Amount to Pay (UGX):</label>
+                <input
+                  type="number" placeholder={child.balance.toString()} value={paymentAmount} onChange={e => setPaymentAmount(e.target.value)}
+                  style={{ background: '#0F172A', color: '#FFF', border: `1px solid ${T.colors.border}`, padding: '12px', borderRadius: '8px', fontSize: '16px', fontWeight: 'bold', outline: 'none' }}
+                />
+              </div>
 
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                    <label style={{ fontSize: '12px', color: T.colors.textMuted }}>Phone Number for Mobile Money Push Prompt:</label>
-                    <input
-                      type="text" value={paymentPhone} onChange={e => setPaymentPhone(e.target.value)}
-                      style={{ background: '#0F172A', color: '#FFF', border: `1px solid ${T.colors.border}`, padding: '12px', borderRadius: '8px', fontSize: '14px', outline: 'none' }}
-                    />
-                    <label style={{ fontSize: '12px', color: T.colors.textMuted }}>Amount to Pay (UGX):</label>
-                    <input
-                      type="number" placeholder={child.balance.toString()} value={paymentAmount} onChange={e => setPaymentAmount(e.target.value)}
-                      style={{ background: '#0F172A', color: '#FFF', border: `1px solid ${T.colors.border}`, padding: '12px', borderRadius: '8px', fontSize: '16px', fontWeight: 'bold', outline: 'none' }}
-                    />
-                  </div>
+              {paymentError && <div style={{ fontSize: 12.5, color: T.colors.danger }}>{paymentError}</div>}
 
-                  <button
-                    onClick={handleProcessPayment}
-                    style={{
-                      padding: '14px', backgroundColor: '#00FC8F', color: '#0A1029', border: 'none',
-                      borderRadius: T.radii.md, fontSize: '15px', fontWeight: '900', cursor: 'pointer'
-                    }}
-                  >
-                    Confirm & Send MoMo Payment Push 📲
-                  </button>
-                  <button onClick={() => setIsPaymentModalOpen(false)} style={{ padding: '10px', background: 'transparent', color: T.colors.textMuted, border: `1px solid ${T.colors.border}`, borderRadius: T.radii.md, fontSize: '13px', cursor: 'pointer' }}>Cancel</button>
-                </>
-              )}
+              <button
+                onClick={handleProcessPayment}
+                disabled={paymentBusy}
+                style={{
+                  padding: '14px', backgroundColor: paymentBusy ? T.colors.surfaceHover : '#00FC8F', color: paymentBusy ? T.colors.textMuted : '#0A1029', border: 'none',
+                  borderRadius: T.radii.md, fontSize: '15px', fontWeight: '900', cursor: paymentBusy ? 'default' : 'pointer'
+                }}
+              >
+                {paymentBusy ? 'Starting checkout…' : 'Continue to Payment 📲'}
+              </button>
+              <button onClick={() => { setIsPaymentModalOpen(false); setPaymentError(''); }} style={{ padding: '10px', background: 'transparent', color: T.colors.textMuted, border: `1px solid ${T.colors.border}`, borderRadius: T.radii.md, fontSize: '13px', cursor: 'pointer' }}>Cancel</button>
             </div>
           </div>
         )}
