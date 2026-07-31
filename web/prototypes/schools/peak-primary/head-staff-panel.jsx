@@ -51,6 +51,13 @@
     const m = mins % 60;
     return h > 0 ? `${h}h ${m}m` : `${m}m`;
   };
+  // Matches the 07:15 cutoff in teacher-view.jsx's applyLateCheckInPenalty —
+  // any check-in after this triggers the standing 2,000 UGX payroll deduction.
+  const isLateCheckin = (iso) => {
+    if (!iso) return false;
+    const dt = new Date(iso);
+    return dt.getHours() > 7 || (dt.getHours() === 7 && dt.getMinutes() > 15);
+  };
 
   const KABS_STAFF_ROSTER = [
     { id: 't1', full_name: 'Tr. Harriet (Ule Harriet)', phone: '0701647582', classAssigned: 'Primary One (P.1)', subjects: ['Luganda', 'LIT 1'], salary: 300000 },
@@ -504,7 +511,14 @@
                 {t.checkin && (
                   <div>
                     <div style={{ color: T.ink4, fontSize: 9.5, letterSpacing: 0.8 }}>CHECK IN</div>
-                    <div style={{ color: t.status === 'in' ? T.green : T.ink2, fontWeight: 700 }}>{fmtTime(t.checkin.checked_in_at)}</div>
+                    <div style={{ color: t.status === 'in' ? T.green : T.ink2, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>
+                      {fmtTime(t.checkin.checked_in_at)}
+                      {isLateCheckin(t.checkin.checked_in_at) && (
+                        <span title="After the 07:15 cutoff — UGX 2,000 late penalty applied" style={{ fontSize: 9.5, fontWeight: 700, padding: '1px 6px', borderRadius: 999, backgroundColor: 'rgba(255,180,0,0.15)', color: T.gold, border: '1px solid rgba(255,180,0,0.3)' }}>
+                          LATE
+                        </span>
+                      )}
+                    </div>
                   </div>
                 )}
                 {t.checkin && t.checkin.checked_out_at && (

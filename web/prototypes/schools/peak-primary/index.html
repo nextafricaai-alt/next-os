@@ -11352,6 +11352,29 @@ window.PEAK_STAFF = (function () {
           D.kpis.attendancePct = Math.round(present / marked.length * 1000) / 10;
         }
         notify();
+        // The above only updates today's status + school-wide KPIs. The
+        // Student Profile's attendance progress bar reads sObj.attendanceWk
+        // (a rolling 7-day %), which needs its own recompute — refetch just
+        // this one student's week so the profile updates live too.
+        this.refreshWeeklyAttendance(rec.student_id);
+      },
+      refreshWeeklyAttendance(studentId) {
+        const sb = (window.NextSession && window.NextSession.sb) ||
+                   (window.supabase && window.supabase.createClient && window.supabase.createClient('https://llxhvqkkgftqwefmrofn.supabase.co', 'sb_publishable_wrzbFpPrkhoN4w2KXdUAdw_gnqEQVs9'));
+        if (!sb || typeof sb.from !== 'function') return;
+        const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+        sb.from('student_roll_call')
+          .select('status')
+          .eq('student_id', studentId)
+          .gte('roll_date', weekAgo)
+          .then(({ data }) => {
+            if (!data || !data.length) return;
+            const present = data.filter(r => r.status === 'present' || r.status === 'late').length;
+            const pct = Math.round((present / data.length) * 100);
+            const sObj = D.students.find(x => x.id === studentId);
+            if (sObj) { sObj.attendanceWk = pct; notify(); }
+          })
+          .catch(() => {});
       },
       applyRemotePayment(rec) {
         if (!rec) return;

@@ -112,6 +112,19 @@
       .order('month', { ascending: false })
       .limit(3);
 
+    // Deductions (late check-ins, syllabus delays) for the same 3 months,
+    // so the payslip can show net pay, not just the base salary amount.
+    let deductions = [];
+    if (payroll && payroll.length) {
+      const { data: ded } = await sb
+        .from('payroll_deductions')
+        .select('id, month, amount, reason, notes, created_at')
+        .eq('teacher_id', teacher.id)
+        .in('month', payroll.map(p => p.month))
+        .order('created_at', { ascending: false });
+      deductions = ded || [];
+    }
+
     // Today's check-in (most recent for today)
     const { data: checkins } = await sb
       .from('teacher_checkins')
@@ -186,12 +199,54 @@
       lessons: lessons || [],
       syllabus: syllabus || [],
       payroll: payroll || [],
+      deductions,
       checkin: (checkins && checkins[0]) || null,
       rollCalls,
       healthRecords,
       streamStudents,   // ← from Supabase
       todaySlots,       // ← timetable for today
     };
+  }
+
+  // ─── Payroll penalties ──────────────────────────────────────────────
+  const LATE_CHECKIN_CUTOFF = { hour: 7, minute: 15 };
+  const LATE_CHECKIN_PENALTY = 2000; // UGX
+
+  function monthStart(d) {
+    const dt = d || new Date();
+    return new Date(dt.getFullYear(), dt.getMonth(), 1).toISOString().slice(0, 10);
+  }
+
+  // Applies the standing 2,000 UGX late-arrival penalty when checkedInAt is
+  // after 07:15 (compared in the browser's local time — teachers check in
+  // from Uganda, so this matches school-day wall-clock time in practice).
+  // Idempotent per teacher/day via the DB's unique index, so a retried
+  // request or a second check-in the same day can't double-penalize.
+  async function applyLateCheckInPenalty(teacherId, tenantId, checkedInAt) {
+    if (!teacherId || teacherId === 9999) return { applied: false };
+    const sb = window.NextSession?.sb;
+    if (!sb) return { applied: false };
+    const dt = new Date(checkedInAt || Date.now());
+    const isLate = dt.getHours() > LATE_CHECKIN_CUTOFF.hour ||
+      (dt.getHours() === LATE_CHECKIN_CUTOFF.hour && dt.getMinutes() > LATE_CHECKIN_CUTOFF.minute);
+    if (!isLate) return { applied: false };
+    try {
+      const { error } = await sb.from('payroll_deductions').insert({
+        tenant_id: tenantId || 'kabs-lily-junior-school-and-kindercare-centre',
+        teacher_id: teacherId,
+        month: monthStart(dt),
+        amount: LATE_CHECKIN_PENALTY,
+        reason: 'late_checkin',
+        notes: 'Checked in at ' + dt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + ', after the 07:15 cutoff.',
+      });
+      // A unique-index conflict just means today's penalty was already
+      // recorded (e.g. a retried check-in) — not a real error.
+      if (error && error.code !== '23505') { console.warn('late check-in penalty warning:', error); return { applied: false }; }
+      return { applied: true, amount: LATE_CHECKIN_PENALTY };
+    } catch (e) {
+      console.warn('late check-in penalty failed:', e);
+      return { applied: false };
+    }
   }
 
   // ─── Write helpers ──────────────────────────────────────────────────
@@ -205,7 +260,7 @@
       method: method || 'manual'
     };
 
-    if (!sb) return { data: mockCheckin, error: null };
+    if (!sb) return { data: mockCheckin, error: null, penalty: null };
 
     try {
       const payload = {
@@ -224,12 +279,14 @@
 
       if (error) {
         console.warn("teacher_checkins insert warning:", error);
-        return { data: mockCheckin, error: null };
+        return { data: mockCheckin, error: null, penalty: null };
       }
 
-      return { data: data || mockCheckin, error: null };
+      const checkin = data || mockCheckin;
+      const penalty = await applyLateCheckInPenalty(teacherId, tenantId, checkin.checked_in_at);
+      return { data: checkin, error: null, penalty };
     } catch (e) {
-      return { data: mockCheckin, error: null };
+      return { data: mockCheckin, error: null, penalty: null };
     }
   }
 
@@ -645,7 +702,7 @@
     const handleCheckIn = async () => {
       if (busy) return;
       setBusy(true);
-      const { data, error } = await writeCheckIn(teacher.id, profile.tenantId, 'manual');
+      const { data, error, penalty } = await writeCheckIn(teacher.id, profile.tenantId, 'manual');
       if (error) {
         setBusy(false);
         tinyToast('Check-in failed: ' + error.message, 'error');
@@ -656,7 +713,11 @@
       setTimeout(() => {
         setDismissed(true);
         if (onCheckedIn) onCheckedIn(data);
-        tinyToast('Checked in. Head teacher notified.', 'success');
+        if (penalty && penalty.applied) {
+          tinyToast('Checked in after 07:15 — UGX ' + penalty.amount.toLocaleString() + ' late penalty applied.', 'warn');
+        } else {
+          tinyToast('Checked in. Head teacher notified.', 'success');
+        }
       }, 350);
     };
 
@@ -756,10 +817,14 @@
     const handleCheckIn = async () => {
       if (busy) return;
       setBusy(true);
-      const { data, error } = await writeCheckIn(teacher.id, profile.tenantId, 'manual');
+      const { data, error, penalty } = await writeCheckIn(teacher.id, profile.tenantId, 'manual');
       setBusy(false);
       if (error) { tinyToast('Check-in failed: ' + error.message, 'error'); return; }
-      tinyToast('Checked in. Head teacher notified.', 'success');
+      if (penalty && penalty.applied) {
+        tinyToast('Checked in after 07:15 — UGX ' + penalty.amount.toLocaleString() + ' late penalty applied.', 'warn');
+      } else {
+        tinyToast('Checked in. Head teacher notified.', 'success');
+      }
       if (onCheckedIn) onCheckedIn(data);
     };
 
@@ -1264,7 +1329,9 @@
               const done     = rollCountFor(a.stream);
               const total    = studentsInStream(a.stream);
               const rollDone = done > 0 && total > 0 && done >= total;
-              const isLocked = ps === 'locked';
+              // Locked both before the period starts AND after it (+ grace)
+              // ends — only 'active' (during the period) is clickable.
+              const isLocked = ps === 'locked' || ps === 'past';
               // A teacher cannot open a NEW roll call if another is in-progress
               const blocked  = !isLocked && inProgressStream && inProgressStream !== a.stream;
               return (
@@ -1296,16 +1363,21 @@
                           borderRadius: 999, letterSpacing: 0.5, fontWeight: 600,
                         }}>CLASS TEACHER</span>
                       )}
-                      {rollDone && !isLocked && (
+                      {rollDone && (
                         <span style={{
                           marginLeft: 8, fontSize: 9.5, color: T.green,
                           background: 'rgba(0,252,143,0.12)', padding: '2px 8px',
                           borderRadius: 999, letterSpacing: 0.5, fontWeight: 600,
                         }}>ROLL TAKEN · {done}/{total}</span>
                       )}
-                      {isLocked && slot && (
+                      {ps === 'locked' && slot && (
                         <span style={{ marginLeft: 8, fontSize: 10, color: T.ink4 }}>
                           Unlocks at {formatTime(slot.start_time)}
+                        </span>
+                      )}
+                      {ps === 'past' && !rollDone && (
+                        <span style={{ marginLeft: 8, fontSize: 10, color: T.ink4 }}>
+                          Period ended — roll call closed
                         </span>
                       )}
                     </div>
@@ -1314,7 +1386,11 @@
                   <button
                     disabled={isLocked || !!blocked}
                     onClick={() => !isLocked && !blocked && onTakeRollCall(a.stream, slot)}
-                    title={isLocked ? `Roll call locked until ${formatTime(slot && slot.start_time)}` : blocked ? 'Finish current roll call first' : ''}
+                    title={
+                      ps === 'locked' ? `Roll call opens at ${formatTime(slot && slot.start_time)}`
+                      : ps === 'past' ? 'This class period has ended — roll call is closed'
+                      : blocked ? 'Finish current roll call first' : ''
+                    }
                     style={{
                       background: isLocked || blocked ? 'transparent'
                                 : rollDone ? 'transparent' : T.green,
@@ -1324,7 +1400,7 @@
                       cursor: isLocked || blocked ? 'not-allowed' : 'pointer', fontFamily: T.font,
                       transition: 'all 0.15s',
                     }}>
-                    {isLocked ? '🔒 Locked' : blocked ? 'Finish Current' : rollDone ? 'Update Roll' : 'Take Roll Call'}
+                    {ps === 'locked' ? '🔒 Locked' : ps === 'past' ? '🔒 Closed' : blocked ? 'Finish Current' : rollDone ? 'Update Roll' : 'Take Roll Call'}
                   </button>
                 </div>
               );
@@ -1505,7 +1581,7 @@
     );
   }
 
-  function PayslipCard({ payroll }) {
+  function PayslipCard({ payroll, deductions }) {
     const fmt = (n) => 'UGX ' + Number(n || 0).toLocaleString();
     const fmtMonth = (d) => {
       if (!d) return '—';
@@ -1513,12 +1589,16 @@
       if (isNaN(dt.getTime())) return String(d);
       return dt.toLocaleDateString([], { month: 'long', year: 'numeric' });
     };
+    const REASON_LABEL = { late_checkin: 'Late check-in', syllabus_incomplete: 'Syllabus delay', other: 'Adjustment' };
     const latest = payroll[0];
     const statusStyle = (s) => ({
       paid:    { bg: 'rgba(0,252,143,0.12)',  fg: T.green, label: 'PAID' },
       pending: { bg: 'rgba(255,180,0,0.12)',  fg: T.gold,  label: 'PENDING' },
       overdue: { bg: 'rgba(255,71,87,0.12)',  fg: T.red,   label: 'OVERDUE' },
     })[s] || { bg: 'rgba(255,255,255,0.06)', fg: T.ink3, label: String(s || '').toUpperCase() };
+    const monthDeductions = latest ? (deductions || []).filter(d => d.month === latest.month) : [];
+    const totalDeducted = monthDeductions.reduce((a, d) => a + Number(d.amount || 0), 0);
+    const net = latest ? Number(latest.amount || 0) - totalDeducted : 0;
     return (
       <Card title="My Payslip" subtitle="PAYROLL" accent={T.gold}>
         {!latest ? (
@@ -1533,7 +1613,10 @@
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
                 <div>
                   <div style={{ fontSize: 10.5, color: T.ink3, fontFamily: T.mono, letterSpacing: 0.8 }}>{fmtMonth(latest.month)}</div>
-                  <div style={{ fontSize: 28, fontWeight: 700, color: T.ink, fontFamily: T.serif, marginTop: 4 }}>{fmt(latest.amount)}</div>
+                  <div style={{ fontSize: 28, fontWeight: 700, color: T.ink, fontFamily: T.serif, marginTop: 4 }}>{fmt(net)}</div>
+                  {totalDeducted > 0 && (
+                    <div style={{ fontSize: 11, color: T.ink3, marginTop: 2 }}>Base {fmt(latest.amount)} − {fmt(totalDeducted)} deductions</div>
+                  )}
                 </div>
                 {(() => {
                   const s = statusStyle(latest.status);
@@ -1545,6 +1628,20 @@
                 {latest.paid_at && <div>Paid: <span style={{ color: T.green }}>{new Date(latest.paid_at).toLocaleDateString()}</span></div>}
               </div>
             </div>
+            {monthDeductions.length > 0 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <div style={{ fontSize: 10.5, color: T.ink3, fontFamily: T.mono, letterSpacing: 0.8 }}>DEDUCTIONS THIS MONTH</div>
+                {monthDeductions.map(d => (
+                  <div key={d.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', borderRadius: 9, background: T.surface2, fontSize: 12.5 }}>
+                    <div>
+                      <div style={{ color: T.ink }}>{REASON_LABEL[d.reason] || d.reason}</div>
+                      {d.notes && <div style={{ color: T.ink3, fontSize: 11, marginTop: 2 }}>{d.notes}</div>}
+                    </div>
+                    <div style={{ color: T.red, fontWeight: 700, fontFamily: T.mono }}>−{fmt(d.amount)}</div>
+                  </div>
+                ))}
+              </div>
+            )}
           </>
         )}
       </Card>
@@ -1591,6 +1688,10 @@
       const ps = slot ? getPeriodStatus(slot) : 'active';
       if (ps === 'locked') {
         tinyToast(`🔒 Roll call for ${stream} is locked until ${formatTime(slot && slot.start_time)}`, 'error');
+        return;
+      }
+      if (ps === 'past') {
+        tinyToast(`🔒 Roll call for ${stream} closed — that class period has ended.`, 'error');
         return;
       }
       if (inProgressStream && inProgressStream !== stream) {
@@ -1729,7 +1830,7 @@
               <LessonsCard lessons={data.lessons} />
               <SyllabusCard syllabus={data.syllabus} />
               <StudentsCard assignments={data.assignments} onLogHealth={setHealthStudent} healthRecords={data.healthRecords || []} />
-              <PayslipCard payroll={data.payroll} />
+              <PayslipCard payroll={data.payroll} deductions={data.deductions} />
             </div>
           )}
         </main>
