@@ -35,6 +35,10 @@ CREATE POLICY payroll_deductions_all ON payroll_deductions
 
 -- One deduction per teacher per reason per day for automated reasons
 -- (late_checkin), so a flaky network retry can't double-penalize someone.
+-- created_at::date isn't allowed here — a timestamptz->date cast depends on
+-- the session's timezone setting, so Postgres rejects it as non-IMMUTABLE
+-- for an index. `AT TIME ZONE 'UTC'` with a literal zone name is immutable
+-- (doesn't depend on any session setting), so cast through that instead.
 CREATE UNIQUE INDEX IF NOT EXISTS uq_late_checkin_per_teacher_per_day
-  ON payroll_deductions (teacher_id, reason, (created_at::date))
+  ON payroll_deductions (teacher_id, reason, ((created_at AT TIME ZONE 'UTC')::date))
   WHERE reason = 'late_checkin';
