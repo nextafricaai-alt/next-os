@@ -89,7 +89,7 @@
 
     const { data: teachers } = await sb
       .from('teachers')
-      .select('id, full_name, email, subjects, status, salary, phone')
+      .select('id, full_name, email, subjects, status, salary:monthly_salary, phone')
       .eq('tenant_id', tenantId)
       .order('full_name', { ascending: true });
 
@@ -106,6 +106,17 @@
       .eq('tenant_id', tenantId)
       .eq('roll_date', today);
 
+    const { data: syllabus } = await sb
+      .from('syllabus_coverage')
+      .select('id, teacher_id, stream, subject, topic, planned_week, completed_week, status')
+      .eq('tenant_id', tenantId);
+
+    const { data: pastDeductions } = await sb
+      .from('payroll_deductions')
+      .select('teacher_id, reference_id')
+      .eq('tenant_id', tenantId)
+      .eq('reason', 'syllabus_incomplete');
+
     const sevenDaysAgo = new Date(Date.now() - 7 * 86400000).toISOString();
     const { data: healthRecs } = await sb
       .from('student_health_records')
@@ -118,7 +129,37 @@
       checkins: checkins || [],
       rollCalls: rollCalls || [],
       healthRecs: healthRecs || [],
+      syllabus: syllabus || [],
+      pastSyllabusDeductions: pastDeductions || [],
     };
+  }
+
+  // This app has no real term-calendar/current-week clock anywhere yet, so
+  // "overdue" can't be computed against a true today's-date-to-week mapping
+  // without risking a false positive that wrongly flags someone. Instead
+  // this uses each teacher's OWN pace as the yardstick: a topic planned for
+  // week N is flagged once that same teacher has already completed a topic
+  // 2+ weeks ahead of it — i.e. they've clearly moved on without covering
+  // it, by their own demonstrated progress, not a guessed calendar date.
+  function findOverdueSyllabus(syllabusRows, pastDeductions) {
+    const byTeacher = {};
+    (syllabusRows || []).forEach(r => { (byTeacher[r.teacher_id] = byTeacher[r.teacher_id] || []).push(r); });
+    const deductedRefs = new Set((pastDeductions || []).map(d => String(d.reference_id)));
+    const out = [];
+    Object.keys(byTeacher).forEach(teacherId => {
+      const rows = byTeacher[teacherId];
+      const furthestDone = rows.filter(r => r.status === 'done' && r.completed_week != null)
+        .reduce((mx, r) => Math.max(mx, r.completed_week), 0);
+      if (!furthestDone) return;
+      rows.forEach(r => {
+        if (r.status === 'done') return;
+        if (r.planned_week == null) return;
+        if (furthestDone - r.planned_week >= 2 && !deductedRefs.has(String(r.id))) {
+          out.push({ teacherId: Number(teacherId), topic: r });
+        }
+      });
+    });
+    return out;
   }
 
   // ─── Nia Predictive Intelligence Card ─────────────────────────────
@@ -283,6 +324,71 @@
     );
   }
 
+  // ─── Syllabus delay audit ──────────────────────────────────────────
+  // Surfaces topics a teacher has fallen behind on (see findOverdueSyllabus)
+  // so the head can review and, if they agree, apply the same 2,000 UGX
+  // payroll_deductions penalty used for late check-ins — deliberately a
+  // one-click human decision, not a silent auto-deduction, since there's
+  // no reliable term-week clock to safely automate this against.
+  function SyllabusAuditCard({ overdue, teachersById, tenantId, onApplied }) {
+    const [busyId, setBusyId] = useState(null);
+    if (!overdue || overdue.length === 0) return null;
+
+    const apply = async (item) => {
+      const sb = window.NextSession?.sb;
+      if (!sb) return;
+      setBusyId(item.topic.id);
+      const month = new Date(); month.setDate(1);
+      const { error } = await sb.from('payroll_deductions').insert({
+        tenant_id: tenantId,
+        teacher_id: item.teacherId,
+        month: month.toISOString().slice(0, 10),
+        amount: 2000,
+        reason: 'syllabus_incomplete',
+        reference_id: String(item.topic.id),
+        notes: `"${item.topic.topic}" (planned week ${item.topic.planned_week}) still not covered — applied by head teacher.`,
+      });
+      setBusyId(null);
+      if (error) { window.peakToast && window.peakToast('Could not apply deduction: ' + error.message, 'error'); return; }
+      window.peakToast && window.peakToast('Deduction applied.', 'success');
+      if (onApplied) onApplied();
+    };
+
+    return (
+      <div style={{
+        background: 'rgba(255,180,0,0.06)', border: '1px solid rgba(255,180,0,0.25)',
+        borderRadius: 14, padding: 20, marginBottom: 24,
+      }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: T.gold, marginBottom: 4 }}>⚠ Syllabus falling behind</div>
+        <div style={{ fontSize: 11.5, color: T.ink3, marginBottom: 14 }}>
+          These teachers have topics they've clearly moved past without marking complete. Review before applying — this deducts real pay.
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {overdue.map((item, i) => {
+            const t = teachersById[item.teacherId];
+            return (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', background: T.surface2, borderRadius: 9 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: T.ink }}>{(t && t.full_name) || 'Teacher #' + item.teacherId}</div>
+                  <div style={{ fontSize: 11.5, color: T.ink3, marginTop: 2 }}>{item.topic.stream} · {item.topic.subject} — "{item.topic.topic}" (planned week {item.topic.planned_week})</div>
+                </div>
+                <button
+                  onClick={() => apply(item)}
+                  disabled={busyId === item.topic.id}
+                  style={{
+                    background: 'rgba(255,71,87,0.12)', color: T.red, border: '1px solid rgba(255,71,87,0.3)',
+                    padding: '7px 12px', borderRadius: 8, fontSize: 11.5, fontWeight: 700, fontFamily: T.font,
+                    cursor: busyId === item.topic.id ? 'wait' : 'pointer', whiteSpace: 'nowrap',
+                  }}
+                >{busyId === item.topic.id ? 'Applying…' : 'Apply UGX 2,000 deduction'}</button>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
   function HeadStaffPanel({ onNav }) {
     const profile = window.PEAK_ROLE ? window.PEAK_ROLE.getProfile() : { tenantId: 'peak-primary' };
     const [data, setData] = useState({ loading: true });
@@ -370,6 +476,14 @@
       return { total, inNow, left, absent };
     }, [enriched]);
 
+    const overdueSyllabus = useMemo(
+      () => findOverdueSyllabus(data.syllabus, data.pastSyllabusDeductions),
+      [data.syllabus, data.pastSyllabusDeductions]
+    );
+    const teachersById = useMemo(() => {
+      const m = {}; (data.teachers || []).forEach(t => { m[t.id] = t; }); return m;
+    }, [data.teachers]);
+
     const SchoolBadgeStrip = window.SchoolBadgeStrip;
 
     return (
@@ -407,6 +521,9 @@
 
         {/* Nia Predictive Intelligence */}
         <NiaPredictiveCard tenantId={profile.tenantId} enriched={enriched} stats={stats} />
+
+        {/* Syllabus Audit — overdue coverage + payroll deduction trigger */}
+        <SyllabusAuditCard overdue={overdueSyllabus} teachersById={teachersById} tenantId={profile.tenantId} onApplied={refresh} />
 
         {/* Stat cards */}
         <div style={{

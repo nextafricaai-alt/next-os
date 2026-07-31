@@ -102,8 +102,9 @@
 
     const { data: syllabus } = await sb
       .from('syllabus_coverage')
-      .select('stream, subject, topic, planned_week, status')
-      .eq('teacher_id', teacher.id);
+      .select('id, stream, subject, topic, planned_week, completed_week, status')
+      .eq('teacher_id', teacher.id)
+      .order('planned_week', { ascending: true });
 
     const { data: payroll } = await sb
       .from('teacher_payroll')
@@ -353,6 +354,22 @@
       .insert(record)
       .select('id')
       .single();
+    return { data, error };
+  }
+
+  // Toggles a syllabus topic between pending/in_progress and done. Marking
+  // done stamps completed_week with the topic's own planned_week (this app
+  // has no real calendar term-week counter yet, so "completed on schedule"
+  // is the best available default rather than fabricating a week number).
+  async function writeSyllabusStatus(topicId, done, plannedWeek) {
+    const sb = window.NextSession?.sb;
+    if (!sb) return { error: 'No session' };
+    const { data, error } = await sb
+      .from('syllabus_coverage')
+      .update({ status: done ? 'done' : 'in_progress', completed_week: done ? (plannedWeek || null) : null })
+      .eq('id', topicId)
+      .select('id, status, completed_week')
+      .maybeSingle();
     return { data, error };
   }
 
@@ -1450,35 +1467,76 @@
     );
   }
 
-  function SyllabusCard({ syllabus }) {
+  function SyllabusCard({ syllabus, onChanged }) {
+    const [expanded, setExpanded] = useState(null); // group key currently showing its topic list
+    const [busyId, setBusyId] = useState(null);
     const groups = useMemo(() => {
       const map = {};
       syllabus.forEach(row => {
         const key = row.stream + '|' + row.subject;
-        if (!map[key]) map[key] = { stream: row.stream, subject: row.subject, total: 0, covered: 0 };
+        if (!map[key]) map[key] = { key, stream: row.stream, subject: row.subject, total: 0, covered: 0, topics: [] };
         map[key].total += 1;
         if (row.status === 'done') map[key].covered += 1;
+        map[key].topics.push(row);
       });
       return Object.values(map);
     }, [syllabus]);
+
+    const toggleTopic = async (topic) => {
+      const done = topic.status !== 'done';
+      setBusyId(topic.id);
+      const { error } = await writeSyllabusStatus(topic.id, done, topic.planned_week);
+      setBusyId(null);
+      if (error) { tinyToast('Could not update: ' + error.message, 'error'); return; }
+      tinyToast(done ? `Marked "${topic.topic}" complete.` : `Reopened "${topic.topic}".`, 'success');
+      if (onChanged) onChanged();
+    };
+
     return (
-      <Card title="Syllabus Coverage" subtitle="TERM PROGRESS" accent={T.gold}>
+      <Card title="Syllabus Coverage" subtitle="TERM PROGRESS — TAP A SUBJECT TO MARK TOPICS DONE" accent={T.gold}>
         {groups.length === 0 ? (
           <Empty text="No syllabus topics tracked yet." />
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            {groups.map((g, i) => {
+            {groups.map((g) => {
               const pct = g.total > 0 ? Math.round((g.covered / g.total) * 100) : 0;
               const color = pct >= 75 ? T.green : pct >= 50 ? T.gold : T.red;
+              const isOpen = expanded === g.key;
               return (
-                <div key={i}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                    <span style={{ fontSize: 13, color: T.ink, fontWeight: 500 }}>{g.stream} · {g.subject}</span>
+                <div key={g.key}>
+                  <div
+                    onClick={() => setExpanded(isOpen ? null : g.key)}
+                    style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, cursor: 'pointer' }}
+                  >
+                    <span style={{ fontSize: 13, color: T.ink, fontWeight: 500 }}>{isOpen ? '▾' : '▸'} {g.stream} · {g.subject}</span>
                     <span style={{ fontSize: 12, color, fontFamily: T.mono, fontWeight: 700 }}>{g.covered}/{g.total} · {pct}%</span>
                   </div>
                   <div style={{ height: 6, background: T.surface3, borderRadius: 999, overflow: 'hidden' }}>
                     <div style={{ width: pct + '%', height: '100%', background: color, transition: 'width 0.4s ease' }} />
                   </div>
+                  {isOpen && (
+                    <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      {g.topics.map(t => {
+                        const done = t.status === 'done';
+                        return (
+                          <div key={t.id} onClick={() => busyId !== t.id && toggleTopic(t)} style={{
+                            display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px',
+                            background: T.surface2, borderRadius: 8, cursor: busyId === t.id ? 'wait' : 'pointer',
+                            opacity: busyId === t.id ? 0.6 : 1,
+                          }}>
+                            <span style={{
+                              width: 18, height: 18, borderRadius: 5, flexShrink: 0,
+                              border: '1.5px solid ' + (done ? T.green : T.ink4),
+                              background: done ? T.green : 'transparent',
+                              display: 'grid', placeItems: 'center', fontSize: 11, color: T.bg, fontWeight: 900,
+                            }}>{done ? '✓' : ''}</span>
+                            <span style={{ flex: 1, fontSize: 12.5, color: done ? T.ink3 : T.ink, textDecoration: done ? 'line-through' : 'none' }}>{t.topic}</span>
+                            {t.planned_week != null && <span style={{ fontSize: 10, color: T.ink4, fontFamily: T.mono }}>WK{t.planned_week}</span>}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -1828,7 +1886,7 @@
                 inProgressStream={inProgressStream}
               />
               <LessonsCard lessons={data.lessons} />
-              <SyllabusCard syllabus={data.syllabus} />
+              <SyllabusCard syllabus={data.syllabus} onChanged={refresh} />
               <StudentsCard assignments={data.assignments} onLogHealth={setHealthStudent} healthRecords={data.healthRecords || []} />
               <PayslipCard payroll={data.payroll} deductions={data.deductions} />
             </div>
