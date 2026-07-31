@@ -447,6 +447,7 @@ export default {
     if (url.pathname === '/fees/lookup')        return handleFeesLookup(url.searchParams.get('tenant') || '', url.searchParams.get('q') || '', env, cors);
     if (url.pathname === '/parent/search-child') return handleParentSearchChild(request, env, cors);
     if (url.pathname === '/parent/child-data')   return handleParentChildData(url, env, cors);
+    if (url.pathname === '/parent/notify')       return handleParentNotify(request, env, cors);
     if (url.pathname === '/fees/checkout')      return handleFeesCheckout(request, env, cors);
     if (url.pathname === '/fees/verify')        return (async()=>{ const J=(o,st)=>new Response(JSON.stringify(o),{status:st||200,headers:{...cors,'Content-Type':'application/json'}}); return J(await feePayFulfil(env, url.searchParams.get('tx') || url.searchParams.get('transaction_id') || '')); })();
     if (url.pathname === '/billing/checkout')   return handleBillingCheckout(request, env, cors);
@@ -3165,13 +3166,51 @@ async function handlePushSubscribe(request, env, cors) {
   const email = String(b.email || '').trim().toLowerCase();
   const role = String(b.role || '').trim();
   const sub = b.subscription;
+  // Parents have no email/login — they're identified by which child(ren)
+  // they found via GuardianLookup, so a parent subscription is targeted by
+  // student_id instead of email (see deliverPushByStudent below).
+  const studentIds = Array.isArray(b.student_ids) ? b.student_ids.map(Number).filter(n => !isNaN(n)) : [];
   if (!sub || !sub.endpoint || !sub.keys || !sub.keys.p256dh || !sub.keys.auth) return J({ error: 'valid subscription required' }, 400);
   try {
     const existing = await sbFetch(env, '/os_records?tenant=eq.' + encodeURIComponent(tenant) + '&kind=eq.push_sub&select=id,payload&limit=1000');
     for (const row of (existing || [])) { if (row.payload && row.payload.endpoint === sub.endpoint) { try { await fetch(env.SUPABASE_URL + '/rest/v1/os_records?id=eq.' + row.id, { method: 'DELETE', headers: sbHeaders(env, 'return=minimal') }); } catch (e) {} } }
-    await sbWrite(env, '/os_records', { tenant: tenant, kind: 'push_sub', payload: { email: email, role: role, endpoint: sub.endpoint, keys: sub.keys, ts: Date.now() } }, 'POST', 'return=minimal');
+    await sbWrite(env, '/os_records', { tenant: tenant, kind: 'push_sub', payload: { email: email, role: role, student_ids: studentIds, endpoint: sub.endpoint, keys: sub.keys, ts: Date.now() } }, 'POST', 'return=minimal');
     return J({ ok: true });
   } catch (e) { return J({ error: String((e && e.message) || e) }, 200); }
+}
+
+// Delivers a push to every parent subscription watching this specific
+// student (role:'parent', student_ids includes studentId) — the absence/
+// note notification pipeline. Not gated by verifyMember like
+// handlePushNotify: this is fired automatically right after the teacher's
+// own already-scoped roll-call/note write succeeds, not a staff-initiated
+// broadcast to an arbitrary audience.
+async function deliverPushByStudent(env, tenant, studentId, payload) {
+  const sid = Number(studentId);
+  let rows = [];
+  try { rows = await sbFetch(env, '/os_records?tenant=eq.' + encodeURIComponent(tenant) + '&kind=eq.push_sub&select=id,payload&limit=1000'); } catch (e) { return { matched: 0, ok: 0 }; }
+  const targets = (rows || []).filter(r => {
+    const p = r.payload || {};
+    return p.role === 'parent' && Array.isArray(p.student_ids) && p.student_ids.indexOf(sid) >= 0;
+  });
+  let ok = 0, gone = 0;
+  for (const r of targets) {
+    const res = await sendWebPush(env, r.payload, payload);
+    if (res.ok) ok++;
+    if (res.gone) { gone++; try { await fetch(env.SUPABASE_URL + '/rest/v1/os_records?id=eq.' + r.id, { method: 'DELETE', headers: sbHeaders(env, 'return=minimal') }); } catch (e) {} }
+  }
+  return { matched: targets.length, ok, gone };
+}
+
+async function handleParentNotify(request, env, cors) {
+  const J = (oo, st) => new Response(JSON.stringify(oo), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
+  let b; try { b = await request.json(); } catch (e) { return J({ error: 'bad body' }, 400); }
+  const tenant = String(b.tenant || '').trim();
+  const studentId = b.studentId || b.student_id;
+  if (!tenant || !studentId) return J({ error: 'tenant and studentId required' }, 400);
+  const payload = { title: String(b.title || 'NEXT OS'), body: String(b.body || ''), url: String(b.url || '/'), tag: String(b.tag || ('t' + Date.now())) };
+  const r = await deliverPushByStudent(env, tenant, studentId, payload);
+  return J({ ok: true, matched: r.matched, sent: r.ok });
 }
 
 async function handlePushNotify(request, env, cors) {

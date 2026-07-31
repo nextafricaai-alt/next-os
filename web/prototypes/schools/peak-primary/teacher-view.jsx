@@ -354,6 +354,20 @@
     return { data, error };
   }
 
+  // Fires the parent absence/note alert pipeline. Best-effort: a parent
+  // only gets a push if they've turned alerts on in the Parent Dashboard
+  // (see enablePushForChildren in parent-view.jsx) — if nobody's
+  // subscribed for this student the worker just reports 0 matched, and a
+  // failure here never blocks the roll call / note save that triggered it.
+  async function notifyParent(tenantId, studentId, title, body) {
+    try {
+      await fetch('https://nextos-sentinel.nextafricaai.workers.dev/parent/notify', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tenant: tenantId, studentId, title, body, url: '/prototypes/schools/peak-primary/parent-dashboard.html' }),
+      });
+    } catch (e) { /* best-effort */ }
+  }
+
   async function writeHealthRecord(record) {
     const sb = window.NextSession?.sb;
     if (!sb) return { error: 'No session' };
@@ -1039,10 +1053,19 @@
         return;
       }
 
-      // Save teacher notes for students who have them
+      // Alert parents of any student marked absent this period.
+      records.filter(r => r.status === 'absent').forEach(r => {
+        const s = streamStudents.find(st => st.id === r.student_id);
+        notifyParent(tenantId, r.student_id, 'Absence recorded', (s ? s.name : 'Your child') + ' was marked absent for ' + stream + (slot ? ' (' + (slot.subject || 'class') + ')' : '') + ' today.');
+      });
+
+      // Save teacher notes for students who have them, and alert their parent.
       const noteEntries = Object.entries(notes).filter(([, txt]) => txt && txt.trim());
       for (const [sidStr, txt] of noteEntries) {
-        await writeTeacherNote(Number(sidStr), teacher.id, tenantId, txt, 'roll_call_note');
+        const sid = Number(sidStr);
+        await writeTeacherNote(sid, teacher.id, tenantId, txt, 'roll_call_note');
+        const s = streamStudents.find(st => st.id === sid);
+        notifyParent(tenantId, sid, 'New note from ' + (teacher.full_name || 'a teacher'), (s ? s.name : 'Your child') + ': ' + txt.slice(0, 140));
       }
 
       tinyToast(`Roll call for ${stream} (P${periodNumber}) saved — head teacher sees it now.`, 'success');

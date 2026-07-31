@@ -52,6 +52,40 @@
     return (typeof window.getOSActiveTenant === 'function') ? window.getOSActiveTenant() : 'kabs-lily-junior-school-and-kindercare-centre';
   }
 
+  // ─── Push notifications: absence / note alerts ──────────────────────────
+  // Same VAPID key + worker used by the staff push client in index.html
+  // (window.NX_PUSH), reimplemented minimally here rather than shared —
+  // parent-dashboard.html doesn't load that inline block. A parent
+  // subscription is targeted by student_id (no email/login exists for
+  // parents), matched server-side in deliverPushByStudent.
+  const NX_VAPID = 'BN6fZK3_ipRqATydKqGPB22d-Iaf9knXLDZrLGqAuPeSfac0C8elNLovSBtKlEugC-t7XeMoYg8FsEUwTwb6Y-c';
+  function vapidKey() {
+    const raw = atob(NX_VAPID.replace(/-/g, '+').replace(/_/g, '/'));
+    const a = new Uint8Array(raw.length);
+    for (let i = 0; i < raw.length; i++) a[i] = raw.charCodeAt(i);
+    return a;
+  }
+  function pushSupported() {
+    return (typeof navigator !== 'undefined') && ('serviceWorker' in navigator) && ('PushManager' in window) && ('Notification' in window);
+  }
+  async function enablePushForChildren(studentIds) {
+    if (!pushSupported()) throw new Error('This browser can’t receive phone alerts.');
+    const perm = await Notification.requestPermission();
+    if (perm !== 'granted') throw new Error('Notifications were not allowed.');
+    const reg = await navigator.serviceWorker.register('/sw.js').catch(() => navigator.serviceWorker.ready);
+    const readyReg = await navigator.serviceWorker.ready;
+    let sub = await readyReg.pushManager.getSubscription();
+    if (!sub) sub = await readyReg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: vapidKey() });
+    const j = sub.toJSON();
+    const res = await fetch(WK + '/push/subscribe', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tenant: getTenant(), role: 'parent', student_ids: studentIds, subscription: { endpoint: j.endpoint, keys: j.keys } }),
+    });
+    const d = await res.json();
+    if (!d.ok) throw new Error(d.error || 'Could not register this device.');
+    return true;
+  }
+
   // Loads everything the dashboard needs for one child: fee ledger,
   // this week's roll call, and teacher notes.
   //
@@ -171,6 +205,26 @@
     const [paymentEmail, setPaymentEmail] = useState('');
     const [paymentBusy, setPaymentBusy] = useState(false);
     const [paymentError, setPaymentError] = useState('');
+    const [alertsOn, setAlertsOn] = useState(false);
+    const [alertsBusy, setAlertsBusy] = useState(false);
+
+    useEffect(() => {
+      if (!pushSupported()) return;
+      navigator.serviceWorker.getRegistration().then(reg => reg && reg.pushManager.getSubscription()).then(sub => setAlertsOn(!!sub)).catch(() => {});
+    }, [children && children.length]);
+
+    const handleEnableAlerts = async () => {
+      if (alertsBusy || !children) return;
+      setAlertsBusy(true);
+      try {
+        await enablePushForChildren(children.map(c => c.id));
+        setAlertsOn(true);
+        window.peakToast && window.peakToast('Alerts on — you\'ll be notified of absences and new notes.', 'success');
+      } catch (e) {
+        window.peakToast && window.peakToast(String((e && e.message) || e), 'error');
+      }
+      setAlertsBusy(false);
+    };
 
     const rawChild = children && children[selectedChildIndex];
     const fees = useMemo(() => summarizeFees(childData.fees || []), [childData.fees]);
@@ -307,6 +361,18 @@
                 </button>
               ))}
             </div>
+          )}
+
+          {pushSupported() && (
+            <button onClick={handleEnableAlerts} disabled={alertsBusy || alertsOn} style={{
+              display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: T.radii.full,
+              border: alertsOn ? '1px solid rgba(0,252,143,0.4)' : `1px solid ${T.colors.border}`,
+              backgroundColor: alertsOn ? 'rgba(0,252,143,0.12)' : T.colors.surfaceHover,
+              color: alertsOn ? T.colors.primary : T.colors.text, fontSize: 12, fontWeight: 700,
+              cursor: alertsOn ? 'default' : (alertsBusy ? 'wait' : 'pointer'),
+            }}>
+              {alertsOn ? '🔔 Alerts on' : (alertsBusy ? 'Turning on…' : '🔕 Get absence & note alerts')}
+            </button>
           )}
         </header>
 
