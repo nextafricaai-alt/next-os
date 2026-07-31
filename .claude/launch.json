@@ -6,6 +6,12 @@
       "runtimeExecutable": "npx",
       "runtimeArgs": ["--yes", "http-server", ".", "-p", "8085", "-c-1", "--cors"],
       "port": 8085
+    },
+    {
+      "name": "next-os-web-root",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["--yes", "http-server", "web", "-p", "8086", "-c-1", "--cors"],
+      "port": 8086
     }
   ]
 }
