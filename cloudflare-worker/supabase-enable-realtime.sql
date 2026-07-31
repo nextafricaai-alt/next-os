@@ -27,32 +27,36 @@
 -- just not "instantly." Where a page has no polling fallback, sync only
 -- happens when the viewer manually reloads.
 --
--- Fix: add every table this app subscribes to into the publication. Safe,
--- additive, instantly reversible (DROP the table from the publication to
--- undo), and doesn't touch any existing data or RLS policy.
+-- Turns out `fees` and `teachers` were ALREADY in the publication before
+-- this migration (added at some earlier point, not tracked in any repo
+-- file) — plain ALTER PUBLICATION ADD TABLE fails hard on a table that's
+-- already a member, which stops the whole pasted script partway through in
+-- the SQL editor. Rewritten as a DO block that checks pg_publication_tables
+-- first and skips anything already present, so this runs cleanly in one
+-- shot regardless of what's already been added, in the SQL editor or
+-- anywhere else.
 
-ALTER PUBLICATION supabase_realtime ADD TABLE student_roll_call;
-ALTER PUBLICATION supabase_realtime ADD TABLE student_notes;
-ALTER PUBLICATION supabase_realtime ADD TABLE student_health_records;
-ALTER PUBLICATION supabase_realtime ADD TABLE fees;
-ALTER PUBLICATION supabase_realtime ADD TABLE teacher_checkins;
-ALTER PUBLICATION supabase_realtime ADD TABLE teachers;
-ALTER PUBLICATION supabase_realtime ADD TABLE students;
-ALTER PUBLICATION supabase_realtime ADD TABLE syllabus_coverage;
-ALTER PUBLICATION supabase_realtime ADD TABLE lesson_plans;
-ALTER PUBLICATION supabase_realtime ADD TABLE school_income;
-ALTER PUBLICATION supabase_realtime ADD TABLE school_expenses;
-ALTER PUBLICATION supabase_realtime ADD TABLE attendance;
-ALTER PUBLICATION supabase_realtime ADD TABLE staff_attendance;
--- Only needed once supabase-communications-hub.sql has been run:
--- ALTER PUBLICATION supabase_realtime ADD TABLE messages;
--- Only needed once supabase-payroll-deductions.sql has been run:
--- ALTER PUBLICATION supabase_realtime ADD TABLE payroll_deductions;
-
--- If any ALTER above errors with "relation is already member of
--- publication", that table's already covered — safe to skip/re-run
--- the rest. If a table doesn't exist yet (payroll_deductions,
--- messages), run this only after that table's own migration.
+DO $$
+DECLARE
+  tbl text;
+  tables text[] := ARRAY[
+    'student_roll_call', 'student_notes', 'student_health_records', 'fees',
+    'teacher_checkins', 'teachers', 'students', 'syllabus_coverage',
+    'lesson_plans', 'school_income', 'school_expenses', 'attendance',
+    'staff_attendance', 'messages', 'payroll_deductions'
+  ];
+BEGIN
+  FOREACH tbl IN ARRAY tables LOOP
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = tbl)
+       AND NOT EXISTS (
+         SELECT 1 FROM pg_publication_tables
+         WHERE pubname = 'supabase_realtime' AND schemaname = 'public' AND tablename = tbl
+       )
+    THEN
+      EXECUTE format('ALTER PUBLICATION supabase_realtime ADD TABLE public.%I', tbl);
+    END IF;
+  END LOOP;
+END $$;
 
 -- Verify what's actually in the publication after running the above:
 SELECT schemaname, tablename FROM pg_publication_tables
