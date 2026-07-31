@@ -278,7 +278,7 @@ export default {
     }
 
     // GET-allowed routes (read-only endpoints live below this gate)
-    const GET_OK = ['/check-project', '/seo-audit', '/px.js', '/analytics', '/gsc', '/ga4', '/fetch-page', '/site-pages', '/cms/collections', '/cms/items', '/students', '/exams', '/exam-results', '/fees-balances', '/attendance-summary', '/staff-status', '/attendance-watch', '/attendance/today', '/lessons-remind', '/watch/deploy-check', '/student-health', '/billing/verify', '/billing/subscriptions', '/fees/lookup', '/fees/verify', '/health', '/events', '/finance', '/assets', '/school-config', '/os-data', '/teachers', '/hosting-report', '/watch/status', '/push/vapid-public', '/push/debug', '/parent/child-data'];
+    const GET_OK = ['/check-project', '/seo-audit', '/px.js', '/analytics', '/gsc', '/ga4', '/fetch-page', '/site-pages', '/cms/collections', '/cms/items', '/students', '/exams', '/exam-results', '/fees-balances', '/attendance-summary', '/staff-status', '/attendance-watch', '/attendance/today', '/lessons-remind', '/watch/deploy-check', '/student-health', '/billing/verify', '/billing/subscriptions', '/fees/lookup', '/fees/verify', '/health', '/events', '/finance', '/assets', '/school-config', '/os-data', '/teachers', '/hosting-report', '/watch/status', '/push/vapid-public', '/push/debug', '/parent/child-data', '/messages/list'];
     if (request.method !== 'POST' && !GET_OK.includes(url.pathname)) {
       return new Response('Method not allowed', { status: 405, headers: cors });
     }
@@ -448,6 +448,8 @@ export default {
     if (url.pathname === '/parent/search-child') return handleParentSearchChild(request, env, cors);
     if (url.pathname === '/parent/child-data')   return handleParentChildData(url, env, cors);
     if (url.pathname === '/parent/notify')       return handleParentNotify(request, env, cors);
+    if (url.pathname === '/messages/list')       return handleMessagesList(url, env, cors);
+    if (url.pathname === '/messages/send')       return handleMessagesSend(request, env, cors);
     if (url.pathname === '/fees/checkout')      return handleFeesCheckout(request, env, cors);
     if (url.pathname === '/fees/verify')        return (async()=>{ const J=(o,st)=>new Response(JSON.stringify(o),{status:st||200,headers:{...cors,'Content-Type':'application/json'}}); return J(await feePayFulfil(env, url.searchParams.get('tx') || url.searchParams.get('transaction_id') || '')); })();
     if (url.pathname === '/billing/checkout')   return handleBillingCheckout(request, env, cors);
@@ -1821,6 +1823,66 @@ async function handleParentChildData(url, env, cors) {
       sbFetch(env, '/student_notes?tenant_id=eq.' + tEnc + '&student_id=eq.' + sEnc + '&select=note,note_type,created_at&order=created_at.desc&limit=10'),
     ]);
     return J({ fees: fees || [], rollCalls: rollCalls || [], notes: notes || [] });
+  } catch (e) { return J({ error: String((e && e.message) || e) }, 200); }
+}
+
+// ─── Communications Hub: parent ↔ teacher/head, threaded per student ──────
+// See supabase-communications-hub.sql. Server-mediated like the other
+// /parent/* routes above, for the same reason (no anon-key table access).
+async function handleMessagesList(url, env, cors) {
+  const J = (oo, st) => new Response(JSON.stringify(oo), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
+  const tenant = url.searchParams.get('tenant') || '';
+  const studentId = url.searchParams.get('student_id') || '';
+  if (!tenant || !studentId) return J({ error: 'tenant and student_id required' }, 400);
+  if (!env.SUPABASE_URL || !env.SUPABASE_KEY) return J({ error: 'not configured' }, 500);
+  try {
+    const rows = await sbFetch(env, '/messages?tenant_id=eq.' + encodeURIComponent(tenant) + '&student_id=eq.' + encodeURIComponent(studentId) + '&select=id,sender_role,sender_name,body,created_at&order=created_at.asc&limit=200');
+    return J({ messages: rows || [] });
+  } catch (e) {
+    // Table may not exist yet if supabase-communications-hub.sql hasn't
+    // been run — fail soft with an empty thread rather than a hard error.
+    return J({ messages: [], error: String((e && e.message) || e) }, 200);
+  }
+}
+
+async function handleMessagesSend(request, env, cors) {
+  const J = (oo, st) => new Response(JSON.stringify(oo), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
+  let b; try { b = await request.json(); } catch (e) { return J({ error: 'bad body' }, 400); }
+  const tenant = String(b.tenant || '').trim();
+  const studentId = b.studentId || b.student_id;
+  const senderRole = String(b.senderRole || b.sender_role || '').trim();
+  const senderName = String(b.senderName || b.sender_name || '').trim();
+  const teacherId = b.teacherId || b.teacher_id || null;
+  const body = String(b.body || '').trim();
+  if (!tenant || !studentId || !senderRole || !senderName || !body) return J({ error: 'tenant, studentId, senderRole, senderName and body are required' }, 400);
+  if (!env.SUPABASE_URL || !env.SUPABASE_KEY) return J({ error: 'not configured' }, 500);
+  try {
+    const row = await sbWrite(env, '/messages', {
+      tenant_id: tenant, student_id: Number(studentId), sender_role: senderRole,
+      sender_name: senderName, teacher_id: teacherId || null, body: body.slice(0, 2000),
+    }, 'POST', 'return=representation');
+    // Notify the other side. Parent sent → alert the child's assigned
+    // teacher(s) (matched by their existing email push subscription).
+    // Staff sent → alert the parent (matched by student_id, same as the
+    // absence/note pipeline).
+    if (senderRole === 'parent') {
+      try {
+        const stu = await sbFetch(env, '/students?id=eq.' + encodeURIComponent(studentId) + '&select=stream&limit=1');
+        const stream = stu && stu[0] && stu[0].stream;
+        if (stream) {
+          const assigns = await sbFetch(env, '/class_assignments?tenant_id=eq.' + encodeURIComponent(tenant) + '&stream=eq.' + encodeURIComponent(stream) + '&is_class_teacher=eq.true&select=teacher_id');
+          const teacherIds = (assigns || []).map(a => a.teacher_id);
+          if (teacherIds.length) {
+            const teachers = await sbFetch(env, '/teachers?id=in.(' + teacherIds.join(',') + ')&select=email');
+            const emails = (teachers || []).map(t => t.email).filter(Boolean);
+            if (emails.length) deliverPush(env, tenant, emails, null, { title: 'New message from ' + senderName, body: body.slice(0, 140), url: '/prototypes/schools/peak-primary/index.html', tag: 'msg-' + studentId }).catch(() => {});
+          }
+        }
+      } catch (e) { /* best-effort — message still saved even if this alert lookup fails */ }
+    } else {
+      deliverPushByStudent(env, tenant, studentId, { title: 'New message from ' + senderName, body: body.slice(0, 140), url: '/prototypes/schools/peak-primary/parent-dashboard.html', tag: 'msg-' + studentId }).catch(() => {});
+    }
+    return J({ ok: true, message: (row && row[0]) || null });
   } catch (e) { return J({ error: String((e && e.message) || e) }, 200); }
 }
 

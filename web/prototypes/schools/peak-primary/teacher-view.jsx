@@ -1805,11 +1805,80 @@
                   padding: '5px 10px', borderRadius: 6, fontSize: 11, fontWeight: 600,
                   cursor: 'pointer', fontFamily: T.font, flexShrink: 0,
                 }}>+ Log Note</button>
+                {onMessage && (
+                  <button onClick={() => onMessage(s)} style={{
+                    background: 'transparent', color: T.green,
+                    border: '1px solid ' + T.borderStr,
+                    padding: '5px 10px', borderRadius: 6, fontSize: 11, fontWeight: 600,
+                    cursor: 'pointer', fontFamily: T.font, flexShrink: 0,
+                  }}>💬 Message</button>
+                )}
               </div>
             );
           })}
         </div>
       </Card>
+    );
+  }
+
+  // ─── Modal: Message a student's parent ──────────────────────────────
+  function MessageParentModal({ student, teacher, tenantId, onClose }) {
+    const [messages, setMessages] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [draft, setDraft] = useState('');
+    const [sending, setSending] = useState(false);
+
+    const load = () => {
+      fetch(SENTINEL_URL + '/messages/list?tenant=' + encodeURIComponent(tenantId) + '&student_id=' + encodeURIComponent(student.id))
+        .then(r => r.json()).then(out => { setMessages(out.messages || []); setLoading(false); })
+        .catch(() => setLoading(false));
+    };
+    useEffect(() => { load(); }, [student.id]);
+
+    const send = async () => {
+      const body = draft.trim();
+      if (!body) return;
+      setSending(true);
+      try {
+        const res = await fetch(SENTINEL_URL + '/messages/send', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tenant: tenantId, studentId: student.id, senderRole: 'teacher', senderName: teacher.full_name || 'Teacher', teacherId: teacher.id, body }),
+        });
+        const out = await res.json();
+        if (out.error) { tinyToast('Could not send: ' + out.error, 'error'); }
+        else { setDraft(''); load(); }
+      } catch (e) { tinyToast('Could not reach the school server.', 'error'); }
+      setSending(false);
+    };
+
+    return (
+      <Modal title={'Message ' + student.name + "'s parent"} onClose={onClose}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 280, overflowY: 'auto', marginBottom: 12 }}>
+          {loading ? (
+            <div style={{ fontSize: 12.5, color: T.ink3 }}>Loading…</div>
+          ) : messages.length === 0 ? (
+            <div style={{ fontSize: 12.5, color: T.ink3 }}>No messages yet with this family.</div>
+          ) : messages.map(m => (
+            <div key={m.id} style={{
+              alignSelf: m.sender_role === 'teacher' ? 'flex-end' : 'flex-start',
+              maxWidth: '80%', background: m.sender_role === 'teacher' ? 'rgba(0,252,143,0.1)' : T.surface2,
+              border: '1px solid ' + T.borderStr, borderRadius: 8, padding: '8px 10px',
+            }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: m.sender_role === 'teacher' ? T.green : T.ink3, marginBottom: 2 }}>{m.sender_name}</div>
+              <div style={{ fontSize: 13, color: T.ink }}>{m.body}</div>
+            </div>
+          ))}
+        </div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <textarea value={draft} onChange={e => setDraft(e.target.value)} placeholder="Write a message…" rows={2}
+            onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } }}
+            style={{ flex: 1, background: T.surface2, color: T.ink, border: '1px solid ' + T.borderStr, borderRadius: 8, padding: 8, fontSize: 13, fontFamily: T.font, resize: 'vertical' }} />
+          <button onClick={send} disabled={sending || !draft.trim()} style={{
+            background: T.green, color: T.bg, border: 'none', borderRadius: 8, padding: '0 16px',
+            fontWeight: 700, fontSize: 13, cursor: sending ? 'wait' : 'pointer',
+          }}>{sending ? '…' : 'Send'}</button>
+        </div>
+      </Modal>
     );
   }
 
@@ -1886,6 +1955,7 @@
     const [rollCallSlot,   setRollCallSlot]    = useState(null); // timetable slot object
     const [inProgressStream, setInProgressStream] = useState(null); // tracks open but unsaved roll
     const [healthStudent,  setHealthStudent]   = useState(null);
+    const [messageStudent, setMessageStudent]  = useState(null);
 
     const profile = (window.PEAK_ROLE && window.PEAK_ROLE.getProfile()) || { fullName: 'Teacher', role: 'teacher' };
     const initials = (window.PEAK_ROLE && window.PEAK_ROLE.initials()) || 'T';
@@ -2067,7 +2137,7 @@
                 onChanged={refresh}
               />
               <SyllabusCard syllabus={data.syllabus} onChanged={refresh} />
-              <StudentsCard assignments={data.assignments} onLogHealth={setHealthStudent} healthRecords={data.healthRecords || []} />
+              <StudentsCard assignments={data.assignments} onLogHealth={setHealthStudent} onMessage={setMessageStudent} healthRecords={data.healthRecords || []} />
               <PayslipCard payroll={data.payroll} deductions={data.deductions} />
             </div>
           )}
@@ -2104,6 +2174,15 @@
             onClose={() => setHealthStudent(null)}
             onSaved={() => tinyToast('Note saved.', 'success')}
             profile={profile}
+          />
+        )}
+
+        {messageStudent && data.teacher && (
+          <MessageParentModal
+            student={messageStudent}
+            teacher={data.teacher}
+            tenantId={profile.tenantId || 'kabs-lily-junior-school-and-kindercare-centre'}
+            onClose={() => setMessageStudent(null)}
           />
         )}
       </div>

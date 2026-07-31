@@ -194,6 +194,97 @@
     );
   }
 
+  // ─── Communications Hub: threaded messages with the child's class teacher ──
+  function MessagesPanel({ studentId, childName, childClass }) {
+    const [messages, setMessages] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [draft, setDraft] = useState('');
+    const [sending, setSending] = useState(false);
+    const [parentName, setParentName] = useState('');
+
+    const load = () => {
+      fetch(WK + '/messages/list?tenant=' + encodeURIComponent(getTenant()) + '&student_id=' + encodeURIComponent(studentId))
+        .then(r => r.json()).then(out => { setMessages(out.messages || []); setLoading(false); })
+        .catch(() => setLoading(false));
+    };
+
+    useEffect(() => { setLoading(true); load(); }, [studentId]);
+
+    useEffect(() => {
+      const sb = getSb();
+      if (!sb) return;
+      const ch = sb.channel('parent-messages-' + studentId)
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: 'student_id=eq.' + studentId }, () => load())
+        .subscribe();
+      return () => { try { sb.removeChannel(ch); } catch (e) {} };
+    }, [studentId]);
+
+    const send = async () => {
+      const body = draft.trim();
+      const name = parentName.trim();
+      if (!body) return;
+      if (!name) { window.peakToast && window.peakToast('Enter your name first so the teacher knows who\'s writing.', 'error'); return; }
+      setSending(true);
+      try {
+        const res = await fetch(WK + '/messages/send', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tenant: getTenant(), studentId, senderRole: 'parent', senderName: name, body }),
+        });
+        const out = await res.json();
+        if (out.error) { window.peakToast && window.peakToast('Could not send: ' + out.error, 'error'); }
+        else { setDraft(''); load(); }
+      } catch (e) {
+        window.peakToast && window.peakToast('Could not reach the school right now.', 'error');
+      }
+      setSending(false);
+    };
+
+    return (
+      <div style={{ backgroundColor: T.colors.surface, borderRadius: T.radii.lg, padding: '24px', border: `1px solid ${T.colors.border}` }}>
+        <h3 style={{ margin: '0 0 4px 0', fontSize: '18px', color: '#00FC8F' }}>💬 Message {childName}'s teacher</h3>
+        <p style={{ margin: '0 0 16px 0', fontSize: '12.5px', color: T.colors.textMuted }}>Goes straight to {childClass}'s class teacher — they'll get an alert if they've turned on notifications.</p>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxHeight: 320, overflowY: 'auto', marginBottom: 14, paddingRight: 4 }}>
+          {loading ? (
+            <div style={{ fontSize: 13, color: T.colors.textMuted }}>Loading…</div>
+          ) : messages.length === 0 ? (
+            <div style={{ fontSize: 13, color: T.colors.textMuted }}>No messages yet. Say hello below.</div>
+          ) : messages.map(m => (
+            <div key={m.id} style={{
+              alignSelf: m.sender_role === 'parent' ? 'flex-end' : 'flex-start',
+              maxWidth: '80%', background: m.sender_role === 'parent' ? 'rgba(0,252,143,0.12)' : 'rgba(59,130,246,0.12)',
+              border: '1px solid ' + (m.sender_role === 'parent' ? 'rgba(0,252,143,0.3)' : 'rgba(59,130,246,0.3)'),
+              borderRadius: 10, padding: '9px 12px',
+            }}>
+              <div style={{ fontSize: 10.5, fontWeight: 700, color: m.sender_role === 'parent' ? '#00FC8F' : '#60A5FA', marginBottom: 3 }}>
+                {m.sender_name} {m.sender_role !== 'parent' ? '· ' + m.sender_role : ''}
+              </div>
+              <div style={{ fontSize: 13.5, lineHeight: 1.4 }}>{m.body}</div>
+              <div style={{ fontSize: 10, color: T.colors.textMuted, marginTop: 3 }}>{new Date(m.created_at).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</div>
+            </div>
+          ))}
+        </div>
+
+        <input
+          value={parentName} onChange={e => setParentName(e.target.value)} placeholder="Your name"
+          style={{ width: '100%', marginBottom: 8, background: '#0F172A', color: '#FFF', border: `1px solid ${T.colors.border}`, padding: 10, borderRadius: 8, fontSize: 13, outline: 'none', boxSizing: 'border-box' }}
+        />
+        <div style={{ display: 'flex', gap: 8 }}>
+          <textarea
+            value={draft} onChange={e => setDraft(e.target.value)} placeholder="Write a message…" rows={2}
+            onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } }}
+            style={{ flex: 1, background: '#0F172A', color: '#FFF', border: `1px solid ${T.colors.border}`, padding: 10, borderRadius: 8, fontSize: 13, outline: 'none', resize: 'vertical', fontFamily: T.fonts.sans }}
+          />
+          <button onClick={send} disabled={sending || !draft.trim()} style={{
+            padding: '0 18px', background: sending ? T.colors.surfaceHover : T.colors.primary,
+            color: sending ? T.colors.textMuted : '#0A1029', border: 'none', borderRadius: 8, fontWeight: 800, fontSize: 13,
+            cursor: sending ? 'default' : 'pointer',
+          }}>{sending ? '…' : 'Send'}</button>
+        </div>
+      </div>
+    );
+  }
+
   const ParentView = () => {
     const [children, setChildren] = useState(null); // null = not identified yet
     const [selectedChildIndex, setSelectedChildIndex] = useState(0);
@@ -629,25 +720,7 @@
                 )}
               </div>
 
-              <div style={{
-                backgroundColor: T.colors.surface, borderRadius: T.radii.lg, padding: '24px',
-                border: `1px solid ${T.colors.border}`,
-              }}>
-                <h3 style={{ margin: 0, fontSize: '18px', color: '#00FC8F' }}>💬 Message the school</h3>
-                <p style={{ margin: '4px 0 12px 0', fontSize: '13px', color: T.colors.textMuted }}>
-                  Real-time in-app messaging isn't wired up yet — reach the school directly for now.
-                </p>
-                <a
-                  href={`https://wa.me/?text=${encodeURIComponent('Hello, I am the guardian of ' + child.name + ' (' + child.class + ') at Kabs Lily.')}`}
-                  target="_blank"
-                  style={{
-                    display: 'inline-block', padding: '10px 18px', backgroundColor: '#10B981', color: '#FFF', textDecoration: 'none',
-                    borderRadius: T.radii.md, fontSize: '13px', fontWeight: '700',
-                  }}
-                >
-                  💬 WhatsApp the school
-                </a>
-              </div>
+              <MessagesPanel studentId={child.id} childName={child.name} childClass={child.class} />
             </div>
           )}
         </main>
