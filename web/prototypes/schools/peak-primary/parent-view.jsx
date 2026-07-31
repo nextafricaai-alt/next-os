@@ -216,7 +216,12 @@
       const ch = sb.channel('parent-messages-' + studentId)
         .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: 'student_id=eq.' + studentId }, () => load())
         .subscribe();
-      return () => { try { sb.removeChannel(ch); } catch (e) {} };
+      // Fallback poll: postgres_changes only fires once a table's been added
+      // to Supabase's realtime publication (see
+      // cloudflare-worker/supabase-enable-realtime.sql) — this keeps the
+      // thread reasonably live even before/if that's been run.
+      const poll = setInterval(load, 15000);
+      return () => { try { sb.removeChannel(ch); } catch (e) {} clearInterval(poll); };
     }, [studentId]);
 
     const send = async () => {
@@ -357,7 +362,12 @@
           loadChildData(rawChild.id, getTenant()).then(setChildData);
         })
         .subscribe();
-      return () => { try { sb.removeChannel(ch); } catch (e) {} };
+      // Fallback poll — see the note on the messages subscription above;
+      // same underlying dependency on the realtime publication being
+      // enabled. Silent (no toast) so it doesn't imply something changed
+      // every 20s when nothing did.
+      const poll = setInterval(() => { loadChildData(rawChild.id, getTenant()).then(setChildData); }, 20000);
+      return () => { try { sb.removeChannel(ch); } catch (e) {} clearInterval(poll); };
     }, [rawChild && rawChild.id]);
 
     const todayIso = new Date().toISOString().slice(0, 10);

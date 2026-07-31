@@ -2572,7 +2572,14 @@
           refresh();
         })
         .subscribe();
-      return () => { sb.removeChannel(channel); };
+      // Fallback poll — postgres_changes only fires for tables added to
+      // Supabase's realtime publication (see
+      // cloudflare-worker/supabase-enable-realtime.sql, not yet run in
+      // production as of this writing). Without it this subscription is
+      // silently a no-op, so this keeps cross-teacher visibility current
+      // within 30s regardless.
+      const poll = setInterval(refresh, 30000);
+      return () => { sb.removeChannel(channel); clearInterval(poll); };
     }, []);
 
     // ── Open roll call: enforce period lock and one-at-a-time rule ────────────────
