@@ -1,5 +1,22 @@
 -- ─── Task #7 finding: Parent Dashboard has no real RLS isolation ───────────
 --
+-- UPDATE 2026-07-31 (later same day): the Parent Dashboard's OWN exposure
+-- is now closed — parent-view.jsx no longer queries fees/students/
+-- student_roll_call/student_notes with the anon key at all. It goes
+-- through two new worker routes (/parent/search-child, /parent/child-data
+-- in sentinel-worker.js) that use the service_role key server-side and
+-- filter by tenant_id/student_id in the query the worker builds, so the
+-- browser is never handed a key capable of an unscoped read. Verified live
+-- via curl: same student_id under a different tenant param returns empty,
+-- not that tenant's real data.
+--
+-- That fixes the Parent Dashboard specifically. It does NOT fix the
+-- underlying cause: the anon key can still read fees/students/etc.
+-- directly and unscoped from ANYWHERE ELSE that calls sb.from(...) on
+-- those tables (browser devtools, another page, a future feature that
+-- forgets this note). The real fix is still the RLS/auth rollout below —
+-- everything from here down is unchanged and still not done.
+--
 -- WHAT'S TRUE TODAY (verified live, 2026-07-31, against production Supabase
 -- with the public anon/publishable key that ships in every page's JS):
 --
