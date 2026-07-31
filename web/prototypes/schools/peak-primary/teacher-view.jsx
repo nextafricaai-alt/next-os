@@ -218,6 +218,14 @@
     return new Date(dt.getFullYear(), dt.getMonth(), 1).toISOString().slice(0, 10);
   }
 
+  function mondayOf(d) {
+    const dt = d || new Date();
+    const day = dt.getDay(); // 0=Sun..6=Sat
+    const diff = day === 0 ? -6 : 1 - day;
+    const mon = new Date(dt.getFullYear(), dt.getMonth(), dt.getDate() + diff);
+    return mon.toISOString().slice(0, 10);
+  }
+
   // Applies the standing 2,000 UGX late-arrival penalty when checkedInAt is
   // after 07:15 (compared in the browser's local time — teachers check in
   // from Uganda, so this matches school-day wall-clock time in practice).
@@ -370,6 +378,36 @@
       .eq('id', topicId)
       .select('id, status, completed_week')
       .maybeSingle();
+    return { data, error };
+  }
+
+  // Persists one lesson (Nia-generated, optionally hand-edited by the
+  // teacher before saving — that edit IS the "manual override") as this
+  // week's plan for a stream/subject. lesson_plans has no DB-level unique
+  // constraint on (teacher, stream, subject, week), so this checks for an
+  // existing row for the week first and updates it rather than risking
+  // duplicate weekly rows piling up each time a teacher regenerates.
+  async function saveGeneratedLesson(teacherId, tenantId, stream, subject, lesson) {
+    const sb = window.NextSession?.sb;
+    if (!sb) return { error: 'No session' };
+    const weekOf = mondayOf();
+    const row = {
+      tenant_id: tenantId, teacher_id: teacherId, stream, subject,
+      week_of: weekOf,
+      topic: lesson.topic || lesson.title,
+      objectives: lesson.objective || '',
+      status: 'planned',
+    };
+    const { data: existing } = await sb
+      .from('lesson_plans')
+      .select('id')
+      .eq('teacher_id', teacherId).eq('stream', stream).eq('subject', subject).eq('week_of', weekOf)
+      .maybeSingle();
+    if (existing) {
+      const { data, error } = await sb.from('lesson_plans').update(row).eq('id', existing.id).select('id').maybeSingle();
+      return { data, error };
+    }
+    const { data, error } = await sb.from('lesson_plans').insert(row).select('id').maybeSingle();
     return { data, error };
   }
 
@@ -1428,14 +1466,127 @@
     );
   }
 
-  function LessonsCard({ lessons }) {
+  const SENTINEL_URL = 'https://nextos-sentinel.nextafricaai.workers.dev';
+
+  function LessonsCard({ lessons, assignments, teacherId, tenantId, onChanged }) {
     const statusStyle = (s) => ({
       delivered: { bg: 'rgba(0,252,143,0.12)', fg: T.green, label: 'DELIVERED' },
       planned:   { bg: 'rgba(59,130,246,0.12)', fg: T.blue,  label: 'PLANNED' },
       missed:    { bg: 'rgba(255,71,87,0.12)',  fg: T.red,   label: 'MISSED' },
     })[s] || { bg: 'rgba(255,255,255,0.06)', fg: T.ink3, label: String(s || '').toUpperCase() };
+
+    const options = useMemo(() => {
+      const seen = new Set();
+      return (assignments || []).filter(a => {
+        const key = a.stream + '|' + a.subject;
+        if (seen.has(key)) return false;
+        seen.add(key); return true;
+      });
+    }, [assignments]);
+
+    const [open, setOpen] = useState(false);
+    const [choice, setChoice] = useState(0); // index into options
+    const [busy, setBusy] = useState(false);
+    const [genErr, setGenErr] = useState('');
+    const [plan, setPlan] = useState(null); // full generated scheme of work
+    const [pick, setPick] = useState(0);    // index into plan the teacher will save
+    const [editTopic, setEditTopic] = useState('');
+    const [editObjective, setEditObjective] = useState('');
+    const [saving, setSaving] = useState(false);
+
+    const generate = async () => {
+      const opt = options[choice];
+      if (!opt) { setGenErr('No class assignment to generate for.'); return; }
+      setBusy(true); setGenErr(''); setPlan(null);
+      try {
+        const res = await fetch(SENTINEL_URL + '/syllabus/generate', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ class: opt.stream, subject: opt.subject, lessons: 20, level: 'primary' }),
+        });
+        const out = await res.json();
+        if (out.error) { setGenErr(out.error); return; }
+        setPlan(out.lessons || []);
+        setPick(0);
+        setEditTopic((out.lessons && out.lessons[0] && (out.lessons[0].title || out.lessons[0].topic)) || '');
+        setEditObjective((out.lessons && out.lessons[0] && out.lessons[0].objective) || '');
+      } catch (e) {
+        setGenErr('Could not reach Nia right now.');
+      } finally { setBusy(false); }
+    };
+
+    const choosePick = (idx) => {
+      setPick(idx);
+      const l = plan[idx];
+      setEditTopic(l.title || l.topic || '');
+      setEditObjective(l.objective || '');
+    };
+
+    const save = async () => {
+      const opt = options[choice];
+      if (!opt || !editTopic.trim()) return;
+      setSaving(true);
+      const { error } = await saveGeneratedLesson(teacherId, tenantId, opt.stream, opt.subject, {
+        topic: editTopic.trim(), objective: editObjective.trim(),
+      });
+      setSaving(false);
+      if (error) { tinyToast('Could not save: ' + error.message, 'error'); return; }
+      tinyToast('This week\'s lesson plan saved.', 'success');
+      setOpen(false); setPlan(null);
+      if (onChanged) onChanged();
+    };
+
     return (
-      <Card title="This Week's Lessons" subtitle="LESSON PLANS" accent={T.blue}>
+      <Card
+        title="This Week's Lessons" subtitle="LESSON PLANS" accent={T.blue}
+        action={options.length > 0 && (
+          <button onClick={() => setOpen(o => !o)} style={{
+            fontSize: 11, fontWeight: 700, color: T.green, background: 'rgba(0,252,143,0.1)',
+            border: '1px solid rgba(0,252,143,0.3)', borderRadius: 8, padding: '6px 10px', cursor: 'pointer',
+          }}>{open ? 'Close' : '✨ Generate with Nia'}</button>
+        )}
+      >
+        {open && (
+          <div style={{ background: T.surface2, borderRadius: 10, padding: 12, marginBottom: 12 }}>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
+              <select value={choice} onChange={e => setChoice(Number(e.target.value))} style={{
+                flex: 1, minWidth: 160, background: T.surface3, color: T.ink, border: '1px solid ' + T.border,
+                borderRadius: 6, padding: '7px 8px', fontSize: 12,
+              }}>
+                {options.map((o, i) => <option key={o.id} value={i}>{o.stream} · {o.subject}</option>)}
+              </select>
+              <button onClick={generate} disabled={busy} style={{
+                fontSize: 12, fontWeight: 700, color: T.bg, background: T.green, border: 'none',
+                borderRadius: 6, padding: '7px 14px', cursor: busy ? 'wait' : 'pointer',
+              }}>{busy ? 'Asking Nia…' : 'Generate term scheme'}</button>
+            </div>
+            {genErr && <div style={{ fontSize: 12, color: T.red, marginBottom: 8 }}>{genErr}</div>}
+            {plan && plan.length > 0 && (
+              <div>
+                <div style={{ fontSize: 11, color: T.ink3, marginBottom: 6 }}>
+                  Nia suggested {plan.length} lessons for {options[choice].stream} · {options[choice].subject}. Pick which one to teach this week, then edit freely before saving — your edits are what gets saved.
+                </div>
+                <select value={pick} onChange={e => choosePick(Number(e.target.value))} style={{
+                  width: '100%', background: T.surface3, color: T.ink, border: '1px solid ' + T.border,
+                  borderRadius: 6, padding: '7px 8px', fontSize: 12, marginBottom: 8,
+                }}>
+                  {plan.map((l, i) => <option key={i} value={i}>{i + 1}. {l.title || l.topic}</option>)}
+                </select>
+                <input value={editTopic} onChange={e => setEditTopic(e.target.value)} placeholder="Lesson title" style={{
+                  width: '100%', background: T.surface3, color: T.ink, border: '1px solid ' + T.border,
+                  borderRadius: 6, padding: '8px', fontSize: 13, marginBottom: 6, fontWeight: 600,
+                }} />
+                <textarea value={editObjective} onChange={e => setEditObjective(e.target.value)} placeholder="Objective" rows={2} style={{
+                  width: '100%', background: T.surface3, color: T.ink, border: '1px solid ' + T.border,
+                  borderRadius: 6, padding: '8px', fontSize: 12, marginBottom: 8, fontFamily: T.font, resize: 'vertical',
+                }} />
+                <button onClick={save} disabled={saving || !editTopic.trim()} style={{
+                  fontSize: 12, fontWeight: 700, color: T.bg, background: T.blue, border: 'none',
+                  borderRadius: 6, padding: '8px 14px', cursor: saving ? 'wait' : 'pointer', width: '100%',
+                }}>{saving ? 'Saving…' : 'Save as this week\'s plan'}</button>
+              </div>
+            )}
+          </div>
+        )}
         {lessons.length === 0 ? (
           <Empty text="No lesson plans yet for this week." />
         ) : (
@@ -1885,7 +2036,13 @@
                 onTakeRollCall={handleOpenRollCall}
                 inProgressStream={inProgressStream}
               />
-              <LessonsCard lessons={data.lessons} />
+              <LessonsCard
+                lessons={data.lessons}
+                assignments={data.assignments}
+                teacherId={data.teacher && data.teacher.id}
+                tenantId={profile.tenantId || 'kabs-lily-junior-school-and-kindercare-centre'}
+                onChanged={refresh}
+              />
               <SyllabusCard syllabus={data.syllabus} onChanged={refresh} />
               <StudentsCard assignments={data.assignments} onLogHealth={setHealthStudent} healthRecords={data.healthRecords || []} />
               <PayslipCard payroll={data.payroll} deductions={data.deductions} />

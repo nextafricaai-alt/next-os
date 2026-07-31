@@ -1,0 +1,73 @@
+-- ─── Task #7 finding: Parent Dashboard has no real RLS isolation ───────────
+--
+-- WHAT'S TRUE TODAY (verified live, 2026-07-31, against production Supabase
+-- with the public anon/publishable key that ships in every page's JS):
+--
+--   const sb = supabase.createClient(URL, ANON_KEY);   // no login, no session
+--   await sb.from('fees').select('*').limit(5);
+--   → returns real fee rows for peak-primary, a DIFFERENT tenant than the
+--     one "logged in" via localStorage — with zero auth and zero filtering.
+--
+-- supabase-schema.sql *intends* real isolation:
+--   CREATE POLICY tenant_isolation ON fees FOR ALL
+--     USING (tenant_id = current_tenant_id());
+--   -- where current_tenant_id() reads `users.tenant_id WHERE auth_id = auth.uid()`
+--
+-- That design is sound, but it depends on every real user (parent, teacher,
+-- head, bursar) having a row in `users` linked to a real `auth.users` account.
+-- The `users` table has 0 rows. With no auth.uid(), current_tenant_id() is
+-- NULL, and `tenant_id = NULL` is never true — so on its own this policy
+-- would silently lock EVERYONE out, not let them through.
+--
+-- Since the app clearly still works for anon requests, some other policy
+-- (or RLS being force-disabled on some tables) is granting the access
+-- instead. That override isn't fully traceable in this repo's SQL files —
+-- it may have been added ad hoc in the Supabase dashboard, outside git.
+-- Run this diagnostic first to see exactly what's live:
+--
+--   SELECT schemaname, tablename, policyname, cmd, qual
+--   FROM pg_policies
+--   WHERE tablename IN ('fees','students','student_notes','student_roll_call',
+--                        'student_health_records')
+--   ORDER BY tablename, policyname;
+--
+--   SELECT relname, relrowsecurity, relforcerowsecurity
+--   FROM pg_class WHERE relname IN ('fees','students','student_notes');
+--
+-- ─── Why this hasn't been fixed blind ───────────────────────────────────────
+-- Flipping straight to strict RLS right now would very likely break the
+-- live app for real users, not just close a hole: every teacher/head/bursar
+-- login today works by the app matching profile.email against the
+-- teachers/staff tables in application code (see loadTeacherData() in
+-- teacher-view.jsx) — none of them have `auth.users` accounts either. Strict
+-- RLS keyed on auth.uid() would lock out every real staff member too, not
+-- just parents, the moment it's turned on — a full outage, not a fix.
+--
+-- Parents specifically can't be onboarded into Supabase Auth blind either:
+-- guardian_phone is empty for effectively all KABSLILY students (confirmed
+-- when building the Guardian lookup), so there's no reliable channel to send
+-- a magic link or OTP to today.
+--
+-- ─── Proposed path (needs a product decision, not a blind migration) ──────
+-- 1. Collect/backfill guardian_phone or guardian_email for at least the
+--    boarding + fee-paying families (already the highest-value group).
+-- 2. Stand up Supabase phone-OTP or email-magic-link auth for parents only,
+--    scoped to a claim flow: parent enters student admission number + the
+--    guardian_phone on file → OTP to that phone → on success, INSERT a
+--    `users` row (role='parent') and a new `guardians` linking table
+--    (guardian_user_id, student_id) since one parent can have >1 child and
+--    RLS needs to check "is this student one of mine", not just tenant.
+-- 3. Add a current_parent_student_ids() helper (mirrors current_teacher_id()
+--    in supabase-schema-teachers.sql) and real policies on fees/
+--    student_roll_call/student_notes/student_health_records:
+--      USING (student_id IN (SELECT unnest(current_parent_student_ids())))
+-- 4. Do the same users-row backfill for staff (match teachers.email /
+--    head/bursar accounts to auth.users by email), THEN drop whatever
+--    permissive policy is currently granting anon access — in that order,
+--    never the reverse, or staff logins break first.
+-- 5. Only after staff + a first cohort of parents are verified working under
+--    strict RLS, remove the permissive fallback entirely.
+--
+-- Doing 1-5 against production is a multi-day rollout with real risk of
+-- locking out real families/staff mid-term if sequenced wrong — this file
+-- documents the gap and the path, not a script to run.
