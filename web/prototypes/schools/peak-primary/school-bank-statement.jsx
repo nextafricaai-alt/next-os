@@ -70,6 +70,38 @@
     const totalPages = Math.ceil(transactions.length / itemsPerPage);
     const paginatedTransactions = transactions.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
+    const docRef = React.useRef(null);
+    const [exporting, setExporting] = useState('');
+    const captureCanvas = async () => {
+      if (!window.html2canvas || !docRef.current) throw new Error('Export engine still loading — try again in a moment.');
+      return window.html2canvas(docRef.current, { scale: 2, backgroundColor: '#ffffff' });
+    };
+    const handleExportPNG = async () => {
+      setExporting('png');
+      try {
+        const canvas = await captureCanvas();
+        const a = document.createElement('a');
+        a.href = canvas.toDataURL('image/png');
+        a.download = `financial-statement-${period.label}.png`;
+        a.click();
+      } catch (e) { window.peakToast ? window.peakToast(String(e.message || e), 'error') : alert(e.message || e); }
+      setExporting('');
+    };
+    const handleExportPDF = async () => {
+      setExporting('pdf');
+      try {
+        const canvas = await captureCanvas();
+        const ctor = (window.jspdf && window.jspdf.jsPDF) || window.jsPDF;
+        if (!ctor) throw new Error('PDF engine still loading — try again in a moment.');
+        const pdf = new ctor({ unit: 'pt', format: 'a4' });
+        const pageW = pdf.internal.pageSize.getWidth();
+        const imgH = (canvas.height * pageW) / canvas.width;
+        pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, pageW, imgH);
+        pdf.save(`financial-statement-${period.label}.pdf`);
+      } catch (e) { window.peakToast ? window.peakToast(String(e.message || e), 'error') : alert(e.message || e); }
+      setExporting('');
+    };
+
     const handlePrint = () => window.print();
     const handleExportCSV = () => {
       const headers = ['Date', 'Type', 'Category', 'Description', 'Reference', 'Debit', 'Credit', 'Balance'];
@@ -105,12 +137,12 @@
 
         <div className="no-print" style={{ maxWidth: '1000px', margin: '0 auto 1rem auto', display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
           <button onClick={handlePrint} style={btnStyle(brand.colors.primary)}>Print</button>
-          <button style={btnStyle(brand.colors.primary)}>Export PNG</button>
-          <button style={btnStyle(brand.colors.primary)}>Export PDF</button>
+          <button onClick={handleExportPNG} disabled={!!exporting} style={btnStyle(brand.colors.primary)}>{exporting === 'png' ? 'Exporting…' : 'Export PNG'}</button>
+          <button onClick={handleExportPDF} disabled={!!exporting} style={btnStyle(brand.colors.primary)}>{exporting === 'pdf' ? 'Exporting…' : 'Export PDF'}</button>
           <button onClick={handleExportCSV} style={btnStyle('#10b981')}>Export CSV</button>
         </div>
 
-        <div className="print-container" style={{
+        <div ref={docRef} className="print-container" style={{
           maxWidth: '1000px', margin: '0 auto', backgroundColor: 'white', padding: '40px',
           boxShadow: '0 10px 25px rgba(0,0,0,0.5)', color: '#1f2937', borderRadius: '8px'
         }}>
@@ -197,7 +229,7 @@
               <span>{(summary.collectionRate * 100).toFixed(1)}%</span>
             </div>
             <div style={{ height: '12px', backgroundColor: '#e5e7eb', borderRadius: '6px', overflow: 'hidden' }}>
-              <div style={{ height: '100%', backgroundColor: brand.colors.primary, width: \`\${animatedCollection}%\`, transition: 'width 1s ease-out' }}></div>
+              <div style={{ height: '100%', backgroundColor: brand.colors.primary, width: `${animatedCollection}%`, transition: 'width 1s ease-out' }}></div>
             </div>
             <div style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '5px' }}>
               Collected: {formatCurrency(summary.feesCollected)} / Expected: {formatCurrency(summary.feesCollected + summary.outstandingFees)}
@@ -213,7 +245,7 @@
                 const incomeHeight = (week.income / maxTrendValue) * 180;
                 const expenseHeight = (week.expenses / maxTrendValue) * 180;
                 return (
-                  <g key={i} transform={\`translate(\${i * totalWidth}%, 0)\`}>
+                  <g key={i} transform={`translate(${i * totalWidth}%, 0)`}>
                     <rect className="trend-bar" x="10%" y={180 - incomeHeight} width="35%" height={incomeHeight} fill={brand.colors.primary} />
                     <rect className="trend-bar" x="50%" y={180 - expenseHeight} width="35%" height={expenseHeight} fill="#ef4444" />
                     <text x="50%" y="200" textAnchor="middle" fontSize="12" fill="#6b7280">{week.week}</text>
@@ -245,7 +277,7 @@
               {paginatedTransactions.map((t, idx) => (
                 <tr key={idx} style={{ 
                   backgroundColor: idx % 2 === 0 ? 'white' : '#f9fafb',
-                  borderLeft: \`4px solid \${t.type === 'income' ? '#10b981' : '#ef4444'}\`,
+                  borderLeft: `4px solid ${t.type === 'income' ? '#10b981' : '#ef4444'}`,
                   borderBottom: '1px solid #e5e7eb'
                 }}>
                   <td style={tdStyle}>{new Date(t.date).toLocaleDateString()}</td>
@@ -299,7 +331,7 @@
   });
 
   const summaryBoxStyle = (bg, color, title, value) => (
-    <div style={{ backgroundColor: bg, color: color, padding: '20px', borderRadius: '8px', border: \`1px solid \${color}33\` }}>
+    <div style={{ backgroundColor: bg, color: color, padding: '20px', borderRadius: '8px', border: `1px solid ${color}33` }}>
       <div style={{ fontSize: '0.75rem', fontWeight: 'bold', marginBottom: '8px', opacity: 0.8 }}>{title.toUpperCase()}</div>
       <div style={{ fontSize: '1.5rem', fontWeight: '900' }}>{formatCurrency(value)}</div>
     </div>

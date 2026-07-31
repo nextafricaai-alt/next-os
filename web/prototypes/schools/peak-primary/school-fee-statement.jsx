@@ -32,6 +32,39 @@
     const totalPaid = feeItems.reduce((sum, item) => sum + item.paid, 0);
     const totalOutstanding = feeItems.reduce((sum, item) => sum + item.balance, 0);
 
+    const docRef = React.useRef(null);
+    const [exporting, setExporting] = useState('');
+
+    const captureCanvas = async () => {
+      if (!window.html2canvas || !docRef.current) throw new Error('Export engine still loading — try again in a moment.');
+      return window.html2canvas(docRef.current, { scale: 2, backgroundColor: '#ffffff' });
+    };
+    const handleExportPNG = async () => {
+      setExporting('png');
+      try {
+        const canvas = await captureCanvas();
+        const a = document.createElement('a');
+        a.href = canvas.toDataURL('image/png');
+        a.download = `fee-statement-${receiptNo}.png`;
+        a.click();
+      } catch (e) { window.peakToast ? window.peakToast(String(e.message || e), 'error') : alert(e.message || e); }
+      setExporting('');
+    };
+    const handleExportPDF = async () => {
+      setExporting('pdf');
+      try {
+        const canvas = await captureCanvas();
+        const ctor = (window.jspdf && window.jspdf.jsPDF) || window.jsPDF;
+        if (!ctor) throw new Error('PDF engine still loading — try again in a moment.');
+        const pdf = new ctor({ unit: 'pt', format: 'a4' });
+        const pageW = pdf.internal.pageSize.getWidth();
+        const imgH = (canvas.height * pageW) / canvas.width;
+        pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, pageW, imgH);
+        pdf.save(`fee-statement-${receiptNo}.pdf`);
+      } catch (e) { window.peakToast ? window.peakToast(String(e.message || e), 'error') : alert(e.message || e); }
+      setExporting('');
+    };
+
     const handlePrint = () => window.print();
     const handleWhatsApp = () => {
       const text = `Fee Statement for ${student.name} (${term} ${year}). Total: ${formatCurrency(totalFees)}. Paid: ${formatCurrency(totalPaid)}. Outstanding: ${formatCurrency(totalOutstanding)}.`;
@@ -52,13 +85,13 @@
         </style>
         <div className="no-print" style={{ maxWidth: '800px', margin: '0 auto 1rem auto', display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
           <button onClick={handlePrint} style={btnStyle(brand.colors.primary)}>Print</button>
-          <button style={btnStyle(brand.colors.primary)}>Export PNG</button>
-          <button style={btnStyle(brand.colors.primary)}>Export PDF</button>
+          <button onClick={handleExportPNG} disabled={!!exporting} style={btnStyle(brand.colors.primary)}>{exporting === 'png' ? 'Exporting…' : 'Export PNG'}</button>
+          <button onClick={handleExportPDF} disabled={!!exporting} style={btnStyle(brand.colors.primary)}>{exporting === 'pdf' ? 'Exporting…' : 'Export PDF'}</button>
           <button onClick={handleWhatsApp} style={btnStyle('#25D366')}>WhatsApp</button>
         </div>
 
         {/* A4 Container */}
-        <div className="print-container" style={{
+        <div ref={docRef} className="print-container" style={{
           maxWidth: '800px', margin: '0 auto', backgroundColor: 'white', padding: '40px',
           boxShadow: '0 4px 6px rgba(0,0,0,0.1)', color: '#1f2937'
         }}>
