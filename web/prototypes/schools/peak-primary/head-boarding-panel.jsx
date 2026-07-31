@@ -27,23 +27,61 @@
   };
 
   const BoardingPanel = () => {
-    const [activeDormTab, setActiveDormTab] = React.useState('All Hostels');
     const [searchQuery, setSearchQuery] = React.useState('');
     const [classFilter, setClassFilter] = React.useState('All Boarders');
+    const [roster, setRoster] = React.useState([]);
+    const [loading, setLoading] = React.useState(true);
+    const [totalRevenue, setTotalRevenue] = React.useState(0);
 
-    // Demo Data
-    const dorms = [
-      { id: 'b1', name: 'St. Kizito Boys Dorm', icon: '👦', capacity: 25, occupied: 18, matron: 'Tr. Sarah N.', matronPhone: '+256 772 111222', status: '🟢 All 18 present at 8:00 PM roll-call' },
-      { id: 'g1', name: 'St. Mary Girls House', icon: '👧', capacity: 25, occupied: 20, matron: 'Tr. Agnes K.', matronPhone: '+256 701 333444', status: '🟢 All 20 present at 8:00 PM roll-call' }
-    ];
+    // No dorm/bed/matron assignment data exists in Supabase yet (that's a
+    // separate onboarding step the school hasn't done) — show an honest
+    // empty/setup state instead of fabricated hostel names and matrons.
+    const dorms = [];
 
-    const roster = [
-      { id: 1, name: 'Ssebaggala Ivan', class: 'P.7', dorm: 'St. Kizito Boys Dorm', bed: 'B04', guardian: 'Mr. Ssebaggala', contact: '+256 772 000111', status: 'Present in Dorm', statusType: 'success', feeStatus: 'Paid', feeType: 'success' },
-      { id: 2, name: 'Namukasa Juliet', class: 'P.6', dorm: 'St. Mary Girls House', bed: 'G12', guardian: 'Mrs. Namukasa', contact: '+256 701 000222', status: 'In Infirmary', statusType: 'warning', feeStatus: 'Partial', feeType: 'warning' },
-      { id: 3, name: 'Opio Denis', class: 'P.5', dorm: 'St. Kizito Boys Dorm', bed: 'B10', guardian: 'Mr. Opio', contact: '+256 752 000333', status: 'Weekend Home Pass', statusType: 'info', feeStatus: 'Paid', feeType: 'success' },
-      { id: 4, name: 'Akatukunda Mercy', class: 'P.7', dorm: 'St. Mary Girls House', bed: 'G01', guardian: 'Mr. Tumwine', contact: '+256 774 000444', status: 'Present in Dorm', statusType: 'success', feeStatus: 'Paid', feeType: 'success' },
-      { id: 5, name: 'Mugisha Paul', class: 'P.4', dorm: 'St. Kizito Boys Dorm', bed: 'B18', guardian: 'Mrs. Mugisha', contact: '+256 703 000555', status: 'Present in Dorm', statusType: 'success', feeStatus: 'Paid', feeType: 'success' }
-    ];
+    React.useEffect(() => {
+      let alive = true;
+      const tenantId = (typeof window.getOSActiveTenant === 'function') ? window.getOSActiveTenant() : 'peak-primary';
+      const sb = (window.NextSession && window.NextSession.sb) ||
+                 (window.SCHOOL_STORE && window.SCHOOL_STORE.getSupabase && window.SCHOOL_STORE.getSupabase()) ||
+                 (window.supabase && window.supabase.createClient && window.supabase.createClient('https://llxhvqkkgftqwefmrofn.supabase.co', 'sb_publishable_wrzbFpPrkhoN4w2KXdUAdw_gnqEQVs9'));
+      if (!sb || typeof sb.from !== 'function') { setLoading(false); return; }
+
+      Promise.all([
+        sb.from('students').select('id, name, stream, guardian_name, guardian_phone').eq('tenant_id', tenantId).eq('is_boarding', true),
+        sb.from('fees').select('student_id, kind, amount').eq('tenant_id', tenantId),
+      ]).then(([studentsRes, feesRes]) => {
+        if (!alive) return;
+        const students = (studentsRes && studentsRes.data) || [];
+        const boardingIds = new Set(students.map(s => s.id));
+        const feeRows = ((feesRes && feesRes.data) || []).filter(f => boardingIds.has(f.student_id));
+        const balanceByStudent = {};
+        let revenue = 0;
+        feeRows.forEach(f => {
+          balanceByStudent[f.student_id] = (balanceByStudent[f.student_id] || 0) + Number(f.amount || 0);
+          if (f.kind === 'payment') revenue += Math.abs(Number(f.amount || 0));
+        });
+        setTotalRevenue(revenue);
+        setRoster(students.map(s => {
+          const balance = balanceByStudent[s.id] || 0;
+          return {
+            id: s.id,
+            name: s.name,
+            class: s.stream || '—',
+            dorm: 'Not assigned',
+            bed: '—',
+            guardian: s.guardian_name || '—',
+            contact: s.guardian_phone || '—',
+            status: 'Not checked in',
+            statusType: 'default',
+            feeStatus: balance <= 0 ? 'Paid' : 'Owing',
+            feeType: balance <= 0 ? 'success' : 'warning',
+          };
+        }));
+        setLoading(false);
+      }).catch(() => { if (alive) setLoading(false); });
+
+      return () => { alive = false; };
+    }, []);
 
     const getBadgeStyle = (type) => {
       switch (type) {
@@ -93,10 +131,9 @@
     const filteredRoster = roster.filter(student => {
       const matchesSearch = student.name.toLowerCase().includes(searchQuery.toLowerCase()) || student.guardian.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesClass = classFilter === 'All Boarders' || student.class === classFilter;
-      const isDormMatch = activeDormTab === 'All Hostels' || student.dorm.includes(activeDormTab.replace(/ (👦|👧)/, ''));
-      
-      return isDormMatch && matchesSearch && matchesClass;
+      return matchesSearch && matchesClass;
     });
+    const classOptions = Array.from(new Set(roster.map(s => s.class))).filter(Boolean).sort();
 
     return (
       <div style={{
@@ -130,39 +167,15 @@
                 </span>
               </div>
             </div>
-
-            {/* Top Dorm Filter Tabs */}
-            <div style={{ display: 'flex', backgroundColor: T.panelBg, padding: '4px', borderRadius: T.radiusLg, border: `1px solid ${T.border}` }}>
-              {['All Hostels', 'St. Kizito Boys Dorm 👦', 'St. Mary Girls House 👧'].map(tab => (
-                <button
-                  key={tab}
-                  onClick={() => setActiveDormTab(tab)}
-                  style={{
-                    padding: '8px 16px',
-                    backgroundColor: activeDormTab === tab ? T.cardBg : 'transparent',
-                    color: activeDormTab === tab ? '#fff' : T.textMuted,
-                    border: 'none',
-                    borderRadius: T.radiusMd,
-                    fontSize: '14px',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease',
-                    boxShadow: activeDormTab === tab ? '0 2px 4px rgba(0,0,0,0.2)' : 'none'
-                  }}
-                >
-                  {tab}
-                </button>
-              ))}
-            </div>
           </div>
 
           {/* Stat Cards */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '20px' }}>
             {[
-              { label: 'Total Boarders', value: '38 Boarders', sub: '32% of School', color: T.accent },
-              { label: 'Hostel Occupancy', value: '76%', sub: 'Bed Capacity Used', color: T.info },
-              { label: 'Boarding Revenue', value: '24.5M UGX', sub: 'Collected', color: T.success },
-              { label: 'Ring-fenced Surplus', value: '4.7M UGX', sub: 'Boarding Reserve 🟢', color: T.success }
+              { label: 'Total Boarders', value: loading ? '—' : String(roster.length), sub: 'Marked boarding in Students', color: T.accent },
+              { label: 'Hostel Occupancy', value: '—', sub: 'No dorms configured yet', color: T.info },
+              { label: 'Boarding Revenue', value: loading ? '—' : ('UGX ' + totalRevenue.toLocaleString()), sub: 'Collected', color: T.success },
+              { label: 'Ring-fenced Surplus', value: '—', sub: 'Not tracked yet', color: T.textDim }
             ].map((stat, i) => (
               <div key={i} style={{ 
                 backgroundColor: T.panelBg, 
@@ -185,6 +198,11 @@
           </div>
 
           {/* Dormitory & Matron Cards */}
+          {dorms.length === 0 ? (
+            <div style={{ backgroundColor: T.panelBg, borderRadius: T.radiusLg, border: `1px dashed ${T.border}`, padding: '28px', textAlign: 'center', color: T.textMuted }}>
+              No hostels/dorms set up yet for this school — matron assignments and bed occupancy will show here once they're added in School Setup.
+            </div>
+          ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '24px' }}>
             {dorms.map(dorm => (
               <div key={dorm.id} style={{ 
@@ -230,6 +248,7 @@
               </div>
             ))}
           </div>
+          )}
 
           {/* Main Roster Section */}
           <div style={{ backgroundColor: T.panelBg, borderRadius: T.radiusLg, border: `1px solid ${T.border}`, overflow: 'hidden' }}>
@@ -274,10 +293,7 @@
                 }}
               >
                 <option>All Boarders</option>
-                <option>P.4</option>
-                <option>P.5</option>
-                <option>P.6</option>
-                <option>P.7</option>
+                {classOptions.map(c => <option key={c}>{c}</option>)}
               </select>
             </div>
 
@@ -328,7 +344,7 @@
                 {filteredRoster.length === 0 && (
                   <tr>
                     <td colSpan="5" style={{ padding: '48px', textAlign: 'center', color: T.textMuted }}>
-                      No boarding students found matching criteria.
+                      {loading ? 'Loading boarding roster…' : 'No boarding students found matching criteria.'}
                     </td>
                   </tr>
                 )}
@@ -348,9 +364,9 @@
           }}>
             <div style={{ fontSize: '24px' }}>🛡️</div>
             <div>
-              <h4 style={{ margin: '0 0 8px 0', color: T.success, fontSize: '16px', fontWeight: 600 }}>Resource Protection Active</h4>
+              <h4 style={{ margin: '0 0 8px 0', color: T.success, fontSize: '16px', fontWeight: 600 }}>Resource Protection</h4>
               <p style={{ margin: 0, color: T.textMuted, fontSize: '14px', lineHeight: 1.6 }}>
-                Boarding funds (<strong style={{ color: T.text }}>24,500,000 UGX</strong>) are ring-fenced from Day Scholar funds. Boarding meal, bedding, and matron costs are strictly covered from boarding revenue without encroaching on day scholar resources.
+                Boarding funds collected so far (<strong style={{ color: T.text }}>{loading ? '—' : ('UGX ' + totalRevenue.toLocaleString())}</strong>) should be ring-fenced from Day Scholar funds — meal, bedding, and matron costs are meant to be covered from boarding revenue without encroaching on day scholar resources.
               </p>
             </div>
           </div>
