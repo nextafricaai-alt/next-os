@@ -719,13 +719,25 @@ async function niaGenerate(env, system, user, maxTokens, temperature) {
         body: JSON.stringify({ model: env.ANTHROPIC_MODEL || 'claude-sonnet-4-6', max_tokens: maxTokens, temperature: temperature, system: system, messages: [{ role: 'user', content: user }] }),
       });
       if (r.ok) { const d = await r.json(); const t = (d.content && d.content[0] && d.content[0].text) || ''; if (t && t.trim()) return t.trim(); }
-    } catch (e) {}
+      else console.error('niaGenerate: Anthropic HTTP ' + r.status + ' ' + (await r.text()).slice(0, 300));
+    } catch (e) { console.error('niaGenerate: Anthropic threw: ' + String((e && e.stack) || e)); }
   }
   if (env.AI) {
     try {
       const result = await env.AI.run(MODEL, { messages: [{ role: 'system', content: system }, { role: 'user', content: user }], max_tokens: maxTokens, temperature: temperature });
-      const t = ((result.result || result).response || ''); if (t && t.trim()) return t.trim();
-    } catch (e) {}
+      const inner = result.result || result;
+      // .response is usually the plain completion string, but this model
+      // sometimes answers via .choices[0].message.content instead (an
+      // OpenAI-chat-shaped response) or returns .response as something
+      // non-string — coerce defensively rather than assuming a shape.
+      let t = inner.response;
+      if (typeof t !== 'string' || !t.trim()) {
+        const choiceText = inner.choices && inner.choices[0] && inner.choices[0].message && inner.choices[0].message.content;
+        t = typeof choiceText === 'string' ? choiceText : '';
+      }
+      if (t && t.trim()) return t.trim();
+      console.error('niaGenerate: AI.run returned no usable text. Keys: ' + Object.keys(inner || {}).join(',') + ' raw: ' + JSON.stringify(inner).slice(0, 400));
+    } catch (e) { console.error('niaGenerate: AI.run threw: ' + String((e && e.stack) || e)); }
   }
   return '';
 }
