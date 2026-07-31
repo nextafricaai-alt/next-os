@@ -54,20 +54,24 @@
 
   // Loads everything the dashboard needs for one child: fee ledger,
   // this week's roll call, and teacher notes.
+  //
+  // Goes through the worker's /parent/child-data (service-role, scoped
+  // server-side to this exact tenant+student) rather than querying
+  // Supabase directly with the anon key — the anon key currently has no
+  // real per-user isolation (see the note at the top of this file and
+  // cloudflare-worker/supabase-parent-rls-remediation-plan.sql), so a
+  // direct client query here would be able to read ANY tenant's fees/
+  // health notes, not just this family's. The worker enforces the scoping
+  // instead, the same pattern already used for /fees/checkout etc.
   async function loadChildData(studentId, tenantId) {
-    const sb = getSb();
-    if (!sb) return { fees: [], rollCalls: [], notes: [] };
-    const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-    const [feesRes, rollRes, notesRes] = await Promise.all([
-      sb.from('fees').select('kind, amount, term, notes, occurred_at').eq('tenant_id', tenantId).eq('student_id', studentId),
-      sb.from('student_roll_call').select('status, roll_date, taken_at').eq('tenant_id', tenantId).eq('student_id', studentId).gte('roll_date', weekAgo).order('roll_date', { ascending: false }),
-      sb.from('student_notes').select('note, note_type, created_at').eq('tenant_id', tenantId).eq('student_id', studentId).order('created_at', { ascending: false }).limit(10),
-    ]);
-    return {
-      fees: (feesRes && feesRes.data) || [],
-      rollCalls: (rollRes && rollRes.data) || [],
-      notes: (notesRes && notesRes.data) || [],
-    };
+    try {
+      const res = await fetch(WK + '/parent/child-data?tenant=' + encodeURIComponent(tenantId) + '&student_id=' + encodeURIComponent(studentId));
+      const out = await res.json();
+      if (out.error) return { fees: [], rollCalls: [], notes: [] };
+      return { fees: out.fees || [], rollCalls: out.rollCalls || [], notes: out.notes || [] };
+    } catch (e) {
+      return { fees: [], rollCalls: [], notes: [] };
+    }
   }
 
   function summarizeFees(feeRows) {
@@ -91,17 +95,19 @@
       const q = query.trim();
       if (!q) return;
       setSearching(true); setError(''); setResults(null);
-      const sb = getSb();
       const tenantId = getTenant();
-      if (!sb) { setError('Not connected to the school database. Try again in a moment.'); setSearching(false); return; }
       try {
-        const isPhoneish = /^[0-9+][0-9+\s-]{5,}$/.test(q);
-        const query_ = sb.from('students').select('id, name, stream, guardian_name, guardian_phone').eq('tenant_id', tenantId).limit(8);
-        const { data, error: err } = isPhoneish
-          ? await query_.eq('guardian_phone', q.replace(/[^0-9+]/g, ''))
-          : await query_.ilike('name', `%${q}%`);
-        if (err) { setError('Search failed: ' + err.message); setSearching(false); return; }
-        if (!data || !data.length) { setError('No student found matching "' + q + '". Check the spelling, or ask the school office for your child\'s exact name on file.'); setSearching(false); return; }
+        // Server-mediated (see loadChildData above for why): the worker
+        // does this lookup with the service-role key, scoped to this one
+        // tenant, instead of the anon key running an open query.
+        const res = await fetch(WK + '/parent/search-child', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tenant: tenantId, query: q }),
+        });
+        const out = await res.json();
+        if (out.error) { setError('Search failed: ' + out.error); setSearching(false); return; }
+        const data = out.matches || [];
+        if (!data.length) { setError('No student found matching "' + q + '". Check the spelling, or ask the school office for your child\'s exact name on file.'); setSearching(false); return; }
         setResults(data);
       } catch (e) {
         setError('Search failed: ' + String((e && e.message) || e));

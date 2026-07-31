@@ -278,7 +278,7 @@ export default {
     }
 
     // GET-allowed routes (read-only endpoints live below this gate)
-    const GET_OK = ['/check-project', '/seo-audit', '/px.js', '/analytics', '/gsc', '/ga4', '/fetch-page', '/site-pages', '/cms/collections', '/cms/items', '/students', '/exams', '/exam-results', '/fees-balances', '/attendance-summary', '/staff-status', '/attendance-watch', '/attendance/today', '/lessons-remind', '/watch/deploy-check', '/student-health', '/billing/verify', '/billing/subscriptions', '/fees/lookup', '/fees/verify', '/health', '/events', '/finance', '/assets', '/school-config', '/os-data', '/teachers', '/hosting-report', '/watch/status', '/push/vapid-public', '/push/debug'];
+    const GET_OK = ['/check-project', '/seo-audit', '/px.js', '/analytics', '/gsc', '/ga4', '/fetch-page', '/site-pages', '/cms/collections', '/cms/items', '/students', '/exams', '/exam-results', '/fees-balances', '/attendance-summary', '/staff-status', '/attendance-watch', '/attendance/today', '/lessons-remind', '/watch/deploy-check', '/student-health', '/billing/verify', '/billing/subscriptions', '/fees/lookup', '/fees/verify', '/health', '/events', '/finance', '/assets', '/school-config', '/os-data', '/teachers', '/hosting-report', '/watch/status', '/push/vapid-public', '/push/debug', '/parent/child-data'];
     if (request.method !== 'POST' && !GET_OK.includes(url.pathname)) {
       return new Response('Method not allowed', { status: 405, headers: cors });
     }
@@ -445,6 +445,8 @@ export default {
     if (url.pathname === '/exam/care-plan')     return handleExamCarePlan(request, env, cors);
     if (url.pathname === '/attendance/today')   return handleAttendanceToday(url.searchParams.get('tenant') || '', env, cors);
     if (url.pathname === '/fees/lookup')        return handleFeesLookup(url.searchParams.get('tenant') || '', url.searchParams.get('q') || '', env, cors);
+    if (url.pathname === '/parent/search-child') return handleParentSearchChild(request, env, cors);
+    if (url.pathname === '/parent/child-data')   return handleParentChildData(url, env, cors);
     if (url.pathname === '/fees/checkout')      return handleFeesCheckout(request, env, cors);
     if (url.pathname === '/fees/verify')        return (async()=>{ const J=(o,st)=>new Response(JSON.stringify(o),{status:st||200,headers:{...cors,'Content-Type':'application/json'}}); return J(await feePayFulfil(env, url.searchParams.get('tx') || url.searchParams.get('transaction_id') || '')); })();
     if (url.pathname === '/billing/checkout')   return handleBillingCheckout(request, env, cors);
@@ -1764,6 +1766,60 @@ async function handleAttendanceToday(tenant, env, cors) {
     // "In school but not in class" — arrived at the gate but not present in any roll call (possible class-dodging).
     const dodging = gate.filter(id => !classSet[id]);
     return J({ tenant, date: dateStr, total, gate, class: klass, gateCount: gate.length, classCount: klass.length, dodgingCount: dodging.length, dodging: dodging.slice(0, 200) });
+  } catch (e) { return J({ error: String((e && e.message) || e) }, 200); }
+}
+
+// ─── Parent Dashboard: server-mediated reads ────────────────────────────
+// The anon/publishable Supabase key ships in every page's client JS and
+// respects RLS — but the RLS policies in supabase-schema.sql key off
+// users.auth_id = auth.uid(), and the `users` table has 0 rows (no parent
+// or staff auth accounts exist yet). With no auth.uid(), current_tenant_id()
+// is NULL and that policy blocks nothing NOR grants anything on its own —
+// yet a permissive fallback policy (added outside this repo's tracked SQL,
+// most likely via the dashboard during early setup) currently lets the
+// anon key read ANY tenant's fees/students/notes with zero auth at all.
+// Rather than have the Parent Dashboard hit those tables directly with the
+// anon key (inheriting that hole) or block on a full parent-auth rollout
+// (see supabase-parent-rls-remediation-plan.sql for why that's a separate,
+// carefully-sequenced piece of work), these two routes do the same thing
+// every other sensitive write in this worker already does: use the
+// service_role key server-side and explicitly filter by tenant_id (and
+// here, student_id) in the query WE construct — the client never gets a
+// key capable of an unscoped query.
+async function handleParentSearchChild(request, env, cors) {
+  const J = (oo, st) => new Response(JSON.stringify(oo), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
+  let b; try { b = await request.json(); } catch (e) { return J({ error: 'bad body' }, 400); }
+  const tenant = String(b.tenant || '').trim();
+  const q = String(b.query || '').trim();
+  if (!tenant) return J({ error: 'tenant required' }, 400);
+  if (q.length < 2) return J({ matches: [] });
+  if (!env.SUPABASE_URL || !env.SUPABASE_KEY) return J({ error: 'not configured' }, 500);
+  try {
+    const isPhoneish = /^[0-9+][0-9+\s-]{5,}$/.test(q);
+    const base = '/students?tenant_id=eq.' + encodeURIComponent(tenant) + '&select=id,name,stream,guardian_name,guardian_phone&limit=8';
+    const path = isPhoneish
+      ? base + '&guardian_phone=eq.' + encodeURIComponent(q.replace(/[^0-9+]/g, ''))
+      : base + '&name=ilike.' + encodeURIComponent('*' + q.replace(/[%*]/g, '') + '*');
+    const matches = await sbFetch(env, path);
+    return J({ tenant, matches: matches || [] });
+  } catch (e) { return J({ error: String((e && e.message) || e) }, 200); }
+}
+
+async function handleParentChildData(url, env, cors) {
+  const J = (oo, st) => new Response(JSON.stringify(oo), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
+  const tenant = url.searchParams.get('tenant') || '';
+  const studentId = url.searchParams.get('student_id') || '';
+  if (!tenant || !studentId) return J({ error: 'tenant and student_id required' }, 400);
+  if (!env.SUPABASE_URL || !env.SUPABASE_KEY) return J({ error: 'not configured' }, 500);
+  const tEnc = encodeURIComponent(tenant), sEnc = encodeURIComponent(studentId);
+  const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  try {
+    const [fees, rollCalls, notes] = await Promise.all([
+      sbFetch(env, '/fees?tenant_id=eq.' + tEnc + '&student_id=eq.' + sEnc + '&select=kind,amount,term,notes,occurred_at'),
+      sbFetch(env, '/student_roll_call?tenant_id=eq.' + tEnc + '&student_id=eq.' + sEnc + '&roll_date=gte.' + weekAgo + '&select=status,roll_date,taken_at&order=roll_date.desc'),
+      sbFetch(env, '/student_notes?tenant_id=eq.' + tEnc + '&student_id=eq.' + sEnc + '&select=note,note_type,created_at&order=created_at.desc&limit=10'),
+    ]);
+    return J({ fees: fees || [], rollCalls: rollCalls || [], notes: notes || [] });
   } catch (e) { return J({ error: String((e && e.message) || e) }, 200); }
 }
 
