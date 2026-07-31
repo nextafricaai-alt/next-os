@@ -211,6 +211,24 @@
 </head>
 <body>
   <script>
+    /* Safety net for the school-data screens (Students/Teachers/Attendance/etc):
+       every one of them reads its data via `const D = window.PEAK || window.PEAK_FALLBACK;`.
+       window.PEAK itself is assigned later by a very large inline script — if
+       that ever fails to run before a screen renders (slow parse, a later
+       edit introducing a real error, etc.) every D.students/.teachers/.streams
+       access would throw "Cannot read properties of undefined" and crash the
+       whole page. This has to be defined in its own tiny, plain (non-Babel)
+       script at the very top of <body>, BEFORE window.PEAK's own script, so
+       it exists no matter what happens to that later block. */
+    window.PEAK_FALLBACK = {
+      streams: [], students: [], teachers: [], buses: [], subjects: [], reports: [],
+      kpis: {}, alerts: [], streamAttendance: [], trend7: [], feesWeek: [], threads: [],
+      broadcasts: [], aiSuggestions: [],
+      fmtUGX: function (n) { return 'UGX ' + (Number(n) || 0).toLocaleString(); },
+      fmtUGXshort: function (n) { return 'UGX ' + (Number(n) || 0).toLocaleString(); },
+    };
+  </script>
+  <script>
     /* Build self-heal: if this cached HTML is older than what the server now serves,
        reload ONCE with a cache-buster so no school is ever stuck on a stale build. */
     window.__BUILD = 'b110';
@@ -3316,7 +3334,7 @@ window.PEAK = (function () {
 
 const V4 = (function () {
   const { useState } = React;
-  const D = window.PEAK;
+  const D = window.PEAK || window.PEAK_FALLBACK;
 
   const T = {
     // surfaces — Peak navy family
@@ -4117,7 +4135,7 @@ window.V4 = V4;
 
 const PD_Today = (function () {
   const T = window.V4.T;
-  const D = window.PEAK;
+  const D = window.PEAK || window.PEAK_FALLBACK;
   const { useState } = React;
 
   // Reusable left rail (compact version of the V4 sidebar)
@@ -4517,7 +4535,7 @@ window.PD_Today = PD_Today;
 
 const PD_Students = (function () {
   const T = window.V4.T;
-  const D = window.PEAK;
+  const D = window.PEAK || window.PEAK_FALLBACK;
   const { useState, useMemo } = React;
 
   function Rail({ active, onNav }) {
@@ -4807,8 +4825,8 @@ const PD_Students = (function () {
             <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 18 }}>
               <div>
                 <div style={{ fontSize: 11, color: T.ink3, fontFamily: T.mono, letterSpacing: '0.08em', fontWeight: 600, marginBottom: 8 }}>ROSTER</div>
-                <div style={{ fontSize: 24, fontWeight: 700, letterSpacing: '-0.02em', lineHeight: 1.05 }}>Students · {(D.students || []).length} enrolled</div>
-                <div style={{ fontSize: 13, color: T.ink3, marginTop: 4 }}>{new Set((D.students || []).map(function (x) { return normalizeClass(x.stream || x.class); }).filter(Boolean)).size} classes · Term 2, Week 6</div>
+                <div style={{ fontSize: 24, fontWeight: 700, letterSpacing: '-0.02em', lineHeight: 1.05 }}>Students · {((D && D.students) || []).length} enrolled</div>
+                <div style={{ fontSize: 13, color: T.ink3, marginTop: 4 }}>{new Set(((D && D.students) || []).map(function (x) { return normalizeClass(x.stream || x.class); }).filter(Boolean)).size} classes · Term 2, Week 6</div>
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
                 <button onClick={() => window.peakModal && window.peakModal.open(React.createElement(window.PEAK_FORMS.ImportStudents))} style={{ border: '1px solid ' + T.borderStr, background: 'transparent', color: T.ink2, padding: '8px 14px', borderRadius: 9, fontSize: 12.5, cursor: 'pointer' }}>Import CSV</button>
@@ -4887,7 +4905,7 @@ const PD_Students = (function () {
                     onClick={(st) => { setSelectedId(st.id); setDrawerOpen(true); }} />
                 ))}
                 <div style={{ padding: '20px 22px', fontSize: 11.5, color: T.ink3, fontFamily: T.mono, textAlign: 'center' }}>
-                  Showing {rows.length} of {(D.students || []).length}
+                  Showing {rows.length} of {((D && D.students) || []).length}
                 </div>
               </div>
               {/* bulk action bar */}
@@ -4927,7 +4945,7 @@ window.PD_Students = PD_Students;
 
 const PD_Profile = (function () {
   const T = window.V4.T;
-  const D = window.PEAK;
+  const D = window.PEAK || window.PEAK_FALLBACK;
   const { useState } = React;
 
   function Rail({ active, onNav }) {
@@ -5315,7 +5333,7 @@ window.PD_Profile = PD_Profile;
 
 const PD_Fees = (function () {
   const T = window.V4.T;
-  const D = window.PEAK;
+  const D = window.PEAK || window.PEAK_FALLBACK;
   const { useState } = React;
 
   function Rail({ active, onNav }) {
@@ -5541,7 +5559,7 @@ window.PD_Fees = PD_Fees;
 
 const PD_Broadcast = (function () {
   const T = window.V4.T;
-  const D = window.PEAK;
+  const D = window.PEAK || window.PEAK_FALLBACK;
   const { useState } = React;
 
   function Rail({ active, onNav }) {
@@ -5841,7 +5859,7 @@ window.PD_Broadcast = PD_Broadcast;
 
 const PD_M = (function () {
   const T = window.V4.T;
-  const D = window.PEAK;
+  const D = window.PEAK || window.PEAK_FALLBACK;
 
   // Phone shell -------------------------------------------------------------
   function Phone({ children, statusInk = T.ink }) {
@@ -6188,7 +6206,7 @@ window.PD_M = PD_M;
 window.PEAK_SCREENS = (function () {
   const { useState, useMemo } = React;
   const T = window.V4.T;
-  const D = window.PEAK;
+  const D = window.PEAK || window.PEAK_FALLBACK;
 
   // ─── Shared atoms ─────────────────────────────────────────────────────────
   function Pill({ children, tone = 'neutral' }) {
@@ -6901,7 +6919,7 @@ window.PEAK_SCREENS = (function () {
 window.PEAK_FORMS = (function () {
   const { useState } = React;
   const T = window.V4.T;
-  const D = window.PEAK;
+  const D = window.PEAK || window.PEAK_FALLBACK;
 
   // ─── Shared form atoms ────────────────────────────────────────────────────
   function Field({ label, hint, error, children, span = 1 }) {
@@ -7453,7 +7471,7 @@ window.PEAK_FORMS = (function () {
         <ModalHeader eyebrow="New assignment" title="Set work for a class" subtitle="Saved to the class - guardians can be notified from Communications." />
         <div style={{ padding: 24, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
           <Field label="Title" error={err} span={2}><TextInput value={title} onChange={v => { setTitle(v); setErr(''); }} placeholder="e.g. Fractions worksheet 3" /></Field>
-          <Field label="Class / stream"><Select value={stream} onChange={setStream} options={(D.streams || []).map(s => ({ value: s.id, label: s.label || s.id }))} /></Field>
+          <Field label="Class / stream"><Select value={stream} onChange={setStream} options={((D && D.streams) || []).map(s => ({ value: s.id, label: s.label || s.id }))} /></Field>
           <Field label="Subject"><TextInput value={subject} onChange={setSubject} placeholder="Mathematics" /></Field>
           <Field label="Due date" span={2}><TextInput value={due} onChange={setDue} placeholder="Friday 19 June" /></Field>
           <Field label="Instructions" span={2}><textarea value={details} onChange={e => setDetails(e.target.value)} placeholder="What should the pupils do?" style={{ width: '100%', minHeight: 80, background: T.bg, border: '1px solid ' + T.border, borderRadius: 9, padding: 11, fontSize: 13, color: T.ink, fontFamily: T.font, outline: 'none' }} /></Field>
@@ -11282,7 +11300,7 @@ window.PEAK_STAFF = (function () {
 (function () {
   const { useState, useEffect, useRef, useReducer } = React;
   const T = window.V4.T;
-  const D = window.PEAK;
+  const D = window.PEAK || window.PEAK_FALLBACK;
 
   // ─── Tiny global store ────────────────────────────────────────────────────
   // We mutate window.PEAK in place and bump a version counter to force re-renders.
