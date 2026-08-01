@@ -1993,15 +1993,26 @@ async function handleRegistrationApprove(request, env, cors) {
       // gets this submission's guardian info attached instead of a
       // duplicate row — this is the "Arinitwe" case from the goal.
       const existing = await sbFetch(env, '/students?tenant_id=eq.' + encodeURIComponent(tenant) + '&select=id,name,guardian_name,guardian_phone');
-      const match = (existing || []).find(s => normName(s.name) === normName(name));
+      const match = (existing || []).find(s => {
+        const eName = normName(s.name);
+        const iName = normName(name);
+        if (eName === iName) return true;
+        const eParts = eName.split(' ').filter(Boolean);
+        const iParts = iName.split(' ').filter(Boolean);
+        if (eParts.length === 0 || iParts.length === 0) return false;
+        const overlaps = eParts.filter(part => iParts.includes(part));
+        return overlaps.length >= Math.min(eParts.length, iParts.length, 2);
+      });
       if (match) {
         const patch = {};
         if (p.guardian) patch.guardian_name = p.guardian;
         if (p.guardianPhone) patch.guardian_phone = p.guardianPhone;
         if (p.photoDataUrl) patch.photo_url = p.photoDataUrl;
+        if (p.stream) patch.stream = p.stream;
+        if (p.dob) patch.date_of_birth = p.dob;
         patch.meta = { petName: p.petName, sex: p.sex, residenceType: p.residenceType, guardianRelation: p.guardianRelation, guardianEmail: p.guardianEmail, address: p.address, bloodGroup: p.bloodGroup, allergies: p.allergies, conditions: p.conditions };
         if (Object.keys(patch).length) await sbWrite(env, '/students?id=eq.' + match.id, patch, 'PATCH', 'return=minimal');
-        await sbWrite(env, '/registration_requests?id=eq.' + id, { status: 'merged', reviewed_at: new Date().toISOString(), reviewed_by: reviewedBy, result_student_id: match.id, notes: 'Matched existing student "' + match.name + '" — guardian info attached, no duplicate created.' }, 'PATCH', 'return=minimal');
+        await sbWrite(env, '/registration_requests?id=eq.' + id, { status: 'merged', reviewed_at: new Date().toISOString(), reviewed_by: reviewedBy, result_student_id: match.id, notes: 'Matched existing student "' + match.name + '" — new info attached, no duplicate created.' }, 'PATCH', 'return=minimal');
         return J({ ok: true, action: 'merged', studentId: match.id });
       }
       const studentRow = {
