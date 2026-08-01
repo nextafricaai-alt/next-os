@@ -354,7 +354,11 @@
     }
 
     function shareHrOnWhatsApp() {
-      const url = window.location.href;
+      // Always share the clean /school/<tenant>/join-staff link, never the
+      // raw internal /prototypes/schools/peak-primary/... path — that path
+      // is a shared multi-tenant deploy directory, not something a real
+      // staff applicant should ever see.
+      const url = window.location.origin + '/school/' + encodeURIComponent(getActiveTenant()) + '/join-staff';
       const text = encodeURIComponent("Hello! Please complete your Staff HR Form for Kabs Lily Kindercare Center here: " + url);
       window.open("https://wa.me/?text=" + text, "_blank");
     }

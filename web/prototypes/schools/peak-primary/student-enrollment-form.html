@@ -421,7 +421,11 @@
     }
 
     function shareOnWhatsApp() {
-      const url = window.location.href;
+      // Always share the clean /school/<tenant>/enroll link, never the raw
+      // internal /prototypes/schools/peak-primary/... path — that path is a
+      // shared multi-tenant deploy directory, not something a Kabs Lily
+      // parent should ever see.
+      const url = window.location.origin + '/school/' + encodeURIComponent(getActiveTenant()) + '/enroll';
       const text = encodeURIComponent("Hello! Please complete the Student Enrollment & Profile Form for Kabs Lily Kindercare Center here: " + url);
       window.open("https://wa.me/?text=" + text, "_blank");
     }
