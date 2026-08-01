@@ -451,6 +451,15 @@
       }), [tick]);
       const STATUS_COLOR = { 'Healthy': '#00FC8F', 'Needs Attention': '#FFB400', 'Critical': '#FF4757', 'No fee data': 'var(--muted)' };
 
+      // Payroll / Cash Outflow — recomputed live from the actual teacher
+      // roster on every render (via SS.getTeachers()), not a stored
+      // snapshot. Add/remove a teacher or change a salary and this figure
+      // — and everything derived from it — updates the next time this
+      // component renders, with nothing for the Bursar to manually re-enter.
+      const activeTeachers = useMemo(() => SS.getTeachers().filter(t => (t.status || 'Active').toLowerCase() !== 'inactive'), [tick]);
+      const monthlyPayroll = useMemo(() => activeTeachers.reduce((s, t) => s + Number(t.salary || 0), 0), [activeTeachers]);
+      const netCashPosition = rollup.totalFeesReceived - totalOut - monthlyPayroll;
+
       /* ── Add Income ── */
       const handleAddIncome = () => {
         const amt = parseInt(incAmount.replace(/,/g,''));
@@ -584,6 +593,29 @@
                     ⚠️ {FMT(rollup.unmatchedIncome)} logged in the Income Log doesn't match any enrolled student by name — it's real cash on hand, but not reflected in the fee totals above. Check spelling or confirm these students are enrolled.
                   </div>
                 )}
+              </div>
+
+              {/* Payroll / Cash Outflow — live-synced from the teacher roster, not a manual entry */}
+              <div style={{ background:'#0F172A', border:'1px solid rgba(255,255,255,0.08)', borderRadius:'13px', padding:'18px 20px', marginBottom:'20px' }}>
+                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'14px', flexWrap:'wrap', gap:'8px' }}>
+                  <h2 style={{ fontSize:'13px', fontWeight:'800' }}>💼 Payroll / Cash Outflow — Synced to Teaching Staff</h2>
+                  <span style={{ fontSize:'10.5px', color:'var(--muted)', fontFamily:'var(--mono)' }}>{activeTeachers.length} active staff · updates automatically</span>
+                </div>
+                <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:'12px' }}>
+                  {[
+                    { label:'Monthly Payroll (Live)', val:FMT(monthlyPayroll), color:'#FF4757' },
+                    { label:'Cash Spent (Logged)', val:FMT(totalOut), color:'#FFB400' },
+                    { label:'Net Cash Position', val:FMT(netCashPosition), color: netCashPosition >= 0 ? '#00FC8F' : '#FF4757' },
+                  ].map(x => (
+                    <div key={x.label} style={{ background:'rgba(255,255,255,0.03)', borderRadius:'9px', padding:'11px 13px' }}>
+                      <div style={{ fontSize:'10px', color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:'4px' }}>{x.label}</div>
+                      <div style={{ fontSize:'16px', fontWeight:'900', color:x.color }}>{x.val}</div>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ marginTop:'10px', fontSize:'10.5px', color:'var(--muted)', lineHeight:1.5 }}>
+                  Net Cash Position = Fees Collected This Term − Cash Spent (logged expenses) − Monthly Payroll obligation. Payroll is computed live from the current teacher roster's salaries — add, remove, or repay a teacher and this recalculates on its own, nothing to re-enter here.
+                </div>
               </div>
 
               {/* Tab Nav */}
