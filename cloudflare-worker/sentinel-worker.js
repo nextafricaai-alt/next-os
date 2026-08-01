@@ -459,6 +459,7 @@ export default {
     if (url.pathname === '/transport/mark')        return handleTransportMark(request, env, cors);
     if (url.pathname === '/transport/mark-arrived') return handleTransportMarkArrived(request, env, cors);
     if (url.pathname === '/students/photo-upload')  return handleStudentPhotoUpload(request, env, cors);
+    if (url.pathname === '/transport/set-stop')      return handleTransportSetStop(request, env, cors);
     if (url.pathname === '/fees/checkout')      return handleFeesCheckout(request, env, cors);
     if (url.pathname === '/fees/verify')        return (async()=>{ const J=(o,st)=>new Response(JSON.stringify(o),{status:st||200,headers:{...cors,'Content-Type':'application/json'}}); return J(await feePayFulfil(env, url.searchParams.get('tx') || url.searchParams.get('transaction_id') || '')); })();
     if (url.pathname === '/billing/checkout')   return handleBillingCheckout(request, env, cors);
@@ -2095,12 +2096,35 @@ async function handleTransportLive(url, env, cors) {
   if (!tenant) return J({ error: 'tenant required' }, 400);
   if (!env.SUPABASE_URL || !env.SUPABASE_KEY) return J({ error: 'not configured' }, 500);
   try {
-    const [vans, students] = await Promise.all([
+    const [vans, students, stops] = await Promise.all([
       sbFetch(env, '/transport_positions?tenant_id=eq.' + encodeURIComponent(tenant) + '&select=*&order=van_id'),
       sbFetch(env, '/transport_students?tenant_id=eq.' + encodeURIComponent(tenant) + '&select=*&order=van_id,pickup_order'),
+      sbFetch(env, '/transport_stops?tenant_id=eq.' + encodeURIComponent(tenant) + '&select=stop_name,lat,lng').catch(() => []),
     ]);
-    return J({ vans: vans || [], students: students || [] });
-  } catch (e) { return J({ vans: [], students: [], error: String((e && e.message) || e) }, 200); }
+    return J({ vans: vans || [], students: students || [], stops: stops || [] });
+  } catch (e) { return J({ vans: [], students: [], stops: [], error: String((e && e.message) || e) }, 200); }
+}
+
+// Staff confirm a real stop's coordinates once (e.g. tap it on the map, or
+// enter known coordinates) — never auto-geocoded, see
+// supabase-transport-stops.sql for why. Every transport_students row
+// sharing that stop_name then gets a real marker.
+async function handleTransportSetStop(request, env, cors) {
+  const J = (oo, st) => new Response(JSON.stringify(oo), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
+  let b; try { b = await request.json(); } catch (e) { return J({ error: 'bad body' }, 400); }
+  const tenant = String(b.tenant || '').trim();
+  const stopName = String(b.stopName || '').trim();
+  const lat = Number(b.lat), lng = Number(b.lng);
+  if (!tenant || !stopName || !isFinite(lat) || !isFinite(lng)) return J({ error: 'tenant, stopName, lat and lng required' }, 400);
+  if (!env.SUPABASE_URL || !env.SUPABASE_KEY) return J({ error: 'not configured' }, 500);
+  try {
+    const r = await fetch(env.SUPABASE_URL + '/rest/v1/transport_stops?on_conflict=tenant_id,stop_name', {
+      method: 'POST', headers: sbHeaders(env, 'resolution=merge-duplicates,return=minimal'),
+      body: JSON.stringify({ tenant_id: tenant, stop_name: stopName, lat, lng, set_by: b.setBy || null, updated_at: new Date().toISOString() }),
+    });
+    if (!r.ok) { const t = await r.text(); return J({ error: 'Supabase write → ' + r.status + ' ' + t.slice(0, 240) }, 200); }
+    return J({ ok: true });
+  } catch (e) { return J({ error: String((e && e.message) || e) }, 200); }
 }
 
 async function handleTransportMark(request, env, cors) {

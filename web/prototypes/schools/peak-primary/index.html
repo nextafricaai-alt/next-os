@@ -7501,12 +7501,15 @@ window.PEAK_SCREENS = (function () {
     const WK = 'https://nextos-sentinel.nextafricaai.workers.dev';
     const [vans, setVans] = React.useState([]);
     const [students, setStudents] = React.useState([]);
+    const [stops, setStops] = React.useState([]);
     const [loading, setLoading] = React.useState(true);
     const [selectedVan, setSelectedVan] = React.useState(null);
     const [busy, setBusy] = React.useState(false);
+    const [settingStop, setSettingStop] = React.useState(null);
     const mapRef = React.useRef(null);
     const mapInstance = React.useRef(null);
     const markersRef = React.useRef({});
+    const stopMarkersRef = React.useRef({});
 
     const tenantId = (window.PEAK_ROLE && window.PEAK_ROLE.getProfile && window.PEAK_ROLE.getProfile().tenantId) || (typeof window.getOSActiveTenant === 'function' ? window.getOSActiveTenant() : 'kabs-lily-junior-school-and-kindercare-centre');
 
@@ -7514,7 +7517,7 @@ window.PEAK_SCREENS = (function () {
       fetch(WK + '/transport/live?tenant=' + encodeURIComponent(tenantId))
         .then(r => r.json())
         .then(out => {
-          setVans(out.vans || []); setStudents(out.students || []); setLoading(false);
+          setVans(out.vans || []); setStudents(out.students || []); setStops(out.stops || []); setLoading(false);
           setSelectedVan(prev => prev || ((out.vans || [])[0] && out.vans[0].van_id) || null);
         })
         .catch(() => setLoading(false));
@@ -7553,6 +7556,56 @@ window.PEAK_SCREENS = (function () {
       Object.keys(markersRef.current).forEach(id => { if (!seen.has(id)) { map.removeLayer(markersRef.current[id]); delete markersRef.current[id]; } });
     }, [vans]);
 
+    // Real per-student markers — only for stops staff have confirmed real
+    // coordinates for (see supabase-transport-stops.sql for why this is
+    // never auto-geocoded). Grouped by stop so 5 kids sharing one pickup
+    // point don't stack 5 identical pins on top of each other.
+    React.useEffect(() => {
+      const map = mapInstance.current;
+      if (!map || !window.L) return;
+      const stopCoords = {};
+      stops.forEach(s => { stopCoords[s.stop_name] = [s.lat, s.lng]; });
+      const byStop = {};
+      students.forEach(s => {
+        const raw = (s.stop_name || '').split(' · ')[0].trim();
+        if (!stopCoords[raw]) return;
+        (byStop[raw] = byStop[raw] || []).push(s);
+      });
+      const seen = new Set();
+      Object.keys(byStop).forEach(stopName => {
+        seen.add(stopName);
+        const kids = byStop[stopName];
+        const icon = window.L.divIcon({ className: 'stop-icon', html: '<div style="background:' + T.gold + ';color:#0a1029;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;border:2px solid #fff;">' + kids.length + '</div>', iconSize: [28, 28], iconAnchor: [14, 14] });
+        const popup = '<b>' + stopName + '</b><br/>' + kids.map(k => k.student_name).join('<br/>');
+        if (stopMarkersRef.current[stopName]) stopMarkersRef.current[stopName].setLatLng(stopCoords[stopName]).setIcon(icon).setPopupContent(popup);
+        else stopMarkersRef.current[stopName] = window.L.marker(stopCoords[stopName], { icon }).addTo(map).bindPopup(popup);
+      });
+      Object.keys(stopMarkersRef.current).forEach(name => { if (!seen.has(name)) { map.removeLayer(stopMarkersRef.current[name]); delete stopMarkersRef.current[name]; } });
+    }, [students, stops]);
+
+    const uniqueStopNames = React.useMemo(() => {
+      const set = new Set();
+      students.forEach(s => { const raw = (s.stop_name || '').split(' · ')[0].trim(); if (raw) set.add(raw); });
+      return Array.from(set);
+    }, [students]);
+    const stopHasCoords = (name) => stops.some(s => s.stop_name === name);
+
+    const setStopLocation = async (stopName) => {
+      const input = window.prompt('Real coordinates for "' + stopName + '" (lat,lng — e.g. 0.3476,32.5825). Only enter this if you know the actual location; leave blank to cancel.', '');
+      if (!input) return;
+      const parts = input.split(',').map(x => parseFloat(x.trim()));
+      if (parts.length !== 2 || !isFinite(parts[0]) || !isFinite(parts[1])) { window.peakToast && window.peakToast('Enter as "lat,lng" — e.g. 0.3476,32.5825', 'error'); return; }
+      setSettingStop(stopName);
+      try {
+        const profile = (window.PEAK_ROLE && window.PEAK_ROLE.getProfile && window.PEAK_ROLE.getProfile()) || {};
+        const res = await fetch(WK + '/transport/set-stop', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tenant: tenantId, stopName, lat: parts[0], lng: parts[1], setBy: profile.fullName || null }) });
+        const out = await res.json();
+        if (out.error) window.peakToast && window.peakToast('Could not save location: ' + out.error, 'error');
+        else { window.peakToast && window.peakToast('Location saved for ' + stopName, 'success'); load(); }
+      } catch (e) { window.peakToast && window.peakToast('Could not reach the school system.', 'error'); }
+      setSettingStop(null);
+    };
+
     const sel = vans.find(v => v.van_id === selectedVan);
     const selStudents = students.filter(s => s.van_id === selectedVan);
     const nextPickup = selStudents.filter(s => s.status === 'waiting').sort((a, b) => a.pickup_order - b.pickup_order)[0];
@@ -7590,6 +7643,22 @@ window.PEAK_SCREENS = (function () {
             <div style={{ marginBottom: 14, padding: '12px 16px', background: T.surface, border: '1px solid ' + T.border, borderRadius: 10, color: T.ink3, fontSize: 12.5 }}>
               No van is live yet — this is the assigned pickup roster. Once a driver opens the Driver App and starts a trip, the map and live status above will activate.
             </div>
+            {uniqueStopNames.length > 0 && (
+              <div style={{ marginBottom: 14, padding: '12px 16px', background: T.surface, border: '1px solid ' + T.border, borderRadius: 10 }}>
+                <div style={{ fontSize: 10.5, color: T.ink3, fontFamily: T.mono, letterSpacing: '0.05em', fontWeight: 600, marginBottom: 8 }}>PICKUP STOPS · MAP LOCATION</div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                  {uniqueStopNames.map(name => (
+                    <button key={name} onClick={() => setStopLocation(name)} disabled={settingStop === name} style={{
+                      display: 'flex', alignItems: 'center', gap: 6, padding: '5px 10px', borderRadius: 999, fontSize: 11.5, cursor: 'pointer',
+                      background: stopHasCoords(name) ? T.goodSft : T.surface2, color: stopHasCoords(name) ? T.good : T.ink2,
+                      border: '1px solid ' + (stopHasCoords(name) ? T.good : T.border),
+                    }}>
+                      {settingStop === name ? 'Saving…' : (stopHasCoords(name) ? '✓ ' + name : '📍 Set ' + name)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {students.map(s => (
                 <div key={s.id} style={{ background: T.surface, border: '1px solid ' + T.border, borderRadius: 10, padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
@@ -7603,7 +7672,27 @@ window.PEAK_SCREENS = (function () {
             </div>
           </div>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 400px', gap: 14, padding: '18px 28px 32px' }}>
+          <div style={{ padding: '18px 28px 0' }}>
+            {uniqueStopNames.length > 0 && (
+              <div style={{ marginBottom: 14, padding: '12px 16px', background: T.surface, border: '1px solid ' + T.border, borderRadius: 10 }}>
+                <div style={{ fontSize: 10.5, color: T.ink3, fontFamily: T.mono, letterSpacing: '0.05em', fontWeight: 600, marginBottom: 8 }}>PICKUP STOPS · MAP LOCATION</div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                  {uniqueStopNames.map(name => (
+                    <button key={name} onClick={() => setStopLocation(name)} disabled={settingStop === name} style={{
+                      display: 'flex', alignItems: 'center', gap: 6, padding: '5px 10px', borderRadius: 999, fontSize: 11.5, cursor: 'pointer',
+                      background: stopHasCoords(name) ? T.goodSft : T.surface2, color: stopHasCoords(name) ? T.good : T.ink2,
+                      border: '1px solid ' + (stopHasCoords(name) ? T.good : T.border),
+                    }}>
+                      {settingStop === name ? 'Saving…' : (stopHasCoords(name) ? '✓ ' + name : '📍 Set ' + name)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+        {!loading && vans.length > 0 && (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 400px', gap: 14, padding: '0 28px 32px' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {vans.map(v => {
                 const isSel = v.van_id === selectedVan;
