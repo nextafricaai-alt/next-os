@@ -7718,9 +7718,26 @@ window.PEAK_SCREENS = (function () {
 
         {loading ? (
           <div style={{ padding: 40, textAlign: 'center', color: T.ink3, fontFamily: T.mono, fontSize: 12 }}>LOADING LIVE POSITIONS…</div>
-        ) : vans.length === 0 ? (
+        ) : vans.length === 0 && students.length === 0 ? (
           <div style={{ margin: '18px 28px', padding: 32, textAlign: 'center', color: T.ink3, background: T.surface, border: '1px solid ' + T.border, borderRadius: 12 }}>
             No shuttle has synced a GPS position yet. Once a driver opens the Driver App and starts a trip, it'll appear here live.
+          </div>
+        ) : vans.length === 0 ? (
+          <div style={{ padding: '18px 28px 32px' }}>
+            <div style={{ marginBottom: 14, padding: '12px 16px', background: T.surface, border: '1px solid ' + T.border, borderRadius: 10, color: T.ink3, fontSize: 12.5 }}>
+              No van is live yet — this is the assigned pickup roster. Once a driver opens the Driver App and starts a trip, the map and live status above will activate.
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {students.map(s => (
+                <div key={s.id} style={{ background: T.surface, border: '1px solid ' + T.border, borderRadius: 10, padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: T.ink }}>{s.student_name}</div>
+                    <div style={{ fontSize: 11, color: T.ink3, fontFamily: T.mono, marginTop: 2 }}>{s.stream || 'Class not set'} · {s.stop_name || 'Stop not set'}</div>
+                  </div>
+                  <Pill tone={(s.stop_name || '').includes('One-way') ? 'warn' : 'brand'}>{(s.stop_name || '').includes('One-way') ? 'One-way' : 'Round trip'}</Pill>
+                </div>
+              ))}
+            </div>
           </div>
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 400px', gap: 14, padding: '18px 28px 32px' }}>
