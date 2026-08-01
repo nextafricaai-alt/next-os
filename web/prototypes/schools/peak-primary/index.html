@@ -2539,6 +2539,42 @@
     );
   }
 
+  // Prominent, above-the-fold "Expected Monthly Salary" banner — wired
+  // directly to the same payroll/deductions data PayslipCard uses, so it
+  // visibly drops the moment a late-checkin or syllabus-delay penalty
+  // lands, not just in the payslip further down the page.
+  function ExpectedSalaryBanner({ payroll, deductions }) {
+    const fmt = (n) => 'UGX ' + Number(n || 0).toLocaleString();
+    const latest = (payroll || [])[0];
+    if (!latest) return null;
+    const monthDeductions = (deductions || []).filter(d => d.month === latest.month);
+    const totalDeducted = monthDeductions.reduce((a, d) => a + Number(d.amount || 0), 0);
+    const expected = Number(latest.amount || 0) - totalDeducted;
+    const hasPenalty = totalDeducted > 0;
+    return (
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12,
+        padding: '16px 20px', borderRadius: 12, marginBottom: 20,
+        background: hasPenalty ? 'linear-gradient(135deg, rgba(255,71,87,0.10) 0%, ' + T.surface2 + ' 100%)' : 'linear-gradient(135deg, rgba(0,252,143,0.08) 0%, ' + T.surface2 + ' 100%)',
+        border: '1px solid ' + (hasPenalty ? 'rgba(255,71,87,0.30)' : 'rgba(0,252,143,0.25)'),
+      }}>
+        <div>
+          <div style={{ fontSize: 10, fontFamily: T.mono, letterSpacing: 1, color: T.ink3, textTransform: 'uppercase', marginBottom: 4 }}>Expected Monthly Salary</div>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
+            <span style={{ fontSize: 30, fontWeight: 700, fontFamily: T.serif, color: hasPenalty ? T.red : T.green }}>{fmt(expected)}</span>
+            {hasPenalty && <span style={{ fontSize: 13, color: T.ink3, textDecoration: 'line-through' }}>{fmt(latest.amount)}</span>}
+          </div>
+        </div>
+        {hasPenalty && (
+          <div style={{ textAlign: 'right' }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: T.red }}>−{fmt(totalDeducted)} in penalties</div>
+            <div style={{ fontSize: 10.5, color: T.ink3, marginTop: 2 }}>{monthDeductions.length} deduction{monthDeductions.length > 1 ? 's' : ''} this month — see Payslip below</div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   function TeacherShell() {
     const [data,           setData]           = useState({ loading: true });
     const [rollCallStream, setRollCallStream]  = useState(null); // stream string
@@ -2701,6 +2737,8 @@
             </h1>
             <p style={{ margin: '8px 0 0', color: T.ink3, fontSize: 14 }}>Here's your day at {schoolName}.</p>
           </div>
+
+          {!data.loading && !data.error && <ExpectedSalaryBanner payroll={data.payroll} deductions={data.deductions} />}
 
           {data.loading ? (
             <div style={{ padding: 60, textAlign: 'center', color: T.ink3, fontFamily: T.mono, fontSize: 12, letterSpacing: 0.8 }}>LOADING YOUR DASHBOARD…</div>
