@@ -278,7 +278,7 @@ export default {
     }
 
     // GET-allowed routes (read-only endpoints live below this gate)
-    const GET_OK = ['/check-project', '/seo-audit', '/px.js', '/analytics', '/gsc', '/ga4', '/fetch-page', '/site-pages', '/cms/collections', '/cms/items', '/students', '/exams', '/exam-results', '/fees-balances', '/attendance-summary', '/staff-status', '/attendance-watch', '/attendance/today', '/lessons-remind', '/watch/deploy-check', '/student-health', '/billing/verify', '/billing/subscriptions', '/fees/lookup', '/fees/verify', '/health', '/events', '/finance', '/assets', '/school-config', '/os-data', '/teachers', '/hosting-report', '/watch/status', '/push/vapid-public', '/push/debug', '/parent/child-data', '/messages/list', '/registrations/list'];
+    const GET_OK = ['/check-project', '/seo-audit', '/px.js', '/analytics', '/gsc', '/ga4', '/fetch-page', '/site-pages', '/cms/collections', '/cms/items', '/students', '/exams', '/exam-results', '/fees-balances', '/attendance-summary', '/staff-status', '/attendance-watch', '/attendance/today', '/lessons-remind', '/watch/deploy-check', '/student-health', '/billing/verify', '/billing/subscriptions', '/fees/lookup', '/fees/verify', '/health', '/events', '/finance', '/assets', '/school-config', '/os-data', '/teachers', '/hosting-report', '/watch/status', '/push/vapid-public', '/push/debug', '/parent/child-data', '/messages/list', '/registrations/list', '/transport/live'];
     if (request.method !== 'POST' && !GET_OK.includes(url.pathname)) {
       return new Response('Method not allowed', { status: 405, headers: cors });
     }
@@ -454,6 +454,10 @@ export default {
     if (url.pathname === '/registrations/list')    return handleRegistrationList(url, env, cors);
     if (url.pathname === '/registrations/approve') return handleRegistrationApprove(request, env, cors);
     if (url.pathname === '/registrations/reject')  return handleRegistrationReject(request, env, cors);
+    if (url.pathname === '/transport/ping')        return handleTransportPing(request, env, cors);
+    if (url.pathname === '/transport/live')        return handleTransportLive(url, env, cors);
+    if (url.pathname === '/transport/mark')        return handleTransportMark(request, env, cors);
+    if (url.pathname === '/transport/mark-arrived') return handleTransportMarkArrived(request, env, cors);
     if (url.pathname === '/fees/checkout')      return handleFeesCheckout(request, env, cors);
     if (url.pathname === '/fees/verify')        return (async()=>{ const J=(o,st)=>new Response(JSON.stringify(o),{status:st||200,headers:{...cors,'Content-Type':'application/json'}}); return J(await feePayFulfil(env, url.searchParams.get('tx') || url.searchParams.get('transaction_id') || '')); })();
     if (url.pathname === '/billing/checkout')   return handleBillingCheckout(request, env, cors);
@@ -2054,6 +2058,88 @@ async function handleRegistrationReject(request, env, cors) {
   try {
     await sbWrite(env, '/registration_requests?id=eq.' + id, { status: 'rejected', reviewed_at: new Date().toISOString(), reviewed_by: String(b.reviewedBy || 'Head Teacher'), notes: b.notes || null }, 'PATCH', 'return=minimal');
     return J({ ok: true });
+  } catch (e) { return J({ error: String((e && e.message) || e) }, 200); }
+}
+
+// ─── Live Shuttle Tracking ───────────────────────────────────────────────
+// See supabase-transport-tracking.sql for why this exists: the driver's
+// real browser GPS (transport-telemetry.js, driver-view.jsx) never left
+// localStorage before this, so nothing outside the driver's own device
+// could ever see it. These routes are the actual sync layer.
+async function handleTransportPing(request, env, cors) {
+  const J = (oo, st) => new Response(JSON.stringify(oo), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
+  let b; try { b = await request.json(); } catch (e) { return J({ error: 'bad body' }, 400); }
+  const tenant = String(b.tenant || '').trim();
+  const vanId = String(b.vanId || '').trim();
+  if (!tenant || !vanId || typeof b.lat !== 'number' || typeof b.lng !== 'number') return J({ error: 'tenant, vanId, lat, lng required' }, 400);
+  if (!env.SUPABASE_URL || !env.SUPABASE_KEY) return J({ error: 'not configured' }, 500);
+  try {
+    const row = {
+      tenant_id: tenant, van_id: vanId, van_name: b.vanName || null,
+      driver_name: b.driverName || null, driver_phone: b.driverPhone || null,
+      lat: b.lat, lng: b.lng, speed_kmh: b.speed || null, heading: b.heading || null,
+      status: b.status || 'normal', updated_at: new Date().toISOString(),
+    };
+    const r = await fetch(env.SUPABASE_URL + '/rest/v1/transport_positions?on_conflict=tenant_id,van_id', {
+      method: 'POST', headers: sbHeaders(env, 'resolution=merge-duplicates,return=minimal'), body: JSON.stringify(row),
+    });
+    if (!r.ok) { const t = await r.text(); return J({ error: 'Supabase write → ' + r.status + ' ' + t.slice(0, 240) }, 200); }
+    return J({ ok: true });
+  } catch (e) { return J({ error: String((e && e.message) || e) }, 200); }
+}
+
+async function handleTransportLive(url, env, cors) {
+  const J = (oo, st) => new Response(JSON.stringify(oo), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
+  const tenant = url.searchParams.get('tenant') || '';
+  if (!tenant) return J({ error: 'tenant required' }, 400);
+  if (!env.SUPABASE_URL || !env.SUPABASE_KEY) return J({ error: 'not configured' }, 500);
+  try {
+    const [vans, students] = await Promise.all([
+      sbFetch(env, '/transport_positions?tenant_id=eq.' + encodeURIComponent(tenant) + '&select=*&order=van_id'),
+      sbFetch(env, '/transport_students?tenant_id=eq.' + encodeURIComponent(tenant) + '&select=*&order=van_id,pickup_order'),
+    ]);
+    return J({ vans: vans || [], students: students || [] });
+  } catch (e) { return J({ vans: [], students: [], error: String((e && e.message) || e) }, 200); }
+}
+
+async function handleTransportMark(request, env, cors) {
+  const J = (oo, st) => new Response(JSON.stringify(oo), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
+  let b; try { b = await request.json(); } catch (e) { return J({ error: 'bad body' }, 400); }
+  const id = b.id;
+  const status = String(b.status || '').trim();
+  if (!id || !['waiting', 'on_board', 'arrived'].includes(status)) return J({ error: 'id and a valid status required' }, 400);
+  if (!env.SUPABASE_URL || !env.SUPABASE_KEY) return J({ error: 'not configured' }, 500);
+  try {
+    await sbWrite(env, '/transport_students?id=eq.' + id, { status, updated_at: new Date().toISOString() }, 'PATCH', 'return=minimal');
+    return J({ ok: true });
+  } catch (e) { return J({ error: String((e && e.message) || e) }, 200); }
+}
+
+// The core "automated notification pipeline" from the goal: one action —
+// the driver or Headteacher marking the van arrived — flips every
+// currently-on_board student for that van to 'arrived' and pushes an
+// arrival alert to each of their parents in one pass, reusing
+// deliverPushByStudent from the absence/note pipeline built earlier.
+async function handleTransportMarkArrived(request, env, cors) {
+  const J = (oo, st) => new Response(JSON.stringify(oo), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
+  let b; try { b = await request.json(); } catch (e) { return J({ error: 'bad body' }, 400); }
+  const tenant = String(b.tenant || '').trim();
+  const vanId = String(b.vanId || '').trim();
+  if (!tenant || !vanId) return J({ error: 'tenant and vanId required' }, 400);
+  if (!env.SUPABASE_URL || !env.SUPABASE_KEY) return J({ error: 'not configured' }, 500);
+  try {
+    const onBoard = await sbFetch(env, '/transport_students?tenant_id=eq.' + encodeURIComponent(tenant) + '&van_id=eq.' + encodeURIComponent(vanId) + '&status=eq.on_board&select=id,student_id,student_name');
+    for (const s of (onBoard || [])) {
+      await sbWrite(env, '/transport_students?id=eq.' + s.id, { status: 'arrived', updated_at: new Date().toISOString() }, 'PATCH', 'return=minimal');
+      if (s.student_id) {
+        deliverPushByStudent(env, tenant, s.student_id, {
+          title: 'Your child has arrived safely 🚸', body: (s.student_name || 'Your child') + ' just arrived at school on the shuttle.',
+          url: '/prototypes/schools/peak-primary/parent-dashboard.html', tag: 'arrived-' + s.student_id,
+        }).catch(() => {});
+      }
+    }
+    await sbWrite(env, '/transport_positions?tenant_id=eq.' + encodeURIComponent(tenant) + '&van_id=eq.' + encodeURIComponent(vanId), { status: 'arrived', updated_at: new Date().toISOString() }, 'PATCH', 'return=minimal').catch(() => {});
+    return J({ ok: true, notified: (onBoard || []).length });
   } catch (e) { return J({ error: String((e && e.message) || e) }, 200); }
 }
 

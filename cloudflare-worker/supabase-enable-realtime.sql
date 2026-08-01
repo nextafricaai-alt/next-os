@@ -44,7 +44,7 @@ DECLARE
     'teacher_checkins', 'teachers', 'students', 'syllabus_coverage',
     'lesson_plans', 'school_income', 'school_expenses', 'attendance',
     'staff_attendance', 'messages', 'payroll_deductions', 'class_assignments',
-    'registration_requests'
+    'registration_requests', 'transport_positions', 'transport_students'
   ];
 BEGIN
   FOREACH tbl IN ARRAY tables LOOP
