@@ -6427,6 +6427,7 @@ function RegistrationApprovalCard() {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState(null);
+  const [previewReq, setPreviewReq] = useState(null);
 
   const tenant = () => (typeof window.getOSActiveTenant === 'function' ? window.getOSActiveTenant() : 'kabs-lily-junior-school-and-kindercare-centre');
   const profile = (window.PEAK_ROLE && window.PEAK_ROLE.getProfile && window.PEAK_ROLE.getProfile()) || {};
@@ -6466,6 +6467,7 @@ function RegistrationApprovalCard() {
           'success'
         );
         load();
+        if (previewReq && previewReq.id === id) setPreviewReq(null);
       }
     } catch (e) { window.peakToast && window.peakToast('Could not reach the school system.', 'error'); }
     setBusyId(null);
@@ -6480,6 +6482,7 @@ function RegistrationApprovalCard() {
       });
       window.peakToast && window.peakToast('Registration rejected.', 'info');
       load();
+      if (previewReq && previewReq.id === id) setPreviewReq(null);
     } catch (e) {}
     setBusyId(null);
   };
@@ -6509,11 +6512,58 @@ function RegistrationApprovalCard() {
                   <div style={{ fontSize: 13, fontWeight: 600, color: T.ink }}>{name || 'Unnamed'} <span style={{ fontSize: 10.5, color: T.ink3, fontWeight: 400 }}>· {r.type}</span></div>
                   <div style={{ fontSize: 11, color: T.ink3, marginTop: 2 }}>{sub}</div>
                 </div>
+                <button onClick={() => setPreviewReq(r)} style={{ background: 'transparent', border: '1px solid ' + T.border, color: T.ink, padding: '6px 12px', borderRadius: 7, fontSize: 11.5, cursor: 'pointer', fontWeight: 600 }}>View</button>
                 <button onClick={() => reject(r.id)} disabled={busyId === r.id} style={{ background: 'transparent', border: '1px solid ' + T.border, color: T.ink3, padding: '6px 12px', borderRadius: 7, fontSize: 11.5, cursor: busyId === r.id ? 'wait' : 'pointer', fontWeight: 600 }}>Reject</button>
                 <button onClick={() => approve(r.id)} disabled={busyId === r.id} style={{ background: T.good || '#00FC8F', border: 'none', color: T.bg || '#0A1029', padding: '6px 14px', borderRadius: 7, fontSize: 11.5, cursor: busyId === r.id ? 'wait' : 'pointer', fontWeight: 700 }}>{busyId === r.id ? '…' : 'Approve'}</button>
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Preview Modal */}
+      {previewReq && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(4px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div style={{ background: T.bg, border: '1px solid ' + T.border, borderRadius: 16, width: '100%', maxWidth: 540, maxHeight: '85vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 24px 48px rgba(0,0,0,0.5)' }}>
+            
+            {/* Header */}
+            <div style={{ padding: '16px 24px', borderBottom: '1px solid ' + T.border, display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: T.surface }}>
+              <div>
+                <div style={{ fontSize: 16, fontWeight: 700, color: T.ink }}>Registration Details</div>
+                <div style={{ fontSize: 12, color: T.ink3, marginTop: 2 }}>{previewReq.type === 'student' ? 'Student Enrollment' : 'Staff HR Form'}</div>
+              </div>
+              <button onClick={() => setPreviewReq(null)} style={{ background: 'transparent', border: 'none', color: T.ink3, fontSize: 24, cursor: 'pointer', lineHeight: 1 }}>&times;</button>
+            </div>
+            
+            {/* Body */}
+            <div style={{ padding: 24, overflowY: 'auto', flex: 1 }}>
+              {previewReq.type === 'student' && previewReq.payload.photoDataUrl && (
+                <div style={{ marginBottom: 20 }}>
+                  <img src={previewReq.payload.photoDataUrl} alt="Photo" style={{ width: 80, height: 80, borderRadius: 12, objectFit: 'cover', border: '1px solid ' + T.border }} />
+                </div>
+              )}
+              
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px 24px' }}>
+                {Object.entries(previewReq.payload).map(([k, v]) => {
+                  if (k === 'photoDataUrl') return null; // handled above
+                  const displayKey = k.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase()); // naive camelCase to Title Case
+                  return (
+                    <div key={k} style={{ gridColumn: (v && v.length > 40) ? 'span 2' : 'span 1' }}>
+                      <div style={{ fontSize: 10.5, fontWeight: 700, color: T.ink3, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 }}>{displayKey}</div>
+                      <div style={{ fontSize: 13.5, color: T.ink, lineHeight: 1.4, wordBreak: 'break-word' }}>{v || <span style={{ color: T.ink3, fontStyle: 'italic' }}>Not provided</span>}</div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+            
+            {/* Footer */}
+            <div style={{ padding: '16px 24px', borderTop: '1px solid ' + T.border, display: 'flex', justifyContent: 'flex-end', gap: 12, background: T.surface2 || T.surface }}>
+              <button onClick={() => reject(previewReq.id)} disabled={busyId === previewReq.id} style={{ background: 'transparent', border: '1px solid ' + T.border, color: T.ink3, padding: '8px 16px', borderRadius: 8, fontSize: 13, cursor: busyId === previewReq.id ? 'wait' : 'pointer', fontWeight: 600 }}>Reject</button>
+              <button onClick={() => approve(previewReq.id)} disabled={busyId === previewReq.id} style={{ background: T.good || '#00FC8F', border: 'none', color: T.bg || '#0A1029', padding: '8px 20px', borderRadius: 8, fontSize: 13, cursor: busyId === previewReq.id ? 'wait' : 'pointer', fontWeight: 700 }}>{busyId === previewReq.id ? 'Processing…' : 'Approve'}</button>
+            </div>
+
+          </div>
         </div>
       )}
     </div>
