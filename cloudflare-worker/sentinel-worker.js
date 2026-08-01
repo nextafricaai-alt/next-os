@@ -1838,7 +1838,17 @@ async function handleParentChildData(url, env, cors) {
       sbFetch(env, '/student_roll_call?tenant_id=eq.' + tEnc + '&student_id=eq.' + sEnc + '&roll_date=gte.' + weekAgo + '&select=status,roll_date,taken_at&order=roll_date.desc'),
       sbFetch(env, '/student_notes?tenant_id=eq.' + tEnc + '&student_id=eq.' + sEnc + '&select=note,note_type,created_at&order=created_at.desc&limit=10'),
     ]);
-    return J({ fees: fees || [], rollCalls: rollCalls || [], notes: notes || [] });
+    // Separate, independently-failing fetch for photo_url/meta: that
+    // column only exists once supabase-student-photo-column.sql has run,
+    // and an unknown-column error on a single combined query would take
+    // down the whole child-data response for every parent, not just the
+    // photo. Degrade to null/empty instead.
+    let profile = null;
+    try {
+      const rows = await sbFetch(env, '/students?id=eq.' + sEnc + '&select=name,stream,photo_url,meta&limit=1');
+      profile = (rows && rows[0]) || null;
+    } catch (e) { /* photo_url column not migrated yet — fine, just no photo */ }
+    return J({ fees: fees || [], rollCalls: rollCalls || [], notes: notes || [], profile });
   } catch (e) { return J({ error: String((e && e.message) || e) }, 200); }
 }
 
@@ -1975,6 +1985,7 @@ async function handleRegistrationApprove(request, env, cors) {
         const patch = {};
         if (p.guardian) patch.guardian_name = p.guardian;
         if (p.guardianPhone) patch.guardian_phone = p.guardianPhone;
+        if (p.photoDataUrl) patch.photo_url = p.photoDataUrl;
         patch.meta = { petName: p.petName, sex: p.sex, residenceType: p.residenceType, guardianRelation: p.guardianRelation, guardianEmail: p.guardianEmail, address: p.address, bloodGroup: p.bloodGroup, allergies: p.allergies, conditions: p.conditions };
         if (Object.keys(patch).length) await sbWrite(env, '/students?id=eq.' + match.id, patch, 'PATCH', 'return=minimal');
         await sbWrite(env, '/registration_requests?id=eq.' + id, { status: 'merged', reviewed_at: new Date().toISOString(), reviewed_by: reviewedBy, result_student_id: match.id, notes: 'Matched existing student "' + match.name + '" — guardian info attached, no duplicate created.' }, 'PATCH', 'return=minimal');
@@ -1986,6 +1997,7 @@ async function handleRegistrationApprove(request, env, cors) {
         date_of_birth: p.dob || null, status: 'active',
         meta: { petName: p.petName, sex: p.sex, residenceType: p.residenceType, guardianRelation: p.guardianRelation, guardianEmail: p.guardianEmail, address: p.address, bloodGroup: p.bloodGroup, allergies: p.allergies, conditions: p.conditions },
       };
+      if (p.photoDataUrl) studentRow.photo_url = p.photoDataUrl;
       const inserted = await sbWrite(env, '/students', studentRow, 'POST', 'return=representation');
       const newId = inserted && inserted[0] && inserted[0].id;
       await sbWrite(env, '/registration_requests?id=eq.' + id, { status: 'approved', reviewed_at: new Date().toISOString(), reviewed_by: reviewedBy, result_student_id: newId }, 'PATCH', 'return=minimal');

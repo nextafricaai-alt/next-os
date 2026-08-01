@@ -190,6 +190,13 @@
       <!-- A. Child's Details -->
       <div class="section-header">A. Child's Details</div>
       <div class="form-grid">
+        <div class="form-group full-width" style="display:flex; align-items:center; gap:16px;">
+          <div id="photoPreview" style="width:72px; height:72px; border-radius:12px; background:rgba(255,255,255,0.06); border:1px dashed rgba(255,255,255,0.25); display:flex; align-items:center; justify-content:center; font-size:11px; color:rgba(245,246,250,0.5); flex-shrink:0; overflow:hidden; text-align:center;">No photo</div>
+          <div style="flex:1;">
+            <label>Child's Photo (Optional)</label>
+            <input type="file" id="childPhoto" accept="image/*" onchange="previewPhoto(this)">
+          </div>
+        </div>
         <div class="form-group full-width">
           <label>Full Name *</label>
           <input type="text" id="childName" required placeholder="e.g. Mirembe Nakato">
@@ -345,9 +352,36 @@
       } catch (e) { return 'kabs-lily-junior-school-and-kindercare-centre'; }
     }
 
+    var childPhotoDataUrl = '';
+    function previewPhoto(input) {
+      const file = input.files && input.files[0];
+      const preview = document.getElementById('photoPreview');
+      if (!file) { childPhotoDataUrl = ''; preview.textContent = 'No photo'; return; }
+      // Compress to a reasonable size before storing — this lands as a
+      // base64 string in the students.photo_url column (no Storage bucket
+      // set up for this app yet), so keep it small.
+      const img = new Image();
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const maxDim = 320;
+          const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+          canvas.width = img.width * scale;
+          canvas.height = img.height * scale;
+          canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+          childPhotoDataUrl = canvas.toDataURL('image/jpeg', 0.7);
+          preview.innerHTML = '<img src="' + childPhotoDataUrl + '" style="width:100%;height:100%;object-fit:cover;">';
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+
     function submitForm(e) {
       e.preventDefault();
       const payload = {
+        photoDataUrl: childPhotoDataUrl,
         name: document.getElementById('childName').value,
         petName: document.getElementById('petName').value,
         dob: document.getElementById('dob').value,

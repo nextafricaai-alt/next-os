@@ -101,10 +101,10 @@
     try {
       const res = await fetch(WK + '/parent/child-data?tenant=' + encodeURIComponent(tenantId) + '&student_id=' + encodeURIComponent(studentId));
       const out = await res.json();
-      if (out.error) return { fees: [], rollCalls: [], notes: [] };
-      return { fees: out.fees || [], rollCalls: out.rollCalls || [], notes: out.notes || [] };
+      if (out.error) return { fees: [], rollCalls: [], notes: [], profile: null };
+      return { fees: out.fees || [], rollCalls: out.rollCalls || [], notes: out.notes || [], profile: out.profile || null };
     } catch (e) {
-      return { fees: [], rollCalls: [], notes: [] };
+      return { fees: [], rollCalls: [], notes: [], profile: null };
     }
   }
 
@@ -296,7 +296,7 @@
     const [children, setChildren] = useState(null); // null = not identified yet
     const [selectedChildIndex, setSelectedChildIndex] = useState(0);
     const [activeTab, setActiveTab] = useState('overview');
-    const [childData, setChildData] = useState({ fees: [], rollCalls: [], notes: [], loading: true });
+    const [childData, setChildData] = useState({ fees: [], rollCalls: [], notes: [], profile: null, loading: true });
     const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
     const [paymentPhone, setPaymentPhone] = useState('');
     const [paymentAmount, setPaymentAmount] = useState('');
@@ -531,13 +531,20 @@
                 gap: '16px'
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                  <div style={{
-                    width: '64px', height: '64px', borderRadius: '50%',
-                    backgroundColor: '#3B82F6', color: '#FFF', display: 'flex',
-                    alignItems: 'center', justifyContent: 'center', fontSize: '24px', fontWeight: 'bold'
-                  }}>
-                    {child.name.split(' ').map(n=>n[0]).join('').slice(0, 2)}
-                  </div>
+                  {childData.profile && childData.profile.photo_url ? (
+                    <img src={childData.profile.photo_url} alt={child.name} style={{
+                      width: '64px', height: '64px', borderRadius: '50%', objectFit: 'cover', flexShrink: 0,
+                      border: '2px solid #3B82F6',
+                    }} />
+                  ) : (
+                    <div style={{
+                      width: '64px', height: '64px', borderRadius: '50%',
+                      backgroundColor: '#3B82F6', color: '#FFF', display: 'flex',
+                      alignItems: 'center', justifyContent: 'center', fontSize: '24px', fontWeight: 'bold', flexShrink: 0,
+                    }}>
+                      {child.name.split(' ').map(n=>n[0]).join('').slice(0, 2)}
+                    </div>
+                  )}
                   <div>
                     <h2 style={{ margin: 0, fontSize: '20px', fontWeight: '800' }}>{child.name}</h2>
                     <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: '#60A5FA', fontWeight: '700' }}>
@@ -545,6 +552,22 @@
                     </p>
                   </div>
                 </div>
+
+                {childData.profile && childData.profile.meta && (() => {
+                  const m = childData.profile.meta;
+                  const bits = [
+                    m.bloodGroup && m.bloodGroup !== 'Unknown' ? 'Blood group: ' + m.bloodGroup : null,
+                    m.allergies ? 'Allergies: ' + m.allergies : null,
+                    m.conditions && m.conditions.toLowerCase() !== 'none' ? m.conditions : null,
+                  ].filter(Boolean);
+                  return bits.length ? (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                      {bits.map((b, i) => (
+                        <span key={i} style={{ fontSize: 11, padding: '4px 9px', borderRadius: 999, background: 'rgba(239,68,68,0.12)', color: '#F87171', fontWeight: 600 }}>⚕ {b}</span>
+                      ))}
+                    </div>
+                  ) : null;
+                })()}
 
                 {/* Direct Action Buttons */}
                 <div style={{ display: 'flex', gap: '10px', marginTop: '8px' }}>
