@@ -3952,305 +3952,55 @@ window.PEAK = (function () {
 
   const streams = activeClasses.map(c => ({ id: c, grade: c, stream: c, label: c }));
 
-  const students = [
-    // Primary Seven (15 Students)
-    { id: 701, name: 'Nanteza Keira Tendo', stream: 'Primary Seven', class: 'Primary Seven', termFee: 500000, residenceType: 'day', guardian: 'Parent of Nanteza Keira Tendo', fees: 'partial', balance: 120000, paidAmount: 380000, attendanceWk: 100, lastSeen: '07:15', flag: null },
-    { id: 702, name: 'Sophie Bani Musa', stream: 'Primary Seven', class: 'Primary Seven', termFee: 270000, residenceType: 'day', guardian: 'Parent of Sophie Bani Musa', fees: 'partial', balance: 140000, paidAmount: 130000, attendanceWk: 100, lastSeen: '07:18', flag: null },
-    { id: 703, name: 'Nampala Moureen', stream: 'Primary Seven', class: 'Primary Seven', termFee: 350000, residenceType: 'day', guardian: 'Parent of Nampala Moureen', fees: 'partial', balance: 150000, paidAmount: 200000, attendanceWk: 100, lastSeen: '07:20', flag: null },
-    { id: 704, name: 'Ssekidde Saifuh', stream: 'Primary Seven', class: 'Primary Seven', termFee: 500000, residenceType: 'boarding', guardian: 'Parent of Ssekidde Saifuh', fees: 'partial', balance: 300000, paidAmount: 200000, attendanceWk: 100, lastSeen: '07:10', flag: null },
-    { id: 705, name: 'Nabbumba Fann', stream: 'Primary Seven', class: 'Primary Seven', termFee: 450000, residenceType: 'boarding', guardian: 'Parent of Nabbumba Fann', fees: 'partial', balance: 300000, paidAmount: 150000, attendanceWk: 100, lastSeen: '07:12', flag: null },
-    { id: 706, name: 'Kamale Topister', stream: 'Primary Seven', class: 'Primary Seven', termFee: 350000, residenceType: 'day', guardian: 'Parent of Kamale Topister', fees: 'partial', balance: 200000, paidAmount: 150000, attendanceWk: 100, lastSeen: '07:22', flag: null },
-    { id: 707, name: 'Ikanga Obadia', stream: 'Primary Seven', class: 'Primary Seven', termFee: 500000, residenceType: 'boarding', guardian: 'Parent of Ikanga Obadia', fees: 'overdue', balance: 500000, paidAmount: 0, attendanceWk: 100, lastSeen: '07:05', flag: 'risk' },
-    { id: 708, name: 'Mpindi Ruth', stream: 'Primary Seven', class: 'Primary Seven', termFee: 400000, residenceType: 'boarding', guardian: 'Parent of Mpindi Ruth', fees: 'overdue', balance: 400000, paidAmount: 0, attendanceWk: 100, lastSeen: '07:08', flag: 'risk' },
-    { id: 709, name: 'Mpinda Danabell', stream: 'Primary Seven', class: 'Primary Seven', termFee: 400000, residenceType: 'boarding', guardian: 'Parent of Mpinda Danabell', fees: 'overdue', balance: 400000, paidAmount: 0, attendanceWk: 100, lastSeen: '07:09', flag: 'risk' },
-    { id: 710, name: 'Asiimwe Brendah', stream: 'Primary Seven', class: 'Primary Seven', termFee: 500000, residenceType: 'boarding', guardian: 'Parent of Asiimwe Brendah', fees: 'overdue', balance: 500000, paidAmount: 0, attendanceWk: 100, lastSeen: '07:06', flag: 'risk' },
-    { id: 711, name: 'Kabite Tranella', stream: 'Primary Seven', class: 'Primary Seven', termFee: 500000, residenceType: 'boarding', guardian: 'Parent of Kabite Tranella', fees: 'overdue', balance: 500000, paidAmount: 0, attendanceWk: 100, lastSeen: '07:11', flag: 'risk' },
-    { id: 712, name: 'Nakamoga Queen', stream: 'Primary Seven', class: 'Primary Seven', termFee: 500000, residenceType: 'boarding', guardian: 'Parent of Nakamoga Queen', fees: 'overdue', balance: 500000, paidAmount: 0, attendanceWk: 100, lastSeen: '07:07', flag: 'risk' },
-    { id: 713, name: 'Mulindwa Josh', stream: 'Primary Seven', class: 'Primary Seven', termFee: 450000, residenceType: 'boarding', guardian: 'Parent of Mulindwa Josh', fees: 'overdue', balance: 450000, paidAmount: 0, attendanceWk: 100, lastSeen: '07:14', flag: 'risk' },
-    { id: 714, name: 'Waswa Joe', stream: 'Primary Seven', class: 'Primary Seven', termFee: 500000, residenceType: 'boarding', guardian: 'Parent of Waswa Joe', fees: 'overdue', balance: 500000, paidAmount: 0, attendanceWk: 100, lastSeen: '07:13', flag: 'risk' },
-    { id: 715, name: 'Sekiremba Jonah', stream: 'Primary Seven', class: 'Primary Seven', termFee: 450000, residenceType: 'boarding', guardian: 'Parent of Sekiremba Jonah', fees: 'overdue', balance: 450000, paidAmount: 0, attendanceWk: 100, lastSeen: '07:16', flag: 'risk' },
-
-    // Primary Six (13 Students)
-    { id: 601, name: 'Nassuna Leticia', stream: 'Primary Six', class: 'Primary Six', termFee: 240000, residenceType: 'day', guardian: 'Parent of Nassuna Leticia', fees: 'overdue', balance: 240000, paidAmount: 0, attendanceWk: 95, lastSeen: '07:30', flag: 'risk' },
-    { id: 602, name: 'Ssekabira Oscar', stream: 'Primary Six', class: 'Primary Six', termFee: 500000, residenceType: 'boarding', guardian: 'Parent of Ssekabira Oscar', fees: 'overdue', balance: 500000, paidAmount: 0, attendanceWk: 100, lastSeen: '07:08', flag: 'risk' },
-    { id: 603, name: 'Talibu Shubra', stream: 'Primary Six', class: 'Primary Six', termFee: 300000, residenceType: 'day', guardian: 'Parent of Talibu Shubra', fees: 'partial', balance: 250000, paidAmount: 50000, attendanceWk: 95, lastSeen: '07:32', flag: null },
-    { id: 604, name: 'Nakiwa Joan', stream: 'Primary Six', class: 'Primary Six', termFee: 300000, residenceType: 'day', guardian: 'Parent of Nakiwa Joan', fees: 'overdue', balance: 300000, paidAmount: 0, attendanceWk: 90, lastSeen: '07:35', flag: 'risk' },
-    { id: 605, name: 'Ssempijja Shammah', stream: 'Primary Six', class: 'Primary Six', termFee: 300000, residenceType: 'day', guardian: 'Parent of Ssempijja Shammah', fees: 'overdue', balance: 300000, paidAmount: 0, attendanceWk: 95, lastSeen: '07:28', flag: 'risk' },
-    { id: 606, name: 'Nabukeera Margie', stream: 'Primary Six', class: 'Primary Six', termFee: 260000, residenceType: 'day', guardian: 'Parent of Nabukeera Margie', fees: 'partial', balance: 60000, paidAmount: 200000, attendanceWk: 100, lastSeen: '07:25', flag: null },
-    { id: 607, name: 'Aizuka Trevor', stream: 'Primary Six', class: 'Primary Six', termFee: 230000, residenceType: 'day', guardian: 'Parent of Aizuka Trevor', fees: 'overdue', balance: 230000, paidAmount: 0, attendanceWk: 95, lastSeen: '07:34', flag: 'risk' },
-    { id: 608, name: 'Ikanga Joyce', stream: 'Primary Six', class: 'Primary Six', termFee: 500000, residenceType: 'boarding', guardian: 'Parent of Ikanga Joyce', fees: 'partial', balance: 300000, paidAmount: 200000, attendanceWk: 100, lastSeen: '07:10', flag: null },
-    { id: 609, name: 'Nakimbugwe Ketra', stream: 'Primary Six', class: 'Primary Six', termFee: 500000, residenceType: 'boarding', guardian: 'Parent of Nakimbugwe Ketra', fees: 'overdue', balance: 500000, paidAmount: 0, attendanceWk: 100, lastSeen: '07:12', flag: 'risk' },
-    { id: 610, name: 'Kanamwanji Malcolm', stream: 'Primary Six', class: 'Primary Six', termFee: 250000, residenceType: 'day', guardian: 'Parent of Kanamwanji Malcolm', fees: 'overdue', balance: 250000, paidAmount: 0, attendanceWk: 95, lastSeen: '07:38', flag: 'risk' },
-    { id: 611, name: 'Nalugwa Sauya', stream: 'Primary Six', class: 'Primary Six', termFee: 230000, residenceType: 'day', guardian: 'Parent of Nalugwa Sauya', fees: 'partial', balance: 70000, paidAmount: 160000, attendanceWk: 100, lastSeen: '07:22', flag: null },
-    { id: 612, name: 'Mwanje Rayan', stream: 'Primary Six', class: 'Primary Six', termFee: 230000, residenceType: 'day', guardian: 'Parent of Mwanje Rayan', fees: 'overdue', balance: 230000, paidAmount: 0, attendanceWk: 95, lastSeen: '07:36', flag: 'risk' },
-    { id: 613, name: 'Kamooga Emmanuel', stream: 'Primary Six', class: 'Primary Six', termFee: 150000, residenceType: 'day', guardian: 'Parent of Kamooga Emmanuel', fees: 'overdue', balance: 150000, paidAmount: 0, attendanceWk: 90, lastSeen: '07:40', flag: 'risk' },
-
-    // Primary Five (10 Students)
-    { id: 501, name: 'Nakato Annet Favour', stream: 'Primary Five', class: 'Primary Five', termFee: 500000, residenceType: 'boarding', guardian: 'Parent of Nakato Annet Favour', fees: 'partial', balance: 200000, paidAmount: 300000, attendanceWk: 100, lastSeen: '07:09', flag: null },
-    { id: 502, name: 'Nakalema Patricia', stream: 'Primary Five', class: 'Primary Five', termFee: 350000, residenceType: 'boarding', guardian: 'Parent of Nakalema Patricia', fees: 'partial', balance: 250000, paidAmount: 100000, attendanceWk: 100, lastSeen: '07:11', flag: null },
-    { id: 503, name: 'Nakamoga Victoria', stream: 'Primary Five', class: 'Primary Five', termFee: 300000, residenceType: 'day', guardian: 'Parent of Nakamoga Victoria', fees: 'partial', balance: 200000, paidAmount: 100000, attendanceWk: 100, lastSeen: '07:26', flag: null },
-    { id: 504, name: 'Ssekyanzi Octavian', stream: 'Primary Five', class: 'Primary Five', termFee: 300000, residenceType: 'day', guardian: 'Parent of Ssekyanzi Octavian', fees: 'overdue', balance: 300000, paidAmount: 0, attendanceWk: 95, lastSeen: '07:30', flag: 'risk' },
-    { id: 505, name: 'Nakato Shabiba', stream: 'Primary Five', class: 'Primary Five', termFee: 300000, residenceType: 'day', guardian: 'Parent of Nakato Shabiba', fees: 'overdue', balance: 300000, paidAmount: 0, attendanceWk: 95, lastSeen: '07:33', flag: 'risk' },
-    { id: 506, name: 'Nakimuli Maria Ketra', stream: 'Primary Five', class: 'Primary Five', termFee: 280000, residenceType: 'day', guardian: 'Parent of Nakimuli Maria Ketra', fees: 'overdue', balance: 280000, paidAmount: 0, attendanceWk: 90, lastSeen: '07:35', flag: 'risk' },
-    { id: 507, name: 'Namntovu Jennifer', stream: 'Primary Five', class: 'Primary Five', termFee: 300000, residenceType: 'day', guardian: 'Parent of Namntovu Jennifer', fees: 'overdue', balance: 300000, paidAmount: 0, attendanceWk: 95, lastSeen: '07:28', flag: 'risk' },
-    { id: 508, name: 'Nakituba Anna', stream: 'Primary Five', class: 'Primary Five', termFee: 300000, residenceType: 'day', guardian: 'Parent of Nakituba Anna', fees: 'overdue', balance: 300000, paidAmount: 0, attendanceWk: 95, lastSeen: '07:29', flag: 'risk' },
-    { id: 509, name: 'Mulindwa Jash', stream: 'Primary Five', class: 'Primary Five', termFee: 450000, residenceType: 'boarding', guardian: 'Parent of Mulindwa Jash', fees: 'overdue', balance: 450000, paidAmount: 0, attendanceWk: 100, lastSeen: '07:13', flag: 'risk' },
-    { id: 510, name: 'Kitiibwa Shantel', stream: 'Primary Five', class: 'Primary Five', termFee: 400000, residenceType: 'boarding', guardian: 'Parent of Kitiibwa Shantel', fees: 'overdue', balance: 400000, paidAmount: 0, attendanceWk: 100, lastSeen: '07:14', flag: 'risk' },
-
-    // Primary Four (6 Students)
-    { id: 401, name: 'Ijungo Mathias', stream: 'Primary Four', class: 'Primary Four', termFee: 250000, residenceType: 'day', guardian: 'Parent of Ijungo Mathias', fees: 'partial', balance: 150000, paidAmount: 100000, attendanceWk: 100, lastSeen: '07:25', flag: null },
-    { id: 402, name: 'Yiga Rashim', stream: 'Primary Four', class: 'Primary Four', termFee: 410000, residenceType: 'day', guardian: 'Parent of Yiga Rashim', fees: 'partial', balance: 210000, paidAmount: 200000, attendanceWk: 100, lastSeen: '07:24', flag: null },
-    { id: 403, name: 'Kasswa David', stream: 'Primary Four', class: 'Primary Four', termFee: 500000, residenceType: 'day', guardian: 'Parent of Kasswa David', fees: 'partial', balance: 200000, paidAmount: 300000, attendanceWk: 100, lastSeen: '07:21', flag: null },
-    { id: 404, name: 'Asiimwe Brenda', stream: 'Primary Four', class: 'Primary Four', termFee: 500000, residenceType: 'day', guardian: 'Parent of Asiimwe Brenda', fees: 'partial', balance: 200000, paidAmount: 300000, attendanceWk: 100, lastSeen: '07:22', flag: null },
-    { id: 405, name: 'Kimuli Marvin', stream: 'Primary Four', class: 'Primary Four', termFee: 300000, residenceType: 'day', guardian: 'Parent of Kimuli Marvin', fees: 'overdue', balance: 300000, paidAmount: 0, attendanceWk: 95, lastSeen: '07:36', flag: 'risk' },
-    { id: 406, name: 'Nantongo Hashimin Tara', stream: 'Primary Four', class: 'Primary Four', termFee: 400000, residenceType: 'day', guardian: 'Parent of Nantongo Hashimin Tara', fees: 'partial', balance: 200000, paidAmount: 200000, attendanceWk: 100, lastSeen: '07:20', flag: null },
-
-    // Primary Three (18 Students)
-    { id: 301, name: 'Nachwa Ronah', stream: 'Primary Three', class: 'Primary Three', termFee: 250000, residenceType: 'day', guardian: 'Parent of Nachwa Ronah', fees: 'partial', balance: 150000, paidAmount: 100000, attendanceWk: 100, lastSeen: '07:28', flag: null },
-    { id: 302, name: 'Nakimuli Queen Kevin', stream: 'Primary Three', class: 'Primary Three', termFee: 300000, residenceType: 'day', guardian: 'Parent of Nakimuli Queen Kevin', fees: 'partial', balance: 200000, paidAmount: 100000, attendanceWk: 100, lastSeen: '07:31', flag: null },
-    { id: 303, name: 'Numbere Micheal', stream: 'Primary Three', class: 'Primary Three', termFee: 220000, residenceType: 'day', guardian: 'Parent of Numbere Micheal', fees: 'overdue', balance: 220000, paidAmount: 0, attendanceWk: 90, lastSeen: '07:42', flag: 'risk' },
-    { id: 304, name: 'Nakaboye Whitney', stream: 'Primary Three', class: 'Primary Three', termFee: 280000, residenceType: 'day', guardian: 'Parent of Nakaboye Whitney', fees: 'partial', balance: 200000, paidAmount: 80000, attendanceWk: 95, lastSeen: '07:35', flag: null },
-    { id: 305, name: 'Kasuja Salmah', stream: 'Primary Three', class: 'Primary Three', termFee: 400000, residenceType: 'boarding', guardian: 'Parent of Kasuja Salmah', fees: 'partial', balance: 200000, paidAmount: 200000, attendanceWk: 100, lastSeen: '07:15', flag: null },
-    { id: 306, name: 'Babirye Ronitah', stream: 'Primary Three', class: 'Primary Three', termFee: 500000, residenceType: 'boarding', guardian: 'Parent of Babirye Ronitah', fees: 'overdue', balance: 500000, paidAmount: 0, attendanceWk: 100, lastSeen: '07:16', flag: 'risk' },
-    { id: 307, name: 'Lugoboli Charles', stream: 'Primary Three', class: 'Primary Three', termFee: 280000, residenceType: 'day', guardian: 'Parent of Lugoboli Charles', fees: 'partial', balance: 180000, paidAmount: 100000, attendanceWk: 100, lastSeen: '07:30', flag: null },
-    { id: 308, name: 'Arinaitwe Jeremiah', stream: 'Primary Three', class: 'Primary Three', termFee: 280000, residenceType: 'day', guardian: 'Parent of Arinaitwe Jeremiah', fees: 'partial', balance: 180000, paidAmount: 100000, attendanceWk: 100, lastSeen: '07:33', flag: null },
-    { id: 309, name: 'Nkatia Jamila', stream: 'Primary Three', class: 'Primary Three', termFee: 250000, residenceType: 'day', guardian: 'Parent of Nkatia Jamila', fees: 'partial', balance: 150000, paidAmount: 100000, attendanceWk: 95, lastSeen: '07:36', flag: null },
-    { id: 310, name: 'Kemicisa Elizabeth', stream: 'Primary Three', class: 'Primary Three', termFee: 250000, residenceType: 'day', guardian: 'Parent of Kemicisa Elizabeth', fees: 'overdue', balance: 250000, paidAmount: 0, attendanceWk: 90, lastSeen: '07:44', flag: 'risk' },
-    { id: 311, name: 'Nakayenga Bushirah', stream: 'Primary Three', class: 'Primary Three', termFee: 280000, residenceType: 'day', guardian: 'Parent of Nakayenga Bushirah', fees: 'partial', balance: 150000, paidAmount: 130000, attendanceWk: 100, lastSeen: '07:29', flag: null },
-    { id: 312, name: 'Mulungi Sharifah', stream: 'Primary Three', class: 'Primary Three', termFee: 280000, residenceType: 'day', guardian: 'Parent of Mulungi Sharifah', fees: 'overdue', balance: 280000, paidAmount: 0, attendanceWk: 95, lastSeen: '07:38', flag: 'risk' },
-    { id: 313, name: 'Ssebyesero Raymond', stream: 'Primary Three', class: 'Primary Three', termFee: 280000, residenceType: 'day', guardian: 'Parent of Ssebyesero Raymond', fees: 'overdue', balance: 280000, paidAmount: 0, attendanceWk: 95, lastSeen: '07:40', flag: 'risk' },
-    { id: 314, name: 'Amanda Mikeiparah', stream: 'Primary Three', class: 'Primary Three', termFee: 300000, residenceType: 'day', guardian: 'Parent of Amanda Mikeiparah', fees: 'overdue', balance: 300000, paidAmount: 0, attendanceWk: 90, lastSeen: '07:41', flag: 'risk' },
-    { id: 315, name: 'Kamoga Adasa Esther', stream: 'Primary Three', class: 'Primary Three', termFee: 150000, residenceType: 'day', guardian: 'Parent of Kamoga Adasa Esther', fees: 'partial', balance: 75000, paidAmount: 75000, attendanceWk: 100, lastSeen: '07:34', flag: null },
-    { id: 316, name: 'Maindi Ruth', stream: 'Primary Three', class: 'Primary Three', termFee: 250000, residenceType: 'day', guardian: 'Parent of Maindi Ruth', fees: 'overdue', balance: 250000, paidAmount: 0, attendanceWk: 90, lastSeen: '07:43', flag: 'risk' },
-    { id: 317, name: 'Mulindonda Joel', stream: 'Primary Three', class: 'Primary Three', termFee: 250000, residenceType: 'day', guardian: 'Parent of Mulindonda Joel', fees: 'overdue', balance: 250000, paidAmount: 0, attendanceWk: 90, lastSeen: '07:45', flag: 'risk' },
-    { id: 318, name: 'Mukisa Tania', stream: 'Primary Three', class: 'Primary Three', termFee: 500000, residenceType: 'boarding', guardian: 'Parent of Mukisa Tania', fees: 'partial', balance: 400000, paidAmount: 100000, attendanceWk: 100, lastSeen: '07:18', flag: null },
-
-    // Primary Two (21 Students)
-    { id: 201, name: 'Nansuyimba Martina', stream: 'Primary Two', class: 'Primary Two', termFee: 420000, residenceType: 'day', guardian: 'Parent of Nansuyimba Martina', fees: 'partial', balance: 170000, paidAmount: 250000, attendanceWk: 100, lastSeen: '07:22', flag: null },
-    { id: 202, name: 'Nalukenge Patricia', stream: 'Primary Two', class: 'Primary Two', termFee: 280000, residenceType: 'day', guardian: 'Parent of Nalukenge Patricia', fees: 'partial', balance: 200000, paidAmount: 80000, attendanceWk: 100, lastSeen: '07:31', flag: null },
-    { id: 203, name: 'Abaho Arthur', stream: 'Primary Two', class: 'Primary Two', termFee: 280000, residenceType: 'day', guardian: 'Parent of Abaho Arthur', fees: 'partial', balance: 80000, paidAmount: 200000, attendanceWk: 100, lastSeen: '07:26', flag: null },
-    { id: 204, name: 'Nakato Rashidah', stream: 'Primary Two', class: 'Primary Two', termFee: 890000, residenceType: 'day', guardian: 'Parent of Nakato Rashidah', fees: 'partial', balance: 690000, paidAmount: 200000, attendanceWk: 95, lastSeen: '07:35', flag: null },
-    { id: 205, name: 'Kasswa Rashid', stream: 'Primary Two', class: 'Primary Two', termFee: 890000, residenceType: 'day', guardian: 'Parent of Kasswa Rashid', fees: 'overdue', balance: 890000, paidAmount: 0, attendanceWk: 90, lastSeen: '07:40', flag: 'risk' },
-    { id: 206, name: 'Nbagide Mariam', stream: 'Primary Two', class: 'Primary Two', termFee: 240000, residenceType: 'day', guardian: 'Parent of Nbagide Mariam', fees: 'partial', balance: 140000, paidAmount: 100000, attendanceWk: 100, lastSeen: '07:28', flag: null },
-    { id: 207, name: 'Kalusimbi Teyin', stream: 'Primary Two', class: 'Primary Two', termFee: 280000, residenceType: 'day', guardian: 'Parent of Kalusimbi Teyin', fees: 'overdue', balance: 280000, paidAmount: 0, attendanceWk: 95, lastSeen: '07:36', flag: 'risk' },
-    { id: 208, name: 'Namazzi Paris', stream: 'Primary Two', class: 'Primary Two', termFee: 280000, residenceType: 'day', guardian: 'Parent of Namazzi Paris', fees: 'partial', balance: 180000, paidAmount: 100000, attendanceWk: 100, lastSeen: '07:25', flag: null },
-    { id: 209, name: 'Kimbowa Elijah', stream: 'Primary Two', class: 'Primary Two', termFee: 250000, residenceType: 'day', guardian: 'Parent of Kimbowa Elijah', fees: 'partial', balance: 160000, paidAmount: 90000, attendanceWk: 100, lastSeen: '07:30', flag: null },
-    { id: 210, name: 'Kalungi Joylin', stream: 'Primary Two', class: 'Primary Two', termFee: 200000, residenceType: 'day', guardian: 'Parent of Kalungi Joylin', fees: 'partial', balance: 50000, paidAmount: 150000, attendanceWk: 100, lastSeen: '07:27', flag: null },
-    { id: 211, name: 'Kamooga Alton', stream: 'Primary Two', class: 'Primary Two', termFee: 280000, residenceType: 'day', guardian: 'Parent of Kamooga Alton', fees: 'partial', balance: 180000, paidAmount: 100000, attendanceWk: 100, lastSeen: '07:33', flag: null },
-    { id: 212, name: 'Kawesa Jonah', stream: 'Primary Two', class: 'Primary Two', termFee: 450000, residenceType: 'day', guardian: 'Parent of Kawesa Jonah', fees: 'partial', balance: 250000, paidAmount: 200000, attendanceWk: 100, lastSeen: '07:20', flag: null },
-    { id: 213, name: 'Mulindo Martha', stream: 'Primary Two', class: 'Primary Two', termFee: 220000, residenceType: 'day', guardian: 'Parent of Mulindo Martha', fees: 'partial', balance: 120000, paidAmount: 100000, attendanceWk: 100, lastSeen: '07:29', flag: null },
-    { id: 214, name: 'Kimera Imran', stream: 'Primary Two', class: 'Primary Two', termFee: 280000, residenceType: 'day', guardian: 'Parent of Kimera Imran', fees: 'partial', balance: 150000, paidAmount: 130000, attendanceWk: 100, lastSeen: '07:24', flag: null },
-    { id: 215, name: 'Tujjeesa Erisabesi', stream: 'Primary Two', class: 'Primary Two', termFee: 280000, residenceType: 'day', guardian: 'Parent of Tujjeesa Erisabesi', fees: 'overdue', balance: 280000, paidAmount: 0, attendanceWk: 95, lastSeen: '07:38', flag: 'risk' },
-    { id: 216, name: 'Kirabo Sarah Nabaagala', stream: 'Primary Two', class: 'Primary Two', termFee: 200000, residenceType: 'day', guardian: 'Parent of Kirabo Sarah Nabaagala', fees: 'partial', balance: 150000, paidAmount: 50000, attendanceWk: 100, lastSeen: '07:32', flag: null },
-    { id: 217, name: 'Tamale Hilal Nassor', stream: 'Primary Two', class: 'Primary Two', termFee: 370000, residenceType: 'day', guardian: 'Parent of Tamale Hilal Nassor', fees: 'partial', balance: 170000, paidAmount: 200000, attendanceWk: 100, lastSeen: '07:21', flag: null },
-    { id: 218, name: 'Nafuna Patricia', stream: 'Primary Two', class: 'Primary Two', termFee: 350000, residenceType: 'day', guardian: 'Parent of Nafuna Patricia', fees: 'partial', balance: 200000, paidAmount: 150000, attendanceWk: 100, lastSeen: '07:23', flag: null },
-    { id: 219, name: 'Kakotio Payton', stream: 'Primary Two', class: 'Primary Two', termFee: 280000, residenceType: 'day', guardian: 'Parent of Kakotio Payton', fees: 'partial', balance: 40000, paidAmount: 240000, attendanceWk: 100, lastSeen: '07:19', flag: null },
-    { id: 220, name: 'Ssegazii Mathew', stream: 'Primary Two', class: 'Primary Two', termFee: 280000, residenceType: 'day', guardian: 'Parent of Ssegazii Mathew', fees: 'overdue', balance: 280000, paidAmount: 0, attendanceWk: 95, lastSeen: '07:37', flag: 'risk' },
-    { id: 221, name: 'Nyanzi Calvin Kampala', stream: 'Primary Two', class: 'Primary Two', termFee: 180000, residenceType: 'day', guardian: 'Parent of Nyanzi Calvin Kampala', fees: 'overdue', balance: 180000, paidAmount: 0, attendanceWk: 95, lastSeen: '07:39', flag: 'risk' },
-
-    // Primary One (15 Students — "Class not visible" in PDF)
-    { id: 101, name: 'Namagabo Waiswa', stream: 'Primary One', class: 'Primary One', termFee: 450000, residenceType: 'day', guardian: 'Parent of Namagabo Waiswa', fees: 'partial', balance: 150000, paidAmount: 300000, attendanceWk: 100, lastSeen: '07:25', flag: null },
-    { id: 102, name: 'Ssebunya Joel', stream: 'Primary One', class: 'Primary One', termFee: 250000, residenceType: 'day', guardian: 'Parent of Ssebunya Joel', fees: 'overdue', balance: 250000, paidAmount: 0, attendanceWk: 95, lastSeen: '07:36', flag: 'risk' },
-    { id: 103, name: 'Nsiimbi Mariam Jemiima', stream: 'Primary One', class: 'Primary One', termFee: 350000, residenceType: 'day', guardian: 'Parent of Nsiimbi Mariam Jemiima', fees: 'partial', balance: 300000, paidAmount: 50000, attendanceWk: 100, lastSeen: '07:30', flag: null },
-    { id: 104, name: 'Nakamya Queen Florence', stream: 'Primary One', class: 'Primary One', termFee: 350000, residenceType: 'day', guardian: 'Parent of Nakamya Queen Florence', fees: 'partial', balance: 250000, paidAmount: 100000, attendanceWk: 100, lastSeen: '07:28', flag: null },
-    { id: 105, name: 'Kabite Veila Npante', stream: 'Primary One', class: 'Primary One', termFee: 350000, residenceType: 'day', guardian: 'Parent of Kabite Veila Npante', fees: 'partial', balance: 200000, paidAmount: 150000, attendanceWk: 100, lastSeen: '07:26', flag: null },
-    { id: 106, name: 'Ambani Claire', stream: 'Primary One', class: 'Primary One', termFee: 350000, residenceType: 'day', guardian: 'Parent of Ambani Claire', fees: 'partial', balance: 200000, paidAmount: 150000, attendanceWk: 100, lastSeen: '07:27', flag: null },
-    { id: 107, name: 'Kasujja Prince', stream: 'Primary One', class: 'Primary One', termFee: 200000, residenceType: 'day', guardian: 'Parent of Kasujja Prince', fees: 'overdue', balance: 200000, paidAmount: 0, attendanceWk: 95, lastSeen: '07:38', flag: 'risk' },
-    { id: 108, name: 'Marion', stream: 'Primary One', class: 'Primary One', termFee: 200000, residenceType: 'day', guardian: 'Parent of Marion', fees: 'overdue', balance: 200000, paidAmount: 0, attendanceWk: 90, lastSeen: '07:42', flag: 'risk' },
-    { id: 109, name: 'Kamoga Exodus', stream: 'Primary One', class: 'Primary One', termFee: 150000, residenceType: 'day', guardian: 'Parent of Kamoga Exodus', fees: 'overdue', balance: 150000, paidAmount: 0, attendanceWk: 95, lastSeen: '07:35', flag: 'risk' },
-    { id: 110, name: 'Kamoga Elijah', stream: 'Primary One', class: 'Primary One', termFee: 150000, residenceType: 'day', guardian: 'Parent of Kamoga Elijah', fees: 'overdue', balance: 150000, paidAmount: 0, attendanceWk: 95, lastSeen: '07:37', flag: 'risk' },
-    { id: 111, name: 'Kayiwa Tenywa Maria', stream: 'Primary One', class: 'Primary One', termFee: 440000, residenceType: 'day', guardian: 'Parent of Kayiwa Tenywa Maria', fees: 'partial', balance: 240000, paidAmount: 200000, attendanceWk: 100, lastSeen: '07:24', flag: null },
-    { id: 112, name: 'Alinaitwe Elijah', stream: 'Primary One', class: 'Primary One', termFee: 500000, residenceType: 'boarding', guardian: 'Parent of Alinaitwe Elijah', fees: 'partial', balance: 150000, paidAmount: 350000, attendanceWk: 100, lastSeen: '07:15', flag: null },
-    { id: 113, name: 'Mulungi Patricia', stream: 'Primary One', class: 'Primary One', termFee: 500000, residenceType: 'boarding', guardian: 'Parent of Mulungi Patricia', fees: 'partial', balance: 150000, paidAmount: 350000, attendanceWk: 100, lastSeen: '07:17', flag: null },
-    { id: 114, name: 'Mulindwa Joel', stream: 'Primary One', class: 'Primary One', termFee: 500000, residenceType: 'boarding', guardian: 'Parent of Mulindwa Joel', fees: 'partial', balance: 50000, paidAmount: 450000, attendanceWk: 100, lastSeen: '07:12', flag: null },
-    { id: 115, name: 'Palumba Ednar', stream: 'Primary One', class: 'Primary One', termFee: 500000, residenceType: 'boarding', guardian: 'Parent of Palumba Ednar', fees: 'partial', balance: 50000, paidAmount: 450000, attendanceWk: 100, lastSeen: '07:14', flag: null },
-
-    // Top Class (15 Students)
-    { id: 51, name: 'Mawanda Tanish', stream: 'Top Class', class: 'Top Class', termFee: 290000, residenceType: 'day', guardian: 'Parent of Mawanda Tanish', fees: 'overdue', balance: 290000, paidAmount: 0, attendanceWk: 95, lastSeen: '07:35', flag: 'risk' },
-    { id: 52, name: 'Namuyanja Sarah', stream: 'Top Class', class: 'Top Class', termFee: 260000, residenceType: 'day', guardian: 'Parent of Namuyanja Sarah', fees: 'partial', balance: 160000, paidAmount: 100000, attendanceWk: 100, lastSeen: '07:30', flag: null },
-    { id: 53, name: 'Mutebi Parvin', stream: 'Top Class', class: 'Top Class', termFee: 260000, residenceType: 'day', guardian: 'Parent of Mutebi Parvin', fees: 'overdue', balance: 260000, paidAmount: 0, attendanceWk: 95, lastSeen: '07:38', flag: 'risk' },
-    { id: 54, name: 'Babirye Daniella', stream: 'Top Class', class: 'Top Class', termFee: 150000, residenceType: 'day', guardian: 'Parent of Babirye Daniella', fees: 'overdue', balance: 150000, paidAmount: 0, attendanceWk: 90, lastSeen: '07:42', flag: 'risk' },
-    { id: 55, name: 'Kato Dan', stream: 'Top Class', class: 'Top Class', termFee: 150000, residenceType: 'day', guardian: 'Parent of Kato Dan', fees: 'overdue', balance: 150000, paidAmount: 0, attendanceWk: 95, lastSeen: '07:36', flag: 'risk' },
-    { id: 56, name: 'Malaika Natalia', stream: 'Top Class', class: 'Top Class', termFee: 300000, residenceType: 'day', guardian: 'Parent of Malaika Natalia', fees: 'partial', balance: 40000, paidAmount: 260000, attendanceWk: 100, lastSeen: '07:22', flag: null },
-    { id: 57, name: 'Kato Kirumira', stream: 'Top Class', class: 'Top Class', termFee: 300000, residenceType: 'day', guardian: 'Parent of Kato Kirumira', fees: 'partial', balance: 220000, paidAmount: 80000, attendanceWk: 100, lastSeen: '07:28', flag: null },
-    { id: 58, name: 'Kasswa Emma', stream: 'Top Class', class: 'Top Class', termFee: 150000, residenceType: 'day', guardian: 'Parent of Kasswa Emma', fees: 'overdue', balance: 150000, paidAmount: 0, attendanceWk: 95, lastSeen: '07:34', flag: 'risk' },
-    { id: 59, name: 'Mokungi Nicole', stream: 'Top Class', class: 'Top Class', termFee: 260000, residenceType: 'day', guardian: 'Parent of Mokungi Nicole', fees: 'overdue', balance: 260000, paidAmount: 0, attendanceWk: 95, lastSeen: '07:32', flag: 'risk' },
-    { id: 60, name: 'Asiimwe Timothy', stream: 'Top Class', class: 'Top Class', termFee: 480000, residenceType: 'day', guardian: 'Parent of Asiimwe Timothy', fees: 'partial', balance: 90000, paidAmount: 390000, attendanceWk: 100, lastSeen: '07:20', flag: null },
-    { id: 61, name: 'Nagaba Dellah', stream: 'Top Class', class: 'Top Class', termFee: 230000, residenceType: 'day', guardian: 'Parent of Nagaba Dellah', fees: 'overdue', balance: 230000, paidAmount: 0, attendanceWk: 95, lastSeen: '07:39', flag: 'risk' },
-    { id: 62, name: 'Bahati Rania', stream: 'Top Class', class: 'Top Class', termFee: 280000, residenceType: 'day', guardian: 'Parent of Bahati Rania', fees: 'paid', balance: 0, paidAmount: 280000, attendanceWk: 100, lastSeen: '07:24', flag: null },
-    { id: 63, name: 'Twebaze Isaaya', stream: 'Top Class', class: 'Top Class', termFee: 230000, residenceType: 'day', guardian: 'Parent of Twebaze Isaaya', fees: 'partial', balance: 30000, paidAmount: 200000, attendanceWk: 100, lastSeen: '07:26', flag: null },
-    { id: 64, name: 'Namukwaya Daniella', stream: 'Top Class', class: 'Top Class', termFee: 230000, residenceType: 'day', guardian: 'Parent of Namukwaya Daniella', fees: 'partial', balance: 130000, paidAmount: 100000, attendanceWk: 100, lastSeen: '07:31', flag: null },
-    { id: 65, name: 'Nakanwoki Emarine', stream: 'Top Class', class: 'Top Class', termFee: 280000, residenceType: 'day', guardian: 'Parent of Nakanwoki Emarine', fees: 'partial', balance: 210000, paidAmount: 70000, attendanceWk: 100, lastSeen: '07:29', flag: null },
-
-    // Middle Class (21 Students)
-    { id: 31, name: 'Nabbanya Miracle', stream: 'Middle Class', class: 'Middle Class', termFee: 155000, residenceType: 'day', guardian: 'Parent of Nabbanya Miracle', fees: 'partial', balance: 65000, paidAmount: 90000, attendanceWk: 100, lastSeen: '07:33', flag: null },
-    { id: 32, name: 'Kiberu Rohan', stream: 'Middle Class', class: 'Middle Class', termFee: 250000, residenceType: 'day', guardian: 'Parent of Kiberu Rohan', fees: 'overdue', balance: 250000, paidAmount: 0, attendanceWk: 95, lastSeen: '07:41', flag: 'risk' },
-    { id: 33, name: 'Ssenyondo Rayan', stream: 'Middle Class', class: 'Middle Class', termFee: 200000, residenceType: 'day', guardian: 'Parent of Ssenyondo Rayan', fees: 'partial', balance: 125000, paidAmount: 75000, attendanceWk: 100, lastSeen: '07:38', flag: null },
-    { id: 34, name: 'Kalungi Jovitah', stream: 'Middle Class', class: 'Middle Class', termFee: 200000, residenceType: 'day', guardian: 'Parent of Kalungi Jovitah', fees: 'partial', balance: 100000, paidAmount: 100000, attendanceWk: 100, lastSeen: '07:35', flag: null },
-    { id: 35, name: 'Kemirembe Dorothy', stream: 'Middle Class', class: 'Middle Class', termFee: 200000, residenceType: 'day', guardian: 'Parent of Kemirembe Dorothy', fees: 'partial', balance: 100000, paidAmount: 100000, attendanceWk: 100, lastSeen: '07:37', flag: null },
-    { id: 36, name: 'Namatovu Skylar', stream: 'Middle Class', class: 'Middle Class', termFee: 280000, residenceType: 'day', guardian: 'Parent of Namatovu Skylar', fees: 'partial', balance: 150000, paidAmount: 130000, attendanceWk: 100, lastSeen: '07:32', flag: null },
-    { id: 37, name: 'Bagonza Isaiah', stream: 'Middle Class', class: 'Middle Class', termFee: 230000, residenceType: 'day', guardian: 'Parent of Bagonza Isaiah', fees: 'partial', balance: 80000, paidAmount: 150000, attendanceWk: 100, lastSeen: '07:30', flag: null },
-    { id: 38, name: 'Kalema Abdulrahim Abubakim', stream: 'Middle Class', class: 'Middle Class', termFee: 250000, residenceType: 'day', guardian: 'Parent of Kalema Abdulrahim Abubakim', fees: 'overdue', balance: 250000, paidAmount: 0, attendanceWk: 95, lastSeen: '07:44', flag: 'risk' },
-    { id: 39, name: 'Kato James', stream: 'Middle Class', class: 'Middle Class', termFee: 230000, residenceType: 'day', guardian: 'Parent of Kato James', fees: 'paid', balance: 0, paidAmount: 230000, attendanceWk: 100, lastSeen: '07:28', flag: null },
-    { id: 40, name: 'Kassina John', stream: 'Middle Class', class: 'Middle Class', termFee: 230000, residenceType: 'day', guardian: 'Parent of Kassina John', fees: 'paid', balance: 0, paidAmount: 230000, attendanceWk: 100, lastSeen: '07:29', flag: null },
-    { id: 41, name: 'Namayanja Joweria', stream: 'Middle Class', class: 'Middle Class', termFee: 280000, residenceType: 'day', guardian: 'Parent of Namayanja Joweria', fees: 'partial', balance: 170000, paidAmount: 110000, attendanceWk: 100, lastSeen: '07:34', flag: null },
-    { id: 42, name: 'Kayemba Ronnie', stream: 'Middle Class', class: 'Middle Class', termFee: 300000, residenceType: 'day', guardian: 'Parent of Kayemba Ronnie', fees: 'partial', balance: 220000, paidAmount: 80000, attendanceWk: 95, lastSeen: '07:42', flag: null },
-    { id: 43, name: 'Beesa Imran', stream: 'Middle Class', class: 'Middle Class', termFee: 280000, residenceType: 'day', guardian: 'Parent of Beesa Imran', fees: 'partial', balance: 180000, paidAmount: 100000, attendanceWk: 100, lastSeen: '07:36', flag: null },
-    { id: 44, name: 'Mercy', stream: 'Middle Class', class: 'Middle Class', termFee: 200000, residenceType: 'day', guardian: 'Parent of Mercy', fees: 'partial', balance: 150000, paidAmount: 50000, attendanceWk: 95, lastSeen: '07:45', flag: null },
-    { id: 45, name: 'Mercy Biira', stream: 'Middle Class', class: 'Middle Class', termFee: 200000, residenceType: 'day', guardian: 'Parent of Mercy Biira', fees: 'partial', balance: 50000, paidAmount: 150000, attendanceWk: 100, lastSeen: '07:31', flag: null },
-    { id: 46, name: 'Kyakuna Arthur', stream: 'Middle Class', class: 'Middle Class', termFee: 200000, residenceType: 'day', guardian: 'Parent of Kyakuna Arthur', fees: 'overdue', balance: 200000, paidAmount: 0, attendanceWk: 90, lastSeen: '07:48', flag: 'risk' },
-    { id: 47, name: 'Kimbugwe Fatham', stream: 'Middle Class', class: 'Middle Class', termFee: 260000, residenceType: 'day', guardian: 'Parent of Kimbugwe Fatham', fees: 'overdue', balance: 260000, paidAmount: 0, attendanceWk: 90, lastSeen: '07:50', flag: 'risk' },
-    { id: 48, name: 'Mwanje Ranwah', stream: 'Middle Class', class: 'Middle Class', termFee: 200000, residenceType: 'day', guardian: 'Parent of Mwanje Ranwah', fees: 'partial', balance: 100000, paidAmount: 100000, attendanceWk: 100, lastSeen: '07:39', flag: null },
-    { id: 49, name: 'Mutumba Hayan', stream: 'Middle Class', class: 'Middle Class', termFee: 270000, residenceType: 'day', guardian: 'Parent of Mutumba Hayan', fees: 'partial', balance: 120000, paidAmount: 150000, attendanceWk: 100, lastSeen: '07:38', flag: null },
-    { id: 50, name: 'Ndinayo Elijah', stream: 'Middle Class', class: 'Middle Class', termFee: 280000, residenceType: 'day', guardian: 'Parent of Ndinayo Elijah', fees: 'overdue', balance: 280000, paidAmount: 0, attendanceWk: 90, lastSeen: '07:52', flag: 'risk' },
-    { id: 50b, name: 'Simoka Aaron', stream: 'Middle Class', class: 'Middle Class', termFee: 100000, residenceType: 'day', guardian: 'Parent of Simoka Aaron', fees: 'overdue', balance: 100000, paidAmount: 0, attendanceWk: 90, lastSeen: '07:55', flag: 'risk' },
-
-    // Baby Class (14 Students)
-    { id: 1, name: 'Namala Leticia', stream: 'Baby Class', class: 'Baby Class', termFee: 250000, residenceType: 'day', guardian: 'Parent of Namala Leticia', fees: 'paid', balance: 0, paidAmount: 250000, attendanceWk: 100, lastSeen: '07:25', flag: null },
-    { id: 2, name: 'Arinaitwe Elijah', stream: 'Baby Class', class: 'Baby Class', termFee: 350000, residenceType: 'boarding', guardian: 'Parent of Arinaitwe Elijah', fees: 'partial', balance: 250000, paidAmount: 100000, attendanceWk: 100, lastSeen: '07:20', flag: null },
-    { id: 3, name: 'Ssentongo Alpha', stream: 'Baby Class', class: 'Baby Class', termFee: 390000, residenceType: 'day', guardian: 'Parent of Ssentongo Alpha', fees: 'partial', balance: 190000, paidAmount: 200000, attendanceWk: 100, lastSeen: '07:30', flag: null },
-    { id: 4, name: 'Blessing Namusisi', stream: 'Baby Class', class: 'Baby Class', termFee: 250000, residenceType: 'day', guardian: 'Parent of Blessing Namusisi', fees: 'partial', balance: 150000, paidAmount: 100000, attendanceWk: 100, lastSeen: '07:32', flag: null },
-    { id: 5, name: 'Kisakye Jemimah', stream: 'Baby Class', class: 'Baby Class', termFee: 250000, residenceType: 'day', guardian: 'Parent of Kisakye Jemimah', fees: 'partial', balance: 100000, paidAmount: 150000, attendanceWk: 100, lastSeen: '07:34', flag: null },
-    { id: 6, name: 'Male David Joshua', stream: 'Baby Class', class: 'Baby Class', termFee: 250000, residenceType: 'day', guardian: 'Parent of Male David Joshua', fees: 'partial', balance: 150000, paidAmount: 100000, attendanceWk: 100, lastSeen: '07:28', flag: null },
-    { id: 7, name: 'Lataya Elvis', stream: 'Baby Class', class: 'Baby Class', termFee: 200000, residenceType: 'day', guardian: 'Parent of Lataya Elvis', fees: 'overdue', balance: 200000, paidAmount: 0, attendanceWk: 90, lastSeen: '07:45', flag: 'risk' },
-    { id: 8, name: 'Ssuna Traylin', stream: 'Baby Class', class: 'Baby Class', termFee: 260000, residenceType: 'day', guardian: 'Parent of Ssuna Traylin', fees: 'partial', balance: 220000, paidAmount: 40000, attendanceWk: 95, lastSeen: '07:36', flag: null },
-    { id: 9, name: 'Momoa Kent', stream: 'Baby Class', class: 'Baby Class', termFee: 250000, residenceType: 'day', guardian: 'Parent of Momoa Kent', fees: 'partial', balance: 200000, paidAmount: 50000, attendanceWk: 95, lastSeen: '07:38', flag: null },
-    { id: 10, name: 'Eady Steven', stream: 'Baby Class', class: 'Baby Class', termFee: 280000, residenceType: 'day', guardian: 'Parent of Eady Steven', fees: 'partial', balance: 130000, paidAmount: 150000, attendanceWk: 100, lastSeen: '07:26', flag: null },
-    { id: 11, name: 'Nalubwama Maria Blessing', stream: 'Baby Class', class: 'Baby Class', termFee: 230000, residenceType: 'day', guardian: 'Parent of Nalubwama Maria Blessing', fees: 'partial', balance: 180000, paidAmount: 50000, attendanceWk: 100, lastSeen: '07:31', flag: null },
-    { id: 12, name: 'Kirabo Wisdom', stream: 'Baby Class', class: 'Baby Class', termFee: 235000, residenceType: 'day', guardian: 'Parent of Kirabo Wisdom', fees: 'partial', balance: 125000, paidAmount: 110000, attendanceWk: 100, lastSeen: '07:33', flag: null },
-    { id: 13, name: 'Kirabo Terisa', stream: 'Baby Class', class: 'Baby Class', termFee: 230000, residenceType: 'day', guardian: 'Parent of Kirabo Terisa', fees: 'overdue', balance: 230000, paidAmount: 0, attendanceWk: 90, lastSeen: '07:48', flag: 'risk' },
-    { id: 14, name: 'Mucwanya Janiel', stream: 'Baby Class', class: 'Baby Class', termFee: 230000, residenceType: 'day', guardian: 'Parent of Mucwanya Janiel', fees: 'overdue', balance: 230000, paidAmount: 0, attendanceWk: 90, lastSeen: '07:50', flag: 'risk' },
-  ];
+  // Real data only — no fabricated Ugandan names/balances/attendance as a
+  // "looks alive" fallback. Every one of these gets overwritten by
+  // window.peakStore.loadStudents/loadTeachers (real Supabase/worker
+  // fetches) once the app mounts; until then, screens should show their
+  // own "no data yet" empty states rather than fake numbers.
+  const students = [];
 
   const kpis = {
-    students: 842,
-    teachers: 0,
-    streams: 0,
-    presentToday: 0,
-    absentToday: 0,
-    attendancePct: 0,
-    attendancePrev: 91.8,
-    feesCollectedTerm: 0, // UGX
-    feesTargetTerm:    580_000_000,
-    feesCollectedToday: 0,
-    feesOutstandingStudents: 67,
-    messagesToday: 1247,
-    waDelivery: 98.4,
-    busesOnRoute: 4,
-    busesDelayed: 1,
-    enrollmentInquiries: 4,
-    lessonPlansPending: 6,
+    students: 0, teachers: 0, streams: 0,
+    presentToday: 0, absentToday: 0, attendancePct: 0, attendancePrev: 0,
+    feesCollectedTerm: 0, feesTargetTerm: 0, feesCollectedToday: 0, feesOutstandingStudents: 0,
+    messagesToday: 0, waDelivery: 0, busesOnRoute: 0, busesDelayed: 0,
+    enrollmentInquiries: 0, lessonPlansPending: 0,
   };
 
-  const alerts = [
-    { id: 'a1', level: 'high', icon: '!', text: '12 absent students unreached by guardian',  meta: '4 streams · P3V, P4P, P5V, P6P', cta: 'Send WhatsApp wave' },
-    { id: 'a2', level: 'high', icon: '$', text: '3 fee accounts overdue > 30 days',            meta: 'UGX 1,080,000 outstanding', cta: 'Open accounts' },
-    { id: 'a3', level: 'med',  icon: '~', text: 'Bus 02 — Kireka route delayed 14 minutes',    meta: 'Drv. Bbosa · ETA 4:52 PM', cta: 'Notify parents' },
-    { id: 'a4', level: 'low',  icon: '+', text: '4 new enrolment inquiries via WhatsApp',      meta: 'Term 3 intake · P1 + P3', cta: 'Review queue' },
-    { id: 'a5', level: 'low',  icon: '·', text: '6 lesson plans pending review',               meta: 'P4 Sci, P6 SST, P7 Math', cta: 'Open queue' },
-  ];
+  const alerts = [];
 
   // Attendance % per stream — used for heat-grid
-  const streamAttendance = {
-    P1V: 96, P1P: 94,
-    P2V: 95, P2P: 92,
-    P3V: 91, P3P: 88,
-    P4V: 97, P4P: 90,
-    P5V: 86, P5P: 95,
-    P6V: 94, P6P: 89,
-    P7V: 98, P7P: 96,
-  };
+  const streamAttendance = {};
 
-  // 7-day attendance trend (Mon..Sun visible up to today=Thu)
-  const trend7 = [92.1, 93.4, 91.8, 94.2, null, null, null];
+  // 7-day attendance trend (Mon..Sun) — null = no data yet
+  const trend7 = [null, null, null, null, null, null, null];
 
   // Fees collection by day this week
-  const feesWeek = [
-    { d: 'Mon', amt: 24_100_000 },
-    { d: 'Tue', amt: 19_400_000 },
-    { d: 'Wed', amt: 31_200_000 },
-    { d: 'Thu', amt: 18_240_000 },
-    { d: 'Fri', amt: null },
-  ];
+  const feesWeek = [];
 
   // Outbox / parent WhatsApp threads
-  const threads = [
-    { id: 't1', name: 'Mrs. Sarah Nakato',  child: 'Mirembe · P4V', last: 'Thank you, received the report. ❤️', time: '08:14', unread: 0,  preview: 'parent' },
-    { id: 't2', name: 'Mr. James Okello',   child: 'Daniel · P4V',  last: 'Will pay the balance by Friday.', time: '08:02', unread: 0,  preview: 'parent' },
-    { id: 't3', name: 'Mrs. Grace Asiimwe', child: 'Ruth · P3P',    last: 'Why was Ruth marked absent?',     time: '07:58', unread: 2,  preview: 'parent' },
-    { id: 't4', name: 'Mr. Robert Mugisha', child: 'Brian · P5V',   last: '(no reply in 4 days)',            time: 'Mon',   unread: 0,  preview: 'silent' },
-    { id: 't5', name: 'Mrs. Florence N.',   child: 'Sarah · P2P',   last: 'Acknowledged, thank you.',        time: '07:41', unread: 0,  preview: 'parent' },
-    { id: 't6', name: 'Mr. Vincent Kato',   child: 'Joseph · P6V',  last: 'Great work, Joseph! 👏',           time: '07:33', unread: 0,  preview: 'parent' },
-    { id: 't7', name: 'Mrs. Mary Atim',     child: 'Patricia · P3V',last: 'Balance update received.',         time: '07:20', unread: 0,  preview: 'parent' },
-    { id: 't8', name: 'Mr. Edward Wamala',  child: 'James · P7V',   last: 'Confirmed.',                       time: 'Wed',   unread: 0,  preview: 'parent' },
-  ];
+  const threads = [];
 
   // Recent broadcast log
-  const broadcasts = [
-    { id: 'b1', when: '07:30', title: 'Daily attendance — 793 marked present', recipients: 842, ch: 'WhatsApp', status: 'delivered', rate: 99.1 },
-    { id: 'b2', when: '07:15', title: 'Fee reminder — 67 accounts',             recipients: 67,  ch: 'WhatsApp', status: 'delivered', rate: 97.0 },
-    { id: 'b3', when: 'Wed',   title: 'P5 swim lesson — bring kit Thursday',    recipients: 124, ch: 'WhatsApp', status: 'delivered', rate: 98.4 },
-    { id: 'b4', when: 'Wed',   title: 'Term 2 mid-term reports published',      recipients: 842, ch: 'WhatsApp', status: 'delivered', rate: 98.9 },
-    { id: 'b5', when: 'Tue',   title: 'PTA meeting Saturday 10:00 AM',          recipients: 842, ch: 'SMS+WA',    status: 'delivered', rate: 96.2 },
-  ];
+  const broadcasts = [];
 
-  const aiSuggestions = [
-    { t: 'Wave', text: 'Send WhatsApp to 12 guardians of absent students unreached today', detail: 'Drafts personalised messages in English + Luganda · 2 min' },
-    { t: 'Risk', text: 'Brian Mugisha (P5V): 60% weekly attendance + UGX 340k overdue', detail: 'Schedule director call · suggest payment plan' },
-    { t: 'Plan', text: 'Draft Term 2 report comments for 47 P4 Vigilant students', detail: 'Based on quiz scores, attendance, teacher notes · ~6 min' },
-    { t: 'Note', text: 'Three P3 Prudent quiz scores dropped 12+ points week-on-week', detail: 'Common topic: Fractions · suggest revision session' },
-  ];
+  const aiSuggestions = [];
 
   // ─── Teachers ─────────────────────────────────────────────────────────────
-  const teachers = [
-    { id: 't1',  name: 'Mrs. Sarah Namugga',     role: 'Head Teacher',         subjects: ['Mathematics','Science'], streams: ['P5V'],       phone: '+256 772 416 902', joined: '2021', tone: 'top' },
-    { id: 't2',  name: 'Mr. Patrick Wandera',     role: 'Deputy / Sports',      subjects: ['PE','Social Studies'],    streams: ['P6V','P6P'], phone: '+256 701 884 553', joined: '2019', tone: 'top' },
-    { id: 't3',  name: 'Mrs. Esther Nansubuga',   role: 'P1 Vigilant teacher',  subjects: ['Literacy','Music'],       streams: ['P1V'],       phone: '+256 752 220 119', joined: '2022' },
-    { id: 't4',  name: 'Mrs. Joyce Nakimuli',     role: 'P1 Prudent teacher',   subjects: ['Literacy','Numeracy'],    streams: ['P1P'],       phone: '+256 779 446 200', joined: '2023' },
-    { id: 't5',  name: 'Mr. Ronald Ssempa',       role: 'P2 teachers lead',     subjects: ['English','Math'],         streams: ['P2V','P2P'], phone: '+256 705 117 040', joined: '2020' },
-    { id: 't6',  name: 'Mrs. Diana Najjuma',      role: 'P3 stream lead',       subjects: ['Math','SST'],             streams: ['P3V','P3P'], phone: '+256 776 901 220', joined: '2021' },
-    { id: 't7',  name: 'Mr. Henry Lubega',        role: 'P4 Vigilant teacher',  subjects: ['Science','English'],      streams: ['P4V'],       phone: '+256 752 488 916', joined: '2019' },
-    { id: 't8',  name: 'Mrs. Beatrice Tumusiime', role: 'P4 Prudent teacher',   subjects: ['SST','Reading'],          streams: ['P4P'],       phone: '+256 701 220 540', joined: '2022' },
-    { id: 't9',  name: 'Mr. James Wamala',        role: 'P5 Prudent teacher',   subjects: ['Math','Science'],         streams: ['P5P'],       phone: '+256 758 700 884', joined: '2020', tone: 'top' },
-    { id: 't10', name: 'Mrs. Christine Nansubuga',role: 'P6 Prudent teacher',   subjects: ['English','Composition'],  streams: ['P6P'],       phone: '+256 752 660 122', joined: '2018' },
-    { id: 't11', name: 'Mr. Edward Kibirige',     role: 'P7 Vigilant teacher',  subjects: ['Mathematics','PLE prep'], streams: ['P7V'],       phone: '+256 705 884 230', joined: '2017', tone: 'top' },
-    { id: 't12', name: 'Mrs. Agnes Birungi',      role: 'P7 Prudent teacher',   subjects: ['Science','PLE prep'],     streams: ['P7P'],       phone: '+256 779 220 401', joined: '2018' },
-    { id: 't13', name: 'Mr. Samuel Mukasa',       role: 'Music / Drama',        subjects: ['Music','Drama'],          streams: ['all'],       phone: '+256 758 116 800', joined: '2024' },
-    { id: 't14', name: 'Mrs. Florence Namutebi',  role: 'Counsellor',           subjects: ['Pastoral'],               streams: ['all'],       phone: '+256 752 901 663', joined: '2022' },
-  ];
+  const teachers = [];
 
   // ─── Buses / Transport ────────────────────────────────────────────────────
-  const buses = [
-    { id: 'b01', plate: 'UAR 218 V',  driver: 'Mr. Bbosa Yusufu',     route: 'Kireka loop',       students: 32, status: 'on-route',  eta: '15:48', stops: 6,  lastPing: '2 min ago', notes: '' },
-    { id: 'b02', plate: 'UAS 614 A',  driver: 'Mr. Lugemwa David',     route: 'Bweyogerere line',  students: 28, status: 'delayed',   eta: '16:02', stops: 5,  lastPing: '4 min ago', notes: 'Traffic at Banda flyover · 14 min late' },
-    { id: 'b03', plate: 'UAU 902 M',  driver: 'Mr. Kayemba Ronald',    route: 'Naalya circuit',    students: 35, status: 'on-route',  eta: '15:55', stops: 7,  lastPing: '1 min ago', notes: '' },
-    { id: 'b04', plate: 'UAT 410 L',  driver: 'Mrs. Nansubuga Joyce',  route: 'Ntinda + Bukoto',   students: 30, status: 'arriving',  eta: '15:42', stops: 4,  lastPing: 'just now',  notes: 'First drop in 3 min' },
-    { id: 'b05', plate: 'UAS 880 B',  driver: 'Mr. Mukasa Samuel',     route: 'Kyaliwajjala route', students: 26, status: 'on-route',  eta: '16:08', stops: 6,  lastPing: '3 min ago', notes: '' },
-  ];
+  // Superseded by the real /transport/live-backed Transport() screen and
+  // transport_students/transport_positions tables — nothing reads D.buses
+  // anymore, kept as an empty array only so any stray reference degrades to
+  // "no buses" instead of a crash.
+  const buses = [];
 
   // ─── Learning · subjects with active assignments ──────────────────────────
-  const subjects = [
-    { id: 's1', name: 'Mathematics',     stream: 'P5V', teacher: 'Mrs. Namugga',       active: 4, complete: 78, total: 32, color: 'red',    nextDue: 'Tomorrow', topic: 'Fractions · part-whole' },
-    { id: 's2', name: 'Science',         stream: 'P5V', teacher: 'Mrs. Namugga',       active: 2, complete: 65, total: 32, color: 'good',   nextDue: 'Friday',   topic: 'Plants of Uganda' },
-    { id: 's3', name: 'English',         stream: 'P4V', teacher: 'Mr. Lubega',         active: 3, complete: 90, total: 28, color: 'good',   nextDue: 'Today',    topic: 'Composition · my village' },
-    { id: 's4', name: 'Social Studies',  stream: 'P6V', teacher: 'Mr. Wandera',        active: 1, complete: 82, total: 34, color: 'good',   nextDue: 'Mon',      topic: 'East African Community' },
-    { id: 's5', name: 'PLE Math Prep',   stream: 'P7V', teacher: 'Mr. Kibirige',       active: 5, complete: 71, total: 26, color: 'gold',   nextDue: 'Today',    topic: 'Past papers — 2023 II' },
-    { id: 's6', name: 'PLE Science',     stream: 'P7P', teacher: 'Mrs. Birungi',       active: 3, complete: 88, total: 24, color: 'good',   nextDue: 'Wed',      topic: 'Energy & forces revision' },
-    { id: 's7', name: 'Literacy',        stream: 'P1V', teacher: 'Mrs. Nansubuga',     active: 2, complete: 95, total: 30, color: 'good',   nextDue: 'Today',    topic: 'Sight words · set 4' },
-    { id: 's8', name: 'Music',           stream: 'all', teacher: 'Mr. Mukasa',         active: 1, complete: 100,total: 842, color: 'good',  nextDue: 'Fri',      topic: 'Independence Day rehearsal' },
-  ];
+  const subjects = [];
 
   // ─── End-of-term reports ──────────────────────────────────────────────────
-  const reports = [
-    { id: 'r1', stream: 'P7V', term: 'Term 2 · 2026', total: 31, drafted: 31, published: 28, sent: 28, status: 'sent',      due: 'Done',    teacher: 'Mr. Kibirige',   aiAssist: 22 },
-    { id: 'r2', stream: 'P7P', term: 'Term 2 · 2026', total: 30, drafted: 30, published: 30, sent: 0,  status: 'published', due: 'Today',   teacher: 'Mrs. Birungi',   aiAssist: 18 },
-    { id: 'r3', stream: 'P6V', term: 'Term 2 · 2026', total: 36, drafted: 36, published: 0,  sent: 0,  status: 'review',    due: 'Tomorrow',teacher: 'Mr. Wandera',    aiAssist: 24 },
-    { id: 'r4', stream: 'P6P', term: 'Term 2 · 2026', total: 34, drafted: 28, published: 0,  sent: 0,  status: 'drafting',  due: 'Friday',  teacher: 'Mrs. Nansubuga', aiAssist: 20 },
-    { id: 'r5', stream: 'P5V', term: 'Term 2 · 2026', total: 34, drafted: 19, published: 0,  sent: 0,  status: 'drafting',  due: 'Mon',     teacher: 'Mrs. Namugga',   aiAssist: 12 },
-    { id: 'r6', stream: 'P5P', term: 'Term 2 · 2026', total: 32, drafted: 0,  published: 0,  sent: 0,  status: 'pending',   due: 'Mon',     teacher: 'Mr. Wamala',     aiAssist: 0  },
-    { id: 'r7', stream: 'P4V', term: 'Term 2 · 2026', total: 30, drafted: 0,  published: 0,  sent: 0,  status: 'pending',   due: 'Wed',     teacher: 'Mr. Lubega',     aiAssist: 0  },
-    { id: 'r8', stream: 'P4P', term: 'Term 2 · 2026', total: 28, drafted: 0,  published: 0,  sent: 0,  status: 'pending',   due: 'Wed',     teacher: 'Mrs. Tumusiime', aiAssist: 0  },
-  ];
+  const reports = [];
 
   const fmtUGX = (n) => 'UGX ' + n.toLocaleString('en-US');
   const fmtUGXshort = (n) => {
@@ -4462,6 +4212,20 @@ const V4 = (function () {
     const [q, setQ] = React.useState('');
     const [open, setOpen] = React.useState(false);
     const term = q.trim().toLowerCase();
+    // window.PEAK.students/teachers only ever get populated by whichever
+    // individual screen the user happens to be on triggering its own load —
+    // GlobalSearch lives in the always-visible TopBar, so it needs to
+    // guarantee that load itself instead of hoping some other screen did it
+    // first (that's why searching for a real student/teacher right after
+    // landing on "Today" returned nothing).
+    React.useEffect(() => {
+      try {
+        const tenantId = (window.PEAK_ROLE && window.PEAK_ROLE.getProfile && window.PEAK_ROLE.getProfile().tenantId) || (typeof window.getOSActiveTenant === 'function' ? window.getOSActiveTenant() : null);
+        if (!tenantId || !window.peakStore) return;
+        if (!(window.PEAK && window.PEAK.studentsLive) && window.peakStore.loadStudents) window.peakStore.loadStudents(tenantId);
+        if (!(window.PEAK && window.PEAK.teachersLive) && window.peakStore.loadTeachers) window.peakStore.loadTeachers(tenantId);
+      } catch (e) {}
+    }, []);
     const SCREENS = [['dash', 'Dashboard'], ['stud', 'Students'], ['attn', 'Attendance'], ['fees', 'Fees'], ['comm', 'Communications'], ['teach', 'Teachers'], ['trans', 'Transport'], ['learn', 'Learning'], ['rep', 'Reports'], ['finance', 'Finance'], ['timetable', 'Timetable'], ['today', 'Today']];
     let results = [];
     if (term) {
@@ -12651,6 +12415,27 @@ window.PEAK_STAFF = (function () {
             }
           }).catch(function () {});
         } catch (e) {}
+      },
+      // window.PEAK.teachers was seeded empty (line ~224) and NEVER written
+      // anywhere else in this file — the Teachers screen fetches its own
+      // copy into local component state, so global search (which reads
+      // window.PEAK.teachers) always saw zero teachers, no matter how many
+      // real teachers existed. This is the missing write path.
+      loadTeachers(tenantId) {
+        var WK = 'https://nextos-sentinel.nextafricaai.workers.dev';
+        fetch(WK + '/teachers?tenant=' + encodeURIComponent(tenantId))
+          .then(function (r) { return r.ok ? r.json() : null; })
+          .then(function (res) {
+            if (res && Array.isArray(res.teachers)) {
+              D.teachers = res.teachers.map(function (t) {
+                return { id: t.id, name: t.full_name || 'Unknown', email: t.email || '', subjects: t.subjects || [], role: 'Teacher', phone: t.phone || '', status: t.status || 'Active' };
+              });
+              D.teachersLive = true;
+              if (!D.kpis) D.kpis = {};
+              D.kpis.teachers = D.teachers.length;
+              notify();
+            }
+          }).catch(function () {});
       },
       setAttendanceWindow(days) {
         this.attWindow = days;
