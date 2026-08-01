@@ -6244,6 +6244,8 @@ const PD_Fees = (function () {
     const { useState, useEffect } = React;
     const [, force] = useState(0);
     const [tab, setTab] = useState('accounts');
+    const [searchTerm, setSearchTerm] = useState('');
+    const [selectedStream, setSelectedStream] = useState('');
     const WK = 'https://nextos-sentinel.nextafricaai.workers.dev';
     const tenant = (window.PEAK_ROLE && window.PEAK_ROLE.getProfile && window.PEAK_ROLE.getProfile().tenantId) || 'peak-primary';
 
@@ -6276,6 +6278,15 @@ const PD_Fees = (function () {
     const collected = expected > 0 ? Math.max(0, expected - outstanding) : 0;
     const collectionPct = expected > 0 ? Math.round((collected / expected) * 100) : null;
     const arrears = withBal.length;
+
+    const displayList = (!searchTerm && !selectedStream) 
+      ? withBal 
+      : students.filter(s => {
+          let m = true;
+          if (searchTerm) m = m && String(s.name || '').toLowerCase().includes(searchTerm.toLowerCase());
+          if (selectedStream) m = m && s.stream === selectedStream;
+          return m;
+        }).sort((a, b) => (Number(b.balance) || 0) - (Number(a.balance) || 0));
 
     const remind = (s) => { const ph = String(s.guardianPhone || '').replace(/[^0-9]/g, ''); const msg = 'Dear ' + (s.guardian || 'Parent') + ', a gentle reminder regarding ' + (s.name || 'your child') + "'s school fees balance of " + fmt(s.balance) + ' at ' + ((window.__BRAND_NAME) || 'our school') + '. Thank you.'; if (ph) window.open('https://wa.me/' + ph + '?text=' + encodeURIComponent(msg), '_blank'); else window.peakToast && window.peakToast('No guardian phone on file', 'info', 'Add a phone number for ' + (s.name || 'this learner') + ' to send a reminder.'); };
     const recordPay = (s) => { if (onRecordPayment) return onRecordPayment(s); window.peakModal && window.peakModal.open(React.createElement(window.PEAK_FORMS.RecordPayment, { store: window.peakStore, defaultStudentId: s && s.id, defaultAmount: s && s.balance })); };
@@ -6345,13 +6356,31 @@ const PD_Fees = (function () {
                   <KPI l="Learners" v={live ? students.length : '—'} s={live ? 'live roster' : 'not imported yet'} c={T.ink} />
                 </div>
               </div>
-              <div style={{ padding: '0 28px 8px', fontSize: 11, color: T.ink3, fontFamily: T.mono, letterSpacing: '0.04em' }}>ACCOUNTS IN ARREARS</div>
+              <div style={{ padding: '0 28px 12px', display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                <input 
+                  value={searchTerm} 
+                  onChange={e => setSearchTerm(e.target.value)} 
+                  placeholder="🔍 Search student name..." 
+                  style={{ background: T.surface, border: '1px solid ' + T.border, borderRadius: 8, padding: '8px 14px', fontSize: 13, color: T.ink, flex: 1, minWidth: 200, outline: 'none' }} 
+                />
+                <select 
+                  value={selectedStream} 
+                  onChange={e => setSelectedStream(e.target.value)} 
+                  style={{ background: T.surface, border: '1px solid ' + T.border, borderRadius: 8, padding: '8px 14px', fontSize: 13, color: T.ink, width: 200, outline: 'none' }}
+                >
+                  <option value="">All Streams</option>
+                  {Array.from(new Set(students.map(s => s.stream).filter(Boolean))).sort().map(st => (
+                    <option key={st} value={st}>{st}</option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ padding: '0 28px 8px', fontSize: 11, color: T.ink3, fontFamily: T.mono, letterSpacing: '0.04em' }}>{searchTerm || selectedStream ? 'SEARCH RESULTS' : 'ACCOUNTS IN ARREARS'}</div>
               <div style={{ flex: 1, overflow: 'auto', padding: '0 28px 28px' }}>
                 {!live ? (
                   <div style={{ padding: 40, textAlign: 'center', color: T.ink3 }}>No live fee data yet. Use <b>Import fees</b> to load real balances, then they appear here.</div>
-                ) : withBal.length === 0 ? (
-                  <div style={{ padding: 40, textAlign: 'center', color: T.good }}>✓ Every learner is fully paid. Nothing outstanding.</div>
-                ) : withBal.map((s, i) => (
+                ) : displayList.length === 0 ? (
+                  <div style={{ padding: 40, textAlign: 'center', color: (searchTerm || selectedStream) ? T.ink3 : T.good }}>{(searchTerm || selectedStream) ? 'No students match your search.' : '✓ Every learner is fully paid. Nothing outstanding.'}</div>
+                ) : displayList.map((s, i) => (
                   <div key={s.id || i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 10, background: i % 2 ? T.surface : T.bg, border: '1px solid ' + T.border, marginBottom: 6 }}>
                     <div style={{ width: 34, height: 34, borderRadius: '50%', background: T.surface2, display: 'grid', placeItems: 'center', fontSize: 12, fontWeight: 700, color: T.ink2, flexShrink: 0 }}>{String(s.name || '?').split(' ').map(w => w[0]).slice(0, 2).join('')}</div>
                     <div style={{ flex: 1, minWidth: 0 }}>
@@ -6365,6 +6394,7 @@ const PD_Fees = (function () {
                 ))}
               </div>
             </div>
+
           ) : (
             <div style={{ flex: 1, overflow: 'auto', padding: '20px 28px 28px' }}>
               <div style={{ fontSize: 13, color: T.ink3, lineHeight: 1.6, marginBottom: 14, maxWidth: 640 }}>Set what each class pays per term and any requirements (uniform, books, lunch, etc.). This drives the collection figures above, the parent reminders, and what Nia knows about your fees.</div>
