@@ -1784,7 +1784,7 @@
     );
   }
 
-  function StudentsCard({ assignments, onLogHealth, healthRecords }) {
+  function StudentsCard({ assignments, onLogHealth, onMessage, healthRecords }) {
     // Build student_id → count map from recent health records
     const healthByStudent = useMemo(() => {
       const map = {};
