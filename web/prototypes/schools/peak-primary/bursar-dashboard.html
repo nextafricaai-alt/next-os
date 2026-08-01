@@ -445,6 +445,12 @@
       const totalOut = useMemo(() => expenses.reduce((s,e) => s+e.amount, 0), [expenses]);
       const cashBal  = totalIn - totalOut;
 
+      /* ── Financial Rollup (fees expected/received/overdue, synced from Supabase) ── */
+      const rollup = useMemo(() => (SS.getFinancialRollup ? SS.getFinancialRollup() : {
+        totalFeesExpected: 0, totalFeesReceived: 0, balanceOverdue: 0, studentsOverdue: 0, collectionRate: 0, status: 'No fee data',
+      }), [tick]);
+      const STATUS_COLOR = { 'Healthy': '#00FC8F', 'Needs Attention': '#FFB400', 'Critical': '#FF4757', 'No fee data': 'var(--muted)' };
+
       /* ── Add Income ── */
       const handleAddIncome = () => {
         const amt = parseInt(incAmount.replace(/,/g,''));
@@ -547,6 +553,37 @@
                     <div style={{ fontSize:'10px', color:'var(--muted)', marginTop:'2px' }}>{s.sub}</div>
                   </div>
                 ))}
+              </div>
+
+              {/* Fee Collection Rollup — synced live from students + fees + school_income */}
+              <div style={{ background:'#0F172A', border:'1px solid rgba(255,255,255,0.08)', borderRadius:'13px', padding:'18px 20px', marginBottom:'20px' }}>
+                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'14px', flexWrap:'wrap', gap:'8px' }}>
+                  <h2 style={{ fontSize:'13px', fontWeight:'800' }}>🏦 Fee Collection — Live Rollup</h2>
+                  <span style={{ display:'inline-flex', alignItems:'center', gap:'6px', padding:'4px 10px', borderRadius:'999px', background:`${STATUS_COLOR[rollup.status]}1a`, border:`1px solid ${STATUS_COLOR[rollup.status]}55`, fontSize:'11px', fontWeight:'800', color:STATUS_COLOR[rollup.status] }}>
+                    {rollup.status} · {(rollup.collectionRate*100).toFixed(0)}% collected
+                  </span>
+                </div>
+                <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:'12px' }}>
+                  {[
+                    { label:'Total Fees Expected', val:FMT(rollup.totalFeesExpected), color:'#3B82F6' },
+                    { label:'Total Fees Received', val:FMT(rollup.totalFeesReceived), color:'#00FC8F' },
+                    { label:'Balance Overdue', val:FMT(rollup.balanceOverdue), color:'#FF4757' },
+                    { label:'Students Owing', val:rollup.studentsOverdue, color:'#FFB400' },
+                  ].map(x => (
+                    <div key={x.label} style={{ background:'rgba(255,255,255,0.03)', borderRadius:'9px', padding:'11px 13px' }}>
+                      <div style={{ fontSize:'10px', color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:'4px' }}>{x.label}</div>
+                      <div style={{ fontSize:'16px', fontWeight:'900', color:x.color }}>{x.val}</div>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ marginTop:'12px', height:'6px', borderRadius:'999px', background:'rgba(255,255,255,0.07)', overflow:'hidden' }}>
+                  <div style={{ height:'100%', width:`${Math.min(100, rollup.collectionRate*100)}%`, background:STATUS_COLOR[rollup.status], transition:'width 0.3s ease' }}></div>
+                </div>
+                {rollup.unmatchedIncome > 0 && (
+                  <div style={{ marginTop:'12px', padding:'9px 12px', background:'rgba(255,180,0,0.08)', border:'1px solid rgba(255,180,0,0.25)', borderRadius:'8px', fontSize:'11px', color:'#FFB400' }}>
+                    ⚠️ {FMT(rollup.unmatchedIncome)} logged in the Income Log doesn't match any enrolled student by name — it's real cash on hand, but not reflected in the fee totals above. Check spelling or confirm these students are enrolled.
+                  </div>
+                )}
               </div>
 
               {/* Tab Nav */}

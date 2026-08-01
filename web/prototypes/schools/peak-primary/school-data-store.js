@@ -19,6 +19,7 @@
 
   let sb = null;
   let tenantId = null;
+  let rawStudents = [];
 
   // Initialize with empty arrays. We will fetch immediately.
   let state = {
@@ -86,7 +87,7 @@
         sb.from('staff_attendance').select('*, teachers(full_name, role)').eq('tenant_id', tenantId).order('date', { ascending: false })
       ]);
 
-      let rawStudents = stuRes.data || [];
+      rawStudents = stuRes.data || [];
       if (incRes.data && !incRes.error) state.incomes = incRes.data.map(mapIncomeToApp);
       else state.incomes = SEED_INCOMES; // Table might not exist yet
 
@@ -318,6 +319,39 @@
     getPayments: () => state.payments,
     getAttendance: () => state.attendance,
     getStaffSignins: () => state.staffSignins,
+
+    // Aggregation engine — Total Fees Received / Balance Overdue / Overall
+    // Financial Status, computed from state.students (which already merges
+    // school_income entries and fees-table payment rows per student via
+    // mapStudentToApp, so this doesn't double- or under-count either source).
+    getFinancialRollup: () => {
+      const students = state.students || [];
+      const totalFeesExpected = students.reduce((s, st) => s + Number(st.termFee || 0), 0);
+      const totalFeesReceived = students.reduce((s, st) => s + Number(st.paidAmount || 0), 0);
+      const balanceOverdue = students.reduce((s, st) => s + Math.max(0, Number(st.balance || 0)), 0);
+      const studentsOverdue = students.filter(st => Number(st.balance || 0) > 0).length;
+      const collectionRate = totalFeesExpected > 0 ? totalFeesReceived / totalFeesExpected : 0;
+      const status = totalFeesExpected === 0 ? 'No fee data'
+        : collectionRate >= 0.8 ? 'Healthy'
+        : collectionRate >= 0.5 ? 'Needs Attention'
+        : 'Critical';
+
+      // Cash logged in school_income but for a name that matches no enrolled
+      // student (mis-typed name, or payment logged before the roster import)
+      // — real money the school holds, but invisible to the per-student
+      // balance math above. Surfaced separately so the rollup doesn't quietly
+      // understate cash actually collected.
+      const unmatchedIncome = (state.incomes || []).reduce((sum, inc) => {
+        const iName = (inc.studentName || '').trim().toLowerCase();
+        const matched = iName && students.some(st => {
+          const sName = (st.name || '').trim().toLowerCase();
+          return sName && (sName === iName || sName.includes(iName) || iName.includes(sName));
+        });
+        return matched ? sum : sum + Number(inc.amount || 0);
+      }, 0);
+
+      return { totalFeesExpected, totalFeesReceived, balanceOverdue, studentsOverdue, collectionRate, status, unmatchedIncome };
+    },
 
     async addIncome(entry) {
       // Optimistic update for UI feel
