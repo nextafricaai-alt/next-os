@@ -458,6 +458,7 @@ export default {
     if (url.pathname === '/transport/live')        return handleTransportLive(url, env, cors);
     if (url.pathname === '/transport/mark')        return handleTransportMark(request, env, cors);
     if (url.pathname === '/transport/mark-arrived') return handleTransportMarkArrived(request, env, cors);
+    if (url.pathname === '/students/photo-upload')  return handleStudentPhotoUpload(request, env, cors);
     if (url.pathname === '/fees/checkout')      return handleFeesCheckout(request, env, cors);
     if (url.pathname === '/fees/verify')        return (async()=>{ const J=(o,st)=>new Response(JSON.stringify(o),{status:st||200,headers:{...cors,'Content-Type':'application/json'}}); return J(await feePayFulfil(env, url.searchParams.get('tx') || url.searchParams.get('transaction_id') || '')); })();
     if (url.pathname === '/billing/checkout')   return handleBillingCheckout(request, env, cors);
@@ -1541,7 +1542,7 @@ async function handleStudentsList(tenant, env, cors) {
   if (!tenant) return J({ error: 'tenant required' }, 400);
   if (!env.SUPABASE_URL || !env.SUPABASE_KEY) return J({ error: 'Supabase not configured on the worker.' }, 500);
   try {
-    const rows = await sbFetch(env, '/students?tenant_id=eq.' + encodeURIComponent(tenant) + '&select=id,name,stream,guardian_name,guardian_phone,status,enrolled_at&order=name.asc&limit=3000');
+    const rows = await sbFetch(env, '/students?tenant_id=eq.' + encodeURIComponent(tenant) + '&select=id,name,stream,guardian_name,guardian_phone,status,enrolled_at,photo_url&order=name.asc&limit=3000');
     return J({ tenant, count: (rows || []).length, students: rows || [] });
   } catch (e) { return J({ error: String((e && e.message) || e), tenant }, 200); }
 }
@@ -2140,6 +2141,69 @@ async function handleTransportMarkArrived(request, env, cors) {
     }
     await sbWrite(env, '/transport_positions?tenant_id=eq.' + encodeURIComponent(tenant) + '&van_id=eq.' + encodeURIComponent(vanId), { status: 'arrived', updated_at: new Date().toISOString() }, 'PATCH', 'return=minimal').catch(() => {});
     return J({ ok: true, notified: (onBoard || []).length });
+  } catch (e) { return J({ error: String((e && e.message) || e) }, 200); }
+}
+
+const STUDENT_PHOTO_BUCKET = 'student-photos';
+
+// Real Supabase Storage, not the base64-in-a-text-column pattern used
+// elsewhere in this codebase — the goal explicitly asked for an actual
+// storage bucket. Bucket creation needs the service_role key (RLS doesn't
+// gate it), so this has to go through the worker rather than a direct
+// client upload; ensureStudentPhotoBucket is idempotent (checked before
+// create) so this is safe to call on every upload.
+async function ensureStudentPhotoBucket(env) {
+  const check = await fetch(env.SUPABASE_URL + '/storage/v1/bucket/' + STUDENT_PHOTO_BUCKET, {
+    headers: { 'apikey': env.SUPABASE_KEY, 'Authorization': 'Bearer ' + env.SUPABASE_KEY },
+  });
+  if (check.ok) return true;
+  const create = await fetch(env.SUPABASE_URL + '/storage/v1/bucket', {
+    method: 'POST',
+    headers: { 'apikey': env.SUPABASE_KEY, 'Authorization': 'Bearer ' + env.SUPABASE_KEY, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id: STUDENT_PHOTO_BUCKET, name: STUDENT_PHOTO_BUCKET, public: true, file_size_limit: 3145728, allowed_mime_types: ['image/jpeg', 'image/png', 'image/webp'] }),
+  });
+  return create.ok;
+}
+
+async function handleStudentPhotoUpload(request, env, cors) {
+  const J = (oo, st) => new Response(JSON.stringify(oo), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
+  let b; try { b = await request.json(); } catch (e) { return J({ error: 'bad body' }, 400); }
+  const tenant = String(b.tenant || '').trim();
+  const studentId = b.studentId;
+  const imageBase64 = String(b.imageBase64 || '');
+  const contentType = String(b.contentType || 'image/jpeg');
+  if (!tenant || !studentId || !imageBase64) return J({ error: 'tenant, studentId and imageBase64 required' }, 400);
+  if (!env.SUPABASE_URL || !env.SUPABASE_KEY) return J({ error: 'not configured' }, 500);
+  try {
+    const ok = await ensureStudentPhotoBucket(env);
+    if (!ok) return J({ error: 'Could not prepare the photo storage bucket' }, 200);
+
+    const raw = imageBase64.includes(',') ? imageBase64.split(',')[1] : imageBase64;
+    const binary = atob(raw);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    const ext = contentType.includes('png') ? 'png' : contentType.includes('webp') ? 'webp' : 'jpg';
+    const path = tenant + '/' + studentId + '-' + Date.now() + '.' + ext;
+
+    const upload = await fetch(env.SUPABASE_URL + '/storage/v1/object/' + STUDENT_PHOTO_BUCKET + '/' + path, {
+      method: 'POST',
+      headers: { 'apikey': env.SUPABASE_KEY, 'Authorization': 'Bearer ' + env.SUPABASE_KEY, 'Content-Type': contentType, 'x-upsert': 'true' },
+      body: bytes,
+    });
+    if (!upload.ok) { const t = await upload.text(); return J({ error: 'Storage upload failed: ' + upload.status + ' ' + t.slice(0, 240) }, 200); }
+
+    // The upload to Storage is the part that can't be retried cheaply — if
+    // it succeeded but the students.photo_url write fails (e.g. the column
+    // migration hasn't been run yet), still return the real photoUrl rather
+    // than reporting total failure, so the caller isn't blind to the fact
+    // the image genuinely made it into Storage.
+    const photoUrl = env.SUPABASE_URL + '/storage/v1/object/public/' + STUDENT_PHOTO_BUCKET + '/' + path;
+    try {
+      await sbWrite(env, '/students?id=eq.' + encodeURIComponent(studentId), { photo_url: photoUrl }, 'PATCH', 'return=minimal');
+      return J({ ok: true, photoUrl });
+    } catch (dbErr) {
+      return J({ ok: true, photoUrl, warning: 'Photo uploaded, but saving it to the student record failed: ' + String((dbErr && dbErr.message) || dbErr) });
+    }
   } catch (e) { return J({ error: String((e && e.message) || e) }, 200); }
 }
 

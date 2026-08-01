@@ -5870,9 +5870,59 @@ const PD_Profile = (function () {
     const [, _forceP] = React.useReducer(n => n + 1, 0);
     const tabs = ['Overview','Attendance','Academics','Behaviour','Fees','Comms'];
 
+    // Opening a profile directly (deep link, or before the Students screen
+    // has loaded its roster) could hit window.PEAK.students while it's
+    // still empty and get stuck showing the placeholder "Student" forever
+    // — this component never re-rendered once the real data arrived later.
+    // Guarantee the load, and re-render once it lands.
+    React.useEffect(() => {
+      try {
+        const tenantId = (window.PEAK_ROLE && window.PEAK_ROLE.getProfile && window.PEAK_ROLE.getProfile().tenantId) || (typeof window.getOSActiveTenant === 'function' ? window.getOSActiveTenant() : null);
+        if (tenantId && window.peakStore && window.peakStore.loadStudents && !(window.PEAK && window.PEAK.studentsLive)) window.peakStore.loadStudents(tenantId);
+      } catch (e) {}
+      window.addEventListener('schoolStoreChange', _forceP);
+      return () => window.removeEventListener('schoolStoreChange', _forceP);
+    }, []);
+
     // The REAL child this profile is for (looked up by id) — never the demo.
     const _all = (window.__TEACHER_STUDENTS && window.__TEACHER_STUDENTS.length) ? window.__TEACHER_STUDENTS : ((window.PEAK && window.PEAK.students) || []);
     const stu = _all.find(x => String(x.id) === String(studentId)) || {};
+
+    // Real Supabase Storage upload (worker creates the bucket + writes
+    // students.photo_url) — replaces the old click-to-see-initials-only
+    // avatar with an actual photo once one's been uploaded.
+    const [photoUploading, setPhotoUploading] = React.useState(false);
+    const [photoUrlOverride, setPhotoUrlOverride] = React.useState(null);
+    const photoInputRef = React.useRef(null);
+    const handlePhotoFile = (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (!file || stu.id == null) return;
+      if (file.size > 3 * 1024 * 1024) { window.peakToast ? window.peakToast('Photo must be under 3MB', 'error') : alert('Photo must be under 3MB'); return; }
+      const reader = new FileReader();
+      reader.onload = async () => {
+        setPhotoUploading(true);
+        try {
+          const tenantId = (window.PEAK_ROLE && window.PEAK_ROLE.getProfile && window.PEAK_ROLE.getProfile().tenantId) || (typeof window.getOSActiveTenant === 'function' ? window.getOSActiveTenant() : 'kabs-lily-junior-school-and-kindercare-centre');
+          const res = await fetch('https://nextos-sentinel.nextafricaai.workers.dev/students/photo-upload', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ tenant: tenantId, studentId: stu.id, contentType: file.type || 'image/jpeg', imageBase64: reader.result }),
+          });
+          const out = await res.json();
+          if (out.error) { window.peakToast ? window.peakToast('Photo upload failed: ' + out.error, 'error') : alert(out.error); }
+          else {
+            setPhotoUrlOverride(out.photoUrl);
+            stu.photoUrl = out.photoUrl;
+            if (out.warning) window.peakToast && window.peakToast(out.warning, 'info');
+            else window.peakToast && window.peakToast('Photo updated', 'success');
+          }
+        } catch (err) {
+          window.peakToast ? window.peakToast('Could not reach the school system.', 'error') : alert('Could not reach the school system.');
+        }
+        setPhotoUploading(false);
+      };
+      reader.readAsDataURL(file);
+    };
+    const stuPhotoUrl = photoUrlOverride || stu.photoUrl || stu.photo_url || null;
     const stuName = stu.name || 'Student';
     const stuStream = stu.stream || '';
     const stuGuardian = stu.guardian || '—';
@@ -5909,11 +5959,23 @@ const PD_Profile = (function () {
             borderBottom: '1px solid ' + T.border,
           }}>
             <div style={{ display: 'flex', gap: 20, alignItems: 'center' }}>
-              <div style={{
-                width: 84, height: 84, borderRadius: 18, background: 'linear-gradient(135deg, ' + T.navyLite + ' 0%, ' + T.surface3 + ' 100%)',
+              <div onClick={() => stu.id != null && !photoUploading && photoInputRef.current && photoInputRef.current.click()} style={{
+                width: 84, height: 84, borderRadius: 18,
+                background: stuPhotoUrl ? ('center / cover no-repeat url(' + stuPhotoUrl + ')') : ('linear-gradient(135deg, ' + T.navyLite + ' 0%, ' + T.surface3 + ' 100%)'),
                 color: '#fff', display: 'grid', placeItems: 'center', fontSize: 26, fontWeight: 700, letterSpacing: '-0.02em',
-                border: '1px solid ' + T.borderStr, flexShrink: 0,
-              }}>{stuInitials}</div>
+                border: '1px solid ' + T.borderStr, flexShrink: 0, position: 'relative',
+                cursor: stu.id != null ? 'pointer' : 'default', overflow: 'hidden',
+              }} title={stu.id != null ? 'Click to upload a photo' : ''}>
+                {!stuPhotoUrl && stuInitials}
+                {stu.id != null && (
+                  <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', background: 'rgba(0,0,0,0.55)', opacity: photoUploading ? 1 : 0, transition: 'opacity 0.15s' }}
+                    onMouseEnter={e => { if (!photoUploading) e.currentTarget.style.opacity = 1; }}
+                    onMouseLeave={e => { if (!photoUploading) e.currentTarget.style.opacity = 0; }}>
+                    <span style={{ fontSize: 11, fontFamily: T.mono }}>{photoUploading ? 'Uploading…' : '📷 Change'}</span>
+                  </div>
+                )}
+                <input ref={photoInputRef} type="file" accept="image/png,image/jpeg,image/webp" onChange={handlePhotoFile} style={{ display: 'none' }} />
+              </div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginBottom: 6 }}>
                   <div style={{ fontSize: 30, fontWeight: 700, color: T.ink, letterSpacing: '-0.025em' }}>{stuName}</div>
@@ -12352,6 +12414,7 @@ window.PEAK_STAFF = (function () {
                     fees: feeStatus,
                     attendanceWk: s.attendance_wk != null ? s.attendance_wk : 95,
                     lastSeen: '—',
+                    photoUrl: s.photo_url || null,
                     flag: realBalance > 0 ? 'risk' : null
                   };
                 });
@@ -12409,6 +12472,7 @@ window.PEAK_STAFF = (function () {
                   fees: feeStatus,
                   attendanceWk: pct,
                   lastSeen: '—',
+                  photoUrl: s.photo_url || null,
                   flag: (pct != null && pct < 70) || realBalance > 0 ? 'risk' : null
                 };
               });
