@@ -803,6 +803,56 @@
   const LATE_CHECKIN_CUTOFF = { hour: 7, minute: 15 };
   const LATE_CHECKIN_PENALTY = 2000; // UGX
 
+  // ─── Geofenced check-in ──────────────────────────────────────────────
+  // The school's real gate, from the Google Maps pin the head teacher
+  // shared: https://maps.app.goo.gl/u63eEbWKk6h3979x6 (0°19'41.9"N
+  // 32°28'17.9"E). Teachers must be physically within this radius to
+  // check in — keyed by tenant so this doesn't silently apply the wrong
+  // school's gate if another tenant ever shares this codebase.
+  const CHECKIN_GEOFENCE_RADIUS_M = 15;
+  const SCHOOL_GATE_LOCATIONS = {
+    'kabs-lily-junior-school-and-kindercare-centre': { lat: 0.3282942996684836, lng: 32.46905517496464 },
+  };
+
+  // Haversine great-circle distance in meters.
+  function distanceMeters(lat1, lng1, lat2, lng2) {
+    const R = 6371000;
+    const toRad = d => d * Math.PI / 180;
+    const dLat = toRad(lat2 - lat1);
+    const dLng = toRad(lng2 - lng1);
+    const a = Math.sin(dLat / 2) ** 2 +
+      Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  }
+
+  function getCurrentPositionAsync(options) {
+    return new Promise((resolve, reject) => {
+      if (!navigator.geolocation) { reject(new Error('Location is not supported on this device.')); return; }
+      navigator.geolocation.getCurrentPosition(resolve, reject, options);
+    });
+  }
+
+  // Resolves { ok, distance, accuracy } or throws with a message safe to
+  // show directly in a toast. No gate configured for this tenant → allow
+  // (fails open rather than locking out every teacher over a missing
+  // config value the school never set).
+  async function verifyAtSchoolGate(tenantId) {
+    const gate = SCHOOL_GATE_LOCATIONS[tenantId];
+    if (!gate) return { ok: true, distance: null, accuracy: null };
+    let pos;
+    try {
+      pos = await getCurrentPositionAsync({ enableHighAccuracy: true, timeout: 10000, maximumAge: 0 });
+    } catch (e) {
+      throw new Error('Could not get your location (' + (e.message || 'permission denied') + '). Enable location access to check in.');
+    }
+    const distance = distanceMeters(pos.coords.latitude, pos.coords.longitude, gate.lat, gate.lng);
+    const accuracy = pos.coords.accuracy;
+    if (distance > CHECKIN_GEOFENCE_RADIUS_M) {
+      throw new Error("You're " + Math.round(distance) + 'm from the school gate (must be within ' + CHECKIN_GEOFENCE_RADIUS_M + 'm). Move closer and try again.');
+    }
+    return { ok: true, distance, accuracy };
+  }
+
   function monthStart(d) {
     const dt = d || new Date();
     return new Date(dt.getFullYear(), dt.getMonth(), 1).toISOString().slice(0, 10);
@@ -1361,6 +1411,13 @@
     const handleCheckIn = async () => {
       if (busy) return;
       setBusy(true);
+      try {
+        await verifyAtSchoolGate(profile.tenantId);
+      } catch (e) {
+        setBusy(false);
+        tinyToast(e.message, 'error');
+        return;
+      }
       const { data, error, penalty } = await writeCheckIn(teacher.id, profile.tenantId, 'manual');
       if (error) {
         setBusy(false);
@@ -1476,6 +1533,13 @@
     const handleCheckIn = async () => {
       if (busy) return;
       setBusy(true);
+      try {
+        await verifyAtSchoolGate(profile.tenantId);
+      } catch (e) {
+        setBusy(false);
+        tinyToast(e.message, 'error');
+        return;
+      }
       const { data, error, penalty } = await writeCheckIn(teacher.id, profile.tenantId, 'manual');
       setBusy(false);
       if (error) { tinyToast('Check-in failed: ' + error.message, 'error'); return; }
