@@ -6,7 +6,31 @@
     if (window.TRANSPORT_TELEMETRY) return;
 
     // --- Configuration & State ---
-    const TENANT_ID = 'peak_primary'; // Default tenant
+    // Was hardcoded to 'peak_primary' regardless of which school was
+    // actually logged in — every tenant's telemetry (for whatever it was
+    // worth, being localStorage-only) was being tagged as Peak Primary's.
+    function TENANT_ID() {
+        return (typeof window.getOSActiveTenant === 'function') ? window.getOSActiveTenant() : 'kabs-lily-junior-school-and-kindercare-centre';
+    }
+    const WK = 'https://nextos-sentinel.nextafricaai.workers.dev';
+    // The actual cross-device sync this module never had (see the note
+    // this replaced: "Optionally, push to Supabase Realtime here"). Fire-
+    // and-forget — a dropped ping just means one skipped map update, not
+    // a broken trip.
+    function syncPositionToServer(point) {
+        try {
+            fetch(WK + '/transport/ping', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    tenant: TENANT_ID(), vanId: point.vanId,
+                    vanName: (point.driverInfo && point.driverInfo.vanName) || point.vanId,
+                    driverName: point.driverInfo && point.driverInfo.name,
+                    driverPhone: point.driverInfo && point.driverInfo.phone,
+                    lat: point.lat, lng: point.lng, speed: point.speed, heading: point.heading,
+                }),
+            }).catch(() => {});
+        } catch (e) {}
+    }
     let watchId = null;
     let isBroadcasting = false;
     let simulationInterval = null;
@@ -93,9 +117,9 @@
                 timestamp: position.timestamp || Date.now()
             };
             
-            saveTelemetry(TENANT_ID, telemetryPoint);
+            saveTelemetry(TENANT_ID(), telemetryPoint);
             emitEvent('transport-telemetry-update', telemetryPoint);
-            // Optionally, push to Supabase Realtime here
+            syncPositionToServer(telemetryPoint);
         };
 
         const handleError = (error) => {
@@ -145,9 +169,10 @@
                 isSimulated: true
             };
             
-            saveTelemetry(TENANT_ID, telemetryPoint);
+            saveTelemetry(TENANT_ID(), telemetryPoint);
             emitEvent('transport-telemetry-update', telemetryPoint);
-            
+            syncPositionToServer(telemetryPoint);
+
             // Slowly move to next waypoint roughly
             if (Math.random() > 0.8) {
                  simWaypointIndex = (simWaypointIndex + 1) % KAMPALA_SIM_WAYPOINTS.length;
@@ -175,7 +200,7 @@
         currentDriverInfo = null;
     }
 
-    function getLiveTelemetry(tenantId = TENANT_ID) {
+    function getLiveTelemetry(tenantId = TENANT_ID()) {
         const key = `nextos.transport.telemetry.${tenantId}`;
         try {
             const stored = localStorage.getItem(key);
@@ -240,7 +265,7 @@
             return false;
         }
 
-        const tenantId = TENANT_ID;
+        const tenantId = TENANT_ID();
         const manifestKey = `nextos.transport.manifest.${tenantId}`;
         let manifest = {};
 
@@ -280,7 +305,7 @@
     }
 
     function getStudentManifest(tenantId, vanId) {
-        const manifestKey = `nextos.transport.manifest.${tenantId || TENANT_ID}`;
+        const manifestKey = `nextos.transport.manifest.${tenantId || TENANT_ID()}`;
         try {
             const stored = localStorage.getItem(manifestKey);
             if (stored) {

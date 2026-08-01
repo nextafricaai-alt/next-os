@@ -158,8 +158,29 @@
 
       let liveGpsPolyline = null;
 
+      // This component's own navigator.geolocation calls (below) never
+      // left the local map before this — a completely separate code path
+      // from transport-telemetry.js's broadcaster, which this app never
+      // actually calls. Fire-and-forget sync so the Headteacher's transport
+      // panel (a different device) can see this van move.
+      const syncCarPosition = (lat, lng, speed) => {
+        try {
+          const profile = (window.PEAK_ROLE && window.PEAK_ROLE.getProfile && window.PEAK_ROLE.getProfile()) || {};
+          fetch('https://nextos-sentinel.nextafricaai.workers.dev/transport/ping', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              tenant: (typeof window.getOSActiveTenant === 'function' ? window.getOSActiveTenant() : 'kabs-lily-junior-school-and-kindercare-centre'),
+              vanId, vanName: 'Kabs Lily Shuttle #1',
+              driverName: profile.fullName || null, driverPhone: profile.phone || null,
+              lat, lng, speed: speed || 0,
+            }),
+          }).catch(() => {});
+        } catch (e) {}
+      };
+
       const updateCarPosition = (lat, lng, speed = 0) => {
         if (!mapInstance.current) return;
+        syncCarPosition(lat, lng, speed);
         const newPos = [lat, lng];
         carMarker.setLatLng(newPos);
         carMarker.setPopupContent(`
@@ -432,6 +453,28 @@
     });
     const [customKmInput, setCustomKmInput] = useState('');
     const [kmReasonInput, setKmReasonInput] = useState('');
+    const [markingArrived, setMarkingArrived] = useState(false);
+
+    // The actual "notify every parent the shuttle arrived" action — one
+    // tap flips every currently-on_board student for this van to arrived
+    // and pushes an alert to each of their parents server-side.
+    const handleMarkArrived = async () => {
+      if (markingArrived) return;
+      setMarkingArrived(true);
+      try {
+        const tenant = (typeof window.getOSActiveTenant === 'function' ? window.getOSActiveTenant() : 'kabs-lily-junior-school-and-kindercare-centre');
+        const res = await fetch('https://nextos-sentinel.nextafricaai.workers.dev/transport/mark-arrived', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tenant, vanId }),
+        });
+        const out = await res.json();
+        if (out.error) { window.peakToast ? window.peakToast('Could not notify parents: ' + out.error, 'error') : alert(out.error); }
+        else { window.peakToast ? window.peakToast('Parents notified — ' + (out.notified || 0) + ' families alerted.', 'success') : alert('Notified ' + (out.notified || 0) + ' families.'); }
+      } catch (e) {
+        window.peakToast ? window.peakToast('Could not reach the school system.', 'error') : alert('Could not reach the school system.');
+      }
+      setMarkingArrived(false);
+    };
 
     const completedStopsKm = useMemo(() => {
       const count = students.filter(s => s.status === 'picked_up').length;
@@ -676,6 +719,20 @@
                 backdropFilter: 'blur(8px)',
               }}>
                 📍 Recalculate Shortest Route
+              </button>
+
+              <button onClick={handleMarkArrived} disabled={markingArrived} style={{
+                margin: '0 12px 12px',
+                padding: '12px',
+                backgroundColor: T.colors.primary,
+                color: '#0A1029',
+                border: 'none',
+                borderRadius: T.radii.md,
+                fontSize: '14px',
+                fontWeight: '800',
+                cursor: markingArrived ? 'wait' : 'pointer',
+              }}>
+                {markingArrived ? 'Notifying parents…' : '🚸 Mark Arrived at School — Notify Parents'}
               </button>
             </div>
 

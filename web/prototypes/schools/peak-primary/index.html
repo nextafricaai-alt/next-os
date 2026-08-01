@@ -5028,7 +5028,7 @@ const V4 = (function () {
             <StaffNowCard />
 
             <div style={{ marginTop: 28, fontSize: 11, color: T.ink4, textAlign: 'center', fontFamily: T.mono, letterSpacing: '0.05em' }}>
-              NEXT SCHOOL OS · POWERED BY NEXT · PEAK PRIMARY PILOT · MULTI-TENANT SAAS
+              NEXT SCHOOL OS · POWERED BY NEXT · MULTI-TENANT SAAS
             </div>
           </main>
         </div>
@@ -7625,123 +7625,188 @@ window.PEAK_SCREENS = (function () {
   // ═════════════════════════════════════════════════════════════════════════
   // TRANSPORT · live bus status
   // ═════════════════════════════════════════════════════════════════════════
+  // Was 100% mock and actually broken: D.buses is never defined anywhere
+  // (window.PEAK / window.PEAK_FALLBACK have no `buses` array), so
+  // `D.buses[0].id` on first render threw immediately — this whole screen
+  // has been an error-boundary fallback ("Screen render recovery"), not a
+  // working feature, this whole time. Rebuilt on real data from the
+  // worker's /transport/live route (transport_positions/transport_students
+  // — see cloudflare-worker/supabase-transport-tracking.sql), with a real
+  // Leaflet map (already loaded globally) instead of the "fake map
+  // placeholder" comment that was here.
   function Transport() {
-    const [selectedId, setSelectedId] = useState(D.buses[0].id);
-    const sel = D.buses.find(b => b.id === selectedId);
+    const WK = 'https://nextos-sentinel.nextafricaai.workers.dev';
+    const [vans, setVans] = React.useState([]);
+    const [students, setStudents] = React.useState([]);
+    const [loading, setLoading] = React.useState(true);
+    const [selectedVan, setSelectedVan] = React.useState(null);
+    const [busy, setBusy] = React.useState(false);
+    const mapRef = React.useRef(null);
+    const mapInstance = React.useRef(null);
+    const markersRef = React.useRef({});
 
-    const statusMap = {
-      'on-route':  { tone: 'good',  label: 'On route'  },
-      'delayed':   { tone: 'bad',   label: 'Delayed'   },
-      'arriving':  { tone: 'warn',  label: 'Arriving'  },
-      'departed':  { tone: 'brand', label: 'Departed'  },
-      'arrived':   { tone: 'good',  label: 'Arrived'   },
+    const tenantId = (window.PEAK_ROLE && window.PEAK_ROLE.getProfile && window.PEAK_ROLE.getProfile().tenantId) || (typeof window.getOSActiveTenant === 'function' ? window.getOSActiveTenant() : 'kabs-lily-junior-school-and-kindercare-centre');
+
+    const load = () => {
+      fetch(WK + '/transport/live?tenant=' + encodeURIComponent(tenantId))
+        .then(r => r.json())
+        .then(out => {
+          setVans(out.vans || []); setStudents(out.students || []); setLoading(false);
+          setSelectedVan(prev => prev || ((out.vans || [])[0] && out.vans[0].van_id) || null);
+        })
+        .catch(() => setLoading(false));
+    };
+    React.useEffect(() => { load(); }, []);
+
+    React.useEffect(() => {
+      const sb = window.NextSession && window.NextSession.sb;
+      if (!sb) return;
+      const ch = sb.channel('idx-transport-' + Math.random().toString(36).slice(2))
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'transport_positions', filter: 'tenant_id=eq.' + tenantId }, load)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'transport_students', filter: 'tenant_id=eq.' + tenantId }, load)
+        .subscribe();
+      const poll = setInterval(load, 15000);
+      return () => { try { sb.removeChannel(ch); } catch (e) {} clearInterval(poll); };
+    }, []);
+
+    React.useEffect(() => {
+      if (!window.L || !mapRef.current || mapInstance.current) return;
+      const map = window.L.map(mapRef.current).setView([0.3476, 32.5825], 12);
+      window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '' }).addTo(map);
+      mapInstance.current = map;
+    }, []);
+
+    React.useEffect(() => {
+      const map = mapInstance.current;
+      if (!map || !window.L) return;
+      const seen = new Set();
+      vans.forEach(v => {
+        if (v.lat == null || v.lng == null) return;
+        seen.add(v.van_id);
+        const icon = window.L.divIcon({ className: 'van-icon', html: '<div style="background:' + (v.status === 'arrived' ? T.blue : v.status === 'stopped' ? T.warn : T.good) + ';width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;border:2px solid #fff;">🚐</div>', iconSize: [34, 34], iconAnchor: [17, 17] });
+        if (markersRef.current[v.van_id]) markersRef.current[v.van_id].setLatLng([v.lat, v.lng]).setIcon(icon);
+        else markersRef.current[v.van_id] = window.L.marker([v.lat, v.lng], { icon }).addTo(map).bindPopup('<b>' + (v.van_name || v.van_id) + '</b><br/>' + (v.driver_name || ''));
+      });
+      Object.keys(markersRef.current).forEach(id => { if (!seen.has(id)) { map.removeLayer(markersRef.current[id]); delete markersRef.current[id]; } });
+    }, [vans]);
+
+    const sel = vans.find(v => v.van_id === selectedVan);
+    const selStudents = students.filter(s => s.van_id === selectedVan);
+    const nextPickup = selStudents.filter(s => s.status === 'waiting').sort((a, b) => a.pickup_order - b.pickup_order)[0];
+    const onBoardCount = selStudents.filter(s => s.status === 'on_board').length;
+
+    const markArrived = async () => {
+      if (!selectedVan || busy) return;
+      setBusy(true);
+      try {
+        const res = await fetch(WK + '/transport/mark-arrived', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tenant: tenantId, vanId: selectedVan }) });
+        const out = await res.json();
+        if (out.error) window.peakToast && window.peakToast('Could not notify parents: ' + out.error, 'error');
+        else { window.peakToast && window.peakToast('Notified ' + (out.notified || 0) + ' families.', 'success'); load(); }
+      } catch (e) { window.peakToast && window.peakToast('Could not reach the school system.', 'error'); }
+      setBusy(false);
     };
 
     return (
       <div>
         <PageHeader
-          eyebrow="Transport · afternoon dispatch · 15:42"
-          title="Live bus tracker"
-          subtitle="5 buses · 151 children riding home. Pickup/drop-off WhatsApp alerts sent automatically."
-          actions={<PrimaryBtn onClick={() => window.peakBulkWhatsApp(window.peakAllGuardians('Transport notice from ' + window.peakSchoolName() + ': please confirm your child\u2019s pick-up arrangements today. Thank you.'), 'Transport notice')}>Notify all guardians</PrimaryBtn>}
+          eyebrow="Transport · live tracking"
+          title="Live shuttle tracker"
+          subtitle={vans.length ? vans.length + ' van' + (vans.length > 1 ? 's' : '') + ' reporting · ' + students.length + ' children on the pickup roster.' : 'No van has reported a GPS position yet — open the Driver App and start a trip.'}
+          actions={<PrimaryBtn onClick={() => window.open('/prototypes/schools/peak-primary/driver-dashboard.html', '_blank')}>Open Driver App</PrimaryBtn>}
         />
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 400px', gap: 14, padding: '18px 28px 32px' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {D.buses.map(b => {
-              const st = statusMap[b.status] || statusMap['on-route'];
-              const isSel = b.id === selectedId;
-              return (
-                <button key={b.id} onClick={() => setSelectedId(b.id)} style={{
-                  textAlign: 'left', cursor: 'pointer',
-                  background: isSel ? T.surface2 : T.surface,
-                  border: '1px solid ' + (isSel ? T.borderStr : T.border),
-                  borderRadius: 12, padding: 16,
-                  fontFamily: T.font, color: T.ink,
-                  display: 'grid', gridTemplateColumns: '64px 1fr auto', gap: 16, alignItems: 'center',
-                }}>
-                  <div style={{
-                    background: T.surface3, color: '#fff',
-                    padding: '10px 8px', borderRadius: 9,
-                    fontFamily: T.mono, fontSize: 13, fontWeight: 700, textAlign: 'center',
-                  }}>{b.id.replace('b','BUS ')}</div>
+        {loading ? (
+          <div style={{ padding: 40, textAlign: 'center', color: T.ink3, fontFamily: T.mono, fontSize: 12 }}>LOADING LIVE POSITIONS…</div>
+        ) : vans.length === 0 && students.length === 0 ? (
+          <div style={{ margin: '18px 28px', padding: 32, textAlign: 'center', color: T.ink3, background: T.surface, border: '1px solid ' + T.border, borderRadius: 12 }}>
+            No shuttle has synced a GPS position yet. Once a driver opens the Driver App and starts a trip, it'll appear here live.
+          </div>
+        ) : vans.length === 0 ? (
+          <div style={{ padding: '18px 28px 32px' }}>
+            <div style={{ marginBottom: 14, padding: '12px 16px', background: T.surface, border: '1px solid ' + T.border, borderRadius: 10, color: T.ink3, fontSize: 12.5 }}>
+              No van is live yet — this is the assigned pickup roster. Once a driver opens the Driver App and starts a trip, the map and live status above will activate.
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {students.map(s => (
+                <div key={s.id} style={{ background: T.surface, border: '1px solid ' + T.border, borderRadius: 10, padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
                   <div>
-                    <div style={{ fontSize: 14, fontWeight: 600, color: T.ink }}>{b.route}</div>
-                    <div style={{ fontSize: 11.5, color: T.ink3, fontFamily: T.mono, marginTop: 3 }}>
-                      {b.plate} · {b.driver} · {b.stops} stops · {b.students} children
+                    <div style={{ fontSize: 13, fontWeight: 600, color: T.ink }}>{s.student_name}</div>
+                    <div style={{ fontSize: 11, color: T.ink3, fontFamily: T.mono, marginTop: 2 }}>{s.stream || 'Class not set'} · {s.stop_name || 'Stop not set'}</div>
+                  </div>
+                  <Pill tone={(s.stop_name || '').includes('One-way') ? 'warn' : 'brand'}>{(s.stop_name || '').includes('One-way') ? 'One-way' : 'Round trip'}</Pill>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 400px', gap: 14, padding: '18px 28px 32px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {vans.map(v => {
+                const isSel = v.van_id === selectedVan;
+                const count = students.filter(s => s.van_id === v.van_id);
+                return (
+                  <button key={v.van_id} onClick={() => setSelectedVan(v.van_id)} style={{
+                    textAlign: 'left', cursor: 'pointer',
+                    background: isSel ? T.surface2 : T.surface,
+                    border: '1px solid ' + (isSel ? T.borderStr : T.border),
+                    borderRadius: 12, padding: 16,
+                    fontFamily: T.font, color: T.ink,
+                    display: 'grid', gridTemplateColumns: '64px 1fr auto', gap: 16, alignItems: 'center',
+                  }}>
+                    <div style={{ background: T.surface3, color: '#fff', padding: '10px 8px', borderRadius: 9, fontFamily: T.mono, fontSize: 13, fontWeight: 700, textAlign: 'center' }}>🚐</div>
+                    <div>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: T.ink }}>{v.van_name || v.van_id}</div>
+                      <div style={{ fontSize: 11.5, color: T.ink3, fontFamily: T.mono, marginTop: 3 }}>
+                        {v.driver_name || 'Driver not set'} · {count.length} children
+                      </div>
                     </div>
-                    {b.notes && <div style={{ fontSize: 11.5, color: T.warn, marginTop: 6 }}>! {b.notes}</div>}
+                    <div style={{ textAlign: 'right' }}>
+                      <Pill tone={v.status === 'arrived' ? 'good' : v.status === 'stopped' ? 'warn' : 'brand'}>{v.status === 'arrived' ? 'Arrived' : v.status === 'stopped' ? 'Stopped' : 'Moving'}</Pill>
+                      <div style={{ fontSize: 11, color: T.ink3, fontFamily: T.mono, marginTop: 6 }}>{(v.speed_kmh || 0).toFixed(0)} km/h</div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* detail panel */}
+            <div style={{ position: 'sticky', top: 18, alignSelf: 'start' }}>
+              <Card pad={0}>
+                <div style={{ padding: '20px 22px', borderBottom: '1px solid ' + T.border, background: T.surface3, color: '#fff' }}>
+                  <div style={{ fontSize: 10.5, color: '#a8b4e8', fontFamily: T.mono, letterSpacing: '0.08em', fontWeight: 600, marginBottom: 6 }}>VAN DETAIL</div>
+                  <div style={{ fontSize: 18, fontWeight: 700, color: '#fff' }}>{sel ? (sel.van_name || sel.van_id) : '—'}</div>
+                  <div style={{ fontSize: 12, color: '#a8b4e8', fontFamily: T.mono, marginTop: 4 }}>{sel && sel.driver_name}</div>
+                </div>
+
+                <div ref={mapRef} style={{ aspectRatio: '4/3', borderBottom: '1px solid ' + T.border }} />
+
+                <div style={{ padding: 22, display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                    <div>
+                      <div style={{ fontSize: 10.5, color: T.ink3, fontFamily: T.mono, letterSpacing: '0.05em', fontWeight: 600 }}>ON BOARD</div>
+                      <div style={{ fontSize: 20, fontWeight: 700, color: T.ink, marginTop: 4, fontVariantNumeric: 'tabular-nums' }}>{onBoardCount} / {selStudents.length}</div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 10.5, color: T.ink3, fontFamily: T.mono, letterSpacing: '0.05em', fontWeight: 600 }}>SPEED</div>
+                      <div style={{ fontSize: 20, fontWeight: 700, color: T.ink, marginTop: 4, fontVariantNumeric: 'tabular-nums' }}>{sel ? (sel.speed_kmh || 0).toFixed(0) : '—'} km/h</div>
+                    </div>
                   </div>
-                  <div style={{ textAlign: 'right' }}>
-                    <Pill tone={st.tone}>{st.label}</Pill>
-                    <div style={{ fontSize: 11, color: T.ink3, fontFamily: T.mono, marginTop: 6 }}>ETA {b.eta}</div>
-                    <div style={{ fontSize: 10, color: T.ink4, fontFamily: T.mono, marginTop: 2 }}>ping: {b.lastPing}</div>
+                  {nextPickup && (
+                    <div style={{ background: T.goodSft, border: '1px solid ' + T.good, borderRadius: 10, padding: 12 }}>
+                      <div style={{ fontSize: 10, color: T.good, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase' }}>Next Pickup</div>
+                      <div style={{ fontSize: 13, fontWeight: 600, marginTop: 2, color: T.ink }}>{nextPickup.student_name}{nextPickup.stop_name ? ' · ' + nextPickup.stop_name : ''}</div>
+                    </div>
+                  )}
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <GhostBtn onClick={() => window.peakCall(sel && sel.driver_phone || '')}>Call driver</GhostBtn>
+                    <PrimaryBtn onClick={markArrived}>{busy ? 'Notifying…' : '🚸 Mark Arrived — Notify Parents'}</PrimaryBtn>
                   </div>
-                </button>
-              );
-            })}
+                </div>
+              </Card>
+            </div>
           </div>
-
-          {/* detail panel */}
-          <div style={{ position: 'sticky', top: 18, alignSelf: 'start' }}>
-            <Card pad={0}>
-              <div style={{ padding: '20px 22px', borderBottom: '1px solid ' + T.border, background: T.surface3, color: '#fff' }}>
-                <div style={{ fontSize: 10.5, color: '#a8b4e8', fontFamily: T.mono, letterSpacing: '0.08em', fontWeight: 600, marginBottom: 6 }}>BUS DETAIL</div>
-                <div style={{ fontSize: 18, fontWeight: 700, color: '#fff' }}>{sel.route}</div>
-                <div style={{ fontSize: 12, color: '#a8b4e8', fontFamily: T.mono, marginTop: 4 }}>{sel.plate} · {sel.driver}</div>
-              </div>
-
-              {/* fake map placeholder */}
-              <div style={{ aspectRatio: '4/3', background:
-                'repeating-linear-gradient(45deg, ' + T.surface2 + ' 0px, ' + T.surface2 + ' 8px, ' + T.bg + ' 8px, ' + T.bg + ' 16px)',
-                position: 'relative', borderBottom: '1px solid ' + T.border,
-              }}>
-                <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', color: T.ink3, fontFamily: T.mono, fontSize: 11, letterSpacing: '0.06em' }}>
-                  [ LIVE GPS MAP · {sel.route.toUpperCase()} ]
-                </div>
-                {/* fake route dots */}
-                {[20, 35, 50, 62, 75, 88].slice(0, sel.stops).map((p, i) => (
-                  <div key={i} style={{
-                    position: 'absolute', left: p + '%', top: (40 + Math.sin(i * 1.4) * 25) + '%',
-                    width: 12, height: 12, borderRadius: 999,
-                    background: i === 1 ? T.red : T.surface, border: '2px solid ' + (i === 1 ? '#fff' : T.borderStr),
-                    transform: 'translate(-50%,-50%)',
-                  }} />
-                ))}
-              </div>
-
-              <div style={{ padding: 22, display: 'flex', flexDirection: 'column', gap: 14 }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                  <div>
-                    <div style={{ fontSize: 10.5, color: T.ink3, fontFamily: T.mono, letterSpacing: '0.05em', fontWeight: 600 }}>STUDENTS</div>
-                    <div style={{ fontSize: 20, fontWeight: 700, color: T.ink, marginTop: 4, fontVariantNumeric: 'tabular-nums' }}>{sel.students}</div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: 10.5, color: T.ink3, fontFamily: T.mono, letterSpacing: '0.05em', fontWeight: 600 }}>STOPS</div>
-                    <div style={{ fontSize: 20, fontWeight: 700, color: T.ink, marginTop: 4, fontVariantNumeric: 'tabular-nums' }}>{sel.stops}</div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: 10.5, color: T.ink3, fontFamily: T.mono, letterSpacing: '0.05em', fontWeight: 600 }}>ETA</div>
-                    <div style={{ fontSize: 18, fontWeight: 700, color: T.gold, marginTop: 4 }}>{sel.eta}</div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: 10.5, color: T.ink3, fontFamily: T.mono, letterSpacing: '0.05em', fontWeight: 600 }}>STATUS</div>
-                    <div style={{ marginTop: 6 }}><Pill tone={statusMap[sel.status].tone}>{statusMap[sel.status].label}</Pill></div>
-                  </div>
-                </div>
-                {sel.notes && (
-                  <div style={{ background: T.warnSft, border: '1px solid ' + T.warn, borderRadius: 10, padding: 12, fontSize: 12, color: T.warn }}>
-                    {sel.notes}
-                  </div>
-                )}
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <GhostBtn onClick={() => window.peakCall(sel.phone || sel.driverPhone || '')}>Call driver</GhostBtn>
-                  <PrimaryBtn onClick={() => window.peakBulkWhatsApp(window.peakAllGuardians('Transport update from ' + window.peakSchoolName() + ': your child\u2019s bus schedule has an update today. We will keep you posted.'), 'Route update')}>Notify route parents</PrimaryBtn>
-                </div>
-              </div>
-            </Card>
-          </div>
-        </div>
+        )}
       </div>
     );
   }
