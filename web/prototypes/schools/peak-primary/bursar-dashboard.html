@@ -558,15 +558,15 @@
               {/* Fee Collection Rollup — synced live from students + fees + school_income */}
               <div style={{ background:'#0F172A', border:'1px solid rgba(255,255,255,0.08)', borderRadius:'13px', padding:'18px 20px', marginBottom:'20px' }}>
                 <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'14px', flexWrap:'wrap', gap:'8px' }}>
-                  <h2 style={{ fontSize:'13px', fontWeight:'800' }}>🏦 Fee Collection — Live Rollup</h2>
+                  <h2 style={{ fontSize:'13px', fontWeight:'800' }}>🏦 Fee Collection This Term — Live Rollup</h2>
                   <span style={{ display:'inline-flex', alignItems:'center', gap:'6px', padding:'4px 10px', borderRadius:'999px', background:`${STATUS_COLOR[rollup.status]}1a`, border:`1px solid ${STATUS_COLOR[rollup.status]}55`, fontSize:'11px', fontWeight:'800', color:STATUS_COLOR[rollup.status] }}>
                     {rollup.status} · {(rollup.collectionRate*100).toFixed(0)}% collected
                   </span>
                 </div>
                 <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:'12px' }}>
                   {[
-                    { label:'Total Fees Expected', val:FMT(rollup.totalFeesExpected), color:'#3B82F6' },
-                    { label:'Total Fees Received', val:FMT(rollup.totalFeesReceived), color:'#00FC8F' },
+                    { label:'Fees Expected This Term', val:FMT(rollup.totalFeesExpected), color:'#3B82F6' },
+                    { label:'Fees Collected This Term', val:FMT(rollup.totalFeesReceived), color:'#00FC8F' },
                     { label:'Balance Overdue', val:FMT(rollup.balanceOverdue), color:'#FF4757' },
                     { label:'Students Owing', val:rollup.studentsOverdue, color:'#FFB400' },
                   ].map(x => (
