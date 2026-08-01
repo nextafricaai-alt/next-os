@@ -188,10 +188,11 @@
         // Start live GPS telemetry broadcasting on mount
         if (window.TRANSPORT_TELEMETRY) {
           if (typeof window.TRANSPORT_TELEMETRY.startBroadcasting === 'function') {
+            const profile = (window.PEAK_ROLE && window.PEAK_ROLE.getProfile && window.PEAK_ROLE.getProfile()) || {};
             window.TRANSPORT_TELEMETRY.startBroadcasting('van-01', {
-              driverName: 'Mr. Bbosa Yusufu',
-              plate: 'UAR 218 V',
-              route: 'Kireka / Ntinda / Naalya Circuit'
+              driverName: profile.fullName || 'Shuttle Driver',
+              plate: profile.vanPlate || '',
+              route: profile.route || ''
             });
           }
 

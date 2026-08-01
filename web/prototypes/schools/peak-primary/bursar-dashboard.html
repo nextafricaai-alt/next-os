@@ -451,6 +451,15 @@
       }), [tick]);
       const STATUS_COLOR = { 'Healthy': '#00FC8F', 'Needs Attention': '#FFB400', 'Critical': '#FF4757', 'No fee data': 'var(--muted)' };
 
+      // Payroll / Cash Outflow — recomputed live from the actual teacher
+      // roster on every render (via SS.getTeachers()), not a stored
+      // snapshot. Add/remove a teacher or change a salary and this figure
+      // — and everything derived from it — updates the next time this
+      // component renders, with nothing for the Bursar to manually re-enter.
+      const activeTeachers = useMemo(() => SS.getTeachers().filter(t => (t.status || 'Active').toLowerCase() !== 'inactive'), [tick]);
+      const monthlyPayroll = useMemo(() => activeTeachers.reduce((s, t) => s + Number(t.salary || 0), 0), [activeTeachers]);
+      const netCashPosition = rollup.totalFeesReceived - totalOut - monthlyPayroll;
+
       /* ── Add Income ── */
       const handleAddIncome = () => {
         const amt = parseInt(incAmount.replace(/,/g,''));
@@ -558,15 +567,15 @@
               {/* Fee Collection Rollup — synced live from students + fees + school_income */}
               <div style={{ background:'#0F172A', border:'1px solid rgba(255,255,255,0.08)', borderRadius:'13px', padding:'18px 20px', marginBottom:'20px' }}>
                 <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'14px', flexWrap:'wrap', gap:'8px' }}>
-                  <h2 style={{ fontSize:'13px', fontWeight:'800' }}>🏦 Fee Collection — Live Rollup</h2>
+                  <h2 style={{ fontSize:'13px', fontWeight:'800' }}>🏦 Fee Collection This Term — Live Rollup</h2>
                   <span style={{ display:'inline-flex', alignItems:'center', gap:'6px', padding:'4px 10px', borderRadius:'999px', background:`${STATUS_COLOR[rollup.status]}1a`, border:`1px solid ${STATUS_COLOR[rollup.status]}55`, fontSize:'11px', fontWeight:'800', color:STATUS_COLOR[rollup.status] }}>
                     {rollup.status} · {(rollup.collectionRate*100).toFixed(0)}% collected
                   </span>
                 </div>
                 <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:'12px' }}>
                   {[
-                    { label:'Total Fees Expected', val:FMT(rollup.totalFeesExpected), color:'#3B82F6' },
-                    { label:'Total Fees Received', val:FMT(rollup.totalFeesReceived), color:'#00FC8F' },
+                    { label:'Fees Expected This Term', val:FMT(rollup.totalFeesExpected), color:'#3B82F6' },
+                    { label:'Fees Collected This Term', val:FMT(rollup.totalFeesReceived), color:'#00FC8F' },
                     { label:'Balance Overdue', val:FMT(rollup.balanceOverdue), color:'#FF4757' },
                     { label:'Students Owing', val:rollup.studentsOverdue, color:'#FFB400' },
                   ].map(x => (
@@ -584,6 +593,29 @@
                     ⚠️ {FMT(rollup.unmatchedIncome)} logged in the Income Log doesn't match any enrolled student by name — it's real cash on hand, but not reflected in the fee totals above. Check spelling or confirm these students are enrolled.
                   </div>
                 )}
+              </div>
+
+              {/* Payroll / Cash Outflow — live-synced from the teacher roster, not a manual entry */}
+              <div style={{ background:'#0F172A', border:'1px solid rgba(255,255,255,0.08)', borderRadius:'13px', padding:'18px 20px', marginBottom:'20px' }}>
+                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'14px', flexWrap:'wrap', gap:'8px' }}>
+                  <h2 style={{ fontSize:'13px', fontWeight:'800' }}>💼 Payroll / Cash Outflow — Synced to Teaching Staff</h2>
+                  <span style={{ fontSize:'10.5px', color:'var(--muted)', fontFamily:'var(--mono)' }}>{activeTeachers.length} active staff · updates automatically</span>
+                </div>
+                <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:'12px' }}>
+                  {[
+                    { label:'Monthly Payroll (Live)', val:FMT(monthlyPayroll), color:'#FF4757' },
+                    { label:'Cash Spent (Logged)', val:FMT(totalOut), color:'#FFB400' },
+                    { label:'Net Cash Position', val:FMT(netCashPosition), color: netCashPosition >= 0 ? '#00FC8F' : '#FF4757' },
+                  ].map(x => (
+                    <div key={x.label} style={{ background:'rgba(255,255,255,0.03)', borderRadius:'9px', padding:'11px 13px' }}>
+                      <div style={{ fontSize:'10px', color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:'4px' }}>{x.label}</div>
+                      <div style={{ fontSize:'16px', fontWeight:'900', color:x.color }}>{x.val}</div>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ marginTop:'10px', fontSize:'10.5px', color:'var(--muted)', lineHeight:1.5 }}>
+                  Net Cash Position = Fees Collected This Term − Cash Spent (logged expenses) − Monthly Payroll obligation. Payroll is computed live from the current teacher roster's salaries — add, remove, or repay a teacher and this recalculates on its own, nothing to re-enter here.
+                </div>
               </div>
 
               {/* Tab Nav */}
@@ -735,15 +767,10 @@
                   <div>
                     <h2 style={{ fontSize:'14px', fontWeight:'800', marginBottom:'12px' }}>🏫 Gate Attendance</h2>
                     <div style={{ background:'#0F172A', border:'1px solid rgba(255,255,255,0.08)', borderRadius:'11px', overflow:'hidden' }}>
-                      {[
-                        { name:'Brian Mukasa', class:'P.4', time:'07:42 AM', status:'Present', method:'RFID Tag' },
-                        { name:'Grace Kintu', class:'Baby Class', time:'07:45 AM', status:'Present', method:'Manual' },
-                        { name:'Alvin Mwesigwa', class:'P.1', time:'07:50 AM', status:'Present', method:'Shuttle' },
-                        { name:'Divine Okello', class:'P.7', time:'07:55 AM', status:'Present', method:'Shuttle' },
-                        { name:'Joy Babirye', class:'Top Class', time:'08:10 AM', status:'Late', method:'Parent Dropoff' },
-                        { name:'Sharon Nabakooza', class:'Baby Class', time:'—', status:'Absent', method:'—' },
-                      ].map((a,i,arr) => (
-                        <div key={a.name} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'9px 14px', borderBottom: i<arr.length-1 ? '1px solid rgba(255,255,255,0.04)' : 'none', fontSize:'12px' }}>
+                      {SS.getAttendance().length === 0 ? (
+                        <div style={{ padding:'14px', fontSize:'11px', color:'var(--muted)', fontStyle:'italic' }}>No gate check-ins logged yet today.</div>
+                      ) : SS.getAttendance().slice(0,8).map((a,i,arr) => (
+                        <div key={a.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'9px 14px', borderBottom: i<arr.length-1 ? '1px solid rgba(255,255,255,0.04)' : 'none', fontSize:'12px' }}>
                           <div>
                             <div style={{ fontWeight:'600' }}>{a.name}</div>
                             <div style={{ fontSize:'10px', color:'var(--muted)' }}>{a.class} · {a.method}</div>

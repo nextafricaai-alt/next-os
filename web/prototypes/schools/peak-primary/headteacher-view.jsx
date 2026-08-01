@@ -570,7 +570,7 @@
                   🚌 Live Shuttle Telemetry & Driver GPS Monitor
                 </h2>
                 <div style={{ fontSize: '12px', color: T.mint, fontWeight: '700' }}>
-                  🟢 Driver: Mr. Bbosa Yusufu (UAB 218 Y)
+                  🟢 Live via /transport/live — see the map below for driver + plate
                 </div>
               </div>
               <HeadTeacherFleetMap />
