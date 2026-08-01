@@ -2,13 +2,16 @@
   const { React } = window;
   const { useState, useEffect } = React || { useState: function(){}, useEffect: function(){} };
 
-  // Fallback brand if not available
+  // Fallback brand if window.SCHOOL_BRAND hasn't loaded yet (e.g. the
+  // school_config fetch is still in flight or failed) — must stay neutral,
+  // never another real school's name/contact info, or a Kabs Lily document
+  // could print with Peak Primary's branding on it.
   const DEFAULT_BRAND = {
-    name: "Peak Primary School",
-    motto: "Striving for Excellence",
-    address: "123 Education Lane, Learning City",
-    phone: "+254 700 123 456",
-    email: "info@peakprimary.edu",
+    name: "Your School",
+    motto: "",
+    address: "",
+    phone: "",
+    email: "",
     colors: {
       primary: "#1e3a8a", // blue-900
       secondary: "#f59e0b", // amber-500

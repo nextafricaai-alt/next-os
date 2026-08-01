@@ -12,16 +12,21 @@
 
   const { useState, useEffect, useRef } = React;
 
-  // Polyfill or mockup for SCHOOL_BRAND if missing
+  // Polyfill for SCHOOL_BRAND if the real one hasn't loaded yet. This
+  // mutates the SHARED global window.SCHOOL_BRAND — every other component
+  // this session reads from it, so this must never contain another real
+  // school's identity, or it poisons receipts/headers/etc. for whichever
+  // tenant is actually logged in.
   if (!window.SCHOOL_BRAND) {
+    const tenantLabel = (typeof window.getOSActiveTenant === 'function' ? window.getOSActiveTenant() : 'school').replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
     window.SCHOOL_BRAND = {
       config: {
-        name: 'Peak Primary School',
-        shortName: 'Peak',
-        motto: 'Excellence in Education',
-        address: '123 Peak Way, Mountain View, CA',
-        phone: '+1 (555) 123-4567',
-        email: 'hello@peakprimary.edu',
+        name: tenantLabel,
+        shortName: (tenantLabel.match(/[A-Za-z0-9]/g) || ['S']).slice(0, 2).join('').toUpperCase(),
+        motto: '',
+        address: '',
+        phone: '',
+        email: '',
         colors: { primary: '#1a237e', secondary: '#c62828', accent: '#f5f0e8' },
         fonts: { heading: 'Georgia', body: 'Inter' },
         logoUrl: '',
@@ -32,7 +37,7 @@
         window.dispatchEvent(new CustomEvent('school-brand-updated'));
         return new Promise(resolve => setTimeout(resolve, 800)); // fake delay
       },
-      getBadgeSvg: () => '<svg width="40" height="40" viewBox="0 0 40 40" fill="none"><circle cx="20" cy="20" r="20" fill="#1a237e"/><text x="20" y="25" fill="white" font-size="16" text-anchor="middle">P</text></svg>'
+      getBadgeSvg: () => '<svg width="40" height="40" viewBox="0 0 40 40" fill="none"><circle cx="20" cy="20" r="20" fill="#1a237e"/><text x="20" y="25" fill="white" font-size="16" text-anchor="middle">' + ((tenantLabel.match(/[A-Za-z0-9]/g) || ['S'])[0]) + '</text></svg>'
     };
   }
 

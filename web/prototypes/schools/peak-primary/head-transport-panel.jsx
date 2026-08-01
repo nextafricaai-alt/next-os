@@ -8,26 +8,16 @@
   const useEffect = React.useEffect;
 
   // Mock global data if not present
+  // Fallback only fires if SCHOOL_BRAND/TRANSPORT_TELEMETRY genuinely failed
+  // to load — never hardcode another school's name here, or a Kabs Lily
+  // session that hits this fallback would show "Peak Primary" branding.
   const MOCK_BRAND = window.SCHOOL_BRAND || {
     primaryColor: '#00F0FF',
     accentColor: '#FF0055',
-    schoolName: 'Peak Primary School'
+    schoolName: (typeof window.getOSActiveTenant === 'function' ? window.getOSActiveTenant() : 'Your School').replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
   };
 
-  const MOCK_TELEMETRY = window.TRANSPORT_TELEMETRY || {
-    vans: [
-      { id: 'v1', name: 'Van 01 (Kampala East)', reg: 'UBL 123A', driver: 'Musa K.', phone: '+256 772 123456', speed: '45 km/h', status: 'normal', battery: '92%', currentStop: 'Ntinda Complex', stopsCompleted: 60, eta: '12 mins', lat: 40, lng: 30 },
-      { id: 'v2', name: 'Van 02 (Entebbe Road)', reg: 'UBM 456B', driver: 'Sarah N.', phone: '+256 701 987654', speed: '55 km/h', status: 'normal', battery: '85%', currentStop: 'Zana Roundabout', stopsCompleted: 40, eta: '25 mins', lat: 60, lng: 50 },
-      { id: 'v3', name: 'Van 03 (Ntinda Route)', reg: 'UBP 789C', driver: 'John D.', phone: '+256 750 112233', speed: '0 km/h', status: 'stopped', battery: '100%', currentStop: 'Naalya', stopsCompleted: 10, eta: '45 mins', lat: 20, lng: 70 },
-    ],
-    students: [
-      { id: 's1', name: 'Alvin Mwesigwa', class: 'P3', van: 'Van 01', stop: 'Ntinda Complex', status: 'On Board', time: '07:14 AM' },
-      { id: 's2', name: 'Betty Namuli', class: 'P1', van: 'Van 01', stop: 'Kiwatule', status: 'Safely at School', time: '07:30 AM' },
-      { id: 's3', name: 'Chris Opolot', class: 'P5', van: 'Van 02', stop: 'Namadi', status: 'Waiting at Home', time: '-' },
-      { id: 's4', name: 'Diana Katusiime', class: 'P7', van: 'Van 02', stop: 'Seguku', status: 'Arrived at Stop', time: '07:05 AM' },
-      { id: 's5', name: 'Emma K', class: 'P4', van: 'Van 03', stop: 'Naalya', status: 'Skipped', time: '-' },
-    ]
-  };
+  const MOCK_TELEMETRY = window.TRANSPORT_TELEMETRY || { vans: [], students: [] };
 
   // Safe fallback for SchoolBadgeStrip
   const BadgeStrip = window.SchoolBadgeStrip || function({ pageName }) {

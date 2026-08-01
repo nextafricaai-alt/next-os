@@ -411,7 +411,10 @@
       if (!sb) return;
       const tenantId = profile.tenantId || 'kabs-lily-junior-school-and-kindercare-centre';
 
-      const channel = sb.channel('head-staff-rt-' + tenantId)
+      // Unique per mount — a fixed channel name crashes the render if two
+      // mounts overlap (Supabase throws adding .on() to an already-
+      // subscribed channel of the same topic name).
+      const channel = sb.channel('head-staff-rt-' + tenantId + '-' + Math.random().toString(36).slice(2))
         // Student roll call saved → refresh attendance live
         .on('postgres_changes', {
           event: '*',

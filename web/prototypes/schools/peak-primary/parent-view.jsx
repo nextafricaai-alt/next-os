@@ -213,7 +213,9 @@
     useEffect(() => {
       const sb = getSb();
       if (!sb) return;
-      const ch = sb.channel('parent-messages-' + studentId)
+      // Unique per mount — avoids a crash if two mounts briefly overlap
+      // (Supabase throws adding .on() to an already-subscribed channel).
+      const ch = sb.channel('parent-messages-' + studentId + '-' + Math.random().toString(36).slice(2))
         .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: 'student_id=eq.' + studentId }, () => load())
         .subscribe();
       // Fallback poll: postgres_changes only fires once a table's been added
@@ -349,7 +351,8 @@
     useEffect(() => {
       const sb = getSb();
       if (!sb || !rawChild) return;
-      const ch = sb.channel('parent-watch-' + rawChild.id)
+      // Unique per mount — same crash-avoidance reasoning as above.
+      const ch = sb.channel('parent-watch-' + rawChild.id + '-' + Math.random().toString(36).slice(2))
         .on('postgres_changes', { event: '*', schema: 'public', table: 'student_roll_call', filter: 'student_id=eq.' + rawChild.id }, () => {
           loadChildData(rawChild.id, getTenant()).then(setChildData);
           window.peakToast && window.peakToast(child ? child.name + "'s attendance was just updated" : 'Attendance updated', 'info');

@@ -1971,7 +1971,10 @@
       if (!sb) return;
       const tenantId = profile.tenantId || 'kabs-lily-junior-school-and-kindercare-centre';
       const today = new Date().toISOString().split('T')[0];
-      const channel = sb.channel('teacher-roll-call-rt')
+      // Unique per mount: a fixed channel name means a second mount (e.g. a
+      // fast remount) tries to .on() a channel that's already subscribed,
+      // which Supabase throws on and crashes the render entirely.
+      const channel = sb.channel('teacher-roll-call-rt-' + Math.random().toString(36).slice(2))
         .on('postgres_changes', {
           event: '*',
           schema: 'public',
@@ -2069,6 +2072,8 @@
     })();
 
     const SchoolBadgeStrip = window.SchoolBadgeStrip;
+    const schoolName = (window.SCHOOL_BRAND && window.SCHOOL_BRAND.name)
+      || (typeof window.getOSActiveTenant === 'function' ? window.getOSActiveTenant().replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) : 'Your School');
 
     return (
       <div style={{ minHeight: '100vh', background: T.bg, color: T.ink, fontFamily: T.font }}>
@@ -2084,9 +2089,9 @@
             background: 'linear-gradient(135deg, #00FC8F, #1B9B6F)',
             display: 'grid', placeItems: 'center', flexShrink: 0,
             fontFamily: T.serif, fontSize: 20, fontWeight: 700, color: T.bg,
-          }}>P</div>
+          }}>{(schoolName.match(/[A-Za-z0-9]/g) || ['S'])[0]}</div>
           <div style={{ flex: 1, lineHeight: 1.15, minWidth: 140 }}>
-            <div style={{ fontSize: 14, fontWeight: 600, color: T.ink }}>Peak Primary</div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: T.ink }}>{schoolName}</div>
             <div style={{ fontSize: 10.5, color: T.ink3, fontFamily: T.mono, letterSpacing: 0.6 }}>TEACHER PORTAL · T2 · WK6</div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -2104,7 +2109,7 @@
             <h1 style={{ fontSize: 36, fontWeight: 400, margin: 0, fontFamily: T.serif, letterSpacing: '-0.01em' }}>
               {greeting}, {profile.fullName ? profile.fullName.split(' ')[0] : 'Teacher'}
             </h1>
-            <p style={{ margin: '8px 0 0', color: T.ink3, fontSize: 14 }}>Here's your day at Peak Primary.</p>
+            <p style={{ margin: '8px 0 0', color: T.ink3, fontSize: 14 }}>Here's your day at {schoolName}.</p>
           </div>
 
           {data.loading ? (
