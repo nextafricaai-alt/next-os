@@ -177,6 +177,13 @@ export default {
     if (request.method === 'POST' && url.pathname === '/telemetry') {
       return handleTelemetryPost(request, env, cors);
     }
+    // ─── Route: GET /telemetry/crashes — list recent frontend crash
+    // reports. Added because handleTelemetryPost writes each crash to KV
+    // but nothing ever read them back — the frontend's crash reports were
+    // effectively write-only until now.
+    if (request.method === 'GET' && url.pathname === '/telemetry/crashes') {
+      return handleTelemetryCrashesList(env, cors);
+    }
     // ─── Route: POST /webhook/db-error — Supabase DB webhook for failed writes ──
     if (request.method === 'POST' && url.pathname === '/webhook/db-error') {
       return handleDbErrorWebhook(request, env, cors);
@@ -3784,9 +3791,10 @@ async function handleTelemetryPost(request, env, cors) {
   }
 
   // 1. Log telemetry to KV
-  const incidentId = 'crash_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
+  const receivedAt = Date.now();
+  const incidentId = 'crash_' + receivedAt + '_' + Math.random().toString(36).slice(2, 6);
   if (env.BRIEFS_KV) {
-    await env.BRIEFS_KV.put(incidentId, JSON.stringify(body));
+    await env.BRIEFS_KV.put(incidentId, JSON.stringify(Object.assign({}, body, { incidentId, receivedAt })));
   }
 
   // 2. Fire and forget the self-healing routine
@@ -3795,6 +3803,23 @@ async function handleTelemetryPost(request, env, cors) {
   triggerSelfHealing(body, env, incidentId).catch(e => console.error("Self-healing failed:", e));
 
   return new Response(JSON.stringify({ ok: true, incidentId }), { headers: { ...cors, 'Content-Type': 'application/json' } });
+}
+
+async function handleTelemetryCrashesList(env, cors) {
+  const J = (oo, st) => new Response(JSON.stringify(oo), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
+  if (!env.BRIEFS_KV) return J({ crashes: [], error: 'KV not bound' });
+  try {
+    const list = await env.BRIEFS_KV.list({ prefix: 'crash_', limit: 50 });
+    const items = await Promise.all(list.keys.map(k => env.BRIEFS_KV.get(k.name)));
+    const crashes = items
+      .filter(Boolean)
+      .map(s => { try { return JSON.parse(s); } catch (e) { return null; } })
+      .filter(Boolean)
+      .sort((a, b) => (b.receivedAt || 0) - (a.receivedAt || 0));
+    return J({ crashes, count: crashes.length });
+  } catch (e) {
+    return J({ crashes: [], error: String((e && e.message) || e) }, 500);
+  }
 }
 
 // ─── Route: POST /webhook/db-error — Supabase Database Webhook for failed

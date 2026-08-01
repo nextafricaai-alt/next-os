@@ -14001,7 +14001,7 @@ window.PEAK_STAFF = (function () {
     
     componentDidCatch(error, errorInfo) {
       console.error("Agent Telemetry Caught:", error, errorInfo);
-      
+
       const payload = {
         type: 'frontend_crash',
         message: error.message,
@@ -14009,10 +14009,14 @@ window.PEAK_STAFF = (function () {
         componentStack: errorInfo.componentStack,
         url: window.location.href,
         userAgent: navigator.userAgent,
-        tenant_id: window.NextSession?.tenant?.id || 'unknown'
+        tenant_id: (window.NextSession && window.NextSession.profile && window.NextSession.profile.tenantId) ||
+          (window.PEAK_ROLE && window.PEAK_ROLE.getProfile && window.PEAK_ROLE.getProfile().tenantId) || 'unknown'
       };
 
-      const endpoint = window.SENTINEL_URL || 'http://localhost:8787/telemetry';
+      // window.SENTINEL_URL is never actually set anywhere in this app —
+      // every crash report from every user was silently posting to
+      // localhost:8787 and vanishing. Point directly at the real worker.
+      const endpoint = 'https://nextos-sentinel.nextafricaai.workers.dev/telemetry';
       fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
