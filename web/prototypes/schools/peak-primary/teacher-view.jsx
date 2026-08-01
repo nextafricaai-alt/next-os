@@ -2128,7 +2128,7 @@
           }}>{(schoolName.match(/[A-Za-z0-9]/g) || ['S'])[0]}</div>
           <div style={{ flex: 1, lineHeight: 1.15, minWidth: 140 }}>
             <div style={{ fontSize: 14, fontWeight: 600, color: T.ink }}>{schoolName}</div>
-            <div style={{ fontSize: 10.5, color: T.ink3, fontFamily: T.mono, letterSpacing: 0.6 }}>TEACHER PORTAL · T2 · WK6</div>
+            <div style={{ fontSize: 10.5, color: T.ink3, fontFamily: T.mono, letterSpacing: 0.6 }}>{'TEACHER PORTAL · ' + (window.getSchoolCalendarLabel ? window.getSchoolCalendarLabel().termWeekStr.replace('Term ', 'T').replace(' · Week ', ' · WK') : 'T2')}</div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <div style={{ width: 34, height: 34, borderRadius: 999, background: T.gold, color: T.bg, display: 'grid', placeItems: 'center', fontSize: 12, fontWeight: 700 }}>{initials}</div>

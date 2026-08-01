@@ -735,15 +735,10 @@
                   <div>
                     <h2 style={{ fontSize:'14px', fontWeight:'800', marginBottom:'12px' }}>🏫 Gate Attendance</h2>
                     <div style={{ background:'#0F172A', border:'1px solid rgba(255,255,255,0.08)', borderRadius:'11px', overflow:'hidden' }}>
-                      {[
-                        { name:'Brian Mukasa', class:'P.4', time:'07:42 AM', status:'Present', method:'RFID Tag' },
-                        { name:'Grace Kintu', class:'Baby Class', time:'07:45 AM', status:'Present', method:'Manual' },
-                        { name:'Alvin Mwesigwa', class:'P.1', time:'07:50 AM', status:'Present', method:'Shuttle' },
-                        { name:'Divine Okello', class:'P.7', time:'07:55 AM', status:'Present', method:'Shuttle' },
-                        { name:'Joy Babirye', class:'Top Class', time:'08:10 AM', status:'Late', method:'Parent Dropoff' },
-                        { name:'Sharon Nabakooza', class:'Baby Class', time:'—', status:'Absent', method:'—' },
-                      ].map((a,i,arr) => (
-                        <div key={a.name} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'9px 14px', borderBottom: i<arr.length-1 ? '1px solid rgba(255,255,255,0.04)' : 'none', fontSize:'12px' }}>
+                      {SS.getAttendance().length === 0 ? (
+                        <div style={{ padding:'14px', fontSize:'11px', color:'var(--muted)', fontStyle:'italic' }}>No gate check-ins logged yet today.</div>
+                      ) : SS.getAttendance().slice(0,8).map((a,i,arr) => (
+                        <div key={a.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'9px 14px', borderBottom: i<arr.length-1 ? '1px solid rgba(255,255,255,0.04)' : 'none', fontSize:'12px' }}>
                           <div>
                             <div style={{ fontWeight:'600' }}>{a.name}</div>
                             <div style={{ fontSize:'10px', color:'var(--muted)' }}>{a.class} · {a.method}</div>

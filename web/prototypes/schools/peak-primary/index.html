@@ -2718,7 +2718,7 @@
           }}>{(schoolName.match(/[A-Za-z0-9]/g) || ['S'])[0]}</div>
           <div style={{ flex: 1, lineHeight: 1.15, minWidth: 140 }}>
             <div style={{ fontSize: 14, fontWeight: 600, color: T.ink }}>{schoolName}</div>
-            <div style={{ fontSize: 10.5, color: T.ink3, fontFamily: T.mono, letterSpacing: 0.6 }}>TEACHER PORTAL · T2 · WK6</div>
+            <div style={{ fontSize: 10.5, color: T.ink3, fontFamily: T.mono, letterSpacing: 0.6 }}>{'TEACHER PORTAL · ' + (window.getSchoolCalendarLabel ? window.getSchoolCalendarLabel().termWeekStr.replace('Term ', 'T').replace(' · Week ', ' · WK') : 'T2')}</div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <div style={{ width: 34, height: 34, borderRadius: 999, background: T.gold, color: T.bg, display: 'grid', placeItems: 'center', fontSize: 12, fontWeight: 700 }}>{initials}</div>
@@ -2831,7 +2831,8 @@
 
   window.TeacherShell = TeacherShell;
 })();
-  </script>
+
+</script>
   <script type="text/babel" data-src="head-staff-panel.jsx">
 /* head-staff-panel.jsx
    Sarah's view of her staff today.
@@ -4099,10 +4100,10 @@ const V4 = (function () {
   // ─── sidebar ──────────────────────────────────────────────────────────────
   const navItems = [
     { k: 'dash',  label: 'Dashboard',     glyph: '◫', count: null },
-    { k: 'stud',  label: 'Students',      glyph: '☰', count: '842' },
+    { k: 'stud',  label: 'Students',      glyph: '☰', countKey: 'students' },
     { k: 'attn',  label: 'Attendance',    glyph: '◐', count: null },
-    { k: 'fees',  label: 'Fees',          glyph: '⌗', count: '67' },
-    { k: 'comm',  label: 'Communications',glyph: '◊', count: '12' },
+    { k: 'fees',  label: 'Fees',          glyph: '⌗', countKey: 'feesOutstandingStudents' },
+    { k: 'comm',  label: 'Communications',glyph: '◊', count: null },
     { k: 'teach', label: 'Teachers',      glyph: '◇', count: null },
     { k: 'trans', label: 'Transport',     glyph: '⊕', count: null },
     { k: 'learn', label: 'Learning',      glyph: '◬', count: null },
@@ -4126,7 +4127,7 @@ const V4 = (function () {
           </div>
           <div style={{ lineHeight: 1.15, minWidth: 0, flex: 1 }}>
             <div style={{ fontSize: 14, fontWeight: 600, color: T.ink, letterSpacing: '-0.01em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{(typeof window!=='undefined'&&(window.__BRAND_NAME||window.__BRAND_FALLBACK))||'NEXT School OS'}</div>
-            <div style={{ fontSize: 10.5, color: T.ink3, fontFamily: T.mono, letterSpacing: '0.04em' }}>NEXT · T2 · WK6</div>
+            <div style={{ fontSize: 10.5, color: T.ink3, fontFamily: T.mono, letterSpacing: '0.04em' }}>{'NEXT · ' + (window.getSchoolCalendarLabel ? window.getSchoolCalendarLabel().termWeekStr.replace('Term ', 'T').replace(' · Week ', ' · WK') : 'T2')}</div>
           </div>
           {window.NiaBell ? React.createElement(window.NiaBell) : null}
         </div>
@@ -4136,6 +4137,7 @@ const V4 = (function () {
           <div style={{ fontSize: 10, fontWeight: 700, color: T.ink4, padding: '10px 10px 8px', letterSpacing: '0.08em', textTransform: 'uppercase', fontFamily: T.mono }}>Operations</div>
           {navItems.map(n => {
             const isActive = active === n.k;
+            const liveCount = n.countKey ? ((window.PEAK && window.PEAK.kpis && window.PEAK.kpis[n.countKey]) || null) : n.count;
             return (
               <button key={n.k}
                 onClick={() => setActive(n.k)}
@@ -4150,13 +4152,13 @@ const V4 = (function () {
                 {isActive && <span style={{ position: 'absolute', left: -10, top: 8, bottom: 8, width: 3, background: T.red, borderRadius: 999 }} />}
                 <span style={{ width: 18, color: isActive ? T.red : T.ink3, fontSize: 14, textAlign: 'center' }}>{n.glyph}</span>
                 <span style={{ flex: 1 }}>{n.label}</span>
-                {n.count && (
+                {liveCount != null && (
                   <span style={{
                     fontSize: 10.5, color: isActive ? T.ink : T.ink3,
                     fontFamily: T.mono, fontWeight: 600,
                     background: isActive ? 'rgba(255,255,255,0.06)' : 'transparent',
                     padding: '2px 7px', borderRadius: 999,
-                  }}>{n.count}</span>
+                  }}>{liveCount}</span>
                 )}
               </button>
             );
@@ -12355,6 +12357,7 @@ window.PEAK_STAFF = (function () {
                 });
                 if (!D.kpis) D.kpis = {};
                 D.kpis.students = res.data.length;
+                D.kpis.feesOutstandingStudents = D.students.filter(function(s) { return s.balance > 0; }).length;
                 D.studentsLive = true;
                 notify();
               }
@@ -12410,6 +12413,7 @@ window.PEAK_STAFF = (function () {
                 };
               });
               D.kpis.students = d.students.length;
+              D.kpis.feesOutstandingStudents = D.students.filter(function(s) { return s.balance > 0; }).length;
               D.studentsLive = true;
               notify();
             }
@@ -13045,7 +13049,7 @@ window.PEAK_STAFF = (function () {
           </div>
           <div style={{ lineHeight: 1.15, minWidth: 0, flex: 1 }}>
             <div style={{ fontSize: 14, fontWeight: 600, color: T.ink, letterSpacing: '-0.01em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{(typeof window!=='undefined'&&(window.__BRAND_NAME||window.__BRAND_FALLBACK))||'NEXT School OS'}</div>
-            <div style={{ fontSize: 10.5, color: T.ink3, fontFamily: T.mono, letterSpacing: '0.04em' }}>NEXT · T2 · WK6</div>
+            <div style={{ fontSize: 10.5, color: T.ink3, fontFamily: T.mono, letterSpacing: '0.04em' }}>{'NEXT · ' + (window.getSchoolCalendarLabel ? window.getSchoolCalendarLabel().termWeekStr.replace('Term ', 'T').replace(' · Week ', ' · WK') : 'T2')}</div>
           </div>
           {window.NiaBell ? React.createElement(window.NiaBell) : null}
         </div>

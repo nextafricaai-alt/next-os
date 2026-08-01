@@ -248,19 +248,6 @@
       const email    = document.getElementById('email').value.trim();
       const password = document.getElementById('password').value;
 
-      // Quick offline/demo driver sign-in
-      if (email.includes('driver') || email.includes('bbosa')) {
-        const profile = {
-          email: email,
-          fullName: 'Mr. Bbosa Yusufu (Driver)',
-          role: 'driver',
-          tenantId: 'kabs-lily-junior-school-and-kindercare-centre',
-        };
-        localStorage.setItem('nextos.profile', JSON.stringify(profile));
-        window.location.href = '/prototypes/schools/peak-primary/driver-dashboard.html';
-        return;
-      }
-
       try {
         // 1. Sign in with Supabase Auth
         const { data: authData, error: authErr } = await sb.auth.signInWithPassword({
@@ -290,7 +277,7 @@
             role = 'bursar';
             fullName = 'Nalukenge Jane (Bursar / Administrator)';
           }
-          if (email.includes('driver')) role = 'driver';
+          if (email.includes('driver')) { role = 'driver'; fullName = 'Shuttle Driver'; }
           if (email.includes('head') && !email.includes('bursar')) role = 'head';
         }
 

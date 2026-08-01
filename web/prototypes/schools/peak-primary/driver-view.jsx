@@ -428,6 +428,7 @@
   };
 
   const DriverView = ({ vanId = 'van-01' }) => {
+    const driverProfile = (window.PEAK_ROLE && window.PEAK_ROLE.getProfile && window.PEAK_ROLE.getProfile()) || {};
     const [students, setStudents] = useState(mockStudents);
     const [isEmergencyModalOpen, setIsEmergencyModalOpen] = useState(false);
     const [isKmModalOpen, setIsKmModalOpen] = useState(false);
@@ -589,7 +590,7 @@
               <div>
                 <div style={{ fontSize: '18px', fontWeight: 'bold' }}>🚐 VAN 01 — LIVE SHUTTLE COMMAND</div>
                 <div style={{ fontSize: '14px', color: T.colors.textMuted, marginTop: '2px' }}>
-                  Driver: Mr. Bbosa Yusufu · +256 701 234567
+                  Driver: {driverProfile.fullName || 'Shuttle Driver'}{driverProfile.phone ? ' · ' + driverProfile.phone : ''}
                 </div>
               </div>
               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
