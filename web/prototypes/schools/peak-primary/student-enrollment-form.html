@@ -327,19 +327,27 @@
       <div style="font-size: 48px; margin-bottom: 12px;">🎉</div>
       <h2 style="font-size: 22px; font-weight: 700; color: #00FC8F; margin-bottom: 8px;">Enrollment Submitted!</h2>
       <p style="font-size: 13px; color: rgba(245,246,250,0.8); line-height: 1.5; margin-bottom: 20px;">
-        The child's profile has been created and instantly synced to the Head Teacher's dashboard!
+        Your submission has been sent instantly to the Head Teacher for review. Once approved, your child's profile and dashboard access will be created.
       </p>
-      <button onclick="window.location.href='/prototypes/schools/peak-primary/index.html'" style="background: #00FC8F; color: #0A1029; border: none; padding: 12px 24px; border-radius: 8px; font-weight: 800; cursor: pointer;">
-        Go to Headteacher Dashboard →
+      <button onclick="document.getElementById('successModal').style.display='none'" style="background: #00FC8F; color: #0A1029; border: none; padding: 12px 24px; border-radius: 8px; font-weight: 800; cursor: pointer;">
+        Done
       </button>
     </div>
   </div>
 
   <script>
+    var WK = 'https://nextos-sentinel.nextafricaai.workers.dev';
+    function getActiveTenant() {
+      try {
+        var p = new URLSearchParams(location.search);
+        return p.get('s') || p.get('t') || (location.pathname.match(/\/(?:s|school)\/([A-Za-z0-9_-]+)/) || [])[1]
+          || 'kabs-lily-junior-school-and-kindercare-centre';
+      } catch (e) { return 'kabs-lily-junior-school-and-kindercare-centre'; }
+    }
+
     function submitForm(e) {
       e.preventDefault();
-      const studentData = {
-        id: 'STU-' + Math.floor(1000 + Math.random() * 9000),
+      const payload = {
         name: document.getElementById('childName').value,
         petName: document.getElementById('petName').value,
         dob: document.getElementById('dob').value,
@@ -347,26 +355,35 @@
         stream: document.getElementById('classApplied').value,
         residenceType: document.getElementById('residenceType').value,
         guardian: document.getElementById('guardianName').value,
+        guardianRelation: document.getElementById('guardianRelation').value,
         guardianPhone: document.getElementById('guardianPhone').value,
         guardianEmail: document.getElementById('guardianEmail').value,
         address: document.getElementById('homeAddress').value,
         bloodGroup: document.getElementById('bloodGroup').value,
         allergies: document.getElementById('allergies').value,
         conditions: document.getElementById('chronicConditions').value,
-        fees: 'paid',
-        balance: 0,
-        enrolledAt: new Date().toISOString()
       };
 
-      // Save to localStorage
-      try {
-        const existing = JSON.parse(localStorage.getItem('kabs_lily_new_students') || '[]');
-        existing.unshift(studentData);
-        localStorage.setItem('kabs_lily_new_students', JSON.stringify(existing));
-      } catch (_) {}
+      const btn = e.target.querySelector('.btn-submit');
+      if (btn) { btn.disabled = true; btn.textContent = 'Submitting…'; }
 
-      // Show success modal
-      document.getElementById('successModal').style.display = 'grid';
+      fetch(WK + '/registrations/submit', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tenant: getActiveTenant(), type: 'student', payload: payload }),
+      })
+        .then(r => r.json())
+        .then(out => {
+          if (out.error) {
+            alert('Could not submit: ' + out.error + '\nPlease try again or contact the school office.');
+            if (btn) { btn.disabled = false; btn.textContent = 'Submit Enrollment →'; }
+            return;
+          }
+          document.getElementById('successModal').style.display = 'grid';
+        })
+        .catch(() => {
+          alert('Could not reach the school system. Check your connection and try again.');
+          if (btn) { btn.disabled = false; btn.textContent = 'Submit Enrollment →'; }
+        });
     }
 
     function shareOnWhatsApp() {

@@ -43,7 +43,8 @@ DECLARE
     'student_roll_call', 'student_notes', 'student_health_records', 'fees',
     'teacher_checkins', 'teachers', 'students', 'syllabus_coverage',
     'lesson_plans', 'school_income', 'school_expenses', 'attendance',
-    'staff_attendance', 'messages', 'payroll_deductions'
+    'staff_attendance', 'messages', 'payroll_deductions', 'class_assignments',
+    'registration_requests'
   ];
 BEGIN
   FOREACH tbl IN ARRAY tables LOOP

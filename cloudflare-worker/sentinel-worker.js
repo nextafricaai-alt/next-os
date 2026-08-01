@@ -278,7 +278,7 @@ export default {
     }
 
     // GET-allowed routes (read-only endpoints live below this gate)
-    const GET_OK = ['/check-project', '/seo-audit', '/px.js', '/analytics', '/gsc', '/ga4', '/fetch-page', '/site-pages', '/cms/collections', '/cms/items', '/students', '/exams', '/exam-results', '/fees-balances', '/attendance-summary', '/staff-status', '/attendance-watch', '/attendance/today', '/lessons-remind', '/watch/deploy-check', '/student-health', '/billing/verify', '/billing/subscriptions', '/fees/lookup', '/fees/verify', '/health', '/events', '/finance', '/assets', '/school-config', '/os-data', '/teachers', '/hosting-report', '/watch/status', '/push/vapid-public', '/push/debug', '/parent/child-data', '/messages/list'];
+    const GET_OK = ['/check-project', '/seo-audit', '/px.js', '/analytics', '/gsc', '/ga4', '/fetch-page', '/site-pages', '/cms/collections', '/cms/items', '/students', '/exams', '/exam-results', '/fees-balances', '/attendance-summary', '/staff-status', '/attendance-watch', '/attendance/today', '/lessons-remind', '/watch/deploy-check', '/student-health', '/billing/verify', '/billing/subscriptions', '/fees/lookup', '/fees/verify', '/health', '/events', '/finance', '/assets', '/school-config', '/os-data', '/teachers', '/hosting-report', '/watch/status', '/push/vapid-public', '/push/debug', '/parent/child-data', '/messages/list', '/registrations/list'];
     if (request.method !== 'POST' && !GET_OK.includes(url.pathname)) {
       return new Response('Method not allowed', { status: 405, headers: cors });
     }
@@ -450,6 +450,10 @@ export default {
     if (url.pathname === '/parent/notify')       return handleParentNotify(request, env, cors);
     if (url.pathname === '/messages/list')       return handleMessagesList(url, env, cors);
     if (url.pathname === '/messages/send')       return handleMessagesSend(request, env, cors);
+    if (url.pathname === '/registrations/submit')  return handleRegistrationSubmit(request, env, cors);
+    if (url.pathname === '/registrations/list')    return handleRegistrationList(url, env, cors);
+    if (url.pathname === '/registrations/approve') return handleRegistrationApprove(request, env, cors);
+    if (url.pathname === '/registrations/reject')  return handleRegistrationReject(request, env, cors);
     if (url.pathname === '/fees/checkout')      return handleFeesCheckout(request, env, cors);
     if (url.pathname === '/fees/verify')        return (async()=>{ const J=(o,st)=>new Response(JSON.stringify(o),{status:st||200,headers:{...cors,'Content-Type':'application/json'}}); return J(await feePayFulfil(env, url.searchParams.get('tx') || url.searchParams.get('transaction_id') || '')); })();
     if (url.pathname === '/billing/checkout')   return handleBillingCheckout(request, env, cors);
@@ -1895,6 +1899,149 @@ async function handleMessagesSend(request, env, cors) {
       deliverPushByStudent(env, tenant, studentId, { title: 'New message from ' + senderName, body: body.slice(0, 140), url: '/prototypes/schools/peak-primary/parent-dashboard.html', tag: 'msg-' + studentId }).catch(() => {});
     }
     return J({ ok: true, message: (row && row[0]) || null });
+  } catch (e) { return J({ error: String((e && e.message) || e) }, 200); }
+}
+
+// ─── Registration Requests: form submission → Headteacher approval → provisioning ──
+// See supabase-registration-requests.sql. Every route here uses the
+// service_role key server-side — this table has no anon-facing RLS
+// policy at all (it can carry NIN/bank details/health info), so there is
+// no direct-client alternative to going through the worker.
+function normName(s) { return String(s || '').trim().toLowerCase().replace(/\s+/g, ' '); }
+
+async function handleRegistrationSubmit(request, env, cors) {
+  const J = (oo, st) => new Response(JSON.stringify(oo), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
+  let b; try { b = await request.json(); } catch (e) { return J({ error: 'bad body' }, 400); }
+  const tenant = String(b.tenant || '').trim();
+  const type = String(b.type || '').trim();
+  const payload = b.payload || {};
+  if (!tenant || !['student', 'teacher'].includes(type)) return J({ error: 'tenant and type (student|teacher) required' }, 400);
+  const nameField = type === 'student' ? payload.name : payload.full_name;
+  if (!nameField || !String(nameField).trim()) return J({ error: 'name is required' }, 400);
+  if (!env.SUPABASE_URL || !env.SUPABASE_KEY) return J({ error: 'not configured' }, 500);
+  try {
+    const row = await sbWrite(env, '/registration_requests', { tenant_id: tenant, type, payload }, 'POST', 'return=representation');
+    const rec = row && row[0];
+    // Notify every head-role push subscriber for this tenant — reuses the
+    // same delivery path as staff broadcasts (deliverPush), just always
+    // targeted at role:'head' rather than staff-chosen emails.
+    deliverPush(env, tenant, [], 'head', {
+      title: 'New ' + type + ' registration',
+      body: nameField + ' just submitted a ' + type + ' form — review in Communications.',
+      url: '/prototypes/schools/peak-primary/index.html',
+      tag: 'reg-' + (rec ? rec.id : Date.now()),
+    }).catch(() => {});
+    return J({ ok: true, id: rec ? rec.id : null });
+  } catch (e) { return J({ error: String((e && e.message) || e) }, 200); }
+}
+
+async function handleRegistrationList(url, env, cors) {
+  const J = (oo, st) => new Response(JSON.stringify(oo), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
+  const tenant = url.searchParams.get('tenant') || '';
+  const status = url.searchParams.get('status') || '';
+  if (!tenant) return J({ error: 'tenant required' }, 400);
+  if (!env.SUPABASE_URL || !env.SUPABASE_KEY) return J({ error: 'not configured' }, 500);
+  try {
+    let path = '/registration_requests?tenant_id=eq.' + encodeURIComponent(tenant) + '&select=*&order=submitted_at.desc&limit=200';
+    if (status) path += '&status=eq.' + encodeURIComponent(status);
+    const rows = await sbFetch(env, path);
+    return J({ requests: rows || [] });
+  } catch (e) { return J({ requests: [], error: String((e && e.message) || e) }, 200); }
+}
+
+async function handleRegistrationApprove(request, env, cors) {
+  const J = (oo, st) => new Response(JSON.stringify(oo), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
+  let b; try { b = await request.json(); } catch (e) { return J({ error: 'bad body' }, 400); }
+  const id = b.id;
+  const reviewedBy = String(b.reviewedBy || 'Head Teacher').trim();
+  if (!id) return J({ error: 'id required' }, 400);
+  if (!env.SUPABASE_URL || !env.SUPABASE_KEY) return J({ error: 'not configured' }, 500);
+  try {
+    const found = await sbFetch(env, '/registration_requests?id=eq.' + encodeURIComponent(id) + '&select=*&limit=1');
+    const reg = found && found[0];
+    if (!reg) return J({ error: 'registration not found' }, 404);
+    if (reg.status !== 'pending') return J({ error: 'already ' + reg.status }, 400);
+    const p = reg.payload || {};
+    const tenant = reg.tenant_id;
+
+    if (reg.type === 'student') {
+      const name = String(p.name || '').trim();
+      // Smart-merge: an existing student with the same (normalized) name
+      // gets this submission's guardian info attached instead of a
+      // duplicate row — this is the "Arinitwe" case from the goal.
+      const existing = await sbFetch(env, '/students?tenant_id=eq.' + encodeURIComponent(tenant) + '&select=id,name,guardian_name,guardian_phone');
+      const match = (existing || []).find(s => normName(s.name) === normName(name));
+      if (match) {
+        const patch = {};
+        if (p.guardian) patch.guardian_name = p.guardian;
+        if (p.guardianPhone) patch.guardian_phone = p.guardianPhone;
+        patch.meta = { petName: p.petName, sex: p.sex, residenceType: p.residenceType, guardianRelation: p.guardianRelation, guardianEmail: p.guardianEmail, address: p.address, bloodGroup: p.bloodGroup, allergies: p.allergies, conditions: p.conditions };
+        if (Object.keys(patch).length) await sbWrite(env, '/students?id=eq.' + match.id, patch, 'PATCH', 'return=minimal');
+        await sbWrite(env, '/registration_requests?id=eq.' + id, { status: 'merged', reviewed_at: new Date().toISOString(), reviewed_by: reviewedBy, result_student_id: match.id, notes: 'Matched existing student "' + match.name + '" — guardian info attached, no duplicate created.' }, 'PATCH', 'return=minimal');
+        return J({ ok: true, action: 'merged', studentId: match.id });
+      }
+      const studentRow = {
+        tenant_id: tenant, name, stream: p.stream || null,
+        guardian_name: p.guardian || null, guardian_phone: p.guardianPhone || null,
+        date_of_birth: p.dob || null, status: 'active',
+        meta: { petName: p.petName, sex: p.sex, residenceType: p.residenceType, guardianRelation: p.guardianRelation, guardianEmail: p.guardianEmail, address: p.address, bloodGroup: p.bloodGroup, allergies: p.allergies, conditions: p.conditions },
+      };
+      const inserted = await sbWrite(env, '/students', studentRow, 'POST', 'return=representation');
+      const newId = inserted && inserted[0] && inserted[0].id;
+      await sbWrite(env, '/registration_requests?id=eq.' + id, { status: 'approved', reviewed_at: new Date().toISOString(), reviewed_by: reviewedBy, result_student_id: newId }, 'PATCH', 'return=minimal');
+      return J({ ok: true, action: 'created', studentId: newId });
+    }
+
+    if (reg.type === 'teacher') {
+      const fullName = String(p.full_name || '').trim();
+      const existing = await sbFetch(env, '/teachers?tenant_id=eq.' + encodeURIComponent(tenant) + '&select=id,full_name,phone');
+      const match = (existing || []).find(t => normName(t.full_name) === normName(fullName) || (p.phonePrimary && t.phone === p.phonePrimary));
+      let teacherId;
+      if (match) {
+        const patch = {};
+        if (p.email) patch.email = p.email;
+        if (p.phonePrimary) patch.phone = p.phonePrimary;
+        if (p.salary) patch.monthly_salary = Number(String(p.salary).replace(/[^0-9]/g, '')) || undefined;
+        if (p.subjects) patch.subjects = String(p.subjects).split(',').map(s => s.trim()).filter(Boolean);
+        if (Object.keys(patch).length) await sbWrite(env, '/teachers?id=eq.' + match.id, patch, 'PATCH', 'return=minimal');
+        teacherId = match.id;
+      } else {
+        const teacherRow = {
+          tenant_id: tenant, full_name: fullName, email: p.email || null, phone: p.phonePrimary || null,
+          monthly_salary: p.salary ? (Number(String(p.salary).replace(/[^0-9]/g, '')) || null) : null,
+          subjects: p.subjects ? String(p.subjects).split(',').map(s => s.trim()).filter(Boolean) : [],
+          status: 'active',
+        };
+        const inserted = await sbWrite(env, '/teachers', teacherRow, 'POST', 'return=representation');
+        teacherId = inserted && inserted[0] && inserted[0].id;
+      }
+      // Map to their class, if the form specified one — this is what
+      // makes "map the teacher to their assigned subjects" from the goal
+      // real rather than just an inert HR record.
+      if (teacherId && p.classAssigned) {
+        const subj = p.subjects ? String(p.subjects).split(',')[0].trim() : (p.position || 'General');
+        const existingAssign = await sbFetch(env, '/class_assignments?tenant_id=eq.' + encodeURIComponent(tenant) + '&teacher_id=eq.' + teacherId + '&stream=eq.' + encodeURIComponent(p.classAssigned) + '&select=id&limit=1');
+        if (!existingAssign || !existingAssign.length) {
+          await sbWrite(env, '/class_assignments', { tenant_id: tenant, teacher_id: teacherId, stream: p.classAssigned, subject: subj, is_class_teacher: true }, 'POST', 'return=minimal').catch(() => {});
+        }
+      }
+      await sbWrite(env, '/registration_requests?id=eq.' + id, { status: match ? 'merged' : 'approved', reviewed_at: new Date().toISOString(), reviewed_by: reviewedBy, result_teacher_id: teacherId, notes: match ? ('Matched existing staff "' + match.full_name + '"') : null }, 'PATCH', 'return=minimal');
+      return J({ ok: true, action: match ? 'merged' : 'created', teacherId });
+    }
+
+    return J({ error: 'unknown registration type' }, 400);
+  } catch (e) { return J({ error: String((e && e.message) || e) }, 200); }
+}
+
+async function handleRegistrationReject(request, env, cors) {
+  const J = (oo, st) => new Response(JSON.stringify(oo), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
+  let b; try { b = await request.json(); } catch (e) { return J({ error: 'bad body' }, 400); }
+  const id = b.id;
+  if (!id) return J({ error: 'id required' }, 400);
+  if (!env.SUPABASE_URL || !env.SUPABASE_KEY) return J({ error: 'not configured' }, 500);
+  try {
+    await sbWrite(env, '/registration_requests?id=eq.' + id, { status: 'rejected', reviewed_at: new Date().toISOString(), reviewed_by: String(b.reviewedBy || 'Head Teacher'), notes: b.notes || null }, 'PATCH', 'return=minimal');
+    return J({ ok: true });
   } catch (e) { return J({ error: String((e && e.message) || e) }, 200); }
 }
 

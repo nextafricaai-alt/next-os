@@ -6434,6 +6434,115 @@ window.PD_Fees = PD_Fees;
 // Peak Dark · Broadcast composer
 // Director composes a parent message — AI helps with audience, drafting, translation, send timing.
 
+// ─── Registration approval queue ────────────────────────────────────────
+// student-enrollment-form.html and staff-hr-form.html POST here via the
+// worker's /registrations/* routes (see cloudflare-worker/
+// supabase-registration-requests.sql — new table, service-role only, no
+// anon RLS policy since submissions can carry NIN/bank details). This is
+// the Headteacher-facing approval step: on Approve, the worker itself
+// provisions the real students/teachers row (+ class_assignments for
+// teachers), with dedup/smart-merge against existing records.
+function RegistrationApprovalCard() {
+  const T = window.V4.T;
+  const { useState, useEffect } = React;
+  const WK = 'https://nextos-sentinel.nextafricaai.workers.dev';
+  const [requests, setRequests] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [busyId, setBusyId] = useState(null);
+
+  const tenant = () => (typeof window.getOSActiveTenant === 'function' ? window.getOSActiveTenant() : 'kabs-lily-junior-school-and-kindercare-centre');
+  const profile = (window.PEAK_ROLE && window.PEAK_ROLE.getProfile && window.PEAK_ROLE.getProfile()) || {};
+
+  const load = () => {
+    fetch(WK + '/registrations/list?tenant=' + encodeURIComponent(tenant()) + '&status=pending')
+      .then(r => r.json()).then(out => { setRequests(out.requests || []); setLoading(false); })
+      .catch(() => setLoading(false));
+  };
+  useEffect(() => { load(); }, []);
+
+  useEffect(() => {
+    const sb = window.NextSession && window.NextSession.sb;
+    if (!sb) return;
+    const ch = sb.channel('reg-approval-' + Math.random().toString(36).slice(2))
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'registration_requests', filter: 'tenant_id=eq.' + tenant() }, () => {
+        load();
+        window.peakToast && window.peakToast('New registration submitted — review below.', 'info');
+      })
+      .subscribe();
+    const poll = setInterval(load, 20000); // fallback if realtime publication hasn't been enabled for this table yet
+    return () => { try { sb.removeChannel(ch); } catch (e) {} clearInterval(poll); };
+  }, []);
+
+  const approve = async (id) => {
+    setBusyId(id);
+    try {
+      const res = await fetch(WK + '/registrations/approve', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, reviewedBy: profile.fullName || 'Head Teacher' }),
+      });
+      const out = await res.json();
+      if (out.error) { window.peakToast && window.peakToast('Could not approve: ' + out.error, 'error'); }
+      else {
+        window.peakToast && window.peakToast(
+          out.action === 'merged' ? 'Matched an existing record — no duplicate created.' : 'Approved — profile & dashboard access created.',
+          'success'
+        );
+        load();
+      }
+    } catch (e) { window.peakToast && window.peakToast('Could not reach the school system.', 'error'); }
+    setBusyId(null);
+  };
+
+  const reject = async (id) => {
+    setBusyId(id);
+    try {
+      await fetch(WK + '/registrations/reject', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, reviewedBy: profile.fullName || 'Head Teacher' }),
+      });
+      window.peakToast && window.peakToast('Registration rejected.', 'info');
+      load();
+    } catch (e) {}
+    setBusyId(null);
+  };
+
+  if (!loading && requests.length === 0) return null; // nothing pending — stay out of the way
+
+  return (
+    <div style={{ margin: '0 24px 20px', background: T.surface, border: '1px solid rgba(226,58,82,0.35)', borderRadius: 12, padding: 18 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+        <span style={{ fontSize: 13, fontWeight: 700, color: T.ink }}>📋 Pending Registrations</span>
+        {requests.length > 0 && <span style={{ fontSize: 11, fontWeight: 700, background: T.red, color: '#fff', borderRadius: 999, padding: '2px 8px' }}>{requests.length}</span>}
+      </div>
+      {loading ? (
+        <div style={{ fontSize: 12.5, color: T.ink3 }}>Loading…</div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {requests.map(r => {
+            const p = r.payload || {};
+            const name = r.type === 'student' ? p.name : p.full_name;
+            const sub = r.type === 'student'
+              ? (p.stream || 'no class specified') + (p.guardian ? ' · Guardian: ' + p.guardian : '')
+              : (p.position || 'Teacher') + (p.classAssigned ? ' · ' + p.classAssigned : '') + (p.salary ? ' · UGX ' + p.salary : '');
+            return (
+              <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', background: T.surface2 || T.bg, borderRadius: 9 }}>
+                <span style={{ fontSize: 16 }}>{r.type === 'student' ? '🎒' : '🧑‍🏫'}</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: T.ink }}>{name || 'Unnamed'} <span style={{ fontSize: 10.5, color: T.ink3, fontWeight: 400 }}>· {r.type}</span></div>
+                  <div style={{ fontSize: 11, color: T.ink3, marginTop: 2 }}>{sub}</div>
+                </div>
+                <button onClick={() => reject(r.id)} disabled={busyId === r.id} style={{ background: 'transparent', border: '1px solid ' + T.border, color: T.ink3, padding: '6px 12px', borderRadius: 7, fontSize: 11.5, cursor: busyId === r.id ? 'wait' : 'pointer', fontWeight: 600 }}>Reject</button>
+                <button onClick={() => approve(r.id)} disabled={busyId === r.id} style={{ background: T.good || '#00FC8F', border: 'none', color: T.bg || '#0A1029', padding: '6px 14px', borderRadius: 7, fontSize: 11.5, cursor: busyId === r.id ? 'wait' : 'pointer', fontWeight: 700 }}>{busyId === r.id ? '…' : 'Approve'}</button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+window.RegistrationApprovalCard = RegistrationApprovalCard;
+
 const PD_Broadcast = (function () {
   const T = window.V4.T;
   const D = window.PEAK || window.PEAK_FALLBACK;
@@ -6615,6 +6724,8 @@ const PD_Broadcast = (function () {
           <div style={{ fontSize: 24, fontWeight: 700, letterSpacing: '-0.02em' }}>Message guardians</div>
           <div style={{ fontSize: 13, color: T.ink3, marginTop: 4, maxWidth: 640 }}>Pick who to reach, write the message once, and send each guardian a personalised WhatsApp. Numbers come straight from your real student roster.</div>
         </header>
+
+        {window.RegistrationApprovalCard && <div style={{ paddingTop: 20 }}><window.RegistrationApprovalCard /></div>}
 
         <div style={{ padding: 24, display: 'grid', gridTemplateColumns: embed ? '1fr 1fr' : '1fr 1fr', gap: 18, alignItems: 'start' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>

@@ -293,36 +293,64 @@
       <div style="font-size: 48px; margin-bottom: 12px;">✅</div>
       <h2 style="font-size: 22px; font-weight: 700; color: #3B82F6; margin-bottom: 8px;">HR Record Submitted!</h2>
       <p style="font-size: 13px; color: rgba(245,246,250,0.8); line-height: 1.5; margin-bottom: 20px;">
-        Staff profile & salary entry have been added to the Head Teacher's staff panel & payroll system!
+        Your HR submission has been sent instantly to the Head Teacher for review. Once approved, your staff profile, login, and payroll entry will be created.
       </p>
-      <button onclick="window.location.href='/prototypes/schools/peak-primary/index.html'" style="background: #3B82F6; color: #FFFFFF; border: none; padding: 12px 24px; border-radius: 8px; font-weight: 800; cursor: pointer;">
-        Go to Staff Directory →
+      <button onclick="document.getElementById('successModal').style.display='none'" style="background: #3B82F6; color: #FFFFFF; border: none; padding: 12px 24px; border-radius: 8px; font-weight: 800; cursor: pointer;">
+        Done
       </button>
     </div>
   </div>
 
   <script>
+    var WK = 'https://nextos-sentinel.nextafricaai.workers.dev';
+    function getActiveTenant() {
+      try {
+        var p = new URLSearchParams(location.search);
+        return p.get('s') || p.get('t') || (location.pathname.match(/\/(?:s|school)\/([A-Za-z0-9_-]+)/) || [])[1]
+          || 'kabs-lily-junior-school-and-kindercare-centre';
+      } catch (e) { return 'kabs-lily-junior-school-and-kindercare-centre'; }
+    }
+
     function submitHrForm(e) {
       e.preventDefault();
-      const staffData = {
-        id: 'STAFF-' + Math.floor(1000 + Math.random() * 9000),
+      const payload = {
         full_name: document.getElementById('staffName').value,
-        phone: document.getElementById('phonePrimary').value,
+        dob: document.getElementById('dob').value,
+        sex: document.getElementById('sex').value,
+        nin: document.getElementById('nin').value,
+        nationality: document.getElementById('nationality').value,
+        phonePrimary: document.getElementById('phonePrimary').value,
+        phoneAlt: document.getElementById('phoneAlt').value,
         email: document.getElementById('email').value,
+        position: document.getElementById('position').value,
         classAssigned: document.getElementById('classAssigned').value,
-        subjects: document.getElementById('subjects').value.split(',').map(s => s.trim()),
-        salary: Number(document.getElementById('salary').value.replace(/[^0-9]/g, '')) || 300000,
-        status: 'in',
-        submittedAt: new Date().toISOString()
+        subjects: document.getElementById('subjects').value,
+        salary: document.getElementById('salary').value,
+        momoNumber: document.getElementById('momoNumber').value,
+        bankName: document.getElementById('bankName').value,
+        accountNumber: document.getElementById('accountNumber').value,
       };
 
-      try {
-        const existing = JSON.parse(localStorage.getItem('kabs_lily_new_teachers') || '[]');
-        existing.unshift(staffData);
-        localStorage.setItem('kabs_lily_new_teachers', JSON.stringify(existing));
-      } catch (_) {}
+      const btn = e.target.querySelector('.btn-submit');
+      if (btn) { btn.disabled = true; btn.textContent = 'Submitting…'; }
 
-      document.getElementById('successModal').style.display = 'grid';
+      fetch(WK + '/registrations/submit', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tenant: getActiveTenant(), type: 'teacher', payload: payload }),
+      })
+        .then(r => r.json())
+        .then(out => {
+          if (out.error) {
+            alert('Could not submit: ' + out.error + '\nPlease try again or contact the school office.');
+            if (btn) { btn.disabled = false; btn.textContent = 'Submit HR Information →'; }
+            return;
+          }
+          document.getElementById('successModal').style.display = 'grid';
+        })
+        .catch(() => {
+          alert('Could not reach the school system. Check your connection and try again.');
+          if (btn) { btn.disabled = false; btn.textContent = 'Submit HR Information →'; }
+        });
     }
 
     function shareHrOnWhatsApp() {
