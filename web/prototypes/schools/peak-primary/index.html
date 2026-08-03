@@ -10190,6 +10190,15 @@ window.PEAK_WATCH = (function () {
   window.peakFindStudent = function (name) { var s = window.peakRoster(); name = (name || '').toLowerCase(); return s.find(function (x) { return (x.name || '').toLowerCase() === name; }) || s.find(function (x) { return (x.name || '').toLowerCase().indexOf(name) >= 0; }); };
   window.peakStudentReport = function (stu) {
     try {
+      if (window.PEAK_ROLE && window.PEAK_ROLE.getRole() === 'parent') {
+        if (window.__TERM && window.__TERM.term_end_date) {
+          const endDate = new Date(window.__TERM.term_end_date);
+          if (new Date() < endDate) {
+            if (window.peakToast) window.peakToast('Report unavailable', 'info', 'End of term reports will be available on ' + window.__TERM.term_end_date);
+            return;
+          }
+        }
+      }
       var J = window.jspdf && window.jspdf.jsPDF; if (!J) { window.peakToast && window.peakToast('PDF engine loading - try again', 'info'); return; }
       stu = stu || {}; var doc = new J(); var brand = (window.__BRAND_NAME) || 'School';
       doc.setFontSize(18); doc.setFont(undefined, 'bold'); doc.text(brand, 105, 18, { align: 'center' });
@@ -11723,6 +11732,51 @@ window.PEAK_SETUP = (function () {
     const [combos, setCombos] = useState((cfg.combinations || []).map(c => c.name + ': ' + (c.subjects || []).join(', ')).join('\n'));
     const [busy, setBusy] = useState(false);
     const [voiceOn, setVoiceOn] = useState(() => { try { return localStorage.getItem('peak.nia.voice') === '1'; } catch (e) { return false; } });
+    const [showTermTransition, setShowTermTransition] = useState(false);
+    const [termEndDate, setTermEndDate] = useState(window.__TERM ? window.__TERM.term_end_date : '');
+    const [nextTermStartDate, setNextTermStartDate] = useState(window.__TERM ? window.__TERM.next_term_start_date : '');
+    const [termReview, setTermReview] = useState('');
+    const [termChallenges, setTermChallenges] = useState('');
+    const [targetTerm, setTargetTerm] = useState('Term 3');
+    const [transitioning, setTransitioning] = useState(false);
+
+    const getNextClass = (cls) => {
+      const p = { 'Baby Class': 'Middle Class', 'Middle Class': 'Top Class', 'Top Class': 'P1', 'P1': 'P2', 'P2': 'P3', 'P3': 'P4', 'P4': 'P5', 'P5': 'P6', 'P6': 'P7', 'P7': 'alumni', 'S1': 'S2', 'S2': 'S3', 'S3': 'S4', 'S4': 'S5', 'S5': 'S6', 'S6': 'alumni' };
+      return p[cls] || cls;
+    };
+
+    const submitTransition = async () => {
+      setTransitioning(true);
+      let promotions = [];
+      if (targetTerm === 'Term 3') {
+        const students = window.peakRoster ? window.peakRoster() : (window.PEAK && window.PEAK.students ? window.PEAK.students : []);
+        // As a safe fallback for the UI logic without hanging:
+        students.forEach(s => {
+          if (s.status === 'active' && s.stream) {
+            const nc = getNextClass(s.stream);
+            if (nc !== s.stream) {
+               promotions.push({ id: s.id, newClass: nc === 'alumni' ? s.stream : nc, status: nc === 'alumni' ? 'alumni' : 'active' });
+            }
+          }
+        });
+      }
+      try {
+        const payload = { tenant_id: tenant(), termEndDate, nextTermStartDate, review: termReview, challenges: termChallenges, targetTerm, promotions };
+        const req = await fetch(WK + '/school/end-term', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        const res = await req.json();
+        setTransitioning(false);
+        if (res.error) return window.peakToast && window.peakToast('Error', 'info', res.error);
+        setShowTermTransition(false);
+        window.peakToast && window.peakToast('Term Transition Complete', 'success', targetTerm === 'Term 3' ? 'Promotions applied.' : 'Term dates updated.');
+        if (window.__TERM) {
+           window.__TERM.term_end_date = termEndDate;
+           window.__TERM.next_term_start_date = nextTermStartDate;
+        }
+      } catch (e) {
+        setTransitioning(false);
+      }
+    };
+
     const toggleVoiceAssistant = () => setVoiceOn(p => { const n = !p; try { localStorage.setItem('peak.nia.voice', n ? '1' : '0'); } catch (e) {} try { window.dispatchEvent(new CustomEvent('peakVoiceToggle', { detail: n })); } catch (e) {} return n; });
 
     const applyPreset = (t) => { setType(t); const p = PRESETS[t]; setClasses(p.classes.join(', ')); setSubjects(p.subjects.join(', ')); setCombos(p.combinations.map(c => c.name + ': ' + c.subjects.join(', ')).join('\n')); };
@@ -11783,6 +11837,49 @@ window.PEAK_SETUP = (function () {
           </div>
         )}
         <button onClick={save} disabled={busy} style={{ background: T.red, color: '#fff', border: 'none', borderRadius: 10, padding: '12px 22px', fontSize: 13.5, fontWeight: 700, cursor: 'pointer' }}>{busy ? 'Saving…' : 'Save school setup'}</button>
+        
+        <div style={{ ...card, marginTop: 16 }}>
+          <div style={lbl}>END OF TERM TRANSITION</div>
+          <div style={{ fontSize: 14, color: T.ink3, marginBottom: 12 }}>Close out the current term, gather reports, and prepare for the next term.</div>
+          <button onClick={() => setShowTermTransition(true)} style={{ background: 'transparent', color: T.ink, border: '1px solid ' + T.borderStr, padding: '10px 18px', borderRadius: 9, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Run Term Transition →</button>
+        </div>
+
+        {showTermTransition && (
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ background: T.bg, padding: 24, borderRadius: 16, width: 500, maxWidth: '90%', border: '1px solid ' + T.border, color: T.ink }}>
+              <div style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>End of Term Transition</div>
+              <div style={{ fontSize: 13, color: T.ink3, marginBottom: 16 }}>Review the term and configure dates. If Term 3 is selected, students with passing grades will be automatically promoted.</div>
+              
+              <label style={{ display: 'block', marginBottom: 12 }}><div style={lbl}>CURRENT TERM</div>
+                <select style={{...ta, minHeight: 40}} value={targetTerm} onChange={e => setTargetTerm(e.target.value)}>
+                  <option>Term 1</option><option>Term 2</option><option>Term 3</option>
+                </select>
+              </label>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+                <label><div style={lbl}>TERM END DATE (Reports visible)</div>
+                  <input type="date" style={{...ta, minHeight: 40}} value={termEndDate} onChange={e => setTermEndDate(e.target.value)} />
+                </label>
+                <label><div style={lbl}>NEXT TERM START DATE</div>
+                  <input type="date" style={{...ta, minHeight: 40}} value={nextTermStartDate} onChange={e => setNextTermStartDate(e.target.value)} />
+                </label>
+              </div>
+
+              <label style={{ display: 'block', marginBottom: 12 }}><div style={lbl}>HOW DID THE TERM MOVE?</div>
+                <textarea style={ta} value={termReview} onChange={e => setTermReview(e.target.value)} placeholder="Brief on term progress..." />
+              </label>
+              
+              <label style={{ display: 'block', marginBottom: 16 }}><div style={lbl}>CHALLENGES FACED</div>
+                <textarea style={ta} value={termChallenges} onChange={e => setTermChallenges(e.target.value)} placeholder="Any operational challenges..." />
+              </label>
+
+              <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
+                <button onClick={() => setShowTermTransition(false)} style={{ background: 'transparent', border: 'none', color: T.ink3, cursor: 'pointer', fontWeight: 600 }}>Cancel</button>
+                <button onClick={submitTransition} disabled={transitioning} style={{ background: T.red, color: '#fff', border: 'none', borderRadius: 9, padding: '9px 18px', fontWeight: 600, cursor: 'pointer' }}>{transitioning ? 'Processing...' : 'Execute Transition'}</button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }

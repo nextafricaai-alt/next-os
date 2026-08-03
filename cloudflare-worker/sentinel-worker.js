@@ -418,6 +418,7 @@ export default {
     if (url.pathname === '/fees/import') return handleFeesImport(request, env, cors);
 
     // ─── Exams + grading ──
+    if (url.pathname === '/school/end-term')    return handleEndTerm(request, env, cors);
     if (url.pathname === '/exams')              return handleExamsList(url.searchParams.get('tenant') || '', env, cors);
     if (url.pathname === '/exams/save')         return handleExamSave(request, env, cors);
     if (url.pathname === '/exam-results')       return handleResultsList(url.searchParams.get('tenant') || '', url.searchParams.get('exam') || '', env, cors);
@@ -1184,7 +1185,10 @@ export const scheduledHandler = async (event, env, ctx) => {
   // System health heartbeat (every 30 min, 24/7)
   if (cron === '*/30 * * * *') { await runHealthHeartbeat(env); return; }
   let kind = 'pulse';
-  if (cron === '30 3 * * *') kind = 'morning';      // 6:30am EAT = 03:30 UTC
+  if (cron === '30 3 * * *') {
+    kind = 'morning';
+    await checkNextTermStarts(env);
+  }
   else if (cron === '0 15 * * 5') kind = 'weekly';  // Fri 6pm EAT = 15:00 UTC
   await runSupervise(env, kind);
 };
@@ -2817,6 +2821,47 @@ async function handleAttendanceSummary(tenant, days, env, cors) {
     Object.keys(agg).forEach(k => { const a = agg[k]; summary[k] = { pct: Math.round(100 * a.present / a.tot), days: a.tot }; });
     return J({ tenant, since, summary });
   } catch (e) { return J({ error: String((e && e.message) || e), tenant }, 200); }
+}
+
+async function checkNextTermStarts(env) {
+  try {
+    const tomorrow = new Date(Date.now() + 24 * 3600000);
+    const tomStr = tomorrow.toISOString().split('T')[0];
+    const res = await fetch(env.SUPABASE_URL + '/rest/v1/os_data?kind=eq.term_config', { headers: sbHeaders(env) });
+    const data = await res.json();
+    if (!data) return;
+    for (const row of data) {
+      if (row.payload && row.payload.next_term_start_date === tomStr) {
+        const tenant = row.tenant_id;
+        const msg = "Friendly reminder: " + (row.payload.name || "The next term") + " begins tomorrow (" + tomStr + "). We look forward to welcoming everyone back!";
+        await fetch(env.SUPABASE_URL + '/rest/v1/os_data', { method: 'POST', headers: sbHeaders(env), body: JSON.stringify({ tenant_id: tenant, kind: 'broadcast', payload: { type: 'term_start_reminder', text: msg, to: 'all', date: new Date().toISOString() } }) });
+      }
+    }
+  } catch(e) {}
+}
+
+async function handleEndTerm(request, env, cors) {
+  const J = (oo, st) => new Response(JSON.stringify(oo), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
+  if (!env.SUPABASE_URL || !env.SUPABASE_KEY) return J({ error: 'Supabase not configured.' }, 500);
+  let b; try { b = await request.json(); } catch (e) { return J({ error: 'bad body' }, 400); }
+  const tenant = String(b.tenant_id || '').trim();
+  if (!tenant) return J({ error: 'tenant_id required' }, 400);
+  try {
+    const termConfig = { name: b.targetTerm || 'Term 3', term_end_date: b.termEndDate, next_term_start_date: b.nextTermStartDate };
+    await fetch(env.SUPABASE_URL + '/rest/v1/os_data?on_conflict=tenant_id,kind', { method: 'POST', headers: sbHeaders(env, 'resolution=merge-duplicates'), body: JSON.stringify({ tenant_id: tenant, kind: 'term_config', payload: termConfig }) });
+    
+    const termReview = { review: b.review, challenges: b.challenges, term: b.targetTerm };
+    await fetch(env.SUPABASE_URL + '/rest/v1/os_data', { method: 'POST', headers: sbHeaders(env), body: JSON.stringify({ tenant_id: tenant, kind: 'term_reviews', payload: termReview }) });
+
+    if (b.promotions && b.promotions.length > 0) {
+      for (const p of b.promotions) {
+        await fetch(env.SUPABASE_URL + '/rest/v1/students?id=eq.' + p.id, { method: 'PATCH', headers: sbHeaders(env), body: JSON.stringify({ stream: p.newClass, status: p.status || 'active' }) });
+      }
+    }
+    return J({ ok: true });
+  } catch (e) {
+    return J({ error: String((e && e.message) || e) }, 500);
+  }
 }
 
 async function handleExamsList(tenant, env, cors) {
