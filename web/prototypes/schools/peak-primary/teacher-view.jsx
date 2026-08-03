@@ -257,16 +257,25 @@
   async function verifyAtSchoolGate(tenantId) {
     const gate = SCHOOL_GATE_LOCATIONS[tenantId];
     if (!gate) return { ok: true, distance: null, accuracy: null };
+
+    const proceed = window.confirm("Please ensure your device Location (GPS) is turned ON before checking in. Continue?");
+    if (!proceed) throw new Error("Check-in cancelled. Please turn on Location when ready.");
+
     let pos;
     try {
-      pos = await getCurrentPositionAsync({ enableHighAccuracy: true, timeout: 10000, maximumAge: 0 });
+      pos = await getCurrentPositionAsync({ enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
     } catch (e) {
-      throw new Error('Could not get your location (' + (e.message || 'permission denied') + '). Enable location access to check in.');
+      throw new Error('Could not get your location (' + (e.message || 'permission denied') + '). Please turn ON Location Services in your device settings.');
     }
     const distance = distanceMeters(pos.coords.latitude, pos.coords.longitude, gate.lat, gate.lng);
     const accuracy = pos.coords.accuracy;
+
+    if (accuracy > 300) {
+      throw new Error("Your GPS signal is too weak (accuracy: " + Math.round(accuracy) + "m). Make sure Location is fully enabled and step outside for a better signal.");
+    }
+
     if (distance > CHECKIN_GEOFENCE_RADIUS_M) {
-      throw new Error("You're " + Math.round(distance) + 'm from the school gate (must be within ' + CHECKIN_GEOFENCE_RADIUS_M + 'm). Move closer and try again.');
+      throw new Error("You appear to be " + Math.round(distance) + "m from the school gate (must be within " + CHECKIN_GEOFENCE_RADIUS_M + "m). If you are at school, your GPS is still updating. Wait 5 seconds and try again.");
     }
     return { ok: true, distance, accuracy };
   }
