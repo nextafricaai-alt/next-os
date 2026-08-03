@@ -1062,6 +1062,12 @@
   async function writeHealthRecord(record) {
     const sb = window.NextSession?.sb;
     if (!sb) return { error: 'No session' };
+    
+    // Ensure recorded_at is present so the UI can sort and display it properly
+    if (!record.recorded_at) {
+      record.recorded_at = new Date().toISOString();
+    }
+    
     const { data, error } = await sb
       .from('student_health_records')
       .insert(record)
@@ -2849,17 +2855,24 @@
       if (!draft.trim()) return;
       setSaving(true);
       try {
-        const WK = window.WK || 'https://peak-worker.nextafrica.workers.dev';
+        const sb = window.NextSession?.sb;
+        if (!sb) throw new Error("No database session");
+        
         const tenant = (window.PEAK_ROLE && window.PEAK_ROLE.getProfile && window.PEAK_ROLE.getProfile().tenantId) || 'kabs-lily-junior-school-and-kindercare-centre';
-        const rec = { teacher_id: teacher.id, teacher_name: teacher.full_name || teacher.email, message: draft.trim(), at: new Date().toISOString() };
-        await fetch(WK + '/os-data/save', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ kind: 'teacher_log', tenant: tenant, record: rec })
+        const { error } = await sb.from('teacher_logs').insert({
+          tenant_id: tenant,
+          teacher_id: teacher.id,
+          teacher_name: teacher.full_name || teacher.email,
+          message: draft.trim(),
+          recorded_at: new Date().toISOString()
         });
+        
+        if (error) throw error;
+        
         window.peakToast && window.peakToast('Log submitted', 'success', 'Thank you for your update.');
         setDraft('');
       } catch (e) {
+        console.error("Log submission error:", e);
         window.peakToast && window.peakToast('Could not submit log', 'error');
       }
       setSaving(false);
@@ -6970,11 +6983,21 @@ const PD_Broadcast = (function () {
     const [view, setView] = useState('broadcast');
     const [logs, setLogs] = useState([]);
     
-    const loadLogs = () => {
+    const loadLogs = async () => {
       const tenant = (window.PEAK_ROLE && window.PEAK_ROLE.getProfile && window.PEAK_ROLE.getProfile().tenantId) || 'kabs-lily-junior-school-and-kindercare-centre';
-      fetch((window.WK || 'https://peak-worker.nextafrica.workers.dev') + '/os-data?kind=teacher_log&tenant=' + encodeURIComponent(tenant))
-        .then(r => r.json()).then(d => { setLogs((d.records || []).map(x => Object.assign({_id: x.id}, x.payload)).sort((a,b) => String(b.at||'').localeCompare(String(a.at||'')))); })
-        .catch(()=>{});
+      const sb = window.NextSession?.sb;
+      if (sb) {
+        const { data, error } = await sb.from('teacher_logs')
+          .select('*')
+          .eq('tenant_id', tenant)
+          .order('recorded_at', { ascending: false });
+        if (error) {
+          console.error("Error fetching teacher logs:", error);
+        }
+        if (data) {
+          setLogs(data.map(x => Object.assign({ _id: x.id }, x)));
+        }
+      }
     };
     useEffect(() => { if (view === 'suggestions') loadLogs(); }, [view]);
 
@@ -7194,13 +7217,18 @@ const PD_Broadcast = (function () {
         ) : (
           <div style={{ padding: 24 }}>
             <div style={{ maxWidth: 800 }}>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
+                <button onClick={loadLogs} style={{ background: 'transparent', border: '1px solid ' + T.borderStr, padding: '5px 12px', borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: 'pointer', color: T.ink2 }}>
+                  Refresh Logs
+                </button>
+              </div>
               {logs.length === 0 ? (
                  <div style={{ fontSize: 13, color: T.ink3, textAlign: 'center', padding: 40, border: '1px dashed ' + T.border, borderRadius: 12 }}>No logs or suggestions from teachers yet.</div>
               ) : logs.map(l => (
                  <div key={l._id} style={{ padding: 18, background: T.surface, border: '1px solid ' + T.border, borderRadius: 12, marginBottom: 12 }}>
                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
                      <div style={{ fontWeight: 600, fontSize: 14 }}>{l.teacher_name || 'Teacher'}</div>
-                     <div style={{ fontSize: 11, color: T.ink3, fontFamily: T.mono }}>{l.at ? new Date(l.at).toLocaleString() : ''}</div>
+                     <div style={{ fontSize: 11, color: T.ink3, fontFamily: T.mono }}>{l.recorded_at ? new Date(l.recorded_at).toLocaleString() : ''}</div>
                    </div>
                    <div style={{ fontSize: 13, color: T.ink, whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>{l.message}</div>
                  </div>
