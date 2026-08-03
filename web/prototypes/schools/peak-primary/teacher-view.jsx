@@ -106,12 +106,40 @@
       .eq('teacher_id', teacher.id)
       .order('planned_week', { ascending: true });
 
-    const { data: payroll } = await sb
-      .from('teacher_payroll')
-      .select('id, month, amount, status, paid_at, channel')
-      .eq('teacher_id', teacher.id)
-      .order('month', { ascending: false })
-      .limit(3);
+    let payroll = [];
+    try {
+      const wk = window.WK || 'https://peak-worker.nextafrica.workers.dev';
+      const res = await fetch(wk + '/os-data/list?tenant=' + tenantId + '&kind=staff_pay');
+      if (res.ok) {
+        const json = await res.json();
+        const records = json.records || [];
+        const myPay = records.find(r => (r.email && r.email.toLowerCase() === teacher.email?.toLowerCase()) || (r.name && r.name.toLowerCase() === teacher.name?.toLowerCase()));
+        if (myPay && ((myPay.monthly || 0) + (myPay.allowance || 0) > 0)) {
+          const dt = new Date();
+          const ms = new Date(dt.getFullYear(), dt.getMonth(), 1).toISOString().slice(0, 10);
+          payroll = [{
+            id: myPay._id || Date.now(),
+            month: ms,
+            amount: (myPay.monthly || 0) + (myPay.allowance || 0),
+            status: 'paid', // Assumed for the dashboard preview
+            paid_at: dt.toISOString(),
+            channel: 'bank'
+          }];
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to fetch OS data staff_pay', e);
+    }
+    
+    if (payroll.length === 0) {
+      const { data: pay } = await sb
+        .from('teacher_payroll')
+        .select('id, month, amount, status, paid_at, channel')
+        .eq('teacher_id', teacher.id)
+        .order('month', { ascending: false })
+        .limit(3);
+      payroll = pay || [];
+    }
 
     // Deductions (late check-ins, syllabus delays) for the same 3 months,
     // so the payslip can show net pay, not just the base salary amount.
@@ -1722,10 +1750,13 @@
     );
   }
 
-  function TeacherExamsCard({ exams, assignments, teacherId, tenantId, onChanged }) {
-    const [view, setView] = useState('list'); // list | add
+  function TeacherExamsCard({ exams, assignments, students, teacherId, tenantId, onChanged }) {
+    const [view, setView] = useState('list'); // list | add | mark
     const [form, setForm] = useState({ name: '', stream: '', subject: '', passmark: 50, out_of: 100 });
     const [saving, setSaving] = useState(false);
+    const [examToMark, setExamToMark] = useState(null);
+    const [marks, setMarks] = useState({}); // { studentId: score }
+    const [loadingMarks, setLoadingMarks] = useState(false);
 
     // Get unique streams and subjects the teacher is assigned to
     const myStreams = Array.from(new Set((assignments || []).map(a => a.stream)));
@@ -1803,6 +1834,71 @@
       );
     }
 
+    if (view === 'mark' && examToMark) {
+      const examStudents = (students || []).filter(s => s.stream === examToMark.config?.stream);
+      const subject = examToMark.subjects[0];
+      const maxMarks = examToMark.config?.max_marks || 100;
+      
+      const handleSaveMarks = async () => {
+        setSaving(true);
+        const sb = window.NextSession?.sb;
+        if (sb) {
+          // Upsert marks for each student
+          const promises = Object.keys(marks).map(async (sid) => {
+            if (marks[sid] === '') return;
+            // First fetch existing
+            const { data: existing } = await sb.from('exam_results').select('id, marks').eq('tenant_id', tenantId).eq('exam_id', examToMark.id).eq('student_id', sid).single();
+            const newMarks = existing?.marks || {};
+            newMarks[subject] = Number(marks[sid]);
+            
+            if (existing) {
+              await sb.from('exam_results').update({ marks: newMarks, updated_at: new Date().toISOString() }).eq('id', existing.id);
+            } else {
+              await sb.from('exam_results').insert({
+                tenant_id: tenantId,
+                exam_id: examToMark.id,
+                student_id: sid,
+                marks: newMarks
+              });
+            }
+          });
+          await Promise.all(promises);
+          tinyToast('Marks saved successfully', 'success');
+        }
+        setSaving(false);
+      };
+
+      return (
+        <Card title={`Marking: ${examToMark.name}`} rightAction={<button onClick={() => { setView('list'); setExamToMark(null); }} style={{ background: 'transparent', border: 0, color: T.ink3, cursor: 'pointer', padding: 8 }}>Back</button>}>
+          <div style={{ fontSize: 12, color: T.ink3, marginBottom: 16 }}>
+            {examToMark.config?.stream} • {subject} • Out of {maxMarks}
+          </div>
+          {loadingMarks ? (
+            <div style={{ padding: 20, textAlign: 'center', color: T.ink3 }}>Loading...</div>
+          ) : examStudents.length === 0 ? (
+            <div style={{ padding: 20, textAlign: 'center', color: T.ink3 }}>No students found in {examToMark.config?.stream}.</div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {examStudents.map(st => (
+                <div key={st.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', background: T.surface2, borderRadius: 8 }}>
+                  <div style={{ fontSize: 13, fontWeight: 500 }}>{st.name}</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <input type="number" min="0" max={maxMarks} placeholder="-" value={marks[st.id] !== undefined ? marks[st.id] : ''} onChange={e => setMarks({...marks, [st.id]: e.target.value})} style={{ width: 60, padding: '6px 8px', border: '1px solid ' + T.borderStr, borderRadius: 6, background: T.bg, color: T.ink, fontFamily: T.mono, fontSize: 13, textAlign: 'center' }} />
+                    <span style={{ fontSize: 12, color: T.ink3 }}>/ {maxMarks}</span>
+                  </div>
+                </div>
+              ))}
+              <div style={{ marginTop: 8 }}>
+                <button onClick={handleSaveMarks} disabled={saving} style={{ width: '100%', background: T.brand, color: T.bg, border: 0, padding: '12px', borderRadius: 8, fontWeight: 600, cursor: saving ? 'wait' : 'pointer' }}>
+                  {saving ? 'Saving...' : 'Save All Marks'}
+                </button>
+              </div>
+            </div>
+          )}
+        </Card>
+      );
+    }
+
     return (
       <Card title="My Exams" rightAction={<button onClick={() => setView('add')} style={{ background: T.brand, color: T.bg, border: 0, padding: '6px 12px', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>+ Add Exam</button>}>
         {(!exams || exams.length === 0) ? (
@@ -1817,7 +1913,23 @@
                     {ex.config?.stream} • {ex.subjects[0]} • Pass: {ex.config?.passmark}/{ex.config?.max_marks}
                   </div>
                 </div>
-                <button onClick={() => { window.location.hash = 'reports'; tinyToast('Entering marks via Reports view', 'info'); }} style={{ background: 'transparent', border: '1px solid ' + T.borderStr, color: T.brand, padding: '6px 12px', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                <button onClick={async () => { 
+                  setExamToMark(ex); 
+                  setView('mark');
+                  setLoadingMarks(true);
+                  const sb = window.NextSession?.sb;
+                  if (sb) {
+                    const { data: res } = await sb.from('exam_results').select('student_id, marks').eq('exam_id', ex.id);
+                    const initMarks = {};
+                    (res || []).forEach(r => {
+                      if (r.marks && r.marks[ex.subjects[0]] !== undefined) {
+                        initMarks[r.student_id] = r.marks[ex.subjects[0]];
+                      }
+                    });
+                    setMarks(initMarks);
+                  }
+                  setLoadingMarks(false);
+                }} style={{ background: 'transparent', border: '1px solid ' + T.borderStr, color: T.brand, padding: '6px 12px', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
                   Enter Marks
                 </button>
               </div>
@@ -2374,7 +2486,7 @@
                 onChanged={refresh}
               />
               <SyllabusCard syllabus={data.syllabus} onChanged={refresh} />
-              <TeacherExamsCard exams={data.exams} assignments={data.assignments} teacherId={data.teacher && data.teacher.id} tenantId={profile.tenantId || 'kabs-lily-junior-school-and-kindercare-centre'} onChanged={refresh} />
+              <TeacherExamsCard exams={data.exams} assignments={data.assignments} students={data.myStudents} teacherId={data.teacher && data.teacher.id} tenantId={profile.tenantId || 'kabs-lily-junior-school-and-kindercare-centre'} onChanged={refresh} />
               <StudentsCard assignments={data.assignments} onLogHealth={setHealthStudent} onMessage={setMessageStudent} healthRecords={data.healthRecords || []} />
               <PayslipCard payroll={data.payroll} deductions={data.deductions} />
             </div>
