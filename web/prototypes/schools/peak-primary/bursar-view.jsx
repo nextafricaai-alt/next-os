@@ -1013,69 +1013,6 @@
               </button>
             </Modal>
           )}
-
-          {/* Add Modals for Teachers and Students (From side panel) */}
-          {/* TEACHER MODAL */}
-          {showAddTeacher && (
-            <Modal title="👩‍🏫 Add Teacher" onClose={() => setShowAddTeacher(false)}>
-              <Field label="Full Name *"><input style={IS} value={tName} onChange={e=>setTName(e.target.value)} placeholder="e.g. Nalukenge Jane" /></Field>
-              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px' }}>
-                <Field label="Role">
-                  <select style={IS} value={tRole} onChange={e=>setTRole(e.target.value)}>
-                    <option>Class Teacher</option><option>Subject Teacher</option><option>Administrator</option><option>Bursar</option>
-                  </select>
-                </Field>
-                <Field label="Primary Subject"><input style={IS} value={tSubject} onChange={e=>setTSubject(e.target.value)} placeholder="e.g. Mathematics" /></Field>
-              </div>
-              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px' }}>
-                <Field label="Class / Stream"><input style={IS} value={tClass} onChange={e=>setTClass(e.target.value)} placeholder="e.g. P.4 Lion" /></Field>
-                <Field label="Monthly Salary (UGX) *"><input style={IS} type="number" value={tSalary} onChange={e=>setTSalary(e.target.value)} placeholder="e.g. 500000" /></Field>
-              </div>
-              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px' }}>
-                <Field label="Phone Number"><input style={IS} value={tPhone} onChange={e=>setTPhone(e.target.value)} placeholder="e.g. +256 772 001 001" /></Field>
-                <Field label="Qualification">
-                  <select style={IS} value={tQual} onChange={e=>setTQual(e.target.value)}>
-                    <option>Grade III Certificate</option><option>Diploma in Education</option><option>Bachelor's Degree</option><option>ECD Certificate</option>
-                  </select>
-                </Field>
-              </div>
-              <button onClick={handleAddTeacher} disabled={!tName||!tSalary} style={{ width:'100%', padding:'12px', background: tName&&tSalary ? '#00FC8F' : '#334155', color: tName&&tSalary ? '#0a1029' : 'rgba(245,246,250,0.6)', border:'none', borderRadius:'9px', fontSize:'14px', fontWeight:'800', cursor: tName&&tSalary ? 'pointer':'not-allowed' }}>
-                Save Teacher
-              </button>
-            </Modal>
-          )}
-
-          {/* STUDENT MODAL */}
-          {showAddStudent && (
-            <Modal title="🎒 Enroll Student" onClose={() => setShowAddStudent(false)}>
-              <Field label="Full Name *"><input style={IS} value={sName} onChange={e=>setSName(e.target.value)} placeholder="e.g. Brian Mukasa" /></Field>
-              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px' }}>
-                <Field label="Class">
-                  <select style={IS} value={sClass} onChange={e=>setSClass(e.target.value)}>
-                    <option>Baby Class</option><option>Middle Class</option><option>Top Class</option>
-                    <option>P.1</option><option>P.2</option><option>P.3</option><option>P.4</option><option>P.5</option><option>P.6</option><option>P.7</option>
-                  </select>
-                </Field>
-                <Field label="Enrollment Type">
-                  <select style={IS} value={sType} onChange={e=>setSType(e.target.value)}>
-                    <option>Day Scholar</option><option>Boarding</option>
-                  </select>
-                </Field>
-              </div>
-              <Field label="Term Full Fees (UGX) *"><input style={IS} type="number" value={sFee} onChange={e=>setSFee(e.target.value)} placeholder="e.g. 750000" /></Field>
-              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px' }}>
-                <Field label="Guardian Name"><input style={IS} value={sGuardian} onChange={e=>setSGuardian(e.target.value)} placeholder="e.g. Mr. Musoke" /></Field>
-                <Field label="Guardian Phone"><input style={IS} value={sPhone} onChange={e=>setSPhone(e.target.value)} placeholder="e.g. +256 700 123 456" /></Field>
-              </div>
-              <button onClick={handleAddStudent} disabled={!sName||!sFee} style={{ width:'100%', padding:'12px', background: sName&&sFee ? '#3B82F6' : '#334155', color: '#fff', border:'none', borderRadius:'9px', fontSize:'14px', fontWeight:'800', cursor: sName&&sFee ? 'pointer':'not-allowed' }}>
-                Save Student
-              </button>
-            </Modal>
-          )}
-
         </div>
       );
-
-    // Expose for index.html wrapper
     }
-    window.BursarView = BursarDashboard;
