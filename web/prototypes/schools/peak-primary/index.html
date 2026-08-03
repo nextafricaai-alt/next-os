@@ -697,6 +697,7 @@
       .order('planned_week', { ascending: true });
 
     let payroll = [];
+    let expectedPay = null;
     try {
       const wk = window.WK || 'https://peak-worker.nextafrica.workers.dev';
       const res = await fetch(wk + '/os-data?tenant=' + tenantId + '&kind=staff_pay');
@@ -705,30 +706,35 @@
         const records = json.records || [];
         const myPay = records.find(r => (r.email && r.email.toLowerCase() === teacher.email?.toLowerCase()) || (r.name && r.name.toLowerCase() === teacher.name?.toLowerCase()));
         if (myPay && ((myPay.monthly || 0) + (myPay.allowance || 0) > 0)) {
-          const dt = new Date();
-          const ms = new Date(dt.getFullYear(), dt.getMonth(), 1).toISOString().slice(0, 10);
-          payroll = [{
-            id: myPay._id || Date.now(),
-            month: ms,
-            amount: (myPay.monthly || 0) + (myPay.allowance || 0),
-            status: 'paid',
-            paid_at: dt.toISOString(),
-            channel: 'bank'
-          }];
+          expectedPay = myPay;
         }
       }
     } catch (e) {
       console.warn('Failed to fetch OS data staff_pay', e);
     }
     
-    if (payroll.length === 0) {
-      const { data: pay } = await sb
-        .from('teacher_payroll')
-        .select('id, month, amount, status, paid_at, channel')
-        .eq('teacher_id', teacher.id)
-        .order('month', { ascending: false })
-        .limit(3);
-      payroll = pay || [];
+    const { data: pay } = await sb
+      .from('teacher_payroll')
+      .select('id, month, amount, status, paid_at, channel')
+      .eq('teacher_id', teacher.id)
+      .order('month', { ascending: false })
+      .limit(3);
+    payroll = pay || [];
+
+    if (expectedPay) {
+      const dt = new Date();
+      const ms = new Date(dt.getFullYear(), dt.getMonth(), 1).toISOString().slice(0, 10);
+      const hasThisMonth = payroll.some(p => p.month === ms);
+      if (!hasThisMonth) {
+        payroll.unshift({
+          id: expectedPay._id || Date.now(),
+          month: ms,
+          amount: (expectedPay.monthly || 0) + (expectedPay.allowance || 0),
+          status: 'pending',
+          paid_at: null,
+          channel: null
+        });
+      }
     }
 
     // Deductions (late check-ins, syllabus delays) for the same 3 months,
@@ -2835,6 +2841,49 @@
     );
   }
 
+  function TeacherLogCard({ teacher }) {
+    const [draft, setDraft] = useState('');
+    const [saving, setSaving] = useState(false);
+    
+    const submit = async () => {
+      if (!draft.trim()) return;
+      setSaving(true);
+      try {
+        const WK = window.WK || 'https://peak-worker.nextafrica.workers.dev';
+        const tenant = (window.PEAK_ROLE && window.PEAK_ROLE.getProfile && window.PEAK_ROLE.getProfile().tenantId) || 'kabs-lily-junior-school-and-kindercare-centre';
+        const rec = { teacher_id: teacher.id, teacher_name: teacher.full_name || teacher.email, message: draft.trim(), at: new Date().toISOString() };
+        await fetch(WK + '/os-data/save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ kind: 'teacher_log', tenant: tenant, record: rec })
+        });
+        window.peakToast && window.peakToast('Log submitted', 'success', 'Thank you for your update.');
+        setDraft('');
+      } catch (e) {
+        window.peakToast && window.peakToast('Could not submit log', 'error');
+      }
+      setSaving(false);
+    };
+
+    return (
+      <Card title="Suggestion Box & Daily Log" subtitle="YOUR VOICE" accent={T.green}>
+        <div style={{ fontSize: 13, color: T.ink3, marginBottom: 12 }}>
+          Log how your day went or suggest improvements. This goes directly to the admin/bursar.
+        </div>
+        <textarea 
+          value={draft} onChange={e => setDraft(e.target.value)} 
+          placeholder="What's happening? How was your day?"
+          style={{ width: '100%', minHeight: 90, background: T.bg, border: '1px solid ' + T.border, borderRadius: 8, padding: 10, fontSize: 13, color: T.ink, outline: 'none', resize: 'vertical', fontFamily: T.font, marginBottom: 10 }}
+        />
+        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+          <button onClick={submit} disabled={saving || !draft.trim()} style={{ background: T.green, color: '#fff', border: 'none', borderRadius: 8, padding: '7px 16px', fontSize: 12, fontWeight: 700, cursor: saving || !draft.trim() ? 'not-allowed' : 'pointer', opacity: saving || !draft.trim() ? 0.6 : 1 }}>
+            {saving ? 'Submitting...' : 'Submit Log'}
+          </button>
+        </div>
+      </Card>
+    );
+  }
+
   // Prominent, above-the-fold "Expected Monthly Salary" banner — wired
   // directly to the same payroll/deductions data PayslipCard uses, so it
   // visibly drops the moment a late-checkin or syllabus-delay penalty
@@ -3076,6 +3125,7 @@
               <TeacherExamsCard exams={data.exams} assignments={data.assignments} students={data.myStudents} teacherId={data.teacher && data.teacher.id} tenantId={profile.tenantId || 'kabs-lily-junior-school-and-kindercare-centre'} onChanged={refresh} />
               <StudentsCard assignments={data.assignments} onLogHealth={setHealthStudent} onMessage={setMessageStudent} healthRecords={data.healthRecords || []} />
               <PayslipCard payroll={data.payroll} deductions={data.deductions} />
+              <TeacherLogCard teacher={data.teacher} />
             </div>
           )}
         </main>
@@ -6084,8 +6134,8 @@ const PD_Profile = (function () {
     const unit = (vocab.unit || 'Class');
     const isALevel = combos.length > 0 && /s5|s6|year|senior\s*5|senior\s*6/i.test(stu.stream || '');
     const sb = window.NextSession && window.NextSession.sb;
-    const [val, setVal] = React.useState({ stream: stu.stream || '', combination: stu.combination || '', name: stu.name || '', guardian: stu.guardian || '', phone: stu.guardianPhone || '' });
-    React.useEffect(() => { setVal({ stream: stu.stream || '', combination: stu.combination || '', name: stu.name || '', guardian: stu.guardian || '', phone: stu.guardianPhone || '' }); }, [stu.id]);
+    const [val, setVal] = React.useState({ stream: stu.stream || '', combination: stu.combination || '', name: stu.name || '', guardian: stu.guardian || '', phone: stu.guardianPhone || '', age: stu.age || '' });
+    React.useEffect(() => { setVal({ stream: stu.stream || '', combination: stu.combination || '', name: stu.name || '', guardian: stu.guardian || '', phone: stu.guardianPhone || '', age: stu.age || '' }); }, [stu.id]);
 
     const apply = async (dbFields, localApply, label) => {
       if (!sb || stu.id == null) { window.peakToast && window.peakToast('Not connected to the database', 'info', 'Sign in to the school to make changes.'); return; }
@@ -6115,7 +6165,7 @@ const PD_Profile = (function () {
           <div style={{ position: 'absolute', right: 0, top: '100%', marginTop: 4, width: 250, background: T.surface, border: '1px solid ' + T.border, borderRadius: 12, boxShadow: '0 14px 34px rgba(0,0,0,0.5)', zIndex: 50, overflow: 'hidden' }}>
             {item('Transfer ' + unit.toLowerCase(), 'Move to another ' + unit.toLowerCase() + ' / stream', () => { setVal(v => ({ ...v, stream: stu.stream || (classes[0] || '') })); setModal('transfer'); })}
             {isALevel && item('Change combination', 'A-Level subject combination', () => { setVal(v => ({ ...v, combination: stu.combination || '' })); setModal('combo'); })}
-            {item('Edit details', 'Name, guardian, phone', () => { setVal({ stream: stu.stream || '', combination: stu.combination || '', name: stu.name || '', guardian: stu.guardian || '', phone: stu.guardianPhone || '' }); setModal('edit'); })}
+            {item('Edit details', 'Name, age, guardian, phone', () => { setVal({ stream: stu.stream || '', combination: stu.combination || '', name: stu.name || '', guardian: stu.guardian || '', phone: stu.guardianPhone || '', age: stu.age || '' }); setModal('edit'); })}
             <button onClick={() => setOpen(false)} style={{ display: 'block', width: '100%', textAlign: 'left', background: 'transparent', border: 'none', padding: '10px 14px', cursor: 'pointer', color: T.ink3, fontSize: 12.5 }}>Cancel</button>
           </div>
         )}
@@ -6161,12 +6211,13 @@ const PD_Profile = (function () {
               <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 16 }}>Edit {stu.name}</div>
               <div style={{ display: 'grid', gap: 12 }}>
                 <label><div style={lbl}>FULL NAME</div><input style={inp} value={val.name} onChange={e => setVal(v => ({ ...v, name: e.target.value }))} /></label>
+                <label><div style={lbl}>AGE</div><input style={inp} type="number" value={val.age} onChange={e => setVal(v => ({ ...v, age: e.target.value }))} placeholder="e.g. 10" /></label>
                 <label><div style={lbl}>GUARDIAN NAME</div><input style={inp} value={val.guardian} onChange={e => setVal(v => ({ ...v, guardian: e.target.value }))} /></label>
                 <label><div style={lbl}>GUARDIAN PHONE</div><input style={inp} value={val.phone} onChange={e => setVal(v => ({ ...v, phone: e.target.value }))} placeholder="+256 7..." /></label>
               </div>
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 18 }}>
                 <button onClick={() => setModal(null)} style={{ background: 'transparent', border: '1px solid ' + T.border, color: T.ink2, borderRadius: 9, padding: '9px 16px', fontSize: 13, cursor: 'pointer' }}>Cancel</button>
-                <button onClick={() => apply({ name: val.name.trim(), guardian_name: val.guardian.trim(), guardian_phone: val.phone.replace(/[^0-9+]/g, '') }, () => { stu.name = val.name.trim(); stu.guardian = val.guardian.trim(); stu.guardianPhone = val.phone.trim(); }, 'Details updated')} disabled={busy || !val.name.trim()} style={{ background: T.red, color: '#fff', border: 'none', borderRadius: 9, padding: '9px 18px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>{busy ? 'Saving…' : 'Save changes'}</button>
+                <button onClick={() => apply({ name: val.name.trim(), age: val.age ? Number(val.age) : null, guardian_name: val.guardian.trim(), guardian_phone: val.phone.replace(/[^0-9+]/g, '') }, () => { stu.name = val.name.trim(); stu.age = val.age ? Number(val.age) : null; stu.guardian = val.guardian.trim(); stu.guardianPhone = val.phone.trim(); }, 'Details updated')} disabled={busy || !val.name.trim()} style={{ background: T.red, color: '#fff', border: 'none', borderRadius: 9, padding: '9px 18px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>{busy ? 'Saving…' : 'Save changes'}</button>
               </div>
             </div>
           </div>
@@ -6294,6 +6345,7 @@ const PD_Profile = (function () {
                 </div>
                 <div style={{ display: 'flex', gap: 18, fontSize: 12.5, color: T.ink3, fontFamily: T.mono, flexWrap: 'wrap' }}>
                   <span>ID #{stu.id != null ? stu.id : '—'}</span>
+                  <span>Age: {stu.age || '—'}</span>
                   <span>Guardian: {stuGuardian}</span>
                   <span>{stuPhone || 'no phone on file'}</span>
                 </div>
@@ -6910,10 +6962,21 @@ const PD_Broadcast = (function () {
   }
 
   function Broadcast({ embed = false, onNav } = {}) {
-    const { useState, useMemo } = React;
+    const { useState, useMemo, useEffect } = React;
     const school = (window.peakSchoolName && window.peakSchoolName()) || 'the school';
     const studs = (window.PEAK && window.PEAK.students) || [];
     const streams = Array.from(new Set(studs.map(s => s.stream).filter(Boolean))).sort();
+
+    const [view, setView] = useState('broadcast');
+    const [logs, setLogs] = useState([]);
+    
+    const loadLogs = () => {
+      const tenant = (window.PEAK_ROLE && window.PEAK_ROLE.getProfile && window.PEAK_ROLE.getProfile().tenantId) || 'kabs-lily-junior-school-and-kindercare-centre';
+      fetch((window.WK || 'https://peak-worker.nextafrica.workers.dev') + '/os-data?kind=teacher_log&tenant=' + encodeURIComponent(tenant))
+        .then(r => r.json()).then(d => { setLogs((d.records || []).map(x => Object.assign({_id: x.id}, x.payload)).sort((a,b) => String(b.at||'').localeCompare(String(a.at||'')))); })
+        .catch(()=>{});
+    };
+    useEffect(() => { if (view === 'suggestions') loadLogs(); }, [view]);
 
     const [aud, setAud] = useState('overdue');
     const [stream, setStream] = useState(streams[0] || '');
@@ -7012,14 +7075,20 @@ const PD_Broadcast = (function () {
       <div style={{ width: embed ? '100%' : 1200, height: embed ? '100%' : 900, display: 'flex', flexDirection: 'column', background: T.bg, color: T.ink, fontFamily: T.font, fontSize: 13, overflow: 'auto' }}>
         <header style={{ padding: '22px 28px 16px', borderBottom: '1px solid ' + T.border }}>
           <div style={{ fontSize: 11, color: T.ink3, fontFamily: T.mono, letterSpacing: '0.08em', fontWeight: 600, marginBottom: 8 }}>COMMUNICATIONS</div>
-          <div style={{ fontSize: 24, fontWeight: 700, letterSpacing: '-0.02em' }}>Message guardians</div>
-          <div style={{ fontSize: 13, color: T.ink3, marginTop: 4, maxWidth: 640 }}>Pick who to reach, write the message once, and send each guardian a personalised WhatsApp. Numbers come straight from your real student roster.</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
+            <button onClick={() => setView('broadcast')} style={{ background: 'transparent', border: 'none', padding: 0, fontSize: 24, fontWeight: 700, letterSpacing: '-0.02em', cursor: 'pointer', color: view === 'broadcast' ? T.ink : T.ink3 }}>Message guardians</button>
+            <button onClick={() => setView('suggestions')} style={{ background: 'transparent', border: 'none', padding: 0, fontSize: 24, fontWeight: 700, letterSpacing: '-0.02em', cursor: 'pointer', color: view === 'suggestions' ? T.ink : T.ink3 }}>Suggestion Box & Logs</button>
+          </div>
+          {view === 'broadcast' && <div style={{ fontSize: 13, color: T.ink3, marginTop: 4, maxWidth: 640 }}>Pick who to reach, write the message once, and send each guardian a personalised WhatsApp. Numbers come straight from your real student roster.</div>}
+          {view === 'suggestions' && <div style={{ fontSize: 13, color: T.ink3, marginTop: 4, maxWidth: 640 }}>Daily logs and suggestions submitted by teachers from their dashboard.</div>}
         </header>
 
-        {window.RegistrationApprovalCard && <div style={{ paddingTop: 20 }}><window.RegistrationApprovalCard /></div>}
+        {view === 'broadcast' ? (
+          <>
+            {window.RegistrationApprovalCard && <div style={{ paddingTop: 20 }}><window.RegistrationApprovalCard /></div>}
 
-        <div style={{ padding: 24, display: 'grid', gridTemplateColumns: embed ? '1fr 1fr' : '1fr 1fr', gap: 18, alignItems: 'start' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div style={{ padding: 24, display: 'grid', gridTemplateColumns: embed ? '1fr 1fr' : '1fr 1fr', gap: 18, alignItems: 'start' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div style={card}>
               <div style={{ fontSize: 12.5, fontWeight: 700, marginBottom: 10 }}>1 &middot; Who are you reaching?</div>
               <div style={{ display: 'grid', gap: 8 }}>
@@ -7121,6 +7190,24 @@ const PD_Broadcast = (function () {
             </div>
           </div>
         </div>
+        </>
+        ) : (
+          <div style={{ padding: 24 }}>
+            <div style={{ maxWidth: 800 }}>
+              {logs.length === 0 ? (
+                 <div style={{ fontSize: 13, color: T.ink3, textAlign: 'center', padding: 40, border: '1px dashed ' + T.border, borderRadius: 12 }}>No logs or suggestions from teachers yet.</div>
+              ) : logs.map(l => (
+                 <div key={l._id} style={{ padding: 18, background: T.surface, border: '1px solid ' + T.border, borderRadius: 12, marginBottom: 12 }}>
+                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                     <div style={{ fontWeight: 600, fontSize: 14 }}>{l.teacher_name || 'Teacher'}</div>
+                     <div style={{ fontSize: 11, color: T.ink3, fontFamily: T.mono }}>{l.at ? new Date(l.at).toLocaleString() : ''}</div>
+                   </div>
+                   <div style={{ fontSize: 13, color: T.ink, whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>{l.message}</div>
+                 </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -10905,6 +10992,15 @@ window.PEAK_FINANCE = (function () {
           // Expense → create a stored voucher (receipt for instant, statement entry for long-term)
           const receiptNo = _vchNo();
           const voucher = { receiptNo: receiptNo, payee: payee || (CAT_LABEL[f.category] || f.category), payeeEmail: (f.payeeEmail || '').toLowerCase(), category: f.category, purpose: f.description || (CAT_LABEL[f.category] || f.category), amount: amt, method: f.method || 'cash', date: f.date, payType: payType, status: payType === 'instant' ? 'paid' : 'pending', issuedBy: me(), kindLabel: f.category === 'salaries' ? 'Salary Payment Receipt' : 'Payment Receipt', createdAt: new Date().toISOString() };
+          if (f.category === 'salaries') {
+            const sb = window.NextSession && window.NextSession.sb;
+            const tRec = (teachers || []).find(t => (t.email && t.email.toLowerCase() === voucher.payeeEmail) || (t.full_name && t.full_name.toLowerCase() === voucher.payee.toLowerCase()));
+            if (sb && tRec && tRec.id) {
+               const dt = new Date();
+               const ms = new Date(dt.getFullYear(), dt.getMonth(), 1).toISOString().slice(0, 10);
+               sb.from('teacher_payroll').insert({ teacher_id: tRec.id, month: ms, amount: amt, status: 'paid', paid_at: new Date().toISOString(), channel: f.method || 'cash', school_id: window.NEXT_SCHOOL_ID || 1 }).then(r=>{});
+            }
+          }
           fetch(WK + '/os-data/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind: 'pay_voucher', tenant: tenant(), record: voucher }) })
             .then(r => r.json()).then(() => {
               setBusy(false); setForm(null); reload();
@@ -10975,6 +11071,27 @@ window.PEAK_FINANCE = (function () {
     const payStaff = (st) => {
       const due = (st.monthly || 0) + (st.allowance || 0);
       setForm({ kind: 'expense', category: 'salaries', payeeName: st.name, payeeEmail: st.email || '', amount: String(due), date: new Date().toISOString().slice(0, 10), payType: 'instant', description: monthLabel + ' pay' + (st.allowance ? ' (salary ' + fmt(st.monthly || 0) + ' + allowance ' + fmt(st.allowance) + ')' : '') });
+    };
+    const undoPayStaff = async (st) => {
+      const v = vouchers.find(v => (v.payee || '').toLowerCase() === (st.name || '').toLowerCase() && String(v.date || '').slice(0, 7) === ym);
+      if (!v) return;
+      setBusy(true);
+      const sb = window.NextSession && window.NextSession.sb;
+      const tRec = (teachers || []).find(t => (t.email && t.email.toLowerCase() === v.payeeEmail) || (t.full_name && t.full_name.toLowerCase() === v.payee.toLowerCase()));
+      if (sb && tRec && tRec.id) {
+         const ms = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10);
+         try { await sb.from('teacher_payroll').delete().eq('teacher_id', tRec.id).eq('month', ms); } catch(e){}
+      }
+      if (v._id) {
+        try { await fetch(WK + '/os-data/delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tenant: tenant(), id: v._id }) }); } catch(e){}
+      }
+      const txn = txns.find(t => t.kind === 'expense' && t.category === 'salaries' && (t.description || '').includes(st.name) && String(t.occurred_at || t.date || '').slice(0,7) === ym);
+      if (txn && txn.id) {
+         try { await fetch(WK + '/finance/delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tenant_id: tenant(), id: txn.id }) }); } catch(e){}
+      }
+      setBusy(false);
+      reload();
+      window.peakToast && window.peakToast('Payment undone', 'success');
     };
     const paidThisMonth = (name) => vouchers.some(v => (v.payee || '').toLowerCase() === (name || '').toLowerCase() && String(v.date || '').slice(0, 7) === ym);
     const payrollList = (function () {
@@ -11186,7 +11303,7 @@ window.PEAK_FINANCE = (function () {
                             <input defaultValue={st.allowance || ''} placeholder="allowance" onBlur={e => { const v = Number(String(e.target.value).replace(/[^0-9]/g, '')) || 0; if (v !== st.allowance) setAllowance(st, v); }} style={{ width: 100, background: T.bg, border: '1px solid ' + T.border, borderRadius: 8, padding: '7px 9px', fontSize: 12.5, color: T.ink, fontFamily: 'ui-monospace,monospace', outline: 'none' }} /></label>
                         </div>
                         {st.paid
-                          ? <span style={{ fontSize: 11.5, color: T.good, fontFamily: 'ui-monospace,monospace', minWidth: 96, textAlign: 'right' }}>✓ Paid {fmt((st.monthly||0)+(st.allowance||0))}</span>
+                          ? <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'flex-end', minWidth: 96 }}><span style={{ fontSize: 11.5, color: T.good, fontFamily: 'ui-monospace,monospace', textAlign: 'right' }}>✓ Paid {fmt((st.monthly||0)+(st.allowance||0))}</span><button onClick={() => undoPayStaff(st)} disabled={busy} style={{ background: 'transparent', color: T.ink4, border: 'none', cursor: busy ? 'wait' : 'pointer', fontSize: 11, textDecoration: 'underline' }}>Undo</button></div>
                           : <button onClick={() => payStaff(st)} disabled={!((st.monthly||0)+(st.allowance||0))} style={{ background: ((st.monthly||0)+(st.allowance||0)) ? T.red : 'transparent', color: ((st.monthly||0)+(st.allowance||0)) ? '#fff' : T.ink4, border: ((st.monthly||0)+(st.allowance||0)) ? 'none' : '1px solid ' + T.border, borderRadius: 8, padding: '7px 14px', fontSize: 12, fontWeight: 600, cursor: ((st.monthly||0)+(st.allowance||0)) ? 'pointer' : 'not-allowed', minWidth: 96 }}>Pay {fmt((st.monthly||0)+(st.allowance||0))}</button>}
                       </div>
                     ))}
