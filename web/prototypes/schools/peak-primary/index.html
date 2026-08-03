@@ -273,6 +273,23 @@
   <script src="/prototypes/schools/peak-primary/session-guard.js?v=4"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script>
+  window.__PEAK_LOGO_DATA = null;
+  window.__loadPdfLogo = function() {
+    try {
+      var src = (window.__BRAND_LOGO) || (window.__resources && window.__resources.faviconLogo) || 'assets/peak-logo.png';
+      var img = new Image(); img.crossOrigin = 'anonymous';
+      img.onload = function () {
+        try {
+          var c = document.createElement('canvas'); c.width = img.naturalWidth || 128; c.height = img.naturalHeight || 128;
+          c.getContext('2d').drawImage(img, 0, 0);
+          window.__PEAK_LOGO_DATA = { data: c.toDataURL('image/png'), w: c.width, h: c.height };
+        } catch (e) {}
+      };
+      img.src = src;
+    } catch(e){}
+  };
+  window.addEventListener('load', function() { setTimeout(window.__loadPdfLogo, 1000); });
+  
   /* NextReceipts — real receipts: save to Supabase, branded PDF, WhatsApp send (free click-to-send). */
   window.NextReceipts = (function(){
     function digits(p){ return String(p||'').replace(/[^0-9]/g,''); }
@@ -308,9 +325,15 @@
     function buildPdf(rec){
       var ctor=(window.jspdf&&window.jspdf.jsPDF)||window.jsPDF; if(!ctor) throw new Error('PDF engine not loaded');
       var doc=new ctor({unit:'pt',format:'a4'}); var W=doc.internal.pageSize.getWidth();
-      var c=hexRgb(window.__ACCENT);
+      var c=[180,30,30]; if(window.__ACCENT) { var hex=hexRgb(window.__ACCENT); if(hex) c=hex; }
       doc.setFillColor(c[0],c[1],c[2]); doc.rect(0,0,W,72,'F');
-      doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(20); doc.text(brandName(),40,44);
+      if (window.__PEAK_LOGO_DATA) {
+        var L = window.__PEAK_LOGO_DATA; var lh = 40, lw = Math.max(20, lh * (L.w/L.h));
+        doc.addImage(L.data, 'PNG', 40, 16, lw, lh);
+        doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(20); doc.text(brandName(), 40 + lw + 14, 44);
+      } else {
+        doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(20); doc.text(brandName(),40,44);
+      }
       doc.setFont('helvetica','normal'); doc.setFontSize(11); doc.text('PAYMENT RECEIPT',W-40,44,{align:'right'});
       var y=116;
       function row(label,val,big){
@@ -367,7 +390,7 @@
     if(_bslug){ try{ fetch('https://nextos-sentinel.nextafricaai.workers.dev/brand?s='+encodeURIComponent(_bslug)).then(function(r){return r.ok?r.json():null;}).then(function(nb){
       if(nb && nb.name){ var fresh={name:nb.name,color:nb.primary_color||null,logo:nb.logo_url||null};
         try{ localStorage.setItem('nextos.brand.'+_bslug, JSON.stringify(fresh)); }catch(e){}
-        if(fresh.logo) window.__BRAND_LOGO=fresh.logo;
+        if(fresh.logo) { window.__BRAND_LOGO=fresh.logo; window.__loadPdfLogo && window.__loadPdfLogo(); }
         _paintName(fresh.name);
         try{ if(fresh.color){ var _c=String(fresh.color); if(_c[0]!=='#')_c='#'+_c; if(/^#[0-9a-fA-F]{6}$/.test(_c)){ document.documentElement.style.setProperty('--brand', _c); } } }catch(e){}
       }
@@ -381,7 +404,7 @@
         window.addEventListener('DOMContentLoaded',function(){ try{ document.body.style.background=window.__BG; }catch(e){} });
       }
     }
-    if(b && b.logo){ window.__BRAND_LOGO=b.logo; }
+    if(b && b.logo){ window.__BRAND_LOGO=b.logo; window.__loadPdfLogo && window.__loadPdfLogo(); }
     if(b && b.name){ window.__BRAND_NAME=b.name;
       try{ document.title = b.name + ' \u00b7 NEXT School OS'; }catch(e){}
       try{ var _ld=document.getElementById('nx-loading-text'); if(_ld) _ld.textContent='LOADING '+String(b.name).toUpperCase()+' \u00b7 NEXT SCHOOL OS'; }catch(e){}
@@ -9187,15 +9210,6 @@ window.PEAK_EXAMS = (function () {
   const T = window.V4.T;
   const WK = 'https://nextos-sentinel.nextafricaai.workers.dev';
   function tenant() { const p = (window.PEAK_ROLE && window.PEAK_ROLE.getProfile) ? window.PEAK_ROLE.getProfile() : null; return (p && p.tenantId) || 'peak-primary'; }
-  let LOGO_DATA = null;
-  (function () {
-    try {
-      const src = (window.__BRAND_LOGO) || (window.__resources && window.__resources.faviconLogo) || 'assets/peak-logo.png';
-      const img = new Image(); img.crossOrigin = 'anonymous';
-      img.onload = function () { try { const c = document.createElement('canvas'); c.width = img.naturalWidth || 128; c.height = img.naturalHeight || 128; c.getContext('2d').drawImage(img, 0, 0); LOGO_DATA = { data: c.toDataURL('image/png'), w: c.width, h: c.height }; } catch (e) {} };
-      img.src = src;
-    } catch (e) {}
-  })();
   function firstName(n) { return (n || 'Student').split(' ')[0]; }
   function teacherComment(rec, exam) {
     const fn = firstName(rec.student.name);
@@ -9268,7 +9282,7 @@ window.PEAK_EXAMS = (function () {
     const stu = rec.student; const jsPDFc = window.jspdf && window.jspdf.jsPDF; if (!jsPDFc) { window.peakToast && window.peakToast('PDF engine not loaded', 'info'); return; }
     const doc = new jsPDFc(); const brand = (window.__BRAND_NAME) || 'School'; const W = 210;
     const TPL = (window.PEAK_TEMPLATES ? window.PEAK_TEMPLATES.get('report') : { title: 'Student Report Card', footer: 'Generated by NEXT OS', accent: [180, 30, 30] });
-    if (LOGO_DATA) { try { const h = 18, w = Math.max(12, h * (LOGO_DATA.w / LOGO_DATA.h)); doc.addImage(LOGO_DATA.data, 'PNG', 14, 11, w, h); } catch (e) {} }
+    if (window.__PEAK_LOGO_DATA) { try { const L = window.__PEAK_LOGO_DATA; const h = 18, w = Math.max(12, h * (L.w / L.h)); doc.addImage(L.data, 'PNG', 14, 11, w, h); } catch (e) {} }
     doc.setFontSize(18); doc.setFont(undefined, 'bold'); doc.text(brand, W / 2, 19, { align: 'center' });
     doc.setFont(undefined, 'normal'); doc.setFontSize(11); doc.text(TPL.title || 'Student Report Card', W / 2, 26, { align: 'center' });
     doc.setFontSize(9.5); doc.text((exam.name || '') + ' \u00b7 ' + (exam.term || '') + ' ' + (exam.year || ''), W / 2, 32, { align: 'center' });
@@ -10877,9 +10891,23 @@ window.PEAK_FINANCE = (function () {
       const ctor = (window.jspdf && window.jspdf.jsPDF) || window.jsPDF; if (!ctor) return false;
       const doc = new ctor({ unit: 'pt', format: 'a4' }); const W = doc.internal.pageSize.getWidth();
       const brand = (window.__BRAND_NAME) || 'School';
-      doc.setFillColor(10, 16, 41); doc.rect(0, 0, W, 74, 'F');
-      doc.setTextColor(255, 255, 255); doc.setFontSize(17); doc.setFont(undefined, 'bold'); doc.text(brand, 40, 40);
-      doc.setFontSize(10); doc.setFont(undefined, 'normal'); doc.text(rec.kindLabel || 'Payment Receipt', 40, 58);
+      const TPL = (window.PEAK_TEMPLATES ? window.PEAK_TEMPLATES.get('ledger') : { title: 'Official Receipt', footer: 'NEXT OS', accent: [180, 30, 30] });
+      
+      let c = TPL.accent || [10, 16, 41];
+      if (window.__ACCENT && window.NextReceipts && window.NextReceipts.hexRgb) {
+        const hex = window.NextReceipts.hexRgb(window.__ACCENT);
+        if (hex) c = hex;
+      }
+      doc.setFillColor(c[0], c[1], c[2]); doc.rect(0, 0, W, 74, 'F');
+      
+      if (window.__PEAK_LOGO_DATA) {
+        const L = window.__PEAK_LOGO_DATA; const lh = 42, lw = Math.max(20, lh * (L.w/L.h));
+        doc.addImage(L.data, 'PNG', 40, 16, lw, lh);
+        doc.setTextColor(255, 255, 255); doc.setFontSize(17); doc.setFont(undefined, 'bold'); doc.text(brand, 40 + lw + 14, 40);
+      } else {
+        doc.setTextColor(255, 255, 255); doc.setFontSize(17); doc.setFont(undefined, 'bold'); doc.text(brand, 40, 40);
+      }
+      doc.setFontSize(10); doc.setFont(undefined, 'normal'); doc.text(rec.kindLabel || 'Payment Receipt', W - 40, 40, {align: 'right'});
       doc.setTextColor(25, 25, 25); let y = 118;
       const row = (k, v) => { doc.setFont(undefined, 'bold'); doc.setFontSize(10.5); doc.text(k, 40, y); doc.setFont(undefined, 'normal'); doc.text(String(v == null || v === '' ? '—' : v), 210, y); y += 26; };
       row('Receipt No', rec.receiptNo);
