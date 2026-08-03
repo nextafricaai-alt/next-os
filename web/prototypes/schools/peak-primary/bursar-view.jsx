@@ -465,120 +465,143 @@
       ];
 
       return (
-        <div className="app-shell">
-
-          {/* ── TOPBAR ── */}
-          <div style={{ background:'#0F172A', borderBottom:'1px solid rgba(255,255,255,0.08)', padding:'0 20px', display:'flex', alignItems:'center', justifyContent:'space-between', height:'60px', flexShrink:0, position:'sticky', top:0, zIndex:100 }}>
-            <div style={{ display:'flex', alignItems:'center', gap:'14px' }}>
-              <div style={{ width:'34px', height:'34px', borderRadius:'9px', background:'linear-gradient(135deg,#FFB400,#FF7A00)', display:'flex', alignItems:'center', justifyContent:'center', fontWeight:'900', color:'#0a1029', fontSize:'15px', flexShrink:0 }}>₿</div>
+        <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: '#0a1029', color: '#f5f6fa' }}>
+          {/* Header Bar */}
+          <header style={{
+            background: '#141e3c', borderBottom: `1px solid rgba(255,255,255,0.15)`, padding: '16px 24px',
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+              <div style={{
+                width: '44px', height: '44px', borderRadius: '50%', background: '#FFB400', color: '#0A1029',
+                fontWeight: '900', fontSize: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                border: '2px solid #FFF', boxShadow: `0 0 16px rgba(255,180,0,0.4)`
+              }}>
+                ₿
+              </div>
               <div>
-                <div style={{ fontWeight:'800', fontSize:'13px', letterSpacing:'0.04em' }}>KABS LILY — BURSAR OFFICE</div>
-                <div style={{ fontSize:'10px', color:'var(--muted)', fontFamily:'var(--mono)' }}>Cash Control Hub · {userName}</div>
-              </div>
-            </div>
-            <div style={{ display:'flex', alignItems:'center', gap:'8px' }}>
-              <div style={{ display:'flex', alignItems:'center', gap:'5px', padding:'4px 10px', borderRadius:'999px', background:'rgba(0,252,143,0.1)', border:'1px solid rgba(0,252,143,0.3)', fontSize:'11px', fontWeight:'700', color:'#00FC8F' }}>
-                <span style={{ width:'6px', height:'6px', borderRadius:'50%', background:'#00FC8F', display:'inline-block', animation:'pulse 2s infinite' }}></span>
-                Live
-              </div>
-              <button onClick={() => setSidePanelOpen(o => !o)} style={{ background: sidePanelOpen ? 'rgba(255,180,0,0.12)' : 'rgba(255,255,255,0.06)', border:`1px solid ${sidePanelOpen ? 'rgba(255,180,0,0.4)' : 'rgba(255,255,255,0.12)'}`, color: sidePanelOpen ? '#FFB400' : 'var(--muted)', borderRadius:'8px', padding:'6px 12px', fontSize:'12px', fontWeight:'700', cursor:'pointer' }}>
-                {sidePanelOpen ? '◀ Registry' : '▶ Registry'}
-              </button>
-              <button onClick={() => { localStorage.removeItem('nextos.profile'); window.location.href='/prototypes/schools/peak-primary/login.html'; }} style={{ background:'rgba(255,71,87,0.1)', border:'1px solid rgba(255,71,87,0.3)', color:'#FF4757', borderRadius:'8px', padding:'6px 12px', fontSize:'12px', fontWeight:'700', cursor:'pointer' }}>Sign Out</button>
-            </div>
-          </div>
-
-          {/* ── BODY ── */}
-          <div className="main-layout" style={{ flex:1, overflow:'hidden' }}>
-
-            {/* ── CONTENT ── */}
-            <div className="content-area">
-              {/* Stat Cards */}
-              <div className="stat-grid" style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:'12px', marginBottom:'20px' }}>
-                {[
-                  { icon:'📥', label:'Total Received', val:FMT(totalIn), sub:`${incomes.length} entries`, color:'#00FC8F' },
-                  { icon:'📤', label:'Total Spent', val:FMT(totalOut), sub:`${expenses.length} entries`, color:'#FF4757' },
-                  { icon:'💵', label:'Cash on Hand', val:FMT(cashBal), sub:'Expected balance', color:'#FFB400' },
-                  { icon:'🎒', label:'Students Enrolled', val:SS.getStudents().length, sub:`${SS.getStudents().filter(s=>s.type==='Boarding').length} boarding`, color:'#3B82F6' },
-                ].map(s => (
-                  <div key={s.label} style={{ background:'#0F172A', border:'1px solid rgba(255,255,255,0.08)', borderRadius:'12px', padding:'16px 18px' }}>
-                    <div style={{ fontSize:'20px', marginBottom:'4px' }}>{s.icon}</div>
-                    <div style={{ fontSize:'11px', color:'var(--muted)', marginBottom:'3px', fontWeight:'500' }}>{s.label}</div>
-                    <div style={{ fontSize:'18px', fontWeight:'900', color:s.color, letterSpacing:'-0.01em' }}>{s.val}</div>
-                    <div style={{ fontSize:'10px', color:'var(--muted)', marginTop:'2px' }}>{s.sub}</div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Fee Collection Rollup — synced live from students + fees + school_income */}
-              <div style={{ background:'#0F172A', border:'1px solid rgba(255,255,255,0.08)', borderRadius:'13px', padding:'18px 20px', marginBottom:'20px' }}>
-                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'14px', flexWrap:'wrap', gap:'8px' }}>
-                  <h2 style={{ fontSize:'13px', fontWeight:'800' }}>🏦 Fee Collection This Term — Live Rollup</h2>
-                  <span style={{ display:'inline-flex', alignItems:'center', gap:'6px', padding:'4px 10px', borderRadius:'999px', background:`${STATUS_COLOR[rollup.status]}1a`, border:`1px solid ${STATUS_COLOR[rollup.status]}55`, fontSize:'11px', fontWeight:'800', color:STATUS_COLOR[rollup.status] }}>
-                    {rollup.status} · {(rollup.collectionRate*100).toFixed(0)}% collected
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <h1 style={{ fontSize: '20px', fontWeight: '800', margin: 0, letterSpacing: '-0.5px' }}>{userName}</h1>
+                  <span style={{ background: 'rgba(255,180,0,0.15)', color: '#FFB400', border: `1px solid #FFB400`, padding: '3px 8px', borderRadius: '12px', fontSize: '11px', fontWeight: '700' }}>
+                    BURSAR / CASH HUB
                   </span>
                 </div>
-                <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:'12px' }}>
+                <div style={{ fontSize: '12px', color: 'rgba(245,246,250,0.6)', marginTop: '2px' }}>
+                  Kabs Lily Kindercare & Primary School · Financial Operations & Fees
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <button
+                onClick={() => {
+                  localStorage.removeItem('nextos.profile');
+                  window.location.href = '/prototypes/schools/peak-primary/login.html';
+                }}
+                style={{
+                  background: 'rgba(255,71,87,0.15)', color: '#FF4757', border: `1px solid #FF4757`,
+                  padding: '8px 14px', borderRadius: '8px', cursor: 'pointer', fontWeight: '700', fontSize: '12px'
+                }}
+              >
+                🔴 Sign-Out
+              </button>
+            </div>
+          </header>
+
+          {/* Main Content Area */}
+          <main style={{ padding: '24px', flex: 1, maxWidth: '1400px', width: '100%', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            
+            {/* Top Navigation Tabs */}
+            <div style={{ display: 'flex', gap: '8px', borderBottom: `1px solid rgba(255,255,255,0.08)`, paddingBottom: '12px', overflowX: 'auto' }}>
+              {[
+                { id: 'finances', label: '💰 Finances & Cash flow' },
+                { id: 'students', label: '🎒 Students & Enrollment' },
+                { id: 'teachers', label: '👩‍🏫 Teachers Registry' },
+                { id: 'payments', label: '🧾 Payment Records' }
+              ].map(t => (
+                <button
+                  key={t.id}
+                  onClick={() => setActiveTab(t.id)}
+                  style={{
+                    background: activeTab === t.id ? '#FFB400' : '#141e3c',
+                    color: activeTab === t.id ? '#0A1029' : '#f5f6fa',
+                    border: `1px solid ${activeTab === t.id ? '#FFB400' : 'rgba(255,255,255,0.08)'}`,
+                    padding: '10px 18px', borderRadius: '8px', fontWeight: '800', cursor: 'pointer', fontSize: '13px'
+                  }}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+
+            {/* TAB CONTENT: FINANCES */}
+            {activeTab === 'finances' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(220px, 1fr))', gap:'16px' }}>
                   {[
-                    { label:'Fees Expected This Term', val:FMT(rollup.totalFeesExpected), color:'#3B82F6' },
-                    { label:'Fees Collected This Term', val:FMT(rollup.totalFeesReceived), color:'#00FC8F' },
-                    { label:'Balance Overdue', val:FMT(rollup.balanceOverdue), color:'#FF4757' },
-                    { label:'Students Owing', val:rollup.studentsOverdue, color:'#FFB400' },
-                  ].map(x => (
-                    <div key={x.label} style={{ background:'rgba(255,255,255,0.03)', borderRadius:'9px', padding:'11px 13px' }}>
-                      <div style={{ fontSize:'10px', color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:'4px' }}>{x.label}</div>
-                      <div style={{ fontSize:'16px', fontWeight:'900', color:x.color }}>{x.val}</div>
+                    { icon:'📥', label:'Total Received', val:FMT(totalIn), sub:`${incomes.length} entries`, color:'#00FC8F' },
+                    { icon:'📤', label:'Total Spent', val:FMT(totalOut), sub:`${expenses.length} entries`, color:'#FF4757' },
+                    { icon:'💵', label:'Cash on Hand', val:FMT(cashBal), sub:'Expected balance', color:'#FFB400' },
+                    { icon:'🎒', label:'Students Enrolled', val:SS.getStudents().length, sub:`${SS.getStudents().filter(s=>s.type==='Boarding').length} boarding`, color:'#3B82F6' },
+                  ].map(s => (
+                    <div key={s.label} style={{ background:'#141e3c', border:'1px solid rgba(255,255,255,0.15)', borderRadius:'12px', padding:'16px 18px' }}>
+                      <div style={{ fontSize:'20px', marginBottom:'4px' }}>{s.icon}</div>
+                      <div style={{ fontSize:'11px', color:'rgba(245,246,250,0.6)', marginBottom:'3px', fontWeight:'500' }}>{s.label}</div>
+                      <div style={{ fontSize:'18px', fontWeight:'900', color:s.color, letterSpacing:'-0.01em' }}>{s.val}</div>
+                      <div style={{ fontSize:'10px', color:'rgba(245,246,250,0.6)', marginTop:'2px' }}>{s.sub}</div>
                     </div>
                   ))}
                 </div>
-                <div style={{ marginTop:'12px', height:'6px', borderRadius:'999px', background:'rgba(255,255,255,0.07)', overflow:'hidden' }}>
-                  <div style={{ height:'100%', width:`${Math.min(100, rollup.collectionRate*100)}%`, background:STATUS_COLOR[rollup.status], transition:'width 0.3s ease' }}></div>
-                </div>
-                {rollup.unmatchedIncome > 0 && (
-                  <div style={{ marginTop:'12px', padding:'9px 12px', background:'rgba(255,180,0,0.08)', border:'1px solid rgba(255,180,0,0.25)', borderRadius:'8px', fontSize:'11px', color:'#FFB400' }}>
-                    ⚠️ {FMT(rollup.unmatchedIncome)} logged in the Income Log doesn't match any enrolled student by name — it's real cash on hand, but not reflected in the fee totals above. Check spelling or confirm these students are enrolled.
+
+                <div style={{ background:'#141e3c', border:'1px solid rgba(255,255,255,0.15)', borderRadius:'13px', padding:'18px 20px' }}>
+                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'14px', flexWrap:'wrap', gap:'8px' }}>
+                    <h2 style={{ fontSize:'14px', fontWeight:'800', color:'#FFB400' }}>🏦 Fee Collection This Term — Live Rollup</h2>
+                    <span style={{ display:'inline-flex', alignItems:'center', gap:'6px', padding:'4px 10px', borderRadius:'999px', background:`${STATUS_COLOR[rollup.status]}1a`, border:`1px solid ${STATUS_COLOR[rollup.status]}55`, fontSize:'11px', fontWeight:'800', color:STATUS_COLOR[rollup.status] }}>
+                      {rollup.status} · {(rollup.collectionRate*100).toFixed(0)}% collected
+                    </span>
                   </div>
-                )}
-              </div>
-
-              {/* Payroll / Cash Outflow — live-synced from the teacher roster, not a manual entry */}
-              <div style={{ background:'#0F172A', border:'1px solid rgba(255,255,255,0.08)', borderRadius:'13px', padding:'18px 20px', marginBottom:'20px' }}>
-                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'14px', flexWrap:'wrap', gap:'8px' }}>
-                  <h2 style={{ fontSize:'13px', fontWeight:'800' }}>💼 Payroll / Cash Outflow — Synced to Teaching Staff</h2>
-                  <span style={{ fontSize:'10.5px', color:'var(--muted)', fontFamily:'var(--mono)' }}>{activeTeachers.length} active staff · updates automatically</span>
-                </div>
-                <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:'12px' }}>
-                  {[
-                    { label:'Monthly Payroll (Live)', val:FMT(monthlyPayroll), color:'#FF4757' },
-                    { label:'Cash Spent (Logged)', val:FMT(totalOut), color:'#FFB400' },
-                    { label:'Net Cash Position', val:FMT(netCashPosition), color: netCashPosition >= 0 ? '#00FC8F' : '#FF4757' },
-                  ].map(x => (
-                    <div key={x.label} style={{ background:'rgba(255,255,255,0.03)', borderRadius:'9px', padding:'11px 13px' }}>
-                      <div style={{ fontSize:'10px', color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:'4px' }}>{x.label}</div>
-                      <div style={{ fontSize:'16px', fontWeight:'900', color:x.color }}>{x.val}</div>
+                  <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:'12px' }}>
+                    {[
+                      { label:'Fees Expected This Term', val:FMT(rollup.totalFeesExpected), color:'#3B82F6' },
+                      { label:'Fees Collected This Term', val:FMT(rollup.totalFeesReceived), color:'#00FC8F' },
+                      { label:'Balance Overdue', val:FMT(rollup.balanceOverdue), color:'#FF4757' },
+                      { label:'Students Owing', val:rollup.studentsOverdue, color:'#FFB400' },
+                    ].map(x => (
+                      <div key={x.label} style={{ background:'rgba(255,255,255,0.03)', borderRadius:'9px', padding:'11px 13px' }}>
+                        <div style={{ fontSize:'10px', color:'rgba(245,246,250,0.6)', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:'4px' }}>{x.label}</div>
+                        <div style={{ fontSize:'16px', fontWeight:'900', color:x.color }}>{x.val}</div>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ marginTop:'12px', height:'6px', borderRadius:'999px', background:'rgba(255,255,255,0.07)', overflow:'hidden' }}>
+                    <div style={{ height:'100%', width:`${Math.min(100, rollup.collectionRate*100)}%`, background:STATUS_COLOR[rollup.status], transition:'width 0.3s ease' }}></div>
+                  </div>
+                  {rollup.unmatchedIncome > 0 && (
+                    <div style={{ marginTop:'12px', padding:'9px 12px', background:'rgba(255,180,0,0.08)', border:'1px solid rgba(255,180,0,0.25)', borderRadius:'8px', fontSize:'11px', color:'#FFB400' }}>
+                      ⚠️ {FMT(rollup.unmatchedIncome)} logged in the Income Log doesn't match any enrolled student by name — it's real cash on hand, but not reflected in the fee totals above. Check spelling or confirm these students are enrolled.
                     </div>
-                  ))}
+                  )}
                 </div>
-                <div style={{ marginTop:'10px', fontSize:'10.5px', color:'var(--muted)', lineHeight:1.5 }}>
-                  Net Cash Position = Fees Collected This Term − Cash Spent (logged expenses) − Monthly Payroll obligation. Payroll is computed live from the current teacher roster's salaries — add, remove, or repay a teacher and this recalculates on its own, nothing to re-enter here.
+
+                <div style={{ background:'#141e3c', border:'1px solid rgba(255,255,255,0.15)', borderRadius:'13px', padding:'18px 20px' }}>
+                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'14px', flexWrap:'wrap', gap:'8px' }}>
+                    <h2 style={{ fontSize:'14px', fontWeight:'800', color:'#FFB400' }}>💼 Payroll / Cash Outflow — Synced to Teaching Staff</h2>
+                    <span style={{ fontSize:'10.5px', color:'rgba(245,246,250,0.6)', fontFamily:'var(--mono)' }}>{activeTeachers.length} active staff · updates automatically</span>
+                  </div>
+                  <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:'12px' }}>
+                    {[
+                      { label:'Monthly Payroll (Live)', val:FMT(monthlyPayroll), color:'#FF4757' },
+                      { label:'Cash Spent (Logged)', val:FMT(totalOut), color:'#FFB400' },
+                      { label:'Net Cash Position', val:FMT(netCashPosition), color: netCashPosition >= 0 ? '#00FC8F' : '#FF4757' },
+                    ].map(x => (
+                      <div key={x.label} style={{ background:'rgba(255,255,255,0.03)', borderRadius:'9px', padding:'11px 13px' }}>
+                        <div style={{ fontSize:'10px', color:'rgba(245,246,250,0.6)', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:'4px' }}>{x.label}</div>
+                        <div style={{ fontSize:'16px', fontWeight:'900', color:x.color }}>{x.val}</div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
 
-              {/* Tab Nav */}
-              <div style={{ display:'flex', gap:'6px', borderBottom:'1px solid rgba(255,255,255,0.07)', marginBottom:'20px', flexWrap:'wrap' }}>
-                {TABS.map(t => (
-                  <button key={t.k} onClick={() => setTab(t.k)} style={{
-                    padding:'9px 16px', borderRadius:'9px 9px 0 0', border:'none', fontSize:'12px', fontWeight:'700',
-                    background: tab===t.k ? '#0F172A' : 'transparent',
-                    color: tab===t.k ? '#F8FAFC' : 'rgba(248,250,252,0.45)',
-                    borderBottom: tab===t.k ? '2px solid #FFB400' : '2px solid transparent',
-                    cursor:'pointer', transition:'all 0.15s',
-                  }}>{t.label}</button>
-                ))}
-              </div>
-
-              {/* ═══ CASH FLOW TAB ═══ */}
-              {tab === 'cash' && (
                 <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'18px' }}>
                   {/* Income */}
                   <div>
@@ -591,23 +614,23 @@
                     </div>
                     <div style={{ display:'flex', flexDirection:'column', gap:'9px' }}>
                       {incomes.map(inc => (
-                        <div key={inc.id} style={{ background:'#0F172A', border:'1px solid rgba(255,255,255,0.07)', borderRadius:'11px', padding:'13px 15px' }}>
+                        <div key={inc.id} style={{ background:'#141e3c', border:'1px solid rgba(255,255,255,0.07)', borderRadius:'11px', padding:'13px 15px' }}>
                           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:'5px' }}>
                             <div>
                               <span style={{ fontFamily:'var(--mono)', fontSize:'9px', color:'#00FC8F', fontWeight:'600' }}>{inc.id}</span>
-                              <div style={{ fontWeight:'700', fontSize:'13px', marginTop:'2px' }}>{inc.studentName} <span style={{ color:'var(--muted)', fontWeight:'400', fontSize:'11px' }}>({inc.class})</span></div>
+                              <div style={{ fontWeight:'700', fontSize:'13px', marginTop:'2px' }}>{inc.studentName} <span style={{ color:'rgba(245,246,250,0.6)', fontWeight:'400', fontSize:'11px' }}>({inc.class})</span></div>
                             </div>
                             <div style={{ textAlign:'right' }}>
-                              <div style={{ fontWeight:'900', fontSize:'15px', color:'#00FC8F' }}>{FMT(inc.amount)}</div>
-                              <div style={{ fontSize:'9px', color:'var(--muted)' }}>Unspent: {FMT(inc.unspentBalance)}</div>
+                              <div style={{ color:'#00FC8F', fontWeight:'800', fontSize:'14px' }}>{FMT(inc.amount)}</div>
+                              <div style={{ fontSize:'10px', color:'rgba(245,246,250,0.6)', marginTop:'3px' }}>Unspent: {FMT(inc.unspentBalance)}</div>
                             </div>
                           </div>
-                          <div style={{ display:'flex', gap:'5px', flexWrap:'wrap' }}>
-                            <Badge label={inc.sourceType} color="#00FC8F" />
-                            <Badge label={inc.paymentMethod} color="#3B82F6" />
+                          <div style={{ display:'flex', gap:'6px', alignItems:'center' }}>
+                            <Badge label={inc.sourceType} color="#3B82F6" />
+                            <Badge label={inc.paymentMethod} color="#8B5CF6" />
                           </div>
-                          {inc.notes && <div style={{ fontSize:'10px', color:'var(--muted)', marginTop:'5px', fontStyle:'italic' }}>{inc.notes}</div>}
-                          <div style={{ fontSize:'9px', color:'var(--muted)', marginTop:'3px', fontFamily:'var(--mono)' }}>{inc.date}</div>
+                          {inc.notes && <div style={{ fontSize:'11px', color:'rgba(245,246,250,0.6)', marginTop:'8px', fontStyle:'italic' }}>Notes: {inc.notes}</div>}
+                          <div style={{ fontSize:'10px', color:'rgba(245,246,250,0.4)', marginTop:'8px' }}>{inc.date}</div>
                         </div>
                       ))}
                     </div>
@@ -617,227 +640,178 @@
                   <div>
                     <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'12px' }}>
                       <h2 style={{ fontSize:'14px', fontWeight:'800', color:'#FF4757' }}>📤 Expenditure Log</h2>
-                      <button onClick={() => { setExpSrcId(incomes[0]?.id||''); setShowExpModal(true); }} style={{ background:'rgba(255,71,87,0.10)', border:'1px solid rgba(255,71,87,0.35)', color:'#FF4757', padding:'6px 12px', borderRadius:'7px', fontSize:'11px', fontWeight:'700', cursor:'pointer' }}>+ Log Expense</button>
+                      <button onClick={() => setShowExpModal(true)} style={{ background:'rgba(255,71,87,0.12)', border:'1px solid rgba(255,71,87,0.35)', color:'#FF4757', padding:'6px 12px', borderRadius:'7px', fontSize:'11px', fontWeight:'700', cursor:'pointer' }}>+ Log Expense</button>
                     </div>
                     <div style={{ display:'flex', flexDirection:'column', gap:'9px' }}>
                       {expenses.map(exp => {
                         const src = incomes.find(i => i.id === exp.incomeSourceId);
                         return (
-                          <div key={exp.id} style={{ background:'#0F172A', border:'1px solid rgba(255,255,255,0.07)', borderRadius:'11px', padding:'13px 15px' }}>
+                          <div key={exp.id} style={{ background:'#141e3c', border:'1px solid rgba(255,255,255,0.07)', borderRadius:'11px', padding:'13px 15px' }}>
                             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:'5px' }}>
                               <div>
                                 <span style={{ fontFamily:'var(--mono)', fontSize:'9px', color:'#FF4757', fontWeight:'600' }}>{exp.id}</span>
-                                <div style={{ fontWeight:'700', fontSize:'13px', marginTop:'2px' }}>{exp.description}</div>
-                                <div style={{ fontSize:'10px', color:'var(--muted)' }}>→ {exp.paidTo}</div>
+                                <div style={{ fontWeight:'700', fontSize:'13px', marginTop:'2px' }}>{exp.paidTo} <span style={{ color:'rgba(245,246,250,0.6)', fontWeight:'400', fontSize:'11px' }}>({exp.category})</span></div>
                               </div>
-                              <div style={{ fontWeight:'900', fontSize:'15px', color:'#FF4757', flexShrink:0, marginLeft:'8px' }}>{FMT(exp.amount)}</div>
+                              <div style={{ color:'#FF4757', fontWeight:'800', fontSize:'14px' }}>{FMT(exp.amount)}</div>
                             </div>
-                            <div style={{ background:'rgba(255,180,0,0.07)', border:'1px solid rgba(255,180,0,0.2)', borderRadius:'7px', padding:'7px 9px', marginTop:'7px' }}>
-                              <div style={{ fontSize:'9px', fontWeight:'700', color:'#FFB400', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:'2px' }}>🔗 Funded From</div>
-                              <div style={{ fontSize:'11px', fontWeight:'600' }}>{src ? `${src.studentName} (${src.class}) — ${src.sourceType}` : exp.incomeSourceId}</div>
-                            </div>
-                            <div style={{ display:'flex', gap:'5px', marginTop:'7px', flexWrap:'wrap' }}>
-                              <Badge label={exp.category} color="#FFB400" />
-                              <Badge label={exp.receiptAttached ? 'Receipt ✓' : 'No Receipt'} color={exp.receiptAttached ? '#00FC8F' : '#FF4757'} />
-                            </div>
-                            <div style={{ fontSize:'9px', color:'var(--muted)', marginTop:'4px', fontFamily:'var(--mono)' }}>{exp.date}</div>
+                            <div style={{ fontSize:'11px', color:'rgba(245,246,250,0.6)', marginBottom:'8px' }}>{exp.description}</div>
+                            {src && (
+                              <div style={{ display:'inline-flex', alignItems:'center', gap:'5px', padding:'4px 8px', borderRadius:'6px', background:'rgba(255,180,0,0.1)', border:'1px solid rgba(255,180,0,0.2)', fontSize:'9px', color:'#FFB400', fontFamily:'var(--mono)' }}>
+                                🔗 FUNDED FROM: {src.studentName} ({src.class})
+                              </div>
+                            )}
+                            <div style={{ fontSize:'10px', color:'rgba(245,246,250,0.4)', marginTop:'8px' }}>{exp.date}</div>
                           </div>
                         );
                       })}
                     </div>
                   </div>
                 </div>
-              )}
+              </div>
+            )}
 
-              {/* ═══ FULL REPORT ═══ */}
-              {tab === 'report' && (
-                <div>
-                  <div style={{ display:'flex', gap:'10px', marginBottom:'18px', flexWrap:'wrap', justifyContent:'space-between', alignItems:'center' }}>
-                    <h2 style={{ fontSize:'15px', fontWeight:'800' }}>📊 Income → Expenditure Trail</h2>
-                    <div style={{ display:'flex', gap:'8px', flexWrap:'wrap' }}>
-                      <input value={reportSearch} onChange={e=>setReportSearch(e.target.value)} placeholder="Search student or ID…" style={{ ...IS, width:'200px', fontSize:'12px', padding:'7px 10px' }} />
-                      <select value={reportFilter} onChange={e=>setReportFilter(e.target.value)} style={{ ...IS, width:'auto', fontSize:'12px', padding:'7px 10px' }}>
-                        <option>All</option>
-                        <option>School Fees (Tuition)</option>
-                        <option>Admission & Books</option>
-                        <option>Other Income</option>
-                      </select>
-                    </div>
-                  </div>
-                  <div style={{ display:'flex', flexDirection:'column', gap:'14px' }}>
-                    {filteredIncomes.map(inc => {
-                      const linked = getExpensesFor(inc.id);
-                      const spent = linked.reduce((s,e) => s+e.amount, 0);
-                      return (
-                        <div key={inc.id} style={{ background:'#0F172A', border:'1px solid rgba(255,255,255,0.08)', borderRadius:'13px', overflow:'hidden' }}>
-                          <div style={{ padding:'13px 16px', background:'rgba(0,252,143,0.05)', borderBottom: linked.length ? '1px solid rgba(255,255,255,0.06)' : 'none', display:'flex', justifyContent:'space-between', flexWrap:'wrap', gap:'8px' }}>
-                            <div style={{ display:'flex', gap:'10px', alignItems:'center' }}>
-                              <span style={{ fontFamily:'var(--mono)', fontSize:'10px', color:'#00FC8F', fontWeight:'700' }}>{inc.id}</span>
-                              <div>
-                                <div style={{ fontWeight:'700', fontSize:'13px' }}>{inc.studentName} · {inc.class}</div>
-                                <div style={{ fontSize:'11px', color:'var(--muted)' }}>{inc.sourceType} · {inc.paymentMethod} · {inc.date}</div>
-                              </div>
-                            </div>
-                            <div style={{ textAlign:'right' }}>
-                              <div style={{ fontWeight:'900', fontSize:'17px', color:'#00FC8F' }}>{FMT(inc.amount)}</div>
-                              <div style={{ fontSize:'10px', color: inc.unspentBalance>0 ? '#FFB400' : 'var(--muted)' }}>Unspent: {FMT(inc.unspentBalance)}</div>
-                            </div>
-                          </div>
-                          {linked.length > 0 && linked.map((exp,idx) => (
-                            <div key={exp.id} style={{ display:'flex', alignItems:'center', padding:'9px 16px', gap:'10px', borderBottom: idx<linked.length-1 ? '1px solid rgba(255,255,255,0.04)' : 'none' }}>
-                              <div style={{ width:'2px', height:'30px', background:'rgba(255,180,0,0.4)', borderRadius:'1px', flexShrink:0 }}></div>
-                              <div style={{ flex:1 }}>
-                                <div style={{ fontSize:'12px', fontWeight:'600' }}>{exp.description}</div>
-                                <div style={{ fontSize:'10px', color:'var(--muted)' }}>{exp.category} · {exp.paidTo} · {exp.date}</div>
-                              </div>
-                              <div style={{ fontWeight:'700', fontSize:'13px', color:'#FF4757' }}>−{FMT(exp.amount)}</div>
-                            </div>
-                          ))}
-                          {linked.length === 0 && <div style={{ padding:'10px 16px', fontSize:'11px', color:'var(--muted)', fontStyle:'italic' }}>No expenses linked yet.</div>}
-                          {linked.length > 0 && (
-                            <div style={{ padding:'8px 16px', borderTop:'1px solid rgba(255,255,255,0.05)', display:'flex', justifyContent:'space-between', fontSize:'11px', fontWeight:'700' }}>
-                              <span style={{ color:'var(--muted)' }}>Spent: {FMT(spent)}</span>
-                              <span style={{ color: inc.unspentBalance>0 ? '#FFB400' : '#00FC8F' }}>Remaining: {FMT(inc.unspentBalance)}</span>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
+            {/* TAB CONTENT: STUDENTS */}
+            {activeTab === 'students' && (
+              <div style={{ background: '#141e3c', padding: '24px', borderRadius: '12px', border: `1px solid rgba(255,255,255,0.15)` }}>
+                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'16px' }}>
+                  <h2 style={{ fontSize:'16px', fontWeight:'800', color:'#3B82F6' }}>🎒 Students & Enrollment ({students.length})</h2>
+                  <button onClick={() => setShowAddStudent(true)} style={{ background:'rgba(0,252,143,0.12)', border:'1px solid rgba(0,252,143,0.3)', color:'#00FC8F', borderRadius:'6px', padding:'6px 14px', fontSize:'12px', fontWeight:'700', cursor:'pointer' }}>+ Add Student</button>
                 </div>
-              )}
-
-              {/* ═══ SUPERVISION ═══ */}
-              {tab === 'supervision' && (
-                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'18px' }}>
-                  <div>
-                    <h2 style={{ fontSize:'14px', fontWeight:'800', marginBottom:'12px' }}>🏫 Gate Attendance</h2>
-                    <div style={{ background:'#0F172A', border:'1px solid rgba(255,255,255,0.08)', borderRadius:'11px', overflow:'hidden' }}>
-                      {SS.getAttendance().length === 0 ? (
-                        <div style={{ padding:'14px', fontSize:'11px', color:'var(--muted)', fontStyle:'italic' }}>No gate check-ins logged yet today.</div>
-                      ) : SS.getAttendance().slice(0,8).map((a,i,arr) => (
-                        <div key={a.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'9px 14px', borderBottom: i<arr.length-1 ? '1px solid rgba(255,255,255,0.04)' : 'none', fontSize:'12px' }}>
-                          <div>
-                            <div style={{ fontWeight:'600' }}>{a.name}</div>
-                            <div style={{ fontSize:'10px', color:'var(--muted)' }}>{a.class} · {a.method}</div>
-                          </div>
-                          <div style={{ display:'flex', gap:'8px', alignItems:'center' }}>
-                            <span style={{ fontFamily:'var(--mono)', fontSize:'10px', color:'var(--muted)' }}>{a.time}</span>
-                            <Badge label={a.status} color={a.status==='Present'?'#00FC8F':a.status==='Late'?'#FFB400':'#FF4757'} />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  <div>
-                    <h2 style={{ fontSize:'14px', fontWeight:'800', marginBottom:'12px' }}>👤 Staff Sign-ins</h2>
-                    <div style={{ background:'#0F172A', border:'1px solid rgba(255,255,255,0.08)', borderRadius:'11px', overflow:'hidden' }}>
-                      {SS.getTeachers().slice(0,5).map((s,i,arr) => (
-                        <div key={s.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'10px 14px', borderBottom: i<arr.length-1 ? '1px solid rgba(255,255,255,0.04)' : 'none' }}>
-                          <div style={{ display:'flex', gap:'9px', alignItems:'center' }}>
-                            <div style={{ width:'30px', height:'30px', borderRadius:'50%', background:'linear-gradient(135deg,#3B82F6,#8B5CF6)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'10px', fontWeight:'800' }}>
-                              {s.name.split(' ').map(n=>n[0]).join('').slice(0,2)}
-                            </div>
-                            <div>
-                              <div style={{ fontWeight:'600', fontSize:'12px' }}>{s.name}</div>
-                              <div style={{ fontSize:'10px', color:'var(--muted)' }}>{s.role}</div>
-                            </div>
-                          </div>
-                          <Badge label={s.status} color={['On Duty','In Class'].includes(s.status)?'#00FC8F':'#3B82F6'} />
-                        </div>
-                      ))}
-                    </div>
-                    <div style={{ marginTop:'14px', background:'#0F172A', border:'1px solid rgba(255,255,255,0.08)', borderRadius:'11px', padding:'14px' }}>
-                      <div style={{ fontWeight:'700', fontSize:'12px', marginBottom:'10px' }}>📈 Today's Summary</div>
-                      {[
-                        { label:'Income entries', val:incomes.length, color:'#00FC8F' },
-                        { label:'Expense entries', val:expenses.length, color:'#FF4757' },
-                        { label:'Total Students', val:SS.getStudents().length, color:'#3B82F6' },
-                        { label:'Staff on duty', val:SS.getTeachers().length, color:'var(--text)' },
-                        { label:'Cash Balance', val:FMT(cashBal), color:'#FFB400' },
-                      ].map(x => (
-                        <div key={x.label} style={{ display:'flex', justifyContent:'space-between', marginBottom:'6px', fontSize:'12px' }}>
-                          <span style={{ color:'var(--muted)' }}>{x.label}</span>
-                          <span style={{ fontWeight:'700', color:x.color }}>{x.val}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* ═══ RECONCILE ═══ */}
-              {tab === 'reconcile' && (
-                <div style={{ maxWidth:'480px', margin:'0 auto' }}>
-                  <h2 style={{ fontSize:'15px', fontWeight:'800', marginBottom:'6px' }}>🧾 End-of-Day Cash Reconciliation</h2>
-                  <p style={{ fontSize:'12px', color:'var(--muted)', marginBottom:'22px', lineHeight:1.55 }}>Enter the actual physical cash you're holding. The system will verify it against all logged income and expenditure.</p>
-                  <div style={{ background:'#0F172A', border:'1px solid rgba(255,255,255,0.08)', borderRadius:'13px', padding:'18px', marginBottom:'18px' }}>
-                    {[
-                      { label:'Total Income', val:FMT(totalIn), color:'#00FC8F' },
-                      { label:'Total Expenditure', val:FMT(totalOut), color:'#FF4757', prefix:'−' },
-                    ].map(x=>(
-                      <div key={x.label} style={{ display:'flex', justifyContent:'space-between', padding:'9px 0', borderBottom:'1px solid rgba(255,255,255,0.05)' }}>
-                        <span style={{ color:'var(--muted)', fontSize:'13px' }}>{x.label}</span>
-                        <span style={{ fontWeight:'700', color:x.color }}>{x.prefix||''}{x.val}</span>
-                      </div>
+                
+                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
+                  <thead>
+                    <tr style={{ background: '#1a2548', color: 'rgba(245,246,250,0.6)' }}>
+                      <th style={{ padding: '12px' }}>Student Name</th>
+                      <th style={{ padding: '12px' }}>Class</th>
+                      <th style={{ padding: '12px' }}>Type</th>
+                      <th style={{ padding: '12px' }}>Full Fees</th>
+                      <th style={{ padding: '12px' }}>Fee Balance</th>
+                      <th style={{ padding: '12px' }}>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {students.map(s => (
+                      <tr key={s.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+                        <td style={{ padding: '12px', fontWeight: '600' }}>{s.name}</td>
+                        <td style={{ padding: '12px' }}>{s.class}</td>
+                        <td style={{ padding: '12px' }}><Badge label={s.type} color="#3B82F6" /></td>
+                        <td style={{ padding: '12px' }}>{FMT(s.termFee)}</td>
+                        <td style={{ padding: '12px', fontWeight: '800', color: s.balance > 0 ? '#FF4757' : '#00FC8F' }}>{FMT(s.balance)}</td>
+                        <td style={{ padding: '12px' }}>
+                          <Badge label={s.balance > 0 ? 'Unpaid' : 'Cleared'} color={s.balance > 0 ? '#FF4757' : '#00FC8F'} />
+                        </td>
+                      </tr>
                     ))}
-                    <div style={{ display:'flex', justifyContent:'space-between', padding:'11px 0 0' }}>
-                      <span style={{ fontWeight:'700', fontSize:'14px' }}>Expected Cash on Hand</span>
-                      <span style={{ fontWeight:'900', fontSize:'17px', color:'#FFB400' }}>{FMT(cashBal)}</span>
-                    </div>
-                  </div>
-                  <Field label="Actual Cash You Are Holding (UGX)">
-                    <input type="number" value={actualCash} onChange={e=>{ setActualCash(e.target.value); setReconResult(null); }} placeholder="e.g. 1155000" style={IS} />
-                  </Field>
-                  <button onClick={handleReconcile} disabled={!actualCash} style={{ width:'100%', padding:'13px', background:'#FFB400', color:'#0a1029', border:'none', borderRadius:'10px', fontSize:'14px', fontWeight:'800', cursor:'pointer', marginTop:'4px' }}>Verify Cash Balance</button>
-                  {reconResult && (
-                    <div style={{ marginTop:'18px', background: reconResult.diff===0 ? 'rgba(0,252,143,0.08)' : 'rgba(255,71,87,0.08)', border:`1px solid ${reconResult.diff===0 ? 'rgba(0,252,143,0.3)' : 'rgba(255,71,87,0.3)'}`, borderRadius:'12px', padding:'16px' }}>
-                      <div style={{ fontWeight:'800', fontSize:'15px', marginBottom:'8px', color: reconResult.diff===0 ? '#00FC8F' : '#FF4757' }}>
-                        {reconResult.diff===0 ? '✅ Cash Balanced!' : reconResult.diff>0 ? `⚠️ Surplus: +${FMT(reconResult.diff)}` : `❌ Shortfall: ${FMT(Math.abs(reconResult.diff))}`}
-                      </div>
-                      <div style={{ fontSize:'12px', color:'var(--muted)', lineHeight:1.6 }}>
-                        <div>Expected: <b style={{ color:'#FFB400' }}>{FMT(reconResult.expected)}</b></div>
-                        <div>Actual: <b style={{ color:'var(--text)' }}>{FMT(reconResult.actual)}</b></div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
+                  </tbody>
+                </table>
+              </div>
+            )}
 
-            {/* ── SIDE PANEL ── */}
-            <div className={`side-panel ${sidePanelOpen ? '' : 'collapsed'}`}>
-              {sidePanelOpen && <SidePanel onClose={() => setSidePanelOpen(false)} tick={tick} />}
-            </div>
-          </div>
+            {/* TAB CONTENT: TEACHERS */}
+            {activeTab === 'teachers' && (
+              <div style={{ background: '#141e3c', padding: '24px', borderRadius: '12px', border: `1px solid rgba(255,255,255,0.15)` }}>
+                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'16px' }}>
+                  <h2 style={{ fontSize:'16px', fontWeight:'800', color:'#FFB400' }}>👩‍🏫 Teachers Registry ({teachers.length})</h2>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                    <div style={{ fontSize: '13px', color: 'rgba(245,246,250,0.6)' }}>
+                      Monthly Salary Bill: <b style={{ color: '#FF4757' }}>{FMT(monthlyPayroll)}</b>
+                    </div>
+                    <button onClick={() => setShowAddTeacher(true)} style={{ background:'rgba(0,252,143,0.12)', border:'1px solid rgba(0,252,143,0.3)', color:'#00FC8F', borderRadius:'6px', padding:'6px 14px', fontSize:'12px', fontWeight:'700', cursor:'pointer' }}>+ Add Teacher</button>
+                  </div>
+                </div>
+                
+                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
+                  <thead>
+                    <tr style={{ background: '#1a2548', color: 'rgba(245,246,250,0.6)' }}>
+                      <th style={{ padding: '12px' }}>Staff Name</th>
+                      <th style={{ padding: '12px' }}>Role & Subject</th>
+                      <th style={{ padding: '12px' }}>Phone</th>
+                      <th style={{ padding: '12px' }}>Joined</th>
+                      <th style={{ padding: '12px', textAlign: 'right' }}>Monthly Salary</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {teachers.map(t => (
+                      <tr key={t.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+                        <td style={{ padding: '12px', fontWeight: '600' }}>{t.name}</td>
+                        <td style={{ padding: '12px', color: 'rgba(245,246,250,0.8)' }}>
+                          <div>{t.role}</div>
+                          <div style={{ fontSize: '11px', color: 'rgba(245,246,250,0.5)' }}>{t.subject}</div>
+                        </td>
+                        <td style={{ padding: '12px', fontFamily: 'var(--mono)' }}>{t.phone}</td>
+                        <td style={{ padding: '12px', color: 'rgba(245,246,250,0.6)' }}>{t.joinDate}</td>
+                        <td style={{ padding: '12px', textAlign: 'right', fontWeight: '800', color: '#FF4757' }}>{FMT(t.salary)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {/* TAB CONTENT: PAYMENTS */}
+            {activeTab === 'payments' && (
+              <div style={{ background: '#141e3c', padding: '24px', borderRadius: '12px', border: `1px solid rgba(255,255,255,0.15)` }}>
+                <h2 style={{ fontSize:'16px', fontWeight:'800', color:'#00FC8F', marginBottom:'16px' }}>🧾 All Payment Records ({payments.length})</h2>
+                
+                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
+                  <thead>
+                    <tr style={{ background: '#1a2548', color: 'rgba(245,246,250,0.6)' }}>
+                      <th style={{ padding: '12px' }}>Receipt No</th>
+                      <th style={{ padding: '12px' }}>Student</th>
+                      <th style={{ padding: '12px' }}>Amount</th>
+                      <th style={{ padding: '12px' }}>Date</th>
+                      <th style={{ padding: '12px' }}>Bursar</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {payments.map(p => (
+                      <tr key={p.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+                        <td style={{ padding: '12px', fontFamily: 'var(--mono)', color: '#3B82F6' }}>{p.id}</td>
+                        <td style={{ padding: '12px', fontWeight: '600' }}>{p.studentName} <span style={{ color: 'rgba(245,246,250,0.6)', fontWeight: 'normal' }}>({p.class})</span></td>
+                        <td style={{ padding: '12px', fontWeight: '800', color: '#00FC8F' }}>{FMT(p.amount)}</td>
+                        <td style={{ padding: '12px', color: 'rgba(245,246,250,0.6)' }}>{p.date}</td>
+                        <td style={{ padding: '12px' }}>{p.bursar}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+          </main>
 
           {/* ═══ INCOME MODAL ═══ */}
           {showIncModal && (
-            <Modal title="📥 Log New Income" onClose={() => setShowIncModal(false)}>
-              <Field label="Student Name *"><input style={IS} value={incStudent} onChange={e=>setIncStudent(e.target.value)} placeholder="e.g. Brian Mukasa" /></Field>
+            <Modal title="📥 Log New Income (Cash/Bank)" onClose={() => setShowIncModal(false)}>
+              <Field label="Student Name *">
+                <select style={IS} value={incStudent} onChange={e => {
+                  const s = students.find(x => x.name === e.target.value);
+                  setIncStudent(e.target.value);
+                  if (s) setIncClass(s.class);
+                }}>
+                  <option value="">Select Student...</option>
+                  {students.map(s => <option key={s.id} value={s.name}>{s.name} ({s.class}) — Bal: {FMT(s.balance)}</option>)}
+                </select>
+              </Field>
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px' }}>
-                <Field label="Class">
-                  <select style={IS} value={incClass} onChange={e=>setIncClass(e.target.value)}>
-                    {['Baby Class','Middle Class','Top Class','P.1','P.2','P.3','P.4','P.5','P.6','P.7'].map(c=><option key={c}>{c}</option>)}
-                  </select>
-                </Field>
-                <Field label="Payment Method">
-                  <select style={IS} value={incMethod} onChange={e=>setIncMethod(e.target.value)}>
-                    {['Cash','Mobile Money','Bank Transfer','Cheque'].map(m=><option key={m}>{m}</option>)}
-                  </select>
-                </Field>
+                <Field label="Amount (UGX) *"><input style={IS} type="number" value={incAmount} onChange={e=>setIncAmount(e.target.value)} placeholder="e.g. 150000" /></Field>
+                <Field label="Class"><input style={IS} value={incClass} onChange={e=>setIncClass(e.target.value)} disabled /></Field>
               </div>
-              <Field label="Amount (UGX) *"><input style={IS} type="number" value={incAmount} onChange={e=>setIncAmount(e.target.value)} placeholder="e.g. 750000" /></Field>
               <Field label="Source Type">
                 <select style={IS} value={incSource} onChange={e=>setIncSource(e.target.value)}>
-                  {['School Fees (Tuition)','School Fees (Boarding)','Admission & Books','Transport Levy','Meals Levy','Other Income'].map(s=><option key={s}>{s}</option>)}
+                  {['School Fees (Tuition)','Admission & Books','Uniforms','Transport / Bus','Other'].map(c=><option key={c}>{c}</option>)}
+                </select>
+              </Field>
+              <Field label="Payment Method">
+                <select style={IS} value={incMethod} onChange={e=>setIncMethod(e.target.value)}>
+                  {['Cash','Bank Transfer','Mobile Money'].map(c=><option key={c}>{c}</option>)}
                 </select>
               </Field>
               <Field label="Notes"><input style={IS} value={incNotes} onChange={e=>setIncNotes(e.target.value)} placeholder="e.g. Term 2 — full payment" /></Field>
               <div style={{ padding:'9px 11px', background:'rgba(0,252,143,0.06)', border:'1px solid rgba(0,252,143,0.2)', borderRadius:'8px', fontSize:'11px', color:'#00FC8F', marginBottom:'14px' }}>
-                Received by: <b>Nalukenge Jane</b> · Entry auto-syncs to Head Teacher Dashboard &amp; Payment Records.
+                Received by: <b>{userName}</b> · Entry auto-syncs to Head Teacher Dashboard & Payment Records.
               </div>
-              <button onClick={handleAddIncome} disabled={!incStudent||!incAmount} style={{ width:'100%', padding:'12px', background: incStudent&&incAmount ? '#00FC8F' : '#334155', color: incStudent&&incAmount ? '#0a1029' : 'var(--muted)', border:'none', borderRadius:'9px', fontSize:'14px', fontWeight:'800', cursor: incStudent&&incAmount ? 'pointer':'not-allowed' }}>
+              <button onClick={handleAddIncome} disabled={!incStudent||!incAmount} style={{ width:'100%', padding:'12px', background: incStudent&&incAmount ? '#00FC8F' : '#334155', color: incStudent&&incAmount ? '#0a1029' : 'rgba(245,246,250,0.6)', border:'none', borderRadius:'9px', fontSize:'14px', fontWeight:'800', cursor: incStudent&&incAmount ? 'pointer':'not-allowed' }}>
                 Save Income Entry
               </button>
             </Modal>
@@ -872,14 +846,15 @@
               </button>
             </Modal>
           )}
+
           {/* ═══ IMPORT FEES CSV MODAL ═══ */}
           {showImportFeesModal && (
             <Modal title="📥 Bulk Import Fees (CSV)" onClose={() => setShowImportFeesModal(false)}>
-              <p style={{ fontSize:'12px', color:'var(--muted)', marginBottom:'14px' }}>
+              <p style={{ fontSize:'12px', color:'rgba(245,246,250,0.6)', marginBottom:'14px' }}>
                 Upload your fee ledger CSV file (e.g. <code>kabs_lily_fees.csv</code>). The rows will write directly to Supabase and update all dashboards in real-time.
               </p>
               <Field label="Option A: Choose CSV File">
-                <input type="file" accept=".csv" onChange={handleCsvFileChange} style={{ background:'var(--surf2)', color:'var(--text)', padding:'10px', borderRadius:'8px', width:'100%' }} />
+                <input type="file" accept=".csv" onChange={handleCsvFileChange} style={{ background:'#1a2548', color:'#f5f6fa', padding:'10px', borderRadius:'8px', width:'100%' }} />
               </Field>
 
               <Field label="Option B: Or Paste CSV / Excel Data">
@@ -892,18 +867,18 @@
                     const rows = store && store.parseFeesCsv ? store.parseFeesCsv(text) : [];
                     setParsedCsvRows(rows);
                   }}
-                  style={{ background:'var(--surf2)', color:'var(--text)', padding:'10px', borderRadius:'8px', width:'100%', fontFamily:'var(--mono)', fontSize:'11px', outline:'none' }}
+                  style={{ background:'#1a2548', color:'#f5f6fa', padding:'10px', borderRadius:'8px', width:'100%', fontFamily:'var(--mono)', fontSize:'11px', outline:'none' }}
                 />
               </Field>
 
               {parsedCsvRows.length > 0 && (
-                <div style={{ marginTop:'14px', background:'var(--surf2)', borderRadius:'9px', padding:'12px', maxHeight:'200px', overflowY:'auto' }}>
+                <div style={{ marginTop:'14px', background:'#1a2548', borderRadius:'9px', padding:'12px', maxHeight:'200px', overflowY:'auto' }}>
                   <div style={{ fontWeight:'800', fontSize:'12px', color:'#00FC8F', marginBottom:'8px' }}>
                     Previewing {parsedCsvRows.length} rows to import:
                   </div>
                   <table style={{ width:'100%', fontSize:'11px', borderCollapse:'collapse' }}>
                     <thead>
-                      <tr style={{ color:'var(--muted)', textAlign:'left' }}>
+                      <tr style={{ color:'rgba(245,246,250,0.6)', textAlign:'left' }}>
                         <th>Student</th>
                         <th>Class</th>
                         <th>Fee Type</th>
@@ -913,7 +888,7 @@
                     </thead>
                     <tbody>
                       {parsedCsvRows.slice(0, 10).map((r, i) => (
-                        <tr key={i} style={{ borderTop:'1px solid var(--border)' }}>
+                        <tr key={i} style={{ borderTop:'1px solid rgba(255,255,255,0.08)' }}>
                           <td style={{ padding:'4px 0' }}>{r.name}</td>
                           <td>{r.class}</td>
                           <td>{r.feeType}</td>
@@ -923,7 +898,7 @@
                       ))}
                     </tbody>
                   </table>
-                  {parsedCsvRows.length > 10 && <div style={{ fontSize:'10px', color:'var(--muted)', marginTop:'6px' }}>+ {parsedCsvRows.length - 10} more rows...</div>}
+                  {parsedCsvRows.length > 10 && <div style={{ fontSize:'10px', color:'rgba(245,246,250,0.6)', marginTop:'6px' }}>+ {parsedCsvRows.length - 10} more rows...</div>}
                 </div>
               )}
 
@@ -933,7 +908,7 @@
                 style={{
                   width:'100%', padding:'12px', marginTop:'16px',
                   background: parsedCsvRows.length ? '#3B82F6' : '#334155',
-                  color: parsedCsvRows.length ? '#ffffff' : 'var(--muted)',
+                  color: parsedCsvRows.length ? '#ffffff' : 'rgba(245,246,250,0.6)',
                   border:'none', borderRadius:'9px', fontSize:'14px', fontWeight:'800',
                   cursor: parsedCsvRows.length ? 'pointer' : 'not-allowed'
                 }}
@@ -943,9 +918,67 @@
             </Modal>
           )}
 
+          {/* Add Modals for Teachers and Students (From side panel) */}
+          {/* TEACHER MODAL */}
+          {showAddTeacher && (
+            <Modal title="👩‍🏫 Add Teacher" onClose={() => setShowAddTeacher(false)}>
+              <Field label="Full Name *"><input style={IS} value={tName} onChange={e=>setTName(e.target.value)} placeholder="e.g. Nalukenge Jane" /></Field>
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px' }}>
+                <Field label="Role">
+                  <select style={IS} value={tRole} onChange={e=>setTRole(e.target.value)}>
+                    <option>Class Teacher</option><option>Subject Teacher</option><option>Administrator</option><option>Bursar</option>
+                  </select>
+                </Field>
+                <Field label="Primary Subject"><input style={IS} value={tSubject} onChange={e=>setTSubject(e.target.value)} placeholder="e.g. Mathematics" /></Field>
+              </div>
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px' }}>
+                <Field label="Class / Stream"><input style={IS} value={tClass} onChange={e=>setTClass(e.target.value)} placeholder="e.g. P.4 Lion" /></Field>
+                <Field label="Monthly Salary (UGX) *"><input style={IS} type="number" value={tSalary} onChange={e=>setTSalary(e.target.value)} placeholder="e.g. 500000" /></Field>
+              </div>
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px' }}>
+                <Field label="Phone Number"><input style={IS} value={tPhone} onChange={e=>setTPhone(e.target.value)} placeholder="e.g. +256 772 001 001" /></Field>
+                <Field label="Qualification">
+                  <select style={IS} value={tQual} onChange={e=>setTQual(e.target.value)}>
+                    <option>Grade III Certificate</option><option>Diploma in Education</option><option>Bachelor's Degree</option><option>ECD Certificate</option>
+                  </select>
+                </Field>
+              </div>
+              <button onClick={handleAddTeacher} disabled={!tName||!tSalary} style={{ width:'100%', padding:'12px', background: tName&&tSalary ? '#00FC8F' : '#334155', color: tName&&tSalary ? '#0a1029' : 'rgba(245,246,250,0.6)', border:'none', borderRadius:'9px', fontSize:'14px', fontWeight:'800', cursor: tName&&tSalary ? 'pointer':'not-allowed' }}>
+                Save Teacher
+              </button>
+            </Modal>
+          )}
+
+          {/* STUDENT MODAL */}
+          {showAddStudent && (
+            <Modal title="🎒 Enroll Student" onClose={() => setShowAddStudent(false)}>
+              <Field label="Full Name *"><input style={IS} value={sName} onChange={e=>setSName(e.target.value)} placeholder="e.g. Brian Mukasa" /></Field>
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px' }}>
+                <Field label="Class">
+                  <select style={IS} value={sClass} onChange={e=>setSClass(e.target.value)}>
+                    <option>Baby Class</option><option>Middle Class</option><option>Top Class</option>
+                    <option>P.1</option><option>P.2</option><option>P.3</option><option>P.4</option><option>P.5</option><option>P.6</option><option>P.7</option>
+                  </select>
+                </Field>
+                <Field label="Enrollment Type">
+                  <select style={IS} value={sType} onChange={e=>setSType(e.target.value)}>
+                    <option>Day Scholar</option><option>Boarding</option>
+                  </select>
+                </Field>
+              </div>
+              <Field label="Term Full Fees (UGX) *"><input style={IS} type="number" value={sFee} onChange={e=>setSFee(e.target.value)} placeholder="e.g. 750000" /></Field>
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px' }}>
+                <Field label="Guardian Name"><input style={IS} value={sGuardian} onChange={e=>setSGuardian(e.target.value)} placeholder="e.g. Mr. Musoke" /></Field>
+                <Field label="Guardian Phone"><input style={IS} value={sPhone} onChange={e=>setSPhone(e.target.value)} placeholder="e.g. +256 700 123 456" /></Field>
+              </div>
+              <button onClick={handleAddStudent} disabled={!sName||!sFee} style={{ width:'100%', padding:'12px', background: sName&&sFee ? '#3B82F6' : '#334155', color: '#fff', border:'none', borderRadius:'9px', fontSize:'14px', fontWeight:'800', cursor: sName&&sFee ? 'pointer':'not-allowed' }}>
+                Save Student
+              </button>
+            </Modal>
+          )}
+
         </div>
       );
-    }
 
     // Expose for index.html wrapper
     window.BursarView = BursarDashboard;
