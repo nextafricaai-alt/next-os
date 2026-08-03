@@ -111,12 +111,17 @@ window.PEAK_FINANCE = (function () {
     const [budgetBusy, setBudgetBusy] = useState(false);
     const [del, setDel] = useState(null);
     const [staffPay, setStaffPay] = useState({ map: {}, recs: [] });
+    const [deductions, setDeductions] = useState([]);
     const reload = () => {
       fetch(WK + '/finance?tenant=' + encodeURIComponent(tenant())).then(r => r.json()).then(d => { if (d && d.transactions) setTxns(d.transactions); }).catch(() => {});
       fetch(WK + '/assets?tenant=' + encodeURIComponent(tenant())).then(r => r.json()).then(d => { if (d && d.assets) setAssets(d.assets); }).catch(() => {});
       fetch(WK + '/os-data?kind=pay_voucher&tenant=' + encodeURIComponent(tenant())).then(r => r.json()).then(d => { setVouchers(((d && d.records) || []).map(x => Object.assign({ _id: x.id }, x.payload)).sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')))); }).catch(() => {});
       fetch(WK + '/os-data?kind=staff_pay&tenant=' + encodeURIComponent(tenant())).then(r => r.json()).then(d => { const recs = ((d && d.records) || []).map(x => Object.assign({ _id: x.id }, x.payload)); const map = {}; recs.forEach(r => { if (r.key) map[r.key] = r; }); setStaffPay({ map: map, recs: recs }); }).catch(() => {});
       fetch(WK + '/os-data?kind=budget_plan&tenant=' + encodeURIComponent(tenant())).then(r => r.json()).then(d => { const rec = ((d && d.records) || [])[0]; if (rec) { setBudgetId(rec.id); setBudget((rec.payload && rec.payload.lines) || {}); } else setBudget({}); }).catch(() => {});
+      
+      const dt = new Date();
+      const ms = new Date(dt.getFullYear(), dt.getMonth(), 1).toISOString().slice(0, 10);
+      fetch(WK + '/payroll-deductions?tenant=' + encodeURIComponent(tenant()) + '&month=' + encodeURIComponent(ms)).then(r => r.json()).then(d => { setDeductions(d.records || []); }).catch(() => {});
     };
     useEffect(reload, []);
     useEffect(() => { fetch(WK + '/teachers?tenant=' + encodeURIComponent(tenant())).then(r => r.ok ? r.json() : null).then(d => { if (d && Array.isArray(d.teachers)) setTeachers(d.teachers.filter(x => x.full_name || x.email)); }).catch(() => {}); }, []);
@@ -259,21 +264,28 @@ window.PEAK_FINANCE = (function () {
       savePay(rec).then(() => reload());
     };
     const payStaff = (st) => {
-      const due = (st.monthly || 0) + (st.allowance || 0);
-      setForm({ kind: 'expense', category: 'salaries', payeeName: st.name, payeeEmail: st.email || '', amount: String(due), date: new Date().toISOString().slice(0, 10), payType: 'instant', description: monthLabel + ' pay' + (st.allowance ? ' (salary ' + fmt(st.monthly || 0) + ' + allowance ' + fmt(st.allowance) + ')' : '') });
+      const due = Math.max(0, (st.monthly || 0) + (st.allowance || 0) - (st.deductionsTotal || 0));
+      let desc = monthLabel + ' pay' + (st.allowance ? ' (salary ' + fmt(st.monthly || 0) + ' + allowance ' + fmt(st.allowance) + ')' : '');
+      if (st.deductionsTotal > 0) desc += ' less deductions ' + fmt(st.deductionsTotal);
+      setForm({ kind: 'expense', category: 'salaries', payeeName: st.name, payeeEmail: st.email || '', amount: String(due), date: new Date().toISOString().slice(0, 10), payType: 'instant', description: desc });
     };
     const paidThisMonth = (name) => vouchers.some(v => (v.payee || '').toLowerCase() === (name || '').toLowerCase() && String(v.date || '').slice(0, 7) === ym);
     const payrollList = (function () {
-      const teaching = (teachers || []).map(t => ({ key: (t.email || t.full_name), name: t.full_name || t.email, email: t.email || '', role: ((t.subjects && t.subjects.length) ? ('Teacher · ' + t.subjects.join('/')) : 'Teacher'), type: 'teaching' }));
-      const support = (staffPay.recs || []).filter(r => r.type === 'support').map(r => ({ key: r.key, name: r.name, email: '', role: r.role || 'Support staff', type: 'support' }));
-      return teaching.concat(support).map(st => { const p = staffPay.map[st.key]; return Object.assign({}, st, { monthly: (p && p.monthly) || 0, allowance: (p && p.allowance) || 0, paid: paidThisMonth(st.name) }); });
+      const teaching = (teachers || []).map(t => ({ key: (t.email || t.full_name), name: t.full_name || t.email, email: t.email || '', role: ((t.subjects && t.subjects.length) ? ('Teacher · ' + t.subjects.join('/')) : 'Teacher'), type: 'teaching', id: t.id }));
+      const support = (staffPay.recs || []).filter(r => r.type === 'support').map(r => ({ key: r.key, name: r.name, email: '', role: r.role || 'Support staff', type: 'support', id: null }));
+      return teaching.concat(support).map(st => { 
+        const p = staffPay.map[st.key]; 
+        const myDeds = deductions.filter(d => (d.teacher_id === st.id) || (d.teachers && d.teachers.email === st.email) || (d.teachers && d.teachers.full_name === st.name));
+        const dedTotal = myDeds.reduce((a, x) => a + Number(x.amount || 0), 0);
+        return Object.assign({}, st, { monthly: (p && p.monthly) || 0, allowance: (p && p.allowance) || 0, deductionsTotal: dedTotal, deductionsList: myDeds, paid: paidThisMonth(st.name) }); 
+      });
     })();
     const payrollTotal = payrollList.reduce((a, s) => a + (s.monthly || 0), 0);
     const allowanceTotal = payrollList.reduce((a, s) => a + (s.allowance || 0), 0);
-    const wageBill = payrollTotal + allowanceTotal;
-    const paidTotal = payrollList.filter(s => s.paid).reduce((a, s) => a + (s.monthly || 0) + (s.allowance || 0), 0);
+    const wageBill = payrollList.reduce((a, s) => a + Math.max(0, (s.monthly || 0) + (s.allowance || 0) - (s.deductionsTotal || 0)), 0);
+    const paidTotal = payrollList.filter(s => s.paid).reduce((a, s) => a + Math.max(0, (s.monthly || 0) + (s.allowance || 0) - (s.deductionsTotal || 0)), 0);
     const needSalary = payrollList.filter(s => !s.monthly).length;
-    const unpaidCount = payrollList.filter(s => s.monthly > 0 && !s.paid).length;
+    const unpaidCount = payrollList.filter(s => !s.paid && ((s.monthly || 0) + (s.allowance || 0) > 0)).length;
     // ── Total outflow = full monthly wage bill (all salaries + allowances, teaching + non-teaching) + operating spend (meals & other operations). ──
     const totalOut = wageBill + operatingOut;
     const net = totalIn - totalOut;
@@ -470,10 +482,16 @@ window.PEAK_FINANCE = (function () {
                             <input defaultValue={st.monthly || ''} placeholder="monthly" onBlur={e => { const v = Number(String(e.target.value).replace(/[^0-9]/g, '')) || 0; if (v !== st.monthly) setMonthly(st, v); }} style={{ width: 100, background: T.bg, border: '1px solid ' + T.border, borderRadius: 8, padding: '7px 9px', fontSize: 12.5, color: T.ink, fontFamily: 'ui-monospace,monospace', outline: 'none' }} /></label>
                           <label style={{ display: 'block' }}><div style={{ fontSize: 9, color: T.ink4, fontFamily: 'ui-monospace,monospace', marginBottom: 2 }}>ALLOWANCE</div>
                             <input defaultValue={st.allowance || ''} placeholder="allowance" onBlur={e => { const v = Number(String(e.target.value).replace(/[^0-9]/g, '')) || 0; if (v !== st.allowance) setAllowance(st, v); }} style={{ width: 100, background: T.bg, border: '1px solid ' + T.border, borderRadius: 8, padding: '7px 9px', fontSize: 12.5, color: T.ink, fontFamily: 'ui-monospace,monospace', outline: 'none' }} /></label>
+                          {st.deductionsTotal > 0 && (
+                            <div style={{ display: 'block' }}>
+                              <div style={{ fontSize: 9, color: T.redInk, fontFamily: 'ui-monospace,monospace', marginBottom: 2 }}>DEDUCTIONS</div>
+                              <div style={{ padding: '7px 0', fontSize: 12.5, color: T.redInk, fontWeight: 600 }}>-{fmt(st.deductionsTotal)}</div>
+                            </div>
+                          )}
                         </div>
                         {st.paid
-                          ? <span style={{ fontSize: 11.5, color: T.good, fontFamily: 'ui-monospace,monospace', minWidth: 96, textAlign: 'right' }}>✓ Paid {fmt((st.monthly||0)+(st.allowance||0))}</span>
-                          : <button onClick={() => payStaff(st)} disabled={!((st.monthly||0)+(st.allowance||0))} style={{ background: ((st.monthly||0)+(st.allowance||0)) ? T.red : 'transparent', color: ((st.monthly||0)+(st.allowance||0)) ? '#fff' : T.ink4, border: ((st.monthly||0)+(st.allowance||0)) ? 'none' : '1px solid ' + T.border, borderRadius: 8, padding: '7px 14px', fontSize: 12, fontWeight: 600, cursor: ((st.monthly||0)+(st.allowance||0)) ? 'pointer' : 'not-allowed', minWidth: 96 }}>Pay {fmt((st.monthly||0)+(st.allowance||0))}</button>}
+                          ? <span style={{ fontSize: 11.5, color: T.good, fontFamily: 'ui-monospace,monospace', minWidth: 96, textAlign: 'right' }}>✓ Paid {fmt(Math.max(0, (st.monthly||0)+(st.allowance||0)-(st.deductionsTotal||0)))}</span>
+                          : <button onClick={() => payStaff(st)} disabled={!((st.monthly||0)+(st.allowance||0))} style={{ background: ((st.monthly||0)+(st.allowance||0)) ? T.red : 'transparent', color: ((st.monthly||0)+(st.allowance||0)) ? '#fff' : T.ink4, border: ((st.monthly||0)+(st.allowance||0)) ? 'none' : '1px solid ' + T.border, borderRadius: 8, padding: '7px 14px', fontSize: 12, fontWeight: 600, cursor: ((st.monthly||0)+(st.allowance||0)) ? 'pointer' : 'not-allowed', minWidth: 96 }}>Pay {fmt(Math.max(0, (st.monthly||0)+(st.allowance||0)-(st.deductionsTotal||0)))}</button>}
                       </div>
                     ))}
                   </div>

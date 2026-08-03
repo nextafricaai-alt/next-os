@@ -441,6 +441,7 @@ export default {
     if (url.pathname === '/assets/save')        return handleAssetSave(request, env, cors);
     if (url.pathname === '/school-config')      return handleConfigGet(url.searchParams.get('tenant') || '', env, cors);
     if (url.pathname === '/school-config/save') return handleConfigSave(request, env, cors);
+    if (url.pathname === '/payroll-deductions') return handlePayrollDeductions(url.searchParams.get('tenant') || '', url.searchParams.get('month') || '', env, cors);
     if (url.pathname === '/os-data')            return handleOsDataList(url.searchParams.get('tenant') || 'next', url.searchParams.get('kind') || '', env, cors);
     if (url.pathname === '/os-data/save')       return handleOsDataSave(request, env, cors);
     if (url.pathname === '/os-data/delete')     return handleOsDataDelete(request, env, cors);
@@ -2575,6 +2576,19 @@ async function handleOsDataList(tenant, kind, env, cors) {
   if (!kind) return J({ error: 'kind required' }, 400);
   if (!env.SUPABASE_URL || !env.SUPABASE_KEY) return J({ error: 'Supabase not configured.' }, 500);
   try { const rows = await sbFetch(env, '/os_records?tenant=eq.' + encodeURIComponent(tenant || 'next') + '&kind=eq.' + encodeURIComponent(kind) + '&select=id,payload,created_at&order=created_at.desc&limit=1000'); return J({ tenant: tenant || 'next', kind, records: rows || [] }); }
+  catch (e) { return J({ error: String((e && e.message) || e) }, 200); }
+}
+
+async function handlePayrollDeductions(tenant, month, env, cors) {
+  const J = (oo, st) => new Response(JSON.stringify(oo), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
+  if (!tenant) return J({ error: 'tenant required' }, 400);
+  if (!env.SUPABASE_URL || !env.SUPABASE_KEY) return J({ error: 'Supabase not configured.' }, 500);
+  try { 
+    let query = '/payroll_deductions?tenant_id=eq.' + encodeURIComponent(tenant) + '&select=id,teacher_id,month,amount,reason,notes,created_at,teachers(full_name,email)';
+    if (month) query += '&month=eq.' + encodeURIComponent(month);
+    const rows = await sbFetch(env, query); 
+    return J({ tenant, records: rows || [] }); 
+  }
   catch (e) { return J({ error: String((e && e.message) || e) }, 200); }
 }
 async function handleOsDataDelete(request, env, cors) {

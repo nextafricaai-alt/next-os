@@ -109,7 +109,7 @@
     let payroll = [];
     try {
       const wk = window.WK || 'https://peak-worker.nextafrica.workers.dev';
-      const res = await fetch(wk + '/os-data/list?tenant=' + tenantId + '&kind=staff_pay');
+      const res = await fetch(wk + '/os-data?tenant=' + tenantId + '&kind=staff_pay');
       if (res.ok) {
         const json = await res.json();
         const records = json.records || [];
