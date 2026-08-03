@@ -14381,6 +14381,26 @@ window.PEAK_STAFF = (function () {
       fetch(WKx + '/os-data?kind=school_event&tenant=' + encodeURIComponent(tn)).then(r => r.json()).then(d => { window.__SCHOOL_EVENTS = ((d && d.records) || []).map(x => x.payload).sort((a, b) => String(a.date).localeCompare(String(b.date))).slice(0, 30); }).catch(() => {});
     } catch (e) {} }, []);
 
+    // Listen to real-time notifications for head teachers
+    useEffect(() => {
+      const sb = window.NextSession?.sb;
+      if (!sb) return;
+      const tenant = (window.PEAK_ROLE && window.PEAK_ROLE.getProfile && window.PEAK_ROLE.getProfile().tenantId) || 'peak-primary';
+      
+      const sub = sb.channel('admin_notifications')
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'teacher_logs', filter: 'tenant_id=eq.' + tenant }, payload => {
+          const row = payload.new;
+          window.peakToast && window.peakToast('New Teacher Suggestion', 'info', 'From ' + (row.teacher_name || 'Teacher') + ': ' + row.message.substring(0, 40) + '...');
+        })
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'student_health_records', filter: 'tenant_id=eq.' + tenant }, payload => {
+          const row = payload.new;
+          window.peakToast && window.peakToast('New Health Note Logged', 'warn', 'Category: ' + row.category + ' - ' + row.description.substring(0, 40) + '...');
+        })
+        .subscribe();
+      
+      return () => { sb.removeChannel(sub); };
+    }, []);
+
     const navigate = (k) => setRoute(k);
     const openProfile = (s) => { if (s) setProfileStudentId(s.id); setRoute('profile'); };
     const openNewStudent  = () => window.peakModal.open(<PEAK_FORMS.AddStudent  store={Store} />);
