@@ -124,11 +124,18 @@
       .eq('tenant_id', tenantId)
       .gte('recorded_at', sevenDaysAgo);
 
+    const { data: studentNotes } = await sb
+      .from('student_notes')
+      .select('id, teacher_id, created_at')
+      .eq('tenant_id', tenantId)
+      .gte('created_at', sevenDaysAgo);
+
     return {
       teachers: (teachers && teachers.length > 0) ? teachers : KABS_STAFF_ROSTER,
       checkins: checkins || [],
       rollCalls: rollCalls || [],
       healthRecs: healthRecs || [],
+      studentNotes: studentNotes || [],
       syllabus: syllabus || [],
       pastSyllabusDeductions: pastDeductions || [],
     };
@@ -457,6 +464,10 @@
       (data.healthRecs || []).forEach(h => {
         if (!h.recorded_by_teacher_id) return;
         healthByTeacher[h.recorded_by_teacher_id] = (healthByTeacher[h.recorded_by_teacher_id] || 0) + 1;
+      });
+      (data.studentNotes || []).forEach(n => {
+        if (!n.teacher_id) return;
+        healthByTeacher[n.teacher_id] = (healthByTeacher[n.teacher_id] || 0) + 1;
       });
       return data.teachers.map(t => {
         const c = checkinsByTeacher[t.id];

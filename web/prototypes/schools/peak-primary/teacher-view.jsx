@@ -113,7 +113,7 @@
       if (res.ok) {
         const json = await res.json();
         const records = json.records || [];
-        const myPay = records.find(r => (r.email && r.email.toLowerCase() === teacher.email?.toLowerCase()) || (r.name && r.name.toLowerCase() === teacher.name?.toLowerCase()));
+        const myPay = records.find(r => (r.email && r.email.toLowerCase() === teacher.email?.toLowerCase()) || (r.name && r.name.toLowerCase() === (teacher.full_name || teacher.name || '').toLowerCase()));
         if (myPay && ((myPay.monthly || 0) + (myPay.allowance || 0) > 0)) {
           const dt = new Date();
           const ms = new Date(dt.getFullYear(), dt.getMonth(), 1).toISOString().slice(0, 10);
@@ -639,7 +639,28 @@
       });
     }
 
-    // 2. Roll call not taken for each assigned stream (weekdays only, only for active/past slots)
+    // 2. Upcoming class notification (within 10 minutes)
+    if (!isWeekend && todaySlots) {
+      const nowMins = today.getHours() * 60 + today.getMinutes();
+      todaySlots.forEach(slot => {
+        if (!slot.start_time) return;
+        const [startH, startM] = slot.start_time.split(':').map(Number);
+        const startMins = startH * 60 + startM;
+        const diff = startMins - nowMins;
+        if (diff > 0 && diff <= 10) {
+          nudges.push({
+            id: 'upcoming-' + slot.id,
+            tone: 'info',
+            icon: '⏰',
+            title: `Upcoming class in ${diff} minute${diff === 1 ? '' : 's'}`,
+            body: `Your next period is ${slot.subject} for ${slot.stream} at ${formatTime(slot.start_time)}.`,
+            action: 'none',
+          });
+        }
+      });
+    }
+
+    // 3. Roll call not taken for each assigned stream (weekdays only, only for active/past slots)
     if (!isWeekend) {
       assignments.forEach(a => {
         const slot = (todaySlots || []).find(sl => sl.stream === a.stream);
