@@ -132,7 +132,7 @@
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 20px;">
       <button type="button" onclick="fillRole('head')" style="margin-top:0; padding: 8px 10px; font-size: 11px; font-weight: 700; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); color: #fff; border-radius: 6px;">👑 Head Teacher</button>
       <button type="button" onclick="fillRole('teacher')" style="margin-top:0; padding: 8px 10px; font-size: 11px; font-weight: 700; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); color: #fff; border-radius: 6px;">👩‍🏫 Teacher</button>
-      <button type="button" onclick="fillRole('bursar'); setTimeout(function(){ window.location.href='/prototypes/schools/peak-primary/bursar-dashboard.html'; }, 80);" style="margin-top:0; padding: 8px 10px; font-size: 11px; font-weight: 700; background: rgba(255,180,0,0.15); border: 1px solid rgba(255,180,0,0.4); color: #FFB400; border-radius: 6px;">💰 Bursar</button>
+      <button type="button" onclick="fillRole('bursar')" style="margin-top:0; padding: 8px 10px; font-size: 11px; font-weight: 700; background: rgba(255,180,0,0.15); border: 1px solid rgba(255,180,0,0.4); color: #FFB400; border-radius: 6px;">💰 Bursar</button>
       <button type="button" onclick="fillRole('driver')" style="margin-top:0; padding: 8px 10px; font-size: 11px; font-weight: 700; background: rgba(59,130,246,0.2); border: 1px solid #3B82F6; color: #60A5FA; border-radius: 6px;">🚌 Driver / Shuttle</button>
     </div>
 
@@ -286,8 +286,6 @@
 
         if (role === 'driver') {
           window.location.href = '/prototypes/schools/peak-primary/driver-dashboard.html';
-        } else if (role === 'bursar') {
-          window.location.href = '/prototypes/schools/peak-primary/bursar-dashboard.html';
         } else {
           window.location.href = '/school/' + encodeURIComponent(tenantId);
         }
