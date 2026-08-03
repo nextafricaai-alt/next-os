@@ -1077,4 +1077,5 @@
       );
 
     // Expose for index.html wrapper
+    }
     window.BursarView = BursarDashboard;
