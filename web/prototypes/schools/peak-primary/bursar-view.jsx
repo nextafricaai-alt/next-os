@@ -1,4 +1,4 @@
-    const { useState, useEffect, useMemo, useCallback } = React;
+    const { useState, useEffect, useMemo, useCallback, useRef } = React;
     const SS = window.SCHOOL_STORE;
 
     const FMT = n => 'UGX ' + Number(n || 0).toLocaleString();
@@ -27,6 +27,95 @@
             </div>
             <div style={{ padding:'22px' }}>{children}</div>
           </div>
+        </div>
+      );
+    }
+
+    
+    /* ─── Financial Charts ─── */
+    function FinanceChart({ expenses }) {
+      const canvasRef = useRef(null);
+      const chartInstance = useRef(null);
+
+      useEffect(() => {
+        if (!canvasRef.current || !window.Chart) return;
+        const expByCategory = expenses.reduce((acc, exp) => {
+          acc[exp.category] = (acc[exp.category] || 0) + exp.amount;
+          return acc;
+        }, {});
+        const labels = Object.keys(expByCategory);
+        const data = Object.values(expByCategory);
+
+        if (chartInstance.current) chartInstance.current.destroy();
+        const ctx = canvasRef.current.getContext('2d');
+        chartInstance.current = new window.Chart(ctx, {
+          type: 'doughnut',
+          data: {
+            labels: labels,
+            datasets: [{
+              data: data,
+              backgroundColor: ['#FF4757', '#FFB400', '#3B82F6', '#8B5CF6', '#00FC8F', '#F5F6FA'],
+              borderWidth: 0
+            }]
+          },
+          options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: {
+              legend: { position: 'right', labels: { color: '#f5f6fa', font: { size: 11 } } },
+              title: { display: true, text: 'Expenditure by Category', color: '#f5f6fa', font: { size: 14, weight: 'bold' } }
+            }
+          }
+        });
+        return () => { if (chartInstance.current) chartInstance.current.destroy(); };
+      }, [expenses]);
+
+      return (
+        <div style={{ background: '#141e3c', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '13px', padding: '18px 20px', height: '300px' }}>
+          <canvas ref={canvasRef}></canvas>
+        </div>
+      );
+    }
+
+    function CashFlowTrend({ incomes, expenses }) {
+      const canvasRef = useRef(null);
+      const chartInstance = useRef(null);
+
+      useEffect(() => {
+        if (!canvasRef.current || !window.Chart) return;
+        const getDay = (d) => d ? d.split(' ')[0] : 'Unknown';
+        const dates = [...new Set([...incomes.map(i => getDay(i.date)), ...expenses.map(e => getDay(e.date))])].sort();
+        const incData = dates.map(d => incomes.filter(i => getDay(i.date) === d).reduce((s, i) => s + i.amount, 0));
+        const expData = dates.map(d => expenses.filter(e => getDay(e.date) === d).reduce((s, e) => s + e.amount, 0));
+
+        if (chartInstance.current) chartInstance.current.destroy();
+        const ctx = canvasRef.current.getContext('2d');
+        chartInstance.current = new window.Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: dates,
+            datasets: [
+              { label: 'Income', data: incData, backgroundColor: '#00FC8F', borderRadius: 4 },
+              { label: 'Expenditure', data: expData, backgroundColor: '#FF4757', borderRadius: 4 }
+            ]
+          },
+          options: {
+            responsive: true, maintainAspectRatio: false,
+            scales: {
+              y: { ticks: { color: 'rgba(245,246,250,0.6)' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+              x: { ticks: { color: 'rgba(245,246,250,0.6)' }, grid: { display: false } }
+            },
+            plugins: {
+              legend: { labels: { color: '#f5f6fa', font: { size: 11 } } },
+              title: { display: true, text: 'Cash Flow Trend', color: '#f5f6fa', font: { size: 14, weight: 'bold' } }
+            }
+          }
+        });
+        return () => { if (chartInstance.current) chartInstance.current.destroy(); };
+      }, [incomes, expenses]);
+
+      return (
+        <div style={{ background: '#141e3c', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '13px', padding: '18px 20px', height: '300px' }}>
+          <canvas ref={canvasRef}></canvas>
         </div>
       );
     }
@@ -600,6 +689,13 @@
                       </div>
                     ))}
                   </div>
+                </div>
+
+                
+                {/* Advanced Finance Monitoring Charts */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                  <CashFlowTrend incomes={incomes} expenses={expenses} />
+                  <FinanceChart expenses={expenses} />
                 </div>
 
                 <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'18px' }}>
