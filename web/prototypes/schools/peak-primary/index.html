@@ -10549,19 +10549,36 @@ window.PEAK_ASKNEXT = (function () {
     else { lines.push(''); lines.push("STAFF TODAY: the live check-in feed is NOT loaded. You do NOT know whether any teacher has checked in today. Do NOT claim any teacher is present, checked in, late, or absent — say the check-in data isn't available yet."); }
     if (LIVE_HEALTH.length) { lines.push(''); lines.push('HEALTH WATCH — students with an active (unresolved) health record = currently unwell / sick / needing follow-up:'); LIVE_HEALTH.slice(0, 60).forEach(h => lines.push('• ' + h.name + ' (' + (h.stream || '?') + ') — ' + (h.category || 'health note') + (h.severity ? (' · ' + h.severity) : '') + (h.description ? (': ' + h.description) : '') + (h.follow_up ? ' · follow-up needed' : ''))); }
     else if (LIVE_LOADED) { lines.push(''); lines.push('HEALTH WATCH: no active health records logged right now.'); }
-    if (ASSIGNABLE.length) {
-      lines.push('');
-      lines.push('ASSIGNABLE TEACHERS (real logins — use ONLY these emails when assigning tasks) — name | email | teaches subjects | classes | checked-in today | open tasks now:');
-      ASSIGNABLE.forEach(a => lines.push('• ' + a.name + ' | ' + a.email + ' | ' + ((a.subjects || []).join('/') || 'no subjects set') + ' | ' + ((a.classes || []).join(',') || 'no classes set') + ' | ' + (a.checkedIn ? 'CHECKED IN' : 'not checked in') + ' | ' + a.openTasks + ' open'));
-    } else {
-      lines.push('');
-      lines.push('ASSIGNABLE TEACHERS: not loaded yet — if asked to assign a task, say the staff list is still loading and to try again in a moment.');
+      if (ASSIGNABLE.length) {
+        lines.push('');
+        lines.push('ASSIGNABLE TEACHERS (real logins — use ONLY these emails when assigning tasks) — name | email | teaches subjects | classes | checked-in today | open tasks now:');
+        ASSIGNABLE.forEach(a => lines.push('• ' + a.name + ' | ' + a.email + ' | ' + ((a.subjects || []).join('/') || 'no subjects set') + ' | ' + ((a.classes || []).join(',') || 'no classes set') + ' | ' + (a.checkedIn ? 'CHECKED IN' : 'not checked in') + ' | ' + a.openTasks + ' open'));
+      } else {
+        lines.push('');
+        lines.push('ASSIGNABLE TEACHERS: not loaded yet — if asked to assign a task, say the staff list is still loading and to try again in a moment.');
+      }
+      if (window.__TEACHER_LOGS && window.__TEACHER_LOGS.length) {
+        lines.push('');
+        lines.push('RECENT TEACHER LOGS (Suggestion Box & Daily Logs) — use these to understand staff sentiment, operational issues, and daily ground truth:');
+        window.__TEACHER_LOGS.slice(0, 20).forEach(log => {
+          lines.push('• [' + new Date(log.recorded_at).toLocaleString() + '] ' + (log.teacher_name || 'Anonymous') + ': ' + log.message);
+        });
+      }
+      return lines.join('\n');
     }
-    return lines.join('\n');
-  }
   function systemPrompt() {
     const topics = frequentTopics();
     const mem = topics.length ? ('\n\nHEAD TEACHER MEMORY: this head teacher frequently asks about: ' + topics.join(', ') + '. Anticipate those needs.') : '';
+    
+    // Nia grows into an expert based on the amount of data she processes
+    const logsRead = (window.__TEACHER_LOGS || []).length;
+    const questionsProcessed = (topics.length * 10); // heuristic for questions asked
+    const expertiseScore = logsRead + questionsProcessed;
+    let expertisePrompt = '';
+    if (expertiseScore > 0) {
+       expertisePrompt = '\n- EVOLVING EXPERTISE: Because you have been actively reading ' + logsRead + ' logged notes and processing school data, you have grown into a HIGHLY EXPERT ADVISOR. Your tone should reflect deep, experienced wisdom. Do not just state facts; proactively cross-reference sentiment from the teacher logs with financial/attendance metrics to give elite, strategic advice.\n';
+    }
+
     return 'You are Nia, the intelligence inside ' + ((window.__BRAND_NAME) || 'this school') + "'s NEXT School OS, talking to " + whoami() + '. You KNOW every student and staff member personally from the live data below — their stream, guardian, phone, fees, attendance and standing. You understand how the whole OS works.\n\n'
       + 'HOW YOU ANSWER:\n'
       + '- Answer DIRECTLY from the data. If asked who is at-risk / away / absent / needs follow-up, LIST the specific students by name with the reason (status AT-RISK, low attendance, or not recently seen). If asked about fees, name who owes and how much. If asked who is SICK / unwell, list the students in HEALTH WATCH with their condition. If asked which teachers are late or absent, use STAFF TODAY (live check-ins).\n'
@@ -10571,7 +10588,8 @@ window.PEAK_ASKNEXT = (function () {
       + '- BE CONCISE: lead with the direct answer in 1-3 sentences. Do not volunteer extra profiles, lists, or suggestions unless asked.\n'
       + '- Be warm, decisive. Ugandan school context (UGX, WhatsApp, streams like P4V).\n'
       + '- SUPER INTELLIGENCE & SKILLS: You are equipped with advanced machine learning design skills. If asked about system design, AI models, or technical patterns, analyze them intelligently and prescribe solutions. You instantly recognize all skills given to you and know how to deploy them.\n'
-      + '- FINANCIAL ADVISOR & PERFORMANCE ANALYST: You are a sharp financial advisor. Constantly monitor the school\'s financial health by analyzing outstanding fee balances vs. paid fees, as well as academic performance via attendance drops. If the school is running down in finances or performance, proactively WARN the head teacher, diagnose the systemic issues, and prescribe concrete financial and operational strategies to turn things around.\n\n'
+      + '- FINANCIAL ADVISOR & PERFORMANCE ANALYST: You are a sharp financial advisor. Constantly monitor the school\'s financial health by analyzing outstanding fee balances vs. paid fees, as well as academic performance via attendance drops. If the school is running down in finances or performance, proactively WARN the head teacher, diagnose the systemic issues, and prescribe concrete financial and operational strategies to turn things around.\n'
+      + expertisePrompt + '\n'
       + 'ACTIONS \u2014 only when the user asks you to DO something (open a page, message a parent, set a reminder), include ONE fenced code block labelled action with JSON and one short sentence:\n'
       + '{"action":"navigate","screen":"today|dash|stud|attn|fees|exam|rep|comm|teach|trans"}\n'
       + '{"action":"whatsapp","name":"<student or guardian>","message":"..."}\n'
@@ -14383,6 +14401,13 @@ window.PEAK_STAFF = (function () {
     useEffect(() => { try { const WKx = 'https://nextos-sentinel.nextafricaai.workers.dev'; const tn = (window.PEAK_ROLE && window.PEAK_ROLE.getProfile && window.PEAK_ROLE.getProfile().tenantId) || 'peak-primary';
       fetch(WKx + '/os-data?kind=term_config&tenant=' + encodeURIComponent(tn)).then(r => r.json()).then(d => { const rec = ((d && d.records) || [])[0]; if (rec && rec.payload) window.__TERM = rec.payload; }).catch(() => {});
       fetch(WKx + '/os-data?kind=school_event&tenant=' + encodeURIComponent(tn)).then(r => r.json()).then(d => { window.__SCHOOL_EVENTS = ((d && d.records) || []).map(x => x.payload).sort((a, b) => String(a.date).localeCompare(String(b.date))).slice(0, 30); }).catch(() => {});
+      
+      const sb = window.NextSession?.sb;
+      if (sb) {
+        sb.from('teacher_logs').select('*').eq('tenant_id', tn).order('recorded_at', { ascending: false }).then(({ data }) => {
+          if (data) window.__TEACHER_LOGS = data;
+        }).catch(() => {});
+      }
     } catch (e) {} }, []);
 
     // Listen to real-time notifications for head teachers
