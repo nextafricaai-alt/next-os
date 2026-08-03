@@ -1487,7 +1487,7 @@
       setAnimateIn(false);
       setTimeout(() => {
         setDismissed(true);
-        if (onCheckedIn) onCheckedIn(data);
+        if (onCheckedIn) onCheckedIn(data, penalty);
         if (penalty && penalty.applied) {
           tinyToast('Checked in after 07:15 — UGX ' + penalty.amount.toLocaleString() + ' late penalty applied.', 'warn');
         } else {
@@ -1607,7 +1607,7 @@
       } else {
         tinyToast('Checked in. Head teacher notified.', 'success');
       }
-      if (onCheckedIn) onCheckedIn(data);
+      if (onCheckedIn) onCheckedIn(data, penalty);
     };
 
     const handleCheckOut = async () => {
