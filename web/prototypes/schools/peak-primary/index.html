@@ -703,8 +703,10 @@
       const res = await fetch(wk + '/os-data?tenant=' + tenantId + '&kind=staff_pay');
       if (res.ok) {
         const json = await res.json();
-        const records = json.records || [];
-        const myPay = records.find(r => (r.email && r.email.toLowerCase() === teacher.email?.toLowerCase()) || (r.name && r.name.toLowerCase() === teacher.name?.toLowerCase()));
+        const records = (json.records || []).map(x => x.payload || {});
+        const tEmail = (teacher.email || '').toLowerCase();
+        const tName = (teacher.full_name || teacher.name || '').toLowerCase();
+        const myPay = records.find(r => (r.email && r.email.toLowerCase() === tEmail) || (r.name && r.name.toLowerCase() === tName));
         if (myPay && ((myPay.monthly || 0) + (myPay.allowance || 0) > 0)) {
           expectedPay = myPay;
         }
