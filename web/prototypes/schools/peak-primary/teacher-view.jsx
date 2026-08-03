@@ -194,6 +194,13 @@
       healthRecords = hr || [];
     }
 
+    let exams = [];
+    if (sb && teacher) {
+      const { data: exs } = await sb.from('exams').select('*').eq('tenant_id', tenantId);
+      // Filter for exams created by this teacher
+      exams = (exs || []).filter(ex => ex.config && ex.config.teacher_id === teacher.id);
+    }
+
     return {
       teacher,
       assignments: assignments || [],
@@ -206,6 +213,7 @@
       healthRecords,
       streamStudents,   // ← from Supabase
       todaySlots,       // ← timetable for today
+      exams,            // ← teacher's created exams
     };
   }
 
@@ -219,9 +227,9 @@
   // 32°28'17.9"E). Teachers must be physically within this radius to
   // check in — keyed by tenant so this doesn't silently apply the wrong
   // school's gate if another tenant ever shares this codebase.
-  const CHECKIN_GEOFENCE_RADIUS_M = 15;
+  const CHECKIN_GEOFENCE_RADIUS_M = 300;
   const SCHOOL_GATE_LOCATIONS = {
-    'kabs-lily-junior-school-and-kindercare-centre': { lat: 0.3282942996684836, lng: 32.46905517496464 },
+    'kabs-lily-junior-school-and-kindercare-centre': { lat: 0.3283056, lng: 32.4716944 },
   };
 
   // Haversine great-circle distance in meters.
@@ -1705,6 +1713,112 @@
     );
   }
 
+  function TeacherExamsCard({ exams, assignments, teacherId, tenantId, onChanged }) {
+    const [view, setView] = useState('list'); // list | add
+    const [form, setForm] = useState({ name: '', stream: '', subject: '', passmark: 50, out_of: 100 });
+    const [saving, setSaving] = useState(false);
+
+    // Get unique streams and subjects the teacher is assigned to
+    const myStreams = Array.from(new Set((assignments || []).map(a => a.stream)));
+    const mySubjects = Array.from(new Set((assignments || []).map(a => a.subject)));
+
+    const handleSave = async () => {
+      if (!form.name || !form.stream || !form.subject) {
+        tinyToast('Please fill all fields', 'error'); return;
+      }
+      setSaving(true);
+      const sb = window.NextSession?.sb;
+      if (sb) {
+        const { error } = await sb.from('exams').insert({
+          tenant_id: tenantId,
+          name: form.name,
+          subjects: [form.subject],
+          config: {
+            teacher_id: teacherId,
+            stream: form.stream,
+            passmark: Number(form.passmark),
+            max_marks: Number(form.out_of)
+          }
+        });
+        if (error) {
+          tinyToast('Failed to save exam', 'error');
+        } else {
+          tinyToast('Exam created!', 'success');
+          setView('list');
+          setForm({ name: '', stream: '', subject: '', passmark: 50, out_of: 100 });
+          if (onChanged) onChanged();
+        }
+      }
+      setSaving(false);
+    };
+
+    if (view === 'add') {
+      return (
+        <Card title="Add New Exam" rightAction={<button onClick={() => setView('list')} style={{ background: 'transparent', border: 0, color: T.ink3, cursor: 'pointer', padding: 8 }}>Cancel</button>}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div>
+              <label style={{ display: 'block', fontSize: 12, color: T.ink3, marginBottom: 4 }}>Exam Name</label>
+              <input type="text" placeholder="e.g. Midterm 2 Math" value={form.name} onChange={e => setForm({...form, name: e.target.value})} style={{ width: '100%', padding: '10px 12px', border: '1px solid ' + T.borderStr, borderRadius: 8, background: T.bg2, color: T.ink, fontFamily: T.font }} />
+            </div>
+            <div style={{ display: 'flex', gap: 12 }}>
+              <div style={{ flex: 1 }}>
+                <label style={{ display: 'block', fontSize: 12, color: T.ink3, marginBottom: 4 }}>Class</label>
+                <select value={form.stream} onChange={e => setForm({...form, stream: e.target.value})} style={{ width: '100%', padding: '10px 12px', border: '1px solid ' + T.borderStr, borderRadius: 8, background: T.bg2, color: T.ink, fontFamily: T.font }}>
+                  <option value="">Select class...</option>
+                  {myStreams.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+              <div style={{ flex: 1 }}>
+                <label style={{ display: 'block', fontSize: 12, color: T.ink3, marginBottom: 4 }}>Subject</label>
+                <select value={form.subject} onChange={e => setForm({...form, subject: e.target.value})} style={{ width: '100%', padding: '10px 12px', border: '1px solid ' + T.borderStr, borderRadius: 8, background: T.bg2, color: T.ink, fontFamily: T.font }}>
+                  <option value="">Select subject...</option>
+                  {mySubjects.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 12 }}>
+              <div style={{ flex: 1 }}>
+                <label style={{ display: 'block', fontSize: 12, color: T.ink3, marginBottom: 4 }}>Out Of (Max Marks)</label>
+                <input type="number" min="1" value={form.out_of} onChange={e => setForm({...form, out_of: e.target.value})} style={{ width: '100%', padding: '10px 12px', border: '1px solid ' + T.borderStr, borderRadius: 8, background: T.bg2, color: T.ink, fontFamily: T.font }} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <label style={{ display: 'block', fontSize: 12, color: T.ink3, marginBottom: 4 }}>Passmark</label>
+                <input type="number" min="0" value={form.passmark} onChange={e => setForm({...form, passmark: e.target.value})} style={{ width: '100%', padding: '10px 12px', border: '1px solid ' + T.borderStr, borderRadius: 8, background: T.bg2, color: T.ink, fontFamily: T.font }} />
+              </div>
+            </div>
+            <button onClick={handleSave} disabled={saving} style={{ background: T.brand, color: T.bg, border: 0, padding: '12px', borderRadius: 8, fontWeight: 600, cursor: saving ? 'wait' : 'pointer' }}>
+              {saving ? 'Saving...' : 'Create Exam'}
+            </button>
+          </div>
+        </Card>
+      );
+    }
+
+    return (
+      <Card title="My Exams" rightAction={<button onClick={() => setView('add')} style={{ background: T.brand, color: T.bg, border: 0, padding: '6px 12px', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>+ Add Exam</button>}>
+        {(!exams || exams.length === 0) ? (
+          <div style={{ padding: 20, textAlign: 'center', color: T.ink3, fontSize: 13 }}>No exams created yet.</div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {exams.map(ex => (
+              <div key={ex.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', background: T.bg2, borderRadius: 8, border: '1px solid ' + T.borderStr }}>
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 600 }}>{ex.name}</div>
+                  <div style={{ fontSize: 12, color: T.ink3, marginTop: 4 }}>
+                    {ex.config?.stream} • {ex.subjects[0]} • Pass: {ex.config?.passmark}/{ex.config?.max_marks}
+                  </div>
+                </div>
+                <button onClick={() => { window.location.hash = 'reports'; tinyToast('Entering marks via Reports view', 'info'); }} style={{ background: 'transparent', border: '1px solid ' + T.borderStr, color: T.brand, padding: '6px 12px', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                  Enter Marks
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
+    );
+  }
+
   function SyllabusCard({ syllabus, onChanged }) {
     const [expanded, setExpanded] = useState(null); // group key currently showing its topic list
     const [busyId, setBusyId] = useState(null);
@@ -2251,6 +2365,7 @@
                 onChanged={refresh}
               />
               <SyllabusCard syllabus={data.syllabus} onChanged={refresh} />
+              <TeacherExamsCard exams={data.exams} assignments={data.assignments} teacherId={data.teacher && data.teacher.id} tenantId={profile.tenantId || 'kabs-lily-junior-school-and-kindercare-centre'} onChanged={refresh} />
               <StudentsCard assignments={data.assignments} onLogHealth={setHealthStudent} onMessage={setMessageStudent} healthRecords={data.healthRecords || []} />
               <PayslipCard payroll={data.payroll} deductions={data.deductions} />
             </div>

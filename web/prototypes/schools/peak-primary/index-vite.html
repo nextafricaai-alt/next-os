@@ -1,0 +1,796 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
+  <meta name="theme-color" content="#0a1029" />
+  <title>NEXT School OS</title>
+  <link rel="icon" type="image/png" href="/prototypes/schools/peak-primary/assets/peak-logo.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="NEXT School OS" id="nx-apple-title" />
+  <link rel="apple-touch-icon" href="/icon-192.png" id="nx-apple-icon" />
+  <script>
+  (function () {
+    try {
+      var p = new URLSearchParams(location.search);
+      // Resolve THIS app's school from the URL (/school/<slug> or /s/<slug>) or the signed-in tenant.
+      // NEVER default to peak-primary — that would make Chrome silently rewrite an installed app to Peak.
+      var slug = p.get('s') || p.get('t') || (location.pathname.match(/\/(?:s|school)\/([A-Za-z0-9_-]+)/) || [])[1] || '';
+      if (!slug) { try { var _pf = JSON.parse(localStorage.getItem('nextos.profile') || 'null'); slug = (_pf && _pf.tenantId) || ''; } catch (e) {} }
+      if (!slug) { try { slug = localStorage.getItem('nextos.lastTenant') || ''; } catch (e) {} }
+      if (slug) {
+        var ml = document.createElement('link'); ml.rel = 'manifest'; ml.href = '/manifest.php?s=' + encodeURIComponent(slug); document.head.appendChild(ml);
+        var ai = document.getElementById('nx-apple-icon'); if (ai) ai.href = WK + '/icon.png?s=' + encodeURIComponent(slug);
+      }
+      var WK = 'https://nextos-sentinel.nextafricaai.workers.dev';
+      /* keep PNG apple-touch-icon (iOS requires PNG, not SVG) */
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/sw.js').then(function (reg) {
+          try { reg.update(); } catch (e) {}
+          if (reg.waiting) { try { reg.waiting.postMessage('skipWaiting'); } catch (e) {} }
+          reg.addEventListener && reg.addEventListener('updatefound', function () {
+            var nw = reg.installing;
+            if (nw) nw.addEventListener('statechange', function () { if (nw.state === 'installed') { try { nw.postMessage('skipWaiting'); } catch (e) {} } });
+          });
+        }).catch(function () {});
+      }
+      var deferred = null;
+      function makeBtn() { if (document.getElementById('nx-os-install')) return document.getElementById('nx-os-install'); var b = document.createElement('button'); b.id = 'nx-os-install'; b.textContent = '\u2913 Install app'; b.style.cssText = 'position:fixed;right:16px;bottom:16px;z-index:99999;display:none;background:#00fc8f;color:#062b18;border:0;border-radius:999px;padding:11px 18px;font-family:Inter,system-ui,sans-serif;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 8px 26px rgba(0,252,143,.4)'; b.onclick = function () { if (!deferred) return; deferred.prompt(); deferred.userChoice.then(function () { deferred = null; b.style.display = 'none'; }); }; document.body.appendChild(b); return b; }
+      window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); deferred = e; window.__PEAK_CAN_INSTALL = true; });
+      window.__PEAK_INSTALL = function () { if (deferred) { deferred.prompt(); deferred.userChoice.then(function () { deferred = null; window.__PEAK_CAN_INSTALL = false; }); } else { alert('To install: open your browser menu and choose "Install app" / "Add to Home Screen".'); } };
+      window.addEventListener('appinstalled', function () { var b = document.getElementById('nx-os-install'); if (b) b.style.display = 'none'; });
+    } catch (e) {}
+  })();
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Instrument+Serif&display=swap" rel="stylesheet">
+  <style>
+    html, body { margin: 0; padding: 0; background: #0a1029; font-family: 'Inter', -apple-system, system-ui, sans-serif; color: #f5f6fa; -webkit-font-smoothing: antialiased; }
+    *, *::before, *::after { box-sizing: border-box; }
+    #root { min-height: 100vh; }
+    button { font: inherit; }
+    /* Smooth scroll inside panels */
+    *::-webkit-scrollbar { width: 10px; height: 10px; }
+    *::-webkit-scrollbar-track { background: transparent; }
+    *::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 999px; }
+    *::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.16); }
+
+    /* ===== Responsive: full dashboard reflows on tablets & phones ===== */
+    @media (max-width: 820px) {
+      [style*="height: 900px"] { width: 100% !important; height: auto !important; min-height: 100% !important; overflow: visible !important; }
+      [style*="grid-template-columns: 1fr 380px"],
+      [style*="grid-template-columns: 1fr 420px"],
+      [style*="grid-template-columns: 1fr 460px"],
+      [style*="grid-template-columns: 1.4fr 1fr"],
+      [style*="grid-template-columns: 1.2fr 1fr"],
+      [style*="grid-template-columns: 1.1fr 1fr 1fr"],
+      [style*="grid-template-columns: 70px 1fr"] { grid-template-columns: 1fr !important; }
+      [style*="grid-template-columns: repeat(5, 1fr)"],
+      [style*="grid-template-columns: repeat(4, 1fr)"],
+      [style*="grid-template-columns: repeat(3, 1fr)"] { grid-template-columns: repeat(2, 1fr) !important; }
+      main { padding: 16px 14px 28px !important; }
+    }
+    @media (max-width: 540px) {
+      [style*="grid-template-columns: repeat(5, 1fr)"],
+      [style*="grid-template-columns: repeat(4, 1fr)"],
+      [style*="grid-template-columns: repeat(3, 1fr)"],
+      [style*="grid-template-columns: repeat(2, 1fr)"] { grid-template-columns: 1fr !important; }
+    }
+    /* ===== Dense record tables -> stacked cards on phones (no sideways scroll) ===== */
+    @media (max-width: 640px) {
+      [style*="grid-template-columns: 32px 36px 1.8fr 70px 1fr 1.2fr 90px 80px 36px"],
+      [style*="grid-template-columns: 50px 60px 80px 1.2fr 100px 1.4fr 100px 80px"],
+      [style*="grid-template-columns: 90px 1fr 1.6fr 100px 100px 110px 120px"] {
+        display: flex !important; flex-wrap: wrap !important; align-items: center !important;
+        gap: 6px 14px !important; padding: 12px 16px !important;
+      }
+      /* student rows: drop the checkbox + kebab noise on phones */
+      [style*="grid-template-columns: 32px 36px 1.8fr 70px 1fr 1.2fr 90px 80px 36px"] > *:first-child,
+      [style*="grid-template-columns: 32px 36px 1.8fr 70px 1fr 1.2fr 90px 80px 36px"] > *:last-child { display: none !important; }
+      /* let the main text column lead each card on its own line */
+      [style*="grid-template-columns: 32px 36px 1.8fr 70px 1fr 1.2fr 90px 80px 36px"] > *:nth-child(3),
+      [style*="grid-template-columns: 50px 60px 80px 1.2fr 100px 1.4fr 100px 80px"] > *:nth-child(4),
+      [style*="grid-template-columns: 90px 1fr 1.6fr 100px 100px 110px 120px"] > *:nth-child(3) { flex: 1 1 60% !important; min-width: 0 !important; }
+    }
+
+    /* ===== Phone polish — broad reflow (calendar 7-col grid intentionally left alone) ===== */
+    @media (max-width: 640px) {
+      /* two/three-column layouts and any auto-fit/minmax card grid -> single column */
+      [style*="grid-template-columns: 1fr 1fr"],
+      [style*="grid-template-columns: 2fr 1fr"],
+      [style*="grid-template-columns: 1fr 2fr"],
+      [style*="grid-template-columns: 1.5fr 1fr"],
+      [style*="grid-template-columns: 1.6fr 1fr"],
+      [style*="grid-template-columns: 1.4fr 1fr"],
+      [style*="grid-template-columns: 1fr 1.4fr"],
+      [style*="grid-template-columns: 1fr 1.2fr"],
+      [style*="grid-template-columns: repeat(auto-fit"],
+      [style*="grid-template-columns: repeat(auto-fill"],
+      [style*="minmax(380px"], [style*="minmax(360px"], [style*="minmax(340px"],
+      [style*="minmax(320px"], [style*="minmax(300px"], [style*="minmax(280px"],
+      [style*="minmax(260px"], [style*="minmax(240px"], [style*="minmax(220px"],
+      [style*="minmax(200px"], [style*="minmax(180px"] {
+        grid-template-columns: 1fr !important;
+      }
+      /* real tables scroll sideways instead of overflowing */
+      table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; max-width: 100%; }
+      /* tame oversized display type */
+      h1 { font-size: 24px !important; line-height: 1.12 !important; }
+      [style*="font-size: 42px"] { font-size: 27px !important; }
+      [style*="font-size: 40px"] { font-size: 27px !important; }
+      [style*="font-size: 38px"] { font-size: 26px !important; }
+      [style*="font-size: 36px"] { font-size: 26px !important; }
+      [style*="font-size: 34px"] { font-size: 25px !important; }
+      [style*="font-size: 30px"] { font-size: 23px !important; }
+      [style*="font-size: 28px"] { font-size: 22px !important; }
+      [style*="font-size: 26px"] { font-size: 21px !important; }
+      /* trim the biggest paddings so content is not squeezed */
+      [style*="padding: 32px"] { padding: 15px !important; }
+      [style*="padding: 30px"] { padding: 15px !important; }
+      [style*="padding: 28px"] { padding: 15px !important; }
+      [style*="padding: 26px"] { padding: 14px !important; }
+      [style*="padding: 24px"] { padding: 14px !important; }
+      [style*="padding: 22px"] { padding: 13px !important; }
+      [style*="padding: 20px 32px"] { padding: 12px 14px !important; }
+      [style*="padding: 18px 32px"] { padding: 12px 14px !important; }
+      [style*="padding: 28px 32px"] { padding: 14px 14px !important; }
+      [style*="padding: 26px 30px"] { padding: 14px 14px !important; }
+      [style*="padding: 24px 28px"] { padding: 13px 13px !important; }
+      [style*="padding: 24px 32px"] { padding: 13px 14px !important; }
+      /* Mobile: let the whole school OS scroll as a normal document (no fixed-height clipping) */
+      .peak-shell { height: auto !important; min-height: 100vh; overflow: visible !important; display: block !important; }
+      .peak-col { height: auto !important; overflow: visible !important; }
+      .peak-screen { height: auto !important; overflow: visible !important; }
+      .peak-topbar { position: sticky; top: 0; z-index: 50; }
+      /* Today screen: stop the fixed-height two-panel split, flow as one scrolling page */
+      .today-shell { height: auto !important; min-height: 0 !important; overflow: visible !important; display: block !important; }
+      .today-main { display: block !important; height: auto !important; }
+      .today-left { overflow: visible !important; padding: 16px 14px 8px !important; }
+      .today-aside { border-left: none !important; border-top: 1px solid rgba(255,255,255,0.08) !important; min-height: 0 !important; }
+      .today-aside-scroll { overflow: visible !important; flex: none !important; }
+      /* ===== Hard stop on horizontal bleed + fix dense/fixed-width layouts ===== */
+      html, body { overflow-x: hidden !important; }
+      #root, .peak-shell, .peak-col, .peak-screen { max-width: 100vw !important; }
+      .peak-screen { overflow-x: hidden !important; }
+      /* 14-stream attendance heat strip -> swipeable horizontal row (calendar 7-col grid untouched) */
+      [style*="repeat(14, 1fr)"], [style*="repeat(14,1fr)"] {
+        display: flex !important; flex-wrap: nowrap !important; overflow-x: auto !important;
+        gap: 8px !important; -webkit-overflow-scrolling: touch; padding-bottom: 6px;
+      }
+      [style*="repeat(14, 1fr)"] > *, [style*="repeat(14,1fr)"] > * { flex: 0 0 auto !important; min-width: 62px !important; }
+      /* rows/grids with a fixed wide column -> wrap to fit the phone */
+      [style*="44px 1fr 1fr 320px"], [style*="1fr 1fr 320px"], [style*="1fr 320px"],
+      [style*="1fr 300px"], [style*="1fr 280px"], [style*="1fr 260px"], [style*="1fr 240px"] {
+        display: flex !important; flex-wrap: wrap !important; gap: 8px !important; align-items: center !important;
+      }
+      /* fixed-width inputs/search/cards -> fluid */
+      [style*="width: 320px"], [style*="width: 300px"], [style*="width: 280px"],
+      [style*="width: 260px"], [style*="width: 240px"], [style*="width: 220px"] { width: 100% !important; max-width: 100% !important; }
+      /* any wrapping strip that scrolls keeps within the screen */
+      [style*="overflow-x: auto"], [style*="overflowX: auto"] { max-width: 100% !important; }
+      /* Every screen-root (display:flex + height:100% + overflow:hidden) flows by content,
+         so short screens don't stretch into a long empty void on phones. */
+      [style*="display: flex"][style*="height: 100%"][style*="overflow: hidden"] {
+        height: auto !important; min-height: 0 !important; overflow: visible !important; flex-direction: column !important;
+      }
+      /* ===== Comprehensive anti-bleed pass ===== */
+      /* every fixed-width split (detail panels, label columns) collapses to one column */
+      [style*="grid-template-columns: 1fr 340px"], [style*="grid-template-columns: 1fr 360px"],
+      [style*="grid-template-columns: 1fr 400px"], [style*="grid-template-columns: 1fr 440px"],
+      [style*="grid-template-columns: 1fr 480px"], [style*="grid-template-columns: 1fr 500px"],
+      [style*="grid-template-columns: 180px 1fr"], [style*="grid-template-columns: 200px 1fr"],
+      [style*="grid-template-columns: 220px 1fr"], [style*="grid-template-columns: 240px 1fr"],
+      [style*="grid-template-columns: 260px 1fr"], [style*="grid-template-columns: 280px 1fr"],
+      [style*="grid-template-columns: 300px 1fr"], [style*="grid-template-columns: 320px 1fr"] {
+        grid-template-columns: 1fr !important;
+      }
+      /* slide-in detail drawers go full width instead of a fixed panel off-screen */
+      [style*="position: fixed"][style*="width: 360"], [style*="position: fixed"][style*="width: 380"],
+      [style*="position: fixed"][style*="width: 400"], [style*="position: fixed"][style*="width: 420"],
+      [style*="position: absolute"][style*="width: 380"], [style*="position: absolute"][style*="width: 400"] {
+        width: 100vw !important; max-width: 100vw !important; left: 0 !important; right: 0 !important;
+      }
+      /* CATCH-ALL: horizontal flex rows (header actions, filter pills, tabs) WRAP instead of bleeding.
+         Only changes anything when a row would otherwise overflow. */
+      div[style*="display: flex"]:not([style*="flex-direction: column"]):not([style*="flexDirection"]) { flex-wrap: wrap !important; }
+      /* ...except genuine horizontal-scroll strips, which keep scrolling */
+      [style*="repeat(14, 1fr)"], [style*="overflow-x: auto"], [style*="overflowX"] { flex-wrap: nowrap !important; }
+      /* let inputs/buttons be comfortable tap targets */
+      input, select, textarea, button { font-size: 16px; }
+    }
+    @media (max-width: 400px) {
+      h1 { font-size: 21px !important; }
+    }
+  </style>
+</head>
+<body>
+  <script>
+    /* Safety net for the school-data screens (Students/Teachers/Attendance/etc):
+       every one of them reads its data via `const D = window.PEAK || window.PEAK_FALLBACK;`.
+       window.PEAK itself is assigned later by a very large inline script — if
+       that ever fails to run before a screen renders (slow parse, a later
+       edit introducing a real error, etc.) every D.students/.teachers/.streams
+       access would throw "Cannot read properties of undefined" and crash the
+       whole page. This has to be defined in its own tiny, plain (non-Babel)
+       script at the very top of <body>, BEFORE window.PEAK's own script, so
+       it exists no matter what happens to that later block. */
+    window.PEAK_FALLBACK = {
+      streams: [], students: [], teachers: [], buses: [], subjects: [], reports: [],
+      kpis: {}, alerts: [], streamAttendance: [], trend7: [], feesWeek: [], threads: [],
+      broadcasts: [], aiSuggestions: [],
+      fmtUGX: function (n) { return 'UGX ' + (Number(n) || 0).toLocaleString(); },
+      fmtUGXshort: function (n) { return 'UGX ' + (Number(n) || 0).toLocaleString(); },
+    };
+  </script>
+  <script>
+    /* Build self-heal: if this cached HTML is older than what the server now serves,
+       reload ONCE with a cache-buster so no school is ever stuck on a stale build. */
+    window.__BUILD = 'b110';
+    (function () {
+      try {
+        fetch('/build.txt?ts=' + Date.now(), { cache: 'no-store' })
+          .then(function (r) { return r.ok ? r.text() : ''; })
+          .then(function (srv) {
+            srv = (srv || '').trim();
+            if (!srv || srv === window.__BUILD) return;
+            if (sessionStorage.getItem('nx_selfheal') === srv) return; // already tried this target
+            sessionStorage.setItem('nx_selfheal', srv);
+            var u = new URL(location.href); u.searchParams.set('cb', srv);
+            location.replace(u.toString());
+          }).catch(function () {});
+      } catch (e) {}
+    })();
+  </script>
+  <div id="root">
+    <!-- Loading state (replaced once React mounts) -->
+    <div style="min-height:100vh;display:grid;place-items:center;color:#8a91b0;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px;letter-spacing:0.08em;">
+      <div style="text-align:center">
+        <div id="nx-loading-text">LOADING · NEXT SCHOOL OS</div>
+        <div style="margin-top:12px;font-size:10px;opacity:0.5">build b110</div>
+      </div>
+    </div>
+  </div>
+  <script>
+    // Fail-safe escape timer: ensure loading screen never gets stuck
+    setTimeout(function() {
+      var ld = document.getElementById('nx-loading-text');
+      if (ld && window.ReactDOM && window.App) {
+        try {
+          ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(App));
+        } catch (e) { console.error('Fallback mount error:', e); }
+      }
+    }, 2500);
+  </script>
+
+  <!-- Session guard — must run BEFORE React so unauthenticated users get bounced -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="./session-guard.js?v=4"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script>
+  /* NextReceipts — real receipts: save to Supabase, branded PDF, WhatsApp send (free click-to-send). */
+  window.NextReceipts = (function(){
+    function digits(p){ return String(p||'').replace(/[^0-9]/g,''); }
+    function brandName(){ return (window.__BRAND_NAME) || 'School'; }
+    function prefix(){ var n=brandName(); return (n.match(/[A-Za-z0-9]/g)||['N']).slice(0,2).join('').toUpperCase(); }
+    function fmt(n){ try{ return 'UGX ' + Number(n||0).toLocaleString('en-UG'); }catch(e){ return 'UGX ' + (n||0); } }
+    function methodLabel(m){ return ({mtn:'MTN Mobile Money',airtel:'Airtel Money',momo:'Mobile Money',mpesa:'M-Pesa',stanbic:'Bank deposit',bank:'Bank deposit',cash:'Cash',cheque:'Cheque'}[m]) || m || '-'; }
+    function hexRgb(h){ h=String(h||'#00FC8F').replace('#',''); if(h.length===3){ h=h.split('').map(function(c){return c+c;}).join(''); } return [parseInt(h.slice(0,2),16)||0,parseInt(h.slice(2,4),16)||200,parseInt(h.slice(4,6),16)||140]; }
+    async function nextNo(sb, tenantId){
+      var year=new Date().getFullYear(), seq=1;
+      try{ var r=await sb.from('receipts').select('id',{count:'exact',head:true}).eq('tenant_id',tenantId); seq=(r.count||0)+1; }catch(e){}
+      return prefix()+'-'+year+'-'+String(seq).padStart(5,'0');
+    }
+    async function issue(opts){
+      var sess=window.NextSession||{}; var sb=sess.sb; var prof=sess.profile||{};
+      var tenantId=prof.tenantId;
+      if(!sb||!tenantId) throw new Error('Not signed in');
+      var amount=Number(opts.amount||0);
+      var no=await nextNo(sb, tenantId);
+      var rec={ tenant_id:tenantId, receipt_no:no, student_id:(opts.studentId||null), student_name:(opts.studentName||null),
+        guardian_name:(opts.guardianName||null), guardian_phone:(digits(opts.guardianPhone)||null), amount:amount, currency:'UGX',
+        kind:'fees', method:(opts.method||null), reference:(opts.reference||null),
+        balance_after:(opts.balanceAfter!=null?Number(opts.balanceAfter):null), term:(opts.term||null),
+        issued_by:(prof.fullName||prof.email||null) };
+      var res=await sb.from('receipts').insert(rec).select().single();
+      if(res.error) throw res.error;
+      try {
+        var tok=''; try { var sd=await sb.auth.getSession(); tok=(sd&&sd.data&&sd.data.session&&sd.data.session.access_token)||''; } catch(e){}
+        if (window.NX_PUSH) window.NX_PUSH.notify({ tenant: tenantId, role: 'head', title: 'Payment received', body: fmt(amount) + ' · ' + (opts.studentName || 'a student'), url: '/', tag: 'pay-' + Date.now() }, tok);
+      } catch(e){}
+      return res.data;
+    }
+    function buildPdf(rec){
+      var ctor=(window.jspdf&&window.jspdf.jsPDF)||window.jsPDF; if(!ctor) throw new Error('PDF engine not loaded');
+      var doc=new ctor({unit:'pt',format:'a4'}); var W=doc.internal.pageSize.getWidth();
+      var c=hexRgb(window.__ACCENT);
+      doc.setFillColor(c[0],c[1],c[2]); doc.rect(0,0,W,72,'F');
+      doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(20); doc.text(brandName(),40,44);
+      doc.setFont('helvetica','normal'); doc.setFontSize(11); doc.text('PAYMENT RECEIPT',W-40,44,{align:'right'});
+      var y=116;
+      function row(label,val,big){
+        doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(130,130,130); doc.text(String(label).toUpperCase(),40,y);
+        doc.setFont('helvetica',big?'bold':'normal'); doc.setFontSize(big?20:13); doc.setTextColor(25,25,25); doc.text(String(val==null||val===''?'-':val),40,y+18);
+        y += big?54:42;
+      }
+      row('Receipt no.', rec.receipt_no);
+      row('Date', new Date(rec.issued_at||Date.now()).toLocaleString());
+      row('Student', rec.student_name);
+      if(rec.guardian_name) row('Guardian', rec.guardian_name);
+      row('Amount received', fmt(rec.amount), true);
+      row('Method', methodLabel(rec.method));
+      if(rec.reference) row('Reference', rec.reference);
+      if(rec.balance_after!=null) row('Balance after', fmt(rec.balance_after));
+      row('Issued by', rec.issued_by);
+      doc.setDrawColor(220,220,220); doc.line(40,y+4,W-40,y+4);
+      doc.setFontSize(9); doc.setTextColor(150,150,150);
+      doc.text('Powered by NEXT OS', 40, y+26);
+      doc.text(rec.receipt_no, W-40, y+26, {align:'right'});
+      return doc;
+    }
+    function download(rec){ try{ buildPdf(rec).save('Receipt-'+rec.receipt_no+'.pdf'); }catch(e){ if(window.peakToast) window.peakToast('Could not build PDF','error',String(e.message||e)); } }
+    function whatsappUrl(rec){
+      var msg='Dear '+(rec.guardian_name||'Parent')+', we confirm receipt of '+fmt(rec.amount)+' for '+(rec.student_name||'your child')+' at '+brandName()+'. Receipt '+rec.receipt_no+' ('+new Date(rec.issued_at||Date.now()).toLocaleDateString()+').'+(rec.balance_after!=null?(' Balance: '+fmt(rec.balance_after)+'.'):'')+' Thank you.';
+      return 'https://wa.me/'+digits(rec.guardian_phone)+'?text='+encodeURIComponent(msg);
+    }
+    async function list(){
+      var sess=window.NextSession||{}; var sb=sess.sb; var t=(sess.profile||{}).tenantId;
+      if(!sb||!t) return [];
+      var r=await sb.from('receipts').select('*').eq('tenant_id',t).order('issued_at',{ascending:false}).limit(100);
+      return r.data||[];
+    }
+    return { issue:issue, download:download, whatsappUrl:whatsappUrl, list:list, fmt:fmt };
+  })();
+  </script>
+  <script>
+  (function(){
+    // Resolve the school we're ACTUALLY opening (never inherit the last login's brand).
+    var _bp=new URLSearchParams(location.search);
+    var _urlslug=_bp.get('s')||_bp.get('t')||(location.pathname.match(/\/(?:s|school)\/([A-Za-z0-9_-]+)/)||[])[1]||'';
+    // Brand must match the DATA we'll show: that's the logged-in tenant. Fall back to URL slug only when not signed in.
+    var _prof=null; try{ _prof=JSON.parse(localStorage.getItem('nextos.profile')||'null'); }catch(e){}
+    // This app IS a specific school (from the URL). Brand by that; the session guard makes the login match.
+    var _lastT=''; try{ _lastT=localStorage.getItem('nextos.lastTenant')||''; }catch(e){}
+    var _bslug=_urlslug || ((_prof && _prof.tenantId) || '') || _lastT;
+    // Remember which school THIS install/tab is, so a slug-less reopen recovers the right one (never another school).
+    if(_urlslug){ try{ localStorage.setItem('nextos.lastTenant', _urlslug); }catch(e){} }
+    // Neutral fallback name — derived from the slug, else generic. NEVER another school's name.
+    try{ window.__BRAND_FALLBACK = _bslug ? _bslug.replace(/[-_]+/g,' ').replace(/\b\w/g,function(m){return m.toUpperCase();}) : 'NEXT School OS'; }catch(e){ window.__BRAND_FALLBACK='NEXT School OS'; }
+    var b=null; try{ b=JSON.parse(localStorage.getItem('nextos.brand.'+_bslug)||'null'); }catch(e){}
+    // Fetch the authoritative brand for THIS slug; cache per-slug; reload once if we painted the wrong one.
+    function _paintName(nm){ try{ window.__BRAND_NAME=nm; document.title=nm+' \u00b7 NEXT School OS'; var _ld=document.getElementById('nx-loading-text'); if(_ld) _ld.textContent='LOADING '+String(nm).toUpperCase()+' \u00b7 NEXT SCHOOL OS'; }catch(e){} }
+    if(_bslug){ try{ fetch('https://nextos-sentinel.nextafricaai.workers.dev/brand?s='+encodeURIComponent(_bslug)).then(function(r){return r.ok?r.json():null;}).then(function(nb){
+      if(nb && nb.name){ var fresh={name:nb.name,color:nb.primary_color||null,logo:nb.logo_url||null};
+        try{ localStorage.setItem('nextos.brand.'+_bslug, JSON.stringify(fresh)); }catch(e){}
+        if(fresh.logo) window.__BRAND_LOGO=fresh.logo;
+        _paintName(fresh.name);
+        try{ if(fresh.color){ var _c=String(fresh.color); if(_c[0]!=='#')_c='#'+_c; if(/^#[0-9a-fA-F]{6}$/.test(_c)){ document.documentElement.style.setProperty('--brand', _c); } } }catch(e){}
+      }
+    }).catch(function(){}); }catch(e){} }
+    if(b && b.color){ var c=String(b.color); if(c[0]!=='#') c='#'+c;
+      if(/^#[0-9a-fA-F]{6}$/.test(c)){ window.__ACCENT=c;
+        window.__ACCENT_DARK=(function(h){h=h.replace('#','');function d(x){return Math.max(0,Math.round(parseInt(x,16)*0.55)).toString(16).padStart(2,'0');}return '#'+d(h.slice(0,2))+d(h.slice(2,4))+d(h.slice(4,6));})(c);
+        var _mix=function(hex,base,amt){var hh=hex.replace('#',''),bs=base.replace('#','');function cc(i){var x=parseInt(hh.substr(i,2),16),d=parseInt(bs.substr(i,2),16);return Math.round(d+(x-d)*amt);}function hx(v){return Math.max(0,Math.min(255,v)).toString(16).padStart(2,'0');}return '#'+hx(cc(0))+hx(cc(2))+hx(cc(4));};
+        window.__BG=_mix(c,'#0a0a12',0.10); window.__SURFACE=_mix(c,'#0a0a12',0.18); window.__SURFACE2=_mix(c,'#0a0a12',0.24); window.__SURFACE3=_mix(c,'#0a0a12',0.34);
+        try{ document.documentElement.style.background=window.__BG; }catch(e){}
+        window.addEventListener('DOMContentLoaded',function(){ try{ document.body.style.background=window.__BG; }catch(e){} });
+      }
+    }
+    if(b && b.logo){ window.__BRAND_LOGO=b.logo; }
+    if(b && b.name){ window.__BRAND_NAME=b.name;
+      try{ document.title = b.name + ' \u00b7 NEXT School OS'; }catch(e){}
+      try{ var _ld=document.getElementById('nx-loading-text'); if(_ld) _ld.textContent='LOADING '+String(b.name).toUpperCase()+' \u00b7 NEXT SCHOOL OS'; }catch(e){}
+    } else {
+      // No school record for this slug — never fall back to another school's identity.
+      try {
+        if(_bslug){
+          var _nm=_bslug.replace(/[-_]+/g,' ').replace(/\b\w/g,function(m){return m.toUpperCase();});
+          window.__BRAND_NAME=_nm;
+          try{ document.title=_nm+' \u00b7 NEXT School OS'; }catch(e){}
+        }
+      } catch(e){}
+    }
+  })();
+  </script>
+
+  <script>
+  window.getOSActiveTenant = function() {
+    try {
+      var bp = new URLSearchParams(location.search);
+      var slug = bp.get('s') || bp.get('t') || (location.pathname.match(/\/(?:s|school)\/([A-Za-z0-9_-]+)/)||[])[1] || '';
+      if (slug) return slug;
+      var pf = JSON.parse(localStorage.getItem('nextos.profile') || 'null');
+      if (pf && pf.tenantId) return pf.tenantId;
+      var last = localStorage.getItem('nextos.lastTenant');
+      if (last) return last;
+    } catch(e) {}
+    return 'peak-primary';
+  };
+  /* Nia's identity guard — notices if THIS page is branded for the wrong school and reports it.
+     This is the watcher Hudson asked for: "I'm seeing the bare-foot app but a Peak login." */
+  (function(){
+    try {
+      var bp = new URLSearchParams(location.search);
+      var slug = bp.get('s') || bp.get('t') || (location.pathname.match(/\/(?:s|school)\/([A-Za-z0-9_-]+)/)||[])[1] || '';
+      if(!slug){ try{ var pf=JSON.parse(localStorage.getItem('nextos.profile')||'null'); slug=(pf&&pf.tenantId)||''; }catch(e){} }
+      if(!slug){ try{ slug=localStorage.getItem('nextos.lastTenant')||''; }catch(e){} }
+      if(!slug) return;
+      var WK='https://nextos-sentinel.nextafricaai.workers.dev';
+      // After the UI has had time to paint, compare the authoritative brand with what's shown.
+      setTimeout(function(){
+        fetch(WK+'/brand?s='+encodeURIComponent(slug)).then(function(r){return r.ok?r.json():null;}).then(function(b){
+          if(!b || !b.name) return;
+          var want = String(b.name).toLowerCase().replace(/[^a-z0-9]+/g,'');
+          var shown = String(window.__BRAND_NAME||'').toLowerCase().replace(/[^a-z0-9]+/g,'');
+          if(shown && want && shown.indexOf(want)<0 && want.indexOf(shown)<0){
+            // Mismatch: auto-correct the view first, then tell Nia.
+            try{ window.__BRAND_NAME=b.name; document.title=b.name+' \u00b7 NEXT School OS'; }catch(e){}
+            try{ fetch(WK+'/watch/signal',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ tenant:slug, type:'brand_mismatch', severity:'high', page:location.pathname, detail:'Page showed "'+(window.__BRAND_NAME||'')+'" but this is '+b.name+'. Likely a stale cached file — purge cache.' })}); }catch(e){}
+            try{ if(window.NIA_FEED) window.NIA_FEED.post({ key:'idfix', level:'alert', icon:'\uD83D\uDEE1\uFE0F', title:'Identity fixed', body:'This page was showing the wrong school\'s name. I corrected it to '+b.name+'. If it keeps happening, the live site is serving an old cached version.', cta:null }); }catch(e){}
+          }
+        }).catch(function(){});
+      }, 2600);
+    } catch(e){}
+  })();
+  </script>
+
+  <!-- Nia Memory Engine — must load before React components -->
+  <script src="../../../../nia-memory.js"></script>
+
+  <!-- School Brand Engine & Extracted Timetable -->
+  <script src="./school-brand.js"></script>
+  <script src="./kabs-lily-timetable-data.js"></script>
+
+  <!-- Transport Telemetry & Boarding Engines -->
+  <script src="./transport-telemetry.js"></script>
+  <script src="./school-boarding-engine.js"></script>
+
+  <!-- Leaflet Map Library for Live Transport Tracking -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="anonymous" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin="anonymous"></script>
+
+  <!-- Three.js + GSAP for Nia Design Studio -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js" crossorigin="anonymous"></script>
+  <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js" crossorigin="anonymous"></script>
+
+  <script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" crossorigin="anonymous"></script>
+
+  <!-- School Document, Boarding & Brand Admin Components + Nia Design Studio -->
+  <script type="module" src="../../../../nia-design-studio.jsx" onerror="console.warn('Optional component failed to load: nia-design-studio.jsx')"></script>
+  <script type="module" src="./school-document-header.jsx" onerror="console.warn('Optional component failed to load: school-document-header.jsx')"></script>
+  <script type="module" src="./school-report-card.jsx" onerror="console.warn('Optional component failed to load: school-report-card.jsx')"></script>
+  <script type="module" src="./school-fee-statement.jsx" onerror="console.warn('Optional component failed to load: school-fee-statement.jsx')"></script>
+  <script type="module" src="./school-bank-statement.jsx" onerror="console.warn('Optional component failed to load: school-bank-statement.jsx')"></script>
+  <script type="module" src="./school-brand-admin.jsx" onerror="console.warn('Optional component failed to load: school-brand-admin.jsx')"></script>
+  <script type="module" src="./driver-view.jsx" onerror="console.warn('Optional component failed to load: driver-view.jsx')"></script>
+  <script type="module" src="./head-transport-panel.jsx" onerror="console.warn('Optional component failed to load: head-transport-panel.jsx')"></script>
+  <script type="module" src="./head-boarding-panel.jsx" onerror="console.warn('Optional component failed to load: head-boarding-panel.jsx')"></script>
+  <script type="module" src="./school-onboarding-modal.jsx" onerror="console.warn('Optional component failed to load: school-onboarding-modal.jsx')"></script>
+
+  <!-- Role router + teacher shell (INLINED to work over file:// — external src is CORS-blocked) -->
+  <script type="module" src="/role-router.jsx"></script>
+  <script type="module" src="/teacher-view.jsx"></script>
+  <script type="module" src="/head-staff-panel.jsx"></script>
+  <script type="module" src="/head-timetable-panel.jsx"></script>
+
+  <script type="text/javascript">
+  // Real-time replacement for the "Thursday · 14 May 2026 · Term 2 · Week 6"
+  // strings that were pasted as static text at build time and never
+  // updated — every dashboard kept showing that exact date forever.
+  // Term-start assumption (no academic-calendar config exists anywhere in
+  // this codebase to read a real one from): Term 2 2026 began Mon 4 May
+  // 2026, a ~14-week term. Adjust TERM_START/TERM_LABEL below once School
+  // Setup exposes a real term calendar.
+  window.getSchoolCalendarLabel = function () {
+    var now = new Date();
+    var days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    var months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+    var dateStr = days[now.getDay()] + ' · ' + now.getDate() + ' ' + months[now.getMonth()] + ' ' + now.getFullYear();
+    var TERM_START = new Date(2026, 4, 4);
+    var TERM_END = new Date(2026, 7, 15);
+    var term = 'Term 2', week = null;
+    if (now < TERM_START) { term = 'Term 1'; }
+    else if (now > TERM_END) { term = 'Term 3'; }
+    else { week = Math.floor((now - TERM_START) / (7 * 24 * 3600 * 1000)) + 1; }
+    var termWeekStr = term + (week ? (' · Week ' + week) : '');
+    return { dateStr: dateStr, termWeekStr: termWeekStr, full: dateStr + ' · ' + termWeekStr };
+  };
+
+  // Clean, tenant-aware /school/<slug>/<page> links for anything shared
+  // outside the app (enrollment form, HR form) — never the raw internal
+  // /prototypes/schools/peak-primary/... path, which is a shared
+  // multi-tenant deploy directory, not something a parent or applicant at
+  // a real school should ever see. Requires the matching .htaccess rewrite
+  // (already added for /enroll and /join-staff).
+  window.peakSchoolLink = function (page) {
+    var tenantId = (window.PEAK_ROLE && window.PEAK_ROLE.getProfile && window.PEAK_ROLE.getProfile().tenantId) ||
+      (typeof window.getOSActiveTenant === 'function' ? window.getOSActiveTenant() : 'kabs-lily-junior-school-and-kindercare-centre');
+    return window.location.origin + '/school/' + encodeURIComponent(tenantId) + '/' + page;
+  };
+  </script>
+
+  <script type="text/javascript" data-src="src/data.js">
+/* src/data.js */
+// Peak Primary School — shared data for NEXT School OS prototype
+window.PEAK = (function () {
+  const activeClasses = (window.SCHOOL_CONFIG && window.SCHOOL_CONFIG.classes && window.SCHOOL_CONFIG.classes.length) 
+    ? window.SCHOOL_CONFIG.classes 
+    : ['Baby Class', 'Middle Class', 'Top Class', 'Primary One', 'Primary Two', 'Primary Three', 'Primary Four', 'Primary Five', 'Primary Six', 'Primary Seven'];
+
+  const streams = activeClasses.map(c => ({ id: c, grade: c, stream: c, label: c }));
+
+  // Real data only — no fabricated Ugandan names/balances/attendance as a
+  // "looks alive" fallback. Every one of these gets overwritten by
+  // window.peakStore.loadStudents/loadTeachers (real Supabase/worker
+  // fetches) once the app mounts; until then, screens should show their
+  // own "no data yet" empty states rather than fake numbers.
+  const students = [];
+
+  const kpis = {
+    students: 0, teachers: 0, streams: 0,
+    presentToday: 0, absentToday: 0, attendancePct: 0, attendancePrev: 0,
+    feesCollectedTerm: 0, feesTargetTerm: 0, feesCollectedToday: 0, feesOutstandingStudents: 0,
+    messagesToday: 0, waDelivery: 0, busesOnRoute: 0, busesDelayed: 0,
+    enrollmentInquiries: 0, lessonPlansPending: 0,
+  };
+
+  const alerts = [];
+
+  // Attendance % per stream — used for heat-grid
+  const streamAttendance = {};
+
+  // 7-day attendance trend (Mon..Sun) — null = no data yet
+  const trend7 = [null, null, null, null, null, null, null];
+
+  // Fees collection by day this week
+  const feesWeek = [];
+
+  // Outbox / parent WhatsApp threads
+  const threads = [];
+
+  // Recent broadcast log
+  const broadcasts = [];
+
+  const aiSuggestions = [];
+
+  // ─── Teachers ─────────────────────────────────────────────────────────────
+  const teachers = [];
+
+  // ─── Buses / Transport ────────────────────────────────────────────────────
+  // Superseded by the real /transport/live-backed Transport() screen and
+  // transport_students/transport_positions tables — nothing reads D.buses
+  // anymore, kept as an empty array only so any stray reference degrades to
+  // "no buses" instead of a crash.
+  const buses = [];
+
+  // ─── Learning · subjects with active assignments ──────────────────────────
+  const subjects = [];
+
+  // ─── End-of-term reports ──────────────────────────────────────────────────
+  const reports = [];
+
+  const fmtUGX = (n) => 'UGX ' + n.toLocaleString('en-US');
+  const fmtUGXshort = (n) => {
+    if (n >= 1_000_000) return 'UGX ' + (n/1_000_000).toFixed(1).replace(/\.0$/,'') + 'M';
+    if (n >= 1_000)     return 'UGX ' + (n/1_000).toFixed(0) + 'K';
+    return 'UGX ' + n;
+  };
+
+  return { streams, students, teachers, buses, subjects, reports, kpis, alerts, streamAttendance, trend7, feesWeek, threads, broadcasts, aiSuggestions, fmtUGX, fmtUGXshort };
+})();
+
+  </script>
+  <script type="module" src="/src/v4-peak-dark.jsx"></script>
+  <script type="module" src="/src/v4-today.jsx"></script>
+  <script type="module" src="/src/v4-students.jsx"></script>
+  <script type="module" src="/src/v4-profile.jsx"></script>
+  <script type="module" src="/src/v4-fees.jsx"></script>
+  <script type="module" src="/src/v4-broadcast.jsx"></script>
+  <script type="module" src="/src/v4-mobile.jsx"></script>
+  <script type="module" src="/src/peak-screens.jsx"></script>
+  <script type="module" src="/src/peak-forms.jsx"></script>
+  <script type="module" src="/src/inline_1.jsx"></script>
+
+  <script type="module" src="/src/peak-marking.jsx"></script>
+
+  <script type="module" src="/src/peak-packages.jsx"></script>
+
+  <script type="module" src="/src/peak-events.jsx"></script>
+
+  <script type="module" src="/src/peak-watch.jsx"></script>
+
+  <script type="module" src="/src/nia-feed.jsx"></script>
+
+  <script>
+  window.peakExportCSV = function (filename, headers, rows) {
+    try {
+      var esc = function (v) { v = (v == null ? '' : String(v)); return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
+      var csv = [headers.map(esc).join(',')].concat(rows.map(function (r) { return r.map(esc).join(','); })).join('\n');
+      var blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+      var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = filename; a.click(); setTimeout(function () { URL.revokeObjectURL(a.href); }, 2000);
+    } catch (e) {}
+  };
+  window.peakRoster = function () { return (window.PEAK && window.PEAK.students) || []; };
+  window.peakCleanPhone = function (p) { p = (p || '').replace(/[^0-9]/g, ''); if (!p) return ''; if (p.charAt(0) === '0') p = '256' + p.slice(1); return p; };
+  window.peakWhatsApp = function (phone, message) { var p = window.peakCleanPhone(phone); if (!p) { window.peakToast && window.peakToast('No phone on file', 'info', 'Add a guardian/contact number first.'); return; } window.open('https://wa.me/' + p + (message ? ('?text=' + encodeURIComponent(message)) : ''), '_blank'); };
+  window.peakCall = function (phone) { var p = (phone || '').replace(/\s+/g, ''); if (!p) { window.peakToast && window.peakToast('No phone on file', 'info'); return; } window.open('tel:' + p, '_self'); };
+  window.peakSchoolName = function () { return (window.__BRAND_NAME) || 'the school'; };
+  window.peakShareSchool = function () {
+    var t = ''; try { var p = JSON.parse(localStorage.getItem('nextos.profile') || 'null'); t = (p && p.tenantId) || localStorage.getItem('nextos.lastTenant') || ''; } catch (e) {}
+    if (!t) { try { t = new URLSearchParams(location.search).get('s') || (location.pathname.match(/\/(?:s|school)\/([A-Za-z0-9_-]+)/) || [])[1] || ''; } catch (e) {} }
+    var url = location.origin + '/s/' + encodeURIComponent(t);
+    var nm = window.peakSchoolName();
+    var data = { title: nm, text: 'Sign in to ' + nm + ' on NEXT OS', url: url };
+    if (navigator.share) { navigator.share(data).catch(function () {}); }
+    else { try { navigator.clipboard.writeText(url); window.peakToast && window.peakToast('Link copied', 'success', url); } catch (e) { prompt('Copy this link:', url); } }
+  };
+  window.peakBulkWhatsApp = function (items, label) {
+    items = (items || []).filter(function (x) { return x.to && x.text; });
+    if (!items.length) { window.peakToast && window.peakToast('No recipients with phone numbers', 'info'); return; }
+    window.peakToast && window.peakToast('Sending ' + items.length + ' WhatsApp messages...', 'info', label || '');
+    fetch('https://nextos-sentinel.nextafricaai.workers.dev/whatsapp/bulk', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items: items }) })
+      .then(function (r) { return r.json(); }).then(function (d) {
+        if (d && d.error && /not configured/i.test(d.error)) { window.peakToast && window.peakToast('WhatsApp Business API not connected', 'info', 'Add WHATSAPP_TOKEN + WHATSAPP_PHONE_ID to the worker (WHATSAPP-SETUP.md), then this sends for real.'); return; }
+        var sent = (d && d.sent) || 0, failed = (d && d.failed) || 0;
+        window.peakToast && window.peakToast(sent + ' sent' + (failed ? (' - ' + failed + ' failed') : ''), failed ? 'info' : 'success', label || '');
+      }).catch(function (e) { window.peakToast && window.peakToast('Send failed', 'info', String(e.message || e)); });
+  };
+  window.peakPhoneFor = function (x) { return x.guardianPhone || ('0702341' + ((x.id * 17) % 1000)); };
+  window.peakOverdueRecipients = function () { return window.peakRoster().filter(function (x) { return (x.balance || 0) > 0 || x.fees === 'overdue' || x.fees === 'partial'; }).map(function (x) { return { to: window.peakPhoneFor(x), text: 'Dear ' + (x.guardian || 'Parent') + ', a gentle reminder from ' + window.peakSchoolName() + ' regarding ' + x.name + "'s school fees" + (x.balance ? (' (balance UGX ' + Number(x.balance).toLocaleString() + ')') : '') + '. Kindly clear it at your earliest convenience. Thank you.' }; }); };
+  window.peakAllGuardians = function (msg) { return window.peakRoster().map(function (x) { return { to: window.peakPhoneFor(x), text: (msg || 'A message from ' + window.peakSchoolName() + '.').replace('{name}', x.name).replace('{guardian}', x.guardian || 'Parent') }; }); };
+  window.peakExportRoster = function () { var s = window.peakRoster(); window.peakExportCSV('students-' + (((window.__BRAND_NAME) || 'school') + '').replace(/\s+/g, '_') + '.csv', ['Name', 'Stream', 'Guardian', 'Phone', 'Fees', 'Balance (UGX)', 'Attendance %', 'Standing'], s.map(function (x) { return [x.name, x.stream || '', x.guardian || '', x.guardianPhone || '', x.fees || '', x.balance || 0, (x.attendanceWk != null ? x.attendanceWk : ''), x.flag === 'risk' ? 'At-risk' : (x.flag === 'top' ? 'Top' : 'OK')]; })); window.peakToast && window.peakToast('Roster exported', 'success', s.length + ' students - CSV downloaded.'); };
+  window.peakExportLedger = function () { var s = window.peakRoster().filter(function (x) { return (x.balance || 0) > 0 || x.fees === 'overdue' || x.fees === 'partial'; }); window.peakExportCSV('fees-outstanding.csv', ['Name', 'Stream', 'Guardian', 'Phone', 'Fees', 'Balance (UGX)'], s.map(function (x) { return [x.name, x.stream || '', x.guardian || '', x.guardianPhone || '', x.fees || '', x.balance || 0]; })); window.peakToast && window.peakToast('Ledger exported', 'success', s.length + ' outstanding accounts - CSV downloaded.'); };
+  window.peakFindStudent = function (name) { var s = window.peakRoster(); name = (name || '').toLowerCase(); return s.find(function (x) { return (x.name || '').toLowerCase() === name; }) || s.find(function (x) { return (x.name || '').toLowerCase().indexOf(name) >= 0; }); };
+  window.peakStudentReport = function (stu) {
+    try {
+      if (window.PEAK_ROLE && window.PEAK_ROLE.getRole() === 'parent') {
+        if (window.__TERM && window.__TERM.term_end_date) {
+          const endDate = new Date(window.__TERM.term_end_date);
+          if (new Date() < endDate) {
+            if (window.peakToast) window.peakToast('Report unavailable', 'info', 'End of term reports will be available on ' + window.__TERM.term_end_date);
+            return;
+          }
+        }
+      }
+      var J = window.jspdf && window.jspdf.jsPDF; if (!J) { window.peakToast && window.peakToast('PDF engine loading - try again', 'info'); return; }
+      stu = stu || {}; var doc = new J(); var brand = (window.__BRAND_NAME) || 'School';
+      doc.setFontSize(18); doc.setFont(undefined, 'bold'); doc.text(brand, 105, 18, { align: 'center' });
+      doc.setFont(undefined, 'normal'); doc.setFontSize(11); doc.text('Student Summary', 105, 26, { align: 'center' });
+      doc.setDrawColor(200); doc.line(14, 31, 196, 31); var y = 45;
+      [['Name', stu.name || '-'], ['Class / Stream', stu.stream || '-'], ['Guardian', stu.guardian || '-'], ['Phone', stu.guardianPhone || stu.phone || '-'], ['Fees status', stu.fees || '-'], ['Balance', stu.balance ? ('UGX ' + Number(stu.balance).toLocaleString()) : '0'], ['Weekly attendance', (stu.attendanceWk != null ? stu.attendanceWk + '%' : '-')], ['Last seen', stu.lastSeen || '-'], ['Standing', stu.flag === 'risk' ? 'At-risk' : (stu.flag === 'top' ? 'Top performer' : 'OK')]].forEach(function (r) { doc.setFont(undefined, 'bold'); doc.text(r[0] + ':', 14, y); doc.setFont(undefined, 'normal'); doc.text(String(r[1]), 75, y); y += 9; });
+      doc.setFontSize(9); doc.setTextColor(120); doc.text('Generated by NEXT OS - Nia - ' + new Date().toLocaleDateString(), 14, 285);
+      doc.save((stu.name || 'student').replace(/\s+/g, '_') + '_summary.pdf');
+      window.peakToast && window.peakToast('Report generated', 'success', (stu.name || 'Student') + ' - summary PDF downloaded.');
+    } catch (e) { window.peakToast && window.peakToast('Could not generate', 'info', String(e.message || e)); }
+  };
+  // ── Per-school design templates (RECEIPT / LEDGER / REPORT). Defaults = current NEXT design.
+  //    A school customises later by saving overrides to localStorage 'nextos.template.<tenant>'
+  //    e.g. { report:{ title:'...', footer:'...', accent:[r,g,b] }, receipt:{...}, ledger:{...} }.
+  window.PEAK_TEMPLATES = {
+    defaults: {
+      report:  { title: 'Student Report Card', footer: 'Generated by NEXT OS', accent: [180, 30, 30] },
+      receipt: { title: 'Official Receipt', footer: 'Thank you. Issued via NEXT OS.', accent: [180, 30, 30] },
+      ledger:  { title: 'Fees Ledger', footer: 'NEXT OS' },
+    },
+    get: function (kind) {
+      var d = (this.defaults[kind]) || {};
+      try {
+        var tenant = (window.PEAK_ROLE && window.PEAK_ROLE.getProfile && window.PEAK_ROLE.getProfile().tenantId) || 'peak-primary';
+        var all = JSON.parse(localStorage.getItem('nextos.template.' + tenant) || '{}');
+        return Object.assign({}, d, (all && all[kind]) || {});
+      } catch (e) { return d; }
+    },
+  };
+  window.peakSaveAssignment = function (a) { try { var key = 'nextos.assignments.' + ((window.PEAK_ROLE && window.PEAK_ROLE.getProfile && window.PEAK_ROLE.getProfile().tenantId) || 'peak-primary'); var arr = []; try { arr = JSON.parse(localStorage.getItem(key) || '[]'); } catch (e) {} arr.unshift(Object.assign({ id: Date.now(), created: new Date().toISOString() }, a)); localStorage.setItem(key, JSON.stringify(arr.slice(0, 200))); } catch (e) {} };
+  </script>
+  <script type="module" src="/src/inline_2.jsx"></script>
+
+  <script type="module" src="/src/inline_3.jsx"></script>
+
+  <script type="module" src="/src/peak-campus.jsx"></script>
+
+  <script type="module" src="/src/peak-learning.jsx"></script>
+
+  <script type="module" src="/src/inline_4.jsx"></script>
+
+  <script type="module" src="/src/peak-timetable.jsx"></script>
+
+  <script type="module" src="/src/peak-staff.jsx"></script>
+
+  <script type="module" src="/src/peak-app.jsx"></script>
+  <script>
+  /* Broken school-logo fallback -> branded initials icon (handles missing assets/peak-logo.png) */
+  (function(){
+    function brandIcon(){
+      var nm=(window.__BRAND_NAME)||'NEXT'; var col=(window.__ACCENT)||'#00FC8F';
+      var init=((''+nm).match(/[A-Za-z0-9]/g)||['N']).slice(0,2).join('').toUpperCase();
+      var svg='<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><rect width="64" height="64" rx="14" fill="'+col+'"/><text x="50%" y="55%" font-family="Arial,Helvetica,sans-serif" font-size="30" font-weight="700" fill="#0a1029" text-anchor="middle" dominant-baseline="central">'+init+'</text></svg>';
+      return 'data:image/svg+xml;utf8,'+encodeURIComponent(svg);
+    }
+    window.addEventListener('error', function(e){
+      var t=e.target;
+      if(t && t.tagName==='IMG' && /peak-logo/.test(t.getAttribute('src')||'') && !t.dataset.nxFallback){
+        t.dataset.nxFallback='1'; t.src=brandIcon();
+      }
+    }, true);
+  })();
+
+  /* Dashboard colour control — change the school's accent; saves to the tenant + reloads */
+  (function(){
+    function init(){
+      var sess = window.NextSession || null;
+      var prof = (window.PEAK_ROLE && window.PEAK_ROLE.getProfile && window.PEAK_ROLE.getProfile()) || (sess && sess.profile) || null;
+      if(!document.body){ return setTimeout(init,300); }
+      if(!prof || !prof.tenantId){ return setTimeout(init,500); }
+      return; /* theme colour now lives in Account -> Settings */
+      var cur=(window.__ACCENT)||'#00FC8F';
+      var mob = window.matchMedia('(max-width:640px)').matches;
+      var wrap=document.createElement('div'); wrap.id='nx-theme-ctrl';
+      wrap.style.cssText='position:fixed;right:14px;z-index:99999;bottom:'+(mob?86:16)+'px;display:flex;flex-direction:column;align-items:flex-end;gap:8px;font-family:Inter,system-ui,sans-serif';
+      var panel=document.createElement('div');
+      panel.style.cssText='display:none;align-items:center;gap:8px;background:#141e3c;border:1px solid #212d56;border-radius:30px;padding:8px 12px;font-size:12px;color:#aab2d5;box-shadow:0 8px 24px rgba(0,0,0,.45)';
+      var lbl=document.createElement('span'); lbl.textContent='Dashboard colour';
+      var inp=document.createElement('input'); inp.type='color'; inp.value=cur;
+      inp.style.cssText='width:30px;height:30px;border:none;background:none;cursor:pointer;padding:0;border-radius:6px';
+      var sv=document.createElement('button'); sv.textContent='Apply'; sv.disabled=true;
+      sv.style.cssText='background:'+cur+';color:#04210f;border:none;border-radius:20px;padding:7px 14px;font-weight:700;cursor:pointer;font-size:12px;opacity:.5';
+      panel.appendChild(lbl); panel.appendChild(inp); panel.appendChild(sv);
+      var tog=document.createElement('button'); tog.type='button'; tog.setAttribute('aria-label','Dashboard colour');
+      tog.style.cssText='width:44px;height:44px;border-radius:50%;border:2px solid rgba(255,255,255,.85);background:'+cur+';cursor:pointer;box-shadow:0 8px 24px rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;font-size:18px;line-height:1';
+      tog.textContent='🎨';
+      tog.addEventListener('click',function(){ panel.style.display=(panel.style.display==='flex')?'none':'flex'; });
+      var chosen=cur;
+      inp.addEventListener('input',function(){ chosen=inp.value; sv.disabled=false; sv.style.opacity='1'; sv.style.background=chosen; tog.style.background=chosen; });
+      sv.addEventListener('click',async function(){
+        if(sv.disabled) return; sv.textContent='Saving…'; sv.disabled=true;
+        try{
+          var b={}; try{ b=JSON.parse(localStorage.getItem('nextos.brand')||'{}'); }catch(e){}
+          b.color=chosen; if(!b.name && window.__BRAND_NAME) b.name=window.__BRAND_NAME;
+          localStorage.setItem('nextos.brand', JSON.stringify(b));
+          if(sess && sess.sb && prof.tenantId){ await sess.sb.from('tenants').update({ primary_color: chosen }).eq('id', prof.tenantId); }
+        }catch(e){}
+        location.reload();
+      });
+      wrap.appendChild(panel); wrap.appendChild(tog);
+      document.body.appendChild(wrap);
+    }
+    if(document.readyState!=='loading') init(); else document.addEventListener('DOMContentLoaded', init);
+  })();
+  </script>
+  <script>
+  (function () {
+    function roleLabel(r) { r = (r || '').toLowerCase(); return ({ head: 'Head Teacher', teacher: 'Teacher', bursar: 'Bursar', admin: 'Administrator', director: 'Director' })[r] || ''; }
+    function brand() { try { var b = JSON.parse(localStorage.getItem('nextos.brand') || 'null'); if (b && b.name) return b; } catch (e) {} return { name: (window.__BRAND_NAME) || 'your school', color: '#00fc8f' }; }
+    function show() {
+      try { if (sessionStorage.getItem('nextos.welcome') !== '1') return; } catch (e) { return; }
+      try { sessionStorage.removeItem('nextos.welcome'); } catch (e) {}
+      var prof = (window.PEAK_ROLE && window.PEAK_ROLE.getProfile && window.PEAK_ROLE.getProfile()) || {};
+      var first = (prof.fullName ? String(prof.fullName).split(' ')[0] : '');
+      var role = roleLabel(prof.role);
+      var b = brand(); var school = b.name; var color = b.color || '#00fc8f';
+      var line = 'Welcome' + (role ? (' ' + role) : '') + (first ? (' ' + first) : '');
+      var ov = document.createElement('div');
+      ov.style.cssText = 'position:fixed;inset:0;z-index:100000;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px;background:radial-gradient(circle at 50% 35%,#0f1f3a,#05080f);opacity:0;transition:opacity .5s ease;font-family:Inter,system-ui,sans-serif';
+      ov.innerHTML = '<div style="font-family:ui-monospace,monospace;letter-spacing:4px;color:' + color + ';font-size:12px;margin-bottom:18px">' + String(school).toUpperCase() + ' \u00b7 NEXT SCHOOL OS</div>'
+        + '<div style="font-size:42px;font-weight:800;color:#eef1fb;line-height:1.12;max-width:720px">' + line + '</div>'
+        + '<div style="font-size:21px;color:#aab2d5;margin-top:12px">to ' + school + ' OS</div>'
+        + '<div style="margin-top:28px;width:160px;height:3px;border-radius:3px;background:#1a2342;overflow:hidden"><div id="nxwb" style="height:100%;width:0;background:' + color + ';transition:width 2.1s linear"></div></div>';
+      document.body.appendChild(ov);
+      requestAnimationFrame(function () { ov.style.opacity = '1'; var w = document.getElementById('nxwb'); if (w) w.style.width = '100%'; });
+      setTimeout(function () { ov.style.opacity = '0'; }, 2300);
+      setTimeout(function () { if (ov.parentNode) ov.parentNode.removeChild(ov); }, 2900);
+    }
+    var tries = 0;
+    (function wait() { tries++; var ready = (window.PEAK_ROLE && window.PEAK_ROLE.getProfile && window.PEAK_ROLE.getProfile() && window.PEAK_ROLE.getProfile().fullName); if (ready || tries > 25) show(); else setTimeout(wait, 160); })();
+  })();
+  </script>
+</body>
+</html>

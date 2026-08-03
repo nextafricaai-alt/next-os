@@ -1,0 +1,20 @@
+{
+  "name": "peak-primary",
+  "version": "1.0.0",
+  "description": "",
+  "main": "kabs-lily-timetable-data.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "vite build"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "@vitejs/plugin-react": "^6.0.5",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "vite": "^8.2.0"
+  }
+}

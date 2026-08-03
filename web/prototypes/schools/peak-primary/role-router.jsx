@@ -43,15 +43,15 @@
   }
 
   // ─── Which nav items each role can see ────────────────────────────────
-  // Admin & Head: null (all screens)
-  // Bursar (Nalukenge Jane): Cash Income/Expenditure, Ledger Fees, Supervisory Dash, Reports, Transport, Attendance
-  // Teacher & Driver: use dedicated mobile/web app views
+  // Admin + Head: everything
+  // Bursar: only finance-relevant screens
+  // Teacher / Driver: use dedicated mobile shell
   const ROLE_NAV_WHITELIST = {
     admin:   null, // null = show all
     head:    null,
-    bursar:  new Set(['cash', 'spec', 'dash', 'fees', 'rep', 'trsp', 'attendance']),
-    teacher: new Set(), // teacher uses dedicated teacher view
-    driver:  new Set(['trsp']), // driver uses driver app
+    bursar:  new Set(['dash', 'fees', 'rep', 'exam', 'finance', 'trans']),
+    teacher: new Set(),
+    driver:  new Set(['driver', 'trans']),
   };
 
   function canSeeNavKey(key) {
@@ -71,24 +71,20 @@
   // ─── Default landing screen after login ──────────────────────────────
   function defaultRouteForRole() {
     const role = getRole();
-    if (role === 'bursar')  return 'cash'; // Direct landing on Income & Expenditure Attribution Module
+    if (role === 'bursar')  return 'fees';
+    if (role === 'driver')  return 'driver';
     if (role === 'teacher') return 'teacher-home';
-    if (role === 'driver')  {
-      window.location.href = '/prototypes/schools/peak-primary/driver-dashboard.html';
-      return 'trsp';
-    }
-    return 'spec'; // admin / head keep current default
+    return 'today';
   }
 
   // ─── Pretty label for the sidebar profile chip ───────────────────────
   function roleLabel() {
     const role = getRole();
     return ({
-      admin:   'School Administrator',
+      admin:   'Administrator',
       head:    'Head Teacher',
-      bursar:  'Bursar / Administrator (Nalukenge Jane)',
+      bursar:  'Bursar',
       teacher: 'Teacher',
-      driver:  'School Driver',
     })[role] || 'User';
   }
 
