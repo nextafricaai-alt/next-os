@@ -6982,8 +6982,10 @@ const PD_Broadcast = (function () {
 
     const [view, setView] = useState('broadcast');
     const [logs, setLogs] = useState([]);
+    const [loadingLogs, setLoadingLogs] = useState(false);
     
     const loadLogs = async () => {
+      setLoadingLogs(true);
       const tenant = (window.PEAK_ROLE && window.PEAK_ROLE.getProfile && window.PEAK_ROLE.getProfile().tenantId) || 'kabs-lily-junior-school-and-kindercare-centre';
       const sb = window.NextSession?.sb;
       if (sb) {
@@ -6998,6 +7000,7 @@ const PD_Broadcast = (function () {
           setLogs(data.map(x => Object.assign({ _id: x.id }, x)));
         }
       }
+      setLoadingLogs(false);
     };
     useEffect(() => { if (view === 'suggestions') loadLogs(); }, [view]);
 
@@ -7218,8 +7221,8 @@ const PD_Broadcast = (function () {
           <div style={{ padding: 24 }}>
             <div style={{ maxWidth: 800 }}>
               <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
-                <button onClick={loadLogs} style={{ background: 'transparent', border: '1px solid ' + T.borderStr, padding: '5px 12px', borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: 'pointer', color: T.ink2 }}>
-                  Refresh Logs
+                <button onClick={loadLogs} disabled={loadingLogs} style={{ background: 'transparent', border: '1px solid ' + T.borderStr, padding: '5px 12px', borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: loadingLogs ? 'default' : 'pointer', color: T.ink2, opacity: loadingLogs ? 0.6 : 1 }}>
+                  {loadingLogs ? 'Refreshing...' : 'Refresh Logs'}
                 </button>
               </div>
               {logs.length === 0 ? (
