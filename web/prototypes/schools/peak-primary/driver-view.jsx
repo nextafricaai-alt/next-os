@@ -51,7 +51,7 @@
   ];
 
   // Real Interactive Leaflet Map with Zoom, Satellite Aerial Imagery, Live Traffic, Student Markers & Rerouting
-  const RealLeafletMap = ({ students, activeStudent }) => {
+  const RealLeafletMap = ({ students, activeStudent, onDistanceUpdate }) => {
     const mapRef = React.useRef(null);
     const mapInstance = React.useRef(null);
     const tileLayerRef = React.useRef(null);
@@ -157,6 +157,12 @@
            if (previousPos) {
               const prevLat = previousPos[0];
               const prevLng = previousPos[1];
+              
+              if (typeof onDistanceUpdate === 'function' && window.TRANSPORT_TELEMETRY) {
+                  const distKm = window.TRANSPORT_TELEMETRY.calculateHaversineDistance(prevLat, prevLng, lat, lng);
+                  if (distKm > 0) onDistanceUpdate(distKm * 1000);
+              }
+
               if (lat !== prevLat || lng !== prevLng) {
                 const dLng = (lng - prevLng) * Math.PI / 180;
                 const lat1 = prevLat * Math.PI / 180;
@@ -173,6 +179,8 @@
            }
         }
         window._lastComputedHeading = currentHeading;
+        window._lastDriverLat = lat;
+        window._lastDriverLng = lng;
         previousPos = newPos;
 
         const iconElement = carMarker.getElement();
@@ -412,6 +420,14 @@
     const [customKmInput, setCustomKmInput] = useState('');
     const [kmReasonInput, setKmReasonInput] = useState('');
     const [markingArrived, setMarkingArrived] = useState(false);
+    const [sessionMeters, setSessionMeters] = useState(0);
+    const [tripStarted, setTripStarted] = useState(false);
+
+    const handleDistanceUpdate = (meters) => {
+       if (!tripStarted) return;
+       setSessionMeters(prev => prev + meters);
+       setKmData(prev => ({ ...prev, totalKm: prev.totalKm + (meters / 1000) }));
+    };
 
     useEffect(() => {
       const tenant = (typeof window.getOSActiveTenant === 'function' ? window.getOSActiveTenant() : 'kabs-lily-junior-school-and-kindercare-centre');
@@ -440,35 +456,31 @@
             const mapped = out.students.map((s, i) => {
                const stopBase = s.stop_name ? s.stop_name.split('·')[0].trim() : '';
                const coords = stopsDict[s.stop_name] || stopsDict[stopBase] || KNOWN_STOPS[stopBase] || { lat: 0.3472, lng: 32.6325 };
-               
-               // small jitter so pins at the same stop don't overlap completely
                const offsetLat = (Math.random() - 0.5) * 0.001;
                const offsetLng = (Math.random() - 0.5) * 0.001;
                
                return {
                  id: s.id,
                  name: s.student_name || 'Unknown Student',
-                 class: s.stream || 'Unknown Class',
-                 guardian: `Parent of ${s.student_name || 'Student'}`,
-                 phone: '+256 700 000000',
-                 address: s.stop_name || 'Designated Stop',
-                 landmark: 'Pick up / Drop off',
+                 class: s.student_class || 'P.1',
+                 guardian: s.guardian_name || 'Guardian',
+                 phone: s.guardian_phone || '+256 000 000000',
+                 address: s.stop_name || 'Unknown Stop',
+                 landmark: s.landmark || '',
                  status: s.status || 'waiting',
                  lat: coords.lat + offsetLat,
                  lng: coords.lng + offsetLng,
-                 distance: `${(Math.random() * 2 + 0.5).toFixed(1)} km`,
-                 time: `${Math.floor(Math.random() * 10 + 2)} mins`
+                 distance: '...',
+                 time: '...',
+                 pickup_order: s.pickup_order || i
                };
             });
-            setStudents(mapped);
+            setStudents(mapped.sort((a,b) => a.pickup_order - b.pickup_order));
           }
         })
         .catch(err => console.error('Failed to load live transport data:', err));
     }, []);
 
-    // The actual "notify every parent the shuttle arrived" action — one
-    // tap flips every currently-on_board student for this van to arrived
-    // and pushes an alert to each of their parents server-side.
     const handleMarkArrived = async () => {
       if (markingArrived) return;
       setMarkingArrived(true);
@@ -671,7 +683,7 @@
                 gap: '6px'
               }}>
                 <span>🛣️ Shuttle Distance:</span>
-                <span style={{ color: '#FFF', fontSize: '13px', fontWeight: '800' }}>{grandTotalKm} km</span>
+                <span style={{ color: '#FFF', fontSize: '13px', fontWeight: '800' }}>{tripStarted ? `${sessionMeters.toFixed(0)}m / ` : ''}{grandTotalKm} km</span>
               </div>
             </div>
           </div>
@@ -682,7 +694,7 @@
             {/* LEFT: Map Panel */}
             <div className="desktop-map-side" style={{ position: 'relative', display: 'flex', flexDirection: 'column' }}>
               <div style={{ flex: 1, padding: '12px', minHeight: 0 }}>
-                <RealLeafletMap students={students} activeStudent={activeStudent} />
+                <RealLeafletMap students={filteredStudents} activeStudent={activeStudent} onDistanceUpdate={handleDistanceUpdate} />
               </div>
 
               {activeStudent && (
@@ -717,19 +729,30 @@
                 </div>
               )}
 
-              <button style={{
+              <button onClick={() => {
+                if (!window.TRANSPORT_TELEMETRY) return;
+                const currentPos = { lat: window._lastDriverLat || 0.3540, lng: window._lastDriverLng || 32.6200 };
+                const { orderedStops } = window.TRANSPORT_TELEMETRY.calculateShortestRoute(currentPos, students);
+                
+                const nonWaiting = students.filter(s => s.status !== 'waiting');
+                const optimizedWaiting = orderedStops.map((stop, idx) => ({ ...stop, pickup_order: idx + 1 }));
+                
+                setStudents([...optimizedWaiting, ...nonWaiting]);
+                setTripStarted(true);
+                window.peakToast && window.peakToast('Trip Started! Route Optimized for Fuel Saving.', 'success');
+              }} style={{
                 margin: '0 12px 12px',
-                padding: '10px',
-                backgroundColor: 'rgba(30, 41, 59, 0.8)',
-                color: T.colors.text,
-                border: `1px solid ${T.colors.border}`,
+                padding: '12px',
+                backgroundColor: tripStarted ? '#10B981' : T.colors.primary,
+                color: '#0A1029',
+                border: 'none',
                 borderRadius: T.radii.md,
-                fontSize: '13px',
-                fontWeight: '600',
+                fontSize: '14px',
+                fontWeight: '800',
                 cursor: 'pointer',
-                backdropFilter: 'blur(8px)',
+                boxShadow: tripStarted ? '0 0 15px rgba(16, 185, 129, 0.5)' : 'none',
               }}>
-                📍 Recalculate Shortest Route
+                {tripStarted ? `🚀 TRIP ACTIVE (${sessionMeters.toFixed(0)}m)` : '🚀 START TRIP / OPTIMIZE ROUTE'}
               </button>
 
               <button onClick={handleMarkArrived} disabled={markingArrived} style={{
