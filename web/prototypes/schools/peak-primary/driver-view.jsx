@@ -96,25 +96,7 @@
       L.marker([0.3600, 32.6250], { icon: schoolIcon }).addTo(map)
         .bindPopup(`<b>🏫 Kabs Lily Kindercare Center</b><br/>Destination Campus`);
 
-      // 2. Add Surrounding Places Markers
-      const landmarks = [
-        { name: '🏬 Ntinda Complex', lat: 0.3542, lng: 32.6142, color: '#3B82F6' },
-        { name: '🛒 Naalya Quality Mall', lat: 0.3685, lng: 32.6285, color: '#3B82F6' },
-        { name: '⛽ Bweyogerere Shell', lat: 0.3485, lng: 32.6482, color: '#F59E0B' },
-        { name: '🚓 Kireka Police Stage', lat: 0.3472, lng: 32.6325, color: '#EF4444' },
-        { name: '⛪ Bahai Temple Gate', lat: 0.3625, lng: 32.5895, color: '#A855F7' },
-      ];
-
-      landmarks.forEach(l => {
-        const icon = L.divIcon({
-          className: 'custom-div-icon',
-          html: `<div style="background:${l.color}; color:#FFF; font-size:10px; font-weight:bold; padding:2px 6px; border-radius:8px; border:1px solid #FFF; white-space:nowrap;">${l.name}</div>`,
-          iconSize: [100, 22],
-          iconAnchor: [50, 11]
-        });
-        L.marker([l.lat, l.lng], { icon }).addTo(map)
-          .bindPopup(`<b>${l.name}</b><br/>Surrounding Landmark`);
-      });
+      // Removed Surrounding Places Markers (Demo data)
 
       // 3. Add Student Pickup Pins
       students.forEach((s, idx) => {
@@ -143,8 +125,7 @@
         L.marker([s.lat, s.lng], { icon: pinIcon }).addTo(map).bindPopup(popupContent);
       });
 
-      // 4. Draw Initial Route Polyline
-      drawRoute(map, 'normal');
+      // Removed initial static route line
 
       // 5. Real Device Hardware GPS Tracking & Shuttle Car Marker
       let previousPos = null;
@@ -309,52 +290,7 @@
       }
     };
 
-    // Draw route & traffic lines
-    const drawRoute = (map, mode) => {
-      if (!map) return;
-      const L = window.L;
-      if (!L) return;
-
-      if (routePolyline.current) map.removeLayer(routePolyline.current);
-      trafficLayers.current.forEach(l => map.removeLayer(l));
-      trafficLayers.current = [];
-
-      const normalCoords = [
-        [0.3472, 32.6325], // Kireka
-        [0.3485, 32.6482], // Bweyogerere
-        [0.3685, 32.6285], // Naalya
-        [0.3542, 32.6142], // Ntinda
-        [0.3600, 32.6250]  // Kabs Lily
-      ];
-
-      const bypassCoords = [
-        [0.3472, 32.6325], // Kireka
-        [0.3752, 32.6420], // Kyaliwajjala Bypass
-        [0.3685, 32.6285], // Naalya Flyover
-        [0.3600, 32.6250]  // Kabs Lily
-      ];
-
-      const coords = mode === 'bypass' ? bypassCoords : normalCoords;
-      const polyColor = mode === 'bypass' ? '#00FC8F' : '#3B82F6';
-
-      routePolyline.current = L.polyline(coords, {
-        color: polyColor,
-        weight: 6,
-        opacity: 0.85,
-        dashArray: mode === 'bypass' ? '8, 8' : null
-      }).addTo(map);
-
-      // Traffic flow indicators
-      const jamSegment = L.polyline([[0.3472, 32.6325], [0.3485, 32.6482]], { color: '#EF4444', weight: 4, opacity: 0.9 }).addTo(map);
-      const clearSegment = L.polyline([[0.3685, 32.6285], [0.3600, 32.6250]], { color: '#10B981', weight: 4, opacity: 0.9 }).addTo(map);
-      trafficLayers.current.push(jamSegment, clearSegment);
-    };
-
-    const toggleReroute = () => {
-      const nextMode = routePath === 'normal' ? 'bypass' : 'normal';
-      setRoutePath(nextMode);
-      if (mapInstance.current) drawRoute(mapInstance.current, nextMode);
-    };
+    // Removed demo drawRoute and toggleReroute functions
 
     return (
       <div style={{ width: '100%', height: '100%', position: 'relative' }}>
@@ -428,23 +364,7 @@
             </button>
           </div>
 
-          {/* Reroute Control */}
-          <button
-            onClick={toggleReroute}
-            style={{
-              background: routePath === 'bypass' ? '#00FC8F' : 'rgba(15, 23, 42, 0.92)',
-              color: routePath === 'bypass' ? '#0A1029' : '#FFF',
-              border: '1px solid #00FC8F',
-              padding: '6px 10px',
-              borderRadius: '8px',
-              fontSize: '10.5px',
-              fontWeight: '800',
-              cursor: 'pointer',
-              boxShadow: '0 4px 12px rgba(0,0,0,0.4)'
-            }}
-          >
-            {routePath === 'bypass' ? '⚡ Rerouted via Bypass' : '🚦 Avoid Jam (Reroute)'}
-          </button>
+          {/* Removed Reroute Control */}
         </div>
       </div>
     );
