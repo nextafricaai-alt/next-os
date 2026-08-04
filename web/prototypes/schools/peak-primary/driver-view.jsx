@@ -147,9 +147,19 @@
       drawRoute(map, 'normal');
 
       // 5. Real Device Hardware GPS Tracking & Shuttle Car Marker
+      let previousPos = null;
+
       const carIcon = L.divIcon({
         className: 'custom-car-icon',
-        html: `<div style="background:#00FC8F; color:#0A1029; font-size:22px; width:44px; height:44px; border-radius:50%; display:flex; align-items:center; justify-content:center; border:3px solid #FFF; box-shadow:0 0 24px #00FC8F;">🚐</div>`,
+        html: `
+          <div class="driver-navigation-marker" style="width:44px; height:44px; display:flex; align-items:center; justify-content:center; border-radius:50%; background:rgba(59, 130, 246, 0.2); border: 2px solid rgba(59, 130, 246, 0.6); box-shadow: 0 0 15px rgba(59, 130, 246, 0.5);">
+            <div class="nav-arrow-container" style="width:28px; height:28px; display:flex; align-items:center; justify-content:center; transform: rotate(0deg); transition: transform 0.5s ease;">
+              <svg viewBox="0 0 24 24" fill="#3B82F6" stroke="#ffffff" stroke-width="2" style="width:100%; height:100%; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4));">
+                <path d="M12 2L2 22l10-4 10 4L12 2z"/>
+              </svg>
+            </div>
+          </div>
+        `,
         iconSize: [44, 44],
         iconAnchor: [22, 22]
       });
@@ -179,15 +189,48 @@
         } catch (e) {}
       };
 
-      const updateCarPosition = (lat, lng, speed = 0) => {
+      const updateCarPosition = (lat, lng, speed = 0, heading = null) => {
         if (!mapInstance.current) return;
         syncCarPosition(lat, lng, speed);
         const newPos = [lat, lng];
         carMarker.setLatLng(newPos);
+        
+        let currentHeading = heading;
+        if (currentHeading === null || currentHeading === undefined || isNaN(currentHeading)) {
+           if (previousPos) {
+              const prevLat = previousPos[0];
+              const prevLng = previousPos[1];
+              if (lat !== prevLat || lng !== prevLng) {
+                const dLng = (lng - prevLng) * Math.PI / 180;
+                const lat1 = prevLat * Math.PI / 180;
+                const lat2 = lat * Math.PI / 180;
+                const y = Math.sin(dLng) * Math.cos(lat2);
+                const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLng);
+                const brng = Math.atan2(y, x);
+                currentHeading = (brng * 180 / Math.PI + 360) % 360;
+              } else {
+                currentHeading = window._lastComputedHeading || 0;
+              }
+           } else {
+              currentHeading = 0;
+           }
+        }
+        window._lastComputedHeading = currentHeading;
+        previousPos = newPos;
+
+        const iconElement = carMarker.getElement();
+        if (iconElement) {
+          const arrowContainer = iconElement.querySelector('.nav-arrow-container');
+          if (arrowContainer) {
+            arrowContainer.style.transform = `rotate(${currentHeading}deg)`;
+          }
+        }
+
         carMarker.setPopupContent(`
           <b>🚐 Kabs Lily Shuttle #1 (LIVE HARDWARE GPS)</b><br/>
           <b>📍 Current Location:</b> ${lat.toFixed(4)}, ${lng.toFixed(4)}<br/>
           <b>⚡ Speed:</b> ${speed ? speed.toFixed(1) : '0.0'} km/h<br/>
+          <b>🧭 Heading:</b> ${currentHeading.toFixed(1)}°<br/>
           <span style="color:#00FC8F; font-weight:bold;">🟢 Live GPS Streaming Active</span>
         `);
 
@@ -209,9 +252,9 @@
       if ('geolocation' in navigator) {
         navigator.geolocation.getCurrentPosition(
           (pos) => {
-            const { latitude, longitude, speed } = pos.coords;
+            const { latitude, longitude, speed, heading } = pos.coords;
             map.setView([latitude, longitude], 15);
-            updateCarPosition(latitude, longitude, speed ? speed * 3.6 : 0);
+            updateCarPosition(latitude, longitude, speed ? speed * 3.6 : 0, heading);
           },
           (err) => console.warn('Device GPS permission pending/denied:', err.message),
           { enableHighAccuracy: true, timeout: 10000 }
@@ -219,8 +262,8 @@
 
         geoWatchId = navigator.geolocation.watchPosition(
           (pos) => {
-            const { latitude, longitude, speed } = pos.coords;
-            updateCarPosition(latitude, longitude, speed ? speed * 3.6 : 0);
+            const { latitude, longitude, speed, heading } = pos.coords;
+            updateCarPosition(latitude, longitude, speed ? speed * 3.6 : 0, heading);
           },
           (err) => console.warn('Device GPS watch error:', err.message),
           { enableHighAccuracy: true, maximumAge: 0, timeout: 5000 }
@@ -230,7 +273,7 @@
       // Also listen to window TRANSPORT_TELEMETRY events
       const handleTelemetryUpdate = (e) => {
         if (e.detail && e.detail.lat && e.detail.lng) {
-          updateCarPosition(e.detail.lat, e.detail.lng, e.detail.speed || 0);
+          updateCarPosition(e.detail.lat, e.detail.lng, e.detail.speed || 0, e.detail.heading || null);
         }
       };
       window.addEventListener('transport-telemetry-update', handleTelemetryUpdate);
