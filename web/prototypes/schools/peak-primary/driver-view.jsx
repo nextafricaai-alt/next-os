@@ -123,11 +123,12 @@
         const isSkipped = s.status === 'skipped';
         const color = isPicked ? '#10B981' : isSkipped ? '#F59E0B' : '#3B82F6';
         
+        const firstName = s.name ? s.name.split(' ')[0] : 'Student';
         const pinIcon = L.divIcon({
           className: 'custom-pin-icon',
-          html: `<div style="background:${color}; color:#FFF; width:26px; height:26px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:11px; border:2px solid #FFF; box-shadow:0 2px 8px rgba(0,0,0,0.5);">${idx+1}</div>`,
-          iconSize: [26, 26],
-          iconAnchor: [13, 13]
+          html: `<div style="background:${color}; color:#FFF; padding:3px 8px; border-radius:12px; font-weight:bold; font-size:12px; border:2px solid #FFF; box-shadow:0 2px 8px rgba(0,0,0,0.4); white-space:nowrap; transform: translate(-50%, -100%);">${firstName}</div>`,
+          iconSize: [0, 0],
+          iconAnchor: [0, 0]
         });
 
         const popupContent = `
@@ -442,6 +443,13 @@
         .then(out => {
           if (out && out.students) {
             // map real students to what DriverView expects
+            const stopsDict = {};
+            if (out.stops) {
+              out.stops.forEach(st => {
+                stopsDict[st.stop_name] = { lat: st.lat, lng: st.lng };
+              });
+            }
+
             const KNOWN_STOPS = {
               "Kasasa": { lat: 0.3550, lng: 32.6100 },
               "Kalambi": { lat: 0.3600, lng: 32.6000 },
@@ -454,7 +462,7 @@
             };
             const mapped = out.students.map((s, i) => {
                const stopBase = s.stop_name ? s.stop_name.split('·')[0].trim() : '';
-               const coords = KNOWN_STOPS[stopBase] || { lat: 0.3472, lng: 32.6325 };
+               const coords = stopsDict[s.stop_name] || stopsDict[stopBase] || KNOWN_STOPS[stopBase] || { lat: 0.3472, lng: 32.6325 };
                
                // small jitter so pins at the same stop don't overlap completely
                const offsetLat = (Math.random() - 0.5) * 0.001;
