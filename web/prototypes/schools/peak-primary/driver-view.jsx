@@ -246,6 +246,12 @@
       };
     }, []);
 
+    useEffect(() => {
+      if (mapInstance.current && activeStudent && activeStudent.lat && activeStudent.lng) {
+        mapInstance.current.flyTo([activeStudent.lat, activeStudent.lng], 16, { animate: true, duration: 1.5 });
+      }
+    }, [activeStudent]);
+
     // Switch between Satellite, Dark, and Street Map tiles
     const switchMapStyle = (style) => {
       setMapStyle(style);
@@ -436,11 +442,23 @@
         .then(out => {
           if (out && out.students) {
             // map real students to what DriverView expects
+            const KNOWN_STOPS = {
+              "Kasasa": { lat: 0.3550, lng: 32.6100 },
+              "Kalambi": { lat: 0.3600, lng: 32.6000 },
+              "Buloba Kapeeka": { lat: 0.3200, lng: 32.5000 },
+              "Buloba": { lat: 0.3250, lng: 32.5050 },
+              "Kiseka Road": { lat: 0.3150, lng: 32.5750 },
+              "Country Oven": { lat: 0.3350, lng: 32.5900 },
+              "Forest Park": { lat: 0.3400, lng: 32.5300 },
+              "Total": { lat: 0.3450, lng: 32.5800 }
+            };
             const mapped = out.students.map((s, i) => {
-               const baseLat = 0.3472;
-               const baseLng = 32.6325;
-               const offsetLat = (Math.random() - 0.5) * 0.02;
-               const offsetLng = (Math.random() - 0.5) * 0.02;
+               const stopBase = s.stop_name ? s.stop_name.split('·')[0].trim() : '';
+               const coords = KNOWN_STOPS[stopBase] || { lat: 0.3472, lng: 32.6325 };
+               
+               // small jitter so pins at the same stop don't overlap completely
+               const offsetLat = (Math.random() - 0.5) * 0.001;
+               const offsetLng = (Math.random() - 0.5) * 0.001;
                
                return {
                  id: s.id,
@@ -451,8 +469,8 @@
                  address: s.stop_name || 'Designated Stop',
                  landmark: 'Pick up / Drop off',
                  status: s.status || 'waiting',
-                 lat: baseLat + offsetLat,
-                 lng: baseLng + offsetLng,
+                 lat: coords.lat + offsetLat,
+                 lng: coords.lng + offsetLng,
                  distance: `${(Math.random() * 2 + 0.5).toFixed(1)} km`,
                  time: `${Math.floor(Math.random() * 10 + 2)} mins`
                };
