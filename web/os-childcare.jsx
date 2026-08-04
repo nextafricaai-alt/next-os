@@ -1718,13 +1718,12 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
     payrollRuns, setPayrollRuns,
     recurringBills, setRecurringBills,
     pettyCashTransactions, setPettyCashTransactions,
-    kpi
+    kpi, wallets, setWallets, invoices, setInvoices
   }) => {
     const isGlobal = currentUser.role === 'director' && selectedCenterId === 'all';
-    const isInvestor = currentUser.role === 'investor';
-    const isManager = currentUser.role === 'manager';
-    const [financeView, setFinanceView] = React.useState('dashboard');
+    const [financeView, setFinanceView] = React.useState('overview'); // 'overview', 'wallets', 'recurring', 'invoices', 'ledger'
 
+    // Ledger form states
     const [showTxForm, setShowTxForm] = React.useState(false);
     const [txType, setTxType] = React.useState('income');
     const [txAccount, setTxAccount] = React.useState('4100');
@@ -1732,9 +1731,30 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
     const [txMemo, setTxMemo] = React.useState('');
     const [txDate, setTxDate] = React.useState(new Date().toISOString().split('T')[0]);
 
-    const incomeAccounts = Object.values(CHART_OF_ACCOUNTS).filter(a => a.type === 'Income');
-    const expenseAccounts = Object.values(CHART_OF_ACCOUNTS).filter(a => ['Cost of care', 'Staff', 'Premises', 'Admin'].includes(a.type));
-    const activeAccounts = txType === 'income' ? incomeAccounts : expenseAccounts;
+    // Printable Invoice state
+    const [printInvoice, setPrintInvoice] = React.useState(null);
+
+    const calcBalance = (accountCode, centerFilter = null) => {
+        return ledgerEntries.reduce((acc, entry) => {
+            if (centerFilter && entry.centerId !== centerFilter && centerFilter !== 'all') return acc;
+            return acc + entry.lines.reduce((lacc, line) => {
+                if (line.account === accountCode) {
+                    const type = CHART_OF_ACCOUNTS[accountCode].type;
+                    if (['Asset', 'Cost of care', 'Staff', 'Premises', 'Admin'].includes(type)) {
+                        return lacc + (line.debit - line.credit);
+                    } else {
+                        return lacc + (line.credit - line.debit);
+                    }
+                }
+                return lacc;
+            }, 0);
+        }, 0);
+    };
+
+    const totalCash = calcBalance('1100') + calcBalance('1110');
+    const totalRevenue = calcBalance('4100') + calcBalance('4110') + calcBalance('4190');
+    const totalExpenses = calcBalance('5100') + calcBalance('5120') + calcBalance('6100') + calcBalance('6110') + calcBalance('6600') + calcBalance('6610') + calcBalance('7100');
+    const netIncome = totalRevenue - totalExpenses;
 
     const handleAddTx = (e) => {
         e.preventDefault();
@@ -1747,6 +1767,14 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
                 { account: '1100', debit: amount, credit: 0 },
                 { account: txAccount, debit: 0, credit: amount }
             ];
+            
+            // Auto-Allocation into Wallets Logic
+            const updatedWallets = wallets.map(w => ({
+                ...w,
+                balance: w.balance + (amount * (w.allocationPct / 100))
+            }));
+            setWallets(updatedWallets);
+            alert(`Auto-Allocation: UGX ${amount.toLocaleString()} was automatically split into your wallets based on your target percentages!`);
         } else {
             lines = [
                 { account: txAccount, debit: amount, credit: 0 },
@@ -1775,92 +1803,43 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
         }
     };
 
-    const calcBalance = (accountCode) => {
-        return ledgerEntries.reduce((acc, entry) => {
-            return acc + entry.lines.reduce((lacc, line) => {
-                if (line.account === accountCode) {
-                    const type = CHART_OF_ACCOUNTS[accountCode].type;
-                    if (['Asset', 'Cost of care', 'Staff', 'Premises', 'Admin'].includes(type)) {
-                        return lacc + (line.debit - line.credit);
-                    } else {
-                        return lacc + (line.credit - line.debit);
-                    }
-                }
-                return lacc;
-            }, 0);
-        }, 0);
-    };
-
-    const cashBank = calcBalance('1100');
-    const cashMoMo = calcBalance('1110');
-    const totalCash = cashBank + cashMoMo;
-    
-    const totalRevenue = calcBalance('4100') + calcBalance('4110') + calcBalance('4190');
-    const costOfCare = calcBalance('5100') + calcBalance('5120');
-    const staffCost = calcBalance('6100') + calcBalance('6110');
-    const premisesCost = calcBalance('6600') + calcBalance('6610');
-    const totalExpenses = costOfCare + staffCost + premisesCost + calcBalance('7100');
-    const netIncome = totalRevenue - totalExpenses;
-    
-    const runwayMonths = totalExpenses > 0 ? (totalCash / (totalExpenses / 1)) : 0;
-
-    if (isInvestor) {
-        return (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 24, animation: 'fadeIn 0.3s ease' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <h2 style={{ fontSize: 24, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>Investor Dashboard</h2>
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 16 }}>
-                    <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: "var(--radius-md)", padding: 24 }}>
-                        <div style={{ fontSize: 13, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Capital Contribution</div>
-                        <div style={{ fontSize: 32, fontWeight: 800, color: '#fff' }}>UGX {INVESTOR_DATA.contributed.toLocaleString()}</div>
-                        <div style={{ fontSize: 13, color: 'var(--mint)', marginTop: 8 }}>100% Equity Ownership</div>
-                    </div>
-                    <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: "var(--radius-md)", padding: 24 }}>
-                        <div style={{ fontSize: 13, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Available Runway</div>
-                        <div style={{ fontSize: 32, fontWeight: 800, color: '#fff' }}>{runwayMonths.toFixed(1)} Months</div>
-                        <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 8 }}>Based on current burn rate</div>
-                    </div>
-                </div>
-                <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: "var(--radius-md)", padding: 24 }}>
-                    <h3 style={{ fontSize: 16, color: 'var(--text-primary)', marginTop: 0, marginBottom: 16 }}>Use of Funds</h3>
-                    <div style={{ display: 'flex', gap: 24, alignItems: 'center' }}>
-                        <div style={{ width: 120, height: 120, borderRadius: '50%', background: `conic-gradient(var(--danger) ${(staffCost/INVESTOR_DATA.contributed)*100}%, var(--gold) 0 ${(staffCost+premisesCost)/INVESTOR_DATA.contributed*100}%, var(--mint) 0)` }}></div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><div style={{ width: 12, height: 12, background: 'var(--danger)', borderRadius: '50%' }}></div><span style={{ fontSize: 14, color: 'var(--text-secondary)' }}>Staffing (UGX {staffCost.toLocaleString()})</span></div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><div style={{ width: 12, height: 12, background: 'var(--gold)', borderRadius: '50%' }}></div><span style={{ fontSize: 14, color: 'var(--text-secondary)' }}>Premises (UGX {premisesCost.toLocaleString()})</span></div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><div style={{ width: 12, height: 12, background: 'var(--mint)', borderRadius: '50%' }}></div><span style={{ fontSize: 14, color: 'var(--text-secondary)' }}>Remaining Cash (UGX {totalCash.toLocaleString()})</span></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        );
-    }
+    // Sub-navigation buttons
+    const navItems = [
+      { id: 'overview', label: 'Overview' },
+      { id: 'wallets', label: 'Wallets & Allocation' },
+      { id: 'recurring', label: 'Recurring Expenses' },
+      { id: 'invoices', label: 'Invoices' },
+      { id: 'ledger', label: 'Ledger' }
+    ];
 
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 24, animation: 'fadeIn 0.3s ease' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div style={{ display: 'flex', gap: 16 }}>
-             <button onClick={() => setFinanceView('dashboard')} style={{ background: 'transparent', border: 'none', fontSize: 16, fontWeight: 700, color: financeView === 'dashboard' ? 'var(--mint)' : 'var(--text-secondary)', cursor: 'pointer', padding: 0 }}>Dashboard</button>
-             <button onClick={() => setFinanceView('ledger')} style={{ background: 'transparent', border: 'none', fontSize: 16, fontWeight: 700, color: financeView === 'ledger' ? 'var(--mint)' : 'var(--text-secondary)', cursor: 'pointer', padding: 0 }}>Ledger</button>
-          </div>
-          {financeView === 'ledger' && (
-              <button onClick={() => setShowTxForm(!showTxForm)} style={{ background: 'var(--mint)', color: 'var(--text-inverse)', border: 'none', padding: '8px 16px', borderRadius: "var(--radius-sm)", fontWeight: 700, cursor: 'pointer' }}>
-                  {showTxForm ? 'Cancel' : '+ Add Transaction'}
-              </button>
-          )}
+        
+        {/* Sub-Navigation Header */}
+        <div style={{ display: 'flex', gap: 24, borderBottom: '1px solid var(--border-subtle)', paddingBottom: 16, overflowX: 'auto' }}>
+          {navItems.map(item => (
+             <button key={item.id} onClick={() => setFinanceView(item.id)} style={{ 
+               background: 'transparent', border: 'none', fontSize: 15, fontWeight: 700, 
+               color: financeView === item.id ? 'var(--mint)' : 'var(--text-secondary)', 
+               cursor: 'pointer', padding: '0 0 4px 0', borderBottom: financeView === item.id ? '2px solid var(--mint)' : '2px solid transparent',
+               whiteSpace: 'nowrap'
+             }}>
+               {item.label}
+             </button>
+          ))}
         </div>
 
-        {financeView === 'dashboard' && (
+        {/* ── OVERVIEW TAB ── */}
+        {financeView === 'overview' && (
             <React.Fragment>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>
                     <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: "var(--radius-md)", padding: 20 }}>
-                        <div style={{ fontSize: 12, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Bank Balance</div>
-                        <div style={{ fontSize: 28, fontWeight: 800, color: 'var(--mint)' }}>UGX {cashBank.toLocaleString()}</div>
+                        <div style={{ fontSize: 12, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Total Cash (Bank + MoMo)</div>
+                        <div style={{ fontSize: 28, fontWeight: 800, color: 'var(--mint)' }}>UGX {totalCash.toLocaleString()}</div>
                     </div>
                     <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: "var(--radius-md)", padding: 20 }}>
-                        <div style={{ fontSize: 12, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Mobile Money (MoMo)</div>
-                        <div style={{ fontSize: 28, fontWeight: 800, color: 'var(--mint)' }}>UGX {cashMoMo.toLocaleString()}</div>
+                        <div style={{ fontSize: 12, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Total Revenue</div>
+                        <div style={{ fontSize: 28, fontWeight: 800, color: 'var(--info)' }}>UGX {totalRevenue.toLocaleString()}</div>
                     </div>
                     <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: "var(--radius-md)", padding: 20 }}>
                         <div style={{ fontSize: 12, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Net Income</div>
@@ -1868,37 +1847,188 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
                     </div>
                 </div>
 
-                <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: "var(--radius-md)", padding: 20 }}>
-                    <h3 style={{ fontSize: 16, margin: '0 0 16px', color: 'var(--text-primary)' }}>Profit & Loss Overview</h3>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14 }}>
-                            <span style={{ color: 'var(--text-secondary)' }}>Total Revenue (4xxx)</span>
-                            <span style={{ color: 'var(--mint)', fontFamily: 'var(--font-mono)' }}>UGX {totalRevenue.toLocaleString()}</span>
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14 }}>
-                            <span style={{ color: 'var(--text-secondary)' }}>Cost of Care (5xxx)</span>
-                            <span style={{ color: 'var(--danger)', fontFamily: 'var(--font-mono)' }}>UGX {costOfCare.toLocaleString()}</span>
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14 }}>
-                            <span style={{ color: 'var(--text-secondary)' }}>Staffing & Premises (6xxx)</span>
-                            <span style={{ color: 'var(--danger)', fontFamily: 'var(--font-mono)' }}>UGX {(staffCost + premisesCost).toLocaleString()}</span>
-                        </div>
-                        <div style={{ borderTop: '1px solid var(--border-subtle)', margin: '8px 0' }}></div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 16, fontWeight: 700 }}>
-                            <span style={{ color: 'var(--text-primary)' }}>Net Income</span>
-                            <span style={{ color: netIncome >= 0 ? 'var(--mint)' : 'var(--danger)', fontFamily: 'var(--font-mono)' }}>UGX {netIncome.toLocaleString()}</span>
+                {isGlobal && (
+                    <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: "var(--radius-md)", padding: 24 }}>
+                        <h3 style={{ fontSize: 16, margin: '0 0 20px', color: 'var(--text-primary)' }}>Centers Side-by-Side Comparison</h3>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 24 }}>
+                            {centersData.map(center => {
+                                const cRev = calcBalance('4100', center.id) + calcBalance('4110', center.id);
+                                const cExp = calcBalance('5100', center.id) + calcBalance('6100', center.id) + calcBalance('6600', center.id);
+                                const cNet = cRev - cExp;
+                                return (
+                                    <div key={center.id} style={{ border: '1px solid var(--border-subtle)', borderRadius: "var(--radius-sm)", padding: 16 }}>
+                                        <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 12 }}>{center.name}</div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 8 }}>
+                                            <span style={{ color: 'var(--text-secondary)' }}>Revenue</span>
+                                            <span style={{ color: 'var(--mint)' }}>UGX {cRev.toLocaleString()}</span>
+                                        </div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 8 }}>
+                                            <span style={{ color: 'var(--text-secondary)' }}>Expenses</span>
+                                            <span style={{ color: 'var(--danger)' }}>UGX {cExp.toLocaleString()}</span>
+                                        </div>
+                                        <div style={{ borderTop: '1px dashed var(--border-subtle)', margin: '12px 0' }}></div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, fontWeight: 700 }}>
+                                            <span style={{ color: 'var(--text-primary)' }}>Net Margin</span>
+                                            <span style={{ color: cNet >= 0 ? 'var(--mint)' : 'var(--danger)' }}>UGX {cNet.toLocaleString()}</span>
+                                        </div>
+                                    </div>
+                                );
+                            })}
                         </div>
                     </div>
+                )}
+            </React.Fragment>
+        )}
+
+        {/* ── WALLETS TAB ── */}
+        {financeView === 'wallets' && (
+            <React.Fragment>
+                <div style={{ fontSize: 14, color: 'var(--text-secondary)', background: 'rgba(6,214,160,0.1)', padding: 16, borderRadius: "var(--radius-md)", borderLeft: '4px solid var(--mint)' }}>
+                    <strong>Automated Allocation Active:</strong> When new income is added via the Ledger, the system automatically splits the funds into your defined wallets based on the target percentages.
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 20 }}>
+                    {wallets.map((wallet, idx) => (
+                        <div key={wallet.id} style={{ background: 'var(--bg-elevated)', border: `1px solid ${wallet.color}`, borderRadius: "var(--radius-md)", padding: 24, position: 'relative', overflow: 'hidden' }}>
+                            <div style={{ position: 'absolute', top: -20, right: -20, width: 80, height: 80, background: wallet.color, opacity: 0.1, borderRadius: '50%', filter: 'blur(15px)' }}></div>
+                            <div style={{ fontSize: 12, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>Wallet</div>
+                            <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 16 }}>{wallet.name}</div>
+                            <div style={{ fontSize: 28, fontWeight: 800, color: wallet.color }}>UGX {wallet.balance.toLocaleString()}</div>
+                            
+                            <div style={{ marginTop: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
+                                <label style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Target Allocation:</label>
+                                <input type="number" value={wallet.allocationPct} onChange={e => {
+                                    const newWallets = [...wallets];
+                                    newWallets[idx].allocationPct = parseInt(e.target.value) || 0;
+                                    setWallets(newWallets);
+                                }} style={{ width: 60, padding: '4px 8px', background: 'var(--bg-default)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)', borderRadius: 4 }} />
+                                <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>%</span>
+                            </div>
+                        </div>
+                    ))}
                 </div>
             </React.Fragment>
         )}
 
+        {/* ── RECURRING EXPENSES TAB ── */}
+        {financeView === 'recurring' && (
+            <React.Fragment>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <h3 style={{ fontSize: 18, color: 'var(--text-primary)', margin: 0 }}>Recurring Bills</h3>
+                  <button style={{ background: 'var(--mint)', color: 'var(--text-inverse)', border: 'none', padding: '8px 16px', borderRadius: "var(--radius-sm)", fontWeight: 700, cursor: 'pointer' }}>+ Add Bill</button>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 20 }}>
+                    {recurringBills.map(bill => (
+                        <div key={bill.id} style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: "var(--radius-md)", padding: 20 }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
+                                <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)' }}>{bill.vendor}</span>
+                                <span style={{ fontSize: 12, background: 'rgba(255,255,255,0.1)', padding: '2px 8px', borderRadius: 12, textTransform: 'capitalize' }}>{bill.frequency}</span>
+                            </div>
+                            <div style={{ fontSize: 24, fontWeight: 800, color: 'var(--danger)', marginBottom: 16 }}>UGX {bill.amount.toLocaleString()}</div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 13 }}>
+                                <span style={{ color: 'var(--text-tertiary)' }}>Next Due: {bill.nextDue}</span>
+                                <button onClick={() => alert('Expense recorded and marked as Paid!')} style={{ background: 'transparent', border: '1px solid var(--mint)', color: 'var(--mint)', padding: '4px 12px', borderRadius: 4, cursor: 'pointer' }}>Mark Paid</button>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </React.Fragment>
+        )}
+
+        {/* ── INVOICES TAB ── */}
+        {financeView === 'invoices' && (
+            <React.Fragment>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <h3 style={{ fontSize: 18, color: 'var(--text-primary)', margin: 0 }}>Parent Invoices & Receipts</h3>
+                  <button style={{ background: 'var(--mint)', color: 'var(--text-inverse)', border: 'none', padding: '8px 16px', borderRadius: "var(--radius-sm)", fontWeight: 700, cursor: 'pointer' }}>Generate Invoice</button>
+                </div>
+                
+                {/* PDF Print View Modal */}
+                {printInvoice && (
+                    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', zIndex: 999, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                        <div style={{ background: '#fff', width: 600, padding: 40, borderRadius: 8, color: '#000', position: 'relative' }}>
+                            <button onClick={() => setPrintInvoice(null)} style={{ position: 'absolute', top: 16, right: 16, background: '#eee', border: 'none', padding: '4px 8px', cursor: 'pointer' }}>Close</button>
+                            <h2 style={{ margin: '0 0 8px', color: '#333' }}>INVOICE</h2>
+                            <p style={{ margin: '0 0 24px', color: '#666' }}>Amani Childcare NEXT OS</p>
+                            
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 32 }}>
+                                <div>
+                                    <strong>Bill To:</strong><br/>
+                                    {printInvoice.parent}<br/>
+                                    Child: {printInvoice.child}
+                                </div>
+                                <div style={{ textAlign: 'right' }}>
+                                    <strong>Invoice #:</strong> {printInvoice.id}<br/>
+                                    <strong>Date:</strong> {printInvoice.date}<br/>
+                                    <strong>Due:</strong> {printInvoice.dueDate}
+                                </div>
+                            </div>
+                            
+                            <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 32 }}>
+                                <thead>
+                                    <tr style={{ borderBottom: '2px solid #ccc' }}>
+                                        <th style={{ textAlign: 'left', padding: '8px 0' }}>Description</th>
+                                        <th style={{ textAlign: 'right', padding: '8px 0' }}>Amount (UGX)</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td style={{ padding: '16px 0', borderBottom: '1px solid #eee' }}>Tuition & Care Fees</td>
+                                        <td style={{ textAlign: 'right', padding: '16px 0', borderBottom: '1px solid #eee' }}>{printInvoice.amount.toLocaleString()}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                            
+                            <div style={{ textAlign: 'right', fontSize: 20, fontWeight: 700 }}>
+                                Total Due: UGX {printInvoice.amount.toLocaleString()}
+                            </div>
+                            
+                            <button onClick={() => alert('Printing...')} style={{ marginTop: 40, background: '#000', color: '#fff', border: 'none', padding: '10px 20px', cursor: 'pointer', width: '100%' }}>Print PDF</button>
+                        </div>
+                    </div>
+                )}
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 20 }}>
+                    {invoices.map(inv => (
+                        <div key={inv.id} style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: "var(--radius-md)", padding: 20 }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
+                                <span style={{ fontSize: 14, color: 'var(--text-tertiary)' }}>#{inv.id}</span>
+                                <span style={{ 
+                                    fontSize: 12, padding: '2px 8px', borderRadius: 12, textTransform: 'capitalize', fontWeight: 600,
+                                    background: inv.status === 'paid' ? 'rgba(6,214,160,0.1)' : inv.status === 'overdue' ? 'rgba(255,71,87,0.1)' : 'rgba(255,209,102,0.1)',
+                                    color: inv.status === 'paid' ? 'var(--mint)' : inv.status === 'overdue' ? 'var(--danger)' : 'var(--gold)'
+                                }}>{inv.status}</span>
+                            </div>
+                            <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4 }}>{inv.parent}</div>
+                            <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 16 }}>Child: {inv.child}</div>
+                            <div style={{ fontSize: 24, fontWeight: 800, color: 'var(--info)', marginBottom: 16 }}>UGX {inv.amount.toLocaleString()}</div>
+                            
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <span style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>Due: {inv.dueDate}</span>
+                                <button onClick={() => setPrintInvoice(inv)} style={{ background: 'var(--bg-default)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)', padding: '6px 12px', borderRadius: 4, cursor: 'pointer', fontSize: 12 }}>View PDF</button>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </React.Fragment>
+        )}
+
+        {/* ── LEDGER TAB ── */}
         {financeView === 'ledger' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <h3 style={{ fontSize: 18, color: 'var(--text-primary)', margin: 0 }}>General Ledger</h3>
+                  <button onClick={() => setShowTxForm(!showTxForm)} style={{ background: 'var(--mint)', color: 'var(--text-inverse)', border: 'none', padding: '8px 16px', borderRadius: "var(--radius-sm)", fontWeight: 700, cursor: 'pointer' }}>
+                      {showTxForm ? 'Cancel' : '+ Add Transaction'}
+                  </button>
+                </div>
+
                 {showTxForm && (
-                    <form onSubmit={handleAddTx} style={{ background: 'var(--bg-elevated)', border: '1px solid var(--mint)', borderRadius: "var(--radius-md)", padding: 20, display: 'flex', flexDirection: 'column', gap: 16 }}>
-                        <div style={{ display: 'flex', gap: 16 }}>
-                            <div style={{ flex: 1 }}>
+                    <form onSubmit={handleAddTx} style={{ background: 'var(--bg-elevated)', border: '1px solid var(--mint)', borderRadius: "var(--radius-md)", padding: 24, display: 'flex', flexDirection: 'column', gap: 20 }}>
+                        <div style={{ fontSize: 14, color: 'var(--mint)', background: 'rgba(6,214,160,0.1)', padding: 12, borderRadius: 6 }}>
+                            💡 Note: Adding Income will automatically trigger the Auto-Allocation rules to fill your wallets.
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+                            <div>
                                 <label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 8 }}>Type</label>
                                 <select value={txType} onChange={e => {
                                     setTxType(e.target.value);
@@ -1908,46 +2038,43 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
                                     <option value="expense">Expenditure</option>
                                 </select>
                             </div>
-                            <div style={{ flex: 1 }}>
+                            <div>
                                 <label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 8 }}>Category</label>
                                 <select value={txAccount} onChange={e => setTxAccount(e.target.value)} style={{ width: '100%', padding: '10px 12px', background: 'var(--bg-deepest)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)', borderRadius: "var(--radius-sm)" }}>
-                                    {activeAccounts.map(a => (
+                                    {Object.values(CHART_OF_ACCOUNTS).filter(a => txType === 'income' ? a.type === 'Income' : ['Cost of care', 'Staff', 'Premises', 'Admin'].includes(a.type)).map(a => (
                                         <option key={a.code} value={a.code}>{a.name}</option>
                                     ))}
                                 </select>
                             </div>
-                        </div>
-                        <div style={{ display: 'flex', gap: 16 }}>
-                            <div style={{ flex: 1 }}>
+                            <div>
                                 <label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 8 }}>Amount (UGX)</label>
                                 <input type="number" required value={txAmount} onChange={e => setTxAmount(e.target.value)} placeholder="0" style={{ width: '100%', padding: '10px 12px', background: 'var(--bg-deepest)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)', borderRadius: "var(--radius-sm)" }} />
                             </div>
-                            <div style={{ flex: 1 }}>
+                            <div>
                                 <label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 8 }}>Date</label>
                                 <input type="date" required value={txDate} onChange={e => setTxDate(e.target.value)} style={{ width: '100%', padding: '10px 12px', background: 'var(--bg-deepest)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)', borderRadius: "var(--radius-sm)" }} />
                             </div>
+                            <div style={{ gridColumn: '1 / -1' }}>
+                                <label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 8 }}>Memo</label>
+                                <input type="text" required value={txMemo} onChange={e => setTxMemo(e.target.value)} placeholder="E.g. Parent fee payment..." style={{ width: '100%', padding: '10px 12px', background: 'var(--bg-deepest)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)', borderRadius: "var(--radius-sm)" }} />
+                            </div>
                         </div>
-                        <div>
-                            <label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 8 }}>Memo</label>
-                            <input type="text" required value={txMemo} onChange={e => setTxMemo(e.target.value)} placeholder="E.g. Parent fee payment, Toy restock..." style={{ width: '100%', padding: '10px 12px', background: 'var(--bg-deepest)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)', borderRadius: "var(--radius-sm)" }} />
-                        </div>
-                        <button type="submit" style={{ background: 'var(--mint)', color: 'var(--text-inverse)', border: 'none', padding: '10px 16px', borderRadius: "var(--radius-sm)", fontWeight: 700, cursor: 'pointer', alignSelf: 'flex-start' }}>
+                        <button type="submit" style={{ background: 'var(--mint)', color: 'var(--text-inverse)', border: 'none', padding: '12px 24px', borderRadius: "var(--radius-sm)", fontWeight: 700, cursor: 'pointer', alignSelf: 'flex-start' }}>
                             Save Transaction
                         </button>
                     </form>
                 )}
 
-                <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: "var(--radius-md)", padding: 20 }}>
-                    <h3 style={{ fontSize: 14, color: 'var(--text-primary)', marginBottom: 16, marginTop: 0, textTransform: 'uppercase', letterSpacing: '0.06em' }}>General Ledger</h3>
+                <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: "var(--radius-md)", overflow: 'hidden' }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-                        <thead>
-                        <tr style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-                            <th style={{ padding: '12px 16px', textAlign: 'left', color: 'var(--text-tertiary)' }}>Date</th>
-                            <th style={{ padding: '12px 16px', textAlign: 'left', color: 'var(--text-tertiary)' }}>Memo</th>
-                            <th style={{ padding: '12px 16px', textAlign: 'left', color: 'var(--text-tertiary)' }}>Account</th>
-                            <th style={{ padding: '12px 16px', textAlign: 'right', color: 'var(--text-tertiary)' }}>Debit</th>
-                            <th style={{ padding: '12px 16px', textAlign: 'right', color: 'var(--text-tertiary)' }}>Credit</th>
-                            <th style={{ padding: '12px 16px', textAlign: 'right', color: 'var(--text-tertiary)' }}></th>
+                        <thead style={{ background: 'rgba(255,255,255,0.02)' }}>
+                        <tr>
+                            <th style={{ padding: '16px', textAlign: 'left', color: 'var(--text-tertiary)' }}>Date</th>
+                            <th style={{ padding: '16px', textAlign: 'left', color: 'var(--text-tertiary)' }}>Memo</th>
+                            <th style={{ padding: '16px', textAlign: 'left', color: 'var(--text-tertiary)' }}>Account</th>
+                            <th style={{ padding: '16px', textAlign: 'right', color: 'var(--text-tertiary)' }}>Debit</th>
+                            <th style={{ padding: '16px', textAlign: 'right', color: 'var(--text-tertiary)' }}>Credit</th>
+                            <th style={{ padding: '16px', textAlign: 'right', color: 'var(--text-tertiary)' }}></th>
                         </tr>
                         </thead>
                         <tbody>
@@ -1955,12 +2082,12 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
                             <React.Fragment key={entry.id}>
                                 {entry.lines.map((line, idx) => (
                                     <tr key={`${entry.id}-${idx}`} style={{ borderBottom: idx === entry.lines.length - 1 ? '1px solid var(--border-subtle)' : 'none' }}>
-                                        <td style={{ padding: '8px 16px', color: 'var(--text-secondary)' }}>{idx === 0 ? entry.date : ''}</td>
-                                        <td style={{ padding: '8px 16px', color: 'var(--text-primary)' }}>{idx === 0 ? entry.memo : ''}</td>
-                                        <td style={{ padding: '8px 16px', color: 'var(--text-secondary)' }}>{CHART_OF_ACCOUNTS[line.account] ? CHART_OF_ACCOUNTS[line.account].name : line.account}</td>
-                                        <td style={{ padding: '8px 16px', textAlign: 'right', fontFamily: 'var(--font-mono)', color: line.debit > 0 ? 'var(--mint)' : 'transparent' }}>{line.debit > 0 ? line.debit.toLocaleString() : '-'}</td>
-                                        <td style={{ padding: '8px 16px', textAlign: 'right', fontFamily: 'var(--font-mono)', color: line.credit > 0 ? 'var(--danger)' : 'transparent' }}>{line.credit > 0 ? line.credit.toLocaleString() : '-'}</td>
-                                        <td style={{ padding: '8px 16px', textAlign: 'right' }}>
+                                        <td style={{ padding: '12px 16px', color: 'var(--text-secondary)' }}>{idx === 0 ? entry.date : ''}</td>
+                                        <td style={{ padding: '12px 16px', color: 'var(--text-primary)' }}>{idx === 0 ? entry.memo : ''}</td>
+                                        <td style={{ padding: '12px 16px', color: 'var(--text-secondary)' }}>{CHART_OF_ACCOUNTS[line.account] ? CHART_OF_ACCOUNTS[line.account].name : line.account}</td>
+                                        <td style={{ padding: '12px 16px', textAlign: 'right', fontFamily: 'var(--font-mono)', color: line.debit > 0 ? 'var(--mint)' : 'transparent' }}>{line.debit > 0 ? line.debit.toLocaleString() : '-'}</td>
+                                        <td style={{ padding: '12px 16px', textAlign: 'right', fontFamily: 'var(--font-mono)', color: line.credit > 0 ? 'var(--danger)' : 'transparent' }}>{line.credit > 0 ? line.credit.toLocaleString() : '-'}</td>
+                                        <td style={{ padding: '12px 16px', textAlign: 'right' }}>
                                             {idx === 0 && (
                                                 <button onClick={() => handleDeleteTx(entry.id)} style={{ background: 'transparent', border: 'none', color: 'var(--danger)', cursor: 'pointer', fontSize: 16 }}>×</button>
                                             )}
@@ -1976,7 +2103,10 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
         )}
       </div>
     );
-  };// ── Inventory System ─────────────────────────────────────────────────────
+  };
+
+
+// ── Inventory System ─────────────────────────────────────────────────────
   const InventorySystem = ({ currentUser, inventoryItems, setInventoryItems }) => {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 24, animation: 'fadeIn 0.3s ease' }}>
@@ -2462,7 +2592,19 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
     ]);
 
 
+
     // Billing Engine State
+    const [wallets, setWallets] = React.useState([
+      { id: 'w1', name: 'Operations', allocationPct: 60, balance: 2500000, color: 'var(--mint)' },
+      { id: 'w2', name: 'Expansion', allocationPct: 15, balance: 800000, color: 'var(--info)' },
+      { id: 'w3', name: 'Savings & Reserves', allocationPct: 25, balance: 1200000, color: 'var(--gold)' }
+    ]);
+    const [invoices, setInvoices] = React.useState([
+      { id: 'inv-1', parent: 'Mrs. Nakamya', child: 'Aiden', amount: 450000, status: 'paid', date: '2026-07-01', dueDate: '2026-07-05' },
+      { id: 'inv-2', parent: 'Mr. Byaruhanga', child: 'Kato', amount: 150000, status: 'pending', date: '2026-07-15', dueDate: '2026-07-20' },
+      { id: 'inv-3', parent: 'Ms. Omondi', child: 'Mia', amount: 450000, status: 'overdue', date: '2026-06-01', dueDate: '2026-06-05' }
+    ]);
+    
     const [invoiceViewMode, setInvoiceViewMode] = React.useState('register'); // 'register' or 'ledger'
     const [ledgerRows, setLedgerRows] = React.useState([
       { id: 'l1', childId: 'c1', childName: 'Aiden Nakamya', plan: 'daily', signIn: '07:30 AM', signOut: '04:30 PM', hours: 9, cost: 135000, status: 'unbilled', date: new Date().toISOString().split('T')[0] },
@@ -3305,6 +3447,10 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
             pettyCashTransactions={pettyCashTransactions}
             setPettyCashTransactions={setPettyCashTransactions}
             kpi={kpi}
+            wallets={wallets}
+            setWallets={setWallets}
+            invoices={invoices}
+            setInvoices={setInvoices}
           />
         )}
 
