@@ -852,7 +852,7 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
 
         {/* ── MAIN CONTENT AREA ── */}
         <div style={{ flex: 1, overflowY: 'auto', padding: isMobile ? '20px' : '40px', position: 'relative' }}>
-          <div style={{ maxWidth: 800, margin: '0 auto' }}>
+          <div style={{ width: '100%', margin: '0 auto' }}>
             
             {activeTab === 'home' && (
               <div style={{ animation: 'fadeIn 0.3s ease' }}>
@@ -2917,7 +2917,7 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
         {activeTab === 'owner-view' && (
           <React.Fragment>
             {/* KPI Strip */}
-            <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginBottom: 28 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 20, marginBottom: 32 }}>
               <CcKpiCard label="Enrolled" value={kpi.enrolled} sub="July cohort" accent="var(--mint)" icon="🧒" />
               <CcKpiCard label="Present Today" value={kpi.presentToday} sub={`${kpi.absentToday} absent`} accent="var(--info)" icon="✅" />
               <CcKpiCard label="Attendance" value={Math.round(kpi.attendanceRate * 100) + '%'} sub="Target: 90%+" accent={kpi.attendanceRate >= 0.9 ? 'var(--mint)' : 'var(--gold)'} icon="📊" />
@@ -2930,7 +2930,7 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
               <CcKpiCard label="Milestones" value={kpi.milestonesThisWeek} sub="This week" accent="var(--gold)" icon="🏆" />
             </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 20 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: 24 }}>
             {/* Today's Pulse */}
             <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: "var(--radius-md)", padding: 20 }}>
               <div style={{ fontSize: 12, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 16 }}>Today's Pulse</div>
