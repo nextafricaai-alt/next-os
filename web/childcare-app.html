@@ -10,31 +10,55 @@
   <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@400;600;700;800&family=DM+Mono:wght@400;500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@400;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
-      --bg-deepest: #060012;
-      --bg-deep: #0A001A;
-      --bg-primary: #140035;
-      --bg-elevated: #1A0042;
-      --bg-surface: #220055;
-      --bg-hover: #2A0068;
-      --border-subtle: rgba(255,255,255,0.06);
-      --border-default: rgba(255,255,255,0.1);
-      --border-active: rgba(0,252,143,0.3);
-      --text-primary: #FFFFFF;
-      --text-secondary: rgba(255,255,255,0.65);
-      --text-tertiary: rgba(255,255,255,0.4);
-      --text-inverse: #140035;
-      --mint: #00FC8F;
-      --font-display: 'Big Shoulders Display', sans-serif;
-      --font-body: 'Inter', sans-serif;
+      --bg-deepest: #F4F7FB; /* Soft baby blue/grey */
+      --bg-deep: #FFFFFF;
+      --bg-primary: #FFFFFF;
+      --bg-elevated: #FFFFFF;
+      --bg-surface: #FFFFFF;
+      --bg-hover: #F8FAFC;
+      --border-subtle: rgba(0,0,0,0.04);
+      --border-default: rgba(0,0,0,0.08);
+      --border-active: rgba(6,214,160,0.4);
+      --text-primary: #334155;
+      --text-secondary: #64748B;
+      --text-tertiary: #94A3B8;
+      --text-inverse: #FFFFFF;
+      --mint: #06D6A0; /* Playful Teal */
+      --mint-dim: #05B586;
+      --mint-glow: rgba(6,214,160,0.15);
+      --mint-glow-strong: rgba(6,214,160,0.3);
+      --emerald: #118AB2; /* Playful Blue */
+      --emerald-dim: #0E7496;
+      --gold: #FFD166; /* Sunny Yellow */
+      --gold-dim: #E0B554;
+      --gold-glow: rgba(255,209,102,0.2);
+      --danger: #EF476F; /* Coral Pink */
+      --warning: #F78C6B;
+      --info: #118AB2;
+      --font-display: 'Fredoka', sans-serif;
+      --font-body: 'Nunito', sans-serif;
       --font-mono: 'DM Mono', monospace;
+      --radius-sm: 16px;
+      --radius-md: 24px;
+      --radius-lg: 32px;
+      --radius-pill: 9999px;
+      --shadow-soft: 0 12px 24px -6px rgba(0, 0, 0, 0.04), 0 8px 12px -4px rgba(0, 0, 0, 0.02);
+      --shadow-float: 0 20px 32px -8px rgba(0, 0, 0, 0.08), 0 12px 16px -4px rgba(0, 0, 0, 0.04);
     }
     html { font-family: var(--font-body); background: var(--bg-deepest); color: var(--text-primary); }
-    body { min-height: 100vh; overflow-x: hidden; padding: 40px; }
+    body { 
+      min-height: 100vh; overflow-x: hidden; padding: 40px; 
+      background-image: 
+        radial-gradient(circle at 10% 10%, rgba(255, 209, 102, 0.15) 0%, transparent 40%), 
+        radial-gradient(circle at 90% 90%, rgba(6, 214, 160, 0.15) 0%, transparent 40%),
+        radial-gradient(circle at 50% 50%, rgba(239, 71, 111, 0.08) 0%, transparent 60%);
+      background-attachment: fixed;
+    }
     
     /* Simulate the NEXT OS container constraints for the standalone app */
     #root {
