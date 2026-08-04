@@ -59,6 +59,7 @@
     const [routePath, setRoutePath] = useState('normal');
     const trafficLayers = React.useRef([]);
     const routePolyline = React.useRef(null);
+    const studentMarkersRef = React.useRef([]);
 
     const tileSources = {
       dark: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
@@ -98,32 +99,7 @@
 
       // Removed Surrounding Places Markers (Demo data)
 
-      // 3. Add Student Pickup Pins
-      students.forEach((s, idx) => {
-        if (!s.lat || !s.lng) return;
-        const isPicked = s.status === 'picked_up';
-        const isSkipped = s.status === 'skipped';
-        const color = isPicked ? '#10B981' : isSkipped ? '#F59E0B' : '#3B82F6';
-        
-        const firstName = s.name ? s.name.split(' ')[0] : 'Student';
-        const pinIcon = L.divIcon({
-          className: 'custom-pin-icon',
-          html: `<div style="background:${color}; color:#FFF; padding:3px 8px; border-radius:12px; font-weight:bold; font-size:12px; border:2px solid #FFF; box-shadow:0 2px 8px rgba(0,0,0,0.4); white-space:nowrap; transform: translate(-50%, -100%);">${firstName}</div>`,
-          iconSize: [0, 0],
-          iconAnchor: [0, 0]
-        });
-
-        const popupContent = `
-          <div style="font-family:sans-serif; padding:4px;">
-            <b style="font-size:14px; color:#0F172A;">${s.name} (${s.class})</b><br/>
-            <span style="color:#D97706; font-weight:bold;">📍 ${s.address}</span><br/>
-            <span style="color:#475569;">🏛️ ${s.landmark || ''}</span><br/>
-            <span style="font-size:12px; color:#334155;">📞 Guardian: ${s.phone}</span><br/>
-            <a href="tel:${s.phone}" style="display:inline-block; margin-top:6px; padding:4px 8px; background:#3B82F6; color:#fff; text-decoration:none; border-radius:4px; font-size:11px; font-weight:bold;">📞 Call Parent</a>
-          </div>
-        `;
-        L.marker([s.lat, s.lng], { icon: pinIcon }).addTo(map).bindPopup(popupContent);
-      });
+      // Students are now drawn in a separate useEffect
 
       // Removed initial static route line
 
@@ -270,6 +246,44 @@
         }
       };
     }, []);
+
+    useEffect(() => {
+      if (!mapInstance.current || !window.L) return;
+      const L = window.L;
+      const map = mapInstance.current;
+
+      // Clear existing student markers
+      studentMarkersRef.current.forEach(m => map.removeLayer(m));
+      studentMarkersRef.current = [];
+
+      // Add Student Pickup Pins
+      students.forEach((s) => {
+        if (!s.lat || !s.lng) return;
+        const isPicked = s.status === 'picked_up';
+        const isSkipped = s.status === 'skipped';
+        const color = isPicked ? '#10B981' : isSkipped ? '#F59E0B' : '#3B82F6';
+        
+        const firstName = s.name ? s.name.split(' ')[0] : 'Student';
+        const pinIcon = L.divIcon({
+          className: 'custom-pin-icon',
+          html: `<div style="background:${color}; color:#FFF; padding:3px 8px; border-radius:12px; font-weight:bold; font-size:12px; border:2px solid #FFF; box-shadow:0 2px 8px rgba(0,0,0,0.4); white-space:nowrap; transform: translate(-50%, -100%);">${firstName}</div>`,
+          iconSize: [0, 0],
+          iconAnchor: [0, 0]
+        });
+
+        const popupContent = `
+          <div style="font-family:sans-serif; padding:4px;">
+            <b style="font-size:14px; color:#0F172A;">${s.name} (${s.class})</b><br/>
+            <span style="color:#D97706; font-weight:bold;">📍 ${s.address}</span><br/>
+            <span style="color:#475569;">🏛️ ${s.landmark || ''}</span><br/>
+            <span style="font-size:12px; color:#334155;">📞 Guardian: ${s.phone}</span><br/>
+            <a href="tel:${s.phone}" style="display:inline-block; margin-top:6px; padding:4px 8px; background:#3B82F6; color:#fff; text-decoration:none; border-radius:4px; font-size:11px; font-weight:bold;">📞 Call Parent</a>
+          </div>
+        `;
+        const marker = L.marker([s.lat, s.lng], { icon: pinIcon }).addTo(map).bindPopup(popupContent);
+        studentMarkersRef.current.push(marker);
+      });
+    }, [students]);
 
     useEffect(() => {
       if (mapInstance.current && activeStudent && activeStudent.lat && activeStudent.lng) {
