@@ -272,6 +272,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script src="/prototypes/schools/peak-primary/session-guard.js?v=4"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
   <script>
   window.__PEAK_LOGO_DATA = null;
   window.__loadPdfLogo = function() {
@@ -11503,20 +11504,84 @@ window.PEAK_CAMPUS = (function () {
   const FLAG = { fight: { label: 'Possible fight', icon: '⚠️', c: '#ff5a72' }, fall_injury: { label: 'Child may be hurt', icon: '🚑', c: '#ff5a72' }, escape_perimeter: { label: 'Possible escape', icon: '🏃', c: '#e8a23a' }, overcrowding: { label: 'Crowding', icon: '👥', c: '#e8a23a' }, other: { label: 'Flag', icon: '🔍', c: '#d8a200' } };
 
   // ── Face recognition (in-browser, same engine as the gate). Matches faces in a frame to enrolled profiles. ──
-  const FA_CDN = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.13/dist/face-api.js';
-  const FA_MODELS = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.13/model';
+  const FA_CDN = 'https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js';
+  const FA_MODELS = '/prototypes/schools/peak-primary/assets/models/face-api';
   let _faPromise = null;
   function loadFaceApi() {
     if (window.faceapi && window.faceapi.nets && window.faceapi.nets.faceRecognitionNet && window.faceapi.nets.faceRecognitionNet.params) return Promise.resolve(true);
     if (_faPromise) return _faPromise;
     _faPromise = new Promise((resolve) => {
-      const loadModels = () => { Promise.all([window.faceapi.nets.tinyFaceDetector.loadFromUri(FA_MODELS), window.faceapi.nets.faceLandmark68Net.loadFromUri(FA_MODELS), window.faceapi.nets.faceRecognitionNet.loadFromUri(FA_MODELS)]).then(() => resolve(true)).catch(() => resolve(false)); };
+      const loadModels = () => { Promise.all([window.faceapi.nets.ssdMobilenetv1.loadFromUri(FA_MODELS), window.faceapi.nets.faceLandmark68Net.loadFromUri(FA_MODELS), window.faceapi.nets.faceRecognitionNet.loadFromUri(FA_MODELS)]).then(() => resolve(true)).catch((e) => { console.error('FaceEngine Error:', e); resolve(false); }); };
       if (window.faceapi) return loadModels();
       const sc = document.createElement('script'); sc.src = FA_CDN; sc.onload = loadModels; sc.onerror = () => resolve(false); document.head.appendChild(sc);
     });
     return _faPromise;
   }
   function imgFromSrc(src) { return new Promise((res, rej) => { const im = new Image(); im.crossOrigin = 'anonymous'; im.onload = () => res(im); im.onerror = rej; im.src = src; }); }
+
+  function WebcamTestTab({ matcher }) {
+    const videoRef = React.useRef(null);
+    const canvasRef = React.useRef(null);
+    const [status, setStatus] = React.useState('Starting camera...');
+    
+    React.useEffect(() => {
+      let isMounted = true;
+      let reqId = null;
+      navigator.mediaDevices.getUserMedia({ video: {} }).then(stream => {
+        if (isMounted && videoRef.current) videoRef.current.srcObject = stream;
+      }).catch(() => setStatus('Camera access denied or unavailable.'));
+      
+      return () => {
+        isMounted = false;
+        if (reqId) cancelAnimationFrame(reqId);
+        if (videoRef.current && videoRef.current.srcObject) videoRef.current.srcObject.getTracks().forEach(t => t.stop());
+      };
+    }, []);
+
+    const onPlay = () => {
+       setStatus('');
+       const loop = async () => {
+         if (!videoRef.current || !canvasRef.current || videoRef.current.paused || videoRef.current.ended) {
+           return setTimeout(() => loop(), 1000);
+         }
+         const video = videoRef.current;
+         const canvas = canvasRef.current;
+         const displaySize = { width: video.videoWidth, height: video.videoHeight };
+         if (displaySize.width === 0) { requestAnimationFrame(loop); return; }
+         
+         window.faceapi.matchDimensions(canvas, displaySize);
+         const detections = await window.faceapi.detectAllFaces(video, new window.faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 })).withFaceLandmarks().withFaceDescriptors();
+         const resized = window.faceapi.resizeResults(detections, displaySize);
+         
+         const ctx = canvas.getContext('2d');
+         ctx.clearRect(0, 0, canvas.width, canvas.height);
+         
+         resized.forEach(d => {
+            const box = d.detection.box;
+            let label = 'Unknown', color = T.warn;
+            if (matcher) {
+               const match = matcher.findBestMatch(d.descriptor);
+               if (match.label !== 'unknown') {
+                 label = match.toString(); color = T.good;
+               }
+            }
+            ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.strokeRect(box.x, box.y, box.width, box.height);
+            ctx.fillStyle = color; ctx.fillRect(box.x, box.y - 24, ctx.measureText(label).width + 12, 24);
+            ctx.fillStyle = '#000'; ctx.font = '14px ' + T.mono; ctx.fillText(label, box.x + 6, box.y - 6);
+         });
+         requestAnimationFrame(loop);
+       };
+       loop();
+    };
+
+    return (
+      <div style={{ position: 'relative', width: '100%', maxWidth: 720, background: '#000', borderRadius: 12, overflow: 'hidden', aspectRatio: '16/9' }}>
+         {status && <div style={{ position: 'absolute', top: 12, left: 12, zIndex: 10, background: 'rgba(0,0,0,0.6)', color: '#fff', padding: '4px 8px', borderRadius: 6, fontSize: 12, fontFamily: T.mono }}>{status}</div>}
+         <video ref={videoRef} onPlay={onPlay} style={{ width: '100%', height: '100%', objectFit: 'cover' }} autoPlay muted playsInline />
+         <canvas ref={canvasRef} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }} />
+      </div>
+    );
+  }
 
   function SmartCampus() {
     const [cams, setCams] = useState([]);
@@ -11529,6 +11594,8 @@ window.PEAK_CAMPUS = (function () {
     const [matcher, setMatcher] = useState(null);
     const [faReady, setFaReady] = useState(null); // null=loading, true/false
     const [enrolledCount, setEnrolledCount] = useState(0);
+    const [enrolling, setEnrolling] = useState(false);
+    const [enrolStats, setEnrolStats] = useState('');
     useEffect(() => {
       loadFaceApi().then(ok => {
         setFaReady(ok);
@@ -11544,7 +11611,7 @@ window.PEAK_CAMPUS = (function () {
       if (!window.faceapi || !matcher || !src) return null;
       try {
         const img = await imgFromSrc(src);
-        const opts = new window.faceapi.TinyFaceDetectorOptions({ inputSize: 512, scoreThreshold: 0.5 });
+        const opts = new window.faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 });
         const dets = await window.faceapi.detectAllFaces(img, opts).withFaceLandmarks().withFaceDescriptors();
         const byId = {}; let unknown = 0;
         dets.forEach(dt => { const best = matcher.findBestMatch(dt.descriptor); if (best.label !== 'unknown' && best.distance <= 0.5) { const m = { id: best.label, name: nameById[best.label] || ('#' + best.label), distance: best.distance, conf: Math.max(0, Math.round((1 - best.distance) * 100)), strong: best.distance <= 0.4 }; if (!byId[m.id] || m.distance < byId[m.id].distance) byId[m.id] = m; } else unknown++; });
@@ -11572,6 +11639,34 @@ window.PEAK_CAMPUS = (function () {
       setFinding(false); setSightings(found);
       const stu = roster.find(s => String(s.id) === String(findId));
       if (found.length) window.peakToast && window.peakToast((stu && stu.name) + ' located', 'success', 'Seen on ' + found.length + ' camera' + (found.length === 1 ? '' : 's') + '.'); else window.peakToast && window.peakToast('Not seen right now', 'info', 'No camera currently sees ' + ((stu && stu.name) || 'them') + '.');
+    };
+    
+    const runEnrollment = async () => {
+       if (!roster || roster.length === 0) { window.peakToast && window.peakToast('No students loaded.', 'error'); return; }
+       setEnrolling(true); setEnrolStats('');
+       let success = 0, failed = 0, skipped = 0;
+       for (let i = 0; i < roster.length; i++) {
+         const s = roster[i];
+         const photo = s.photoUrl || s.photo_url;
+         setEnrolStats(`Processing ${i+1}/${roster.length}: ${s.name}`);
+         if (photo && !photo.includes('ui-avatars')) {
+           try {
+             const img = await imgFromSrc(photo);
+             const det = await window.faceapi.detectSingleFace(img).withFaceLandmarks().withFaceDescriptor();
+             if (det) {
+               await fetch(WK + '/os-data/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind: 'face_enroll', tenant: tenant(), record: { studentId: s.id, studentName: s.name, descriptor: Array.from(det.descriptor) } }) });
+               success++;
+             } else failed++;
+           } catch(e) { failed++; }
+         } else { skipped++; }
+       }
+       setEnrolStats(`Done. Enrolled: ${success}, No Face Found: ${failed}, No Photo: ${skipped}`);
+       fetch(WK + '/os-data?kind=face_enroll&tenant=' + encodeURIComponent(tenant())).then(r => r.json()).then(d => {
+          const enr = ((d && d.records) || []).map(x => x.payload).filter(p => p && p.descriptor);
+          setEnrolledCount(enr.length);
+          if (enr.length && window.faceapi) { try { const labeled = enr.map(e => new window.faceapi.LabeledFaceDescriptors(String(e.studentId), [new Float32Array(e.descriptor)])); setMatcher(new window.faceapi.FaceMatcher(labeled, 0.5)); } catch (e) {} }
+       });
+       setEnrolling(false);
     };
 
     const loadCams = () => fetch(WK + '/os-data?kind=camera&tenant=' + encodeURIComponent(tenant())).then(r => r.json()).then(d => setCams(((d && d.records) || []).map(x => Object.assign({ _id: x.id }, x.payload)))).catch(() => {});
@@ -11629,12 +11724,30 @@ window.PEAK_CAMPUS = (function () {
           <div style={{ fontSize: 13, color: T.ink3, marginTop: 4 }}>Connect cameras and Nia watches for safety — fights, falls, escapes — counts who’s on campus, and flags it for you to confirm. She never names a child on her own; you confirm identity.</div>
           <div style={{ fontSize: 12, color: T.ink3, marginTop: 8, fontFamily: T.mono }}>{faReady === null ? 'Loading face engine…' : faReady ? ('Face engine ready · ' + enrolledCount + ' learner' + (enrolledCount === 1 ? '' : 's') + ' enrolled' + (enrolledCount === 0 ? ' — enrol faces at the gate so Nia can name them' : '')) : 'Face engine unavailable on this device.'}</div>
           <div style={{ display: 'flex', gap: 6, marginTop: 14 }}>
-            {[['live', 'Live'], ['cameras', 'Cameras'], ['incidents', 'Incidents' + (openIncidents.length ? ' (' + openIncidents.length + ')' : '')]].map(t => (
+            {[['live', 'Live'], ['cameras', 'Cameras'], ['incidents', 'Incidents' + (openIncidents.length ? ' (' + openIncidents.length + ')' : '')], ['webcam', 'Webcam Test']].map(t => (
               <button key={t[0]} onClick={() => setTab(t[0])} style={{ background: 'transparent', border: 'none', borderBottom: '2px solid ' + (tab === t[0] ? T.red : 'transparent'), color: tab === t[0] ? T.ink : T.ink3, padding: '8px 4px', marginRight: 12, fontSize: 13.5, fontWeight: tab === t[0] ? 700 : 500, cursor: 'pointer' }}>{t[1]}</button>
             ))}
           </div>
         </header>
         <div style={{ padding: 24 }}>
+          {tab === 'webcam' && (
+            <div style={{ display: 'grid', gap: 16 }}>
+               <div style={{ ...card }}>
+                 <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 6 }}>Webcam Live Recognition Test</div>
+                 <div style={{ fontSize: 13, color: T.ink3, marginBottom: 16 }}>Use your device's camera to verify that the Smart Campus Face Engine is correctly identifying enrolled learners in real-time.</div>
+                 <WebcamTestTab matcher={matcher} />
+                 
+                 <div style={{ marginTop: 24, paddingTop: 16, borderTop: '1px solid ' + T.border }}>
+                   <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Enrol Learner Faces</div>
+                   <div style={{ fontSize: 12, color: T.ink3, marginBottom: 12 }}>Sync the latest uploaded profile photos and compute their 128-dimensional facial signatures for the recognition engine.</div>
+                   <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                     <button onClick={runEnrollment} disabled={enrolling} style={{ ...btn(true), opacity: enrolling ? 0.6 : 1 }}>{enrolling ? 'Enrolling...' : 'Run Enrollment Sync'}</button>
+                     {enrolStats && <span style={{ fontSize: 12, color: T.ink2, fontFamily: T.mono }}>{enrolStats}</span>}
+                   </div>
+                 </div>
+               </div>
+            </div>
+          )}
           {tab === 'live' && (
             <div style={{ display: 'grid', gap: 16 }}>
               <div style={{ ...card }}>
