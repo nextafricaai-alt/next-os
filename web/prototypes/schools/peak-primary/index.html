@@ -14458,6 +14458,48 @@ window.PEAK_STAFF = (function () {
       return () => { sb.removeChannel(sub); };
     }, []);
 
+    // Nia's 24/7 Active Brain: continuously analyzes state for conflicts & patterns
+    useEffect(() => {
+      const alerted = {}; 
+      const interval = setInterval(() => {
+        if (!window.PEAK) return;
+        const now = new Date();
+        const studs = window.PEAK.students || [];
+        const teach = window.PEAK.teachers || [];
+        
+        // 1. Unchecked-in Teachers Conflict (System expects them but they haven't logged in)
+        const unchecked = teach.filter(t => !t.checkedIn);
+        if (unchecked.length > 0 && unchecked.length < teach.length) {
+          const key = 'missing_teachers_' + now.toDateString();
+          if (!alerted[key]) {
+            alerted[key] = true;
+            window.peakToast && window.peakToast('Nia Active Insight', 'warn', unchecked.length + ' teacher(s) have not logged in/checked in today. This conflicts with the active timetable.');
+          }
+        }
+        
+        // 2. Financial Flight Risk Conflict (High balance + dropping attendance)
+        const flightRisks = studs.filter(s => s.balance > 150000 && (s.attendanceWk != null && s.attendanceWk <= 60));
+        if (flightRisks.length > 0) {
+          const key = 'flight_risk_' + flightRisks[0].id + '_' + now.toDateString();
+          if (!alerted[key]) {
+            alerted[key] = true;
+            window.peakToast && window.peakToast('Nia Active Insight', 'error', flightRisks.length + ' student(s) have high unpaid fees AND dropping attendance (Flight Risk).');
+          }
+        }
+
+        // 3. Health & Safety Follow-ups
+        const healthIssues = (window.PEAK.healthRecords || []).filter(h => h.follow_up);
+        if (healthIssues.length > 0) {
+           const key = 'health_followup_' + now.toDateString();
+           if (!alerted[key]) {
+             alerted[key] = true;
+             window.peakToast && window.peakToast('Nia Active Insight', 'warn', healthIssues.length + ' student(s) have unresolved health records requiring immediate follow-up.');
+           }
+        }
+      }, 45000); // Check every 45s while dashboard is active
+      return () => clearInterval(interval);
+    }, []);
+
     const navigate = (k) => setRoute(k);
     const openProfile = (s) => { if (s) setProfileStudentId(s.id); setRoute('profile'); };
     const openNewStudent  = () => window.peakModal.open(<PEAK_FORMS.AddStudent  store={Store} />);
