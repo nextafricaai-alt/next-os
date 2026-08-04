@@ -283,17 +283,18 @@
                 onChange={(e) => setClassFilter(e.target.value)}
                 style={{
                   padding: '10px 16px',
-                  backgroundColor: 'rgba(0,0,0,0.2)',
+                  backgroundColor: T.cardBg,
                   border: `1px solid ${T.border}`,
                   borderRadius: T.radiusSm,
                   color: T.text,
                   fontSize: '14px',
                   outline: 'none',
-                  cursor: 'pointer'
+                  cursor: 'pointer',
+                  colorScheme: 'dark',
                 }}
               >
-                <option>All Boarders</option>
-                {classOptions.map(c => <option key={c}>{c}</option>)}
+                <option value="All Boarders" style={{ background: T.cardBg, color: T.text }}>All Boarders</option>
+                {classOptions.map(c => <option key={c} value={c} style={{ background: T.cardBg, color: T.text }}>{c}</option>)}
               </select>
             </div>
 

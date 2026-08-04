@@ -4688,14 +4688,14 @@ const V4 = (function () {
         <span style={{ marginLeft: 6, fontFamily: T.mono, color: T.ink4, fontSize: 11.5 }}>{clockLabel}</span>
         <div style={{ flex: 1 }} />
         <GlobalSearch />
-        <button onClick={() => window.peakExportRoster && window.peakExportRoster()} style={{ border: '1px solid ' + T.borderStr, background: 'transparent', padding: '8px 14px', borderRadius: 9, fontSize: 12.5, color: T.ink2, cursor: 'pointer', fontWeight: 500 }}>Export</button>
+        <button onClick={() => window.peakExportRoster && window.peakExportRoster()} style={{ border: '1px solid ' + T.borderStr, background: T.surface2, padding: '8px 16px', borderRadius: 9, fontSize: 12.5, color: T.ink, cursor: 'pointer', fontWeight: 600, letterSpacing: '0.01em' }}>Export</button>
         <button onClick={() => onNav ? onNav('comm') : (window.peakNav && window.peakNav('comm'))} style={{ border: 'none', background: T.red, color: '#fff', padding: '9px 16px', borderRadius: 9, fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }}>+ New broadcast</button>
       </header>
     );
   }
 
   // ─── hero KPIs (the 3 big ones) ───────────────────────────────────────────
-  function HeroKPIs() {
+  function HeroKPIs({ period = 'Today' }) {
     const _D = (typeof D !== 'undefined' && D) ? D : (window.PEAK || {});
     const k = _D.kpis || {};
     const att = Number(k.attendancePct) || 0;
@@ -4723,7 +4723,7 @@ const V4 = (function () {
             borderRadius: 999, border: '1px solid rgba(255,255,255,0.06)',
           }} />
           <div style={{ fontSize: 11, color: '#a8b4e8', fontFamily: T.mono, letterSpacing: '0.08em', fontWeight: 600, marginBottom: 14 }}>
-            ATTENDANCE TODAY
+            ATTENDANCE · {period.toUpperCase()}
           </div>
           <div style={{ display: 'flex', alignItems: 'flex-end', gap: 12, marginBottom: 10 }}>
             <div style={{ fontFamily: T.font, fontSize: 56, fontWeight: 700, color: '#fff', lineHeight: 0.95, letterSpacing: '-0.035em', fontVariantNumeric: 'tabular-nums' }}>
@@ -4750,7 +4750,7 @@ const V4 = (function () {
 
         {/* Fees */}
         <Card pad={24}>
-          <div style={{ fontSize: 11, color: T.ink3, fontFamily: T.mono, letterSpacing: '0.08em', fontWeight: 600, marginBottom: 14 }}>FEES · TERM 2</div>
+          <div style={{ fontSize: 11, color: T.ink3, fontFamily: T.mono, letterSpacing: '0.08em', fontWeight: 600, marginBottom: 14 }}>FEES · {period === 'Today' ? 'TODAY' : period === 'Week' ? 'THIS WEEK' : 'TERM 2'}</div>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
             <div style={{ fontSize: 40, fontWeight: 700, color: T.ink, lineHeight: 1, letterSpacing: '-0.03em', fontVariantNumeric: 'tabular-nums' }}>{collected > 0 ? fmt(collected) : 'UGX 0'}</div>
           </div>
@@ -4766,7 +4766,7 @@ const V4 = (function () {
 
         {/* Parent reach */}
         <Card pad={24}>
-          <div style={{ fontSize: 11, color: T.ink3, fontFamily: T.mono, letterSpacing: '0.08em', fontWeight: 600, marginBottom: 14 }}>PARENT REACH · TODAY</div>
+          <div style={{ fontSize: 11, color: T.ink3, fontFamily: T.mono, letterSpacing: '0.08em', fontWeight: 600, marginBottom: 14 }}>PARENT REACH · {period.toUpperCase()}</div>
           {(window.PEAK && window.PEAK.live) ? (
             <div style={{ color: T.ink3, fontSize: 13, padding: '6px 0 2px', lineHeight: 1.5 }}>No messages sent yet. When you broadcast to guardians, delivery rate shows here.</div>
           ) : (
@@ -4792,14 +4792,15 @@ const V4 = (function () {
   }
 
   // ─── secondary KPI strip ──────────────────────────────────────────────────
-  function SecondaryKPIs() {
+  function SecondaryKPIs({ period = 'Today' }) {
     const _D = (typeof D !== 'undefined' && D) ? D : (window.PEAK || {});
     const _k = _D.kpis || {};
     const _fmt = _D.fmtUGXshort || (v => 'UGX ' + Number(v||0).toLocaleString());
+    const periodLabel = period === 'Today' ? 'today' : period === 'Week' ? 'this week' : 'this term';
     const items = [
-      { l: 'Absent today',  v: String(_k.absentToday || 0),  sub: (_k.students ? Math.round(100*(_k.absentToday||0)/_k.students)+'% of roll' : 'no roster'), tone: 'warn' },
+      { l: period === 'Today' ? 'Absent today' : period === 'Week' ? 'Absent this week' : 'Absent this term', v: String(_k.absentToday || 0), sub: (_k.students ? Math.round(100*(_k.absentToday||0)/_k.students)+'% of roll' : 'no roster'), tone: 'warn' },
       { l: 'Overdue accounts', v: String(_k.feesOutstandingStudents || 0), sub: _fmt(Math.max(0,(_k.feesTargetTerm||0)-(_k.feesCollectedTerm||0))) + ' due', tone: 'bad' },
-      { l: 'Fees collected', v: _fmt(_k.feesCollectedTerm || 0), sub: 'this term', tone: 'good' },
+      { l: 'Fees collected', v: _fmt(_k.feesCollectedTerm || 0), sub: periodLabel, tone: 'good' },
       { l: 'At-risk learners', v: String((_D.students || []).filter(s => s.flag === 'risk' || (s.attendanceWk != null && s.attendanceWk < 70)).length), sub: 'need follow-up', tone: 'bad' },
     ];
     return (
@@ -5196,19 +5197,23 @@ const V4 = (function () {
                   {((typeof D !== 'undefined' && D && D.kpis) || (window.PEAK && window.PEAK.kpis) || {}).presentToday || 0} of {((typeof D !== 'undefined' && D && D.kpis) || (window.PEAK && window.PEAK.kpis) || {}).students || 0} children on campus. Fees at {((typeof D !== 'undefined' && D && D.kpis) || (window.PEAK && window.PEAK.kpis) || {}).feesTargetTerm ? Math.round(100 * (((typeof D !== 'undefined' && D && D.kpis) || (window.PEAK && window.PEAK.kpis) || {}).feesCollectedTerm || 0) / (((typeof D !== 'undefined' && D && D.kpis) || (window.PEAK && window.PEAK.kpis) || {}).feesTargetTerm || 1)) : 0}%. {((typeof D !== 'undefined' && D && D.hasData) || (window.PEAK && window.PEAK.hasData)) ? 'Here is what needs your attention today.' : 'No roster imported yet — add students to bring this dashboard to life.'}
                 </div>
               </div>
-              <div style={{ display: 'flex', gap: 6, padding: 3, background: T.surface, border: '1px solid ' + T.border, borderRadius: 10 }}>
+              <div style={{ display: 'flex', gap: 4, padding: 4, background: T.surface2, border: '1px solid ' + T.borderStr, borderRadius: 11 }}>
                 {['Today','Week','Term 2'].map((p) => (
                   <button key={p} onClick={() => setPeriod(p)} style={{
-                    border: 'none', background: period === p ? T.red : 'transparent',
-                    color: period === p ? '#fff' : T.ink2, padding: '7px 14px', borderRadius: 7,
+                    border: 'none',
+                    background: period === p ? T.red : T.surface3,
+                    color: period === p ? '#fff' : T.ink,
+                    padding: '7px 16px', borderRadius: 8,
                     fontSize: 12.5, fontWeight: 600, cursor: 'pointer',
+                    transition: 'background 0.15s, color 0.15s',
+                    letterSpacing: '0.01em',
                   }}>{p}</button>
                 ))}
               </div>
             </div>
 
-            <HeroKPIs />
-            <SecondaryKPIs />
+            <HeroKPIs period={period} />
+            <SecondaryKPIs period={period} />
 
             <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 14, marginBottom: 14 }}>
               <AttendanceGrid />
@@ -5453,8 +5458,8 @@ const PD_Today = (function () {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
           <div style={{ fontSize: 14, fontWeight: 700, color: T.ink }}>{monthName}</div>
           <div style={{ display: 'flex', gap: 4 }}>
-            <button onClick={function () { setCur(new Date(y, m - 1, 1)); }} style={{ background: 'transparent', border: '1px solid ' + T.border, color: T.ink2, borderRadius: 7, width: 26, height: 26, cursor: 'pointer' }}>{'‹'}</button>
-            <button onClick={function () { setCur(new Date(y, m + 1, 1)); }} style={{ background: 'transparent', border: '1px solid ' + T.border, color: T.ink2, borderRadius: 7, width: 26, height: 26, cursor: 'pointer' }}>{'›'}</button>
+            <button onClick={function () { setCur(new Date(y, m - 1, 1)); }} style={{ background: T.surface2, border: '1px solid ' + T.borderStr, color: T.ink, borderRadius: 7, width: 28, height: 28, cursor: 'pointer', fontWeight: 700, fontSize: 15, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{'‹'}</button>
+            <button onClick={function () { setCur(new Date(y, m + 1, 1)); }} style={{ background: T.surface2, border: '1px solid ' + T.borderStr, color: T.ink, borderRadius: 7, width: 28, height: 28, cursor: 'pointer', fontWeight: 700, fontSize: 15, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{'›'}</button>
           </div>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 2, fontSize: 10.5, color: T.ink4, fontFamily: T.mono, marginBottom: 4, textAlign: 'center' }}>
@@ -6425,15 +6430,193 @@ const PD_Profile = (function () {
               <span>{stuName} · live profile</span>
             </div>
           </div>
-
-          {/* content */}
           <div style={{ flex: 1, overflow: 'auto', padding: '22px 32px 32px' }}>
-            <div style={{ marginBottom: 16 }}><ProfileNotes studentId={studentId} /></div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 16, marginBottom: 16 }}>
-              {/* What I see — honest summary from real data */}
-              <Card eyebrow="OVERVIEW" title={stuName.split(' ')[0] + "’s status"}>
-                <div style={{ fontSize: 13, color: T.ink2, lineHeight: 1.65 }}>
-                  {(function () {
+
+            {/* ── OVERVIEW ─────────────────────────────────────────────── */}
+            {tab === 'Overview' && (
+              <div>
+                <div style={{ marginBottom: 16 }}><ProfileNotes studentId={studentId} /></div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 16, marginBottom: 16 }}>
+                  <Card eyebrow="OVERVIEW" title={stuName.split(' ')[0] + "'s status"}>
+                    <div style={{ fontSize: 13, color: T.ink2, lineHeight: 1.65 }}>
+                      {(function () {
+                        var bits = [];
+                        bits.push(stuName + ' is in ' + (stuStream || 'their class') + '. Guardian: ' + stuGuardian + (stuPhone ? (' (' + stuPhone + ')') : '') + '.');
+                        if (stuAttWk != null) bits.push('Attendance this week is ' + stuAttWk + '%' + (stuAttWk < 70 ? ' — below the watch line; worth a check-in.' : '.'));
+                        else bits.push('Attendance history will build as the class teacher marks the daily register.');
+                        if (stuBalance > 0) bits.push('Fees: UGX ' + stuBalance.toLocaleString() + ' is outstanding this term.');
+                        else bits.push('Fees are cleared for this term.');
+                        bits.push('Standing: ' + (isRisk ? 'at-risk — keep an eye on attendance and fees.' : isTop ? 'top performer.' : 'steady.'));
+                        return bits.join(' ');
+                      })()}
+                    </div>
+                  </Card>
+                  <Card eyebrow="ATTENDANCE" title={stuAttWk != null ? (stuAttWk + '% this week') : 'No data yet'}>
+                    {stuAttWk != null ? (
+                      <div>
+                        <div style={{ height: 10, borderRadius: 999, background: T.surface2, overflow: 'hidden', marginBottom: 8 }}>
+                          <div style={{ height: '100%', width: stuAttWk + '%', background: stuAttWk >= 90 ? T.good : stuAttWk >= 70 ? T.warn : T.red, borderRadius: 999 }} />
+                        </div>
+                        <div style={{ fontSize: 12, color: T.ink3 }}>Last seen: {stuLastSeen}. From the live roll-call register.</div>
+                      </div>
+                    ) : (
+                      <div style={{ fontSize: 12.5, color: T.ink3, lineHeight: 1.55 }}>{stuName.split(' ')[0]}'s attendance appears here once their class teacher starts marking the daily register.</div>
+                    )}
+                  </Card>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                  <Card eyebrow="ACADEMICS" title="Exam results" pad={18}>
+                    <div style={{ fontSize: 12.5, color: T.ink3, lineHeight: 1.55 }}>No exam results recorded for {stuName.split(' ')[0]} yet. Marks appear here once you record an exam in Reports.</div>
+                  </Card>
+                  <Card eyebrow="FEES · THIS TERM" title={stuBalance > 0 ? ('UGX ' + stuBalance.toLocaleString() + ' due') : 'Cleared'} pad={18}>
+                    <div style={{ height: 8, borderRadius: 999, background: T.surface2, overflow: 'hidden', marginBottom: 8 }}>
+                      <div style={{ height: '100%', width: stuBalance > 0 ? '55%' : '100%', background: stuBalance > 0 ? T.red : T.good, borderRadius: 999 }} />
+                    </div>
+                    <div style={{ fontSize: 12, color: T.ink3, lineHeight: 1.5 }}>{stuBalance > 0 ? 'Outstanding balance. Record a payment in Fees to update and issue a receipt.' : 'No outstanding balance this term.'}</div>
+                  </Card>
+                </div>
+              </div>
+            )}
+
+            {/* ── ATTENDANCE ───────────────────────────────────────────── */}
+            {tab === 'Attendance' && (
+              <div>
+                <Card eyebrow="ATTENDANCE RECORD" title={stuAttWk != null ? (stuAttWk + '% attendance this week') : 'No register data yet'} style={{ marginBottom: 16 }}>
+                  {stuAttWk != null ? (
+                    <div>
+                      <div style={{ display: 'flex', gap: 16, marginBottom: 16, flexWrap: 'wrap' }}>
+                        {[
+                          { l: 'This week', v: stuAttWk + '%', c: stuAttWk >= 90 ? T.good : stuAttWk >= 70 ? T.warn : T.red },
+                          { l: 'Last seen', v: stuLastSeen, c: T.ink },
+                          { l: 'Standing', v: isRisk ? 'At-risk' : isTop ? 'Top' : 'Steady', c: isRisk ? T.red : isTop ? T.good : T.ink2 },
+                        ].map(k => (
+                          <div key={k.l} style={{ background: T.surface2, borderRadius: 10, padding: '14px 20px', flex: 1, minWidth: 100 }}>
+                            <div style={{ fontSize: 10.5, color: T.ink3, fontFamily: T.mono, letterSpacing: '0.06em', marginBottom: 6 }}>{k.l.toUpperCase()}</div>
+                            <div style={{ fontSize: 22, fontWeight: 700, color: k.c }}>{k.v}</div>
+                          </div>
+                        ))}
+                      </div>
+                      <div style={{ height: 12, borderRadius: 999, background: T.surface2, overflow: 'hidden', marginBottom: 10 }}>
+                        <div style={{ height: '100%', width: stuAttWk + '%', background: stuAttWk >= 90 ? T.good : stuAttWk >= 70 ? T.warn : T.red, borderRadius: 999, transition: 'width 0.4s' }} />
+                      </div>
+                      <div style={{ fontSize: 12.5, color: T.ink3 }}>Drawn from the live roll-call register. Mark the daily register in Attendance to keep this up to date.</div>
+                    </div>
+                  ) : (
+                    <div style={{ padding: '20px 0', textAlign: 'center', color: T.ink3, fontSize: 13, lineHeight: 1.6 }}>
+                      {stuName.split(' ')[0]}'s attendance history will appear here once their class teacher starts marking the daily register. <br />
+                      <span style={{ fontSize: 12, color: T.ink4 }}>Go to Attendance → take register to begin.</span>
+                    </div>
+                  )}
+                </Card>
+                <Card eyebrow="GUARDIAN CONTACT" title={'WhatsApp ' + stuGuardian} pad={18}>
+                  {stuPhone ? (
+                    <button onClick={() => window.peakWhatsApp((stuPhone || '').replace(/[^0-9]/g, ''), 'Hello ' + stuGuardian + ', following up about ' + stuName.split(' ')[0] + "'s attendance this week.")} style={{ background: '#00a884', color: '#fff', border: 'none', padding: '10px 18px', borderRadius: 9, fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }}>Message {stuGuardian} on WhatsApp</button>
+                  ) : (
+                    <div style={{ fontSize: 12, color: T.ink4 }}>No phone number on file for this guardian.</div>
+                  )}
+                </Card>
+              </div>
+            )}
+
+            {/* ── ACADEMICS ────────────────────────────────────────────── */}
+            {tab === 'Academics' && (
+              <div>
+                <Card eyebrow="ACADEMIC PERFORMANCE" title="Exam results" style={{ marginBottom: 16 }}>
+                  <div style={{ padding: '24px 0', textAlign: 'center' }}>
+                    <div style={{ fontSize: 36, marginBottom: 12 }}>📝</div>
+                    <div style={{ fontSize: 14, color: T.ink2, fontWeight: 600, marginBottom: 8 }}>No exam results recorded yet</div>
+                    <div style={{ fontSize: 12.5, color: T.ink3, lineHeight: 1.6, maxWidth: 400, margin: '0 auto' }}>
+                      Marks, grade trends, and subject breakdowns for {stuName.split(' ')[0]} will appear here once you record an exam in the <strong style={{ color: T.ink2 }}>Reports</strong> screen.
+                    </div>
+                    <button onClick={() => window.peakNav && window.peakNav('rep')} style={{ marginTop: 16, background: T.red, color: '#fff', border: 'none', padding: '10px 20px', borderRadius: 9, fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }}>Go to Reports →</button>
+                  </div>
+                </Card>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                  <Card eyebrow="CLASS / STREAM" title={stuStream || '—'} pad={18}>
+                    <div style={{ fontSize: 12.5, color: T.ink3 }}>Student is enrolled in <strong style={{ color: T.ink2 }}>{stuStream || 'their class'}</strong>. Use the Actions menu (⋯) to transfer to a different class or stream.</div>
+                  </Card>
+                  <Card eyebrow="COMBINATION" title={stu.combination || 'Not set'} pad={18}>
+                    <div style={{ fontSize: 12.5, color: T.ink3 }}>{stu.combination ? ('Current A-Level combination: ' + stu.combination + '.') : 'No subject combination set. Use Actions → Change combination.'}</div>
+                  </Card>
+                </div>
+              </div>
+            )}
+
+            {/* ── BEHAVIOUR ────────────────────────────────────────────── */}
+            {tab === 'Behaviour' && (
+              <div>
+                <Card eyebrow="PASTORAL RECORD" title="Behaviour & wellbeing" style={{ marginBottom: 16 }}>
+                  <div style={{ display: 'flex', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
+                    <div style={{ background: isRisk ? T.redSft : T.goodSft, border: '1px solid ' + (isRisk ? T.red : T.good), borderRadius: 10, padding: '12px 20px', flex: 1 }}>
+                      <div style={{ fontSize: 10.5, color: isRisk ? T.redInk : T.good, fontFamily: T.mono, letterSpacing: '0.06em', marginBottom: 4 }}>STANDING</div>
+                      <div style={{ fontSize: 20, fontWeight: 700, color: isRisk ? T.redInk : T.good }}>{isRisk ? 'At-risk' : isTop ? 'Top' : 'Steady'}</div>
+                    </div>
+                    <div style={{ background: T.surface2, borderRadius: 10, padding: '12px 20px', flex: 2 }}>
+                      <div style={{ fontSize: 10.5, color: T.ink3, fontFamily: T.mono, letterSpacing: '0.06em', marginBottom: 4 }}>NOTES</div>
+                      <div style={{ fontSize: 12.5, color: T.ink2 }}>{isRisk ? stuName.split(' ')[0] + ' is flagged at-risk. Consider a check-in call with ' + stuGuardian + '.' : 'No pastoral concerns on file. Use the notes section above to log any incidents.'}</div>
+                    </div>
+                  </div>
+                  <div style={{ marginBottom: 16 }}><ProfileNotes studentId={studentId} /></div>
+                </Card>
+              </div>
+            )}
+
+            {/* ── FEES ─────────────────────────────────────────────────── */}
+            {tab === 'Fees' && (
+              <div>
+                <Card eyebrow="FEES · THIS TERM" title={stuBalance > 0 ? ('UGX ' + stuBalance.toLocaleString() + ' outstanding') : 'Fees cleared'} style={{ marginBottom: 16 }}>
+                  <div style={{ marginBottom: 16 }}>
+                    <div style={{ height: 12, borderRadius: 999, background: T.surface2, overflow: 'hidden', marginBottom: 8 }}>
+                      <div style={{ height: '100%', width: stuBalance > 0 ? '55%' : '100%', background: stuBalance > 0 ? T.red : T.good, borderRadius: 999, transition: 'width 0.4s' }} />
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11.5, color: T.ink3, fontFamily: T.mono }}>
+                      <span>{stuBalance > 0 ? 'UGX ' + stuBalance.toLocaleString() + ' due' : 'No outstanding balance'}</span>
+                      <span>{stuBalance > 0 ? 'Action required' : '✓ All clear'}</span>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                    <button onClick={() => window.peakNav && window.peakNav('fees')} style={{ background: T.red, color: '#fff', border: 'none', padding: '10px 18px', borderRadius: 9, fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }}>Record payment in Fees →</button>
+                    {stuPhone && stuBalance > 0 && (
+                      <button onClick={() => window.peakWhatsApp((stuPhone || '').replace(/[^0-9]/g, ''), 'Dear ' + stuGuardian + ', a gentle reminder that ' + stuName.split(' ')[0] + "'s school fees of UGX " + stuBalance.toLocaleString() + ' are outstanding. Kindly arrange payment at your earliest convenience.')} style={{ background: 'transparent', color: T.ink, border: '1px solid ' + T.borderStr, padding: '10px 16px', borderRadius: 9, fontSize: 12.5, fontWeight: 500, cursor: 'pointer' }}>Send fee reminder →</button>
+                    )}
+                  </div>
+                </Card>
+                <Card eyebrow="GUARDIAN" title={'Contact ' + stuGuardian} pad={18}>
+                  <div style={{ display: 'flex', gap: 16, fontSize: 13, color: T.ink2 }}>
+                    <span>👤 {stuGuardian}</span>
+                    <span>📱 {stuPhone || 'no phone on file'}</span>
+                  </div>
+                </Card>
+              </div>
+            )}
+
+            {/* ── COMMS ────────────────────────────────────────────────── */}
+            {tab === 'Comms' && (
+              <div>
+                <Card eyebrow="GUARDIAN COMMUNICATION" title={'Thread with ' + stuGuardian} pad={0}>
+                  <div style={{ padding: '20px', textAlign: 'center' }}>
+                    <div style={{ fontSize: 12.5, color: T.ink3, lineHeight: 1.6, marginBottom: 14 }}>
+                      No messages logged with {stuGuardian} yet. As you message this guardian, the conversation will appear here.
+                    </div>
+                    {stuPhone ? (
+                      <button onClick={() => window.peakWhatsApp((stuPhone || '').replace(/[^0-9]/g, ''), 'Hello ' + stuGuardian + ', a message from ' + window.peakSchoolName() + ' regarding ' + stuName.split(' ')[0] + '.')} style={{ background: '#00a884', color: '#fff', border: 'none', padding: '10px 18px', borderRadius: 9, fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }}>Message {stuGuardian} on WhatsApp</button>
+                    ) : (
+                      <div style={{ fontSize: 12, color: T.ink4 }}>No phone number on file for this guardian.</div>
+                    )}
+                  </div>
+                </Card>
+                <div style={{ marginTop: 16 }}>
+                  <Card eyebrow="QUICK ACTIONS" title="Reach this guardian" pad={18}>
+                    <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                      <button onClick={() => window.peakToast && window.peakToast('Reminder noted', 'success', 'Follow up with ' + stuGuardian + ' regarding ' + stuName.split(' ')[0] + '.')} style={{ background: T.red, color: '#fff', border: 'none', padding: '9px 16px', borderRadius: 9, fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }}>Schedule director call</button>
+                      {stuPhone && <button onClick={() => window.peakWhatsApp((stuPhone || '').replace(/[^0-9]/g, ''), 'Hello ' + stuGuardian + ', a message from ' + window.peakSchoolName() + '.')} style={{ background: 'transparent', color: T.ink, border: '1px solid ' + T.borderStr, padding: '9px 16px', borderRadius: 9, fontSize: 12.5, fontWeight: 500, cursor: 'pointer' }}>WhatsApp guardian</button>}
+                    </div>
+                  </Card>
+                </div>
+              </div>
+            )}
+
+          </div>(function () {
                     var bits = [];
                     bits.push(stuName + ' is in ' + (stuStream || 'their class') + '. Guardian: ' + stuGuardian + (stuPhone ? (' (' + stuPhone + ')') : '') + '.');
                     if (stuAttWk != null) bits.push('Attendance this week is ' + stuAttWk + '%' + (stuAttWk < 70 ? ' — below the watch line; worth a check-in.' : '.'));
