@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback, useContext, useReducer } from 'react';
+import * as faceapi from 'face-api.js';
 
 const T = window.V4.T;
   const WK = 'https://nextos-sentinel.nextafricaai.workers.dev';
@@ -10,16 +11,17 @@ const T = window.V4.T;
   const FLAG = { fight: { label: 'Possible fight', icon: '⚠️', c: '#ff5a72' }, fall_injury: { label: 'Child may be hurt', icon: '🚑', c: '#ff5a72' }, escape_perimeter: { label: 'Possible escape', icon: '🏃', c: '#e8a23a' }, overcrowding: { label: 'Crowding', icon: '👥', c: '#e8a23a' }, other: { label: 'Flag', icon: '🔍', c: '#d8a200' } };
 
   // ── Face recognition (in-browser, same engine as the gate). Matches faces in a frame to enrolled profiles. ──
-  const FA_CDN = 'https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js';
   const FA_MODELS = '/prototypes/schools/peak-primary/assets/models/face-api';
   let _faPromise = null;
   function loadFaceApi() {
-    if (window.faceapi && window.faceapi.nets && window.faceapi.nets.faceRecognitionNet && window.faceapi.nets.faceRecognitionNet.params) return Promise.resolve(true);
+    if (faceapi.nets && faceapi.nets.faceRecognitionNet && faceapi.nets.faceRecognitionNet.params) return Promise.resolve(true);
     if (_faPromise) return _faPromise;
     _faPromise = new Promise((resolve) => {
-      const loadModels = () => { Promise.all([window.faceapi.nets.ssdMobilenetv1.loadFromUri(FA_MODELS), window.faceapi.nets.faceLandmark68Net.loadFromUri(FA_MODELS), window.faceapi.nets.faceRecognitionNet.loadFromUri(FA_MODELS)]).then(() => resolve(true)).catch((e) => { console.error('FaceEngine Error:', e); resolve(false); }); };
-      if (window.faceapi) return loadModels();
-      const sc = document.createElement('script'); sc.src = FA_CDN; sc.onload = loadModels; sc.onerror = () => resolve(false); document.head.appendChild(sc);
+      Promise.all([
+        faceapi.nets.ssdMobilenetv1.loadFromUri(FA_MODELS),
+        faceapi.nets.faceLandmark68Net.loadFromUri(FA_MODELS),
+        faceapi.nets.faceRecognitionNet.loadFromUri(FA_MODELS)
+      ]).then(() => resolve(true)).catch((e) => { console.error('FaceEngine Error:', e); resolve(false); });
     });
     return _faPromise;
   }
@@ -55,9 +57,9 @@ const T = window.V4.T;
          const displaySize = { width: video.videoWidth, height: video.videoHeight };
          if (displaySize.width === 0) { requestAnimationFrame(loop); return; }
          
-         window.faceapi.matchDimensions(canvas, displaySize);
-         const detections = await window.faceapi.detectAllFaces(video, new window.faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 })).withFaceLandmarks().withFaceDescriptors();
-         const resized = window.faceapi.resizeResults(detections, displaySize);
+         faceapi.matchDimensions(canvas, displaySize);
+         const detections = await faceapi.detectAllFaces(video, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 })).withFaceLandmarks().withFaceDescriptors();
+         const resized = faceapi.resizeResults(detections, displaySize);
          
          const ctx = canvas.getContext('2d');
          ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -108,17 +110,17 @@ const T = window.V4.T;
         fetch(WK + '/os-data?kind=face_enroll&tenant=' + encodeURIComponent(tenant())).then(r => r.json()).then(d => {
           const enr = ((d && d.records) || []).map(x => x.payload).filter(p => p && p.descriptor);
           setEnrolledCount(enr.length);
-          if (ok && enr.length && window.faceapi) { try { const labeled = enr.map(e => new window.faceapi.LabeledFaceDescriptors(String(e.studentId), [new Float32Array(e.descriptor)])); setMatcher(new window.faceapi.FaceMatcher(labeled, 0.5)); } catch (e) {} }
+          if (ok && enr.length) { try { const labeled = enr.map(e => new faceapi.LabeledFaceDescriptors(String(e.studentId), [new Float32Array(e.descriptor)])); setMatcher(new faceapi.FaceMatcher(labeled, 0.5)); } catch (e) {} }
         }).catch(() => {});
       });
     }, []);
     const nameById = {}; roster.forEach(s => { nameById[String(s.id)] = s.name; });
     const matchFrame = async (src) => {
-      if (!window.faceapi || !matcher || !src) return null;
+      if (!matcher || !src) return null;
       try {
         const img = await imgFromSrc(src);
-        const opts = new window.faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 });
-        const dets = await window.faceapi.detectAllFaces(img, opts).withFaceLandmarks().withFaceDescriptors();
+        const opts = new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 });
+        const dets = await faceapi.detectAllFaces(img, opts).withFaceLandmarks().withFaceDescriptors();
         const byId = {}; let unknown = 0;
         dets.forEach(dt => { const best = matcher.findBestMatch(dt.descriptor); if (best.label !== 'unknown' && best.distance <= 0.5) { const m = { id: best.label, name: nameById[best.label] || ('#' + best.label), distance: best.distance, conf: Math.max(0, Math.round((1 - best.distance) * 100)), strong: best.distance <= 0.4 }; if (!byId[m.id] || m.distance < byId[m.id].distance) byId[m.id] = m; } else unknown++; });
         return { faces: dets.length, matched: Object.values(byId).sort((a, b) => a.distance - b.distance), unknown: unknown };
@@ -158,7 +160,7 @@ const T = window.V4.T;
          if (photo && !photo.includes('ui-avatars')) {
            try {
              const img = await imgFromSrc(photo);
-             const det = await window.faceapi.detectSingleFace(img).withFaceLandmarks().withFaceDescriptor();
+             const det = await faceapi.detectSingleFace(img).withFaceLandmarks().withFaceDescriptor();
              if (det) {
                await fetch(WK + '/os-data/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind: 'face_enroll', tenant: tenant(), record: { studentId: s.id, studentName: s.name, descriptor: Array.from(det.descriptor) } }) });
                success++;
@@ -170,7 +172,7 @@ const T = window.V4.T;
        fetch(WK + '/os-data?kind=face_enroll&tenant=' + encodeURIComponent(tenant())).then(r => r.json()).then(d => {
           const enr = ((d && d.records) || []).map(x => x.payload).filter(p => p && p.descriptor);
           setEnrolledCount(enr.length);
-          if (enr.length && window.faceapi) { try { const labeled = enr.map(e => new window.faceapi.LabeledFaceDescriptors(String(e.studentId), [new Float32Array(e.descriptor)])); setMatcher(new window.faceapi.FaceMatcher(labeled, 0.5)); } catch (e) {} }
+          if (enr.length) { try { const labeled = enr.map(e => new faceapi.LabeledFaceDescriptors(String(e.studentId), [new Float32Array(e.descriptor)])); setMatcher(new faceapi.FaceMatcher(labeled, 0.5)); } catch (e) {} }
        });
        setEnrolling(false);
     };

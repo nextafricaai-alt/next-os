@@ -396,40 +396,13 @@
             {routePath === 'bypass' ? '⚡ Rerouted via Bypass' : '🚦 Avoid Jam (Reroute)'}
           </button>
         </div>
-
-        {/* Surrounding Places Bar Overlay */}
-        <div style={{
-          position: 'absolute',
-          bottom: '8px',
-          left: '8px',
-          right: '8px',
-          background: 'rgba(15, 23, 42, 0.92)',
-          backdropFilter: 'blur(4px)',
-          padding: '6px 10px',
-          borderRadius: '6px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-          overflowX: 'auto',
-          fontSize: '10px',
-          color: '#94A3B8',
-          zIndex: 1000,
-          border: '1px solid rgba(255,255,255,0.1)'
-        }}>
-          <span style={{ fontWeight: '700', color: '#00FC8F' }}>SURROUNDING PLACES:</span>
-          <span>🏫 Kabs Lily School</span> ·
-          <span>🏬 Ntinda Complex</span> ·
-          <span>🛒 Naalya Mall</span> ·
-          <span>⛽ Bweyogerere Shell</span> ·
-          <span>🚓 Kireka Police</span>
-        </div>
       </div>
     );
   };
 
   const DriverView = ({ vanId = 'van-01' }) => {
     const driverProfile = (window.PEAK_ROLE && window.PEAK_ROLE.getProfile && window.PEAK_ROLE.getProfile()) || {};
-    const [students, setStudents] = useState(mockStudents);
+    const [students, setStudents] = useState([]);
     const [isEmergencyModalOpen, setIsEmergencyModalOpen] = useState(false);
     const [isKmModalOpen, setIsKmModalOpen] = useState(false);
     const [skipModalOpen, setSkipModalOpen] = useState(null);
@@ -455,6 +428,40 @@
     const [customKmInput, setCustomKmInput] = useState('');
     const [kmReasonInput, setKmReasonInput] = useState('');
     const [markingArrived, setMarkingArrived] = useState(false);
+
+    useEffect(() => {
+      const tenant = (typeof window.getOSActiveTenant === 'function' ? window.getOSActiveTenant() : 'kabs-lily-junior-school-and-kindercare-centre');
+      fetch('https://nextos-sentinel.nextafricaai.workers.dev/transport/live?tenant=' + encodeURIComponent(tenant))
+        .then(res => res.json())
+        .then(out => {
+          if (out && out.students) {
+            // map real students to what DriverView expects
+            const mapped = out.students.map((s, i) => {
+               const baseLat = 0.3472;
+               const baseLng = 32.6325;
+               const offsetLat = (Math.random() - 0.5) * 0.02;
+               const offsetLng = (Math.random() - 0.5) * 0.02;
+               
+               return {
+                 id: s.id,
+                 name: s.student_name || 'Unknown Student',
+                 class: s.stream || 'Unknown Class',
+                 guardian: `Parent of ${s.student_name || 'Student'}`,
+                 phone: '+256 700 000000',
+                 address: s.stop_name || 'Designated Stop',
+                 landmark: 'Pick up / Drop off',
+                 status: s.status || 'waiting',
+                 lat: baseLat + offsetLat,
+                 lng: baseLng + offsetLng,
+                 distance: `${(Math.random() * 2 + 0.5).toFixed(1)} km`,
+                 time: `${Math.floor(Math.random() * 10 + 2)} mins`
+               };
+            });
+            setStudents(mapped);
+          }
+        })
+        .catch(err => console.error('Failed to load live transport data:', err));
+    }, []);
 
     // The actual "notify every parent the shuttle arrived" action — one
     // tap flips every currently-on_board student for this van to arrived
