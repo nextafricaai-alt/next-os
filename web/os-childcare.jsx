@@ -35,15 +35,15 @@ console.log("os-childcare.jsx is executing!");
         { id: 11, name: 'Liam Kazibwe',    age: 5, mood: '🎓', present: false, nap: false, milestone: 'Graduated to Primary', invoiceStatus: 'paid',     parent: 'Mrs. Kazibwe',   parentPhone: '256772001011', photoUrl: 'https://i.pravatar.cc/150?u=11', allergies: 'None', completedVaccines: [], birthday: '2021-02-14', height: '110 cm', weight: '19.0 kg', activeScore: 0, favouriteMeals: 'Sandwiches', enrollmentDate: '2022-01-10', healthRecord: 'Graduated perfectly healthy.', carePlan: 'monthly', isAlumni: true },
       ],
       schedule: [
-        { time: '07:30', activity: 'Arrival & Free Play',               caretaker: 'Ms. Maria L.',   icon: '🌅', color: '#00FC8F' },
-        { time: '09:00', activity: 'Morning Circle & Songs',            caretaker: 'Ms. Maria L.',   icon: '🎵', color: '#A855F7' },
-        { time: '09:30', activity: 'Structured Learning — Letters',     caretaker: 'Ms. Faith A.',   icon: '📚', color: '#3B82F6' },
-        { time: '10:30', activity: 'Snack Time',                        caretaker: 'All caretakers', icon: '🍎', color: '#FFB400' },
+        { time: '07:30', activity: 'Arrival & Free Play',               caretaker: 'Ms. Maria L.',   icon: '🌅', color: 'var(--mint)' },
+        { time: '09:00', activity: 'Morning Circle & Songs',            caretaker: 'Ms. Maria L.',   icon: '🎵', color: 'var(--warning)' },
+        { time: '09:30', activity: 'Structured Learning — Letters',     caretaker: 'Ms. Faith A.',   icon: '📚', color: 'var(--info)' },
+        { time: '10:30', activity: 'Snack Time',                        caretaker: 'All caretakers', icon: '🍎', color: 'var(--gold)' },
         { time: '11:00', activity: 'Creative Arts & Craft',             caretaker: 'Ms. Ruth K.',    icon: '🎨', color: '#F43F5E' },
         { time: '12:00', activity: 'Lunch',                             caretaker: 'All caretakers', icon: '🍽️', color: '#10B981' },
         { time: '12:45', activity: 'Nap Time',                          caretaker: 'Ms. Maria L.',   icon: '😴', color: '#6366F1' },
-        { time: '14:00', activity: 'Outdoor Play & Story Time',         caretaker: 'Ms. Faith A.',   icon: '🌳', color: '#00FC8F' },
-        { time: '15:00', activity: 'Parent Pick-up Window',             caretaker: 'All caretakers', icon: '🚗', color: '#FFB400' },
+        { time: '14:00', activity: 'Outdoor Play & Story Time',         caretaker: 'Ms. Faith A.',   icon: '🌳', color: 'var(--mint)' },
+        { time: '15:00', activity: 'Parent Pick-up Window',             caretaker: 'All caretakers', icon: '🚗', color: 'var(--gold)' },
       ],
       messages: [
         { id: 1, parent: 'Mrs. Nakamya',  time: '8:42 AM',  text: 'Will pick up Aiden at 2pm today, please note.',          read: false, answered: false },
@@ -73,7 +73,7 @@ console.log("os-childcare.jsx is executing!");
         { id: 12,  name: 'Sarah Laker',    age: 2, mood: '😴', present: true,  nap: true,  milestone: 'Counting to 10',         invoiceStatus: 'paid',     parent: 'Mrs. Laker',     parentPhone: '256772001021', photoUrl: 'https://i.pravatar.cc/150?u=12', allergies: 'Dust', completedVaccines: ['BCG', 'Polio 0', 'Polio 1'], birthday: '2024-02-10', height: '88 cm', weight: '12.5 kg', activeScore: 620, favouriteMeals: 'Beans', enrollmentDate: '2025-03-01', healthRecord: 'Asthma', carePlan: 'daily' },
       ],
       schedule: [
-        { time: '08:00', activity: 'Arrival & Free Play',               caretaker: 'Mr. Opiyo',   icon: '🌅', color: '#00FC8F' },
+        { time: '08:00', activity: 'Arrival & Free Play',               caretaker: 'Mr. Opiyo',   icon: '🌅', color: 'var(--mint)' },
         { time: '12:00', activity: 'Lunch',                             caretaker: 'All caretakers', icon: '🍽️', color: '#10B981' },
       ],
       messages: [
@@ -213,7 +213,7 @@ console.log("os-childcare.jsx is executing!");
   const CcKpiCard = ({ label, value, sub, accent, icon }) => (
     <div style={{
       background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)',
-      borderRadius: 12, padding: '20px 22px', flex: 1, minWidth: 140,
+      borderRadius: "var(--radius-md)", padding: '20px 22px', flex: 1, minWidth: 140,
       position: 'relative', overflow: 'hidden', transition: 'border-color 0.2s, transform 0.2s',
     }} className="kpi-card">
       <div style={{
@@ -229,12 +229,12 @@ console.log("os-childcare.jsx is executing!");
 
   // ── Child Card Component ─────────────────────────────────────────────────
   const ChildCard = ({ child, onSelect, onMessage }) => {
-    const statusColor = child.present ? '#00FC8F' : '#FF4757';
-    const invoiceColor = child.invoiceStatus === 'overdue' ? '#FF4757' : child.invoiceStatus === 'due' ? '#FFB400' : '#00FC8F';
+    const statusColor = child.present ? 'var(--mint)' : 'var(--danger)';
+    const invoiceColor = child.invoiceStatus === 'overdue' ? 'var(--danger)' : child.invoiceStatus === 'due' ? 'var(--gold)' : 'var(--mint)';
     return (
       <div onClick={() => onSelect(child)} style={{
-        background: 'var(--bg-elevated)', border: `1px solid ${child.present ? 'var(--border-subtle)' : 'rgba(255,71,87,0.2)'}`,
-        borderRadius: 12, padding: '16px', display: 'flex', flexDirection: 'column', gap: 10,
+        background: 'var(--bg-elevated)', border: `1px solid ${child.present ? 'var(--border-subtle)' : 'rgba(239,71,111,0.2)'}`,
+        borderRadius: "var(--radius-md)", padding: '16px', display: 'flex', flexDirection: 'column', gap: 10,
         transition: 'border-color 0.2s, transform 0.2s, box-shadow 0.2s', cursor: 'pointer',
       }} className="kpi-card">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -262,12 +262,12 @@ console.log("os-childcare.jsx is executing!");
           </div>
         </div>
         {child.milestone && (
-          <div style={{ background: 'rgba(0,252,143,0.06)', border: '1px solid rgba(0,252,143,0.15)', borderRadius: 8, padding: '6px 10px', fontSize: 11, color: 'var(--mint)' }}>
+          <div style={{ background: 'rgba(6,214,160,0.06)', border: '1px solid rgba(6,214,160,0.15)', borderRadius: "var(--radius-sm)", padding: '6px 10px', fontSize: 11, color: 'var(--mint)' }}>
             🏆 Milestone: {child.milestone}
           </div>
         )}
         <button onClick={(e) => { e.stopPropagation(); onMessage(child); }} style={{
-          background: 'transparent', border: '1px solid var(--border-default)', borderRadius: 8,
+          background: 'transparent', border: '1px solid var(--border-default)', borderRadius: "var(--radius-sm)",
           padding: '6px 10px', fontSize: 11, color: 'var(--text-secondary)', cursor: 'pointer',
           display: 'flex', alignItems: 'center', gap: 6, transition: 'all 0.15s',
         }} className="quick-action-btn">
@@ -335,10 +335,10 @@ Your task: Provide a brief, professional, and actionable 2-sentence assessment. 
     }, [child]);
 
     return (
-      <div style={{ background: 'var(--bg-deepest)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: 20, marginBottom: 24, position: 'relative', overflow: 'hidden' }}>
+      <div style={{ background: 'var(--bg-deepest)', border: '1px solid var(--border-subtle)', borderRadius: "var(--radius-md)", padding: 20, marginBottom: 24, position: 'relative', overflow: 'hidden' }}>
         <div style={{ position: 'absolute', top: 0, left: 0, bottom: 0, width: 4, background: 'var(--mint)' }}></div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-          <div style={{ width: 24, height: 24, borderRadius: '50%', background: 'linear-gradient(135deg, #00FC8F, #1B9B6F)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12 }}>🛡️</div>
+          <div style={{ width: 24, height: 24, borderRadius: '50%', background: 'linear-gradient(135deg, var(--mint), var(--emerald))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12 }}>🛡️</div>
           <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--mint)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Nia's Assessment</div>
         </div>
         
@@ -347,7 +347,7 @@ Your task: Provide a brief, professional, and actionable 2-sentence assessment. 
             <span style={{ display: 'inline-block', animation: 'pulse 1.5s infinite opacity' }}>●</span> Analyzing profile data...
           </div>
         ) : error ? (
-          <div style={{ fontSize: 14, color: '#FF4757' }}>Unable to load Nia's assessment: {error}</div>
+          <div style={{ fontSize: 14, color: 'var(--danger)' }}>Unable to load Nia's assessment: {error}</div>
         ) : (
           <div style={{ fontSize: 14, color: 'var(--text-primary)', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
             {brief}
@@ -367,24 +367,24 @@ Your task: Provide a brief, professional, and actionable 2-sentence assessment. 
           <span>←</span> Back to Roster
         </button>
         
-        <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 16, padding: isMobile ? '20px' : '32px 40px', display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: isMobile ? 24 : 40 }}>
+        <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: "var(--radius-lg)", padding: isMobile ? '20px' : '32px 40px', display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: isMobile ? 24 : 40 }}>
           {/* Left Column: Photo & Base Info */}
           <div style={{ width: isMobile ? '100%' : 220, display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
             <div style={{ width: 140, height: 140, borderRadius: '50%', background: `url(${child.photoUrl}) center/cover`, border: `4px solid ${child.present ? 'var(--mint)' : 'var(--border-default)'}`, marginBottom: 16, boxShadow: '0 8px 24px rgba(0,0,0,0.2)' }}></div>
             <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 24, margin: '0 0 4px 0', color: 'var(--text-primary)' }}>{child.name}</h2>
             <div style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 12 }}>{child.age} Years Old</div>
             
-            <div style={{ background: 'var(--bg-deep)', borderRadius: 12, padding: '12px', width: '100%', marginBottom: 16 }}>
+            <div style={{ background: 'var(--bg-deep)', borderRadius: "var(--radius-md)", padding: '12px', width: '100%', marginBottom: 16 }}>
               <div style={{ fontSize: 11, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>Parent / Guardian</div>
               <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>{child.parent}</div>
               <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{child.parentPhone}</div>
             </div>
             
-            <button onClick={() => onMessage(child)} style={{ background: 'var(--mint)', color: '#060012', border: 'none', borderRadius: 8, padding: '12px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer', width: '100%', fontFamily: 'var(--font-body)', marginBottom: 16 }}>
+            <button onClick={() => onMessage(child)} style={{ background: 'var(--mint)', color: 'var(--bg-deepest)', border: 'none', borderRadius: "var(--radius-sm)", padding: '12px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer', width: '100%', fontFamily: 'var(--font-body)', marginBottom: 16 }}>
               Message Parent
             </button>
             
-            <div style={{ background: 'var(--bg-deep)', borderRadius: 12, padding: '12px', width: '100%', marginBottom: 16 }}>
+            <div style={{ background: 'var(--bg-deep)', borderRadius: "var(--radius-md)", padding: '12px', width: '100%', marginBottom: 16 }}>
               <div style={{ fontSize: 11, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Log Milestone</div>
               <input type="text" id={`milestone-text-${child.id}`} placeholder="e.g. Counted to 10!" style={{ width: '100%', padding: '8px', borderRadius: 6, border: '1px solid var(--border-subtle)', background: 'var(--bg-default)', color: 'var(--text-primary)', fontSize: 12, marginBottom: 8, boxSizing: 'border-box' }} />
               <button onClick={async () => {
@@ -406,7 +406,7 @@ Your task: Provide a brief, professional, and actionable 2-sentence assessment. 
               </button>
             </div>
             
-            <div style={{ background: 'var(--bg-deep)', borderRadius: 12, padding: '12px', width: '100%' }}>
+            <div style={{ background: 'var(--bg-deep)', borderRadius: "var(--radius-md)", padding: '12px', width: '100%' }}>
               <div style={{ fontSize: 11, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Agent Nia Automation</div>
               <input type="text" id={`gallery-url-${child.id}`} placeholder="Paste Image URL" style={{ width: '100%', padding: '8px', borderRadius: 6, border: '1px solid var(--border-subtle)', background: 'var(--bg-default)', color: 'var(--text-primary)', fontSize: 12, marginBottom: 8, boxSizing: 'border-box' }} />
               <button onClick={async () => {
@@ -445,8 +445,8 @@ Your task: Provide a brief, professional, and actionable 2-sentence assessment. 
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 20, marginBottom: 24 }}>
-              <div style={{ background: child.allergies !== 'None' ? 'rgba(255,71,87,0.05)' : 'var(--bg-deep)', border: child.allergies !== 'None' ? '1px solid rgba(255,71,87,0.2)' : '1px solid var(--border-subtle)', borderRadius: 10, padding: '16px' }}>
-                <div style={{ fontSize: 12, color: child.allergies !== 'None' ? '#FF4757' : 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8, fontWeight: 600 }}>Allergies</div>
+              <div style={{ background: child.allergies !== 'None' ? 'rgba(239,71,111,0.05)' : 'var(--bg-deep)', border: child.allergies !== 'None' ? '1px solid rgba(239,71,111,0.2)' : '1px solid var(--border-subtle)', borderRadius: 10, padding: '16px' }}>
+                <div style={{ fontSize: 12, color: child.allergies !== 'None' ? 'var(--danger)' : 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8, fontWeight: 600 }}>Allergies</div>
                 <div style={{ fontSize: 14, color: 'var(--text-primary)' }}>{child.allergies}</div>
               </div>
               <div style={{ background: 'var(--bg-deep)', borderRadius: 10, padding: '16px' }}>
@@ -460,17 +460,17 @@ Your task: Provide a brief, professional, and actionable 2-sentence assessment. 
                         <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{vac.progress}%</span>
                       </div>
                       <div style={{ background: 'var(--bg-default)', height: 6, borderRadius: 3, overflow: 'hidden', marginBottom: 12 }}>
-                        <div style={{ background: vac.progress === 100 ? 'var(--mint)' : '#A855F7', width: vac.progress + '%', height: '100%' }}></div>
+                        <div style={{ background: vac.progress === 100 ? 'var(--mint)' : 'var(--warning)', width: vac.progress + '%', height: '100%' }}></div>
                       </div>
                       {vac.due.length > 0 && (
-                        <div style={{ background: 'rgba(255,180,0,0.1)', border: '1px solid rgba(255,180,0,0.3)', borderRadius: 6, padding: '8px 10px', marginTop: 8 }}>
-                          <span style={{ fontSize: 11, color: '#FFB400', fontWeight: 600, display: 'block', marginBottom: 2 }}>⚠️ Overdue Vaccines</span>
+                        <div style={{ background: 'rgba(255,209,102,0.1)', border: '1px solid rgba(255,209,102,0.3)', borderRadius: 6, padding: '8px 10px', marginTop: 8 }}>
+                          <span style={{ fontSize: 11, color: 'var(--gold)', fontWeight: 600, display: 'block', marginBottom: 2 }}>⚠️ Overdue Vaccines</span>
                           <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{vac.due.join(', ')}</span>
                         </div>
                       )}
                       {vac.upcoming.length > 0 && (
-                        <div style={{ background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.3)', borderRadius: 6, padding: '8px 10px', marginTop: 8 }}>
-                          <span style={{ fontSize: 11, color: '#3B82F6', fontWeight: 600, display: 'block', marginBottom: 2 }}>⏳ Upcoming (Next 4 Weeks)</span>
+                        <div style={{ background: 'rgba(17,138,178,0.1)', border: '1px solid rgba(17,138,178,0.3)', borderRadius: 6, padding: '8px 10px', marginTop: 8 }}>
+                          <span style={{ fontSize: 11, color: 'var(--info)', fontWeight: 600, display: 'block', marginBottom: 2 }}>⏳ Upcoming (Next 4 Weeks)</span>
                           <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{vac.upcoming.join(', ')}</span>
                         </div>
                       )}
@@ -530,17 +530,17 @@ Your task: Provide a brief, professional, and actionable 2-sentence assessment. 
     const isMobile = windowWidth < 768;
     return (
       <div style={{
-        background: 'linear-gradient(135deg, rgba(0,252,143,0.06) 0%, rgba(0,252,143,0.02) 100%)',
-        border: '1px solid rgba(0,252,143,0.2)', borderRadius: 12, padding: '16px 20px',
+        background: 'linear-gradient(135deg, rgba(6,214,160,0.06) 0%, rgba(6,214,160,0.02) 100%)',
+        border: '1px solid rgba(6,214,160,0.2)', borderRadius: "var(--radius-md)", padding: '16px 20px',
         display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'flex-start' : 'center', justifyContent: 'space-between', gap: 16,
         marginBottom: 28,
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
           <div style={{
             width: 40, height: 40, borderRadius: '50%',
-            background: 'linear-gradient(135deg, #00FC8F, #1B9B6F)',
+            background: 'linear-gradient(135deg, var(--mint), var(--emerald))',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 18, boxShadow: '0 0 16px rgba(0,252,143,0.3)',
+            fontSize: 18, boxShadow: '0 0 16px rgba(6,214,160,0.3)',
             flexShrink: 0
           }}>🛡️</div>
           <div>
@@ -551,7 +551,7 @@ Your task: Provide a brief, professional, and actionable 2-sentence assessment. 
           </div>
         </div>
         <button onClick={onTalkToNia} style={{
-          background: 'var(--mint)', color: '#060012', border: 'none', borderRadius: 8,
+          background: 'var(--mint)', color: 'var(--bg-deepest)', border: 'none', borderRadius: "var(--radius-sm)",
           padding: '8px 16px', fontSize: 12, fontWeight: 700, cursor: 'pointer',
           whiteSpace: 'nowrap', fontFamily: 'var(--font-body)', width: isMobile ? '100%' : 'auto'
         }}>Talk to Nia →</button>
@@ -623,7 +623,7 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
       <div style={{ position: 'fixed', top: 0, right: 0, bottom: 0, width: 400, background: 'var(--bg-elevated)', borderLeft: '1px solid var(--border-default)', boxShadow: '-10px 0 30px rgba(0,0,0,0.5)', display: 'flex', flexDirection: 'column', zIndex: 1000 }}>
         <div style={{ padding: '20px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'linear-gradient(135deg, #00FC8F, #1B9B6F)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>🛡️</div>
+            <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'linear-gradient(135deg, var(--mint), var(--emerald))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>🛡️</div>
             <div style={{ fontWeight: 700, color: 'var(--mint)' }}>Nia Advisory</div>
           </div>
           <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: 24, lineHeight: 1 }}>×</button>
@@ -634,13 +634,13 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
               <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginBottom: 4, textAlign: m.role === 'user' ? 'right' : 'left' }}>
                 {m.role === 'user' ? 'Hudson' : 'Nia'}
               </div>
-              <div style={{ background: m.role === 'user' ? 'var(--mint)' : 'var(--bg-surface)', color: m.role === 'user' ? '#060012' : 'var(--text-primary)', padding: '10px 14px', borderRadius: 12, borderBottomRightRadius: m.role === 'user' ? 2 : 12, borderBottomLeftRadius: m.role === 'user' ? 12 : 2, fontSize: 13, lineHeight: 1.5 }}>
+              <div style={{ background: m.role === 'user' ? 'var(--mint)' : 'var(--bg-surface)', color: m.role === 'user' ? 'var(--bg-deepest)' : 'var(--text-primary)', padding: '10px 14px', borderRadius: "var(--radius-md)", borderBottomRightRadius: m.role === 'user' ? 2 : 12, borderBottomLeftRadius: m.role === 'user' ? 12 : 2, fontSize: 13, lineHeight: 1.5 }}>
                 {m.content}
               </div>
             </div>
           ))}
           {pending && (
-            <div style={{ alignSelf: 'flex-start', background: 'var(--bg-surface)', padding: '10px 14px', borderRadius: 12, fontSize: 13, color: 'var(--text-tertiary)' }}>
+            <div style={{ alignSelf: 'flex-start', background: 'var(--bg-surface)', padding: '10px 14px', borderRadius: "var(--radius-md)", fontSize: 13, color: 'var(--text-tertiary)' }}>
               Nia is thinking...
             </div>
           )}
@@ -648,8 +648,8 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
         </div>
         <div style={{ padding: 20, borderTop: '1px solid var(--border-subtle)' }}>
           <div style={{ display: 'flex', gap: 10 }}>
-            <input type="text" value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSend()} placeholder="Ask Nia about the dashboard..." style={{ flex: 1, background: 'var(--bg-deep)', border: '1px solid var(--border-default)', borderRadius: 8, padding: '10px 14px', color: 'var(--text-primary)', fontSize: 13, outline: 'none' }} />
-            <button onClick={handleSend} disabled={pending || !input.trim()} style={{ background: 'var(--mint)', color: '#060012', border: 'none', borderRadius: 8, padding: '0 16px', fontWeight: 700, cursor: (pending || !input.trim()) ? 'not-allowed' : 'pointer', opacity: (pending || !input.trim()) ? 0.5 : 1 }}>Send</button>
+            <input type="text" value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSend()} placeholder="Ask Nia about the dashboard..." style={{ flex: 1, background: 'var(--bg-deep)', border: '1px solid var(--border-default)', borderRadius: "var(--radius-sm)", padding: '10px 14px', color: 'var(--text-primary)', fontSize: 13, outline: 'none' }} />
+            <button onClick={handleSend} disabled={pending || !input.trim()} style={{ background: 'var(--mint)', color: 'var(--bg-deepest)', border: 'none', borderRadius: "var(--radius-sm)", padding: '0 16px', fontWeight: 700, cursor: (pending || !input.trim()) ? 'not-allowed' : 'pointer', opacity: (pending || !input.trim()) ? 0.5 : 1 }}>Send</button>
           </div>
         </div>
       </div>
@@ -681,11 +681,11 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
     const url = basePath + hash;
     
     return (
-      <div style={{ background: 'var(--bg-deepest)', padding: 12, borderRadius: 8, border: '1px solid var(--border-default)', marginTop: 16 }}>
+      <div style={{ background: 'var(--bg-deepest)', padding: 12, borderRadius: "var(--radius-sm)", border: '1px solid var(--border-default)', marginTop: 16 }}>
         <div style={{ fontSize: 11, color: 'var(--text-tertiary)', textTransform: 'uppercase', marginBottom: 8, letterSpacing: '0.05em', fontWeight: 600 }}>Your Personal App Link</div>
         <div style={{ display: 'flex', gap: 8 }}>
           <input readOnly value={url} style={{ flex: 1, background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', color: 'var(--text-secondary)', padding: '8px', borderRadius: 6, fontSize: 12 }} />
-          <button onClick={() => { navigator.clipboard.writeText(url); alert('Link copied!'); }} style={{ background: 'var(--mint)', color: '#000', border: 'none', padding: '0 12px', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Copy</button>
+          <button onClick={() => { navigator.clipboard.writeText(url); alert('Link copied!'); }} style={{ background: 'var(--mint)', color: 'var(--text-inverse)', border: 'none', padding: '0 12px', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Copy</button>
         </div>
         <button onClick={() => window.open('https://wa.me/?text=' + encodeURIComponent('Here is your Amani OS link: ' + url))} style={{ width: '100%', marginTop: 8, background: '#25D366', color: '#fff', border: 'none', padding: '8px', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12.031 0C5.383 0 0 5.383 0 12.031c0 2.124.553 4.195 1.604 6.012L.211 23.789l5.882-1.543a11.96 11.96 0 005.938 1.57h.005c6.648 0 12.031-5.383 12.031-12.031S18.679 0 12.031 0zm0 21.848a9.98 9.98 0 01-5.093-1.385l-.365-.216-3.784.992.992-3.69-.237-.376a9.962 9.962 0 01-1.528-5.334c0-5.503-4.478-9.981-9.981-9.981 2.668 0 5.176 1.038 7.062 2.925a9.957 9.957 0 012.925 7.056c0 5.503-4.478 9.981-9.981 9.981zm5.474-7.48c-.3-.15-1.774-.876-2.048-.976-.274-.101-.474-.15-.674.15-.2.3-.775.976-.95 1.176-.175.2-.35.225-.65.075-.3-.15-1.266-.466-2.411-1.488-.89-.794-1.49-1.774-1.665-2.074-.175-.3-.02-.462.13-.612.135-.135.3-.35.45-.525.15-.175.2-.3.3-.5.1-.2.05-.375-.025-.525-.075-.15-.674-1.626-.924-2.226-.242-.582-.488-.5-.674-.51-.175-.01-.375-.01-.575-.01-.2 0-.525.075-.8.375-.275.3-1.05 1.026-1.05 2.502 0 1.476 1.075 2.902 1.225 3.102.15.2 2.115 3.227 5.124 4.526.717.31 1.275.495 1.711.635.718.23 1.371.197 1.884.12.574-.086 1.774-.726 2.024-1.426.25-.7.25-1.302.175-1.426-.075-.125-.275-.2-.575-.35z"/></svg>
@@ -780,7 +780,7 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
     const isMobile = windowWidth < 768;
 
     return (
-      <div style={{ width: '100%', height: '100vh', display: 'flex', flexDirection: isMobile ? 'column' : 'row', background: '#060012', fontFamily: 'var(--font-body)', overflow: 'hidden' }}>
+      <div style={{ width: '100%', height: '100vh', display: 'flex', flexDirection: isMobile ? 'column' : 'row', background: 'var(--bg-deepest)', fontFamily: 'var(--font-body)', overflow: 'hidden' }}>
         
         {/* ── SIDEBAR / HEADER ── */}
         <div style={{ 
@@ -792,17 +792,17 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
           zIndex: 10
         }}>
           {/* Profile Area */}
-          <div style={{ padding: '30px 20px', textAlign: 'center', background: 'linear-gradient(180deg, rgba(0,252,143,0.05) 0%, transparent 100%)' }}>
+          <div style={{ padding: '30px 20px', textAlign: 'center', background: 'linear-gradient(180deg, rgba(6,214,160,0.05) 0%, transparent 100%)' }}>
             <div style={{ position: 'relative', display: 'inline-block' }}>
               <img src={child.photoUrl} alt={child.name} style={{ width: isMobile ? 80 : 120, height: isMobile ? 80 : 120, borderRadius: '50%', border: '4px solid var(--bg-default)', boxShadow: '0 0 0 2px var(--mint)', objectFit: 'cover' }} />
-              <div style={{ position: 'absolute', bottom: 4, right: 4, width: 16, height: 16, borderRadius: '50%', background: child.present ? 'var(--mint)' : '#FF4757', border: '2px solid var(--bg-default)' }} />
+              <div style={{ position: 'absolute', bottom: 4, right: 4, width: 16, height: 16, borderRadius: '50%', background: child.present ? 'var(--mint)' : 'var(--danger)', border: '2px solid var(--bg-default)' }} />
             </div>
             <h2 style={{ fontSize: 24, fontWeight: 700, color: 'var(--text-primary)', marginTop: 16, marginBottom: 4 }}>{child.name}</h2>
             <div style={{ fontSize: 14, color: 'var(--text-secondary)' }}>
               {child.present ? 'Checked In' : 'Absent'} {child.nap ? ' • Napping' : ''}
             </div>
             {isInstallable && (
-              <button onClick={() => window.triggerPWAInstall && window.triggerPWAInstall()} style={{ marginTop: 12, padding: '8px 16px', background: 'var(--mint)', color: '#000', border: 'none', borderRadius: 20, fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <button onClick={() => window.triggerPWAInstall && window.triggerPWAInstall()} style={{ marginTop: 12, padding: '8px 16px', background: 'var(--mint)', color: 'var(--text-inverse)', border: 'none', borderRadius: 20, fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                 📱 Install App
               </button>
             )}
@@ -824,8 +824,8 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
             ].map(nav => (
               <button key={nav.id} onClick={() => setActiveTab(nav.id)} style={{
                 display: 'flex', alignItems: 'center', gap: 16, width: '100%', padding: '12px 16px',
-                background: activeTab === nav.id ? 'rgba(0,252,143,0.1)' : 'transparent',
-                border: 'none', borderRadius: 12, cursor: 'pointer', transition: 'all 0.2s ease',
+                background: activeTab === nav.id ? 'rgba(6,214,160,0.1)' : 'transparent',
+                border: 'none', borderRadius: "var(--radius-md)", cursor: 'pointer', transition: 'all 0.2s ease',
                 color: activeTab === nav.id ? 'var(--mint)' : 'var(--text-secondary)',
                 fontWeight: activeTab === nav.id ? 700 : 500, fontSize: 15, textAlign: 'left'
               }}>
@@ -839,12 +839,12 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
             <ShareLinkPanel role="parent" childId={child.id} />
             
             {!notificationsEnabled && (
-              <button onClick={handleEnableNotifications} style={{ width: '100%', padding: '12px', background: 'rgba(0, 252, 143, 0.1)', border: '1px solid var(--mint)', borderRadius: 12, color: 'var(--mint)', fontWeight: 600, cursor: 'pointer', marginTop: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+              <button onClick={handleEnableNotifications} style={{ width: '100%', padding: '12px', background: 'rgba(0, 252, 143, 0.1)', border: '1px solid var(--mint)', borderRadius: "var(--radius-md)", color: 'var(--mint)', fontWeight: 600, cursor: 'pointer', marginTop: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
                 <span>🔔</span> Enable Notifications
               </button>
             )}
 
-            <button onClick={onLogout} style={{ width: '100%', padding: '12px', background: 'transparent', border: '1px solid var(--border-default)', borderRadius: 12, color: 'var(--text-secondary)', fontWeight: 600, cursor: 'pointer', marginTop: 16 }}>
+            <button onClick={onLogout} style={{ width: '100%', padding: '12px', background: 'transparent', border: '1px solid var(--border-default)', borderRadius: "var(--radius-md)", color: 'var(--text-secondary)', fontWeight: 600, cursor: 'pointer', marginTop: 16 }}>
               Sign Out
             </button>
           </div>
@@ -860,8 +860,8 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
                 {/* 1. Interactive Child Hero Section */}
                 <div style={{
                   background: 'linear-gradient(135deg, rgba(20,0,53,0.9) 0%, rgba(10,0,26,0.9) 100%)',
-                  border: '1px solid rgba(0,252,143,0.2)',
-                  borderRadius: 24,
+                  border: '1px solid rgba(6,214,160,0.2)',
+                  borderRadius: "var(--radius-lg)",
                   padding: isMobile ? '24px' : '40px',
                   display: 'flex',
                   flexDirection: isMobile ? 'column' : 'row',
@@ -877,7 +877,7 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
                   
                   <div style={{ position: 'relative' }}>
                     <img src={child.photoUrl} alt={child.name} style={{ width: 140, height: 140, borderRadius: '50%', objectFit: 'cover', border: '4px solid var(--bg-default)', boxShadow: '0 0 0 3px var(--mint)' }} />
-                    <div style={{ position: 'absolute', bottom: 5, right: 5, width: 24, height: 24, borderRadius: '50%', background: child.present ? 'var(--mint)' : '#FF4757', border: '3px solid var(--bg-default)' }} />
+                    <div style={{ position: 'absolute', bottom: 5, right: 5, width: 24, height: 24, borderRadius: '50%', background: child.present ? 'var(--mint)' : 'var(--danger)', border: '3px solid var(--bg-default)' }} />
                   </div>
                   
                   <div style={{ flex: 1, textAlign: isMobile ? 'center' : 'left' }}>
@@ -889,14 +889,14 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
                       Age {child.age} • Enrolled {new Date(child.enrollmentDate).toLocaleDateString()}
                     </div>
                     <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', justifyContent: isMobile ? 'center' : 'flex-start' }}>
-                      <div style={{ background: 'var(--bg-elevated)', padding: '8px 16px', borderRadius: 12, border: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <div style={{ background: 'var(--bg-elevated)', padding: '8px 16px', borderRadius: "var(--radius-md)", border: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', gap: 8 }}>
                         <span style={{ fontSize: 20 }}>{child.mood}</span>
                         <div>
                           <div style={{ fontSize: 11, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Current Mood</div>
                           <div style={{ fontSize: 14, fontWeight: 600 }}>Happy</div>
                         </div>
                       </div>
-                      <div style={{ background: 'var(--bg-elevated)', padding: '8px 16px', borderRadius: 12, border: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <div style={{ background: 'var(--bg-elevated)', padding: '8px 16px', borderRadius: "var(--radius-md)", border: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', gap: 8 }}>
                         <span style={{ fontSize: 20 }}>{child.nap ? '💤' : '☀️'}</span>
                         <div>
                           <div style={{ fontSize: 11, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Status</div>
@@ -925,9 +925,9 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
                         </div>
                       </div>
                       <span style={{ 
-                        background: child.invoiceStatus === 'paid' ? 'rgba(0,252,143,0.1)' : child.invoiceStatus === 'due' ? 'rgba(255,165,2,0.1)' : 'rgba(255,71,87,0.1)',
+                        background: child.invoiceStatus === 'paid' ? 'rgba(6,214,160,0.1)' : child.invoiceStatus === 'due' ? 'rgba(255,165,2,0.1)' : 'rgba(239,71,111,0.1)',
                         color: child.invoiceStatus === 'paid' ? 'var(--mint)' : child.invoiceStatus === 'due' ? 'var(--warning)' : 'var(--danger)',
-                        border: `1px solid ${child.invoiceStatus === 'paid' ? 'rgba(0,252,143,0.2)' : child.invoiceStatus === 'due' ? 'rgba(255,165,2,0.2)' : 'rgba(255,71,87,0.2)'}`,
+                        border: `1px solid ${child.invoiceStatus === 'paid' ? 'rgba(6,214,160,0.2)' : child.invoiceStatus === 'due' ? 'rgba(255,165,2,0.2)' : 'rgba(239,71,111,0.2)'}`,
                         padding: '4px 12px', borderRadius: 20, fontSize: 12, fontWeight: 700, textTransform: 'uppercase'
                       }}>
                         {child.invoiceStatus}
@@ -952,7 +952,7 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
                   }}>
                     <div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
-                        <div style={{ width: 40, height: 40, borderRadius: 10, background: 'rgba(255,180,0,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>🏆</div>
+                        <div style={{ width: 40, height: 40, borderRadius: 10, background: 'rgba(255,209,102,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>🏆</div>
                         <div>
                           <h3 style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-primary)' }}>Latest Milestone</h3>
                           <div style={{ fontSize: 13, color: 'var(--text-tertiary)' }}>Development Tracking</div>
@@ -966,7 +966,7 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
                         Active Learning Score: <strong style={{ color: 'var(--text-primary)' }}>{child.activeScore}</strong> pts
                       </div>
                     </div>
-                    <button onClick={() => setActiveTab('journey')} style={{ marginTop: 20, width: '100%', padding: '10px', background: 'transparent', border: '1px solid var(--border-default)', borderRadius: 8, color: 'var(--text-primary)', fontWeight: 600, cursor: 'pointer', transition: 'background 0.2s' }} onMouseOver={e => e.currentTarget.style.background='rgba(255,255,255,0.05)'} onMouseOut={e => e.currentTarget.style.background='transparent'}>
+                    <button onClick={() => setActiveTab('journey')} style={{ marginTop: 20, width: '100%', padding: '10px', background: 'transparent', border: '1px solid var(--border-default)', borderRadius: "var(--radius-sm)", color: 'var(--text-primary)', fontWeight: 600, cursor: 'pointer', transition: 'background 0.2s' }} onMouseOver={e => e.currentTarget.style.background='rgba(255,255,255,0.05)'} onMouseOut={e => e.currentTarget.style.background='transparent'}>
                       View Full Journey Timeline
                     </button>
                   </div>
@@ -978,7 +978,7 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                   {(scheduleData && scheduleData.length > 0 ? scheduleData : []).map((item, i) => (
                     <div key={i} style={{ 
-                      display: 'flex', gap: 16, padding: 20, borderRadius: 16, 
+                      display: 'flex', gap: 16, padding: 20, borderRadius: "var(--radius-lg)", 
                       background: item.type === 'faith' ? 'linear-gradient(145deg, rgba(255, 214, 0, 0.1), rgba(255, 214, 0, 0.02))' : 'var(--bg-elevated)', 
                       border: item.type === 'faith' ? '1px solid rgba(255, 214, 0, 0.3)' : '1px solid var(--border-subtle)',
                       boxShadow: item.type === 'faith' ? '0 4px 20px rgba(255, 214, 0, 0.05)' : 'none'
@@ -991,7 +991,7 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
                       </div>
                       <div>
                         <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginBottom: 4 }}>
-                          <span style={{ fontSize: 16, fontWeight: 700, color: item.type === 'faith' ? '#FFD600' : 'var(--text-primary)' }}>{item.activity || item.title}</span>
+                          <span style={{ fontSize: 16, fontWeight: 700, color: item.type === 'faith' ? 'var(--gold)' : 'var(--text-primary)' }}>{item.activity || item.title}</span>
                           <span style={{ fontSize: 12, color: item.type === 'faith' ? 'rgba(255, 214, 0, 0.6)' : 'var(--text-tertiary)', fontFamily: 'var(--font-mono)' }}>{item.time}</span>
                         </div>
                         <div style={{ fontSize: 14, color: item.type === 'faith' ? 'rgba(255, 255, 255, 0.9)' : 'var(--text-secondary)' }}>{item.caretaker ? `Led by ${item.caretaker}` : item.desc}</div>
@@ -1009,13 +1009,13 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
                   <span style={{ fontSize: 14, color: 'var(--text-secondary)' }}>Live from Center</span>
                 </div>
                 {(!child.gallery || child.gallery.length === 0) ? (
-                  <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-secondary)', background: 'var(--bg-elevated)', borderRadius: 16 }}>
+                  <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-secondary)', background: 'var(--bg-elevated)', borderRadius: "var(--radius-lg)" }}>
                     No photos uploaded yet. Check back soon!
                   </div>
                 ) : (
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 16 }}>
                     {child.gallery.map((src, i) => (
-                      <div key={i} style={{ borderRadius: 16, overflow: 'hidden', aspectRatio: '1/1', position: 'relative', border: '1px solid var(--border-subtle)' }}>
+                      <div key={i} style={{ borderRadius: "var(--radius-lg)", overflow: 'hidden', aspectRatio: '1/1', position: 'relative', border: '1px solid var(--border-subtle)' }}>
                         <img src={src} style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.3s' }} onMouseOver={e => e.currentTarget.style.transform = 'scale(1.05)'} onMouseOut={e => e.currentTarget.style.transform = 'scale(1)'} />
                       </div>
                     ))}
@@ -1032,16 +1032,16 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
                 <h3 style={{ fontSize: 18, color: 'var(--text-secondary)', marginBottom: 16, fontWeight: 600 }}>Developmental Domains</h3>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 16, marginBottom: 32 }}>
                   {[
-                    { label: 'Cognitive', pct: 85, color: '#00C2FF' },
-                    { label: 'Physical', pct: 92, color: '#00E676' },
-                    { label: 'Social', pct: 78, color: '#FF9100' },
-                    { label: 'Language', pct: 88, color: '#E040FB' },
+                    { label: 'Cognitive', pct: 85, color: 'var(--info)' },
+                    { label: 'Physical', pct: 92, color: 'var(--mint)' },
+                    { label: 'Social', pct: 78, color: 'var(--warning)' },
+                    { label: 'Language', pct: 88, color: 'var(--danger)' },
                   ].map(m => {
                     const radius = 40;
                     const circumference = 2 * Math.PI * radius;
                     const offset = circumference - (m.pct / 100) * circumference;
                     return (
-                      <div key={m.label} style={{ background: 'var(--bg-elevated)', padding: '24px 16px', borderRadius: 16, border: '1px solid var(--border-subtle)', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
+                      <div key={m.label} style={{ background: 'var(--bg-elevated)', padding: '24px 16px', borderRadius: "var(--radius-lg)", border: '1px solid var(--border-subtle)', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
                         <div style={{ position: 'relative', width: 100, height: 100, marginBottom: 12 }}>
                           <svg width="100" height="100" viewBox="0 0 100 100" style={{ transform: 'rotate(-90deg)' }}>
                             <circle cx="50" cy="50" r={radius} fill="none" stroke="var(--bg-deep)" strokeWidth="8" />
@@ -1059,7 +1059,7 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
 
                 {/* WHO Growth Curve */}
                 <h3 style={{ fontSize: 18, color: 'var(--text-secondary)', marginBottom: 16, fontWeight: 600 }}>WHO Growth Tracker</h3>
-                <div style={{ background: 'var(--bg-elevated)', padding: 24, borderRadius: 16, border: '1px solid var(--border-subtle)', marginBottom: 32, overflowX: 'auto' }}>
+                <div style={{ background: 'var(--bg-elevated)', padding: 24, borderRadius: "var(--radius-lg)", border: '1px solid var(--border-subtle)', marginBottom: 32, overflowX: 'auto' }}>
                   <div style={{ minWidth: 400 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
                       <div style={{ fontSize: 14, color: 'var(--text-primary)' }}>Height (cm) over 12 months</div>
@@ -1105,7 +1105,7 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
                   ].map((ach, i) => (
                     <div key={i} style={{ position: 'relative' }}>
                       <div style={{ position: 'absolute', left: -24, top: 4, width: 16, height: 16, borderRadius: '50%', background: 'var(--mint)', border: '4px solid var(--bg-deepest)' }} />
-                      <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: 16 }}>
+                      <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: "var(--radius-md)", padding: 16 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
                           <span style={{ fontSize: 24 }}>{ach.icon}</span>
                           <div>
@@ -1125,20 +1125,20 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
               <div style={{ animation: 'fadeIn 0.3s ease' }}>
                 <h1 style={{ fontSize: 32, fontFamily: 'var(--font-display)', color: 'var(--text-primary)', marginBottom: 24 }}>Weekly Curriculum</h1>
                 <div style={{ display: 'grid', gap: 20 }}>
-                  <div style={{ background: 'var(--bg-elevated)', padding: 24, borderRadius: 16, border: '1px solid var(--border-subtle)' }}>
+                  <div style={{ background: 'var(--bg-elevated)', padding: 24, borderRadius: "var(--radius-lg)", border: '1px solid var(--border-subtle)' }}>
                     <div style={{ fontSize: 13, textTransform: 'uppercase', color: 'var(--mint)', marginBottom: 8, letterSpacing: '0.05em', fontWeight: 700 }}>Theme of the Week</div>
                     <div style={{ fontSize: 24, color: 'var(--text-primary)', fontWeight: 700, marginBottom: 12 }}>Community Helpers</div>
                     <div style={{ fontSize: 16, color: 'var(--text-secondary)', lineHeight: 1.5 }}>This week we are learning about doctors, firefighters, and teachers! We explore how they help our community stay safe and healthy.</div>
                   </div>
                   
                   <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 20 }}>
-                    <div style={{ background: 'var(--bg-elevated)', padding: 24, borderRadius: 16, border: '1px solid var(--border-subtle)' }}>
+                    <div style={{ background: 'var(--bg-elevated)', padding: 24, borderRadius: "var(--radius-lg)", border: '1px solid var(--border-subtle)' }}>
                       <div style={{ fontSize: 13, textTransform: 'uppercase', color: 'var(--text-tertiary)', marginBottom: 12, letterSpacing: '0.05em', fontWeight: 600 }}>Faith Focus</div>
                       <div style={{ fontSize: 16, color: 'var(--text-primary)', marginBottom: 8 }}>📖 <span style={{ fontWeight: 600 }}>Memory Verse:</span> "Love one another."</div>
                       <div style={{ fontSize: 16, color: 'var(--text-primary)' }}>🕊️ <span style={{ fontWeight: 600 }}>Bible Story:</span> The Good Samaritan</div>
                     </div>
                     
-                    <div style={{ background: 'var(--bg-elevated)', padding: 24, borderRadius: 16, border: '1px solid var(--border-subtle)' }}>
+                    <div style={{ background: 'var(--bg-elevated)', padding: 24, borderRadius: "var(--radius-lg)", border: '1px solid var(--border-subtle)' }}>
                       <div style={{ fontSize: 13, textTransform: 'uppercase', color: 'var(--text-tertiary)', marginBottom: 12, letterSpacing: '0.05em', fontWeight: 600 }}>Core Activities</div>
                       <ul style={{ margin: 0, paddingLeft: 24, color: 'var(--text-secondary)', fontSize: 16, lineHeight: 1.6 }}>
                         <li>Role-playing in the "Hospital" corner</li>
@@ -1154,12 +1154,12 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
             {activeTab === 'messages' && (
               <div style={{ animation: 'fadeIn 0.3s ease', height: '100%', display: 'flex', flexDirection: 'column' }}>
                 <h1 style={{ fontSize: 32, fontFamily: 'var(--font-display)', color: 'var(--text-primary)', marginBottom: 24 }}>Messages</h1>
-                <div style={{ flex: 1, background: 'var(--bg-elevated)', borderRadius: 16, border: '1px solid var(--border-subtle)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                <div style={{ flex: 1, background: 'var(--bg-elevated)', borderRadius: "var(--radius-lg)", border: '1px solid var(--border-subtle)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
                   <div style={{ flex: 1, padding: 24, overflowY: 'auto' }}>
                     {myMessages.length === 0 && <div style={{ color: 'var(--text-tertiary)', textAlign: 'center', marginTop: 40 }}>No messages yet. Say hello!</div>}
                     {myMessages.map(m => (
                       <div key={m.id} style={{ 
-                        marginBottom: 16, padding: 16, borderRadius: 12, maxWidth: '80%',
+                        marginBottom: 16, padding: 16, borderRadius: "var(--radius-md)", maxWidth: '80%',
                         background: m.fromRole === 'parent' ? 'rgba(0, 252, 143, 0.1)' : 'var(--bg-deep)',
                         border: m.fromRole === 'parent' ? '1px solid rgba(0, 252, 143, 0.2)' : '1px solid var(--border-default)',
                         alignSelf: m.fromRole === 'parent' ? 'flex-end' : 'flex-start',
@@ -1171,7 +1171,7 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
                     ))}
                   </div>
                   <div style={{ padding: 16, borderTop: '1px solid var(--border-subtle)', background: 'var(--bg-deep)', display: 'flex', gap: 12 }}>
-                    <input value={msgText} onChange={e => setMsgText(e.target.value)} placeholder="Message the Branch Manager..." style={{ flex: 1, background: 'var(--bg-elevated)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '12px 16px', borderRadius: 8, fontSize: 15, outline: 'none' }} />
+                    <input value={msgText} onChange={e => setMsgText(e.target.value)} placeholder="Message the Branch Manager..." style={{ flex: 1, background: 'var(--bg-elevated)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '12px 16px', borderRadius: "var(--radius-sm)", fontSize: 15, outline: 'none' }} />
                     <button onClick={async () => {
                       if (!msgText.trim()) return;
                       const newMsg = { id: Date.now(), threadId: `parent-${child.id}`, fromRole: 'parent', fromName: user.name, toRole: 'manager', toName: 'Branch Manager', branchId: 'charis-kampala', text: msgText, time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) };
@@ -1189,7 +1189,7 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
                            time: newMsg.time
                         }]);
                       }
-                    }} style={{ background: 'var(--mint)', color: '#000', border: 'none', padding: '0 24px', borderRadius: 8, fontWeight: 700, cursor: 'pointer', fontSize: 15 }}>Send</button>
+                    }} style={{ background: 'var(--mint)', color: 'var(--text-inverse)', border: 'none', padding: '0 24px', borderRadius: "var(--radius-sm)", fontWeight: 700, cursor: 'pointer', fontSize: 15 }}>Send</button>
                   </div>
                 </div>
               </div>
@@ -1200,11 +1200,11 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
                 <h1 style={{ fontSize: 32, fontFamily: 'var(--font-display)', color: 'var(--text-primary)', marginBottom: 12 }}>Pickup Pass</h1>
                 <p style={{ fontSize: 16, color: 'var(--text-secondary)', marginBottom: 32 }}>Scan this code at the center gate to authorize pickup for {child.name}.</p>
                 
-                <div style={{ background: 'linear-gradient(135deg, #ffffff 0%, #f0f0f0 100%)', padding: 32, borderRadius: 24, display: 'inline-block', marginBottom: 32, boxShadow: '0 20px 40px rgba(0,0,0,0.4)', border: '8px solid var(--bg-elevated)' }}>
+                <div style={{ background: 'linear-gradient(135deg, #ffffff 0%, #f0f0f0 100%)', padding: 32, borderRadius: "var(--radius-lg)", display: 'inline-block', marginBottom: 32, boxShadow: '0 20px 40px rgba(0,0,0,0.4)', border: '8px solid var(--bg-elevated)' }}>
                   <img src={`https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent((typeof window !== 'undefined' ? window.location.origin + window.location.pathname : '') + '?pass=' + child.id)}`} alt="QR Code" style={{ width: 240, height: 240, mixBlendMode: 'multiply' }} />
                 </div>
                 
-                <div style={{ background: 'var(--bg-elevated)', padding: 20, borderRadius: 16, border: '1px solid var(--border-subtle)', textAlign: 'left' }}>
+                <div style={{ background: 'var(--bg-elevated)', padding: 20, borderRadius: "var(--radius-lg)", border: '1px solid var(--border-subtle)', textAlign: 'left' }}>
                   <div style={{ fontSize: 12, textTransform: 'uppercase', color: 'var(--text-tertiary)', marginBottom: 8, letterSpacing: '0.05em', fontWeight: 600 }}>Authorized Pickups</div>
                   <div style={{ fontSize: 16, color: 'var(--text-primary)', fontWeight: 500 }}>{child.authorizedPickups || 'Parents only'}</div>
                 </div>
@@ -1216,13 +1216,13 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
                 <h1 style={{ fontSize: 32, fontFamily: 'var(--font-display)', color: 'var(--text-primary)', marginBottom: 24 }}>Weekly Feedback</h1>
                 
                 {feedbackSubmitted ? (
-                  <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 16, padding: 48, textAlign: 'center' }}>
+                  <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: "var(--radius-lg)", padding: 48, textAlign: 'center' }}>
                     <div style={{ fontSize: 64, marginBottom: 24 }}>✨</div>
                     <div style={{ fontSize: 24, color: 'var(--text-primary)', fontWeight: 700, marginBottom: 8 }}>Thank you!</div>
                     <div style={{ fontSize: 16, color: 'var(--text-secondary)' }}>Your input helps us continuously improve the Amani experience.</div>
                   </div>
                 ) : (
-                  <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 16, padding: 32 }}>
+                  <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: "var(--radius-lg)", padding: 32 }}>
                     <div style={{ marginBottom: 32 }}>
                       <div style={{ fontSize: 16, color: 'var(--text-primary)', fontWeight: 600, marginBottom: 16, textAlign: 'center' }}>How was {child.name}'s experience this week?</div>
                       <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
@@ -1233,14 +1233,14 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
                     </div>
                     <div style={{ marginBottom: 24 }}>
                       <div style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 8, fontWeight: 500 }}>Additional Comments</div>
-                      <textarea value={feedbackText} onChange={e => setFeedbackText(e.target.value)} rows={5} placeholder="Tell us what you liked or how we can improve..." style={{ width: '100%', background: 'var(--bg-deep)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: 16, borderRadius: 12, fontFamily: 'inherit', resize: 'none', fontSize: 15, outline: 'none' }} />
+                      <textarea value={feedbackText} onChange={e => setFeedbackText(e.target.value)} rows={5} placeholder="Tell us what you liked or how we can improve..." style={{ width: '100%', background: 'var(--bg-deep)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: 16, borderRadius: "var(--radius-md)", fontFamily: 'inherit', resize: 'none', fontSize: 15, outline: 'none' }} />
                     </div>
                     <button onClick={() => {
                       if (setParentFeedback) {
                         setParentFeedback(prev => [{ id: Date.now(), parent: user.name, rating: feedbackRating, comment: feedbackText, date: new Date().toISOString().split('T')[0] }, ...prev]);
                       }
                       setFeedbackSubmitted(true);
-                    }} style={{ width: '100%', background: 'var(--mint)', color: '#000', border: 'none', padding: '16px', borderRadius: 12, fontWeight: 700, cursor: 'pointer', fontSize: 16, transition: 'background 0.2s' }}>Submit Feedback</button>
+                    }} style={{ width: '100%', background: 'var(--mint)', color: 'var(--text-inverse)', border: 'none', padding: '16px', borderRadius: "var(--radius-md)", fontWeight: 700, cursor: 'pointer', fontSize: 16, transition: 'background 0.2s' }}>Submit Feedback</button>
                   </div>
                 )}
               </div>
@@ -1268,7 +1268,7 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
 
         {isEditingProfile && (
           <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-            <div style={{ background: 'var(--bg-elevated)', borderRadius: 16, padding: 32, width: '100%', maxWidth: 500, position: 'relative', maxHeight: '90vh', overflowY: 'auto' }}>
+            <div style={{ background: 'var(--bg-elevated)', borderRadius: "var(--radius-lg)", padding: 32, width: '100%', maxWidth: 500, position: 'relative', maxHeight: '90vh', overflowY: 'auto' }}>
               <button onClick={() => setIsEditingProfile(false)} style={{ position: 'absolute', top: 16, right: 16, background: 'none', border: 'none', color: 'var(--text-tertiary)', fontSize: 24, cursor: 'pointer' }}>×</button>
               <h2 style={{ fontSize: 24, margin: '0 0 20px', color: 'var(--text-primary)', fontFamily: 'var(--font-display)' }}>Complete Profile</h2>
               <form onSubmit={e => {
@@ -1287,13 +1287,13 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
                 setIsEditingProfile(false);
               }}>
                 <div style={{ display: 'grid', gap: 16, marginBottom: 24 }}>
-                  <div><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Child's Photo URL (Optional)</label><input name="photoUrl" defaultValue={(child.photoUrl && child.photoUrl.includes('unsplash')) ? '' : child.photoUrl} placeholder="https://..." style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }} /></div>
-                  <div><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Emergency Contact (Name & Phone)</label><input name="emergencyContact" defaultValue={child.emergencyContact || ''} required style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }} /></div>
-                  <div><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Home Address</label><input name="homeAddress" defaultValue={child.homeAddress || ''} style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }} /></div>
-                  <div><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Doctor's Name & Clinic</label><input name="doctorInfo" defaultValue={child.doctorInfo || ''} style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }} /></div>
-                  <div><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Favourite Meals</label><input name="favouriteMeals" defaultValue={child.favouriteMeals === 'To be determined' ? '' : child.favouriteMeals} style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }} /></div>
+                  <div><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Child's Photo URL (Optional)</label><input name="photoUrl" defaultValue={(child.photoUrl && child.photoUrl.includes('unsplash')) ? '' : child.photoUrl} placeholder="https://..." style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: "var(--radius-sm)" }} /></div>
+                  <div><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Emergency Contact (Name & Phone)</label><input name="emergencyContact" defaultValue={child.emergencyContact || ''} required style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: "var(--radius-sm)" }} /></div>
+                  <div><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Home Address</label><input name="homeAddress" defaultValue={child.homeAddress || ''} style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: "var(--radius-sm)" }} /></div>
+                  <div><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Doctor's Name & Clinic</label><input name="doctorInfo" defaultValue={child.doctorInfo || ''} style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: "var(--radius-sm)" }} /></div>
+                  <div><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Favourite Meals</label><input name="favouriteMeals" defaultValue={child.favouriteMeals === 'To be determined' ? '' : child.favouriteMeals} style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: "var(--radius-sm)" }} /></div>
                 </div>
-                <button type="submit" style={{ width: '100%', padding: 14, background: 'var(--mint)', color: '#000', border: 'none', borderRadius: 12, fontSize: 15, fontWeight: 700, cursor: 'pointer' }}>Save Profile</button>
+                <button type="submit" style={{ width: '100%', padding: 14, background: 'var(--mint)', color: 'var(--text-inverse)', border: 'none', borderRadius: "var(--radius-md)", fontSize: 15, fontWeight: 700, cursor: 'pointer' }}>Save Profile</button>
               </form>
             </div>
           </div>
@@ -1399,9 +1399,9 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
               const isSelected = selectedThreadId === thread.id;
               return (
                 <div key={thread.id} onClick={() => setSelectedThreadId(thread.id)} style={{
-                  background: isSelected ? 'rgba(0,252,143,0.1)' : 'var(--bg-elevated)',
+                  background: isSelected ? 'rgba(6,214,160,0.1)' : 'var(--bg-elevated)',
                   border: isSelected ? '1px solid var(--mint)' : '1px solid var(--border-subtle)',
-                  borderRadius: 12, padding: 14, marginBottom: 10, cursor: 'pointer', transition: 'all 0.2s'
+                  borderRadius: "var(--radius-md)", padding: 14, marginBottom: 10, cursor: 'pointer', transition: 'all 0.2s'
                 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
                     <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>
@@ -1418,13 +1418,13 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
         </div>
 
         {/* Thread Viewer + Composer */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: 'var(--bg-elevated)', borderRadius: 12, border: '1px solid var(--border-subtle)', overflow: 'hidden' }}>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: 'var(--bg-elevated)', borderRadius: "var(--radius-md)", border: '1px solid var(--border-subtle)', overflow: 'hidden' }}>
           <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
               {activeThread ? Array.from(activeThread.participants).filter(p => p !== currentUser.name).join(', ') : 'New Message'}
             </div>
             {currentUser.role === 'director' && activeThread && activeThread.id.startsWith('parent-') && (
-              <span style={{ fontSize: 11, background: 'rgba(255,180,0,0.1)', color: '#FFB400', padding: '4px 8px', borderRadius: 4, fontWeight: 700 }}>READ ONLY (Parent ↔ Manager)</span>
+              <span style={{ fontSize: 11, background: 'rgba(255,209,102,0.1)', color: 'var(--gold)', padding: '4px 8px', borderRadius: 4, fontWeight: 700 }}>READ ONLY (Parent ↔ Manager)</span>
             )}
           </div>
 
@@ -1440,9 +1440,9 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
                 return (
                   <div key={msg.id} style={{
                     alignSelf: isMe ? 'flex-end' : 'flex-start',
-                    background: isMe ? 'rgba(0,252,143,0.1)' : 'var(--bg-deepest)',
-                    border: isMe ? '1px solid rgba(0,252,143,0.2)' : '1px solid var(--border-subtle)',
-                    padding: '12px 16px', borderRadius: 12, maxWidth: '80%'
+                    background: isMe ? 'rgba(6,214,160,0.1)' : 'var(--bg-deepest)',
+                    border: isMe ? '1px solid rgba(6,214,160,0.2)' : '1px solid var(--border-subtle)',
+                    padding: '12px 16px', borderRadius: "var(--radius-md)", maxWidth: '80%'
                   }}>
                     <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginBottom: 4 }}>{msg.fromName} • {msg.time}</div>
                     <div style={{ fontSize: 14, color: 'var(--text-primary)' }}>{msg.text}</div>
@@ -1455,17 +1455,17 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
           {(!activeThread || !(currentUser.role === 'director' && activeThread && activeThread.id.startsWith('parent-'))) && (
             <div style={{ padding: 20, borderTop: '1px solid var(--border-subtle)', background: 'var(--bg-default)' }}>
               <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-                <select value={recipient} onChange={e => setRecipient(e.target.value)} style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '12px', borderRadius: 8, minWidth: 200 }}>
+                <select value={recipient} onChange={e => setRecipient(e.target.value)} style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '12px', borderRadius: "var(--radius-sm)", minWidth: 200 }}>
                   <option value="">-- Select Recipient --</option>
                   {allowedRecipients.map(r => <option key={r.name} value={r.name}>{r.name} ({r.role})</option>)}
                 </select>
                 <input
                   value={composeText} onChange={e => setComposeText(e.target.value)}
                   placeholder="Type a message..."
-                  style={{ flex: 1, background: 'var(--bg-deepest)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '12px 16px', borderRadius: 8, outline: 'none' }}
+                  style={{ flex: 1, background: 'var(--bg-deepest)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '12px 16px', borderRadius: "var(--radius-sm)", outline: 'none' }}
                   onKeyDown={e => e.key === 'Enter' && handleSendMessage()}
                 />
-                <button onClick={handleSendMessage} disabled={!composeText.trim() || !recipient} style={{ background: 'var(--mint)', color: '#000', border: 'none', padding: '0 24px', borderRadius: 8, fontWeight: 700, cursor: (!composeText.trim() || !recipient) ? 'not-allowed' : 'pointer', height: 44, opacity: (!composeText.trim() || !recipient) ? 0.5 : 1 }}>Send</button>
+                <button onClick={handleSendMessage} disabled={!composeText.trim() || !recipient} style={{ background: 'var(--mint)', color: 'var(--text-inverse)', border: 'none', padding: '0 24px', borderRadius: "var(--radius-sm)", fontWeight: 700, cursor: (!composeText.trim() || !recipient) ? 'not-allowed' : 'pointer', height: 44, opacity: (!composeText.trim() || !recipient) ? 0.5 : 1 }}>Send</button>
               </div>
             </div>
           )}
@@ -1493,33 +1493,33 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 20 }}>
           
           {/* Live Ratios / In Building */}
-          <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: 20 }}>
+          <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: "var(--radius-md)", padding: 20 }}>
             <div style={{ fontSize: 14, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 16, fontWeight: 700 }}>In Building Now</div>
             <div style={{ display: 'flex', gap: 20, marginBottom: 16 }}>
-              <div style={{ flex: 1, background: 'var(--bg-deepest)', padding: 16, borderRadius: 8 }}>
-                <div style={{ fontSize: 32, fontWeight: 800, color: '#00FC8F' }}>{presentChildren.length}</div>
+              <div style={{ flex: 1, background: 'var(--bg-deepest)', padding: 16, borderRadius: "var(--radius-sm)" }}>
+                <div style={{ fontSize: 32, fontWeight: 800, color: 'var(--mint)' }}>{presentChildren.length}</div>
                 <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Children</div>
               </div>
-              <div style={{ flex: 1, background: 'var(--bg-deepest)', padding: 16, borderRadius: 8 }}>
-                <div style={{ fontSize: 32, fontWeight: 800, color: '#3B82F6' }}>{staffOnShift}</div>
+              <div style={{ flex: 1, background: 'var(--bg-deepest)', padding: 16, borderRadius: "var(--radius-sm)" }}>
+                <div style={{ fontSize: 32, fontWeight: 800, color: 'var(--info)' }}>{staffOnShift}</div>
                 <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Staff</div>
               </div>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: ratio > 10 ? 'rgba(255, 71, 87, 0.1)' : 'rgba(0, 252, 143, 0.1)', padding: 12, borderRadius: 8, border: `1px solid ${ratio > 10 ? 'rgba(255, 71, 87, 0.3)' : 'rgba(0, 252, 143, 0.3)'}` }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: ratio > 10 ? 'rgba(255, 71, 87, 0.1)' : 'rgba(0, 252, 143, 0.1)', padding: 12, borderRadius: "var(--radius-sm)", border: `1px solid ${ratio > 10 ? 'rgba(255, 71, 87, 0.3)' : 'rgba(0, 252, 143, 0.3)'}` }}>
               <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>Live Ratio: {ratio.toFixed(1)}:1</span>
-              <span style={{ fontSize: 12, fontWeight: 700, color: ratio > 10 ? '#FF4757' : '#00FC8F' }}>{ratioStatus}</span>
+              <span style={{ fontSize: 12, fontWeight: 700, color: ratio > 10 ? 'var(--danger)' : 'var(--mint)' }}>{ratioStatus}</span>
             </div>
           </div>
 
           {/* Kitchen & Allergy Check */}
-          <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: 20 }}>
+          <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: "var(--radius-md)", padding: 20 }}>
             <div style={{ fontSize: 14, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 16, fontWeight: 700 }}>Kitchen & Meals</div>
             <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 12 }}>Today's Menu: <strong style={{ color: 'var(--text-primary)' }}>Mac & Cheese, Apples</strong></div>
-            <div style={{ background: 'var(--bg-deepest)', padding: 16, borderRadius: 8, border: '1px solid var(--border-default)', marginBottom: 16 }}>
-              <div style={{ fontSize: 12, color: '#FFB400', fontWeight: 700, marginBottom: 8 }}>⚠️ Allergy Alerts for Present Children</div>
+            <div style={{ background: 'var(--bg-deepest)', padding: 16, borderRadius: "var(--radius-sm)", border: '1px solid var(--border-default)', marginBottom: 16 }}>
+              <div style={{ fontSize: 12, color: 'var(--gold)', fontWeight: 700, marginBottom: 8 }}>⚠️ Allergy Alerts for Present Children</div>
               {presentChildren.filter(c => c.allergies && c.allergies !== 'None').map(c => (
                 <div key={c.id} style={{ fontSize: 12, color: 'var(--text-primary)', marginBottom: 4 }}>
-                  • {c.name}: <span style={{ color: '#FF4757' }}>{c.allergies}</span>
+                  • {c.name}: <span style={{ color: 'var(--danger)' }}>{c.allergies}</span>
                 </div>
               ))}
               {presentChildren.filter(c => c.allergies && c.allergies !== 'None').length === 0 && (
@@ -1529,14 +1529,14 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
             <button 
               onClick={() => setKitchenConfirmed(true)}
               disabled={kitchenConfirmed}
-              style={{ width: '100%', padding: 12, borderRadius: 8, border: 'none', background: kitchenConfirmed ? 'rgba(0, 252, 143, 0.2)' : 'var(--mint)', color: kitchenConfirmed ? '#00FC8F' : '#000', fontWeight: 700, cursor: kitchenConfirmed ? 'default' : 'pointer', transition: 'all 0.2s' }}
+              style={{ width: '100%', padding: 12, borderRadius: "var(--radius-sm)", border: 'none', background: kitchenConfirmed ? 'rgba(0, 252, 143, 0.2)' : 'var(--mint)', color: kitchenConfirmed ? 'var(--mint)' : 'var(--text-inverse)', fontWeight: 700, cursor: kitchenConfirmed ? 'default' : 'pointer', transition: 'all 0.2s' }}
             >
               {kitchenConfirmed ? '✓ Allergy Cross-check Confirmed' : 'Confirm Allergy Cross-check to Serve'}
             </button>
           </div>
           
           {/* Cleaning Checklist */}
-          <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: 20 }}>
+          <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: "var(--radius-md)", padding: 20 }}>
             <div style={{ fontSize: 14, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 16, fontWeight: 700 }}>Cleaning Tasks</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {[
@@ -1545,10 +1545,10 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
                 { task: 'Nap Mats Disinfected', done: false, time: null, by: null },
                 { task: 'End of Day Deep Clean', done: false, time: null, by: null },
               ].map((item, i) => (
-                <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--bg-deepest)', padding: '10px 14px', borderRadius: 8, border: '1px solid var(--border-default)' }}>
+                <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--bg-deepest)', padding: '10px 14px', borderRadius: "var(--radius-sm)", border: '1px solid var(--border-default)' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <div style={{ width: 16, height: 16, borderRadius: 4, background: item.done ? '#00FC8F' : 'transparent', border: `2px solid ${item.done ? '#00FC8F' : 'var(--border-subtle)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      {item.done && <span style={{ color: '#000', fontSize: 10 }}>✓</span>}
+                    <div style={{ width: 16, height: 16, borderRadius: 4, background: item.done ? 'var(--mint)' : 'transparent', border: `2px solid ${item.done ? 'var(--mint)' : 'var(--border-subtle)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      {item.done && <span style={{ color: 'var(--text-inverse)', fontSize: 10 }}>✓</span>}
                     </div>
                     <span style={{ fontSize: 13, color: item.done ? 'var(--text-secondary)' : 'var(--text-primary)', textDecoration: item.done ? 'line-through' : 'none' }}>{item.task}</span>
                   </div>
@@ -1559,10 +1559,10 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
           </div>
 
           {/* Pickup Window */}
-          <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: 20 }}>
+          <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: "var(--radius-md)", padding: 20 }}>
             <div style={{ fontSize: 14, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 16, fontWeight: 700 }}>Pickup Window (Next Hour)</div>
             {nextHourPickups.map(c => (
-              <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 12, background: 'var(--bg-deepest)', padding: 12, borderRadius: 8, marginBottom: 8, border: '1px solid var(--border-default)' }}>
+              <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 12, background: 'var(--bg-deepest)', padding: 12, borderRadius: "var(--radius-sm)", marginBottom: 8, border: '1px solid var(--border-default)' }}>
                 <img src={c.photoUrl} alt="" style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover' }} />
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{c.name}</div>
@@ -1571,12 +1571,12 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
                 <button onClick={() => onSignOut && onSignOut(c)} style={{ background: 'transparent', border: '1px solid var(--mint)', color: 'var(--mint)', borderRadius: 6, padding: '6px 10px', fontSize: 11, cursor: 'pointer' }}>Sign Out</button>
               </div>
             ))}
-            <div style={{ marginTop: 16, padding: 12, background: 'rgba(255, 180, 0, 0.1)', borderRadius: 8, border: '1px solid rgba(255, 180, 0, 0.3)' }}>
-              <div style={{ fontSize: 12, color: '#FFB400', fontWeight: 600, marginBottom: 4 }}>Note: Non-routine Pickups</div>
+            <div style={{ marginTop: 16, padding: 12, background: 'rgba(255, 180, 0, 0.1)', borderRadius: "var(--radius-sm)", border: '1px solid rgba(255, 180, 0, 0.3)' }}>
+              <div style={{ fontSize: 12, color: 'var(--gold)', fontWeight: 600, marginBottom: 4 }}>Note: Non-routine Pickups</div>
               <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>Aiden Nakamya's aunt (Sarah) is authorized for today. Verify ID.</div>
             </div>
             <div style={{ marginTop: 16 }}>
-              <button onClick={onOpenScanner} style={{ width: '100%', padding: 12, borderRadius: 8, border: 'none', background: 'var(--text-primary)', color: 'var(--bg-default)', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}><span>📷</span> Scan Pickup QR Code</button>
+              <button onClick={onOpenScanner} style={{ width: '100%', padding: 12, borderRadius: "var(--radius-sm)", border: 'none', background: 'var(--text-primary)', color: 'var(--bg-default)', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}><span>📷</span> Scan Pickup QR Code</button>
             </div>
           </div>
 
@@ -1631,7 +1631,7 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
         <h2 style={{ fontSize: 24, fontWeight: 700, color: 'var(--text-primary)', margin: 0, fontFamily: 'var(--font-display)' }}>Staff Rota & Ratio Management</h2>
         
         {/* Ratio Heatmap */}
-        <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: 20 }}>
+        <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: "var(--radius-md)", padding: 20 }}>
           <div style={{ fontSize: 14, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 16, fontWeight: 700 }}>Live Ratio Heatmap (Today)</div>
           <div style={{ display: 'flex', overflowX: 'auto', gap: 8, paddingBottom: 8 }}>
             {expectedChildrenPerHour.map(slot => {
@@ -1639,9 +1639,9 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
               const ratio = staffCount > 0 ? (slot.count / staffCount) : slot.count;
               const isDanger = ratio > 10 || staffCount === 0;
               return (
-                <div key={slot.time} style={{ flex: '0 0 auto', width: 60, textAlign: 'center', background: 'var(--bg-deepest)', border: `1px solid ${isDanger ? 'rgba(255, 71, 87, 0.5)' : 'var(--border-default)'}`, borderRadius: 8, padding: '8px 4px' }}>
+                <div key={slot.time} style={{ flex: '0 0 auto', width: 60, textAlign: 'center', background: 'var(--bg-deepest)', border: `1px solid ${isDanger ? 'rgba(255, 71, 87, 0.5)' : 'var(--border-default)'}`, borderRadius: "var(--radius-sm)", padding: '8px 4px' }}>
                   <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 8 }}>{slot.time}</div>
-                  <div style={{ width: '100%', height: 40, background: isDanger ? 'rgba(255, 71, 87, 0.2)' : 'rgba(0, 252, 143, 0.1)', borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', color: isDanger ? '#FF4757' : '#00FC8F', fontWeight: 700, fontSize: 14 }}>
+                  <div style={{ width: '100%', height: 40, background: isDanger ? 'rgba(255, 71, 87, 0.2)' : 'rgba(0, 252, 143, 0.1)', borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', color: isDanger ? 'var(--danger)' : 'var(--mint)', fontWeight: 700, fontSize: 14 }}>
                     {ratio.toFixed(1)}
                   </div>
                   <div style={{ fontSize: 9, color: 'var(--text-tertiary)', marginTop: 8 }}>{slot.count} kids<br/>{staffCount} staff</div>
@@ -1650,20 +1650,20 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
             })}
           </div>
           {expectedChildrenPerHour.some(slot => (getStaffCountForHour(slot.time) > 0 ? (slot.count / getStaffCountForHour(slot.time)) : slot.count) > 10) && (
-            <div style={{ marginTop: 16, padding: 12, background: 'rgba(255, 71, 87, 0.1)', borderRadius: 8, border: '1px solid rgba(255, 71, 87, 0.3)', color: '#FF4757', fontSize: 13, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ marginTop: 16, padding: 12, background: 'rgba(255, 71, 87, 0.1)', borderRadius: "var(--radius-sm)", border: '1px solid rgba(255, 71, 87, 0.3)', color: 'var(--danger)', fontSize: 13, display: 'flex', alignItems: 'center', gap: 8 }}>
               <span>🚨</span> Ratio non-compliance detected! Coverage required immediately.
             </div>
           )}
         </div>
 
         {/* Daily Schedule & Sick Calls */}
-        <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: 20 }}>
+        <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: "var(--radius-md)", padding: 20 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
             <div style={{ fontSize: 14, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700 }}>Today's Rota</div>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {staffData.map(staff => (
-              <div key={staff.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--bg-deepest)', padding: 12, borderRadius: 8, border: staff.status === 'sick' ? '1px solid rgba(255, 71, 87, 0.5)' : '1px solid var(--border-default)' }}>
+              <div key={staff.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--bg-deepest)', padding: 12, borderRadius: "var(--radius-sm)", border: staff.status === 'sick' ? '1px solid rgba(255, 71, 87, 0.5)' : '1px solid var(--border-default)' }}>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: 14, fontWeight: 600, color: staff.status === 'sick' ? 'var(--text-secondary)' : 'var(--text-primary)', textDecoration: staff.status === 'sick' ? 'line-through' : 'none' }}>{staff.name}</div>
                   <div style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>{staff.role} • {staff.room}</div>
@@ -1676,7 +1676,7 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
                   {staff.status === 'active' ? (
                     <button onClick={() => handleSickCall(staff.id)} style={{ background: 'transparent', border: '1px solid var(--border-subtle)', color: 'var(--text-secondary)', padding: '6px 12px', borderRadius: 6, fontSize: 11, cursor: 'pointer', transition: 'all 0.2s' }}>Log Sick Call</button>
                   ) : (
-                    <button onClick={() => handleCallCover(staff.id)} style={{ background: '#FF4757', border: 'none', color: '#fff', padding: '6px 12px', borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: 'pointer', animation: 'pulse 2s infinite' }}>Call Cover</button>
+                    <button onClick={() => handleCallCover(staff.id)} style={{ background: 'var(--danger)', border: 'none', color: '#fff', padding: '6px 12px', borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: 'pointer', animation: 'pulse 2s infinite' }}>Call Cover</button>
                   )}
                 </div>
               </div>
@@ -1685,7 +1685,7 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
         </div>
 
         {/* Break Coverage Map */}
-        <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: 20 }}>
+        <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: "var(--radius-md)", padding: 20 }}>
           <div style={{ fontSize: 14, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 16, fontWeight: 700 }}>Break Coverage Schedule</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr 1fr', fontSize: 12, color: 'var(--text-secondary)', paddingBottom: 8, borderBottom: '1px solid var(--border-subtle)' }}>
@@ -1811,25 +1811,25 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
                     <h2 style={{ fontSize: 24, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>Investor Dashboard</h2>
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 16 }}>
-                    <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: 24 }}>
+                    <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: "var(--radius-md)", padding: 24 }}>
                         <div style={{ fontSize: 13, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Capital Contribution</div>
                         <div style={{ fontSize: 32, fontWeight: 800, color: '#fff' }}>UGX {INVESTOR_DATA.contributed.toLocaleString()}</div>
                         <div style={{ fontSize: 13, color: 'var(--mint)', marginTop: 8 }}>100% Equity Ownership</div>
                     </div>
-                    <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: 24 }}>
+                    <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: "var(--radius-md)", padding: 24 }}>
                         <div style={{ fontSize: 13, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Available Runway</div>
                         <div style={{ fontSize: 32, fontWeight: 800, color: '#fff' }}>{runwayMonths.toFixed(1)} Months</div>
                         <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 8 }}>Based on current burn rate</div>
                     </div>
                 </div>
-                <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: 24 }}>
+                <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: "var(--radius-md)", padding: 24 }}>
                     <h3 style={{ fontSize: 16, color: 'var(--text-primary)', marginTop: 0, marginBottom: 16 }}>Use of Funds</h3>
                     <div style={{ display: 'flex', gap: 24, alignItems: 'center' }}>
-                        <div style={{ width: 120, height: 120, borderRadius: '50%', background: `conic-gradient(#FF4757 ${(staffCost/INVESTOR_DATA.contributed)*100}%, #FFB400 0 ${(staffCost+premisesCost)/INVESTOR_DATA.contributed*100}%, #00FC8F 0)` }}></div>
+                        <div style={{ width: 120, height: 120, borderRadius: '50%', background: `conic-gradient(var(--danger) ${(staffCost/INVESTOR_DATA.contributed)*100}%, var(--gold) 0 ${(staffCost+premisesCost)/INVESTOR_DATA.contributed*100}%, var(--mint) 0)` }}></div>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><div style={{ width: 12, height: 12, background: '#FF4757', borderRadius: '50%' }}></div><span style={{ fontSize: 14, color: 'var(--text-secondary)' }}>Staffing (UGX {staffCost.toLocaleString()})</span></div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><div style={{ width: 12, height: 12, background: '#FFB400', borderRadius: '50%' }}></div><span style={{ fontSize: 14, color: 'var(--text-secondary)' }}>Premises (UGX {premisesCost.toLocaleString()})</span></div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><div style={{ width: 12, height: 12, background: '#00FC8F', borderRadius: '50%' }}></div><span style={{ fontSize: 14, color: 'var(--text-secondary)' }}>Remaining Cash (UGX {totalCash.toLocaleString()})</span></div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><div style={{ width: 12, height: 12, background: 'var(--danger)', borderRadius: '50%' }}></div><span style={{ fontSize: 14, color: 'var(--text-secondary)' }}>Staffing (UGX {staffCost.toLocaleString()})</span></div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><div style={{ width: 12, height: 12, background: 'var(--gold)', borderRadius: '50%' }}></div><span style={{ fontSize: 14, color: 'var(--text-secondary)' }}>Premises (UGX {premisesCost.toLocaleString()})</span></div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><div style={{ width: 12, height: 12, background: 'var(--mint)', borderRadius: '50%' }}></div><span style={{ fontSize: 14, color: 'var(--text-secondary)' }}>Remaining Cash (UGX {totalCash.toLocaleString()})</span></div>
                         </div>
                     </div>
                 </div>
@@ -1845,7 +1845,7 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
              <button onClick={() => setFinanceView('ledger')} style={{ background: 'transparent', border: 'none', fontSize: 16, fontWeight: 700, color: financeView === 'ledger' ? 'var(--mint)' : 'var(--text-secondary)', cursor: 'pointer', padding: 0 }}>Ledger</button>
           </div>
           {financeView === 'ledger' && (
-              <button onClick={() => setShowTxForm(!showTxForm)} style={{ background: 'var(--mint)', color: '#000', border: 'none', padding: '8px 16px', borderRadius: 8, fontWeight: 700, cursor: 'pointer' }}>
+              <button onClick={() => setShowTxForm(!showTxForm)} style={{ background: 'var(--mint)', color: 'var(--text-inverse)', border: 'none', padding: '8px 16px', borderRadius: "var(--radius-sm)", fontWeight: 700, cursor: 'pointer' }}>
                   {showTxForm ? 'Cancel' : '+ Add Transaction'}
               </button>
           )}
@@ -1854,39 +1854,39 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
         {financeView === 'dashboard' && (
             <React.Fragment>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>
-                    <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: 20 }}>
+                    <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: "var(--radius-md)", padding: 20 }}>
                         <div style={{ fontSize: 12, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Bank Balance</div>
-                        <div style={{ fontSize: 28, fontWeight: 800, color: '#00FC8F' }}>UGX {cashBank.toLocaleString()}</div>
+                        <div style={{ fontSize: 28, fontWeight: 800, color: 'var(--mint)' }}>UGX {cashBank.toLocaleString()}</div>
                     </div>
-                    <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: 20 }}>
+                    <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: "var(--radius-md)", padding: 20 }}>
                         <div style={{ fontSize: 12, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Mobile Money (MoMo)</div>
-                        <div style={{ fontSize: 28, fontWeight: 800, color: '#00FC8F' }}>UGX {cashMoMo.toLocaleString()}</div>
+                        <div style={{ fontSize: 28, fontWeight: 800, color: 'var(--mint)' }}>UGX {cashMoMo.toLocaleString()}</div>
                     </div>
-                    <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: 20 }}>
+                    <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: "var(--radius-md)", padding: 20 }}>
                         <div style={{ fontSize: 12, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Net Income</div>
-                        <div style={{ fontSize: 28, fontWeight: 800, color: netIncome >= 0 ? '#00FC8F' : '#FF4757' }}>UGX {netIncome.toLocaleString()}</div>
+                        <div style={{ fontSize: 28, fontWeight: 800, color: netIncome >= 0 ? 'var(--mint)' : 'var(--danger)' }}>UGX {netIncome.toLocaleString()}</div>
                     </div>
                 </div>
 
-                <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: 20 }}>
+                <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: "var(--radius-md)", padding: 20 }}>
                     <h3 style={{ fontSize: 16, margin: '0 0 16px', color: 'var(--text-primary)' }}>Profit & Loss Overview</h3>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14 }}>
                             <span style={{ color: 'var(--text-secondary)' }}>Total Revenue (4xxx)</span>
-                            <span style={{ color: '#00FC8F', fontFamily: 'var(--font-mono)' }}>UGX {totalRevenue.toLocaleString()}</span>
+                            <span style={{ color: 'var(--mint)', fontFamily: 'var(--font-mono)' }}>UGX {totalRevenue.toLocaleString()}</span>
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14 }}>
                             <span style={{ color: 'var(--text-secondary)' }}>Cost of Care (5xxx)</span>
-                            <span style={{ color: '#FF4757', fontFamily: 'var(--font-mono)' }}>UGX {costOfCare.toLocaleString()}</span>
+                            <span style={{ color: 'var(--danger)', fontFamily: 'var(--font-mono)' }}>UGX {costOfCare.toLocaleString()}</span>
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14 }}>
                             <span style={{ color: 'var(--text-secondary)' }}>Staffing & Premises (6xxx)</span>
-                            <span style={{ color: '#FF4757', fontFamily: 'var(--font-mono)' }}>UGX {(staffCost + premisesCost).toLocaleString()}</span>
+                            <span style={{ color: 'var(--danger)', fontFamily: 'var(--font-mono)' }}>UGX {(staffCost + premisesCost).toLocaleString()}</span>
                         </div>
                         <div style={{ borderTop: '1px solid var(--border-subtle)', margin: '8px 0' }}></div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 16, fontWeight: 700 }}>
                             <span style={{ color: 'var(--text-primary)' }}>Net Income</span>
-                            <span style={{ color: netIncome >= 0 ? '#00FC8F' : '#FF4757', fontFamily: 'var(--font-mono)' }}>UGX {netIncome.toLocaleString()}</span>
+                            <span style={{ color: netIncome >= 0 ? 'var(--mint)' : 'var(--danger)', fontFamily: 'var(--font-mono)' }}>UGX {netIncome.toLocaleString()}</span>
                         </div>
                     </div>
                 </div>
@@ -1896,21 +1896,21 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
         {financeView === 'ledger' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                 {showTxForm && (
-                    <form onSubmit={handleAddTx} style={{ background: 'var(--bg-elevated)', border: '1px solid var(--mint)', borderRadius: 12, padding: 20, display: 'flex', flexDirection: 'column', gap: 16 }}>
+                    <form onSubmit={handleAddTx} style={{ background: 'var(--bg-elevated)', border: '1px solid var(--mint)', borderRadius: "var(--radius-md)", padding: 20, display: 'flex', flexDirection: 'column', gap: 16 }}>
                         <div style={{ display: 'flex', gap: 16 }}>
                             <div style={{ flex: 1 }}>
                                 <label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 8 }}>Type</label>
                                 <select value={txType} onChange={e => {
                                     setTxType(e.target.value);
                                     setTxAccount(e.target.value === 'income' ? '4100' : '5100');
-                                }} style={{ width: '100%', padding: '10px 12px', background: 'var(--bg-deepest)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)', borderRadius: 8 }}>
+                                }} style={{ width: '100%', padding: '10px 12px', background: 'var(--bg-deepest)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)', borderRadius: "var(--radius-sm)" }}>
                                     <option value="income">Income</option>
                                     <option value="expense">Expenditure</option>
                                 </select>
                             </div>
                             <div style={{ flex: 1 }}>
                                 <label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 8 }}>Category</label>
-                                <select value={txAccount} onChange={e => setTxAccount(e.target.value)} style={{ width: '100%', padding: '10px 12px', background: 'var(--bg-deepest)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)', borderRadius: 8 }}>
+                                <select value={txAccount} onChange={e => setTxAccount(e.target.value)} style={{ width: '100%', padding: '10px 12px', background: 'var(--bg-deepest)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)', borderRadius: "var(--radius-sm)" }}>
                                     {activeAccounts.map(a => (
                                         <option key={a.code} value={a.code}>{a.name}</option>
                                     ))}
@@ -1920,24 +1920,24 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
                         <div style={{ display: 'flex', gap: 16 }}>
                             <div style={{ flex: 1 }}>
                                 <label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 8 }}>Amount (UGX)</label>
-                                <input type="number" required value={txAmount} onChange={e => setTxAmount(e.target.value)} placeholder="0" style={{ width: '100%', padding: '10px 12px', background: 'var(--bg-deepest)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)', borderRadius: 8 }} />
+                                <input type="number" required value={txAmount} onChange={e => setTxAmount(e.target.value)} placeholder="0" style={{ width: '100%', padding: '10px 12px', background: 'var(--bg-deepest)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)', borderRadius: "var(--radius-sm)" }} />
                             </div>
                             <div style={{ flex: 1 }}>
                                 <label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 8 }}>Date</label>
-                                <input type="date" required value={txDate} onChange={e => setTxDate(e.target.value)} style={{ width: '100%', padding: '10px 12px', background: 'var(--bg-deepest)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)', borderRadius: 8 }} />
+                                <input type="date" required value={txDate} onChange={e => setTxDate(e.target.value)} style={{ width: '100%', padding: '10px 12px', background: 'var(--bg-deepest)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)', borderRadius: "var(--radius-sm)" }} />
                             </div>
                         </div>
                         <div>
                             <label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 8 }}>Memo</label>
-                            <input type="text" required value={txMemo} onChange={e => setTxMemo(e.target.value)} placeholder="E.g. Parent fee payment, Toy restock..." style={{ width: '100%', padding: '10px 12px', background: 'var(--bg-deepest)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)', borderRadius: 8 }} />
+                            <input type="text" required value={txMemo} onChange={e => setTxMemo(e.target.value)} placeholder="E.g. Parent fee payment, Toy restock..." style={{ width: '100%', padding: '10px 12px', background: 'var(--bg-deepest)', border: '1px solid var(--border-subtle)', color: 'var(--text-primary)', borderRadius: "var(--radius-sm)" }} />
                         </div>
-                        <button type="submit" style={{ background: 'var(--mint)', color: '#000', border: 'none', padding: '10px 16px', borderRadius: 8, fontWeight: 700, cursor: 'pointer', alignSelf: 'flex-start' }}>
+                        <button type="submit" style={{ background: 'var(--mint)', color: 'var(--text-inverse)', border: 'none', padding: '10px 16px', borderRadius: "var(--radius-sm)", fontWeight: 700, cursor: 'pointer', alignSelf: 'flex-start' }}>
                             Save Transaction
                         </button>
                     </form>
                 )}
 
-                <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: 20 }}>
+                <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: "var(--radius-md)", padding: 20 }}>
                     <h3 style={{ fontSize: 14, color: 'var(--text-primary)', marginBottom: 16, marginTop: 0, textTransform: 'uppercase', letterSpacing: '0.06em' }}>General Ledger</h3>
                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                         <thead>
@@ -1958,11 +1958,11 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
                                         <td style={{ padding: '8px 16px', color: 'var(--text-secondary)' }}>{idx === 0 ? entry.date : ''}</td>
                                         <td style={{ padding: '8px 16px', color: 'var(--text-primary)' }}>{idx === 0 ? entry.memo : ''}</td>
                                         <td style={{ padding: '8px 16px', color: 'var(--text-secondary)' }}>{CHART_OF_ACCOUNTS[line.account] ? CHART_OF_ACCOUNTS[line.account].name : line.account}</td>
-                                        <td style={{ padding: '8px 16px', textAlign: 'right', fontFamily: 'var(--font-mono)', color: line.debit > 0 ? '#00FC8F' : 'transparent' }}>{line.debit > 0 ? line.debit.toLocaleString() : '-'}</td>
-                                        <td style={{ padding: '8px 16px', textAlign: 'right', fontFamily: 'var(--font-mono)', color: line.credit > 0 ? '#FF4757' : 'transparent' }}>{line.credit > 0 ? line.credit.toLocaleString() : '-'}</td>
+                                        <td style={{ padding: '8px 16px', textAlign: 'right', fontFamily: 'var(--font-mono)', color: line.debit > 0 ? 'var(--mint)' : 'transparent' }}>{line.debit > 0 ? line.debit.toLocaleString() : '-'}</td>
+                                        <td style={{ padding: '8px 16px', textAlign: 'right', fontFamily: 'var(--font-mono)', color: line.credit > 0 ? 'var(--danger)' : 'transparent' }}>{line.credit > 0 ? line.credit.toLocaleString() : '-'}</td>
                                         <td style={{ padding: '8px 16px', textAlign: 'right' }}>
                                             {idx === 0 && (
-                                                <button onClick={() => handleDeleteTx(entry.id)} style={{ background: 'transparent', border: 'none', color: '#FF4757', cursor: 'pointer', fontSize: 16 }}>×</button>
+                                                <button onClick={() => handleDeleteTx(entry.id)} style={{ background: 'transparent', border: 'none', color: 'var(--danger)', cursor: 'pointer', fontSize: 16 }}>×</button>
                                             )}
                                         </td>
                                     </tr>
@@ -1983,7 +1983,7 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <h2 style={{ fontSize: 24, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>Global Inventory</h2>
           {currentUser.role === 'director' && (
-            <button style={{ background: 'var(--mint)', color: '#000', border: 'none', padding: '8px 16px', borderRadius: 8, fontWeight: 700, cursor: 'pointer' }}>
+            <button style={{ background: 'var(--mint)', color: 'var(--text-inverse)', border: 'none', padding: '8px 16px', borderRadius: "var(--radius-sm)", fontWeight: 700, cursor: 'pointer' }}>
               + Add Purchase
             </button>
           )}
@@ -1991,20 +1991,20 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
 
         {/* Low Stock Alerts */}
         {inventoryItems.some(item => item.qty <= item.minQty) && (
-          <div style={{ background: 'rgba(255, 71, 87, 0.1)', border: '1px solid rgba(255, 71, 87, 0.3)', borderRadius: 8, padding: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <div style={{ color: '#FF4757', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ background: 'rgba(255, 71, 87, 0.1)', border: '1px solid rgba(255, 71, 87, 0.3)', borderRadius: "var(--radius-sm)", padding: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{ color: 'var(--danger)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8 }}>
               <span>🚨</span> Low Stock Alerts
             </div>
             {inventoryItems.filter(item => item.qty <= item.minQty).map(item => (
               <div key={item.id} style={{ color: 'var(--text-primary)', fontSize: 13, display: 'flex', justifyContent: 'space-between' }}>
                 <span>{item.item} ({item.category})</span>
-                <span style={{ color: '#FF4757', fontWeight: 600 }}>Qty: {item.qty} (Min: {item.minQty})</span>
+                <span style={{ color: 'var(--danger)', fontWeight: 600 }}>Qty: {item.qty} (Min: {item.minQty})</span>
               </div>
             ))}
           </div>
         )}
 
-        <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: 20 }}>
+        <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: "var(--radius-md)", padding: 20 }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <thead>
               <tr style={{ borderBottom: '1px solid var(--border-subtle)' }}>
@@ -2021,7 +2021,7 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
                     <td style={{ padding: '12px 16px', color: 'var(--text-primary)', fontWeight: 500 }}>{item.item}</td>
                     <td style={{ padding: '12px 16px', color: 'var(--text-secondary)' }}>{item.category}</td>
                     <td style={{ padding: '12px 16px', color: 'var(--text-secondary)' }}>{item.supplier}</td>
-                    <td style={{ padding: '12px 16px', color: isLow ? '#FF4757' : 'var(--text-primary)', fontWeight: isLow ? 700 : 400 }}>{item.qty}</td>
+                    <td style={{ padding: '12px 16px', color: isLow ? 'var(--danger)' : 'var(--text-primary)', fontWeight: isLow ? 700 : 400 }}>{item.qty}</td>
                     <td style={{ padding: '12px 16px', color: 'var(--text-tertiary)' }}>{item.minQty}</td>
                     <td style={{ padding: '12px 16px', fontFamily: 'var(--font-mono)', color: 'var(--text-primary)' }}>{item.cost.toLocaleString()}</td>
                     <td style={{ padding: '12px 16px', color: 'var(--text-secondary)' }}>{item.date}</td>
@@ -2040,18 +2040,18 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
     return (
       <div style={{ animation: 'fadeIn 0.3s ease' }}>
         <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 24, margin: '0 0 24px 0', color: 'var(--text-primary)' }}>Expansion Playbook</h2>
-        <div style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 32, lineHeight: 1.6, background: 'var(--bg-deep)', padding: 16, borderRadius: 12, borderLeft: '4px solid var(--mint)' }}>
+        <div style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 32, lineHeight: 1.6, background: 'var(--bg-deep)', padding: 16, borderRadius: "var(--radius-md)", borderLeft: '4px solid var(--mint)' }}>
           <strong>Launch Tracker:</strong> Monitoring new center setups according to the franchise playbook rules. A center must complete all 4 Pre-Launch phases before opening.
         </div>
 
         {expansionProjects.map(proj => (
-          <div key={proj.id} style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: 24, marginBottom: 24 }}>
+          <div key={proj.id} style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: "var(--radius-md)", padding: 24, marginBottom: 24 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, borderBottom: '1px solid var(--border-subtle)', paddingBottom: 16 }}>
               <div>
                 <h3 style={{ margin: '0 0 4px', fontSize: 20, color: 'var(--text-primary)' }}>{proj.name}</h3>
                 <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Launch Target: {proj.launchDate}</div>
               </div>
-              <div style={{ padding: '6px 12px', borderRadius: 8, background: 'rgba(0,252,143,0.1)', color: 'var(--mint)', fontSize: 12, fontWeight: 700, textTransform: 'uppercase' }}>
+              <div style={{ padding: '6px 12px', borderRadius: "var(--radius-sm)", background: 'rgba(6,214,160,0.1)', color: 'var(--mint)', fontSize: 12, fontWeight: 700, textTransform: 'uppercase' }}>
                 {proj.status}
               </div>
             </div>
@@ -2060,13 +2060,13 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
               {proj.phases.map((phase, i) => {
                 const isCompleted = phase.status === 'completed';
                 const isInProgress = phase.status === 'in-progress';
-                const color = isCompleted ? '#10B981' : isInProgress ? '#FFB400' : 'var(--text-tertiary)';
+                const color = isCompleted ? '#10B981' : isInProgress ? 'var(--gold)' : 'var(--text-tertiary)';
                 return (
                   <div key={i} style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
-                    <div style={{ width: 24, height: 24, borderRadius: '50%', background: isCompleted ? 'rgba(16,185,129,0.1)' : isInProgress ? 'rgba(255,180,0,0.1)' : 'var(--bg-deep)', border: `2px solid ${color}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: color, fontSize: 12, flexShrink: 0 }}>
+                    <div style={{ width: 24, height: 24, borderRadius: '50%', background: isCompleted ? 'rgba(16,185,129,0.1)' : isInProgress ? 'rgba(255,209,102,0.1)' : 'var(--bg-deep)', border: `2px solid ${color}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: color, fontSize: 12, flexShrink: 0 }}>
                       {isCompleted ? '✓' : (i + 1)}
                     </div>
-                    <div style={{ flex: 1, background: 'var(--bg-deep)', padding: 16, borderRadius: 10, border: isInProgress ? '1px solid rgba(255,180,0,0.3)' : '1px solid transparent' }}>
+                    <div style={{ flex: 1, background: 'var(--bg-deep)', padding: 16, borderRadius: 10, border: isInProgress ? '1px solid rgba(255,209,102,0.3)' : '1px solid transparent' }}>
                       <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>{phase.name}</div>
                       <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{phase.description}</div>
                     </div>
@@ -2143,22 +2143,22 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
 
     return (
       <div style={{ width: '100%', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-deepest)', fontFamily: 'var(--font-body)', padding: 20 }}>
-        <div style={{ background: 'var(--bg-default)', padding: 40, borderRadius: 16, border: '1px solid var(--border-subtle)', width: '100%', maxWidth: 420, boxShadow: '0 20px 40px rgba(0,0,0,0.5)' }}>
+        <div style={{ background: 'var(--bg-default)', padding: 40, borderRadius: "var(--radius-lg)", border: '1px solid var(--border-subtle)', width: '100%', maxWidth: 420, boxShadow: '0 20px 40px rgba(0,0,0,0.5)' }}>
           <div style={{ textAlign: 'center', marginBottom: 32 }}>
             <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 32, color: 'var(--mint)', margin: '0 0 8px 0' }}>Next OS</h1>
             <p style={{ color: 'var(--text-secondary)', margin: 0 }}>Childcare Management System</p>
           </div>
 
-          {error && <div style={{ background: 'rgba(255, 71, 87, 0.1)', color: '#FF4757', padding: 12, borderRadius: 8, fontSize: 13, marginBottom: 24, border: '1px solid rgba(255, 71, 87, 0.3)' }}>{error}</div>}
+          {error && <div style={{ background: 'rgba(255, 71, 87, 0.1)', color: 'var(--danger)', padding: 12, borderRadius: "var(--radius-sm)", fontSize: 13, marginBottom: 24, border: '1px solid rgba(255, 71, 87, 0.3)' }}>{error}</div>}
 
           {mode === 'otp' ? (
             <form onSubmit={handleVerifyOtp} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div style={{ fontSize: 14, color: 'var(--text-secondary)', textAlign: 'center', marginBottom: 8 }}>Enter the 6-digit one-time code sent to <strong>{email}</strong></div>
               <div>
                 <label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6, fontWeight: 700, textTransform: 'uppercase' }}>One-Time Code</label>
-                <input type="text" value={otpCode} onChange={e => setOtpCode(e.target.value)} placeholder="000000" required style={{ width: '100%', background: 'var(--bg-deep)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '12px 16px', borderRadius: 8, fontSize: 18, textAlign: 'center', letterSpacing: '4px', outline: 'none' }} />
+                <input type="text" value={otpCode} onChange={e => setOtpCode(e.target.value)} placeholder="000000" required style={{ width: '100%', background: 'var(--bg-deep)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '12px 16px', borderRadius: "var(--radius-sm)", fontSize: 18, textAlign: 'center', letterSpacing: '4px', outline: 'none' }} />
               </div>
-              <button type="submit" disabled={loading} style={{ background: 'var(--mint)', color: '#060012', border: 'none', padding: 14, borderRadius: 8, fontSize: 14, fontWeight: 700, cursor: loading ? 'not-allowed' : 'pointer', marginTop: 8 }}>{loading ? 'Verifying...' : 'Verify & Login'}</button>
+              <button type="submit" disabled={loading} style={{ background: 'var(--mint)', color: 'var(--bg-deepest)', border: 'none', padding: 14, borderRadius: "var(--radius-sm)", fontSize: 14, fontWeight: 700, cursor: loading ? 'not-allowed' : 'pointer', marginTop: 8 }}>{loading ? 'Verifying...' : 'Verify & Login'}</button>
               <button type="button" onClick={() => setMode('login')} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', fontSize: 13, cursor: 'pointer', marginTop: 8 }}>Back to Login</button>
             </form>
           ) : (
@@ -2166,7 +2166,7 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
               {mode === 'signup' && (
                 <div>
                   <label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6, fontWeight: 700, textTransform: 'uppercase' }}>Role</label>
-                  <select value={role} onChange={e => setRole(e.target.value)} style={{ width: '100%', background: 'var(--bg-deep)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '12px 16px', borderRadius: 8, fontSize: 14, outline: 'none' }}>
+                  <select value={role} onChange={e => setRole(e.target.value)} style={{ width: '100%', background: 'var(--bg-deep)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '12px 16px', borderRadius: "var(--radius-sm)", fontSize: 14, outline: 'none' }}>
                     <option value="director">Global Director</option>
                     <option value="manager">Branch Manager</option>
                     <option value="investor">Investor</option>
@@ -2175,13 +2175,13 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
               )}
               <div>
                 <label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6, fontWeight: 700, textTransform: 'uppercase' }}>Email Address</label>
-                <input type="email" value={email} onChange={e => setEmail(e.target.value)} required style={{ width: '100%', background: 'var(--bg-deep)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '12px 16px', borderRadius: 8, fontSize: 14, outline: 'none' }} />
+                <input type="email" value={email} onChange={e => setEmail(e.target.value)} required style={{ width: '100%', background: 'var(--bg-deep)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '12px 16px', borderRadius: "var(--radius-sm)", fontSize: 14, outline: 'none' }} />
               </div>
               <div>
                 <label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6, fontWeight: 700, textTransform: 'uppercase' }}>Password</label>
-                <input type="password" value={password} onChange={e => setPassword(e.target.value)} required minLength={6} style={{ width: '100%', background: 'var(--bg-deep)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '12px 16px', borderRadius: 8, fontSize: 14, outline: 'none' }} />
+                <input type="password" value={password} onChange={e => setPassword(e.target.value)} required minLength={6} style={{ width: '100%', background: 'var(--bg-deep)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '12px 16px', borderRadius: "var(--radius-sm)", fontSize: 14, outline: 'none' }} />
               </div>
-              <button type="submit" disabled={loading} style={{ background: 'var(--mint)', color: '#060012', border: 'none', padding: 14, borderRadius: 8, fontSize: 14, fontWeight: 700, cursor: loading ? 'not-allowed' : 'pointer', marginTop: 8 }}>
+              <button type="submit" disabled={loading} style={{ background: 'var(--mint)', color: 'var(--bg-deepest)', border: 'none', padding: 14, borderRadius: "var(--radius-sm)", fontSize: 14, fontWeight: 700, cursor: loading ? 'not-allowed' : 'pointer', marginTop: 8 }}>
                 {loading ? 'Processing...' : mode === 'login' ? 'Sign In' : 'Create Account'}
               </button>
               
@@ -2598,36 +2598,36 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
       const allChildren = centersData.flatMap(c => c.children);
       const child = allChildren.find(c => c.id.toString() === passId);
       if (!child) {
-         return <div style={{ background: '#060012', color: '#fff', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Pass not found or invalid.</div>;
+         return <div style={{ background: 'var(--bg-deepest)', color: '#fff', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Pass not found or invalid.</div>;
       }
       return (
-        <div style={{ background: '#060012', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-body)', color: '#fff', padding: 20 }}>
-          <div style={{ background: 'var(--bg-elevated)', borderRadius: 24, padding: 40, border: '1px solid var(--mint)', width: '100%', maxWidth: 400, textAlign: 'center', boxShadow: '0 20px 40px rgba(0,252,143,0.1)' }}>
-             <div style={{ width: 80, height: 80, borderRadius: '50%', background: 'rgba(0,252,143,0.2)', color: 'var(--mint)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 40, margin: '0 auto 24px' }}>✓</div>
+        <div style={{ background: 'var(--bg-deepest)', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-body)', color: '#fff', padding: 20 }}>
+          <div style={{ background: 'var(--bg-elevated)', borderRadius: "var(--radius-lg)", padding: 40, border: '1px solid var(--mint)', width: '100%', maxWidth: 400, textAlign: 'center', boxShadow: '0 20px 40px rgba(6,214,160,0.1)' }}>
+             <div style={{ width: 80, height: 80, borderRadius: '50%', background: 'rgba(6,214,160,0.2)', color: 'var(--mint)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 40, margin: '0 auto 24px' }}>✓</div>
              <h2 style={{ fontSize: 28, fontWeight: 800, margin: '0 0 24px', color: 'var(--mint)', fontFamily: 'var(--font-display)' }}>Authorized Match</h2>
              <img src={child.photoUrl} alt={child.name} style={{ width: 120, height: 120, borderRadius: '50%', objectFit: 'cover', border: '4px solid var(--bg-default)', boxShadow: '0 0 0 2px var(--mint)', margin: '0 auto 20px' }} />
              <h3 style={{ fontSize: 24, fontWeight: 700, margin: '0 0 8px' }}>{child.name}</h3>
              <div style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 24 }}>Status: {child.present ? 'Present' : 'Absent'}</div>
 
              <div style={{ display: 'flex', gap: '12px', marginBottom: 24 }}>
-                <div style={{ flex: 1, background: 'rgba(255,255,255,0.05)', padding: 12, borderRadius: 12 }}>
+                <div style={{ flex: 1, background: 'rgba(255,255,255,0.05)', padding: 12, borderRadius: "var(--radius-md)" }}>
                   <div style={{ fontSize: 11, color: 'var(--text-tertiary)', textTransform: 'uppercase', marginBottom: 4, fontWeight: 700 }}>Time Arrived</div>
                   <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--mint)' }}>07:30 AM</div>
                 </div>
-                <div style={{ flex: 1, background: 'rgba(255,255,255,0.05)', padding: 12, borderRadius: 12 }}>
+                <div style={{ flex: 1, background: 'rgba(255,255,255,0.05)', padding: 12, borderRadius: "var(--radius-md)" }}>
                   <div style={{ fontSize: 11, color: 'var(--text-tertiary)', textTransform: 'uppercase', marginBottom: 4, fontWeight: 700 }}>Time Leaving</div>
                   <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--mint)' }}>{new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
                 </div>
              </div>
              
-             <div style={{ textAlign: 'left', background: 'rgba(0,0,0,0.3)', padding: 16, borderRadius: 12 }}>
+             <div style={{ textAlign: 'left', background: 'rgba(0,0,0,0.3)', padding: 16, borderRadius: "var(--radius-md)" }}>
                <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 8 }}><strong style={{ color: '#fff' }}>Primary Parent:</strong> {child.parent}</div>
                <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: child.carePlan !== 'monthly' ? 8 : 0 }}><strong style={{ color: '#fff' }}>Authorized Pickups:</strong> {child.authorizedPickups || 'Parents only'}</div>
                {child.carePlan !== 'monthly' && (
                  <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
                    <strong style={{ color: '#fff' }}>Payment Status:</strong>{' '}
                    <span style={{ 
-                     color: child.invoiceStatus === 'paid' ? 'var(--mint)' : child.invoiceStatus === 'due' ? '#FFB400' : '#FF4757',
+                     color: child.invoiceStatus === 'paid' ? 'var(--mint)' : child.invoiceStatus === 'due' ? 'var(--gold)' : 'var(--danger)',
                      fontWeight: 700, textTransform: 'uppercase'
                    }}>
                      {child.invoiceStatus}
@@ -2699,10 +2699,10 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20, paddingLeft: 8 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <div style={{
-                width: 44, height: 44, borderRadius: 12,
-                background: 'linear-gradient(135deg, #FFB400, #FF8C00)',
+                width: 44, height: 44, borderRadius: "var(--radius-md)",
+                background: 'linear-gradient(135deg, var(--gold), #FF8C00)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 22, boxShadow: '0 4px 20px rgba(255,180,0,0.3)', flexShrink: 0
+                fontSize: 22, boxShadow: '0 4px 20px rgba(255,209,102,0.3)', flexShrink: 0
               }}>👶</div>
               <div>
                 <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 800, color: 'var(--text-primary)', margin: 0, lineHeight: 1.2 }}>
@@ -2729,7 +2729,7 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
                 value={selectedCenterId}
                 onChange={(e) => setSelectedCenterId(e.target.value)}
                 style={{
-                  width: '100%', padding: '10px 12px', borderRadius: 8,
+                  width: '100%', padding: '10px 12px', borderRadius: "var(--radius-sm)",
                   background: 'var(--bg-default)', border: '1px solid var(--border-default)',
                   color: 'var(--text-primary)', fontSize: 13, fontWeight: 600,
                   cursor: 'pointer', outline: 'none'
@@ -2748,7 +2748,7 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
             <div style={{ fontSize: 11, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10, paddingLeft: 12 }}>Menu</div>
             {filteredTabs.map(tab => (
               <button key={tab.id} onClick={() => setActiveTab(tab.id)} style={{
-                background: activeTab === tab.id ? 'rgba(0,252,143,0.08)' : 'transparent',
+                background: activeTab === tab.id ? 'rgba(6,214,160,0.08)' : 'transparent',
                 border: 'none', cursor: 'pointer', padding: '12px 14px', fontSize: 14,
                 fontWeight: activeTab === tab.id ? 600 : 500,
                 color: activeTab === tab.id ? 'var(--mint)' : 'var(--text-secondary)',
@@ -2760,7 +2760,7 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
                   {tab.label}
                 </div>
                 {tab.badge > 0 && (
-                  <span style={{ background: '#A855F7', color: '#fff', borderRadius: 10, padding: '2px 8px', fontSize: 10, fontWeight: 700 }}>
+                  <span style={{ background: 'var(--warning)', color: '#fff', borderRadius: 10, padding: '2px 8px', fontSize: 10, fontWeight: 700 }}>
                     {tab.badge}
                   </span>
                 )}
@@ -2769,11 +2769,11 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
           </div>
 
           <button onClick={() => setNiaOpen(true)} style={{
-            background: 'linear-gradient(135deg, rgba(0,252,143,0.1), rgba(0,252,143,0.02))',
-            border: '1px solid rgba(0,252,143,0.2)', borderRadius: 12, padding: '16px 20px',
+            background: 'linear-gradient(135deg, rgba(6,214,160,0.1), rgba(6,214,160,0.02))',
+            border: '1px solid rgba(6,214,160,0.2)', borderRadius: "var(--radius-md)", padding: '16px 20px',
             display: 'flex', alignItems: 'center', gap: 12, marginTop: 40, cursor: 'pointer', transition: 'all 0.2s', width: '100%', textAlign: 'left'
           }}>
-            <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'linear-gradient(135deg, #00FC8F, #1B9B6F)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>🛡️</div>
+            <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'linear-gradient(135deg, var(--mint), var(--emerald))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>🛡️</div>
             <div>
               <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--mint)' }}>Talk to Nia</div>
               <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>AI Chief of Staff</div>
@@ -2844,14 +2844,14 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
                       await window.supabase.createClient('https://eztgwiujujaxswlslqbf.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV6dGd3aXVqdWpheHN3bHNscWJmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMxNzE5NjEsImV4cCI6MjA5ODc0Nzk2MX0.mzyC4DLlC-s3YznfQLTfNxa227_hQlLAt0VhL_dGxr0').from('global_messages').insert(msgs);
                       alert(`Sent follow-up messages to ${msgs.length} parents via Agent Nia!`);
                     } catch(e) { console.error(e); }
-                  }} style={{ background: 'var(--mint)', color: '#000', border: 'none', padding: '6px 12px', borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
+                  }} style={{ background: 'var(--mint)', color: 'var(--text-inverse)', border: 'none', padding: '6px 12px', borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
                     Auto-Send Follow-ups (Agent Nia)
                   </button>
                 </div>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 16 }}>
                 {childrenData.filter(c => !c.present && !c.isAlumni).map(child => (
-                  <div key={child.id} style={{ background: 'var(--bg-elevated)', padding: 16, borderRadius: 12, border: '1px solid #FFB400' }}>
+                  <div key={child.id} style={{ background: 'var(--bg-elevated)', padding: 16, borderRadius: "var(--radius-md)", border: '1px solid var(--gold)' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
                       <img src={child.photoUrl} alt={child.name} style={{ width: 40, height: 40, borderRadius: '50%' }} />
                       <div>
@@ -2863,7 +2863,7 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
                       Contact: {child.parent} ({child.parentPhone})
                     </div>
                     <div style={{ display: 'flex', gap: 8 }}>
-                      <a href={`tel:${child.parentPhone}`} style={{ flex: 1, padding: '8px', background: 'var(--mint)', color: '#000', border: 'none', borderRadius: 6, fontWeight: 700, cursor: 'pointer', textAlign: 'center', textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Call Parent</a>
+                      <a href={`tel:${child.parentPhone}`} style={{ flex: 1, padding: '8px', background: 'var(--mint)', color: 'var(--text-inverse)', border: 'none', borderRadius: 6, fontWeight: 700, cursor: 'pointer', textAlign: 'center', textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Call Parent</a>
                       <button onClick={() => {
                         const reason = prompt('Enter the absence reason:');
                         if(reason) {
@@ -2887,7 +2887,7 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 16 }}>
                 {parentFeedback.map(fb => (
-                  <div key={fb.id} style={{ background: 'var(--bg-elevated)', padding: 16, borderRadius: 12, border: '1px solid ' + (fb.rating <= 3 ? '#FF4757' : 'var(--border-subtle)') }}>
+                  <div key={fb.id} style={{ background: 'var(--bg-elevated)', padding: 16, borderRadius: "var(--radius-md)", border: '1px solid ' + (fb.rating <= 3 ? 'var(--danger)' : 'var(--border-subtle)') }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
                       <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>{fb.parent}</span>
                       <span style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>{fb.date}</span>
@@ -2897,7 +2897,7 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
                     </div>
                     <div style={{ fontSize: 14, color: 'var(--text-secondary)' }}>"{fb.comment}"</div>
                     {fb.rating <= 3 && (
-                      <div style={{ marginTop: 12, padding: '8px 12px', background: 'rgba(255, 71, 87, 0.1)', color: '#FF4757', borderRadius: 6, fontSize: 12, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <div style={{ marginTop: 12, padding: '8px 12px', background: 'rgba(255, 71, 87, 0.1)', color: 'var(--danger)', borderRadius: 6, fontSize: 12, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8 }}>
                         <span>⚠️</span> Action Required: Follow-up Call
                       </div>
                     )}
@@ -2918,26 +2918,26 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
           <React.Fragment>
             {/* KPI Strip */}
             <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginBottom: 28 }}>
-              <CcKpiCard label="Enrolled" value={kpi.enrolled} sub="July cohort" accent="#00FC8F" icon="🧒" />
-              <CcKpiCard label="Present Today" value={kpi.presentToday} sub={`${kpi.absentToday} absent`} accent="#3B82F6" icon="✅" />
-              <CcKpiCard label="Attendance" value={Math.round(kpi.attendanceRate * 100) + '%'} sub="Target: 90%+" accent={kpi.attendanceRate >= 0.9 ? '#00FC8F' : '#FFB400'} icon="📊" />
+              <CcKpiCard label="Enrolled" value={kpi.enrolled} sub="July cohort" accent="var(--mint)" icon="🧒" />
+              <CcKpiCard label="Present Today" value={kpi.presentToday} sub={`${kpi.absentToday} absent`} accent="var(--info)" icon="✅" />
+              <CcKpiCard label="Attendance" value={Math.round(kpi.attendanceRate * 100) + '%'} sub="Target: 90%+" accent={kpi.attendanceRate >= 0.9 ? 'var(--mint)' : 'var(--gold)'} icon="📊" />
               {selectedCenterId === 'all' ? (
-                <CcKpiCard label="Staff Payments" value={'UGX ' + ((kpi.caretakers || 0) * 800000).toLocaleString()} sub={`${kpi.caretakers || 0} active staff`} accent="#FF4757" icon="💳" />
+                <CcKpiCard label="Staff Payments" value={'UGX ' + ((kpi.caretakers || 0) * 800000).toLocaleString()} sub={`${kpi.caretakers || 0} active staff`} accent="var(--danger)" icon="💳" />
               ) : (
-                <CcKpiCard label="Invoices Due" value={kpi.invoicesDue} sub={kpi.invoicesOverdue30d + ' overdue 30d+'} accent="#FF4757" icon="💳" />
+                <CcKpiCard label="Invoices Due" value={kpi.invoicesDue} sub={kpi.invoicesOverdue30d + ' overdue 30d+'} accent="var(--danger)" icon="💳" />
               )}
-              <CcKpiCard label="Messages" value={kpi.unreadParentMessages} sub={kpi.unansweredMessages24h + ' need reply'} accent="#A855F7" icon="💬" />
-              <CcKpiCard label="Milestones" value={kpi.milestonesThisWeek} sub="This week" accent="#FFB400" icon="🏆" />
+              <CcKpiCard label="Messages" value={kpi.unreadParentMessages} sub={kpi.unansweredMessages24h + ' need reply'} accent="var(--warning)" icon="💬" />
+              <CcKpiCard label="Milestones" value={kpi.milestonesThisWeek} sub="This week" accent="var(--gold)" icon="🏆" />
             </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 20 }}>
             {/* Today's Pulse */}
-            <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: 20 }}>
+            <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: "var(--radius-md)", padding: 20 }}>
               <div style={{ fontSize: 12, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 16 }}>Today's Pulse</div>
               {[
-                { label: 'Present', val: kpi.presentToday, total: kpi.enrolled, color: '#00FC8F' },
-                { label: 'Fee Collection', val: Math.round(kpi.collectionRate * 100), total: 100, color: '#3B82F6', pct: true },
-                { label: 'Attendance Rate', val: Math.round(kpi.attendanceRate * 100), total: 100, color: '#FFB400', pct: true },
+                { label: 'Present', val: kpi.presentToday, total: kpi.enrolled, color: 'var(--mint)' },
+                { label: 'Fee Collection', val: Math.round(kpi.collectionRate * 100), total: 100, color: 'var(--info)', pct: true },
+                { label: 'Attendance Rate', val: Math.round(kpi.attendanceRate * 100), total: 100, color: 'var(--gold)', pct: true },
               ].map(({ label, val, total, color, pct }) => (
                 <div key={label} style={{ marginBottom: 16 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
@@ -2952,14 +2952,14 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
             </div>
 
             {/* Next Activity */}
-            <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: 20 }}>
+            <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: "var(--radius-md)", padding: 20 }}>
               <div style={{ fontSize: 12, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 16 }}>Today's Schedule</div>
               {TODAY_SCHEDULE.slice(0, 5).map((slot, i) => (
                 <div key={i} style={{
                   display: 'flex', alignItems: 'center', gap: 12, padding: '8px 10px',
-                  borderRadius: 8, marginBottom: 4,
-                  background: i === currentSlot ? 'rgba(0,252,143,0.08)' : 'transparent',
-                  border: i === currentSlot ? '1px solid rgba(0,252,143,0.2)' : '1px solid transparent',
+                  borderRadius: "var(--radius-sm)", marginBottom: 4,
+                  background: i === currentSlot ? 'rgba(6,214,160,0.08)' : 'transparent',
+                  border: i === currentSlot ? '1px solid rgba(6,214,160,0.2)' : '1px solid transparent',
                 }}>
                   <span style={{ fontSize: 16 }}>{slot.icon || '🕒'}</span>
                   <div style={{ flex: 1 }}>
@@ -2978,14 +2978,14 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
                   }} style={{ background: 'transparent', border: '1px solid var(--border-subtle)', color: 'var(--text-secondary)', padding: '2px 6px', borderRadius: 4, cursor: 'pointer', fontSize: 10 }}>Edit</button>
                 </div>
               ))}
-              <button onClick={() => setActiveTab('schedule')} style={{ background: 'none', border: '1px solid var(--border-default)', borderRadius: 8, padding: '6px 12px', fontSize: 11, color: 'var(--text-secondary)', cursor: 'pointer', width: '100%', marginTop: 8, fontFamily: 'var(--font-body)' }}>
+              <button onClick={() => setActiveTab('schedule')} style={{ background: 'none', border: '1px solid var(--border-default)', borderRadius: "var(--radius-sm)", padding: '6px 12px', fontSize: 11, color: 'var(--text-secondary)', cursor: 'pointer', width: '100%', marginTop: 8, fontFamily: 'var(--font-body)' }}>
                 View full schedule →
               </button>
             </div>
 
             {/* Immunisation Alerts */}
-            <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: 20 }}>
-              <div style={{ fontSize: 12, color: '#FFB400', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 16 }}>⚠️ Immunisation Alerts</div>
+            <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: "var(--radius-md)", padding: 20 }}>
+              <div style={{ fontSize: 12, color: 'var(--gold)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 16 }}>⚠️ Immunisation Alerts</div>
               {(() => {
                 const alerts = childrenData.map(c => ({ child: c, vac: calculateVaccineStatus(c) }))
                   .filter(item => item.vac.due.length > 0)
@@ -2993,10 +2993,10 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
                 if (alerts.length === 0) return <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>All children are up to date!</div>;
                 return alerts.map((item, i) => (
                   <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: '1px solid var(--border-subtle)' }}>
-                    <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#FF4757' }} />
+                    <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--danger)' }} />
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)' }}>{item.child.name}</div>
-                      <div style={{ fontSize: 11, color: '#FFB400' }}>Overdue: {item.vac.due.join(', ')}</div>
+                      <div style={{ fontSize: 11, color: 'var(--gold)' }}>Overdue: {item.vac.due.join(', ')}</div>
                     </div>
                   </div>
                 ));
@@ -3004,7 +3004,7 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
             </div>
 
             {/* Recent Milestones */}
-            <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: 20 }}>
+            <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: "var(--radius-md)", padding: 20 }}>
               <div style={{ fontSize: 12, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 16 }}>Recent Milestones</div>
               {childrenData.filter(c => c.milestone).slice(0, 5).map(child => (
                 <div key={child.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: '1px solid var(--border-subtle)' }}>
@@ -3018,7 +3018,7 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
             </div>
 
             {/* Quick Actions */}
-            <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: 20 }}>
+            <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: "var(--radius-md)", padding: 20 }}>
               <div style={{ fontSize: 12, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 16 }}>Quick Actions</div>
               {[
                 { label: '📣 Broadcast to All Parents', action: () => { const url = 'https://wa.me/?text=' + encodeURIComponent('Hello from Amani! '); window.open(url, '_blank'); } },
@@ -3028,14 +3028,14 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
               ].map(({ label, action }) => (
                 <button key={label} onClick={action} style={{
                   display: 'block', width: '100%', background: 'transparent',
-                  border: '1px solid var(--border-default)', borderRadius: 8, padding: '10px 14px',
+                  border: '1px solid var(--border-default)', borderRadius: "var(--radius-sm)", padding: '10px 14px',
                   fontSize: 12, color: 'var(--text-secondary)', cursor: 'pointer', textAlign: 'left',
                   marginBottom: 8, transition: 'all 0.15s', fontFamily: 'var(--font-body)',
                 }} className="quick-action-btn">{label}</button>
               ))}
             </div>
             {/* Expansion Readiness Gate */}
-            <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: 20, gridColumn: isMobile ? '1' : '1 / -1' }}>
+            <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: "var(--radius-md)", padding: 20, gridColumn: isMobile ? '1' : '1 / -1' }}>
               <div style={{ fontSize: 12, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 16 }}>Expansion Readiness Gate (6-Month Trend)</div>
               {(() => {
                 const past6Months = [
@@ -3054,8 +3054,8 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
                     <div style={{ flex: 1, width: '100%' }}>
                       <div style={{ display: 'flex', alignItems: 'flex-end', height: 120, gap: 12, borderBottom: '1px solid var(--border-default)', paddingBottom: 8, position: 'relative' }}>
                         {/* 85 Threshold Line */}
-                        <div style={{ position: 'absolute', bottom: 'calc(85% + 8px)', left: 0, width: '100%', borderTop: '1px dashed #FFB400', zIndex: 1 }} />
-                        <span style={{ position: 'absolute', bottom: 'calc(85% + 12px)', left: 0, fontSize: 10, color: '#FFB400', fontFamily: 'var(--font-mono)' }}>85+ THRESHOLD</span>
+                        <div style={{ position: 'absolute', bottom: 'calc(85% + 8px)', left: 0, width: '100%', borderTop: '1px dashed var(--gold)', zIndex: 1 }} />
+                        <span style={{ position: 'absolute', bottom: 'calc(85% + 12px)', left: 0, fontSize: 10, color: 'var(--gold)', fontFamily: 'var(--font-mono)' }}>85+ THRESHOLD</span>
                         
                         {past6Months.map(m => (
                           <div key={m.month} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, zIndex: 2 }}>
@@ -3071,9 +3071,9 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
                       </div>
                     </div>
                     
-                    <div style={{ width: isMobile ? '100%' : 240, background: isReady ? 'rgba(0, 252, 143, 0.05)' : 'rgba(255, 71, 87, 0.05)', border: `1px solid ${isReady ? 'rgba(0, 252, 143, 0.2)' : 'rgba(255, 71, 87, 0.2)'}`, borderRadius: 12, padding: 20, textAlign: 'center' }}>
+                    <div style={{ width: isMobile ? '100%' : 240, background: isReady ? 'rgba(0, 252, 143, 0.05)' : 'rgba(255, 71, 87, 0.05)', border: `1px solid ${isReady ? 'rgba(0, 252, 143, 0.2)' : 'rgba(255, 71, 87, 0.2)'}`, borderRadius: "var(--radius-md)", padding: 20, textAlign: 'center' }}>
                       <div style={{ fontSize: 32, marginBottom: 8 }}>{isReady ? '🔓' : '🔒'}</div>
-                      <div style={{ fontSize: 14, color: isReady ? 'var(--mint)' : '#FF4757', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>
+                      <div style={{ fontSize: 14, color: isReady ? 'var(--mint)' : 'var(--danger)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>
                         {isReady ? 'Expansion Unlocked' : 'Expansion Locked'}
                       </div>
                       <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
@@ -3089,37 +3089,37 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
             </div>
 
             {/* Growth Engine KPI */}
-            <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: 20 }}>
+            <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: "var(--radius-md)", padding: 20 }}>
               <div style={{ fontSize: 12, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 16 }}>Growth Engine Pipeline</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-deep)', padding: 12, borderRadius: 8 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-deep)', padding: 12, borderRadius: "var(--radius-sm)" }}>
                   <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>⏳ Active Waitlist</span>
-                  <span style={{ fontSize: 18, fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#3B82F6' }}>{growthMetrics.activeWaitlist}</span>
+                  <span style={{ fontSize: 18, fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--info)' }}>{growthMetrics.activeWaitlist}</span>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-deep)', padding: 12, borderRadius: 8 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-deep)', padding: 12, borderRadius: "var(--radius-sm)" }}>
                   <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>📅 Tours Booked (This Week)</span>
-                  <span style={{ fontSize: 18, fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#A855F7' }}>{growthMetrics.toursBookedThisWeek}</span>
+                  <span style={{ fontSize: 18, fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--warning)' }}>{growthMetrics.toursBookedThisWeek}</span>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-deep)', padding: 12, borderRadius: 8 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-deep)', padding: 12, borderRadius: "var(--radius-sm)" }}>
                   <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>🎁 Referrals Pending</span>
-                  <span style={{ fontSize: 18, fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#FFB400' }}>{growthMetrics.referralsPending}</span>
+                  <span style={{ fontSize: 18, fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--gold)' }}>{growthMetrics.referralsPending}</span>
                 </div>
               </div>
             </div>
 
             {/* Compliance & Licensing Tracker */}
-            <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: 20 }}>
+            <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: "var(--radius-md)", padding: 20 }}>
               <div style={{ fontSize: 12, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 16 }}>Compliance Tracker (60-Day Alerts)</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {complianceRecords.map(record => {
                   const isExpiring = record.status === 'expiring-soon';
                   const isCritical = record.status === 'critical';
                   const isOk = record.status === 'valid';
-                  const color = isCritical ? '#FF4757' : isExpiring ? '#FFB400' : '#10B981';
+                  const color = isCritical ? 'var(--danger)' : isExpiring ? 'var(--gold)' : '#10B981';
                   const icon = isCritical ? '🔴' : isExpiring ? '🟡' : '🟢';
                   
                   return (
-                    <div key={record.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-deep)', padding: '10px 12px', borderRadius: 8, borderLeft: `4px solid ${color}` }}>
+                    <div key={record.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-deep)', padding: '10px 12px', borderRadius: "var(--radius-sm)", borderLeft: `4px solid ${color}` }}>
                       <div>
                         <div style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 500 }}>{record.name}</div>
                         <div style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>{record.type} • Expires: {record.expirationDate}</div>
@@ -3132,22 +3132,22 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
             </div>
 
             {/* Risk & Continuity Checklist */}
-            <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: 20 }}>
+            <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: "var(--radius-md)", padding: 20 }}>
               <div style={{ fontSize: 12, color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 16 }}>Risk & Continuity Readiness</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-deep)', padding: 12, borderRadius: 8 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-deep)', padding: 12, borderRadius: "var(--radius-sm)" }}>
                   <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>🔋 Device Charging Rota Validated</span>
                   <input type="checkbox" checked={true} readOnly style={{ accentColor: 'var(--mint)', width: 16, height: 16 }} />
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-deep)', padding: 12, borderRadius: 8 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-deep)', padding: 12, borderRadius: "var(--radius-sm)" }}>
                   <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>📋 Paper Fallback Packs Stocked</span>
                   <input type="checkbox" checked={true} readOnly style={{ accentColor: 'var(--mint)', width: 16, height: 16 }} />
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-deep)', padding: 12, borderRadius: 8 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-deep)', padding: 12, borderRadius: "var(--radius-sm)" }}>
                   <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>📞 Crisis Comm Playbook Distributed</span>
                   <input type="checkbox" checked={true} readOnly style={{ accentColor: 'var(--mint)', width: 16, height: 16 }} />
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-deep)', padding: 12, borderRadius: 8 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-deep)', padding: 12, borderRadius: "var(--radius-sm)" }}>
                   <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>🛡️ Insurance Policies Active</span>
                   <input type="checkbox" checked={true} readOnly style={{ accentColor: 'var(--mint)', width: 16, height: 16 }} />
                 </div>
@@ -3162,11 +3162,11 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
         {activeTab === 'children' && !selectedChild && (
           <div style={{ animation: 'fadeIn 0.3s ease' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-              <div style={{ display: 'flex', gap: 8, background: 'var(--bg-deep)', padding: 4, borderRadius: 8 }}>
+              <div style={{ display: 'flex', gap: 8, background: 'var(--bg-deep)', padding: 4, borderRadius: "var(--radius-sm)" }}>
                 <button onClick={() => setShowAlumni(false)} style={{ background: !showAlumni ? 'var(--bg-elevated)' : 'transparent', color: !showAlumni ? 'var(--text-primary)' : 'var(--text-secondary)', border: 'none', borderRadius: 6, padding: '6px 12px', fontSize: 13, fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s' }}>Active Roster</button>
                 <button onClick={() => setShowAlumni(true)} style={{ background: showAlumni ? 'var(--bg-elevated)' : 'transparent', color: showAlumni ? 'var(--text-primary)' : 'var(--text-secondary)', border: 'none', borderRadius: 6, padding: '6px 12px', fontSize: 13, fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s' }}>Alumni / Graduated</button>
               </div>
-              <button onClick={() => { setOnboardingBirthday(''); setOnboardingAgeYears(''); setOnboardingVaccines(['BCG', 'Polio 0']); setOnboardingParentEmail(''); setOnboardingParentPassword(''); setOnboardingOpen(true); }} style={{ background: 'var(--mint)', color: '#060012', border: 'none', borderRadius: 8, padding: '10px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font-body)', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <button onClick={() => { setOnboardingBirthday(''); setOnboardingAgeYears(''); setOnboardingVaccines(['BCG', 'Polio 0']); setOnboardingParentEmail(''); setOnboardingParentPassword(''); setOnboardingOpen(true); }} style={{ background: 'var(--mint)', color: 'var(--bg-deepest)', border: 'none', borderRadius: "var(--radius-sm)", padding: '10px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font-body)', display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span>➕</span> Onboard Child
               </button>
             </div>
@@ -3190,16 +3190,16 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
           <div style={{ animation: 'fadeIn 0.3s ease' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
               <div style={{ fontSize: 14, color: 'var(--text-secondary)' }}>Live feeds from Amani center. AI Milestone tracking is currently active.</div>
-              <button style={{ background: 'transparent', border: '1px solid var(--border-default)', color: 'var(--text-secondary)', borderRadius: 8, padding: '8px 12px', fontSize: 12, cursor: 'pointer' }}>⚙️ Configure Video Sources</button>
+              <button style={{ background: 'transparent', border: '1px solid var(--border-default)', color: 'var(--text-secondary)', borderRadius: "var(--radius-sm)", padding: '8px 12px', fontSize: 12, cursor: 'pointer' }}>⚙️ Configure Video Sources</button>
             </div>
             
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: 24 }}>
               {CAMERAS.map(cam => (
-                <div key={cam.id} style={{ background: 'var(--bg-elevated)', borderRadius: 16, overflow: 'hidden', border: '1px solid var(--border-subtle)', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}>
+                <div key={cam.id} style={{ background: 'var(--bg-elevated)', borderRadius: "var(--radius-lg)", overflow: 'hidden', border: '1px solid var(--border-subtle)', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}>
                   {/* Camera Header */}
                   <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#FF4757', animation: 'pulse 2s infinite' }}></div>
+                      <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--danger)', animation: 'pulse 2s infinite' }}></div>
                       <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>{cam.name}</span>
                     </div>
                     <span style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>1080p • 30fps</span>
@@ -3214,7 +3214,7 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
                     {/* Bounding Boxes */}
                     {cam.children.map((c, i) => (
                       <div key={i} style={{ position: 'absolute', left: c.x + '%', top: c.y + '%', transform: 'translate(-50%, -50%)' }}>
-                        <div style={{ border: '2px solid var(--mint)', width: 60, height: 80, borderRadius: 8, boxShadow: '0 0 10px rgba(0,252,143,0.3)', position: 'relative' }}>
+                        <div style={{ border: '2px solid var(--mint)', width: 60, height: 80, borderRadius: "var(--radius-sm)", boxShadow: '0 0 10px rgba(6,214,160,0.3)', position: 'relative' }}>
                           <div style={{ position: 'absolute', top: -30, left: '50%', transform: 'translateX(-50%)', background: 'rgba(0,0,0,0.8)', border: '1px solid var(--mint)', borderRadius: 6, padding: '4px 8px', whiteSpace: 'nowrap', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                             <span style={{ fontSize: 10, color: '#fff', fontWeight: 700 }}>{c.name}</span>
                             <span style={{ fontSize: 9, color: 'var(--mint)' }}>🏆 {c.milestone}</span>
@@ -3231,7 +3231,7 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
 
         {/* ── SCHEDULE TAB ── */}
         {activeTab === 'schedule' && (
-          <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: 24 }}>
+          <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: "var(--radius-md)", padding: 24 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
               <div>
                 <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>Today's Programme</div>
@@ -3244,8 +3244,8 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
               <div key={i} style={{
                 display: 'flex', alignItems: 'center', gap: 16,
                 padding: '14px 16px', borderRadius: 10, marginBottom: 8,
-                background: i === currentSlot ? 'rgba(0,252,143,0.06)' : i < currentSlot ? 'rgba(255,255,255,0.02)' : 'transparent',
-                border: i === currentSlot ? '1px solid rgba(0,252,143,0.25)' : '1px solid var(--border-subtle)',
+                background: i === currentSlot ? 'rgba(6,214,160,0.06)' : i < currentSlot ? 'rgba(255,255,255,0.02)' : 'transparent',
+                border: i === currentSlot ? '1px solid rgba(6,214,160,0.25)' : '1px solid var(--border-subtle)',
                 opacity: i < currentSlot ? 0.55 : 1,
                 transition: 'all 0.2s',
               }}>
@@ -3257,7 +3257,7 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: 13, fontWeight: i === currentSlot ? 600 : 400, color: i === currentSlot ? 'var(--mint)' : 'var(--text-primary)' }}>
                     {slot.activity}
-                    {i === currentSlot && <span style={{ marginLeft: 8, fontSize: 10, background: 'var(--mint)', color: '#060012', borderRadius: 20, padding: '2px 8px', fontWeight: 700 }}>NOW</span>}
+                    {i === currentSlot && <span style={{ marginLeft: 8, fontSize: 10, background: 'var(--mint)', color: 'var(--bg-deepest)', borderRadius: 20, padding: '2px 8px', fontWeight: 700 }}>NOW</span>}
                   </div>
                   <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginTop: 2 }}>Led by {slot.caretaker || 'Staff'}</div>
                 </div>
@@ -3328,7 +3328,7 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
         {/* Onboarding Drawer Modal */}
         {onboardingOpen && (
           <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', animation: 'fadeIn 0.2s ease' }}>
-            <div style={{ background: 'var(--bg-elevated)', width: onboardingReport ? 650 : 500, borderRadius: 16, border: '1px solid var(--border-subtle)', padding: 32, position: 'relative' }}>
+            <div style={{ background: 'var(--bg-elevated)', width: onboardingReport ? 650 : 500, borderRadius: "var(--radius-lg)", border: '1px solid var(--border-subtle)', padding: 32, position: 'relative' }}>
               <button onClick={() => { setOnboardingOpen(false); setOnboardingReport(null); }} style={{ position: 'absolute', top: 16, right: 16, background: 'none', border: 'none', color: 'var(--text-tertiary)', cursor: 'pointer', fontSize: 20 }}>×</button>
               
               {!onboardingReport ? (
@@ -3336,13 +3336,13 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
                   <h2 style={{ fontSize: 22, fontWeight: 800, margin: '0 0 24px', color: 'var(--text-primary)', fontFamily: 'var(--font-display)' }}>Onboard New Child</h2>
                     <form id="onboardingForm" onSubmit={e => e.preventDefault()}>
                       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 16, marginBottom: 16 }}>
-                        <div style={{ gridColumn: '1 / -1' }}><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Digital Passport Photo URL (Optional)</label><input name="photoUrl" placeholder="https://..." style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }} /></div>
-                        <div><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Full Name</label><input name="name" style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }} /></div>
-                        <div><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Age (years)</label><input name="age" type="number" value={onboardingAgeYears} onChange={e => setOnboardingAgeYears(e.target.value)} style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }} /></div>
-                        <div><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Birthday</label><input name="birthday" type="date" value={onboardingBirthday} onChange={e => setOnboardingBirthday(e.target.value)} style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }} /></div>
+                        <div style={{ gridColumn: '1 / -1' }}><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Digital Passport Photo URL (Optional)</label><input name="photoUrl" placeholder="https://..." style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: "var(--radius-sm)" }} /></div>
+                        <div><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Full Name</label><input name="name" style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: "var(--radius-sm)" }} /></div>
+                        <div><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Age (years)</label><input name="age" type="number" value={onboardingAgeYears} onChange={e => setOnboardingAgeYears(e.target.value)} style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: "var(--radius-sm)" }} /></div>
+                        <div><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Birthday</label><input name="birthday" type="date" value={onboardingBirthday} onChange={e => setOnboardingBirthday(e.target.value)} style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: "var(--radius-sm)" }} /></div>
                         <div>
                           <label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Care Package</label>
-                          <select name="carePlan" style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }}>
+                          <select name="carePlan" style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: "var(--radius-sm)" }}>
                             <option value="monthly">Monthly Care (Everyday)</option>
                             <option value="weekly">Weekly Care</option>
                             <option value="daily">Daily Care (Drop-in)</option>
@@ -3350,18 +3350,18 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
                         </div>
                         <div>
                           <label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Preferred Payment Method</label>
-                          <select name="paymentMethod" style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }}>
+                          <select name="paymentMethod" style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: "var(--radius-sm)" }}>
                             <option value="mobile_money">Mobile Money</option>
                             <option value="card">Card Payment</option>
                           </select>
                         </div>
-                        <div><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Primary Parent Name</label><input name="parent" style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }} /></div>
-                        <div><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Secondary Parent Name</label><input name="secondaryParent" placeholder="Optional" style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }} /></div>
-                        <div><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Parent Login Email</label><input name="parentEmail" type="email" value={onboardingParentEmail} onChange={e => setOnboardingParentEmail(e.target.value)} placeholder="Required for parent access" required style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }} /></div>
-                        <div><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Parent Login Password</label><input name="parentPassword" type="password" value={onboardingParentPassword} onChange={e => setOnboardingParentPassword(e.target.value)} placeholder="Required" required style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }} /></div>
-                        <div><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Kids Sports</label><input name="sports" placeholder="e.g. Swimming, Football" style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }} /></div>
-                        <div style={{ gridColumn: '1 / -1' }}><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Authorized Pick-ups</label><input name="authorizedPickups" placeholder="Names & Phone Numbers" style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }} /></div>
-                        <div style={{ gridColumn: '1 / -1' }}><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Allergies</label><input name="allergies" placeholder="e.g. Peanuts" style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: 8 }} /></div>
+                        <div><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Primary Parent Name</label><input name="parent" style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: "var(--radius-sm)" }} /></div>
+                        <div><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Secondary Parent Name</label><input name="secondaryParent" placeholder="Optional" style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: "var(--radius-sm)" }} /></div>
+                        <div><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Parent Login Email</label><input name="parentEmail" type="email" value={onboardingParentEmail} onChange={e => setOnboardingParentEmail(e.target.value)} placeholder="Required for parent access" required style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: "var(--radius-sm)" }} /></div>
+                        <div><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Parent Login Password</label><input name="parentPassword" type="password" value={onboardingParentPassword} onChange={e => setOnboardingParentPassword(e.target.value)} placeholder="Required" required style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: "var(--radius-sm)" }} /></div>
+                        <div><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Kids Sports</label><input name="sports" placeholder="e.g. Swimming, Football" style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: "var(--radius-sm)" }} /></div>
+                        <div style={{ gridColumn: '1 / -1' }}><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Authorized Pick-ups</label><input name="authorizedPickups" placeholder="Names & Phone Numbers" style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: "var(--radius-sm)" }} /></div>
+                        <div style={{ gridColumn: '1 / -1' }}><label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Allergies</label><input name="allergies" placeholder="e.g. Peanuts" style={{ width: '100%', background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '10px 12px', borderRadius: "var(--radius-sm)" }} /></div>
                         <div style={{ gridColumn: '1 / -1' }}>
                           <label style={{ display: 'block', fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 6 }}>Completed Vaccines (Based on Age)</label>
                           {(() => {
@@ -3374,7 +3374,7 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
                             }
                             const expectedVaccines = UNEPI_SCHEDULE.filter(v => v.ageWeeks <= ageInWeeks);
                             return (
-                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, background: 'var(--bg-default)', padding: 12, borderRadius: 8, border: '1px solid var(--border-default)' }}>
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, background: 'var(--bg-default)', padding: 12, borderRadius: "var(--radius-sm)", border: '1px solid var(--border-default)' }}>
                                 {expectedVaccines.map(v => (
                                   <label key={v.name} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text-secondary)', cursor: 'pointer' }}>
                                     <input 
@@ -3469,7 +3469,7 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
                             alert("Something went wrong processing the form. Please try again.");
                           }
                         }} 
-                        style={{ width: '100%', background: 'var(--mint)', color: '#060012', border: 'none', borderRadius: 8, padding: '12px', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font-body)', marginTop: 8 }}
+                        style={{ width: '100%', background: 'var(--mint)', color: 'var(--bg-deepest)', border: 'none', borderRadius: "var(--radius-sm)", padding: '12px', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font-body)', marginTop: 8 }}
                       >
                         Complete Onboarding
                       </button>
@@ -3482,9 +3482,9 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
                   
                   <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 24, marginBottom: 24 }}>
                     <div style={{ flex: 1 }}>
-                      <div style={{ background: 'var(--bg-deepest)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: 16 }}>
+                      <div style={{ background: 'var(--bg-deepest)', border: '1px solid var(--border-subtle)', borderRadius: "var(--radius-md)", padding: 16 }}>
                         <div style={{ fontSize: 12, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12, fontWeight: 700 }}>Pickup QR Card</div>
-                        <div style={{ display: 'flex', justifyContent: 'center', background: '#fff', padding: 16, borderRadius: 8, marginBottom: 12 }}>
+                        <div style={{ display: 'flex', justifyContent: 'center', background: '#fff', padding: 16, borderRadius: "var(--radius-sm)", marginBottom: 12 }}>
                           <img src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${onboardingReport.id}`} alt="QR Code" style={{ width: 150, height: 150 }} />
                         </div>
                         <div style={{ fontSize: 11, color: 'var(--text-secondary)', textAlign: 'center' }}>Scan at gate for authorized pickup</div>
@@ -3492,12 +3492,12 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
                     </div>
                     
                     <div style={{ flex: 2, display: 'flex', flexDirection: 'column', gap: 12 }}>
-                      <div style={{ background: 'var(--bg-deepest)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: 16 }}>
+                      <div style={{ background: 'var(--bg-deepest)', border: '1px solid var(--border-subtle)', borderRadius: "var(--radius-md)", padding: 16 }}>
                         <div style={{ fontSize: 12, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12, fontWeight: 700 }}>Intake Summary</div>
                         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '8px 16px', fontSize: 13 }}>
                           <div><span style={{ color: 'var(--text-tertiary)' }}>Parents:</span> <span style={{ color: '#fff' }}>{onboardingReport.parent}, {onboardingReport.secondaryParent}</span></div>
                           <div><span style={{ color: 'var(--text-tertiary)' }}>Auth Pickups:</span> <span style={{ color: '#fff' }}>{onboardingReport.authorizedPickups}</span></div>
-                          <div><span style={{ color: 'var(--text-tertiary)' }}>Allergies:</span> <span style={{ color: '#FF4757' }}>{onboardingReport.allergies}</span></div>
+                          <div><span style={{ color: 'var(--text-tertiary)' }}>Allergies:</span> <span style={{ color: 'var(--danger)' }}>{onboardingReport.allergies}</span></div>
                           <div><span style={{ color: 'var(--text-tertiary)' }}>Care Plan:</span> <span style={{ color: '#fff', textTransform: 'capitalize' }}>{onboardingReport.carePlan}</span></div>
                           <div><span style={{ color: 'var(--text-tertiary)' }}>Birthday:</span> <span style={{ color: '#fff' }}>{onboardingReport.birthday}</span></div>
                           <div style={{ gridColumn: '1 / -1' }}><span style={{ color: 'var(--text-tertiary)' }}>Payment Method:</span> <span style={{ color: '#fff' }}>{onboardingReport.paymentMethod === 'mobile_money' ? '📱 Mobile Money' : '💳 Card Payment'}</span></div>
@@ -3505,7 +3505,7 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
                         </div>
                       </div>
                       
-                      <div style={{ background: 'var(--bg-deepest)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: 16 }}>
+                      <div style={{ background: 'var(--bg-deepest)', border: '1px solid var(--border-subtle)', borderRadius: "var(--radius-md)", padding: 16 }}>
                         <div style={{ fontSize: 12, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8, fontWeight: 700 }}>Parent Portal Link</div>
                         <div style={{ display: 'flex', gap: 8 }}>
                           <input readOnly value={`https://amani.app/parent/${onboardingReport.id}`} style={{ flex: 1, background: 'var(--bg-default)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', padding: '8px 12px', borderRadius: 6, fontSize: 12 }} />
@@ -3516,8 +3516,8 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
                   </div>
                   
                   <div style={{ display: 'flex', gap: 12 }}>
-                    <button onClick={() => window.print()} style={{ flex: 1, background: 'transparent', color: 'var(--text-primary)', border: '1px solid var(--border-default)', borderRadius: 8, padding: '12px', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font-body)' }}>🖨️ Print Report</button>
-                    <button onClick={() => { setOnboardingOpen(false); setOnboardingReport(null); }} style={{ flex: 1, background: 'var(--mint)', color: '#060012', border: 'none', borderRadius: 8, padding: '12px', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font-body)' }}>Done</button>
+                    <button onClick={() => window.print()} style={{ flex: 1, background: 'transparent', color: 'var(--text-primary)', border: '1px solid var(--border-default)', borderRadius: "var(--radius-sm)", padding: '12px', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font-body)' }}>🖨️ Print Report</button>
+                    <button onClick={() => { setOnboardingOpen(false); setOnboardingReport(null); }} style={{ flex: 1, background: 'var(--mint)', color: 'var(--bg-deepest)', border: 'none', borderRadius: "var(--radius-sm)", padding: '12px', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font-body)' }}>Done</button>
                   </div>
                 </React.Fragment>
               )}
@@ -3528,14 +3528,14 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
         {/* QR Scanner Modal */}
         {qrScannerOpen && (
           <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', animation: 'fadeIn 0.2s ease' }}>
-            <div style={{ background: 'var(--bg-elevated)', width: 400, borderRadius: 16, border: '1px solid var(--border-subtle)', padding: 32, position: 'relative', textAlign: 'center' }}>
+            <div style={{ background: 'var(--bg-elevated)', width: 400, borderRadius: "var(--radius-lg)", border: '1px solid var(--border-subtle)', padding: 32, position: 'relative', textAlign: 'center' }}>
               <button onClick={() => { setQrScannerOpen(false); setScannedChildId(null); }} style={{ position: 'absolute', top: 16, right: 16, background: 'none', border: 'none', color: 'var(--text-tertiary)', cursor: 'pointer', fontSize: 20 }}>×</button>
               
               {!scannedChildId ? (
                 <React.Fragment>
                   <h2 style={{ fontSize: 22, fontWeight: 800, margin: '0 0 16px', color: 'var(--text-primary)', fontFamily: 'var(--font-display)' }}>Scan Parent QR</h2>
-                  <div style={{ width: '100%', height: 250, background: '#111', borderRadius: 12, marginBottom: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px dashed var(--border-default)', position: 'relative', overflow: 'hidden' }}>
-                    <div style={{ position: 'absolute', width: 200, height: 200, border: '2px solid rgba(0, 252, 143, 0.5)', borderRadius: 16 }}></div>
+                  <div style={{ width: '100%', height: 250, background: '#111', borderRadius: "var(--radius-md)", marginBottom: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px dashed var(--border-default)', position: 'relative', overflow: 'hidden' }}>
+                    <div style={{ position: 'absolute', width: 200, height: 200, border: '2px solid rgba(0, 252, 143, 0.5)', borderRadius: "var(--radius-lg)" }}></div>
                     <div style={{ width: '100%', height: 2, background: 'var(--mint)', position: 'absolute', top: '50%', boxShadow: '0 0 10px var(--mint)', animation: 'scanline 2s infinite' }}></div>
                     <style>{`
                       @keyframes scanline {
@@ -3547,7 +3547,7 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
                     `}</style>
                   </div>
                   <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 20 }}>Simulating scan... Select a child to test.</p>
-                  <select onChange={(e) => setScannedChildId(e.target.value)} style={{ width: '100%', padding: '10px 12px', borderRadius: 8, background: 'var(--bg-deepest)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', outline: 'none' }}>
+                  <select onChange={(e) => setScannedChildId(e.target.value)} style={{ width: '100%', padding: '10px 12px', borderRadius: "var(--radius-sm)", background: 'var(--bg-deepest)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', outline: 'none' }}>
                     <option value="">-- Select Child QR --</option>
                     {childrenData.filter(c => c.present).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                   </select>
@@ -3561,7 +3561,7 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
                     const c = childrenData.find(x => x.id === scannedChildId);
                     if (!c) return null;
                     return (
-                      <div style={{ background: 'var(--bg-deepest)', borderRadius: 12, padding: 16, marginTop: 16, textAlign: 'left', border: '1px solid var(--mint)' }}>
+                      <div style={{ background: 'var(--bg-deepest)', borderRadius: "var(--radius-md)", padding: 16, marginTop: 16, textAlign: 'left', border: '1px solid var(--mint)' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
                           <img src={c.photoUrl} style={{ width: 48, height: 48, borderRadius: '50%', objectFit: 'cover' }} />
                           <div>
@@ -3570,11 +3570,11 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
                           </div>
                         </div>
                         <div style={{ display: 'flex', gap: '10px', marginBottom: 16 }}>
-                          <div style={{ flex: 1, background: 'rgba(255,255,255,0.05)', padding: 8, borderRadius: 8 }}>
+                          <div style={{ flex: 1, background: 'rgba(255,255,255,0.05)', padding: 8, borderRadius: "var(--radius-sm)" }}>
                             <div style={{ fontSize: 11, color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>Time Arrived</div>
                             <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--mint)' }}>07:30 AM</div>
                           </div>
-                          <div style={{ flex: 1, background: 'rgba(255,255,255,0.05)', padding: 8, borderRadius: 8 }}>
+                          <div style={{ flex: 1, background: 'rgba(255,255,255,0.05)', padding: 8, borderRadius: "var(--radius-sm)" }}>
                             <div style={{ fontSize: 11, color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>Time Leaving</div>
                             <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--mint)' }}>{new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
                           </div>
@@ -3585,7 +3585,7 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
                           <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 16 }}>
                             <strong style={{ color: 'var(--text-primary)' }}>Payment Status:</strong>{' '}
                             <span style={{ 
-                              color: c.invoiceStatus === 'paid' ? 'var(--mint)' : c.invoiceStatus === 'due' ? '#FFB400' : '#FF4757',
+                              color: c.invoiceStatus === 'paid' ? 'var(--mint)' : c.invoiceStatus === 'due' ? 'var(--gold)' : 'var(--danger)',
                               fontWeight: 700, textTransform: 'uppercase'
                             }}>
                               {c.invoiceStatus}
@@ -3593,7 +3593,7 @@ MESSAGES FROM PARENTS: ${messagesStr}`;
                           </div>
                         )}
                         
-                        <button onClick={() => { handleSignOut(c); setQrScannerOpen(false); setScannedChildId(null); }} style={{ width: '100%', padding: 12, borderRadius: 8, border: 'none', background: 'var(--mint)', color: '#000', fontWeight: 700, cursor: 'pointer' }}>Confirm & Sign Out</button>
+                        <button onClick={() => { handleSignOut(c); setQrScannerOpen(false); setScannedChildId(null); }} style={{ width: '100%', padding: 12, borderRadius: "var(--radius-sm)", border: 'none', background: 'var(--mint)', color: 'var(--text-inverse)', fontWeight: 700, cursor: 'pointer' }}>Confirm & Sign Out</button>
                       </div>
                     );
                   })()}
