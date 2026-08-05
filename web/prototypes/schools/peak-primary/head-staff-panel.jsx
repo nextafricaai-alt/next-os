@@ -1,3 +1,4 @@
+
 /* head-staff-panel.jsx
    Sarah's view of her staff today.
 
@@ -124,18 +125,11 @@
       .eq('tenant_id', tenantId)
       .gte('recorded_at', sevenDaysAgo);
 
-    const { data: studentNotes } = await sb
-      .from('student_notes')
-      .select('id, teacher_id, created_at')
-      .eq('tenant_id', tenantId)
-      .gte('created_at', sevenDaysAgo);
-
     return {
       teachers: (teachers && teachers.length > 0) ? teachers : KABS_STAFF_ROSTER,
       checkins: checkins || [],
       rollCalls: rollCalls || [],
       healthRecs: healthRecs || [],
-      studentNotes: studentNotes || [],
       syllabus: syllabus || [],
       pastSyllabusDeductions: pastDeductions || [],
     };
@@ -465,10 +459,6 @@
         if (!h.recorded_by_teacher_id) return;
         healthByTeacher[h.recorded_by_teacher_id] = (healthByTeacher[h.recorded_by_teacher_id] || 0) + 1;
       });
-      (data.studentNotes || []).forEach(n => {
-        if (!n.teacher_id) return;
-        healthByTeacher[n.teacher_id] = (healthByTeacher[n.teacher_id] || 0) + 1;
-      });
       return data.teachers.map(t => {
         const c = checkinsByTeacher[t.id];
         const status = !c ? 'absent' : (c.checked_out_at ? 'out' : 'in');
@@ -518,7 +508,7 @@
             }}>Who's on campus right now</h1>
           </div>
           <div style={{ display: 'flex', gap: 10 }}>
-            <button onClick={() => window.open(window.peakSchoolLink ? window.peakSchoolLink('join-staff') : '/prototypes/schools/peak-primary/staff-hr-form.html', '_blank')} style={{
+            <button onClick={() => window.open(window.peakSchoolLink ? window.peakSchoolLink('join-staff') : './staff-hr-form.html', '_blank')} style={{
               background: 'rgba(59,130,246,0.12)', color: T.blue,
               border: '1px solid rgba(59,130,246,0.3)',
               padding: '8px 16px', borderRadius: 8,
@@ -695,3 +685,4 @@
 
   window.HeadStaffPanel = HeadStaffPanel;
 })();
+

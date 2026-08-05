@@ -1,3 +1,4 @@
+
 /* head-timetable-panel.jsx
    Sarah's digital timetable — color-coded by live activity.
 
@@ -392,3 +393,5 @@
 
   window.HeadTimetablePanel = HeadTimetablePanel;
 })();
+
+  

@@ -1,3 +1,4 @@
+
 /* teacher-view.jsx
    The Teacher Shell — Patrick / Mary's portal.
 
@@ -107,38 +108,46 @@
       .order('planned_week', { ascending: true });
 
     let payroll = [];
+    let expectedPay = null;
     try {
-      const wk = window.WK || 'https://peak-worker.nextafrica.workers.dev';
+      const wk = typeof window !== 'undefined' && window.WK ? window.WK : (typeof WK !== 'undefined' ? WK : 'https://nextos-sentinel.nextafricaai.workers.dev');
       const res = await fetch(wk + '/os-data?tenant=' + tenantId + '&kind=staff_pay');
       if (res.ok) {
         const json = await res.json();
-        const records = json.records || [];
-        const myPay = records.find(r => (r.email && r.email.toLowerCase() === teacher.email?.toLowerCase()) || (r.name && r.name.toLowerCase() === (teacher.full_name || teacher.name || '').toLowerCase()));
+        const records = (json.records || []).map(x => x.payload || {});
+        const tEmail = (teacher.email || '').toLowerCase();
+        const tName = (teacher.full_name || teacher.name || '').toLowerCase();
+        const myPay = records.find(r => (r.email && r.email.toLowerCase() === tEmail) || (r.name && r.name.toLowerCase() === tName));
         if (myPay && ((myPay.monthly || 0) + (myPay.allowance || 0) > 0)) {
-          const dt = new Date();
-          const ms = new Date(dt.getFullYear(), dt.getMonth(), 1).toISOString().slice(0, 10);
-          payroll = [{
-            id: myPay._id || Date.now(),
-            month: ms,
-            amount: (myPay.monthly || 0) + (myPay.allowance || 0),
-            status: 'paid', // Assumed for the dashboard preview
-            paid_at: dt.toISOString(),
-            channel: 'bank'
-          }];
+          expectedPay = myPay;
         }
       }
     } catch (e) {
       console.warn('Failed to fetch OS data staff_pay', e);
     }
     
-    if (payroll.length === 0) {
-      const { data: pay } = await sb
-        .from('teacher_payroll')
-        .select('id, month, amount, status, paid_at, channel')
-        .eq('teacher_id', teacher.id)
-        .order('month', { ascending: false })
-        .limit(3);
-      payroll = pay || [];
+    const { data: pay } = await sb
+      .from('teacher_payroll')
+      .select('id, month, amount, status, paid_at, channel')
+      .eq('teacher_id', teacher.id)
+      .order('month', { ascending: false })
+      .limit(3);
+    payroll = pay || [];
+
+    if (expectedPay) {
+      const dt = new Date();
+      const ms = new Date(dt.getFullYear(), dt.getMonth(), 1).toISOString().slice(0, 10);
+      const hasThisMonth = payroll.some(p => p.month === ms);
+      if (!hasThisMonth) {
+        payroll.unshift({
+          id: expectedPay._id || Date.now(),
+          month: ms,
+          amount: (expectedPay.monthly || 0) + (expectedPay.allowance || 0),
+          status: 'pending',
+          paid_at: null,
+          channel: null
+        });
+      }
     }
 
     // Deductions (late check-ins, syllabus delays) for the same 3 months,
@@ -458,7 +467,7 @@
     try {
       await fetch('https://nextos-sentinel.nextafricaai.workers.dev/parent/notify', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tenant: tenantId, studentId, title, body, url: '/prototypes/schools/peak-primary/parent-dashboard.html' }),
+        body: JSON.stringify({ tenant: tenantId, studentId, title, body, url: './parent-dashboard.html' }),
       });
     } catch (e) { /* best-effort */ }
   }
@@ -466,6 +475,12 @@
   async function writeHealthRecord(record) {
     const sb = window.NextSession?.sb;
     if (!sb) return { error: 'No session' };
+    
+    // Ensure recorded_at is present so the UI can sort and display it properly
+    if (!record.recorded_at) {
+      record.recorded_at = new Date().toISOString();
+    }
+    
     const { data, error } = await sb
       .from('student_health_records')
       .insert(record)
@@ -639,28 +654,7 @@
       });
     }
 
-    // 2. Upcoming class notification (within 10 minutes)
-    if (!isWeekend && todaySlots) {
-      const nowMins = today.getHours() * 60 + today.getMinutes();
-      todaySlots.forEach(slot => {
-        if (!slot.start_time) return;
-        const [startH, startM] = slot.start_time.split(':').map(Number);
-        const startMins = startH * 60 + startM;
-        const diff = startMins - nowMins;
-        if (diff > 0 && diff <= 10) {
-          nudges.push({
-            id: 'upcoming-' + slot.id,
-            tone: 'info',
-            icon: '⏰',
-            title: `Upcoming class in ${diff} minute${diff === 1 ? '' : 's'}`,
-            body: `Your next period is ${slot.subject} for ${slot.stream} at ${formatTime(slot.start_time)}.`,
-            action: 'none',
-          });
-        }
-      });
-    }
-
-    // 3. Roll call not taken for each assigned stream (weekdays only, only for active/past slots)
+    // 2. Roll call not taken for each assigned stream (weekdays only, only for active/past slots)
     if (!isWeekend) {
       assignments.forEach(a => {
         const slot = (todaySlots || []).find(sl => sl.stream === a.stream);
@@ -904,7 +898,7 @@
       setAnimateIn(false);
       setTimeout(() => {
         setDismissed(true);
-        if (onCheckedIn) onCheckedIn(data);
+        if (onCheckedIn) onCheckedIn(data, penalty);
         if (penalty && penalty.applied) {
           tinyToast('Checked in after 07:15 — UGX ' + penalty.amount.toLocaleString() + ' late penalty applied.', 'warn');
         } else {
@@ -1024,7 +1018,7 @@
       } else {
         tinyToast('Checked in. Head teacher notified.', 'success');
       }
-      if (onCheckedIn) onCheckedIn(data);
+      if (onCheckedIn) onCheckedIn(data, penalty);
     };
 
     const handleCheckOut = async () => {
@@ -1771,13 +1765,10 @@
     );
   }
 
-  function TeacherExamsCard({ exams, assignments, students, teacherId, tenantId, onChanged }) {
-    const [view, setView] = useState('list'); // list | add | mark
+  function TeacherExamsCard({ exams, assignments, teacherId, tenantId, onChanged }) {
+    const [view, setView] = useState('list'); // list | add
     const [form, setForm] = useState({ name: '', stream: '', subject: '', passmark: 50, out_of: 100 });
     const [saving, setSaving] = useState(false);
-    const [examToMark, setExamToMark] = useState(null);
-    const [marks, setMarks] = useState({}); // { studentId: score }
-    const [loadingMarks, setLoadingMarks] = useState(false);
 
     // Get unique streams and subjects the teacher is assigned to
     const myStreams = Array.from(new Set((assignments || []).map(a => a.stream)));
@@ -2269,6 +2260,56 @@
     );
   }
 
+  function TeacherLogCard({ teacher }) {
+    const [draft, setDraft] = useState('');
+    const [saving, setSaving] = useState(false);
+    
+    const submit = async () => {
+      if (!draft.trim()) return;
+      setSaving(true);
+      try {
+        const sb = window.NextSession?.sb;
+        if (!sb) throw new Error("No database session");
+        
+        const tenant = (window.PEAK_ROLE && window.PEAK_ROLE.getProfile && window.PEAK_ROLE.getProfile().tenantId) || 'kabs-lily-junior-school-and-kindercare-centre';
+        const { error } = await sb.from('teacher_logs').insert({
+          tenant_id: tenant,
+          teacher_id: teacher.id,
+          teacher_name: teacher.full_name || teacher.email,
+          message: draft.trim(),
+          recorded_at: new Date().toISOString()
+        });
+        
+        if (error) throw error;
+        
+        window.peakToast && window.peakToast('Log submitted', 'success', 'Thank you for your update.');
+        setDraft('');
+      } catch (e) {
+        console.error("Log submission error:", e);
+        window.peakToast && window.peakToast('Could not submit log', 'error');
+      }
+      setSaving(false);
+    };
+
+    return (
+      <Card title="Suggestion Box & Daily Log" subtitle="YOUR VOICE" accent={T.green}>
+        <div style={{ fontSize: 13, color: T.ink3, marginBottom: 12 }}>
+          Log how your day went or suggest improvements. This goes directly to the admin/bursar.
+        </div>
+        <textarea 
+          value={draft} onChange={e => setDraft(e.target.value)} 
+          placeholder="What's happening? How was your day?"
+          style={{ width: '100%', minHeight: 90, background: T.bg, border: '1px solid ' + T.border, borderRadius: 8, padding: 10, fontSize: 13, color: T.ink, outline: 'none', resize: 'vertical', fontFamily: T.font, marginBottom: 10 }}
+        />
+        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+          <button onClick={submit} disabled={saving || !draft.trim()} style={{ background: T.green, color: '#fff', border: 'none', borderRadius: 8, padding: '7px 16px', fontSize: 12, fontWeight: 700, cursor: saving || !draft.trim() ? 'not-allowed' : 'pointer', opacity: saving || !draft.trim() ? 0.6 : 1 }}>
+            {saving ? 'Submitting...' : 'Submit Log'}
+          </button>
+        </div>
+      </Card>
+    );
+  }
+
   // Prominent, above-the-fold "Expected Monthly Salary" banner — wired
   // directly to the same payroll/deductions data PayslipCard uses, so it
   // visibly drops the moment a late-checkin or syllabus-delay penalty
@@ -2510,6 +2551,7 @@
               <TeacherExamsCard exams={data.exams} assignments={data.assignments} students={data.myStudents} teacherId={data.teacher && data.teacher.id} tenantId={profile.tenantId || 'kabs-lily-junior-school-and-kindercare-centre'} onChanged={refresh} />
               <StudentsCard assignments={data.assignments} onLogHealth={setHealthStudent} onMessage={setMessageStudent} healthRecords={data.healthRecords || []} />
               <PayslipCard payroll={data.payroll} deductions={data.deductions} />
+              <TeacherLogCard teacher={data.teacher} />
             </div>
           )}
         </main>
@@ -2562,3 +2604,4 @@
 
   window.TeacherShell = TeacherShell;
 })();
+

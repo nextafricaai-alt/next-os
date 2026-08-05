@@ -1,3 +1,4 @@
+
 /* role-router.jsx
    The doorman of the Schools OS. Reads window.NextSession.profile.role,
    decides which "floor" of the building each user lands on.
@@ -49,7 +50,7 @@
   const ROLE_NAV_WHITELIST = {
     admin:   null, // null = show all
     head:    null,
-    bursar:  new Set(['dash', 'fees', 'rep', 'exam', 'finance', 'trans']),
+    bursar:  new Set(['dash', 'fees', 'rep', 'exam', 'finance', 'trans', 'teach', 'stud', 'learn']),
     teacher: new Set(),
     driver:  new Set(['driver', 'trans']),
   };
@@ -106,3 +107,5 @@
     initials,
   };
 })();
+
+  
