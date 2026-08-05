@@ -5,11 +5,11 @@ window.React = React;
 window.ReactDOM = ReactDOM;
 
 // --- Auto-extracted legacy Babel scripts ---
+import './v4-peak-dark.jsx';
 import '../role-router.jsx';
 import '../teacher-view.jsx';
 import '../head-staff-panel.jsx';
 import '../head-timetable-panel.jsx';
-import './v4-peak-dark.jsx';
 import './v4-today.jsx';
 import './v4-students.jsx';
 import './v4-profile.jsx';
