@@ -1,6 +1,5 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import App from './App';
 
 window.React = React;
 window.ReactDOM = ReactDOM;
@@ -19,5 +18,7 @@ import './v4-broadcast.jsx';
 import './v4-mobile.jsx';
 import './nia-feed.jsx';
 // ------------------------------------------
+
+import App from './App';
 
 ReactDOM.createRoot(document.getElementById('root')).render(<App />);
