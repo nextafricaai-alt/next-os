@@ -1,8 +1,6 @@
+import './init-globals.js';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-
-window.React = React;
-window.ReactDOM = ReactDOM;
 
 // --- Auto-extracted legacy Babel scripts ---
 import './v4-peak-dark.jsx';
