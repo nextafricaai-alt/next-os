@@ -1,8 +1,27 @@
-// NEXT OS service worker — installability + Web Push notifications.  [v4-push]
+// NEXT OS service worker — installability + Web Push notifications.  [v5-purge]
 // Network-first passthrough; no aggressive caching so school data stays live.
 self.addEventListener('install', function (e) { self.skipWaiting(); });
 self.addEventListener('message', function (e) { if (e.data === 'skipWaiting') self.skipWaiting(); });
-self.addEventListener('activate', function (e) { e.waitUntil(self.clients.claim()); });
+
+// Purge every Cache Storage entry on activate. This worker itself never
+// writes to Cache Storage (see the fetch handler below), but an installed
+// PWA can be running a service worker from long before this file existed
+// in its current form — including, at one point, a Vite-PWA-plugin build
+// that precached the whole app shell — and iOS Safari is known to keep an
+// old install's caches around indefinitely rather than dropping them when
+// the SW script changes. That's the real mechanism behind "installed app
+// shows the wrong school / a stale grey screen": the device is still
+// serving assets an old worker cached, not anything the current site is
+// sending. skipWaiting + clients.claim get the new worker in control
+// fast; this clears out whatever the old one left behind so there's
+// nothing stale left for it — or any future worker — to fall back to.
+self.addEventListener('activate', function (e) {
+  e.waitUntil(
+    caches.keys()
+      .then(function (names) { return Promise.all(names.map(function (n) { return caches.delete(n); })); })
+      .then(function () { return self.clients.claim(); })
+  );
+});
 
 self.addEventListener('fetch', function (e) {
   e.respondWith(fetch(e.request).catch(function () { return new Response('', { status: 504 }); }));
