@@ -52,6 +52,8 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Instrument+Serif&display=swap" rel="stylesheet">
   <style>
     html, body { margin: 0; padding: 0; background: #0a1029; font-family: 'Inter', -apple-system, system-ui, sans-serif; color: #f5f6fa; -webkit-font-smoothing: antialiased; }
+    @keyframes nx-pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.55;transform:scale(.92)} }
+    @keyframes nx-spin { to{transform:rotate(360deg)} }
     *, *::before, *::after { box-sizing: border-box; }
     #root { min-height: 100vh; }
     button { font: inherit; }
@@ -249,10 +251,27 @@
   </script>
   <div id="root">
     <!-- Loading state (replaced once React mounts) -->
-    <div style="min-height:100vh;display:grid;place-items:center;color:#8a91b0;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px;letter-spacing:0.08em;">
-      <div style="text-align:center">
-        <div id="nx-loading-text">LOADING · NEXT SCHOOL OS</div>
-        <div style="margin-top:12px;font-size:10px;opacity:0.5">build b110</div>
+    <div style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#05080f;gap:20px;">
+      <!-- Logo with absolute path so it resolves correctly under /school/[slug] URL rewriting -->
+      <img
+        id="nx-boot-logo"
+        src="/prototypes/schools/peak-primary/assets/next-logo.png"
+        alt="NEXT"
+        style="width:72px;height:72px;object-fit:contain;animation:nx-pulse 1.5s ease-in-out infinite"
+        onerror="this.style.display='none';document.getElementById('nx-logo-svg').style.display='flex';"
+      />
+      <div id="nx-logo-svg" style="display:none;width:72px;height:72px;align-items:center;justify-content:center;animation:nx-pulse 1.5s ease-in-out infinite;">
+        <svg viewBox="0 0 80 80" width="72" height="72" xmlns="http://www.w3.org/2000/svg">
+          <rect width="80" height="80" rx="18" fill="#1a2a6c"/>
+          <text x="40" y="52" font-family="Arial,sans-serif" font-size="28" font-weight="900" fill="#ffffff" text-anchor="middle" letter-spacing="-1">NEXT</text>
+        </svg>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:8px;">
+        <div id="nx-loading-text" style="color:rgba(255,255,255,0.6);font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;letter-spacing:0.12em;text-transform:uppercase;">LOADING · NEXT SCHOOL OS</div>
+        <div style="width:40px;height:2px;background:rgba(255,255,255,0.08);border-radius:99px;overflow:hidden;">
+          <div style="width:40%;height:100%;background:rgba(100,120,255,0.7);border-radius:99px;animation:nx-spin 1.2s linear infinite;transform-origin:left center;"></div>
+        </div>
+        <div style="color:rgba(255,255,255,0.2);font-family:'JetBrains Mono',ui-monospace,monospace;font-size:9px;letter-spacing:0.08em;">build b110</div>
       </div>
     </div>
   </div>
@@ -271,8 +290,10 @@
   <!-- Session guard — must run BEFORE React so unauthenticated users get bounced -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script src="/prototypes/schools/peak-primary/session-guard.js?v=4"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+
+  <!-- face-api.js is large (~6.8MB) — load ASYNC so it never blocks React from mounting.
+       The facial-recognition feature checks window.faceapi before using it. -->
+  <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js" async></script>
   <script>
   window.__PEAK_LOGO_DATA = null;
   window.__loadPdfLogo = function() {
@@ -478,14 +499,18 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="anonymous" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin="anonymous"></script>
 
-  <!-- Three.js + GSAP for Nia Design Studio -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" crossorigin="anonymous"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js" crossorigin="anonymous"></script>
-  <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js" crossorigin="anonymous"></script>
-
+  <!-- React + Babel MUST load synchronously and BEFORE the type="text/babel" components below -->
   <script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" crossorigin="anonymous"></script>
   <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" crossorigin="anonymous"></script>
   <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" crossorigin="anonymous"></script>
+
+  <!-- jsPDF — needed for PDF export; load synchronously but AFTER React -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+  <!-- Three.js, GSAP, html2canvas — optional visual libraries, async so they never delay React -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" crossorigin="anonymous" async></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js" crossorigin="anonymous" async></script>
+  <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js" crossorigin="anonymous" async></script>
 
   <!-- School Document, Boarding & Brand Admin Components + Nia Design Studio -->
   <script type="text/babel" src="../../../../nia-design-studio.jsx" onerror="console.warn('Optional component failed to load: nia-design-studio.jsx')"></script>
