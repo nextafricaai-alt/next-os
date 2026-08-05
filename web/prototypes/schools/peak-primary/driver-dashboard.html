@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Driver App — Kabs Lily Transport Tracker</title>
   <meta name="description" content="Kabs Lily Kindercare — Live Shuttle GPS Tracker for School Transport Management">
 
@@ -174,12 +174,30 @@
 <body>
   <div id="root"></div>
 
-  <!-- Load Telemetry & Driver View JS -->
-  <script src="/prototypes/schools/peak-primary/transport-telemetry.js"></script>
-  <script type="text/babel" src="/prototypes/schools/peak-primary/driver-view.jsx?v=8"></script>
+  <!-- Load Telemetry & Driver View JS (relative paths for mobile/GitHub Pages compatibility) -->
+  <script src="./transport-telemetry.js"></script>
+  <script type="text/babel" src="./driver-view.jsx?v=9"></script>
 
   <script type="text/babel">
     const { useEffect, useState } = React;
+
+    // Global error boundary to prevent white-screen crashes on mobile
+    class ErrorBoundary extends React.Component {
+      constructor(props) { super(props); this.state = { hasError: false, error: null }; }
+      static getDerivedStateFromError(error) { return { hasError: true, error }; }
+      componentDidCatch(e, info) { console.error('Driver app crash:', e, info); }
+      render() {
+        if (this.state.hasError) {
+          return React.createElement('div', { style: { display:'flex', alignItems:'center', justifyContent:'center', height:'100%', flexDirection:'column', gap:'16px', color:'#F8FAFC', padding:'24px', textAlign:'center', background:'#0F172A' } },
+            React.createElement('div', { style: { fontSize:'48px' } }, '🚐'),
+            React.createElement('div', { style: { fontSize:'18px', fontWeight:'700', color:'#EF4444' } }, 'App Error'),
+            React.createElement('div', { style: { fontSize:'13px', color:'#94A3B8', maxWidth:'280px' } }, 'The driver app encountered an issue. Please reload the page.'),
+            React.createElement('button', { onClick:() => location.reload(), style: { marginTop:'8px', padding:'12px 24px', background:'#3B82F6', color:'#fff', border:'none', borderRadius:'8px', fontSize:'14px', fontWeight:'700', cursor:'pointer' } }, '🔄 Reload App')
+          );
+        }
+        return this.props.children;
+      }
+    }
 
     function App() {
       const [telemetryState, setTelemetryState] = useState(null);
@@ -221,7 +239,9 @@
       );
     }
 
-    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+    ReactDOM.createRoot(document.getElementById('root')).render(
+      React.createElement(ErrorBoundary, null, React.createElement(App))
+    );
   </script>
 </body>
 </html>
