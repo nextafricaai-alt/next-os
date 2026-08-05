@@ -1,3 +1,4 @@
+import React from 'react';
 /**
  * Parent Portal Component — School OS
  * Kabs Lily Kindercare Center & Junior School

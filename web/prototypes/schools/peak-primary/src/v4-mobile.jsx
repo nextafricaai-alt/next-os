@@ -1,3 +1,4 @@
+import React from 'react';
 
 /* src/v4-mobile.jsx */
 /* global React, PEAK, V4 */

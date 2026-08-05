@@ -1,3 +1,5 @@
+import React from 'react';
+import ReactDOM from 'react-dom/client';
 (function(global) {
   const React = global.React || require('react');
   const { useState, useEffect, useMemo } = React;

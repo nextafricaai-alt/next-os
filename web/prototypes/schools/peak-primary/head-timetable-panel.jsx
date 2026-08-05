@@ -1,3 +1,4 @@
+import React from 'react';
 
 /* head-timetable-panel.jsx
    Sarah's digital timetable — color-coded by live activity.

@@ -1,3 +1,4 @@
+import React from 'react';
 
 /* src/v4-profile.jsx */
 /* global React, PEAK, V4 */

@@ -1,3 +1,5 @@
+import React from 'react';
+import ReactDOM from 'react-dom/client';
 (function (global) {
   const { useState, useEffect } = React;
 

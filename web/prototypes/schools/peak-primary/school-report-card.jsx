@@ -1,3 +1,4 @@
+import React from 'react';
 (function () {
   const { React, SchoolDocumentHeader } = window;
   const { useState } = React || { useState: function(){} };

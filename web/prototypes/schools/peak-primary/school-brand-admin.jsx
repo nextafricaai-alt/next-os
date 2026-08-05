@@ -1,3 +1,4 @@
+import React from 'react';
 (function () {
   const T = {
     bg: '#0a1029', surface: '#141e3c', surface2: '#1a2548',

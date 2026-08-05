@@ -1,3 +1,4 @@
+import React from 'react';
 /**
  * NEXT OS - Head Teacher Live Transport Control Panel
  * Exposes: window.HeadTransportPanel, window.HeadTransportPanelDemo

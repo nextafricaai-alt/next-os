@@ -1,3 +1,4 @@
+import React from 'react';
 
 /* head-staff-panel.jsx
    Sarah's view of her staff today.

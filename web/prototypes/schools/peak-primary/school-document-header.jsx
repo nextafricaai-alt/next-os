@@ -1,3 +1,4 @@
+import React from 'react';
 (function () {
   const { React } = window;
   const { useState, useEffect } = React || { useState: function(){}, useEffect: function(){} };

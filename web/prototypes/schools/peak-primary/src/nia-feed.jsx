@@ -1,3 +1,4 @@
+import React from 'react';
 
 /* NIA_FEED + NiaBell — reliable in-OS notification centre (localStorage, no push dependency) with Nia's friendly, encouraging, suggestive messages. */
 (function () {

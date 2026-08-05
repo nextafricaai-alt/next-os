@@ -1,3 +1,4 @@
+import React from 'react';
 /**
  * NEXT OS - Head Teacher / Administrator Operational & Cash Control Hub
  * Role holder: Nalukenge Jane (Head Teacher / Administrator)

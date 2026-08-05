@@ -1,3 +1,4 @@
+import React from 'react';
 
 /* teacher-view.jsx
    The Teacher Shell — Patrick / Mary's portal.
