@@ -216,6 +216,7 @@
       h1 { font-size: 21px !important; }
     }
   </style>
+  <script type="module" crossorigin src="/prototypes/schools/peak-primary/dist/assets/main-B16_F0Np.js"></script>
 </head>
 <body>
   <script>
@@ -261,7 +262,7 @@
       <div id="nx-loading-text" style="display:none;"></div>
       <div style="display:flex;flex-direction:column;align-items:center;gap:20px;">
         <img
-          src="./assets/next-logo.png"
+          src="/prototypes/schools/peak-primary/dist/assets/next-logo-DjU2ER-u.png"
           alt="NEXT"
           style="width:80px;height:80px;object-fit:contain;animation:nx-pulse 1.5s ease-in-out infinite"
           onerror="this.style.display='none';document.getElementById('nx-logo-fallback').style.display='flex';"
@@ -504,16 +505,6 @@
   <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js" crossorigin="anonymous"></script>
 
   <!-- School Document, Boarding & Brand Admin Components + Nia Design Studio -->
-  <script type="module" src="../../../../nia-design-studio.jsx" onerror="console.warn('Optional component failed to load: nia-design-studio.jsx')"></script>
-  <script type="module" src="./school-document-header.jsx" onerror="console.warn('Optional component failed to load: school-document-header.jsx')"></script>
-  <script type="module" src="./school-report-card.jsx" onerror="console.warn('Optional component failed to load: school-report-card.jsx')"></script>
-  <script type="module" src="./school-fee-statement.jsx" onerror="console.warn('Optional component failed to load: school-fee-statement.jsx')"></script>
-  <script type="module" src="./school-bank-statement.jsx" onerror="console.warn('Optional component failed to load: school-bank-statement.jsx')"></script>
-  <script type="module" src="./school-brand-admin.jsx" onerror="console.warn('Optional component failed to load: school-brand-admin.jsx')"></script>
-  <script type="module" src="./driver-view.jsx" onerror="console.warn('Optional component failed to load: driver-view.jsx')"></script>
-  <script type="module" src="./head-transport-panel.jsx" onerror="console.warn('Optional component failed to load: head-transport-panel.jsx')"></script>
-  <script type="module" src="./head-boarding-panel.jsx" onerror="console.warn('Optional component failed to load: head-boarding-panel.jsx')"></script>
-  <script type="module" src="./school-onboarding-modal.jsx" onerror="console.warn('Optional component failed to load: school-onboarding-modal.jsx')"></script>
 
   <!-- Role router + teacher shell (INLINED to work over file:// — external src is CORS-blocked) -->
   <script type="text/babel" data-src="role-router.jsx">
@@ -8087,6 +8078,5 @@ window.PD_M = PD_M;
     (function wait() { tries++; var ready = (window.PEAK_ROLE && window.PEAK_ROLE.getProfile && window.PEAK_ROLE.getProfile() && window.PEAK_ROLE.getProfile().fullName); if (ready || tries > 25) show(); else setTimeout(wait, 160); })();
   })();
   </script>
-  <script type="module" src="/src/main.jsx"></script>
 </body>
 </html>

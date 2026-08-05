@@ -3,7 +3,7 @@ RewriteRule ^s/([A-Za-z0-9_-]+)/?$ prototypes/schools/peak-primary/login.html?s=
 RewriteRule ^school/([A-Za-z0-9_-]+)/login/?$ prototypes/schools/peak-primary/login.html?s=$1 [L,QSA]
 RewriteRule ^school/([A-Za-z0-9_-]+)/enroll/?$ prototypes/schools/peak-primary/student-enrollment-form.html?s=$1 [L,QSA]
 RewriteRule ^school/([A-Za-z0-9_-]+)/join-staff/?$ prototypes/schools/peak-primary/staff-hr-form.html?s=$1 [L,QSA]
-RewriteRule ^school/([A-Za-z0-9_-]+)/?$ prototypes/schools/peak-primary/index.html?s=$1 [L,QSA]
+RewriteRule ^school/([A-Za-z0-9_-]+)/?$ prototypes/schools/peak-primary/dist/index-vite.html?s=$1 [L,QSA]
 
 # Service worker must always be fresh.
 <Files "sw.js">
