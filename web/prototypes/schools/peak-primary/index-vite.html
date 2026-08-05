@@ -12,6 +12,13 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <style>
+    @keyframes nx-pulse {
+      0% { transform: scale(0.95); opacity: 0.8; }
+      50% { transform: scale(1.05); opacity: 1; }
+      100% { transform: scale(0.95); opacity: 0.8; }
+    }
+  </style>
   <meta name="apple-mobile-web-app-title" content="NEXT School OS" id="nx-apple-title" />
   <link rel="apple-touch-icon" href="/icon-192.png" id="nx-apple-icon" />
   <script>
@@ -249,11 +256,9 @@
   </script>
   <div id="root">
     <!-- Loading state (replaced once React mounts) -->
-    <div style="min-height:100vh;display:grid;place-items:center;color:#8a91b0;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:12px;letter-spacing:0.08em;">
-      <div style="text-align:center">
-        <div id="nx-loading-text">LOADING · NEXT SCHOOL OS</div>
-        <div style="margin-top:12px;font-size:10px;opacity:0.5">build b110</div>
-      </div>
+    <div style="min-height:100vh;display:grid;place-items:center;background:#05080f;">
+      <div id="nx-loading-text" style="display:none;"></div>
+      <img src="./assets/next-logo.png" alt="NEXT" style="width:72px;height:72px;object-fit:contain;animation:nx-pulse 1.5s ease-in-out infinite" />
     </div>
   </div>
   <script>
@@ -8054,21 +8059,13 @@ window.PD_M = PD_M;
     function show() {
       try { if (sessionStorage.getItem('nextos.welcome') !== '1') return; } catch (e) { return; }
       try { sessionStorage.removeItem('nextos.welcome'); } catch (e) {}
-      var prof = (window.PEAK_ROLE && window.PEAK_ROLE.getProfile && window.PEAK_ROLE.getProfile()) || {};
-      var first = (prof.fullName ? String(prof.fullName).split(' ')[0] : '');
-      var role = roleLabel(prof.role);
-      var b = brand(); var school = b.name; var color = b.color || '#00fc8f';
-      var line = 'Welcome' + (role ? (' ' + role) : '') + (first ? (' ' + first) : '');
       var ov = document.createElement('div');
-      ov.style.cssText = 'position:fixed;inset:0;z-index:100000;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px;background:radial-gradient(circle at 50% 35%,#0f1f3a,#05080f);opacity:0;transition:opacity .5s ease;font-family:Inter,system-ui,sans-serif';
-      ov.innerHTML = '<div style="font-family:ui-monospace,monospace;letter-spacing:4px;color:' + color + ';font-size:12px;margin-bottom:18px">' + String(school).toUpperCase() + ' \u00b7 NEXT SCHOOL OS</div>'
-        + '<div style="font-size:42px;font-weight:800;color:#eef1fb;line-height:1.12;max-width:720px">' + line + '</div>'
-        + '<div style="font-size:21px;color:#aab2d5;margin-top:12px">to ' + school + ' OS</div>'
-        + '<div style="margin-top:28px;width:160px;height:3px;border-radius:3px;background:#1a2342;overflow:hidden"><div id="nxwb" style="height:100%;width:0;background:' + color + ';transition:width 2.1s linear"></div></div>';
+      ov.style.cssText = 'position:fixed;inset:0;z-index:100000;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#05080f;opacity:0;transition:opacity .3s ease;';
+      ov.innerHTML = '<img src="./assets/next-logo.png" alt="NEXT" style="width:72px;height:72px;object-fit:contain;animation:nx-pulse 1.5s ease-in-out infinite" />';
       document.body.appendChild(ov);
-      requestAnimationFrame(function () { ov.style.opacity = '1'; var w = document.getElementById('nxwb'); if (w) w.style.width = '100%'; });
-      setTimeout(function () { ov.style.opacity = '0'; }, 2300);
-      setTimeout(function () { if (ov.parentNode) ov.parentNode.removeChild(ov); }, 2900);
+      requestAnimationFrame(function () { ov.style.opacity = '1'; });
+      setTimeout(function () { ov.style.opacity = '0'; }, 800);
+      setTimeout(function () { if (ov.parentNode) ov.parentNode.removeChild(ov); }, 1100);
     }
     var tries = 0;
     (function wait() { tries++; var ready = (window.PEAK_ROLE && window.PEAK_ROLE.getProfile && window.PEAK_ROLE.getProfile() && window.PEAK_ROLE.getProfile().fullName); if (ready || tries > 25) show(); else setTimeout(wait, 160); })();
