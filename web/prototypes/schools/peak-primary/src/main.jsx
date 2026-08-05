@@ -1,4 +1,3 @@
-import './init-globals.js';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 

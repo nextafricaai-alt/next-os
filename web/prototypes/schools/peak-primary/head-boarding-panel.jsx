@@ -1,6 +1,6 @@
 import React from 'react';
 (function() {
-  const React = window.React;
+
 
   // NEXT OS Design Tokens
   const T = {

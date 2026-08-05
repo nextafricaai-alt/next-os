@@ -13,7 +13,6 @@ import React from 'react';
  * for its own map), and compute every stat from the real fetched data.
  */
 (function () {
-  const React = window.React;
   const { useState, useEffect, useRef } = React;
   const WK = 'https://nextos-sentinel.nextafricaai.workers.dev';
 

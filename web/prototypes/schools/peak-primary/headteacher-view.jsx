@@ -5,7 +5,6 @@ import React from 'react';
  * Exposes: window.HeadTeacherView
  */
 (function () {
-  const React = window.React;
   const { useState, useEffect, useRef } = React;
   // Shared data store — synced with Bursar Dashboard
   const SS = window.SCHOOL_STORE;
