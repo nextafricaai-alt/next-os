@@ -1,7 +1,11 @@
-import React from 'react';
-import ReactDOM from 'react-dom/client';
 (function(global) {
-  const React = global.React || require('react');
+  // Every real place this file is loaded (driver-dashboard.html,
+  // index.html/index.built.html) uses a classic <script> tag with React
+  // already on window — no bundler, no ES module resolution. A top-level
+  // `import React from 'react'` here throws "Cannot use import statement
+  // outside a module" the moment Babel-standalone runs it as a classic
+  // script, which is every one of those paths.
+  const React = (typeof global !== 'undefined' && global.React) || require('react');
   const { useState, useEffect, useMemo } = React;
 
   // Mock NEXT OS Theme Tokens (Dark Mode tailored for night/glare driving)
@@ -35,25 +39,8 @@ import ReactDOM from 'react-dom/client';
     }
   };
 
-  // Complete bus-riding students manifest across Kabs Lily routes with real GPS coordinates
-  const mockStudents = [
-    { id: 's1', name: 'Brian Mukasa', class: 'P.4', guardian: 'Sarah Mukasa', phone: '+256 772 111222', address: 'Plot 14, Acacia Ave, Kireka', landmark: 'Near Kireka Police Station', status: 'waiting', lat: 0.3472, lng: 32.6325, distance: '0.8 km', time: '3 mins' },
-    { id: 's2', name: 'Esther Namuli', class: 'P.2', guardian: 'Peter Namuli', phone: '+256 752 333444', address: 'Kisaasi, Bahai Road Stage', landmark: 'Opposite Bahai Temple Gate', status: 'waiting', lat: 0.3625, lng: 32.5895, distance: '1.4 km', time: '5 mins' },
-    { id: 's3', name: 'Joshua Kigozi', class: 'P.6', guardian: 'Mary Kigozi', phone: '+256 701 555666', address: 'Ntinda, Minister\'s Village', landmark: 'Near Ntinda Shopping Complex', status: 'waiting', lat: 0.3542, lng: 32.6142, distance: '2.1 km', time: '7 mins' },
-    { id: 's4', name: 'Mirembe Nakato', class: 'P.1', guardian: 'Mrs. Sarah Nakato', phone: '+256 772 416902', address: 'Bweyogerere Trading Centre', landmark: 'Behind Shell Station Bweyogerere', status: 'waiting', lat: 0.3485, lng: 32.6482, distance: '2.8 km', time: '9 mins' },
-    { id: 's5', name: 'Daniel Okello', class: 'P.4', guardian: 'Mr. James Okello', phone: '+256 701 884553', address: 'Naalya Housing Estate, Block B', landmark: 'Near Quality Shopping Mall', status: 'waiting', lat: 0.3685, lng: 32.6285, distance: '3.4 km', time: '11 mins' },
-    { id: 's6', name: 'Ruth Asiimwe', class: 'P.3', guardian: 'Mrs. Grace Asiimwe', phone: '+256 752 220119', address: 'Kyaliwajjala Stage, Plot 8', landmark: 'Near Kyaliwajjala Catholic Church', status: 'waiting', lat: 0.3752, lng: 32.6420, distance: '4.2 km', time: '13 mins' },
-    { id: 's7', name: 'Sarah Namutebi', class: 'P.2', guardian: 'Mrs. Florence N.', phone: '+256 779 446200', address: 'Kiwatule Recreation Centre Road', landmark: 'Kiwatule Flyover Junction', status: 'waiting', lat: 0.3610, lng: 32.6190, distance: '5.0 km', time: '15 mins' },
-    { id: 's8', name: 'Joseph Kato', class: 'P.6', guardian: 'Mr. Vincent Kato', phone: '+256 705 117040', address: 'Banda Hill Road, House 12', landmark: 'Opposite Kyambogo University Gate 2', status: 'waiting', lat: 0.3420, lng: 32.6220, distance: '5.6 km', time: '17 mins' },
-    { id: 's9', name: 'Patricia Atim', class: 'P.3', guardian: 'Mrs. Mary Atim', phone: '+256 776 901220', address: 'Mutungo Hill, Plot 45', landmark: 'Near Mutungo Water Tank', status: 'waiting', lat: 0.3280, lng: 32.6250, distance: '6.3 km', time: '19 mins' },
-    { id: 's10', name: 'James Wamala', class: 'P.7', guardian: 'Mr. Edward Wamala', phone: '+256 752 488916', address: 'Luzira Stage, Port Bell Road', landmark: 'Near Luzira Church of Uganda', status: 'waiting', lat: 0.3150, lng: 32.6350, distance: '7.1 km', time: '21 mins' },
-    { id: 's11', name: 'Sharon Nabakooza', class: 'Baby', guardian: 'Mrs. Janet N.', phone: '+256 700 000111', address: 'Kireka Kamuli Road', landmark: 'Near Kamuli Stage', status: 'waiting', lat: 0.3520, lng: 32.6380, distance: '7.8 km', time: '23 mins' },
-    { id: 's12', name: 'Brenda Najjuma', class: 'Middle', guardian: 'Mrs. Diana Najjuma', phone: '+256 700 000222', address: 'Ntinda St. Mbaaga Road', landmark: 'Near St. Mbaaga Library', status: 'waiting', lat: 0.3580, lng: 32.6100, distance: '8.5 km', time: '25 mins' },
-    { id: 's13', name: 'Joy Babirye', class: 'Top', guardian: 'Mrs. Susan Babirye', phone: '+256 700 000333', address: 'Kisaasi Central Stage', landmark: 'Near Kisaasi Medical Centre', status: 'waiting', lat: 0.3660, lng: 32.5850, distance: '9.1 km', time: '27 mins' },
-  ];
-
   // Real Interactive Leaflet Map with Zoom, Satellite Aerial Imagery, Live Traffic, Student Markers & Rerouting
-  const RealLeafletMap = ({ students, activeStudent, onDistanceUpdate }) => {
+  const RealLeafletMap = ({ students, activeStudent, onDistanceUpdate, vanId, onSetStop }) => {
     const mapRef = React.useRef(null);
     const mapInstance = React.useRef(null);
     const tileLayerRef = React.useRef(null);
@@ -62,6 +49,14 @@ import ReactDOM from 'react-dom/client';
     const trafficLayers = React.useRef([]);
     const routePolyline = React.useRef(null);
     const studentMarkersRef = React.useRef([]);
+    const trailRef = React.useRef(null);
+    const trailPointsRef = React.useRef([]);
+    const [followMe, setFollowMe] = useState(true);
+    // updateCarPosition is created once inside a mount-only useEffect, so it
+    // closes over whatever `followMe` was at that first render forever —
+    // this ref is how it reads the current value on every GPS tick instead.
+    const followMeRef = React.useRef(true);
+    useEffect(() => { followMeRef.current = followMe; }, [followMe]);
 
     const tileSources = {
       dark: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
@@ -74,14 +69,37 @@ import ReactDOM from 'react-dom/client';
       if (typeof window.L === 'undefined') return;
 
       const L = window.L;
-      // Initialize Leaflet map centered at Kabs Lily / Kireka / Ntinda area
+      // Initialize Leaflet map centered at Kabs Lily / Kireka / Ntinda area.
+      // Every interaction Google Maps has — drag-pan, scroll-wheel zoom,
+      // pinch-zoom, double-click zoom, box-zoom, keyboard nav — explicit
+      // here rather than relying on Leaflet defaults, plus zoomSnap/
+      // zoomDelta at fractional steps so zooming feels as smooth as
+      // Google's rather than snapping in whole-integer jumps.
       const map = L.map(mapRef.current, {
         center: [0.3540, 32.6200],
         zoom: 13,
         zoomControl: true,
-        attributionControl: false
+        attributionControl: false,
+        dragging: true,
+        touchZoom: true,
+        scrollWheelZoom: true,
+        doubleClickZoom: true,
+        boxZoom: true,
+        keyboard: true,
+        zoomSnap: 0.5,
+        zoomDelta: 0.5,
+        wheelPxPerZoomLevel: 100,
+        inertia: true,
+        inertiaDeceleration: 3000,
+        tap: true,
       });
       mapInstance.current = map;
+
+      // A manual drag by the driver turns off auto-follow, exactly like
+      // panning around in Google Maps navigation does — the app shouldn't
+      // yank the view back to the van mid-look-around. Zooming alone
+      // doesn't break follow (you can zoom in on your own position).
+      map.on('dragstart', () => setFollowMe(false));
 
       // Initial Carto Dark tiles
       tileLayerRef.current = L.tileLayer(tileSources.dark, {
@@ -201,10 +219,29 @@ import ReactDOM from 'react-dom/client';
           <span style="color:#00FC8F; font-weight:bold;">🟢 Live GPS Streaming Active</span>
         `);
 
-        // Re-center map onto user's physical GPS location
-        mapInstance.current.panTo(newPos);
+        // Re-center map onto the van's physical GPS location — but only
+        // while following (a driver who's manually panned around to check
+        // a stop shouldn't have the view yanked back every GPS tick).
+        if (followMeRef.current) {
+          map._programmaticMove = true;
+          mapInstance.current.panTo(newPos);
+          setTimeout(() => { map._programmaticMove = false; }, 0);
+        }
 
-        // Draw live re-routing line from user's current physical position to school
+        // Movement trail — the actual path driven, not just a straight
+        // line to the destination. Capped so a long trip doesn't grow
+        // the polyline (and the array backing it) without bound.
+        trailPointsRef.current.push(newPos);
+        if (trailPointsRef.current.length > 500) trailPointsRef.current.shift();
+        if (trailRef.current) {
+          trailRef.current.setLatLngs(trailPointsRef.current);
+        } else {
+          trailRef.current = L.polyline(trailPointsRef.current, {
+            color: '#3B82F6', weight: 4, opacity: 0.55,
+          }).addTo(mapInstance.current);
+        }
+
+        // Live re-routing line from the van's current position to school.
         if (liveGpsPolyline) mapInstance.current.removeLayer(liveGpsPolyline);
         liveGpsPolyline = L.polyline([newPos, [0.3600, 32.6250]], {
           color: '#00FC8F',
@@ -316,9 +353,52 @@ import ReactDOM from 'react-dom/client';
 
     // Removed demo drawRoute and toggleReroute functions
 
+    const recenterOnMe = () => {
+      if (!mapInstance.current || window._lastDriverLat == null) return;
+      setFollowMe(true);
+      mapInstance.current.flyTo([window._lastDriverLat, window._lastDriverLng], 16, { animate: true, duration: 0.8 });
+    };
+
+    // Real coordinate capture — no auto-geocoding, no guessed fallback
+    // table. The driver is physically at the stop right now; this saves
+    // THEIR live GPS reading as that stop's confirmed location, the same
+    // /transport/set-stop endpoint the Headteacher's manual "Set" flow
+    // uses. Every other student sharing that stop_name immediately gets a
+    // real pin once this lands.
+    const confirmStopHere = () => {
+      if (!onSetStop) return;
+      if (window._lastDriverLat == null || window._lastDriverLng == null) {
+        window.peakToast ? window.peakToast('Still waiting for a GPS fix — try again in a moment.', 'error') : alert('Still waiting for a GPS fix.');
+        return;
+      }
+      onSetStop(window._lastDriverLat, window._lastDriverLng);
+    };
+
     return (
       <div style={{ width: '100%', height: '100%', position: 'relative' }}>
         <div ref={mapRef} style={{ width: '100%', height: '100%', borderRadius: T.radii.lg, background: '#0F172A' }}></div>
+
+        {/* Recenter + follow-me — bottom-right, thumb reach on a phone */}
+        <div style={{ position: 'absolute', bottom: '12px', right: '12px', zIndex: 1000, display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-end' }}>
+          {onSetStop && (
+            <button onClick={confirmStopHere} title="Save my exact current GPS position as this stop's confirmed location" style={{
+              background: 'rgba(0,252,143,0.95)', color: '#0A1029', border: 'none', borderRadius: '10px',
+              padding: '9px 12px', fontSize: '11.5px', fontWeight: '800', cursor: 'pointer',
+              boxShadow: '0 4px 14px rgba(0,0,0,0.4)', whiteSpace: 'nowrap',
+            }}>
+              📍 Set Exact Stop Location Here
+            </button>
+          )}
+          <button onClick={recenterOnMe} title="Recenter on my live position" style={{
+            width: '44px', height: '44px', borderRadius: '50%',
+            background: followMe ? '#3B82F6' : 'rgba(15,23,42,0.92)',
+            color: '#fff', border: '1px solid rgba(255,255,255,0.2)',
+            fontSize: '18px', cursor: 'pointer', boxShadow: '0 4px 14px rgba(0,0,0,0.5)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            🎯
+          </button>
+        </div>
 
         {/* Satellite & Map View Switcher + Traffic Reroute Controls */}
         <div style={{
@@ -409,8 +489,6 @@ import ReactDOM from 'react-dom/client';
     const [newChildPhone, setNewChildPhone] = useState('');
     const [newChildAddress, setNewChildAddress] = useState('');
     const [newChildLandmark, setNewChildLandmark] = useState('');
-    const [newChildLat, setNewChildLat] = useState('0.3500');
-    const [newChildLng, setNewChildLng] = useState('32.6200');
 
     // Kilometers Odometer State & History
     const [kmData, setKmData] = useState(() => {
@@ -431,57 +509,78 @@ import ReactDOM from 'react-dom/client';
        setKmData(prev => ({ ...prev, totalKm: prev.totalKm + (meters / 1000) }));
     };
 
-    useEffect(() => {
-      const tenant = (typeof window.getOSActiveTenant === 'function' ? window.getOSActiveTenant() : 'kabs-lily-junior-school-and-kindercare-centre');
+    // The real tenant this driver belongs to — resolved once, reused by
+    // both the data loader and the stop-confirmation writer below.
+    const tenant = (typeof window.getOSActiveTenant === 'function' ? window.getOSActiveTenant() : 'kabs-lily-junior-school-and-kindercare-centre');
+
+    // Loads real students + real confirmed stop coordinates from
+    // transport_students/transport_stops. Deliberately NO fallback table
+    // of guessed coordinates and NO random jitter — a student at a stop
+    // nobody has confirmed the real location of gets lat/lng: null and
+    // simply has no pin, rather than a fabricated one. See
+    // supabase-transport-stops.sql and the 287460c commit for why: an
+    // earlier attempt at auto-geocoding these exact stop names put pins
+    // hundreds of km away, which is actively dangerous on a child-safety
+    // map, not just cosmetically wrong.
+    const loadLiveData = React.useCallback(() => {
       fetch('https://nextos-sentinel.nextafricaai.workers.dev/transport/live?tenant=' + encodeURIComponent(tenant))
         .then(res => res.json())
         .then(out => {
-          if (out && out.students) {
-            // map real students to what DriverView expects
-            const stopsDict = {};
-            if (out.stops) {
-              out.stops.forEach(st => {
-                stopsDict[st.stop_name] = { lat: st.lat, lng: st.lng };
-              });
-            }
+          if (!out || !out.students) return;
+          const stopsDict = {};
+          (out.stops || []).forEach(st => { stopsDict[st.stop_name] = { lat: st.lat, lng: st.lng }; });
 
-            const KNOWN_STOPS = {
-              "Kasasa": { lat: 0.3550, lng: 32.6100 },
-              "Kalambi": { lat: 0.3600, lng: 32.6000 },
-              "Buloba Kapeeka": { lat: 0.3200, lng: 32.5000 },
-              "Buloba": { lat: 0.3250, lng: 32.5050 },
-              "Kiseka Road": { lat: 0.3150, lng: 32.5750 },
-              "Country Oven": { lat: 0.3350, lng: 32.5900 },
-              "Forest Park": { lat: 0.3400, lng: 32.5300 },
-              "Total": { lat: 0.3450, lng: 32.5800 }
+          const mapped = out.students.map((s, i) => {
+            const coords = stopsDict[s.stop_name] || null;
+            return {
+              id: s.id,
+              name: s.student_name || 'Unknown Student',
+              class: s.stream || s.student_class || '',
+              guardian: s.guardian_name || 'Guardian',
+              phone: s.guardian_phone || '',
+              address: s.stop_name || 'Stop not set',
+              landmark: '',
+              status: s.status || 'waiting',
+              lat: coords ? coords.lat : null,
+              lng: coords ? coords.lng : null,
+              locationConfirmed: !!coords,
+              distance: coords ? '—' : 'no confirmed location',
+              time: '—',
+              pickup_order: s.pickup_order != null ? s.pickup_order : i,
             };
-            const mapped = out.students.map((s, i) => {
-               const stopBase = s.stop_name ? s.stop_name.split('·')[0].trim() : '';
-               const coords = stopsDict[s.stop_name] || stopsDict[stopBase] || KNOWN_STOPS[stopBase] || { lat: 0.3472, lng: 32.6325 };
-               const offsetLat = (Math.random() - 0.5) * 0.001;
-               const offsetLng = (Math.random() - 0.5) * 0.001;
-               
-               return {
-                 id: s.id,
-                 name: s.student_name || 'Unknown Student',
-                 class: s.student_class || 'P.1',
-                 guardian: s.guardian_name || 'Guardian',
-                 phone: s.guardian_phone || '+256 000 000000',
-                 address: s.stop_name || 'Unknown Stop',
-                 landmark: s.landmark || '',
-                 status: s.status || 'waiting',
-                 lat: coords.lat + offsetLat,
-                 lng: coords.lng + offsetLng,
-                 distance: '...',
-                 time: '...',
-                 pickup_order: s.pickup_order || i
-               };
-            });
-            setStudents(mapped.sort((a,b) => a.pickup_order - b.pickup_order));
-          }
+          });
+          setStudents(mapped.sort((a, b) => a.pickup_order - b.pickup_order));
         })
         .catch(err => console.error('Failed to load live transport data:', err));
-    }, []);
+    }, [tenant]);
+
+    useEffect(() => { loadLiveData(); }, [loadLiveData]);
+
+    // Driver taps "Set Exact Stop Location Here" while physically at a
+    // stop — saves their live GPS as that stop's confirmed coordinate via
+    // the same worker route the Headteacher's manual "Set" flow uses.
+    // Applies to whichever stop the current active student is waiting at;
+    // every other student sharing that stop_name picks up the real pin
+    // the moment loadLiveData re-fetches.
+    const handleSetStop = async (lat, lng) => {
+      const target = students.find(s => s.status === 'waiting' || s.status === 'arrived');
+      if (!target || !target.address || target.address === 'Stop not set') {
+        window.peakToast ? window.peakToast('No active stop to confirm right now.', 'error') : alert('No active stop to confirm.');
+        return;
+      }
+      try {
+        const res = await fetch('https://nextos-sentinel.nextafricaai.workers.dev/transport/set-stop', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tenant, stopName: target.address, lat, lng, setBy: driverProfile.fullName || 'Driver' }),
+        });
+        const out = await res.json();
+        if (out.error) { window.peakToast ? window.peakToast('Could not save location: ' + out.error, 'error') : alert(out.error); return; }
+        window.peakToast ? window.peakToast('Saved real location for "' + target.address + '" — every child at this stop now has a pin.', 'success') : alert('Location saved.');
+        loadLiveData();
+      } catch (e) {
+        window.peakToast ? window.peakToast('Could not reach the school system.', 'error') : alert('Could not reach the school system.');
+      }
+    };
 
     const handleMarkArrived = async () => {
       if (markingArrived) return;
@@ -529,8 +628,16 @@ import ReactDOM from 'react-dom/client';
       setKmReasonInput('');
     };
 
+    // Local-only addition to today's manifest (not written to
+    // transport_students — a real enrollment still needs the school's
+    // registration flow). Location comes from the driver's own live GPS
+    // at the moment they add the child, not a typed-in guess — asking a
+    // driver to key in decimal lat/lng isn't realistic, and a made-up
+    // default coordinate is exactly the kind of fabricated pin this app
+    // no longer does anywhere else.
     const handleAddChildToRoute = () => {
       if (!newChildName.trim() || !newChildAddress.trim()) return;
+      const haveGps = window._lastDriverLat != null && window._lastDriverLng != null;
       const newStudent = {
         id: 's_' + Date.now(),
         name: newChildName.trim(),
@@ -538,13 +645,17 @@ import ReactDOM from 'react-dom/client';
         guardian: newChildGuardian.trim() || 'Guardian',
         phone: newChildPhone.trim() || '+256 700 000000',
         address: newChildAddress.trim(),
-        landmark: newChildLandmark.trim() || 'Near Stage',
+        landmark: newChildLandmark.trim() || '',
         status: 'waiting',
-        lat: parseFloat(newChildLat) || 0.3500,
-        lng: parseFloat(newChildLng) || 32.6200,
-        distance: '1.5 km',
-        time: '5 mins'
+        lat: haveGps ? window._lastDriverLat : null,
+        lng: haveGps ? window._lastDriverLng : null,
+        locationConfirmed: haveGps,
+        distance: haveGps ? '—' : 'no confirmed location',
+        time: '—',
       };
+      if (!haveGps) {
+        window.peakToast ? window.peakToast('Added without a map pin — no GPS fix yet. It’ll still show in the list.', 'warn') : null;
+      }
 
       setStudents(prev => [newStudent, ...prev]);
       setIsAddChildModalOpen(false);
@@ -696,7 +807,7 @@ import ReactDOM from 'react-dom/client';
             {/* LEFT: Map Panel */}
             <div className="desktop-map-side" style={{ position: 'relative', display: 'flex', flexDirection: 'column' }}>
               <div style={{ flex: 1, padding: '12px', minHeight: 0 }}>
-                <RealLeafletMap students={filteredStudents} activeStudent={activeStudent} onDistanceUpdate={handleDistanceUpdate} />
+                <RealLeafletMap students={filteredStudents} activeStudent={activeStudent} onDistanceUpdate={handleDistanceUpdate} vanId={vanId} onSetStop={handleSetStop} />
               </div>
 
               {activeStudent && (
@@ -897,6 +1008,7 @@ import ReactDOM from 'react-dom/client';
                       <div style={{ fontWeight: '600', fontSize: '13px', lineHeight: 1.2 }}>{s.name} <span style={{ color: T.colors.textMuted, fontWeight: 'normal', fontSize: '11px' }}>({s.class})</span></div>
                       <div style={{ fontSize: '11px', color: '#F59E0B', fontWeight: '600', marginTop: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>📍 {s.address}</div>
                       {s.landmark && <div style={{ fontSize: '10.5px', color: '#94A3B8', marginTop: '1px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>🏛️ {s.landmark}</div>}
+                      {!s.locationConfirmed && <div style={{ fontSize: '10px', color: '#F59E0B', marginTop: '2px', fontWeight: '700' }}>⚠ No map pin yet — not confirmed on this route</div>}
                     </div>
                     <div style={{
                       padding: '3px 8px',
@@ -1026,6 +1138,7 @@ import ReactDOM from 'react-dom/client';
                         <div style={{ fontWeight: 'bold' }}>{s.name} <span style={{ color: T.colors.textMuted, fontWeight: 'normal' }}>({s.class})</span></div>
                         <div style={{ fontSize: '12.5px', color: '#F59E0B', fontWeight: '600', marginTop: '2px' }}>📍 {s.address}</div>
                         {s.landmark && <div style={{ fontSize: '11.5px', color: '#94A3B8', marginTop: '1px' }}>🏛️ {s.landmark}</div>}
+                        {!s.locationConfirmed && <div style={{ fontSize: '11px', color: '#F59E0B', marginTop: '2px', fontWeight: '700' }}>⚠ No map pin yet — not confirmed</div>}
                       </div>
                       <div style={{
                         padding: '4px 10px',

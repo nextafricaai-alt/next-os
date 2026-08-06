@@ -217,7 +217,15 @@
             return { orderedStops: [], totalDistanceKm: 0, totalDurationMins: 0, routeCoordinates: [] };
         }
 
-        const pendingStops = stops.filter(s => s.status === 'waiting');
+        // Students whose stop has no confirmed real coordinate (lat/lng
+        // null) can't be distance-ordered — there's nothing to measure
+        // from. Route around the ones we actually know the location of;
+        // the unconfirmed ones stay in the manifest, just appended after
+        // the optimized leg rather than silently corrupting the
+        // nearest-neighbor comparison with NaN distances.
+        const hasCoords = s => s.lat != null && s.lng != null && isFinite(s.lat) && isFinite(s.lng);
+        const pendingStops = stops.filter(s => s.status === 'waiting' && hasCoords(s));
+        const unroutable = stops.filter(s => s.status === 'waiting' && !hasCoords(s));
         const orderedStops = [];
         let currentPos = driverPos;
         let totalDistanceKm = 0;
@@ -250,7 +258,7 @@
         const totalDurationMins = (totalDistanceKm / speedKmph) * 60;
 
         return {
-            orderedStops,
+            orderedStops: orderedStops.concat(unroutable),
             totalDistanceKm: parseFloat(totalDistanceKm.toFixed(2)),
             totalDurationMins: Math.round(totalDurationMins),
             routeCoordinates
