@@ -1,5 +1,3 @@
-import React from 'react';
-
 /* role-router.jsx
    The doorman of the Schools OS. Reads window.NextSession.profile.role,
    decides which "floor" of the building each user lands on.
