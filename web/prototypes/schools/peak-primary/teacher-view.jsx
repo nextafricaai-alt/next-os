@@ -425,10 +425,24 @@ import React from 'react';
 
       const checkin = data || mockCheckin;
       const penalty = await applyLateCheckInPenalty(teacherId, tenantId, checkin.checked_in_at);
-      
-      if (!penalty || !penalty.applied) {
-        // Teacher is on time, award merit points
-        await awardMeritPoints(teacherId, 5, 'On-time check-in');
+
+      // teacher_checkins has no unique constraint stopping more than one
+      // row per teacher per day (the UI normally hides "Check In" once
+      // today's checkin exists, but that's not a guarantee against a
+      // race or a direct write) — so this checks the merits log itself
+      // before awarding, same defensive pattern as the roll call award.
+      if ((!penalty || !penalty.applied) && teacherId && teacherId !== 9999) {
+        const dayStart = new Date(); dayStart.setHours(0, 0, 0, 0);
+        const { data: already } = await sb
+          .from('teacher_merits_log')
+          .select('id')
+          .eq('teacher_id', teacherId)
+          .eq('reason', 'On-time check-in')
+          .gte('created_at', dayStart.toISOString())
+          .limit(1);
+        if (!already || already.length === 0) {
+          await awardMeritPoints(teacherId, 5, 'On-time check-in');
+        }
       }
 
       return { data: checkin, error: null, penalty };
@@ -472,11 +486,27 @@ import React from 'react';
       .from('student_roll_call')
       .upsert(records, { onConflict: 'student_id,roll_date,period_number' })
       .select('id, student_id, stream, status, period_number');
-      
+
     if (!error && records && records.length > 0) {
-      await awardMeritPoints(records[0].teacher_id, 2, 'Completed Roll Call for ' + records[0].stream);
+      const r0 = records[0];
+      const reason = 'Completed Roll Call for ' + r0.stream;
+      // upsert doesn't tell us insert-vs-update, and re-submitting (fixing
+      // a mistake in) the SAME period's roll call hits this same code
+      // path — award only if this exact period hasn't already earned
+      // points today, so correcting an entry doesn't farm free merit.
+      const dayStart = new Date(); dayStart.setHours(0, 0, 0, 0);
+      const { data: already } = await sb
+        .from('teacher_merits_log')
+        .select('id')
+        .eq('teacher_id', r0.teacher_id)
+        .eq('reason', reason + ' · P' + r0.period_number)
+        .gte('created_at', dayStart.toISOString())
+        .limit(1);
+      if (!already || already.length === 0) {
+        await awardMeritPoints(r0.teacher_id, 2, reason + ' · P' + r0.period_number);
+      }
     }
-    
+
     return { data, error };
   }
 
@@ -567,8 +597,12 @@ import React from 'react';
       .eq('teacher_id', teacherId).eq('stream', stream).eq('subject', subject).eq('week_of', weekOf)
       .maybeSingle();
     if (existing) {
+      // Editing/regenerating the SAME week's plan — not a new achievement.
+      // Merit points only belong to genuinely creating one (the insert
+      // branch below); awarding here made every resave farm 10 points for
+      // free, and regeneration is a normal, expected, repeatable action
+      // per the comment above this function.
       const { data, error } = await sb.from('lesson_plans').update(row).eq('id', existing.id).select('id').maybeSingle();
-      if (!error) await awardMeritPoints(teacherId, 10, 'Created Lesson Plan for ' + subject);
       return { data, error };
     }
     const { data, error } = await sb.from('lesson_plans').insert(row).select('id').maybeSingle();

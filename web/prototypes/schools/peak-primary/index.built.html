@@ -628,7 +628,9 @@
     initials
   };
 })();</script>
-  <script type="text/javascript" data-src="teacher-view.jsx">/* teacher-view.jsx
+  <script type="text/javascript" data-src="teacher-view.jsx">import React from 'react';
+
+/* teacher-view.jsx
    The Teacher Shell — Patrick / Mary's portal.
 
    Three live data flows feed the school's central nervous system:
@@ -696,7 +698,7 @@
     if (email) {
       const {
         data
-      } = await sb.from('teachers').select('id, full_name, email, subjects, status').ilike('email', email).eq('tenant_id', tenantId).maybeSingle();
+      } = await sb.from('teachers').select('id, full_name, email, subjects, status, merit_points').ilike('email', email).eq('tenant_id', tenantId).maybeSingle();
       if (data) teacher = data;
     }
 
@@ -705,7 +707,7 @@
       const firstName = name.split(' ')[0];
       const {
         data
-      } = await sb.from('teachers').select('id, full_name, email, subjects, status').ilike('full_name', `%${firstName}%`).eq('tenant_id', tenantId).maybeSingle();
+      } = await sb.from('teachers').select('id, full_name, email, subjects, status, merit_points').ilike('full_name', `%${firstName}%`).eq('tenant_id', tenantId).maybeSingle();
       if (data) teacher = data;
     }
 
@@ -716,7 +718,8 @@
         full_name: name || (email ? email.split('@')[0] : 'Ayuto Esther'),
         email: email || 'ayuto.esther@kabslily.ug',
         subjects: ['Science', 'Mathematics'],
-        status: 'active'
+        status: 'active',
+        merit_points: 0
       };
     }
     const {
@@ -854,6 +857,15 @@
       } = await sb.from('exams').select('*').eq('tenant_id', tenantId);
       // Filter for exams created by this teacher
       exams = (exs || []).filter(ex => ex.config && ex.config.teacher_id === teacher.id);
+    }
+    let meritLogs = [];
+    if (sb && teacher && teacher.id !== 9999) {
+      const {
+        data: logs
+      } = await sb.from('teacher_merits_log').select('id, points, reason, created_at').eq('teacher_id', teacher.id).order('created_at', {
+        ascending: false
+      }).limit(5);
+      meritLogs = logs || [];
     }
     return {
       teacher,
@@ -1013,6 +1025,30 @@
       };
     }
   }
+  async function awardMeritPoints(teacherId, points, reason) {
+    const sb = window.NextSession?.sb;
+    if (!sb || teacherId === 9999) return {
+      error: 'No session'
+    };
+    try {
+      const {
+        data,
+        error
+      } = await sb.rpc('award_teacher_merit', {
+        p_teacher_id: teacherId,
+        p_points: points,
+        p_reason: reason
+      });
+      return {
+        data,
+        error
+      };
+    } catch (e) {
+      return {
+        error: e.message
+      };
+    }
+  }
 
   // ─── Write helpers ──────────────────────────────────────────────────
   async function writeCheckIn(teacherId, tenantId, method) {
@@ -1051,6 +1087,22 @@
       }
       const checkin = data || mockCheckin;
       const penalty = await applyLateCheckInPenalty(teacherId, tenantId, checkin.checked_in_at);
+
+      // teacher_checkins has no unique constraint stopping more than one
+      // row per teacher per day (the UI normally hides "Check In" once
+      // today's checkin exists, but that's not a guarantee against a
+      // race or a direct write) — so this checks the merits log itself
+      // before awarding, same defensive pattern as the roll call award.
+      if ((!penalty || !penalty.applied) && teacherId && teacherId !== 9999) {
+        const dayStart = new Date();
+        dayStart.setHours(0, 0, 0, 0);
+        const {
+          data: already
+        } = await sb.from('teacher_merits_log').select('id').eq('teacher_id', teacherId).eq('reason', 'On-time check-in').gte('created_at', dayStart.toISOString()).limit(1);
+        if (!already || already.length === 0) {
+          await awardMeritPoints(teacherId, 5, 'On-time check-in');
+        }
+      }
       return {
         data: checkin,
         error: null,
@@ -1113,6 +1165,22 @@
     } = await sb.from('student_roll_call').upsert(records, {
       onConflict: 'student_id,roll_date,period_number'
     }).select('id, student_id, stream, status, period_number');
+    if (!error && records && records.length > 0) {
+      const r0 = records[0];
+      const reason = 'Completed Roll Call for ' + r0.stream;
+      // upsert doesn't tell us insert-vs-update, and re-submitting (fixing
+      // a mistake in) the SAME period's roll call hits this same code
+      // path — award only if this exact period hasn't already earned
+      // points today, so correcting an entry doesn't farm free merit.
+      const dayStart = new Date();
+      dayStart.setHours(0, 0, 0, 0);
+      const {
+        data: already
+      } = await sb.from('teacher_merits_log').select('id').eq('teacher_id', r0.teacher_id).eq('reason', reason + ' · P' + r0.period_number).gte('created_at', dayStart.toISOString()).limit(1);
+      if (!already || already.length === 0) {
+        await awardMeritPoints(r0.teacher_id, 2, reason + ' · P' + r0.period_number);
+      }
+    }
     return {
       data,
       error
@@ -1156,7 +1224,7 @@
           studentId,
           title,
           body,
-          url: '/prototypes/schools/peak-primary/parent-dashboard.html'
+          url: './parent-dashboard.html'
         })
       });
     } catch (e) {/* best-effort */}
@@ -1229,6 +1297,11 @@
       data: existing
     } = await sb.from('lesson_plans').select('id').eq('teacher_id', teacherId).eq('stream', stream).eq('subject', subject).eq('week_of', weekOf).maybeSingle();
     if (existing) {
+      // Editing/regenerating the SAME week's plan — not a new achievement.
+      // Merit points only belong to genuinely creating one (the insert
+      // branch below); awarding here made every resave farm 10 points for
+      // free, and regeneration is a normal, expected, repeatable action
+      // per the comment above this function.
       const {
         data,
         error
@@ -1242,6 +1315,7 @@
       data,
       error
     } = await sb.from('lesson_plans').insert(row).select('id').maybeSingle();
+    if (!error) await awardMeritPoints(teacherId, 10, 'Created Lesson Plan for ' + subject);
     return {
       data,
       error
@@ -4294,6 +4368,80 @@
       }
     }, saving ? 'Submitting...' : 'Submit Log')));
   }
+  function MeritPointsCard({
+    meritLogs,
+    meritPoints
+  }) {
+    return /*#__PURE__*/React.createElement(Card, {
+      title: "Merit Log",
+      subtitle: "ACHIEVEMENTS",
+      accent: "#00FC8F"
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginBottom: 16
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 13,
+        color: T.ink3
+      }
+    }, "Earn points by coming early, checking in on time, taking roll calls, and completing lesson plans."), /*#__PURE__*/React.createElement("div", {
+      style: {
+        background: 'rgba(0, 252, 143, 0.1)',
+        color: '#00fc8f',
+        padding: '6px 14px',
+        borderRadius: 20,
+        fontSize: 14,
+        fontWeight: 700
+      }
+    }, meritPoints || 0, " Total")), !meritLogs || meritLogs.length === 0 ? /*#__PURE__*/React.createElement(Empty, {
+      text: "No merits earned yet. Good things come to those who teach!"
+    }) : /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 10
+      }
+    }, meritLogs.map(log => {
+      const d = new Date(log.created_at);
+      const dateStr = isNaN(d) ? '' : d.toLocaleDateString(undefined, {
+        month: 'short',
+        day: 'numeric'
+      });
+      return /*#__PURE__*/React.createElement("div", {
+        key: log.id,
+        style: {
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '10px 12px',
+          background: 'rgba(0, 252, 143, 0.04)',
+          borderRadius: 8
+        }
+      }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+        style: {
+          fontSize: 13,
+          fontWeight: 500,
+          color: T.ink
+        }
+      }, log.reason), /*#__PURE__*/React.createElement("div", {
+        style: {
+          fontSize: 11,
+          color: T.ink3,
+          marginTop: 2
+        }
+      }, dateStr)), /*#__PURE__*/React.createElement("div", {
+        style: {
+          fontSize: 14,
+          fontWeight: 600,
+          color: '#00fc8f'
+        }
+      }, "+", log.points));
+    })));
+  }
 
   // Prominent, above-the-fold "Expected Monthly Salary" banner — wired
   // directly to the same payroll/deductions data PayslipCard uses, so it
@@ -4621,13 +4769,43 @@
         fontFamily: T.serif,
         letterSpacing: '-0.01em'
       }
-    }, greeting, ", ", profile.fullName ? profile.fullName.split(' ')[0] : 'Teacher'), /*#__PURE__*/React.createElement("p", {
+    }, greeting, ", ", profile.fullName ? profile.fullName.split(' ')[0] : 'Teacher'), /*#__PURE__*/React.createElement("div", {
       style: {
-        margin: '8px 0 0',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 12,
+        margin: '8px 0 0'
+      }
+    }, /*#__PURE__*/React.createElement("p", {
+      style: {
+        margin: 0,
         color: T.ink3,
         fontSize: 14
       }
-    }, "Here's your day at ", schoolName, ".")), !data.loading && !data.error && /*#__PURE__*/React.createElement(ExpectedSalaryBanner, {
+    }, "Here's your day at ", schoolName, "."), !data.loading && !data.error && data.teacher && /*#__PURE__*/React.createElement("div", {
+      style: {
+        background: 'rgba(0, 252, 143, 0.1)',
+        color: '#00fc8f',
+        padding: '4px 12px',
+        borderRadius: 16,
+        fontSize: 12,
+        fontWeight: 500,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 6
+      }
+    }, /*#__PURE__*/React.createElement("svg", {
+      width: "14",
+      height: "14",
+      viewBox: "0 0 24 24",
+      fill: "none",
+      stroke: "currentColor",
+      strokeWidth: "2",
+      strokeLinecap: "round",
+      strokeLinejoin: "round"
+    }, /*#__PURE__*/React.createElement("polygon", {
+      points: "12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"
+    })), data.teacher.merit_points || 0, " Merit Points"))), !data.loading && !data.error && /*#__PURE__*/React.createElement(ExpectedSalaryBanner, {
       payroll: data.payroll,
       deductions: data.deductions
     }), data.loading ? /*#__PURE__*/React.createElement("div", {
@@ -4706,6 +4884,9 @@
     }), /*#__PURE__*/React.createElement(PayslipCard, {
       payroll: data.payroll,
       deductions: data.deductions
+    }), /*#__PURE__*/React.createElement(MeritPointsCard, {
+      meritLogs: data.meritLogs,
+      meritPoints: data.teacher && data.teacher.merit_points
     }), /*#__PURE__*/React.createElement(TeacherLogCard, {
       teacher: data.teacher
     }))), !data.loading && !data.error && data.teacher && !data.checkin && new Date().getDay() !== 0 && new Date().getDay() !== 6 && new Date().getHours() < 17 && /*#__PURE__*/React.createElement(NiaCheckinPopup, {
@@ -32835,7 +33016,7 @@ window.PEAK_STAFF = function () {
         padding: '12px 16px',
         color: T.ink2
       }
-    }, idx % 2 === 0 ? 'St. Jude Dorm A' : 'St. Mary Dorm B'), /*#__PURE__*/React.createElement("td", {
+    }, idx % 3 === 0 ? 'Boys The Cedar House' : idx % 3 === 1 ? 'Lower (girls) The Daisy House' : 'Upper (girls) The Jasmine House'), /*#__PURE__*/React.createElement("td", {
       style: {
         padding: '12px 16px',
         color: (s.balance || 0) > 0 ? T.redInk : T.good,
