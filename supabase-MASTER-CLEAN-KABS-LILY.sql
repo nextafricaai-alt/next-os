@@ -6,6 +6,7 @@
 -- 0. Ensure columns exist on tables
 ALTER TABLE IF EXISTS students ADD COLUMN IF NOT EXISTS is_boarding boolean DEFAULT false;
 ALTER TABLE IF EXISTS teachers ADD COLUMN IF NOT EXISTS subjects text[];
+ALTER TABLE IF EXISTS teachers ADD COLUMN IF NOT EXISTS merit_points integer DEFAULT 0;
 
 DO $$
 DECLARE
@@ -23,6 +24,7 @@ BEGIN
   DELETE FROM fees WHERE tenant_id = v_tenant_id;
   DELETE FROM attendance WHERE tenant_id = v_tenant_id;
   DELETE FROM staff_attendance WHERE tenant_id = v_tenant_id;
+  DELETE FROM student_health_records WHERE tenant_id = v_tenant_id;
   DELETE FROM teachers WHERE tenant_id = v_tenant_id;
   DELETE FROM students WHERE tenant_id = v_tenant_id;
 
@@ -76,204 +78,649 @@ BEGIN
   (v_tenant_id, v_t9, 'Primary Six', 'Mathematics', true),
   (v_tenant_id, v_t10, 'Primary Seven', 'SST', true);
 
-  -- 3. INSERT ALL REAL KABS LILY STUDENTS (100% PDF ACCURATE FOR ALL 10 CLASSES)
+    -- 3. INSERT ALL REAL KABS LILY STUDENTS (100% PDF ACCURATE FOR ALL 10 CLASSES)
   INSERT INTO students (tenant_id, name, stream, is_boarding, guardian_name, guardian_phone) VALUES
-  -- Primary Seven (P7)
-  (v_tenant_id, 'Nanteza Keira Tendo', 'Primary Seven', false, 'Parent of Nanteza Keira Tendo', '+256700000117'),
-  (v_tenant_id, 'Sophie Bani Musa', 'Primary Seven', false, 'Parent of Sophie Bani Musa', '+256700000118'),
-  (v_tenant_id, 'Nampala Moureen', 'Primary Seven', false, 'Parent of Nampala Moureen', '+256700000119'),
-  (v_tenant_id, 'Ssekidde Saifuh', 'Primary Seven', true, 'Parent of Ssekidde Saifuh', '+256700000120'),
-  (v_tenant_id, 'Nabbumba Fann', 'Primary Seven', true, 'Parent of Nabbumba Fann', '+256700000121'),
-  (v_tenant_id, 'Kamale Topister', 'Primary Seven', false, 'Parent of Kamale Topister', '+256700000122'),
-  (v_tenant_id, 'Ikanga Obadia', 'Primary Seven', true, 'Parent of Ikanga Obadia', '+256700000123'),
-  (v_tenant_id, 'Mpindi Ruth', 'Primary Seven', true, 'Parent of Mpindi Ruth', '+256700000124'),
-  (v_tenant_id, 'Mpinda Danabell', 'Primary Seven', true, 'Parent of Mpinda Danabell', '+256700000125'),
-  (v_tenant_id, 'Asiimwe Brendah', 'Primary Seven', true, 'Parent of Asiimwe Brendah', '+256700000126'),
-  (v_tenant_id, 'Kabite Tranella', 'Primary Seven', true, 'Parent of Kabite Tranella', '+256700000127'),
-  (v_tenant_id, 'Nakamoga Queen', 'Primary Seven', true, 'Parent of Nakamoga Queen', '+256700000128'),
-  (v_tenant_id, 'Mulindwa Josh', 'Primary Seven', true, 'Parent of Mulindwa Josh', '+256700000129'),
-  (v_tenant_id, 'Waswa Joe', 'Primary Seven', true, 'Parent of Waswa Joe', '+256700000130'),
-  (v_tenant_id, 'Sekiremba Jonah', 'Primary Seven', true, 'Parent of Sekiremba Jonah', '+256700000131'),
-
-  -- Primary Six (P6)
-  (v_tenant_id, 'Nassuna Leticia', 'Primary Six', false, 'Parent of Nassuna Leticia', '+256700000105'),
-  (v_tenant_id, 'Ssekabira Oscar', 'Primary Six', true, 'Parent of Ssekabira Oscar', '+256700000106'),
-  (v_tenant_id, 'Talibu Shubra', 'Primary Six', false, 'Parent of Talibu Shubra', '+256700000107'),
-  (v_tenant_id, 'Nakiwa Joan', 'Primary Six', false, 'Parent of Nakiwa Joan', '+256700000108'),
-  (v_tenant_id, 'Ssempijja Shammah', 'Primary Six', false, 'Parent of Ssempijja Shammah', '+256700000109'),
-  (v_tenant_id, 'Nabukeera Margie', 'Primary Six', false, 'Parent of Nabukeera Margie', '+256700000110'),
-  (v_tenant_id, 'Aizuka Trevor', 'Primary Six', false, 'Parent of Aizuka Trevor', '+256700000084'),
-  (v_tenant_id, 'Ikanga Joyce', 'Primary Six', true, 'Parent of Ikanga Joyce', '+256700000111'),
-  (v_tenant_id, 'Nakimbugwe Ketra', 'Primary Six', true, 'Parent of Nakimbugwe Ketra', '+256700000112'),
-  (v_tenant_id, 'Kanamwanji Malcolm', 'Primary Six', false, 'Parent of Kanamwanji Malcolm', '+256700000113'),
-  (v_tenant_id, 'Nalugwa Sauya', 'Primary Six', false, 'Parent of Nalugwa Sauya', '+256700000114'),
-  (v_tenant_id, 'Mwanje Rayan', 'Primary Six', false, 'Parent of Mwanje Rayan', '+256700000115'),
-  (v_tenant_id, 'Kamooga Emmanuel', 'Primary Six', false, 'Parent of Kamooga Emmanuel', '+256700000116'),
-
-  -- Primary Five (P5)
-  (v_tenant_id, 'Nakato Annet Favour', 'Primary Five', true, 'Parent of Nakato Annet Favour', '+256700000095'),
-  (v_tenant_id, 'Nakalema Patricia', 'Primary Five', true, 'Parent of Nakalema Patricia', '+256700000096'),
-  (v_tenant_id, 'Nakamoga Victoria', 'Primary Five', false, 'Parent of Nakamoga Victoria', '+256700000097'),
-  (v_tenant_id, 'Ssekyanzi Octavian', 'Primary Five', false, 'Parent of Ssekyanzi Octavian', '+256700000098'),
-  (v_tenant_id, 'Nakato Shabiba', 'Primary Five', false, 'Parent of Nakato Shabiba', '+256700000099'),
-  (v_tenant_id, 'Nakimuli Maria Ketra', 'Primary Five', false, 'Parent of Nakimuli Maria Ketra', '+256700000100'),
-  (v_tenant_id, 'Namntovu Jennifer', 'Primary Five', false, 'Parent of Namntovu Jennifer', '+256700000101'),
-  (v_tenant_id, 'Nakituba Anna', 'Primary Five', false, 'Parent of Nakituba Anna', '+256700000102'),
-  (v_tenant_id, 'Mulindwa Jash', 'Primary Five', true, 'Parent of Mulindwa Jash', '+256700000103'),
-  (v_tenant_id, 'Kitiibwa Shantel', 'Primary Five', true, 'Parent of Kitiibwa Shantel', '+256700000104'),
-
-  -- Primary Four (P4)
-  (v_tenant_id, 'Ijungo Mathias', 'Primary Four', false, 'Parent of Ijungo Mathias', '+256700000089'),
-  (v_tenant_id, 'Yiga Rashim', 'Primary Four', false, 'Parent of Yiga Rashim', '+256700000090'),
-  (v_tenant_id, 'Kasswa David', 'Primary Four', false, 'Parent of Kasswa David', '+256700000091'),
-  (v_tenant_id, 'Asiimwe Brenda', 'Primary Four', false, 'Parent of Asiimwe Brenda', '+256700000092'),
-  (v_tenant_id, 'Kimuli Marvin', 'Primary Four', false, 'Parent of Kimuli Marvin', '+256700000093'),
-  (v_tenant_id, 'Nantongo Hashimin Tara', 'Primary Four', false, 'Parent of Nantongo Hashimin Tara', '+256700000094'),
-
-  -- Primary Three (P3)
-  (v_tenant_id, 'Nachwa Ronah', 'Primary Three', false, 'Parent of Nachwa Ronah', '+256700000072'),
-  (v_tenant_id, 'Nakimuli Queen Kevin', 'Primary Three', false, 'Parent of Nakimuli Queen Kevin', '+256700000073'),
-  (v_tenant_id, 'Numbere Micheal', 'Primary Three', false, 'Parent of Numbere Micheal', '+256700000074'),
-  (v_tenant_id, 'Nakaboye Whitney', 'Primary Three', false, 'Parent of Nakaboye Whitney', '+256700000075'),
-  (v_tenant_id, 'Kasuja Salmah', 'Primary Three', true, 'Parent of Kasuja Salmah', '+256700000076'),
-  (v_tenant_id, 'Babirye Ronitah', 'Primary Three', true, 'Parent of Babirye Ronitah', '+256700000077'),
-  (v_tenant_id, 'Lugoboli Charles', 'Primary Three', false, 'Parent of Lugoboli Charles', '+256700000078'),
-  (v_tenant_id, 'Arinaitwe Jeremiah', 'Primary Three', false, 'Parent of Arinaitwe Jeremiah', '+256700000079'),
-  (v_tenant_id, 'Nkatia Jamila', 'Primary Three', false, 'Parent of Nkatia Jamila', '+256700000080'),
-  (v_tenant_id, 'Kemicisa Elizabeth', 'Primary Three', false, 'Parent of Kemicisa Elizabeth', '+256700000081'),
-  (v_tenant_id, 'Nakayenga Bushirah', 'Primary Three', false, 'Parent of Nakayenga Bushirah', '+256700000082'),
-  (v_tenant_id, 'Mulungi Sharifah', 'Primary Three', false, 'Parent of Mulungi Sharifah', '+256700000083'),
-  (v_tenant_id, 'Ssebyesero Raymond', 'Primary Three', false, 'Parent of Ssebyesero Raymond', '+256700000085'),
-  (v_tenant_id, 'Amanda Mikeiparah', 'Primary Three', false, 'Parent of Amanda Mikeiparah', '+256700000086'),
-  (v_tenant_id, 'Kamoga Adasa Esther', 'Primary Three', false, 'Parent of Kamoga Adasa Esther', '+256700000087'),
-  (v_tenant_id, 'Maindi Ruth', 'Primary Three', false, 'Parent of Maindi Ruth', '+256700000088A'),
-  (v_tenant_id, 'Mulindonda Joel', 'Primary Three', false, 'Parent of Mulindonda Joel', '+256700000088B'),
-  (v_tenant_id, 'Mukisa Tania', 'Primary Three', true, 'Parent of Mukisa Tania', '+256700000088C'),
-
-  -- Primary Two (P2)
-  (v_tenant_id, 'Nansuyimba Martina', 'Primary Two', false, 'Parent of Nansuyimba Martina', '+256700000051'),
-  (v_tenant_id, 'Nalukenge Patricia', 'Primary Two', false, 'Parent of Nalukenge Patricia', '+256700000052'),
-  (v_tenant_id, 'Abaho Arthur', 'Primary Two', false, 'Parent of Abaho Arthur', '+256700000053'),
-  (v_tenant_id, 'Nakato Rashidah', 'Primary Two', false, 'Parent of Nakato Rashidah', '+256700000054'),
-  (v_tenant_id, 'Kasswa Rashid', 'Primary Two', false, 'Parent of Kasswa Rashid', '+256700000055'),
-  (v_tenant_id, 'Nbagide Mariam', 'Primary Two', false, 'Parent of Nbagide Mariam', '+256700000056'),
-  (v_tenant_id, 'Kalusimbi Teyin', 'Primary Two', false, 'Parent of Kalusimbi Teyin', '+256700000057'),
-  (v_tenant_id, 'Namazzi Paris', 'Primary Two', false, 'Parent of Namazzi Paris', '+256700000058'),
-  (v_tenant_id, 'Kimbowa Elijah', 'Primary Two', false, 'Parent of Kimbowa Elijah', '+256700000059'),
-  (v_tenant_id, 'Kalungi Joylin', 'Primary Two', false, 'Parent of Kalungi Joylin', '+256700000060'),
-  (v_tenant_id, 'Kamooga Alton', 'Primary Two', false, 'Parent of Kamooga Alton', '+256700000061'),
-  (v_tenant_id, 'Kawesa Jonah', 'Primary Two', false, 'Parent of Kawesa Jonah', '+256700000062'),
-  (v_tenant_id, 'Mulindo Martha', 'Primary Two', false, 'Parent of Mulindo Martha', '+256700000063'),
-  (v_tenant_id, 'Kimera Imran', 'Primary Two', false, 'Parent of Kimera Imran', '+256700000064'),
-  (v_tenant_id, 'Tujjeesa Erisabesi', 'Primary Two', false, 'Parent of Tujjeesa Erisabesi', '+256700000065'),
-  (v_tenant_id, 'Kirabo Sarah Nabaagala', 'Primary Two', false, 'Parent of Kirabo Sarah Nabaagala', '+256700000066'),
-  (v_tenant_id, 'Tamale Hilal Nassor', 'Primary Two', false, 'Parent of Tamale Hilal Nassor', '+256700000067'),
-  (v_tenant_id, 'Nafuna Patricia', 'Primary Two', false, 'Parent of Nafuna Patricia', '+256700000068'),
-  (v_tenant_id, 'Kakotio Payton', 'Primary Two', false, 'Parent of Kakotio Payton', '+256700000069'),
-  (v_tenant_id, 'Ssegazii Mathew', 'Primary Two', false, 'Parent of Ssegazii Mathew', '+256700000070'),
-  (v_tenant_id, 'Nyanzi Calvin Kampala', 'Primary Two', false, 'Parent of Nyanzi Calvin Kampala', '+256700000071'),
-
-  -- Primary One (P1 — "Class not visible" in PDF)
-  (v_tenant_id, 'Namagabo Waiswa', 'Primary One', false, 'Parent of Namagabo Waiswa', '+256700000301'),
-  (v_tenant_id, 'Ssebunya Joel', 'Primary One', false, 'Parent of Ssebunya Joel', '+256700000302'),
-  (v_tenant_id, 'Nsiimbi Mariam Jemiima', 'Primary One', false, 'Parent of Nsiimbi Mariam Jemiima', '+256700000303'),
-  (v_tenant_id, 'Nakamya Queen Florence', 'Primary One', false, 'Parent of Nakamya Queen Florence', '+256700000304'),
-  (v_tenant_id, 'Kabite Veila Npante', 'Primary One', false, 'Parent of Kabite Veila Npante', '+256700000305'),
-  (v_tenant_id, 'Ambani Claire', 'Primary One', false, 'Parent of Ambani Claire', '+256700000306'),
-  (v_tenant_id, 'Kasujja Prince', 'Primary One', false, 'Parent of Kasujja Prince', '+256700000307'),
-  (v_tenant_id, 'Marion', 'Primary One', false, 'Parent of Marion', '+256700000308'),
-  (v_tenant_id, 'Kamoga Exodus', 'Primary One', false, 'Parent of Kamoga Exodus', '+256700000309'),
-  (v_tenant_id, 'Kamoga Elijah', 'Primary One', false, 'Parent of Kamoga Elijah', '+256700000310'),
-  (v_tenant_id, 'Kayiwa Tenywa Maria', 'Primary One', false, 'Parent of Kayiwa Tenywa Maria', '+256700000311'),
-  (v_tenant_id, 'Alinaitwe Elijah', 'Primary One', true, 'Parent of Alinaitwe Elijah', '+256700000312'),
-  (v_tenant_id, 'Mulungi Patricia', 'Primary One', true, 'Parent of Mulungi Patricia', '+256700000313'),
-  (v_tenant_id, 'Mulindwa Joel', 'Primary One', true, 'Parent of Mulindwa Joel', '+256700000314'),
-  (v_tenant_id, 'Palumba Ednar', 'Primary One', true, 'Parent of Palumba Ednar', '+256700000315'),
-
-  -- Top Class
-  (v_tenant_id, 'Mawanda Tanish', 'Top Class', false, 'Parent of Mawanda Tanish', '+256700000036'),
-  (v_tenant_id, 'Namuyanja Sarah', 'Top Class', false, 'Parent of Namuyanja Sarah', '+256700000037'),
-  (v_tenant_id, 'Mutebi Parvin', 'Top Class', false, 'Parent of Mutebi Parvin', '+256700000038'),
-  (v_tenant_id, 'Babirye Daniella', 'Top Class', false, 'Parent of Babirye Daniella', '+256700000039'),
-  (v_tenant_id, 'Kato Dan', 'Top Class', false, 'Parent of Kato Dan', '+256700000040'),
-  (v_tenant_id, 'Malaika Natalia', 'Top Class', false, 'Parent of Malaika Natalia', '+256700000041'),
-  (v_tenant_id, 'Kato Kirumira', 'Top Class', false, 'Parent of Kato Kirumira', '+256700000042'),
-  (v_tenant_id, 'Kasswa Emma', 'Top Class', false, 'Parent of Kasswa Emma', '+256700000043'),
-  (v_tenant_id, 'Mokungi Nicole', 'Top Class', false, 'Parent of Mokungi Nicole', '+256700000044'),
-  (v_tenant_id, 'Asiimwe Timothy', 'Top Class', false, 'Parent of Asiimwe Timothy', '+256700000045'),
-  (v_tenant_id, 'Nagaba Dellah', 'Top Class', false, 'Parent of Nagaba Dellah', '+256700000046'),
-  (v_tenant_id, 'Bahati Rania', 'Top Class', false, 'Parent of Bahati Rania', '+256700000047'),
-  (v_tenant_id, 'Twebaze Isaaya', 'Top Class', false, 'Parent of Twebaze Isaaya', '+256700000048'),
-  (v_tenant_id, 'Namukwaya Daniella', 'Top Class', false, 'Parent of Namukwaya Daniella', '+256700000049'),
-  (v_tenant_id, 'Nakanwoki Emarine', 'Top Class', false, 'Parent of Nakanwoki Emarine', '+256700000050'),
-
-  -- Middle Class
-  (v_tenant_id, 'Nabbanya Miracle', 'Middle Class', false, 'Parent of Nabbanya Miracle', '+256700000015'),
-  (v_tenant_id, 'Kiberu Rohan', 'Middle Class', false, 'Parent of Kiberu Rohan', '+256700000016'),
-  (v_tenant_id, 'Ssenyondo Rayan', 'Middle Class', false, 'Parent of Ssenyondo Rayan', '+256700000017'),
-  (v_tenant_id, 'Kalungi Jovitah', 'Middle Class', false, 'Parent of Kalungi Jovitah', '+256700000018'),
-  (v_tenant_id, 'Kemirembe Dorothy', 'Middle Class', false, 'Parent of Kemirembe Dorothy', '+256700000019'),
-  (v_tenant_id, 'Namatovu Skylar', 'Middle Class', false, 'Parent of Namatovu Skylar', '+256700000020'),
-  (v_tenant_id, 'Bagonza Isaiah', 'Middle Class', false, 'Parent of Bagonza Isaiah', '+256700000021'),
-  (v_tenant_id, 'Kalema Abdulrahim Abubakim', 'Middle Class', false, 'Parent of Kalema Abdulrahim Abubakim', '+256700000022'),
-  (v_tenant_id, 'Kato James', 'Middle Class', false, 'Parent of Kato James', '+256700000023'),
-  (v_tenant_id, 'Kassina John', 'Middle Class', false, 'Parent of Kassina John', '+256700000024'),
-  (v_tenant_id, 'Namayanja Joweria', 'Middle Class', false, 'Parent of Namayanja Joweria', '+256700000025'),
-  (v_tenant_id, 'Kayemba Ronnie', 'Middle Class', false, 'Parent of Kayemba Ronnie', '+256700000026'),
-  (v_tenant_id, 'Beesa Imran', 'Middle Class', false, 'Parent of Beesa Imran', '+256700000027'),
-  (v_tenant_id, 'Mercy', 'Middle Class', false, 'Parent of Mercy', '+256700000028'),
-  (v_tenant_id, 'Mercy Biira', 'Middle Class', false, 'Parent of Mercy Biira', '+256700000029'),
-  (v_tenant_id, 'Kyakuna Arthur', 'Middle Class', false, 'Parent of Kyakuna Arthur', '+256700000030'),
-  (v_tenant_id, 'Kimbugwe Fatham', 'Middle Class', false, 'Parent of Kimbugwe Fatham', '+256700000031'),
-  (v_tenant_id, 'Mwanje Ranwah', 'Middle Class', false, 'Parent of Mwanje Ranwah', '+256700000032'),
-  (v_tenant_id, 'Mutumba Hayan', 'Middle Class', false, 'Parent of Mutumba Hayan', '+256700000033'),
-  (v_tenant_id, 'Ndinayo Elijah', 'Middle Class', false, 'Parent of Ndinayo Elijah', '+256700000034'),
-  (v_tenant_id, 'Simoka Aaron', 'Middle Class', false, 'Parent of Simoka Aaron', '+256700000035'),
-
   -- Baby Class
-  (v_tenant_id, 'Namala Leticia', 'Baby Class', false, 'Parent of Namala Leticia', '+256700000001'),
-  (v_tenant_id, 'Arinaitwe Elijah', 'Baby Class', true, 'Parent of Arinaitwe Elijah', '+256700000002'),
-  (v_tenant_id, 'Ssentongo Alpha', 'Baby Class', false, 'Parent of Ssentongo Alpha', '+256700000003'),
-  (v_tenant_id, 'Blessing Namusisi', 'Baby Class', false, 'Parent of Blessing Namusisi', '+256700000004'),
-  (v_tenant_id, 'Kisakye Jemimah', 'Baby Class', false, 'Parent of Kisakye Jemimah', '+256700000005'),
-  (v_tenant_id, 'Male David Joshua', 'Baby Class', false, 'Parent of Male David Joshua', '+256700000006'),
-  (v_tenant_id, 'Lataya Elvis', 'Baby Class', false, 'Parent of Lataya Elvis', '+256700000007'),
-  (v_tenant_id, 'Ssuna Traylin', 'Baby Class', false, 'Parent of Ssuna Traylin', '+256700000008'),
-  (v_tenant_id, 'Momoa Kent', 'Baby Class', false, 'Parent of Momoa Kent', '+256700000009'),
-  (v_tenant_id, 'Eady Steven', 'Baby Class', false, 'Parent of Eady Steven', '+256700000010'),
-  (v_tenant_id, 'Nalubwama Maria Blessing', 'Baby Class', false, 'Parent of Nalubwama Maria Blessing', '+256700000011'),
-  (v_tenant_id, 'Kirabo Wisdom', 'Baby Class', false, 'Parent of Kirabo Wisdom', '+256700000012'),
-  (v_tenant_id, 'Kirabo Terisa', 'Baby Class', false, 'Parent of Kirabo Terisa', '+256700000013'),
-  (v_tenant_id, 'Mucwanya Janiel', 'Baby Class', false, 'Parent of Mucwanya Janiel', '+256700000014');
+  -- Middle Class
+  -- Top Class
+  -- Primary One
+  -- Primary Two
+  -- Primary Three
+  -- Primary Four
+  -- Primary Five
+  -- Primary Six
+  -- Primary Seven
+  (v_tenant_id, 'NAMALA LETICIA', 'Baby Class', false, 'Parent of NAMALA LETICIA', '+25670000001'),
+  (v_tenant_id, 'ARINAITWE ELIJAH', 'Baby Class', false, 'Parent of ARINAITWE ELIJAH', '+25670000002'),
+  (v_tenant_id, 'SSENTONGO ALPHA', 'Baby Class', false, 'Parent of SSENTONGO ALPHA', '+25670000003'),
+  (v_tenant_id, 'BLESSING NAMUSISI', 'Baby Class', false, 'Parent of BLESSING NAMUSISI', '+25670000004'),
+  (v_tenant_id, 'KISAKYE JEMIMAH', 'Baby Class', false, 'Parent of KISAKYE JEMIMAH', '+25670000005'),
+  (v_tenant_id, 'MALE DAVID JOSHUA', 'Baby Class', false, 'Parent of MALE DAVID JOSHUA', '+25670000006'),
+  (v_tenant_id, 'LATAYA ELVIS', 'Baby Class', false, 'Parent of LATAYA ELVIS', '+25670000007'),
+  (v_tenant_id, 'SSUNA TRAVIN', 'Baby Class', false, 'Parent of SSUNA TRAVIN', '+25670000008'),
+  (v_tenant_id, 'MERCY BIIRA', 'Baby Class', false, 'Parent of MERCY BIIRA', '+25670000009'),
+  (v_tenant_id, 'KYAKUWA ARTHUR', 'Baby Class', false, 'Parent of KYAKUWA ARTHUR', '+25670000010'),
+  (v_tenant_id, 'KIMBUGWE FAHAM', 'Baby Class', false, 'Parent of KIMBUGWE FAHAM', '+25670000011'),
+  (v_tenant_id, 'MWANJE RAWUYAH', 'Baby Class', false, 'Parent of MWANJE RAWUYAH', '+25670000012'),
+  (v_tenant_id, 'MUTUMBA HAYAN', 'Baby Class', false, 'Parent of MUTUMBA HAYAN', '+25670000013'),
+  (v_tenant_id, 'NDINAYO ELIJAH', 'Baby Class', false, 'Parent of NDINAYO ELIJAH', '+25670000014'),
+  (v_tenant_id, 'SIMOLA AARON', 'Baby Class', false, 'Parent of SIMOLA AARON', '+25670000015'),
+  (v_tenant_id, 'MOMOA KENT', 'Baby Class', false, 'Parent of MOMOA KENT', '+25670000016'),
+  (v_tenant_id, 'EADY STEVEN', 'Baby Class', false, 'Parent of EADY STEVEN', '+25670000017'),
+  (v_tenant_id, 'NALUBWAMA MARIA BLESSING', 'Baby Class', false, 'Parent of NALUBWAMA MARIA BLESSING', '+25670000018'),
+  (v_tenant_id, 'KIRABO WISDOM', 'Baby Class', false, 'Parent of KIRABO WISDOM', '+25670000019'),
+  (v_tenant_id, 'KIRABO TERISA', 'Baby Class', false, 'Parent of KIRABO TERISA', '+25670000020'),
+  (v_tenant_id, 'MUGWANYA DANIEL', 'Baby Class', false, 'Parent of MUGWANYA DANIEL', '+25670000021'),
+  (v_tenant_id, 'KALEMA ABDULRAHIM', 'Baby Class', false, 'Parent of KALEMA ABDULRAHIM', '+25670000022'),
+  (v_tenant_id, 'JOSH LUCAS', 'Baby Class', false, 'Parent of JOSH LUCAS', '+25670000023'),
+  (v_tenant_id, 'Muwa', 'Baby Class', false, 'Parent of Muwa', '+25670000024'),
+  (v_tenant_id, 'KALUNGI', 'Baby Class', false, 'Parent of KALUNGI', '+25670000025'),
+  (v_tenant_id, 'Gift', 'Baby Class', false, 'Parent of Gift', '+25670000026'),
+  (v_tenant_id, 'NABBANJA MIRACLE', 'Middle Class', false, 'Parent of NABBANJA MIRACLE', '+25670000027'),
+  (v_tenant_id, 'KIBERU ROHAN', 'Middle Class', false, 'Parent of KIBERU ROHAN', '+25670000028'),
+  (v_tenant_id, 'SSENYONJO RAYAN', 'Middle Class', false, 'Parent of SSENYONJO RAYAN', '+25670000029'),
+  (v_tenant_id, 'KALUNGI JOVITAH', 'Middle Class', false, 'Parent of KALUNGI JOVITAH', '+25670000030'),
+  (v_tenant_id, 'KEMIREMBE DOROTHY', 'Middle Class', false, 'Parent of KEMIREMBE DOROTHY', '+25670000031'),
+  (v_tenant_id, 'NAMATOVU SKYLAR', 'Middle Class', false, 'Parent of NAMATOVU SKYLAR', '+25670000032'),
+  (v_tenant_id, 'BAGONZA ISAIAH', 'Middle Class', false, 'Parent of BAGONZA ISAIAH', '+25670000033'),
+  (v_tenant_id, 'MOLUNGI NICOLE', 'Middle Class', false, 'Parent of MOLUNGI NICOLE', '+25670000034'),
+  (v_tenant_id, 'ASIIMWE TIMOTHY', 'Middle Class', false, 'Parent of ASIIMWE TIMOTHY', '+25670000035'),
+  (v_tenant_id, 'NAGABA DELLAH', 'Middle Class', false, 'Parent of NAGABA DELLAH', '+25670000036'),
+  (v_tenant_id, 'BAHAT RANIA ALKANDI MUHAMMAD', 'Middle Class', false, 'Parent of BAHAT RANIA ALKANDI MUHAMMAD', '+25670000037'),
+  (v_tenant_id, 'TWEBAZE ISAAYA', 'Middle Class', false, 'Parent of TWEBAZE ISAAYA', '+25670000038'),
+  (v_tenant_id, 'NAMUKWAYA DANIELLA', 'Middle Class', false, 'Parent of NAMUKWAYA DANIELLA', '+25670000039'),
+  (v_tenant_id, 'NAKAWUKI EMARINE', 'Middle Class', false, 'Parent of NAKAWUKI EMARINE', '+25670000040'),
+  (v_tenant_id, 'KATO JAMES', 'Middle Class', false, 'Parent of KATO JAMES', '+25670000041'),
+  (v_tenant_id, 'WASSWA JOHN', 'Middle Class', false, 'Parent of WASSWA JOHN', '+25670000042'),
+  (v_tenant_id, 'NAMAYANJA JOWERIA', 'Middle Class', false, 'Parent of NAMAYANJA JOWERIA', '+25670000043'),
+  (v_tenant_id, 'KAYEMBA RONNIE', 'Middle Class', false, 'Parent of KAYEMBA RONNIE', '+25670000044'),
+  (v_tenant_id, 'BEEZA IMRAN', 'Middle Class', false, 'Parent of BEEZA IMRAN', '+25670000045'),
+  (v_tenant_id, 'MERCY', 'Middle Class', false, 'Parent of MERCY', '+25670000046'),
+  (v_tenant_id, 'MUGWANYA XAVIER', 'Middle Class', false, 'Parent of MUGWANYA XAVIER', '+25670000047'),
+  (v_tenant_id, 'MATOVU ALEENA', 'Middle Class', false, 'Parent of MATOVU ALEENA', '+25670000048'),
+  (v_tenant_id, 'MAWANDA TANISH', 'Top Class', false, 'Parent of MAWANDA TANISH', '+25670000049'),
+  (v_tenant_id, 'NAMUYANJA SARAH', 'Top Class', false, 'Parent of NAMUYANJA SARAH', '+25670000050'),
+  (v_tenant_id, 'MUTEBI PARVIN', 'Top Class', false, 'Parent of MUTEBI PARVIN', '+25670000051'),
+  (v_tenant_id, 'BABIRYE DANIELLA', 'Top Class', false, 'Parent of BABIRYE DANIELLA', '+25670000052'),
+  (v_tenant_id, 'KATO DAN', 'Top Class', false, 'Parent of KATO DAN', '+25670000053'),
+  (v_tenant_id, 'MALAIKA NATALIA', 'Top Class', false, 'Parent of MALAIKA NATALIA', '+25670000054'),
+  (v_tenant_id, 'KATO KIRUMIRA', 'Top Class', false, 'Parent of KATO KIRUMIRA', '+25670000055'),
+  (v_tenant_id, 'WASSWA EMMA', 'Top Class', false, 'Parent of WASSWA EMMA', '+25670000056'),
+  (v_tenant_id, 'KIRABO SARAH NABAGGALA', 'Top Class', false, 'Parent of KIRABO SARAH NABAGGALA', '+25670000057'),
+  (v_tenant_id, 'TAMALE HILAL NASSAR', 'Top Class', false, 'Parent of TAMALE HILAL NASSAR', '+25670000058'),
+  (v_tenant_id, 'NAFUNA PATRICIA', 'Top Class', false, 'Parent of NAFUNA PATRICIA', '+25670000059'),
+  (v_tenant_id, 'KAKOTTO PAYTON', 'Top Class', false, 'Parent of KAKOTTO PAYTON', '+25670000060'),
+  (v_tenant_id, 'SSESAZZI MATHEW', 'Top Class', false, 'Parent of SSESAZZI MATHEW', '+25670000061'),
+  (v_tenant_id, 'NYANZI CALVIN KAMPALA', 'Top Class', false, 'Parent of NYANZI CALVIN KAMPALA', '+25670000062'),
+  (v_tenant_id, 'NAMAZZI PARIS', 'Top Class', false, 'Parent of NAMAZZI PARIS', '+25670000063'),
+  (v_tenant_id, 'KIMBOWA ELIJAH', 'Top Class', false, 'Parent of KIMBOWA ELIJAH', '+25670000064'),
+  (v_tenant_id, 'NABUKEERA SHANAI', 'Top Class', false, 'Parent of NABUKEERA SHANAI', '+25670000065'),
+  (v_tenant_id, 'KAGIMU TOM', 'Top Class', false, 'Parent of KAGIMU TOM', '+25670000066'),
+  (v_tenant_id, 'NAKIGOZI KENJHA', 'Top Class', false, 'Parent of NAKIGOZI KENJHA', '+25670000067'),
+  (v_tenant_id, 'Nyanzi Jeriden', 'Primary One', false, 'Parent of Nyanzi Jeriden', '+25670000068'),
+  (v_tenant_id, 'Namuli Ashley Peace', 'Primary One', false, 'Parent of Namuli Ashley Peace', '+25670000069'),
+  (v_tenant_id, 'Nakimuli Matuwah', 'Primary One', false, 'Parent of Nakimuli Matuwah', '+25670000070'),
+  (v_tenant_id, 'Melvin Kigozi', 'Primary One', false, 'Parent of Melvin Kigozi', '+25670000071'),
+  (v_tenant_id, 'Nalumansi Tryphena', 'Primary One', false, 'Parent of Nalumansi Tryphena', '+25670000072'),
+  (v_tenant_id, 'Amanya Aaron', 'Primary One', false, 'Parent of Amanya Aaron', '+25670000073'),
+  (v_tenant_id, 'Tamale Roger', 'Primary One', false, 'Parent of Tamale Roger', '+25670000074'),
+  (v_tenant_id, 'Kwagalakwe Eseza', 'Primary One', false, 'Parent of Kwagalakwe Eseza', '+25670000075'),
+  (v_tenant_id, 'Namuwoonge Martha', 'Primary One', false, 'Parent of Namuwoonge Martha', '+25670000076'),
+  (v_tenant_id, 'Alupo Brenda', 'Primary One', false, 'Parent of Alupo Brenda', '+25670000077'),
+  (v_tenant_id, 'Muwanguzi Erisa', 'Primary One', false, 'Parent of Muwanguzi Erisa', '+25670000078'),
+  (v_tenant_id, 'Mukasa Elijah', 'Primary One', false, 'Parent of Mukasa Elijah', '+25670000079'),
+  (v_tenant_id, 'Ndagire Angel', 'Primary One', false, 'Parent of Ndagire Angel', '+25670000080'),
+  (v_tenant_id, 'Obadia Kirangwa', 'Primary One', false, 'Parent of Obadia Kirangwa', '+25670000081'),
+  (v_tenant_id, 'Namiyenya Jaselyn', 'Primary One', false, 'Parent of Namiyenya Jaselyn', '+25670000082'),
+  (v_tenant_id, 'Luwedde Keren', 'Primary One', false, 'Parent of Luwedde Keren', '+25670000083'),
+  (v_tenant_id, 'Mehek Jot', 'Primary One', false, 'Parent of Mehek Jot', '+25670000084'),
+  (v_tenant_id, 'Nambatya Patricia', 'Primary One', false, 'Parent of Nambatya Patricia', '+25670000085'),
+  (v_tenant_id, 'Kyambadde Ernest', 'Primary One', false, 'Parent of Kyambadde Ernest', '+25670000086'),
+  (v_tenant_id, 'Nsobya Praise', 'Primary One', false, 'Parent of Nsobya Praise', '+25670000087'),
+  (v_tenant_id, 'Amirah', 'Primary One', false, 'Parent of Amirah', '+25670000088'),
+  (v_tenant_id, 'Harriet', 'Primary One', false, 'Parent of Harriet', '+25670000089'),
+  (v_tenant_id, 'Flavia', 'Primary One', false, 'Parent of Flavia', '+25670000090'),
+  (v_tenant_id, 'NANSOMBA MARTINA', 'Primary Two', false, 'Parent of NANSOMBA MARTINA', '+25670000091'),
+  (v_tenant_id, 'NALUKENCE PATRICIA', 'Primary Two', false, 'Parent of NALUKENCE PATRICIA', '+25670000092'),
+  (v_tenant_id, 'ABAHO ARTHUR', 'Primary Two', false, 'Parent of ABAHO ARTHUR', '+25670000093'),
+  (v_tenant_id, 'NAKATO RASHIDAH', 'Primary Two', false, 'Parent of NAKATO RASHIDAH', '+25670000094'),
+  (v_tenant_id, 'WASSWA RASHID', 'Primary Two', false, 'Parent of WASSWA RASHID', '+25670000095'),
+  (v_tenant_id, 'NDAGIRE MARIAM', 'Primary Two', false, 'Parent of NDAGIRE MARIAM', '+25670000096'),
+  (v_tenant_id, 'WALUSIMBI TEVIN', 'Primary Two', false, 'Parent of WALUSIMBI TEVIN', '+25670000097'),
+  (v_tenant_id, 'KALUNGI JOVIN', 'Primary Two', false, 'Parent of KALUNGI JOVIN', '+25670000098'),
+  (v_tenant_id, 'KAMOGA ALTON', 'Primary Two', false, 'Parent of KAMOGA ALTON', '+25670000099'),
+  (v_tenant_id, 'KAWEESA JONAH', 'Primary Two', false, 'Parent of KAWEESA JONAH', '+25670000100'),
+  (v_tenant_id, 'MUHINDO MARTHA', 'Primary Two', false, 'Parent of MUHINDO MARTHA', '+25670000101'),
+  (v_tenant_id, 'KIMERA IMRAN', 'Primary Two', false, 'Parent of KIMERA IMRAN', '+25670000102'),
+  (v_tenant_id, 'MUTEESA ELISABESI', 'Primary Two', false, 'Parent of MUTEESA ELISABESI', '+25670000103'),
+  (v_tenant_id, 'KIMERA JOSEPH', 'Primary Two', false, 'Parent of KIMERA JOSEPH', '+25670000104'),
+  (v_tenant_id, 'NALUGEMBE PRECIOUS', 'Primary Two', false, 'Parent of NALUGEMBE PRECIOUS', '+25670000105'),
+  (v_tenant_id, 'Zalwango Marion', 'Primary Two', false, 'Parent of Zalwango Marion', '+25670000106'),
+  (v_tenant_id, 'KIRABO SUCCESS', 'Primary Two', false, 'Parent of KIRABO SUCCESS', '+25670000107'),
+  (v_tenant_id, 'LUGENDO JIMSON', 'Primary Two', false, 'Parent of LUGENDO JIMSON', '+25670000108'),
+  (v_tenant_id, 'KALEMA RIHANNA', 'Primary Two', false, 'Parent of KALEMA RIHANNA', '+25670000109'),
+  (v_tenant_id, 'SSEBYESERO RAYMOND', 'Primary Two', false, 'Parent of SSEBYESERO RAYMOND', '+25670000110'),
+  (v_tenant_id, 'Amanda Mikeira', 'Primary Two', false, 'Parent of Amanda Mikeira', '+25670000111'),
+  (v_tenant_id, 'KAMOGA ADASA ESTHER', 'Primary Two', false, 'Parent of KAMOGA ADASA ESTHER', '+25670000112'),
+  (v_tenant_id, 'Mpindi Ruth', 'Primary Two', false, 'Parent of Mpindi Ruth', '+25670000113'),
+  (v_tenant_id, 'MULINDWA JOEL', 'Primary Two', false, 'Parent of MULINDWA JOEL', '+25670000114'),
+  (v_tenant_id, 'MUKISA TANIA', 'Primary Two', false, 'Parent of MUKISA TANIA', '+25670000115'),
+  (v_tenant_id, 'MWANJE RAKIB', 'Primary Two', false, 'Parent of MWANJE RAKIB', '+25670000116'),
+  (v_tenant_id, 'NAGIINA RONAH', 'Primary Three', false, 'Parent of NAGIINA RONAH', '+25670000117'),
+  (v_tenant_id, 'NAKIMULI QUEEN KEVIN', 'Primary Three', false, 'Parent of NAKIMULI QUEEN KEVIN', '+25670000118'),
+  (v_tenant_id, 'MUMBEERE MICHEAL', 'Primary Three', false, 'Parent of MUMBEERE MICHEAL', '+25670000119'),
+  (v_tenant_id, 'NAKABUYE WHITNEY', 'Primary Three', false, 'Parent of NAKABUYE WHITNEY', '+25670000120'),
+  (v_tenant_id, 'KASUJJA SALMAH', 'Primary Three', false, 'Parent of KASUJJA SALMAH', '+25670000121'),
+  (v_tenant_id, 'BABIRYE RONITAH', 'Primary Three', false, 'Parent of BABIRYE RONITAH', '+25670000122'),
+  (v_tenant_id, 'LUGOLOBI CHARLES', 'Primary Three', false, 'Parent of LUGOLOBI CHARLES', '+25670000123'),
+  (v_tenant_id, 'ARINAITWE JEREMIAH', 'Primary Three', false, 'Parent of ARINAITWE JEREMIAH', '+25670000124'),
+  (v_tenant_id, 'NAKATIZA JOANITA', 'Primary Three', false, 'Parent of NAKATIZA JOANITA', '+25670000125'),
+  (v_tenant_id, 'KEMIGISA ELIZA BETH', 'Primary Three', false, 'Parent of KEMIGISA ELIZA BETH', '+25670000126'),
+  (v_tenant_id, 'NAKAYENGA BUSHIRAH', 'Primary Three', false, 'Parent of NAKAYENGA BUSHIRAH', '+25670000127'),
+  (v_tenant_id, 'MULUNGI SHARIFAH', 'Primary Three', false, 'Parent of MULUNGI SHARIFAH', '+25670000128'),
+  (v_tenant_id, 'AIZUKA TREVOR', 'Primary Three', false, 'Parent of AIZUKA TREVOR', '+25670000129'),
+  (v_tenant_id, 'NABUKEERA MARGIE', 'Primary Three', false, 'Parent of NABUKEERA MARGIE', '+25670000130'),
+  (v_tenant_id, 'IKANGA JOYCE', 'Primary Three', false, 'Parent of IKANGA JOYCE', '+25670000131'),
+  (v_tenant_id, 'NAKIMBUGWE KETRA', 'Primary Three', false, 'Parent of NAKIMBUGWE KETRA', '+25670000132'),
+  (v_tenant_id, 'KANAMWANJI MALCOM', 'Primary Three', false, 'Parent of KANAMWANJI MALCOM', '+25670000133'),
+  (v_tenant_id, 'NALUGIWA SAUYAH', 'Primary Three', false, 'Parent of NALUGIWA SAUYAH', '+25670000134'),
+  (v_tenant_id, 'MWANJE RAYAN', 'Primary Three', false, 'Parent of MWANJE RAYAN', '+25670000135'),
+  (v_tenant_id, 'KAMOGA EMMANUEL', 'Primary Three', false, 'Parent of KAMOGA EMMANUEL', '+25670000136'),
+  (v_tenant_id, 'JJUNJU MATHIAS', 'Primary Four', false, 'Parent of JJUNJU MATHIAS', '+25670000137'),
+  (v_tenant_id, 'YIGA RASHIM', 'Primary Four', false, 'Parent of YIGA RASHIM', '+25670000138'),
+  (v_tenant_id, 'Wasswa David', 'Primary Four', false, 'Parent of Wasswa David', '+25670000139'),
+  (v_tenant_id, 'Asiimwe Brenda', 'Primary Four', false, 'Parent of Asiimwe Brenda', '+25670000140'),
+  (v_tenant_id, 'Kimuli Marvin', 'Primary Four', false, 'Parent of Kimuli Marvin', '+25670000141'),
+  (v_tenant_id, 'Nantongo Hashimin Tara', 'Primary Four', false, 'Parent of Nantongo Hashimin Tara', '+25670000142'),
+  (v_tenant_id, 'Octavian', 'Primary Four', false, 'Parent of Octavian', '+25670000143'),
+  (v_tenant_id, 'Nakato Shabibah', 'Primary Four', false, 'Parent of Nakato Shabibah', '+25670000144'),
+  (v_tenant_id, 'Nakimuli Maria Ketra', 'Primary Four', false, 'Parent of Nakimuli Maria Ketra', '+25670000145'),
+  (v_tenant_id, 'Namatovu Jenifer', 'Primary Four', false, 'Parent of Namatovu Jenifer', '+25670000146'),
+  (v_tenant_id, 'Nakituba Anna', 'Primary Four', false, 'Parent of Nakituba Anna', '+25670000147'),
+  (v_tenant_id, 'Mulindwa Josh', 'Primary Four', false, 'Parent of Mulindwa Josh', '+25670000148'),
+  (v_tenant_id, 'Kitiibwa Shantel', 'Primary Four', false, 'Parent of Kitiibwa Shantel', '+25670000149'),
+  (v_tenant_id, 'Nakato Annet favour', 'Primary Five', false, 'Parent of Nakato Annet favour', '+25670000150'),
+  (v_tenant_id, 'Nakalema Patricia', 'Primary Five', false, 'Parent of Nakalema Patricia', '+25670000151'),
+  (v_tenant_id, 'Nakamoga Victoria', 'Primary Five', false, 'Parent of Nakamoga Victoria', '+25670000152'),
+  (v_tenant_id, 'Nakiyonga Juliet Kizza', 'Primary Five', false, 'Parent of Nakiyonga Juliet Kizza', '+25670000153'),
+  (v_tenant_id, 'Nassuna Leticia', 'Primary Six', false, 'Parent of Nassuna Leticia', '+25670000154'),
+  (v_tenant_id, 'Ssekabira Osca', 'Primary Six', false, 'Parent of Ssekabira Osca', '+25670000155'),
+  (v_tenant_id, 'Talibu Shubra', 'Primary Six', false, 'Parent of Talibu Shubra', '+25670000156'),
+  (v_tenant_id, 'Nakiwu Joan', 'Primary Six', false, 'Parent of Nakiwu Joan', '+25670000157'),
+  (v_tenant_id, 'Ssempijja Sharom', 'Primary Six', false, 'Parent of Ssempijja Sharom', '+25670000158'),
+  (v_tenant_id, 'Kasule Ronnie', 'Primary Six', false, 'Parent of Kasule Ronnie', '+25670000159'),
+  (v_tenant_id, 'Mariam Kusasira', 'Primary Six', false, 'Parent of Mariam Kusasira', '+25670000160'),
+  (v_tenant_id, 'Kamoga Exodus', 'Primary Six', false, 'Parent of Kamoga Exodus', '+25670000161'),
+  (v_tenant_id, 'Kamoga Elijah', 'Primary Six', false, 'Parent of Kamoga Elijah', '+25670000162'),
+  (v_tenant_id, 'Kayemba Rickey Ntale', 'Primary Six', false, 'Parent of Kayemba Rickey Ntale', '+25670000163'),
+  (v_tenant_id, 'NANTEZA KETRA TENDO', 'Primary Seven', false, 'Parent of NANTEZA KETRA TENDO', '+25670000164'),
+  (v_tenant_id, 'SOPHIE BINT MUSA', 'Primary Seven', false, 'Parent of SOPHIE BINT MUSA', '+25670000165'),
+  (v_tenant_id, 'NAMPALA MOUREEN', 'Primary Seven', false, 'Parent of NAMPALA MOUREEN', '+25670000166'),
+  (v_tenant_id, 'Ssekidde Saifun', 'Primary Seven', false, 'Parent of Ssekidde Saifun', '+25670000167'),
+  (v_tenant_id, 'Nabbumba Ednar', 'Primary Seven', false, 'Parent of Nabbumba Ednar', '+25670000168'),
+  (v_tenant_id, 'KAMALE TEOPISTER', 'Primary Seven', false, 'Parent of KAMALE TEOPISTER', '+25670000169'),
+  (v_tenant_id, 'SSEBUKEERE JOEL', 'Primary Seven', false, 'Parent of SSEBUKEERE JOEL', '+25670000170'),
+  (v_tenant_id, 'NAKANGU MERUSH JEMIMAH', 'Primary Seven', false, 'Parent of NAKANGU MERUSH JEMIMAH', '+25670000171'),
+  (v_tenant_id, 'NAKAMOGA QUEEN FLORENCE', 'Primary Seven', false, 'Parent of NAKAMOGA QUEEN FLORENCE', '+25670000172'),
+  (v_tenant_id, 'KABIITE MARIA NGONDE', 'Primary Seven', false, 'Parent of KABIITE MARIA NGONDE', '+25670000173'),
+  (v_tenant_id, 'ZAWEDDE CLAIRE', 'Primary Seven', false, 'Parent of ZAWEDDE CLAIRE', '+25670000174'),
+  (v_tenant_id, 'NAMIGADDE MONIDAH', 'Primary Seven', false, 'Parent of NAMIGADDE MONIDAH', '+25670000175');
 
-  -- 4. INSERT EXACT FEES CHARGES AND PAYMENTS FOR PRIMARY ONE
-  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 450000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Namagabo Waiswa';
-  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -300000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Namagabo Waiswa';
-
-  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 250000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Ssebunya Joel';
-
-  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 350000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Nsiimbi Mariam Jemiima';
-  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -50000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Nsiimbi Mariam Jemiima';
-
-  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 350000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Nakamya Queen Florence';
-  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -100000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Nakamya Queen Florence';
-
-  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 350000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Kabite Veila Npante';
-  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -150000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Kabite Veila Npante';
-
-  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 350000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Ambani Claire';
-  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -150000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Ambani Claire';
-
-  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 200000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Kasujja Prince';
-
-  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 200000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Marion';
-
+  -- 4. INSERT EXACT FEES CHARGES AND PAYMENTS
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 350000 FROM students WHERE tenant_id = v_tenant_id AND name = 'NAMALA LETICIA';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 350000 FROM students WHERE tenant_id = v_tenant_id AND name = 'ARINAITWE ELIJAH';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -100000 FROM students WHERE tenant_id = v_tenant_id AND name = 'ARINAITWE ELIJAH';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 390000 FROM students WHERE tenant_id = v_tenant_id AND name = 'SSENTONGO ALPHA';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -200000 FROM students WHERE tenant_id = v_tenant_id AND name = 'SSENTONGO ALPHA';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 250000 FROM students WHERE tenant_id = v_tenant_id AND name = 'BLESSING NAMUSISI';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -100000 FROM students WHERE tenant_id = v_tenant_id AND name = 'BLESSING NAMUSISI';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -50000 FROM students WHERE tenant_id = v_tenant_id AND name = 'BLESSING NAMUSISI';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 250000 FROM students WHERE tenant_id = v_tenant_id AND name = 'KISAKYE JEMIMAH';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -150000 FROM students WHERE tenant_id = v_tenant_id AND name = 'KISAKYE JEMIMAH';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 250000 FROM students WHERE tenant_id = v_tenant_id AND name = 'MALE DAVID JOSHUA';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -100000 FROM students WHERE tenant_id = v_tenant_id AND name = 'MALE DAVID JOSHUA';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -50000 FROM students WHERE tenant_id = v_tenant_id AND name = 'MALE DAVID JOSHUA';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 200000 FROM students WHERE tenant_id = v_tenant_id AND name = 'LATAYA ELVIS';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -100000 FROM students WHERE tenant_id = v_tenant_id AND name = 'LATAYA ELVIS';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -60000 FROM students WHERE tenant_id = v_tenant_id AND name = 'LATAYA ELVIS';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 280000 FROM students WHERE tenant_id = v_tenant_id AND name = 'SSUNA TRAVIN';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -40000 FROM students WHERE tenant_id = v_tenant_id AND name = 'SSUNA TRAVIN';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -100000 FROM students WHERE tenant_id = v_tenant_id AND name = 'SSUNA TRAVIN';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -50000 FROM students WHERE tenant_id = v_tenant_id AND name = 'SSUNA TRAVIN';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 200000 FROM students WHERE tenant_id = v_tenant_id AND name = 'MERCY BIIRA';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -150000 FROM students WHERE tenant_id = v_tenant_id AND name = 'MERCY BIIRA';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 200000 FROM students WHERE tenant_id = v_tenant_id AND name = 'KYAKUWA ARTHUR';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -50000 FROM students WHERE tenant_id = v_tenant_id AND name = 'KYAKUWA ARTHUR';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -50000 FROM students WHERE tenant_id = v_tenant_id AND name = 'KYAKUWA ARTHUR';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 200000 FROM students WHERE tenant_id = v_tenant_id AND name = 'KIMBUGWE FAHAM';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -50000 FROM students WHERE tenant_id = v_tenant_id AND name = 'KIMBUGWE FAHAM';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -90000 FROM students WHERE tenant_id = v_tenant_id AND name = 'KIMBUGWE FAHAM';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 200000 FROM students WHERE tenant_id = v_tenant_id AND name = 'MWANJE RAWUYAH';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -100000 FROM students WHERE tenant_id = v_tenant_id AND name = 'MWANJE RAWUYAH';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 270000 FROM students WHERE tenant_id = v_tenant_id AND name = 'MUTUMBA HAYAN';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -100000 FROM students WHERE tenant_id = v_tenant_id AND name = 'MUTUMBA HAYAN';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -50000 FROM students WHERE tenant_id = v_tenant_id AND name = 'MUTUMBA HAYAN';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -70000 FROM students WHERE tenant_id = v_tenant_id AND name = 'MUTUMBA HAYAN';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 280000 FROM students WHERE tenant_id = v_tenant_id AND name = 'NDINAYO ELIJAH';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -90000 FROM students WHERE tenant_id = v_tenant_id AND name = 'NDINAYO ELIJAH';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -70000 FROM students WHERE tenant_id = v_tenant_id AND name = 'NDINAYO ELIJAH';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -100000 FROM students WHERE tenant_id = v_tenant_id AND name = 'NDINAYO ELIJAH';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 100000 FROM students WHERE tenant_id = v_tenant_id AND name = 'SIMOLA AARON';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -50000 FROM students WHERE tenant_id = v_tenant_id AND name = 'SIMOLA AARON';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 250000 FROM students WHERE tenant_id = v_tenant_id AND name = 'MOMOA KENT';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -50000 FROM students WHERE tenant_id = v_tenant_id AND name = 'MOMOA KENT';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -100000 FROM students WHERE tenant_id = v_tenant_id AND name = 'MOMOA KENT';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -70000 FROM students WHERE tenant_id = v_tenant_id AND name = 'MOMOA KENT';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 280000 FROM students WHERE tenant_id = v_tenant_id AND name = 'EADY STEVEN';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -50000 FROM students WHERE tenant_id = v_tenant_id AND name = 'EADY STEVEN';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -50000 FROM students WHERE tenant_id = v_tenant_id AND name = 'EADY STEVEN';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -50000 FROM students WHERE tenant_id = v_tenant_id AND name = 'EADY STEVEN';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -50000 FROM students WHERE tenant_id = v_tenant_id AND name = 'EADY STEVEN';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -50000 FROM students WHERE tenant_id = v_tenant_id AND name = 'EADY STEVEN';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 230000 FROM students WHERE tenant_id = v_tenant_id AND name = 'NALUBWAMA MARIA BLESSING';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -50000 FROM students WHERE tenant_id = v_tenant_id AND name = 'NALUBWAMA MARIA BLESSING';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -50000 FROM students WHERE tenant_id = v_tenant_id AND name = 'NALUBWAMA MARIA BLESSING';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -50000 FROM students WHERE tenant_id = v_tenant_id AND name = 'NALUBWAMA MARIA BLESSING';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 235000 FROM students WHERE tenant_id = v_tenant_id AND name = 'KIRABO WISDOM';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -110000 FROM students WHERE tenant_id = v_tenant_id AND name = 'KIRABO WISDOM';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -100000 FROM students WHERE tenant_id = v_tenant_id AND name = 'KIRABO WISDOM';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 230000 FROM students WHERE tenant_id = v_tenant_id AND name = 'KIRABO TERISA';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -40000 FROM students WHERE tenant_id = v_tenant_id AND name = 'KIRABO TERISA';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 230000 FROM students WHERE tenant_id = v_tenant_id AND name = 'MUGWANYA DANIEL';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -100000 FROM students WHERE tenant_id = v_tenant_id AND name = 'MUGWANYA DANIEL';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -30000 FROM students WHERE tenant_id = v_tenant_id AND name = 'MUGWANYA DANIEL';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -30000 FROM students WHERE tenant_id = v_tenant_id AND name = 'MUGWANYA DANIEL';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 250000 FROM students WHERE tenant_id = v_tenant_id AND name = 'KALEMA ABDULRAHIM';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -50000 FROM students WHERE tenant_id = v_tenant_id AND name = 'KALEMA ABDULRAHIM';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -50000 FROM students WHERE tenant_id = v_tenant_id AND name = 'KALEMA ABDULRAHIM';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -50000 FROM students WHERE tenant_id = v_tenant_id AND name = 'KALEMA ABDULRAHIM';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 250000 FROM students WHERE tenant_id = v_tenant_id AND name = 'JOSH LUCAS';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -100000 FROM students WHERE tenant_id = v_tenant_id AND name = 'JOSH LUCAS';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -100000 FROM students WHERE tenant_id = v_tenant_id AND name = 'JOSH LUCAS';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -100000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Muwa';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -100000 FROM students WHERE tenant_id = v_tenant_id AND name = 'KALUNGI';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 155000 FROM students WHERE tenant_id = v_tenant_id AND name = 'NABBANJA MIRACLE';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -90000 FROM students WHERE tenant_id = v_tenant_id AND name = 'NABBANJA MIRACLE';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -50000 FROM students WHERE tenant_id = v_tenant_id AND name = 'NABBANJA MIRACLE';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 250000 FROM students WHERE tenant_id = v_tenant_id AND name = 'KIBERU ROHAN';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -100000 FROM students WHERE tenant_id = v_tenant_id AND name = 'KIBERU ROHAN';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 200000 FROM students WHERE tenant_id = v_tenant_id AND name = 'SSENYONJO RAYAN';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -75000 FROM students WHERE tenant_id = v_tenant_id AND name = 'SSENYONJO RAYAN';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 200000 FROM students WHERE tenant_id = v_tenant_id AND name = 'KALUNGI JOVITAH';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -100000 FROM students WHERE tenant_id = v_tenant_id AND name = 'KALUNGI JOVITAH';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 200000 FROM students WHERE tenant_id = v_tenant_id AND name = 'KEMIREMBE DOROTHY';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -100000 FROM students WHERE tenant_id = v_tenant_id AND name = 'KEMIREMBE DOROTHY';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 280000 FROM students WHERE tenant_id = v_tenant_id AND name = 'NAMATOVU SKYLAR';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -130000 FROM students WHERE tenant_id = v_tenant_id AND name = 'NAMATOVU SKYLAR';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -50000 FROM students WHERE tenant_id = v_tenant_id AND name = 'NAMATOVU SKYLAR';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -30000 FROM students WHERE tenant_id = v_tenant_id AND name = 'NAMATOVU SKYLAR';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -50000 FROM students WHERE tenant_id = v_tenant_id AND name = 'NAMATOVU SKYLAR';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -10000 FROM students WHERE tenant_id = v_tenant_id AND name = 'NAMATOVU SKYLAR';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 230000 FROM students WHERE tenant_id = v_tenant_id AND name = 'BAGONZA ISAIAH';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -150000 FROM students WHERE tenant_id = v_tenant_id AND name = 'BAGONZA ISAIAH';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -50000 FROM students WHERE tenant_id = v_tenant_id AND name = 'BAGONZA ISAIAH';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 260000 FROM students WHERE tenant_id = v_tenant_id AND name = 'MOLUNGI NICOLE';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -210000 FROM students WHERE tenant_id = v_tenant_id AND name = 'MOLUNGI NICOLE';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 480000 FROM students WHERE tenant_id = v_tenant_id AND name = 'ASIIMWE TIMOTHY';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -390000 FROM students WHERE tenant_id = v_tenant_id AND name = 'ASIIMWE TIMOTHY';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 230000 FROM students WHERE tenant_id = v_tenant_id AND name = 'NAGABA DELLAH';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -100000 FROM students WHERE tenant_id = v_tenant_id AND name = 'NAGABA DELLAH';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 280000 FROM students WHERE tenant_id = v_tenant_id AND name = 'BAHAT RANIA ALKANDI MUHAMMAD';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 230000 FROM students WHERE tenant_id = v_tenant_id AND name = 'TWEBAZE ISAAYA';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -200000 FROM students WHERE tenant_id = v_tenant_id AND name = 'TWEBAZE ISAAYA';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 230000 FROM students WHERE tenant_id = v_tenant_id AND name = 'NAMUKWAYA DANIELLA';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -100000 FROM students WHERE tenant_id = v_tenant_id AND name = 'NAMUKWAYA DANIELLA';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -100000 FROM students WHERE tenant_id = v_tenant_id AND name = 'NAMUKWAYA DANIELLA';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 280000 FROM students WHERE tenant_id = v_tenant_id AND name = 'NAKAWUKI EMARINE';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -70000 FROM students WHERE tenant_id = v_tenant_id AND name = 'NAKAWUKI EMARINE';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -170000 FROM students WHERE tenant_id = v_tenant_id AND name = 'NAKAWUKI EMARINE';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 230000 FROM students WHERE tenant_id = v_tenant_id AND name = 'KATO JAMES';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 230000 FROM students WHERE tenant_id = v_tenant_id AND name = 'WASSWA JOHN';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 280000 FROM students WHERE tenant_id = v_tenant_id AND name = 'NAMAYANJA JOWERIA';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -110000 FROM students WHERE tenant_id = v_tenant_id AND name = 'NAMAYANJA JOWERIA';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -80000 FROM students WHERE tenant_id = v_tenant_id AND name = 'NAMAYANJA JOWERIA';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -70000 FROM students WHERE tenant_id = v_tenant_id AND name = 'NAMAYANJA JOWERIA';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 300000 FROM students WHERE tenant_id = v_tenant_id AND name = 'KAYEMBA RONNIE';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -80000 FROM students WHERE tenant_id = v_tenant_id AND name = 'KAYEMBA RONNIE';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -100000 FROM students WHERE tenant_id = v_tenant_id AND name = 'KAYEMBA RONNIE';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -20000 FROM students WHERE tenant_id = v_tenant_id AND name = 'KAYEMBA RONNIE';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 280000 FROM students WHERE tenant_id = v_tenant_id AND name = 'BEEZA IMRAN';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -100000 FROM students WHERE tenant_id = v_tenant_id AND name = 'BEEZA IMRAN';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 200000 FROM students WHERE tenant_id = v_tenant_id AND name = 'MERCY';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -50000 FROM students WHERE tenant_id = v_tenant_id AND name = 'MERCY';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -100000 FROM students WHERE tenant_id = v_tenant_id AND name = 'MERCY';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 280000 FROM students WHERE tenant_id = v_tenant_id AND name = 'MUGWANYA XAVIER';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -280000 FROM students WHERE tenant_id = v_tenant_id AND name = 'MUGWANYA XAVIER';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 280000 FROM students WHERE tenant_id = v_tenant_id AND name = 'MATOVU ALEENA';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 280000 FROM students WHERE tenant_id = v_tenant_id AND name = 'MAWANDA TANISH';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 260000 FROM students WHERE tenant_id = v_tenant_id AND name = 'NAMUYANJA SARAH';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -150000 FROM students WHERE tenant_id = v_tenant_id AND name = 'NAMUYANJA SARAH';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -110000 FROM students WHERE tenant_id = v_tenant_id AND name = 'NAMUYANJA SARAH';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 280000 FROM students WHERE tenant_id = v_tenant_id AND name = 'MUTEBI PARVIN';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -100000 FROM students WHERE tenant_id = v_tenant_id AND name = 'MUTEBI PARVIN';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -50000 FROM students WHERE tenant_id = v_tenant_id AND name = 'MUTEBI PARVIN';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 150000 FROM students WHERE tenant_id = v_tenant_id AND name = 'BABIRYE DANIELLA';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -50000 FROM students WHERE tenant_id = v_tenant_id AND name = 'BABIRYE DANIELLA';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -50000 FROM students WHERE tenant_id = v_tenant_id AND name = 'BABIRYE DANIELLA';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 300000 FROM students WHERE tenant_id = v_tenant_id AND name = 'KATO DAN';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 300000 FROM students WHERE tenant_id = v_tenant_id AND name = 'MALAIKA NATALIA';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -260000 FROM students WHERE tenant_id = v_tenant_id AND name = 'MALAIKA NATALIA';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 150000 FROM students WHERE tenant_id = v_tenant_id AND name = 'KATO KIRUMIRA';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -80000 FROM students WHERE tenant_id = v_tenant_id AND name = 'KATO KIRUMIRA';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -30000 FROM students WHERE tenant_id = v_tenant_id AND name = 'KATO KIRUMIRA';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -30000 FROM students WHERE tenant_id = v_tenant_id AND name = 'KATO KIRUMIRA';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 300000 FROM students WHERE tenant_id = v_tenant_id AND name = 'WASSWA EMMA';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -60000 FROM students WHERE tenant_id = v_tenant_id AND name = 'WASSWA EMMA';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 200000 FROM students WHERE tenant_id = v_tenant_id AND name = 'KIRABO SARAH NABAGGALA';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -50000 FROM students WHERE tenant_id = v_tenant_id AND name = 'KIRABO SARAH NABAGGALA';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 370000 FROM students WHERE tenant_id = v_tenant_id AND name = 'TAMALE HILAL NASSAR';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -200000 FROM students WHERE tenant_id = v_tenant_id AND name = 'TAMALE HILAL NASSAR';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 350000 FROM students WHERE tenant_id = v_tenant_id AND name = 'NAFUNA PATRICIA';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -150000 FROM students WHERE tenant_id = v_tenant_id AND name = 'NAFUNA PATRICIA';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 280000 FROM students WHERE tenant_id = v_tenant_id AND name = 'KAKOTTO PAYTON';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -240000 FROM students WHERE tenant_id = v_tenant_id AND name = 'KAKOTTO PAYTON';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 280000 FROM students WHERE tenant_id = v_tenant_id AND name = 'SSESAZZI MATHEW';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 180000 FROM students WHERE tenant_id = v_tenant_id AND name = 'NYANZI CALVIN KAMPALA';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -20000 FROM students WHERE tenant_id = v_tenant_id AND name = 'NYANZI CALVIN KAMPALA';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -60000 FROM students WHERE tenant_id = v_tenant_id AND name = 'NYANZI CALVIN KAMPALA';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -70000 FROM students WHERE tenant_id = v_tenant_id AND name = 'NYANZI CALVIN KAMPALA';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 280000 FROM students WHERE tenant_id = v_tenant_id AND name = 'NAMAZZI PARIS';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -100000 FROM students WHERE tenant_id = v_tenant_id AND name = 'NAMAZZI PARIS';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -100000 FROM students WHERE tenant_id = v_tenant_id AND name = 'NAMAZZI PARIS';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 250000 FROM students WHERE tenant_id = v_tenant_id AND name = 'KIMBOWA ELIJAH';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -90000 FROM students WHERE tenant_id = v_tenant_id AND name = 'KIMBOWA ELIJAH';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -90000 FROM students WHERE tenant_id = v_tenant_id AND name = 'KIMBOWA ELIJAH';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 360000 FROM students WHERE tenant_id = v_tenant_id AND name = 'NABUKEERA SHANAI';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -100000 FROM students WHERE tenant_id = v_tenant_id AND name = 'NABUKEERA SHANAI';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -50000 FROM students WHERE tenant_id = v_tenant_id AND name = 'NABUKEERA SHANAI';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -50000 FROM students WHERE tenant_id = v_tenant_id AND name = 'NABUKEERA SHANAI';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -50000 FROM students WHERE tenant_id = v_tenant_id AND name = 'NABUKEERA SHANAI';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -100000 FROM students WHERE tenant_id = v_tenant_id AND name = 'KAGIMU TOM';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 210000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Nyanzi Jeriden';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 390000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Namuli Ashley Peace';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -150000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Namuli Ashley Peace';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -100000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Namuli Ashley Peace';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -110000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Namuli Ashley Peace';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 280000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Nakimuli Matuwah';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -100000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Nakimuli Matuwah';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 280000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Melvin Kigozi';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -50000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Melvin Kigozi';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 280000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Nalumansi Tryphena';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 280000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Amanya Aaron';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -200000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Amanya Aaron';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 300000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Tamale Roger';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -140000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Tamale Roger';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -100000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Tamale Roger';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 260000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Kwagalakwe Eseza';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -50000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Kwagalakwe Eseza';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -50000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Kwagalakwe Eseza';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -50000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Kwagalakwe Eseza';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -80000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Kwagalakwe Eseza';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 250000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Namuwoonge Martha';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -200000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Namuwoonge Martha';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 280000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Alupo Brenda';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -150000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Alupo Brenda';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -100000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Alupo Brenda';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 280000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Muwanguzi Erisa';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -100000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Muwanguzi Erisa';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -100000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Muwanguzi Erisa';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 280000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Mukasa Elijah';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -150000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Mukasa Elijah';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 280000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Ndagire Angel';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -100000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Ndagire Angel';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -100000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Ndagire Angel';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 500000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Obadia Kirangwa';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -200000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Obadia Kirangwa';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 170000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Namiyenya Jaselyn';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 250000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Luwedde Keren';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -100000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Luwedde Keren';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 280000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Mehek Jot';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -150000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Mehek Jot';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -80000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Mehek Jot';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 260000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Nambatya Patricia';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -80000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Nambatya Patricia';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -50000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Nambatya Patricia';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -50000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Nambatya Patricia';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 280000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Kyambadde Ernest';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -180000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Kyambadde Ernest';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 180000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Nsobya Praise';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 200000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Harriet';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -50000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Harriet';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 230000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Flavia';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -100000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Flavia';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 420000 FROM students WHERE tenant_id = v_tenant_id AND name = 'NANSOMBA MARTINA';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -160000 FROM students WHERE tenant_id = v_tenant_id AND name = 'NANSOMBA MARTINA';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -100000 FROM students WHERE tenant_id = v_tenant_id AND name = 'NANSOMBA MARTINA';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -100000 FROM students WHERE tenant_id = v_tenant_id AND name = 'NANSOMBA MARTINA';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 280000 FROM students WHERE tenant_id = v_tenant_id AND name = 'NALUKENCE PATRICIA';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -80000 FROM students WHERE tenant_id = v_tenant_id AND name = 'NALUKENCE PATRICIA';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -60000 FROM students WHERE tenant_id = v_tenant_id AND name = 'NALUKENCE PATRICIA';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -50000 FROM students WHERE tenant_id = v_tenant_id AND name = 'NALUKENCE PATRICIA';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -60000 FROM students WHERE tenant_id = v_tenant_id AND name = 'NALUKENCE PATRICIA';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 280000 FROM students WHERE tenant_id = v_tenant_id AND name = 'ABAHO ARTHUR';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -200000 FROM students WHERE tenant_id = v_tenant_id AND name = 'ABAHO ARTHUR';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 390000 FROM students WHERE tenant_id = v_tenant_id AND name = 'NAKATO RASHIDAH';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -100000 FROM students WHERE tenant_id = v_tenant_id AND name = 'NAKATO RASHIDAH';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -100000 FROM students WHERE tenant_id = v_tenant_id AND name = 'NAKATO RASHIDAH';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -100000 FROM students WHERE tenant_id = v_tenant_id AND name = 'NAKATO RASHIDAH';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 390000 FROM students WHERE tenant_id = v_tenant_id AND name = 'WASSWA RASHID';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -100000 FROM students WHERE tenant_id = v_tenant_id AND name = 'WASSWA RASHID';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -100000 FROM students WHERE tenant_id = v_tenant_id AND name = 'WASSWA RASHID';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 240000 FROM students WHERE tenant_id = v_tenant_id AND name = 'NDAGIRE MARIAM';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -100000 FROM students WHERE tenant_id = v_tenant_id AND name = 'NDAGIRE MARIAM';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -100000 FROM students WHERE tenant_id = v_tenant_id AND name = 'NDAGIRE MARIAM';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 280000 FROM students WHERE tenant_id = v_tenant_id AND name = 'WALUSIMBI TEVIN';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 200000 FROM students WHERE tenant_id = v_tenant_id AND name = 'KALUNGI JOVIN';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -150000 FROM students WHERE tenant_id = v_tenant_id AND name = 'KALUNGI JOVIN';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 280000 FROM students WHERE tenant_id = v_tenant_id AND name = 'KAMOGA ALTON';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -100000 FROM students WHERE tenant_id = v_tenant_id AND name = 'KAMOGA ALTON';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -100000 FROM students WHERE tenant_id = v_tenant_id AND name = 'KAMOGA ALTON';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -50000 FROM students WHERE tenant_id = v_tenant_id AND name = 'KAMOGA ALTON';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 450000 FROM students WHERE tenant_id = v_tenant_id AND name = 'KAWEESA JONAH';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -100000 FROM students WHERE tenant_id = v_tenant_id AND name = 'KAWEESA JONAH';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -100000 FROM students WHERE tenant_id = v_tenant_id AND name = 'KAWEESA JONAH';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -100000 FROM students WHERE tenant_id = v_tenant_id AND name = 'KAWEESA JONAH';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 220000 FROM students WHERE tenant_id = v_tenant_id AND name = 'MUHINDO MARTHA';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -100000 FROM students WHERE tenant_id = v_tenant_id AND name = 'MUHINDO MARTHA';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -100000 FROM students WHERE tenant_id = v_tenant_id AND name = 'MUHINDO MARTHA';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 280000 FROM students WHERE tenant_id = v_tenant_id AND name = 'KIMERA IMRAN';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -130000 FROM students WHERE tenant_id = v_tenant_id AND name = 'KIMERA IMRAN';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -100000 FROM students WHERE tenant_id = v_tenant_id AND name = 'KIMERA IMRAN';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 280000 FROM students WHERE tenant_id = v_tenant_id AND name = 'MUTEESA ELISABESI';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -100000 FROM students WHERE tenant_id = v_tenant_id AND name = 'MUTEESA ELISABESI';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -100000 FROM students WHERE tenant_id = v_tenant_id AND name = 'MUTEESA ELISABESI';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 300000 FROM students WHERE tenant_id = v_tenant_id AND name = 'KIMERA JOSEPH';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -100000 FROM students WHERE tenant_id = v_tenant_id AND name = 'KIMERA JOSEPH';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -50000 FROM students WHERE tenant_id = v_tenant_id AND name = 'KIMERA JOSEPH';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -100000 FROM students WHERE tenant_id = v_tenant_id AND name = 'KIMERA JOSEPH';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 280000 FROM students WHERE tenant_id = v_tenant_id AND name = 'NALUGEMBE PRECIOUS';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -120000 FROM students WHERE tenant_id = v_tenant_id AND name = 'NALUGEMBE PRECIOUS';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -50000 FROM students WHERE tenant_id = v_tenant_id AND name = 'NALUGEMBE PRECIOUS';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 250000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Zalwango Marion';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -100000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Zalwango Marion';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -100000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Zalwango Marion';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 275000 FROM students WHERE tenant_id = v_tenant_id AND name = 'KIRABO SUCCESS';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -100000 FROM students WHERE tenant_id = v_tenant_id AND name = 'KIRABO SUCCESS';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -100000 FROM students WHERE tenant_id = v_tenant_id AND name = 'KIRABO SUCCESS';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 280000 FROM students WHERE tenant_id = v_tenant_id AND name = 'LUGENDO JIMSON';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 280000 FROM students WHERE tenant_id = v_tenant_id AND name = 'KALEMA RIHANNA';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -170000 FROM students WHERE tenant_id = v_tenant_id AND name = 'KALEMA RIHANNA';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -110000 FROM students WHERE tenant_id = v_tenant_id AND name = 'KALEMA RIHANNA';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 280000 FROM students WHERE tenant_id = v_tenant_id AND name = 'SSEBYESERO RAYMOND';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -200000 FROM students WHERE tenant_id = v_tenant_id AND name = 'SSEBYESERO RAYMOND';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 300000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Amanda Mikeira';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -100000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Amanda Mikeira';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -70000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Amanda Mikeira';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -80000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Amanda Mikeira';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 150000 FROM students WHERE tenant_id = v_tenant_id AND name = 'KAMOGA ADASA ESTHER';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -75000 FROM students WHERE tenant_id = v_tenant_id AND name = 'KAMOGA ADASA ESTHER';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 450000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Mpindi Ruth';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 500000 FROM students WHERE tenant_id = v_tenant_id AND name = 'MULINDWA JOEL';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 500000 FROM students WHERE tenant_id = v_tenant_id AND name = 'MUKISA TANIA';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -100000 FROM students WHERE tenant_id = v_tenant_id AND name = 'MUKISA TANIA';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -100000 FROM students WHERE tenant_id = v_tenant_id AND name = 'MUKISA TANIA';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -100000 FROM students WHERE tenant_id = v_tenant_id AND name = 'MUKISA TANIA';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 230000 FROM students WHERE tenant_id = v_tenant_id AND name = 'MWANJE RAKIB';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -50000 FROM students WHERE tenant_id = v_tenant_id AND name = 'MWANJE RAKIB';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -60000 FROM students WHERE tenant_id = v_tenant_id AND name = 'MWANJE RAKIB';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -50000 FROM students WHERE tenant_id = v_tenant_id AND name = 'MWANJE RAKIB';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 250000 FROM students WHERE tenant_id = v_tenant_id AND name = 'NAGIINA RONAH';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -100000 FROM students WHERE tenant_id = v_tenant_id AND name = 'NAGIINA RONAH';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -40000 FROM students WHERE tenant_id = v_tenant_id AND name = 'NAGIINA RONAH';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 300000 FROM students WHERE tenant_id = v_tenant_id AND name = 'NAKIMULI QUEEN KEVIN';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -100000 FROM students WHERE tenant_id = v_tenant_id AND name = 'NAKIMULI QUEEN KEVIN';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -100000 FROM students WHERE tenant_id = v_tenant_id AND name = 'NAKIMULI QUEEN KEVIN';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 220000 FROM students WHERE tenant_id = v_tenant_id AND name = 'MUMBEERE MICHEAL';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -100000 FROM students WHERE tenant_id = v_tenant_id AND name = 'MUMBEERE MICHEAL';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -100000 FROM students WHERE tenant_id = v_tenant_id AND name = 'MUMBEERE MICHEAL';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 280000 FROM students WHERE tenant_id = v_tenant_id AND name = 'NAKABUYE WHITNEY';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -80000 FROM students WHERE tenant_id = v_tenant_id AND name = 'NAKABUYE WHITNEY';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -60000 FROM students WHERE tenant_id = v_tenant_id AND name = 'NAKABUYE WHITNEY';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -50000 FROM students WHERE tenant_id = v_tenant_id AND name = 'NAKABUYE WHITNEY';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -50000 FROM students WHERE tenant_id = v_tenant_id AND name = 'NAKABUYE WHITNEY';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 400000 FROM students WHERE tenant_id = v_tenant_id AND name = 'KASUJJA SALMAH';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -200000 FROM students WHERE tenant_id = v_tenant_id AND name = 'KASUJJA SALMAH';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -100000 FROM students WHERE tenant_id = v_tenant_id AND name = 'KASUJJA SALMAH';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 500000 FROM students WHERE tenant_id = v_tenant_id AND name = 'BABIRYE RONITAH';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -500000 FROM students WHERE tenant_id = v_tenant_id AND name = 'BABIRYE RONITAH';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 280000 FROM students WHERE tenant_id = v_tenant_id AND name = 'LUGOLOBI CHARLES';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -100000 FROM students WHERE tenant_id = v_tenant_id AND name = 'LUGOLOBI CHARLES';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -50000 FROM students WHERE tenant_id = v_tenant_id AND name = 'LUGOLOBI CHARLES';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -80000 FROM students WHERE tenant_id = v_tenant_id AND name = 'LUGOLOBI CHARLES';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 280000 FROM students WHERE tenant_id = v_tenant_id AND name = 'ARINAITWE JEREMIAH';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -100000 FROM students WHERE tenant_id = v_tenant_id AND name = 'ARINAITWE JEREMIAH';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -100000 FROM students WHERE tenant_id = v_tenant_id AND name = 'ARINAITWE JEREMIAH';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 250000 FROM students WHERE tenant_id = v_tenant_id AND name = 'NAKATIZA JOANITA';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -100000 FROM students WHERE tenant_id = v_tenant_id AND name = 'NAKATIZA JOANITA';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -50000 FROM students WHERE tenant_id = v_tenant_id AND name = 'NAKATIZA JOANITA';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 280000 FROM students WHERE tenant_id = v_tenant_id AND name = 'KEMIGISA ELIZA BETH';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 280000 FROM students WHERE tenant_id = v_tenant_id AND name = 'NAKAYENGA BUSHIRAH';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -130000 FROM students WHERE tenant_id = v_tenant_id AND name = 'NAKAYENGA BUSHIRAH';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -100000 FROM students WHERE tenant_id = v_tenant_id AND name = 'NAKAYENGA BUSHIRAH';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 280000 FROM students WHERE tenant_id = v_tenant_id AND name = 'MULUNGI SHARIFAH';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -200000 FROM students WHERE tenant_id = v_tenant_id AND name = 'MULUNGI SHARIFAH';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 230000 FROM students WHERE tenant_id = v_tenant_id AND name = 'AIZUKA TREVOR';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -70000 FROM students WHERE tenant_id = v_tenant_id AND name = 'AIZUKA TREVOR';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -50000 FROM students WHERE tenant_id = v_tenant_id AND name = 'AIZUKA TREVOR';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 260000 FROM students WHERE tenant_id = v_tenant_id AND name = 'NABUKEERA MARGIE';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -200000 FROM students WHERE tenant_id = v_tenant_id AND name = 'NABUKEERA MARGIE';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 500000 FROM students WHERE tenant_id = v_tenant_id AND name = 'IKANGA JOYCE';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -200000 FROM students WHERE tenant_id = v_tenant_id AND name = 'IKANGA JOYCE';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 250000 FROM students WHERE tenant_id = v_tenant_id AND name = 'NAKIMBUGWE KETRA';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -100000 FROM students WHERE tenant_id = v_tenant_id AND name = 'NAKIMBUGWE KETRA';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -100000 FROM students WHERE tenant_id = v_tenant_id AND name = 'NAKIMBUGWE KETRA';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 280000 FROM students WHERE tenant_id = v_tenant_id AND name = 'KANAMWANJI MALCOM';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 230000 FROM students WHERE tenant_id = v_tenant_id AND name = 'NALUGIWA SAUYAH';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -160000 FROM students WHERE tenant_id = v_tenant_id AND name = 'NALUGIWA SAUYAH';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -30000 FROM students WHERE tenant_id = v_tenant_id AND name = 'NALUGIWA SAUYAH';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -25000 FROM students WHERE tenant_id = v_tenant_id AND name = 'NALUGIWA SAUYAH';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 230000 FROM students WHERE tenant_id = v_tenant_id AND name = 'MWANJE RAYAN';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -100000 FROM students WHERE tenant_id = v_tenant_id AND name = 'MWANJE RAYAN';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -50000 FROM students WHERE tenant_id = v_tenant_id AND name = 'MWANJE RAYAN';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 150000 FROM students WHERE tenant_id = v_tenant_id AND name = 'KAMOGA EMMANUEL';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 250000 FROM students WHERE tenant_id = v_tenant_id AND name = 'JJUNJU MATHIAS';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -100000 FROM students WHERE tenant_id = v_tenant_id AND name = 'JJUNJU MATHIAS';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -40000 FROM students WHERE tenant_id = v_tenant_id AND name = 'JJUNJU MATHIAS';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 410000 FROM students WHERE tenant_id = v_tenant_id AND name = 'YIGA RASHIM';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -100000 FROM students WHERE tenant_id = v_tenant_id AND name = 'YIGA RASHIM';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -100000 FROM students WHERE tenant_id = v_tenant_id AND name = 'YIGA RASHIM';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 500000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Wasswa David';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -300000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Wasswa David';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 500000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Asiimwe Brenda';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -300000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Asiimwe Brenda';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -100000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Asiimwe Brenda';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 300000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Kimuli Marvin';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -250000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Kimuli Marvin';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 400000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Nantongo Hashimin Tara';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -200000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Nantongo Hashimin Tara';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 300000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Octavian';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 300000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Nakato Shabibah';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -100000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Nakato Shabibah';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -100000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Nakato Shabibah';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 280000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Nakimuli Maria Ketra';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -100000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Nakimuli Maria Ketra';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -100000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Nakimuli Maria Ketra';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 300000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Namatovu Jenifer';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -100000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Namatovu Jenifer';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 300000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Nakituba Anna';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 450000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Mulindwa Josh';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 400000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Kitiibwa Shantel';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 500000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Nakato Annet favour';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -300000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Nakato Annet favour';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 240000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Nakalema Patricia';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -100000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Nakalema Patricia';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -80000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Nakalema Patricia';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 300000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Nakamoga Victoria';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -100000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Nakamoga Victoria';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -100000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Nakamoga Victoria';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 200000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Nakiyonga Juliet Kizza';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -50000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Nakiyonga Juliet Kizza';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 240000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Nassuna Leticia';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -50000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Nassuna Leticia';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -50000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Nassuna Leticia';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -40000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Nassuna Leticia';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -40000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Nassuna Leticia';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 500000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Ssekabira Osca';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 300000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Talibu Shubra';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -50000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Talibu Shubra';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -40000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Talibu Shubra';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -100000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Talibu Shubra';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -40000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Talibu Shubra';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 300000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Nakiwu Joan';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 300000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Ssempijja Sharom';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -80000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Ssempijja Sharom';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -70000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Ssempijja Sharom';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -50000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Ssempijja Sharom';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 300000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Kasule Ronnie';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -50000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Kasule Ronnie';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -60000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Kasule Ronnie';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -60000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Kasule Ronnie';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 280000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Mariam Kusasira';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -150000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Mariam Kusasira';
   INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 150000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Kamoga Exodus';
-
   INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 150000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Kamoga Elijah';
-
-  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 440000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Kayiwa Tenywa Maria';
-  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -200000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Kayiwa Tenywa Maria';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 320000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Kayemba Rickey Ntale';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -100000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Kayemba Rickey Ntale';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -100000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Kayemba Rickey Ntale';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 500000 FROM students WHERE tenant_id = v_tenant_id AND name = 'NANTEZA KETRA TENDO';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -380000 FROM students WHERE tenant_id = v_tenant_id AND name = 'NANTEZA KETRA TENDO';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 270000 FROM students WHERE tenant_id = v_tenant_id AND name = 'SOPHIE BINT MUSA';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -50000 FROM students WHERE tenant_id = v_tenant_id AND name = 'SOPHIE BINT MUSA';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -80000 FROM students WHERE tenant_id = v_tenant_id AND name = 'SOPHIE BINT MUSA';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -50000 FROM students WHERE tenant_id = v_tenant_id AND name = 'SOPHIE BINT MUSA';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -50000 FROM students WHERE tenant_id = v_tenant_id AND name = 'SOPHIE BINT MUSA';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 350000 FROM students WHERE tenant_id = v_tenant_id AND name = 'NAMPALA MOUREEN';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -200000 FROM students WHERE tenant_id = v_tenant_id AND name = 'NAMPALA MOUREEN';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 500000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Ssekidde Saifun';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -200000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Ssekidde Saifun';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 450000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Nabbumba Ednar';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -200000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Nabbumba Ednar';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -200000 FROM students WHERE tenant_id = v_tenant_id AND name = 'Nabbumba Ednar';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 350000 FROM students WHERE tenant_id = v_tenant_id AND name = 'KAMALE TEOPISTER';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -150000 FROM students WHERE tenant_id = v_tenant_id AND name = 'KAMALE TEOPISTER';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -100000 FROM students WHERE tenant_id = v_tenant_id AND name = 'KAMALE TEOPISTER';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 350000 FROM students WHERE tenant_id = v_tenant_id AND name = 'SSEBUKEERE JOEL';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -200000 FROM students WHERE tenant_id = v_tenant_id AND name = 'SSEBUKEERE JOEL';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -80000 FROM students WHERE tenant_id = v_tenant_id AND name = 'SSEBUKEERE JOEL';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 350000 FROM students WHERE tenant_id = v_tenant_id AND name = 'NAKANGU MERUSH JEMIMAH';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -50000 FROM students WHERE tenant_id = v_tenant_id AND name = 'NAKANGU MERUSH JEMIMAH';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -60000 FROM students WHERE tenant_id = v_tenant_id AND name = 'NAKANGU MERUSH JEMIMAH';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 350000 FROM students WHERE tenant_id = v_tenant_id AND name = 'NAKAMOGA QUEEN FLORENCE';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -100000 FROM students WHERE tenant_id = v_tenant_id AND name = 'NAKAMOGA QUEEN FLORENCE';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -200000 FROM students WHERE tenant_id = v_tenant_id AND name = 'NAKAMOGA QUEEN FLORENCE';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -100000 FROM students WHERE tenant_id = v_tenant_id AND name = 'NAKAMOGA QUEEN FLORENCE';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 350000 FROM students WHERE tenant_id = v_tenant_id AND name = 'KABIITE MARIA NGONDE';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -150000 FROM students WHERE tenant_id = v_tenant_id AND name = 'KABIITE MARIA NGONDE';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -200000 FROM students WHERE tenant_id = v_tenant_id AND name = 'KABIITE MARIA NGONDE';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -100000 FROM students WHERE tenant_id = v_tenant_id AND name = 'KABIITE MARIA NGONDE';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 350000 FROM students WHERE tenant_id = v_tenant_id AND name = 'ZAWEDDE CLAIRE';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -120000 FROM students WHERE tenant_id = v_tenant_id AND name = 'ZAWEDDE CLAIRE';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -100000 FROM students WHERE tenant_id = v_tenant_id AND name = 'ZAWEDDE CLAIRE';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -100000 FROM students WHERE tenant_id = v_tenant_id AND name = 'ZAWEDDE CLAIRE';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'charge', 350000 FROM students WHERE tenant_id = v_tenant_id AND name = 'NAMIGADDE MONIDAH';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -200000 FROM students WHERE tenant_id = v_tenant_id AND name = 'NAMIGADDE MONIDAH';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -90000 FROM students WHERE tenant_id = v_tenant_id AND name = 'NAMIGADDE MONIDAH';
+  INSERT INTO fees (tenant_id, student_id, term, kind, amount) SELECT v_tenant_id, id, 'Term 2 2026', 'payment', -30000 FROM students WHERE tenant_id = v_tenant_id AND name = 'NAMIGADDE MONIDAH';
 
   -- 5. POPULATE SCHOOL_INCOME TABLE
   INSERT INTO school_income (tenant_id, student_name, class, source_type, amount, unspent_balance, payment_method, notes, logged_by)

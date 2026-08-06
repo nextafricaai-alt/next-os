@@ -607,7 +607,7 @@ window.PEAK_STAFF = { Staff };
                       <tr key={s.id || idx} style={{ borderBottom: '1px solid ' + T.border }}>
                         <td style={{ padding: '12px 16px', fontWeight: 600 }}>{s.name}</td>
                         <td style={{ padding: '12px 16px', color: T.ink2 }}>{s.stream || s.class}</td>
-                        <td style={{ padding: '12px 16px', color: T.ink2 }}>{idx % 2 === 0 ? 'St. Jude Dorm A' : 'St. Mary Dorm B'}</td>
+                        <td style={{ padding: '12px 16px', color: T.ink2 }}>{idx % 3 === 0 ? 'The Cedar House' : idx % 3 === 1 ? 'The Daisy House' : 'The Jasmine House'}</td>
                         <td style={{ padding: '12px 16px', color: (s.balance || 0) > 0 ? T.redInk : T.good, fontWeight: 600 }}>
                           {(s.balance || 0) > 0 ? ('UGX ' + Number(s.balance).toLocaleString()) : 'Cleared ✓'}
                         </td>

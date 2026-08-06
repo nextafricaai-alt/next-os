@@ -4,43 +4,51 @@
   // Private state and mock data
   const DORMITORIES = [
     {
-      id: 'dorm_boys_kizito',
-      name: 'St. Kizito Boys Dorm',
+      id: 'dorm_boys_cedar',
+      name: 'The Cedar house',
       capacity: 25,
       occupied: 18,
       matron: 'Tr. Sarah N.',
       gender: 'M'
     },
     {
-      id: 'dorm_girls_mary',
-      name: 'St. Mary Girls House',
+      id: 'dorm_girls_daisy',
+      name: 'The Daisy House',
       capacity: 25,
       occupied: 20,
       matron: 'Tr. Agnes K.',
+      gender: 'F'
+    },
+    {
+      id: 'dorm_girls_jasmine',
+      name: 'The Jasmine house',
+      capacity: 25,
+      occupied: 0,
+      matron: 'Tr. Ruth',
       gender: 'F'
     }
   ];
 
   // Mock boarding roster for 18 students
   const BOARDING_ROSTER = [
-    { id: 'STU-B001', name: 'John Doe', class: 'P.4', dormId: 'dorm_boys_kizito', bedNo: 1, gender: 'M' },
-    { id: 'STU-B002', name: 'James Smith', class: 'P.5', dormId: 'dorm_boys_kizito', bedNo: 2, gender: 'M' },
-    { id: 'STU-B003', name: 'Peter Parker', class: 'P.6', dormId: 'dorm_boys_kizito', bedNo: 3, gender: 'M' },
-    { id: 'STU-B004', name: 'Bruce Wayne', class: 'P.7', dormId: 'dorm_boys_kizito', bedNo: 4, gender: 'M' },
-    { id: 'STU-B005', name: 'Clark Kent', class: 'P.4', dormId: 'dorm_boys_kizito', bedNo: 5, gender: 'M' },
-    { id: 'STU-B006', name: 'Barry Allen', class: 'P.5', dormId: 'dorm_boys_kizito', bedNo: 6, gender: 'M' },
-    { id: 'STU-B007', name: 'Arthur Curry', class: 'P.6', dormId: 'dorm_boys_kizito', bedNo: 7, gender: 'M' },
-    { id: 'STU-B008', name: 'Victor Stone', class: 'P.7', dormId: 'dorm_boys_kizito', bedNo: 8, gender: 'M' },
-    { id: 'STU-B009', name: 'Oliver Queen', class: 'P.4', dormId: 'dorm_boys_kizito', bedNo: 9, gender: 'M' },
-    { id: 'STU-G001', name: 'Jane Doe', class: 'P.4', dormId: 'dorm_girls_mary', bedNo: 1, gender: 'F' },
-    { id: 'STU-G002', name: 'Mary Johnson', class: 'P.5', dormId: 'dorm_girls_mary', bedNo: 2, gender: 'F' },
-    { id: 'STU-G003', name: 'Diana Prince', class: 'P.6', dormId: 'dorm_girls_mary', bedNo: 3, gender: 'F' },
-    { id: 'STU-G004', name: 'Natasha Romanoff', class: 'P.7', dormId: 'dorm_girls_mary', bedNo: 4, gender: 'F' },
-    { id: 'STU-G005', name: 'Wanda Maximoff', class: 'P.4', dormId: 'dorm_girls_mary', bedNo: 5, gender: 'F' },
-    { id: 'STU-G006', name: 'Carol Danvers', class: 'P.5', dormId: 'dorm_girls_mary', bedNo: 6, gender: 'F' },
-    { id: 'STU-G007', name: 'Jean Grey', class: 'P.6', dormId: 'dorm_girls_mary', bedNo: 7, gender: 'F' },
-    { id: 'STU-G008', name: 'Ororo Munroe', class: 'P.7', dormId: 'dorm_girls_mary', bedNo: 8, gender: 'F' },
-    { id: 'STU-G009', name: 'Gwen Stacy', class: 'P.4', dormId: 'dorm_girls_mary', bedNo: 9, gender: 'F' }
+    { id: 'STU-B001', name: 'John Doe', class: 'P.4', dormId: 'dorm_boys_cedar', bedNo: 1, gender: 'M' },
+    { id: 'STU-B002', name: 'James Smith', class: 'P.5', dormId: 'dorm_boys_cedar', bedNo: 2, gender: 'M' },
+    { id: 'STU-B003', name: 'Peter Parker', class: 'P.6', dormId: 'dorm_boys_cedar', bedNo: 3, gender: 'M' },
+    { id: 'STU-B004', name: 'Bruce Wayne', class: 'P.7', dormId: 'dorm_boys_cedar', bedNo: 4, gender: 'M' },
+    { id: 'STU-B005', name: 'Clark Kent', class: 'P.4', dormId: 'dorm_boys_cedar', bedNo: 5, gender: 'M' },
+    { id: 'STU-B006', name: 'Barry Allen', class: 'P.5', dormId: 'dorm_boys_cedar', bedNo: 6, gender: 'M' },
+    { id: 'STU-B007', name: 'Arthur Curry', class: 'P.6', dormId: 'dorm_boys_cedar', bedNo: 7, gender: 'M' },
+    { id: 'STU-B008', name: 'Victor Stone', class: 'P.7', dormId: 'dorm_boys_cedar', bedNo: 8, gender: 'M' },
+    { id: 'STU-B009', name: 'Oliver Queen', class: 'P.4', dormId: 'dorm_boys_cedar', bedNo: 9, gender: 'M' },
+    { id: 'STU-G001', name: 'Jane Doe', class: 'P.4', dormId: 'dorm_girls_daisy', bedNo: 1, gender: 'F' },
+    { id: 'STU-G002', name: 'Mary Johnson', class: 'P.5', dormId: 'dorm_girls_daisy', bedNo: 2, gender: 'F' },
+    { id: 'STU-G003', name: 'Diana Prince', class: 'P.6', dormId: 'dorm_girls_daisy', bedNo: 3, gender: 'F' },
+    { id: 'STU-G004', name: 'Natasha Romanoff', class: 'P.7', dormId: 'dorm_girls_jasmine', bedNo: 4, gender: 'F' },
+    { id: 'STU-G005', name: 'Wanda Maximoff', class: 'P.4', dormId: 'dorm_girls_daisy', bedNo: 5, gender: 'F' },
+    { id: 'STU-G006', name: 'Carol Danvers', class: 'P.5', dormId: 'dorm_girls_daisy', bedNo: 6, gender: 'F' },
+    { id: 'STU-G007', name: 'Jean Grey', class: 'P.6', dormId: 'dorm_girls_daisy', bedNo: 7, gender: 'F' },
+    { id: 'STU-G008', name: 'Ororo Munroe', class: 'P.7', dormId: 'dorm_girls_jasmine', bedNo: 8, gender: 'F' },
+    { id: 'STU-G009', name: 'Gwen Stacy', class: 'P.4', dormId: 'dorm_girls_daisy', bedNo: 9, gender: 'F' }
   ];
 
   // The Engine Singleton

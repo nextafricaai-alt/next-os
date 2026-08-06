@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS teachers (
   hire_date      date,
   monthly_salary numeric(14,2),
   status         text DEFAULT 'active',                            -- active | on_leave | terminated
+  merit_points   integer DEFAULT 0,                                -- Total merit points earned
   created_at     timestamptz DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS teachers_tenant_idx ON teachers (tenant_id);
@@ -93,6 +94,51 @@ CREATE TABLE IF NOT EXISTS teacher_payroll (
 );
 CREATE INDEX IF NOT EXISTS payroll_teacher_idx ON teacher_payroll (teacher_id, month);
 
+-- 6. TEACHER MERITS LOG — audit trail of points awarded
+CREATE TABLE IF NOT EXISTS teacher_merits_log (
+  id          bigserial PRIMARY KEY,
+  tenant_id   text NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  teacher_id  bigint NOT NULL REFERENCES teachers(id) ON DELETE CASCADE,
+  points      integer NOT NULL,
+  reason      text NOT NULL,
+  created_at  timestamptz DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS teacher_merits_log_idx ON teacher_merits_log (teacher_id, created_at DESC);
+
+-- ============================================================================
+-- RPC FUNCTIONS
+-- ============================================================================
+
+-- Safely award points and log the reason
+CREATE OR REPLACE FUNCTION award_teacher_merit(
+  p_teacher_id bigint,
+  p_points integer,
+  p_reason text
+) RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  v_tenant_id text;
+BEGIN
+  -- Get tenant id
+  SELECT tenant_id INTO v_tenant_id FROM teachers WHERE id = p_teacher_id;
+  IF v_tenant_id IS NULL THEN
+    RETURN;
+  END IF;
+
+  -- Update teacher's total points
+  UPDATE teachers 
+  SET merit_points = COALESCE(merit_points, 0) + p_points
+  WHERE id = p_teacher_id;
+
+  -- Log the event
+  INSERT INTO teacher_merits_log (tenant_id, teacher_id, points, reason)
+  VALUES (v_tenant_id, p_teacher_id, p_points, p_reason);
+END;
+$$;
+
+
 -- ============================================================================
 -- RLS — Row-Level Security per role
 -- ============================================================================
@@ -102,6 +148,7 @@ ALTER TABLE class_assignments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE lesson_plans      ENABLE ROW LEVEL SECURITY;
 ALTER TABLE syllabus_coverage ENABLE ROW LEVEL SECURITY;
 ALTER TABLE teacher_payroll   ENABLE ROW LEVEL SECURITY;
+ALTER TABLE teacher_merits_log ENABLE ROW LEVEL SECURITY;
 
 -- Helper: current user's role
 CREATE OR REPLACE FUNCTION current_user_role() RETURNS text
@@ -125,6 +172,7 @@ DO $$ BEGIN
   EXECUTE 'DROP POLICY IF EXISTS scoped_select ON lesson_plans';
   EXECUTE 'DROP POLICY IF EXISTS scoped_select ON syllabus_coverage';
   EXECUTE 'DROP POLICY IF EXISTS scoped_select ON teacher_payroll';
+  EXECUTE 'DROP POLICY IF EXISTS scoped_select ON teacher_merits_log';
 END $$;
 
 -- TEACHERS: head/admin/bursar see all in tenant; teachers see only themselves
@@ -163,6 +211,14 @@ CREATE POLICY scoped_select ON syllabus_coverage FOR SELECT USING (
 CREATE POLICY scoped_select ON teacher_payroll FOR SELECT USING (
   tenant_id = current_tenant_id() AND (
     current_user_role() IN ('admin', 'head', 'bursar')
+    OR teacher_id = current_teacher_id()
+  )
+);
+
+-- MERITS LOG: head/admin see all; teachers see only their own
+CREATE POLICY scoped_select ON teacher_merits_log FOR SELECT USING (
+  tenant_id = current_tenant_id() AND (
+    current_user_role() IN ('admin', 'head')
     OR teacher_id = current_teacher_id()
   )
 );

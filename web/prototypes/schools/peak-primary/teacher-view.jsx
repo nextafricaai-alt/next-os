@@ -61,7 +61,7 @@ import React from 'react';
     if (email) {
       const { data } = await sb
         .from('teachers')
-        .select('id, full_name, email, subjects, status')
+        .select('id, full_name, email, subjects, status, merit_points')
         .ilike('email', email)
         .eq('tenant_id', tenantId)
         .maybeSingle();
@@ -73,7 +73,7 @@ import React from 'react';
       const firstName = name.split(' ')[0];
       const { data } = await sb
         .from('teachers')
-        .select('id, full_name, email, subjects, status')
+        .select('id, full_name, email, subjects, status, merit_points')
         .ilike('full_name', `%${firstName}%`)
         .eq('tenant_id', tenantId)
         .maybeSingle();
@@ -87,7 +87,8 @@ import React from 'react';
         full_name: name || (email ? email.split('@')[0] : 'Ayuto Esther'),
         email: email || 'ayuto.esther@kabslily.ug',
         subjects: ['Science', 'Mathematics'],
-        status: 'active'
+        status: 'active',
+        merit_points: 0
       };
     }
 
@@ -239,6 +240,17 @@ import React from 'react';
       exams = (exs || []).filter(ex => ex.config && ex.config.teacher_id === teacher.id);
     }
 
+    let meritLogs = [];
+    if (sb && teacher && teacher.id !== 9999) {
+      const { data: logs } = await sb
+        .from('teacher_merits_log')
+        .select('id, points, reason, created_at')
+        .eq('teacher_id', teacher.id)
+        .order('created_at', { ascending: false })
+        .limit(5);
+      meritLogs = logs || [];
+    }
+
     return {
       teacher,
       assignments: assignments || [],
@@ -363,6 +375,21 @@ import React from 'react';
     }
   }
 
+  async function awardMeritPoints(teacherId, points, reason) {
+    const sb = window.NextSession?.sb;
+    if (!sb || teacherId === 9999) return { error: 'No session' };
+    try {
+      const { data, error } = await sb.rpc('award_teacher_merit', {
+        p_teacher_id: teacherId,
+        p_points: points,
+        p_reason: reason
+      });
+      return { data, error };
+    } catch (e) {
+      return { error: e.message };
+    }
+  }
+
   // ─── Write helpers ──────────────────────────────────────────────────
   async function writeCheckIn(teacherId, tenantId, method) {
     const sb = window.NextSession?.sb;
@@ -398,6 +425,12 @@ import React from 'react';
 
       const checkin = data || mockCheckin;
       const penalty = await applyLateCheckInPenalty(teacherId, tenantId, checkin.checked_in_at);
+      
+      if (!penalty || !penalty.applied) {
+        // Teacher is on time, award merit points
+        await awardMeritPoints(teacherId, 5, 'On-time check-in');
+      }
+
       return { data: checkin, error: null, penalty };
     } catch (e) {
       return { data: mockCheckin, error: null, penalty: null };
@@ -439,6 +472,11 @@ import React from 'react';
       .from('student_roll_call')
       .upsert(records, { onConflict: 'student_id,roll_date,period_number' })
       .select('id, student_id, stream, status, period_number');
+      
+    if (!error && records && records.length > 0) {
+      await awardMeritPoints(records[0].teacher_id, 2, 'Completed Roll Call for ' + records[0].stream);
+    }
+    
     return { data, error };
   }
 
@@ -530,9 +568,11 @@ import React from 'react';
       .maybeSingle();
     if (existing) {
       const { data, error } = await sb.from('lesson_plans').update(row).eq('id', existing.id).select('id').maybeSingle();
+      if (!error) await awardMeritPoints(teacherId, 10, 'Created Lesson Plan for ' + subject);
       return { data, error };
     }
     const { data, error } = await sb.from('lesson_plans').insert(row).select('id').maybeSingle();
+    if (!error) await awardMeritPoints(teacherId, 10, 'Created Lesson Plan for ' + subject);
     return { data, error };
   }
 
@@ -2311,6 +2351,41 @@ import React from 'react';
     );
   }
 
+  function MeritPointsCard({ meritLogs, meritPoints }) {
+    return (
+      <Card title="Merit Log" subtitle="ACHIEVEMENTS" accent="#00FC8F">
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+          <div style={{ fontSize: 13, color: T.ink3 }}>
+            Earn points by coming early, checking in on time, taking roll calls, and completing lesson plans.
+          </div>
+          <div style={{ background: 'rgba(0, 252, 143, 0.1)', color: '#00fc8f', padding: '6px 14px', borderRadius: 20, fontSize: 14, fontWeight: 700 }}>
+            {meritPoints || 0} Total
+          </div>
+        </div>
+        
+        {(!meritLogs || meritLogs.length === 0) ? (
+          <Empty text="No merits earned yet. Good things come to those who teach!" />
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {meritLogs.map(log => {
+              const d = new Date(log.created_at);
+              const dateStr = isNaN(d) ? '' : d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+              return (
+                <div key={log.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', background: 'rgba(0, 252, 143, 0.04)', borderRadius: 8 }}>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 500, color: T.ink }}>{log.reason}</div>
+                    <div style={{ fontSize: 11, color: T.ink3, marginTop: 2 }}>{dateStr}</div>
+                  </div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: '#00fc8f' }}>+{log.points}</div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </Card>
+    );
+  }
+
   // Prominent, above-the-fold "Expected Monthly Salary" banner — wired
   // directly to the same payroll/deductions data PayslipCard uses, so it
   // visibly drops the moment a late-checkin or syllabus-delay penalty
@@ -2507,7 +2582,15 @@ import React from 'react';
             <h1 style={{ fontSize: 36, fontWeight: 400, margin: 0, fontFamily: T.serif, letterSpacing: '-0.01em' }}>
               {greeting}, {profile.fullName ? profile.fullName.split(' ')[0] : 'Teacher'}
             </h1>
-            <p style={{ margin: '8px 0 0', color: T.ink3, fontSize: 14 }}>Here's your day at {schoolName}.</p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '8px 0 0' }}>
+              <p style={{ margin: 0, color: T.ink3, fontSize: 14 }}>Here's your day at {schoolName}.</p>
+              {!data.loading && !data.error && data.teacher && (
+                <div style={{ background: 'rgba(0, 252, 143, 0.1)', color: '#00fc8f', padding: '4px 12px', borderRadius: 16, fontSize: 12, fontWeight: 500, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+                  {data.teacher.merit_points || 0} Merit Points
+                </div>
+              )}
+            </div>
           </div>
 
           {!data.loading && !data.error && <ExpectedSalaryBanner payroll={data.payroll} deductions={data.deductions} />}
@@ -2552,6 +2635,7 @@ import React from 'react';
               <TeacherExamsCard exams={data.exams} assignments={data.assignments} students={data.myStudents} teacherId={data.teacher && data.teacher.id} tenantId={profile.tenantId || 'kabs-lily-junior-school-and-kindercare-centre'} onChanged={refresh} />
               <StudentsCard assignments={data.assignments} onLogHealth={setHealthStudent} onMessage={setMessageStudent} healthRecords={data.healthRecords || []} />
               <PayslipCard payroll={data.payroll} deductions={data.deductions} />
+              <MeritPointsCard meritLogs={data.meritLogs} meritPoints={data.teacher && data.teacher.merit_points} />
               <TeacherLogCard teacher={data.teacher} />
             </div>
           )}
