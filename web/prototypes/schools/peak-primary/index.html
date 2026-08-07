@@ -695,17 +695,25 @@
     let teacher = null;
 
     // 1. Try exact email match
+    // .maybeSingle() used to throw (and get silently discarded, since only
+    // `data` was destructured) the moment more than one row matched — which
+    // then fell all the way through to the broken id:9999 sentinel below.
+    // .limit(2) instead: take the row if there's exactly one; an unexpected
+    // duplicate email is a data problem worth NOT silently guessing on.
     if (email) {
       const { data } = await sb
         .from('teachers')
         .select('id, full_name, email, subjects, status, merit_points')
         .ilike('email', email)
         .eq('tenant_id', tenantId)
-        .maybeSingle();
-      if (data) teacher = data;
+        .limit(2);
+      if (data && data.length === 1) teacher = data[0];
     }
 
-    // 2. Try matching by name if email lookup yielded no result
+    // 2. Try matching by name if email lookup yielded no result.
+    // Same fix — and here ambiguity is more likely (shared first names are
+    // common), so it especially matters not to silently pick a guess: two
+    // teachers named "Justine" must never both get checked in as one of them.
     if (!teacher && name) {
       const firstName = name.split(' ')[0];
       const { data } = await sb
@@ -713,8 +721,8 @@
         .select('id, full_name, email, subjects, status, merit_points')
         .ilike('full_name', `%${firstName}%`)
         .eq('tenant_id', tenantId)
-        .maybeSingle();
-      if (data) teacher = data;
+        .limit(2);
+      if (data && data.length === 1) teacher = data[0];
     }
 
     // 3. Fallback teacher profile if record is missing in DB
@@ -1038,16 +1046,27 @@
       method: method || 'manual'
     };
 
+    // teacher_checkins.teacher_id is NOT NULL — id 9999 is the "couldn't match
+    // this profile to a real teachers row" sentinel used when the session's
+    // email/name didn't resolve one. Writing without teacher_id ALWAYS fails
+    // the FK/NOT NULL constraint, and that failure used to be swallowed below
+    // (returning a fake mockCheckin with id:Date.now()), which then made the
+    // *checkout* silently no-op too (a Date.now() id matches zero real rows,
+    // and even overflows the INTEGER column) — the teacher saw "Checked in!"
+    // and later "Day ended!" while nothing was ever written to the database.
+    // Fail loudly here instead, before attempting a doomed insert.
+    if (teacherId === 9999) {
+      return { data: null, error: { message: "Your account isn't linked to a teacher profile yet — ask your head teacher to check your name/email in Settings." }, penalty: null };
+    }
+
     if (!sb) return { data: mockCheckin, error: null, penalty: null };
 
     try {
       const payload = {
         tenant_id: tenantId || 'kabs-lily-junior-school-and-kindercare-centre',
-        method: method || 'manual'
+        method: method || 'manual',
+        teacher_id: teacherId
       };
-      if (teacherId && teacherId !== 9999) {
-        payload.teacher_id = teacherId;
-      }
 
       const { data, error } = await sb
         .from('teacher_checkins')
@@ -1057,10 +1076,15 @@
 
       if (error) {
         console.warn("teacher_checkins insert warning:", error);
-        return { data: mockCheckin, error: null, penalty: null };
+        return { data: null, error, penalty: null };
+      }
+      if (!data) {
+        // Insert reported no error but returned no row (e.g. blocked by a
+        // SELECT policy after a successful write) — don't fabricate success.
+        return { data: null, error: { message: 'Check-in was not saved. Please try again.' }, penalty: null };
       }
 
-      const checkin = data || mockCheckin;
+      const checkin = data;
       const penalty = await applyLateCheckInPenalty(teacherId, tenantId, checkin.checked_in_at);
 
       // teacher_checkins has no unique constraint stopping more than one
@@ -1084,7 +1108,7 @@
 
       return { data: checkin, error: null, penalty };
     } catch (e) {
-      return { data: mockCheckin, error: null, penalty: null };
+      return { data: null, error: { message: e && e.message ? e.message : String(e) }, penalty: null };
     }
   }
 
@@ -1092,6 +1116,15 @@
     const sb = window.NextSession?.sb;
     const nowIso = new Date().toISOString();
     const mockCheckout = { id: checkinId, checked_out_at: nowIso };
+
+    // checkinId came from a real DB row's id (checkin.id in the caller) — if
+    // it's ever the Date.now()-style fallback id a broken check-in used to
+    // hand back, it won't match any real row (and can even overflow the
+    // INTEGER column). Catch that here with a clear message instead of
+    // silently pretending the checkout worked.
+    if (!checkinId || typeof checkinId !== 'number' || !Number.isFinite(checkinId) || checkinId > 2147483647) {
+      return { data: null, error: { message: "Check-in record not found — please check in again, then check out." } };
+    }
 
     if (!sb) return { data: mockCheckout, error: null };
 
@@ -1105,12 +1138,17 @@
 
       if (error) {
         console.warn("teacher_checkins checkout warning:", error);
-        return { data: mockCheckout, error: null };
+        return { data: null, error };
+      }
+      if (!data) {
+        // 0 rows matched (stale/fake id) or blocked by a SELECT policy after
+        // a successful write — either way, don't fabricate a success toast.
+        return { data: null, error: { message: "Check-out was not saved — that check-in record could not be found. Please refresh and try again." } };
       }
 
-      return { data: data || mockCheckout, error: null };
+      return { data, error: null };
     } catch (e) {
-      return { data: mockCheckout, error: null };
+      return { data: null, error: { message: e && e.message ? e.message : String(e) } };
     }
   }
 
