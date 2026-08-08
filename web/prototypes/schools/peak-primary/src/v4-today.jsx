@@ -1,5 +1,3 @@
-import React from 'react';
-
 /* src/v4-today.jsx */
 /* global React, PEAK, V4 */
 // Peak Dark · Director's morning ritual — the screen Sarah opens at 07:00

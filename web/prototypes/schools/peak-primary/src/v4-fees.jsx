@@ -1,5 +1,3 @@
-import React from 'react';
-
 /* src/v4-fees.jsx */
 /* global React, PEAK, V4 */
 // Peak Dark · Fees · reconciliation

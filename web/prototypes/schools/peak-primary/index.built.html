@@ -7054,9 +7054,7 @@ window.PEAK = (function () {
 })();
 
   </script>
-  <script type="text/javascript" data-src="src/v4-peak-dark.jsx">import React from 'react';
-
-/* src/v4-peak-dark.jsx */
+  <script type="text/javascript" data-src="src/v4-peak-dark.jsx">/* src/v4-peak-dark.jsx */
 /* global React, PEAK */
 // Variation D — "Peak Dark"
 // Peak brand colours · deep navy surfaces · red signal · strong contrast
@@ -7306,7 +7304,7 @@ const V4 = function () {
         fontFamily: T.mono,
         letterSpacing: '0.04em'
       }
-    }, 'NEXT · ' + (window.getSchoolCalendarLabel ? window.getSchoolCalendarLabel().termWeekStr.replace('Term ', 'T').replace(' · Week ', ' · WK') : 'T2'))), window.NiaBell ? /*#__PURE__*/React.createElement(window.NiaBell) : null), /*#__PURE__*/React.createElement("nav", {
+    }, 'NEXT · ' + (window.getSchoolCalendarLabel ? window.getSchoolCalendarLabel().termWeekStr.replace('Term ', 'T').replace(' · Week ', ' · WK') : 'T2'))), window.NiaBell ? React.createElement(window.NiaBell) : null), /*#__PURE__*/React.createElement("nav", {
       style: {
         padding: '14px 10px',
         display: 'flex',
@@ -9168,9 +9166,7 @@ const V4 = function () {
   };
 }();
 window.V4 = V4;</script>
-  <script type="text/javascript" data-src="src/v4-today.jsx">import React from 'react';
-
-/* src/v4-today.jsx */
+  <script type="text/javascript" data-src="src/v4-today.jsx">/* src/v4-today.jsx */
 /* global React, PEAK, V4 */
 // Peak Dark · Director's morning ritual — the screen Sarah opens at 07:00
 // Focused, chronological, one-thing-at-a-time. Less dashboard, more checklist.
@@ -10362,9 +10358,7 @@ const PD_Today = function () {
   };
 }();
 window.PD_Today = PD_Today;</script>
-  <script type="text/javascript" data-src="src/v4-students.jsx">import React from 'react';
-
-/* src/v4-students.jsx */
+  <script type="text/javascript" data-src="src/v4-students.jsx">/* src/v4-students.jsx */
 /* global React, PEAK, V4 */
 // Peak Dark · Students roster with detail drawer
 // Working table — search, filter by stream, sort, click row to open drawer
@@ -11105,7 +11099,7 @@ const PD_Students = function () {
         gap: 8
       }
     }, /*#__PURE__*/React.createElement("button", {
-      onClick: () => window.peakModal && window.peakModal.open(/*#__PURE__*/React.createElement(window.PEAK_FORMS.ImportStudents)),
+      onClick: () => window.peakModal && window.peakModal.open(React.createElement(window.PEAK_FORMS.ImportStudents)),
       style: {
         border: '1px solid ' + T.borderStr,
         background: 'transparent',
@@ -12628,9 +12622,7 @@ const PD_Profile = function () {
   };
 }();
 window.PD_Profile = PD_Profile;</script>
-  <script type="text/javascript" data-src="src/v4-fees.jsx">import React from 'react';
-
-/* src/v4-fees.jsx */
+  <script type="text/javascript" data-src="src/v4-fees.jsx">/* src/v4-fees.jsx */
 /* global React, PEAK, V4 */
 // Peak Dark · Fees · reconciliation
 // The accountant's workspace — incoming Mobile Money payments matched to student ledgers,
@@ -12860,7 +12852,7 @@ const PD_Fees = function () {
     };
     const recordPay = s => {
       if (onRecordPayment) return onRecordPayment(s);
-      window.peakModal && window.peakModal.open(/*#__PURE__*/React.createElement(window.PEAK_FORMS.RecordPayment, {
+      window.peakModal && window.peakModal.open(React.createElement(window.PEAK_FORMS.RecordPayment, {
         store: window.peakStore,
         defaultStudentId: s && s.id,
         defaultAmount: s && s.balance
@@ -13041,7 +13033,7 @@ const PD_Fees = function () {
         flexWrap: 'wrap'
       }
     }, /*#__PURE__*/React.createElement("button", {
-      onClick: () => window.peakModal && window.peakModal.open(/*#__PURE__*/React.createElement(window.PEAK_FORMS.FeesImport)),
+      onClick: () => window.peakModal && window.peakModal.open(React.createElement(window.PEAK_FORMS.FeesImport)),
       style: {
         border: '1px solid ' + T.borderStr,
         background: 'transparent',
@@ -13052,7 +13044,7 @@ const PD_Fees = function () {
         cursor: 'pointer'
       }
     }, "Import fees"), /*#__PURE__*/React.createElement("button", {
-      onClick: () => window.peakModal && window.peakModal.open(/*#__PURE__*/React.createElement(window.PEAK_FORMS.Receipts)),
+      onClick: () => window.peakModal && window.peakModal.open(React.createElement(window.PEAK_FORMS.Receipts)),
       style: {
         border: '1px solid ' + T.borderStr,
         background: 'transparent',
@@ -13464,9 +13456,7 @@ const PD_Fees = function () {
   };
 }();
 window.PD_Fees = PD_Fees;</script>
-  <script type="text/javascript" data-src="src/v4-broadcast.jsx">import React from 'react';
-
-/* src/v4-broadcast.jsx */
+  <script type="text/javascript" data-src="src/v4-broadcast.jsx">/* src/v4-broadcast.jsx */
 /* global React, PEAK, V4 */
 // Peak Dark · Broadcast composer
 // Director composes a parent message — AI helps with audience, drafting, translation, send timing.
@@ -14839,9 +14829,7 @@ const PD_Broadcast = function () {
   };
 }();
 window.PD_Broadcast = PD_Broadcast;</script>
-  <script type="text/javascript" data-src="src/v4-mobile.jsx">import React from 'react';
-
-/* src/v4-mobile.jsx */
+  <script type="text/javascript" data-src="src/v4-mobile.jsx">/* src/v4-mobile.jsx */
 /* global React, PEAK, V4 */
 // Peak Dark · mobile companions — parent + teacher, same brand language as V4 desktop
 

@@ -1,5 +1,3 @@
-import React from 'react';
-
 /* src/v4-students.jsx */
 /* global React, PEAK, V4 */
 // Peak Dark · Students roster with detail drawer

@@ -1,5 +1,3 @@
-import React from 'react';
-
 /* src/v4-peak-dark.jsx */
 /* global React, PEAK */
 // Variation D — "Peak Dark"
