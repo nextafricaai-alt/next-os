@@ -192,8 +192,51 @@
       rollCalls = rc || [];
     }
 
+    // ── Fetch today's timetable slots for THIS teacher, straight from the real timetable ──
+    // This is the source of truth for "what am I teaching right now": timetable_slots.teacher_id
+    // is set per period/stream/subject from the actual school timetable, so a teacher only sees
+    // periods they are actually scheduled for — not every period of every stream they're loosely
+    // linked to via class_assignments (the old behaviour, which over-showed classes and under-
+    // scoped roll call to whatever class_assignments happened to have on file).
+    // day_of_week: JS getDay() returns 0=Sun … 6=Sat; DB uses 1=Mon … 7=Sun
+    const jsDay = new Date().getDay();
+    const dbDow = jsDay === 0 ? 7 : jsDay; // convert Sun→7
+    let todaySlots = [];
+    if (teacher.id && teacher.id !== 9999 && sb && dbDow <= 5) { // weekdays only
+      const { data: slots } = await sb
+        .from('timetable_slots')
+        .select('id, period, start_time, end_time, stream, subject, teacher_id, label')
+        .eq('tenant_id', tenantId)
+        .eq('day_of_week', dbDow)
+        .eq('teacher_id', teacher.id)
+        .order('period', { ascending: true });
+      // Deduplicate by period (a double-booking would be a timetable data error, not something
+      // to show twice) — keep this as a defensive safety net either way.
+      const seen = new Set();
+      (slots || []).forEach(s => {
+        if (!seen.has(s.period)) { seen.add(s.period); todaySlots.push(s); }
+      });
+    }
+
     // ── Fetch students from Supabase by stream (replaces window.PEAK.students) ──────────
-    const teacherStreams = (assignments || []).map(a => a.stream);
+    // teacherStreams = every stream this teacher touches at all, from BOTH sources: their
+    // class_assignments (their formal subject/class load) AND any stream they appear as
+    // teacher_id for anywhere in the real timetable (covers a teacher scheduled for a period
+    // that hasn't been backed by a class_assignments row yet). Union, not either/or, so nothing
+    // that used to work regresses now that todaySlots itself is teacher_id-precise.
+    let timetableStreams = [];
+    if (teacher.id && teacher.id !== 9999 && sb) {
+      const { data: allSlots } = await sb
+        .from('timetable_slots')
+        .select('stream')
+        .eq('tenant_id', tenantId)
+        .eq('teacher_id', teacher.id);
+      timetableStreams = Array.from(new Set((allSlots || []).map(s => s.stream)));
+    }
+    const teacherStreams = Array.from(new Set([
+      ...(assignments || []).map(a => a.stream),
+      ...timetableStreams,
+    ]));
     let streamStudents = [];
     if (teacherStreams.length > 0 && sb) {
       const { data: studs } = await sb
@@ -203,26 +246,6 @@
         .in('stream', teacherStreams)
         .order('name', { ascending: true });
       streamStudents = studs || [];
-    }
-
-    // ── Fetch today's timetable slots for this teacher's streams ───────────────────────
-    // day_of_week: JS getDay() returns 0=Sun … 6=Sat; DB uses 1=Mon … 7=Sun
-    const jsDay = new Date().getDay();
-    const dbDow = jsDay === 0 ? 7 : jsDay; // convert Sun→7
-    let todaySlots = [];
-    if (teacherStreams.length > 0 && sb && dbDow <= 5) { // weekdays only
-      const { data: slots } = await sb
-        .from('timetable_slots')
-        .select('id, period, start_time, end_time, stream, subject, teacher_id, label')
-        .eq('tenant_id', tenantId)
-        .eq('day_of_week', dbDow)
-        .in('stream', teacherStreams)
-        .order('period', { ascending: true });
-      // Deduplicate by period (one slot per period across all streams is enough for lock)
-      const seen = new Set();
-      (slots || []).forEach(s => {
-        if (!seen.has(s.period)) { seen.add(s.period); todaySlots.push(s); }
-      });
     }
 
     // ── Recent health records ──────────────────────────────────────────────────────────

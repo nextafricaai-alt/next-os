@@ -50,13 +50,13 @@
   function getTimetableStreams() { var c = (window.SCHOOL_CONFIG && window.SCHOOL_CONFIG.classes) || []; return (c && c.length) ? c : ['P1V','P1P','P2V','P2P','P3V','P3P','P4V','P4P','P5V','P5P','P6V','P6P','P7V','P7P']; }
   const STREAMS = getTimetableStreams();
 
-  async function loadTimetable(tenantId) {
+  async function loadTimetable(tenantId, dowOverride) {
     const sb = window.NextSession?.sb;
     if (!sb) return { error: 'No session' };
     const today = isoDate();
-    const dow = todayDow();
+    const dow = dowOverride || todayDow();
 
-    // Today's slots, joined with teacher name
+    // Selected day's slots, joined with teacher name
     const { data: slots } = await sb
       .from('timetable_slots')
       .select('id, period, start_time, end_time, stream, subject, teacher_id, label')
@@ -141,23 +141,85 @@
     gray:   { bg: 'rgba(59,130,246,0.08)', border: 'rgba(59,130,246,0.20)', fg: 'rgba(245,246,250,0.55)', glow: 'none' },
   };
 
+  const DOW_LABELS = [null, 'Mon', 'Tue', 'Wed', 'Thu', 'Fri']; // index 1..5
+
   function HeadTimetablePanel() {
     const profile = window.PEAK_ROLE ? window.PEAK_ROLE.getProfile() : { tenantId: 'peak-primary' };
     const [data, setData] = useState({ loading: true });
     const [now, setNow] = useState(new Date());
+    const [selDow, setSelDow] = useState(todayDow() >= 1 && todayDow() <= 5 ? todayDow() : 1);
+    // editSlot: null (closed) | { period, stream, start_time, end_time, id?, subject, teacher_id }
+    // id is present when editing an existing slot, absent when creating a new one for an empty cell.
+    const [editSlot, setEditSlot] = useState(null);
+    const [saving, setSaving] = useState(false);
 
     const refresh = useCallback(async () => {
       setData(d => ({ ...d, loading: true }));
-      const r = await loadTimetable(profile.tenantId);
+      const r = await loadTimetable(profile.tenantId, selDow);
       setData(Object.assign({}, r, { loading: false }));
-    }, [profile.tenantId]);
+    }, [profile.tenantId, selDow]);
 
     useEffect(() => {
       refresh();
-      const dataPoll = setInterval(refresh, 30000); // live data every 30s
+      // Only poll live every 30s while looking at today — editing a different
+      // day shouldn't yank the view out from under someone mid-edit.
+      const isToday = selDow === todayDow();
+      const dataPoll = isToday ? setInterval(refresh, 30000) : null;
       const clockTick = setInterval(() => setNow(new Date()), 60000); // tick minute
-      return () => { clearInterval(dataPoll); clearInterval(clockTick); };
-    }, [refresh]);
+      return () => { if (dataPoll) clearInterval(dataPoll); clearInterval(clockTick); };
+    }, [refresh, selDow]);
+
+    const saveSlotEdit = async () => {
+      if (!editSlot || saving) return;
+      const sb = window.NextSession?.sb;
+      if (!sb) return;
+      setSaving(true);
+      try {
+        if (editSlot.id) {
+          // Editing an existing slot — update subject + teacher.
+          const { error } = await sb
+            .from('timetable_slots')
+            .update({ subject: editSlot.subject, teacher_id: editSlot.teacher_id || null })
+            .eq('id', editSlot.id);
+          if (error) { window.peakToast && window.peakToast('Could not save', 'error', error.message); setSaving(false); return; }
+        } else {
+          // No slot exists yet for this period/stream — create one.
+          const { error } = await sb.from('timetable_slots').insert({
+            tenant_id: profile.tenantId,
+            day_of_week: selDow,
+            period: editSlot.period,
+            start_time: editSlot.start_time,
+            end_time: editSlot.end_time,
+            stream: editSlot.stream,
+            subject: editSlot.subject || 'Lesson',
+            label: editSlot.label || ('Period ' + editSlot.period),
+            teacher_id: editSlot.teacher_id || null,
+          });
+          if (error) { window.peakToast && window.peakToast('Could not create slot', 'error', error.message); setSaving(false); return; }
+        }
+        window.peakToast && window.peakToast('Timetable updated', 'success');
+        setEditSlot(null);
+        setSaving(false);
+        refresh();
+      } catch (e) {
+        window.peakToast && window.peakToast('Could not save', 'error', String(e && e.message || e));
+        setSaving(false);
+      }
+    };
+
+    const deleteSlot = async () => {
+      if (!editSlot || !editSlot.id || saving) return;
+      if (!window.confirm('Remove this slot from the timetable entirely?')) return;
+      const sb = window.NextSession?.sb;
+      if (!sb) return;
+      setSaving(true);
+      const { error } = await sb.from('timetable_slots').delete().eq('id', editSlot.id);
+      setSaving(false);
+      if (error) { window.peakToast && window.peakToast('Could not remove', 'error', error.message); return; }
+      window.peakToast && window.peakToast('Slot removed', 'success');
+      setEditSlot(null);
+      refresh();
+    };
 
     // Build context for status compute
     const ctx = useMemo(() => {
@@ -203,7 +265,7 @@
         fontFamily: T.font, padding: '32px 36px 60px',
       }}>
         {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24, gap: 12, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, gap: 12, flexWrap: 'wrap' }}>
           <div>
             <div style={{ fontSize: 10.5, fontFamily: T.mono, letterSpacing: 1.5, color: T.ink3 }}>
               TIMETABLE · {now.toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' })} · {now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -211,7 +273,8 @@
             <h1 style={{
               fontSize: 32, fontWeight: 400, margin: '6px 0 0',
               fontFamily: T.serif, letterSpacing: '-0.01em',
-            }}>Today's classes — live</h1>
+            }}>{selDow === todayDow() ? "Today's classes — live" : DOW_LABELS[selDow] + "'s classes"}</h1>
+            <div style={{ fontSize: 11, color: T.ink3, marginTop: 4 }}>Click any slot to assign or change its teacher.</div>
           </div>
           <button onClick={refresh} disabled={data.loading} style={{
             background: 'transparent', color: T.ink2,
@@ -219,6 +282,27 @@
             padding: '8px 16px', borderRadius: 8,
             fontSize: 12, cursor: data.loading ? 'wait' : 'pointer', fontFamily: T.font,
           }}>{data.loading ? 'Refreshing…' : '↻ Refresh'}</button>
+        </div>
+
+        {/* Day selector */}
+        <div style={{ display: 'flex', gap: 6, marginBottom: 20 }}>
+          {[1, 2, 3, 4, 5].map(d => {
+            const active = d === selDow;
+            const isToday = d === todayDow();
+            return (
+              <button key={d} onClick={() => setSelDow(d)} style={{
+                background: active ? T.green + '22' : 'transparent',
+                border: '1px solid ' + (active ? T.green : T.borderStr),
+                color: active ? T.green : T.ink2,
+                padding: '7px 16px', borderRadius: 8,
+                fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: T.font,
+                position: 'relative',
+              }}>
+                {DOW_LABELS[d]}
+                {isToday && <span style={{ marginLeft: 5, fontSize: 8, color: active ? T.green : T.ink4 }}>●</span>}
+              </button>
+            );
+          })}
         </div>
 
         {/* Legend + stats */}
@@ -321,23 +405,27 @@
                       {STREAMS.map(stream => {
                         const slot = row.slots[stream];
                         if (!slot) {
-                          // No slot defined → free
+                          // No slot defined → free. Click to create one.
                           const tk = STATUS_TOKENS.free;
                           return (
                             <td key={stream} style={{
                               padding: 4, borderBottom: '1px solid ' + T.border, borderLeft: '1px solid ' + T.border,
                               verticalAlign: 'top',
                             }}>
-                              <div style={{
-                                background: tk.bg, border: '1px solid ' + tk.border,
-                                borderRadius: 6, padding: '8px 6px', textAlign: 'center',
-                                color: tk.fg, fontSize: 9, fontFamily: T.mono, letterSpacing: 0.4,
-                                minHeight: 50,
-                              }}>—</div>
+                              <div
+                                onClick={() => setEditSlot({ period: row.period, start_time: row.start_time, end_time: row.end_time, stream, subject: '', teacher_id: null })}
+                                title="Click to add a lesson here"
+                                style={{
+                                  background: tk.bg, border: '1px solid ' + tk.border,
+                                  borderRadius: 6, padding: '8px 6px', textAlign: 'center',
+                                  color: tk.fg, fontSize: 9, fontFamily: T.mono, letterSpacing: 0.4,
+                                  minHeight: 50, cursor: 'pointer',
+                                }}>+</div>
                             </td>
                           );
                         }
-                        const st = computeSlotStatus(slot, ctx);
+                        const showLive = selDow === todayDow();
+                        const st = showLive ? computeSlotStatus(slot, ctx) : { status: slot.teacher_id ? 'gray' : 'free', label: slot.teacher_id ? 'SCHEDULED' : 'UNASSIGNED' };
                         const tk = STATUS_TOKENS[st.status];
                         const teacherName = slot.teacher_id ? ctx.teacherById[slot.teacher_id] : null;
                         return (
@@ -346,12 +434,13 @@
                             verticalAlign: 'top',
                           }}>
                             <div
-                              title={teacherName ? `${slot.subject} · ${teacherName}` : slot.subject}
+                              onClick={() => setEditSlot({ id: slot.id, period: slot.period, start_time: slot.start_time, end_time: slot.end_time, stream, subject: slot.subject, teacher_id: slot.teacher_id, label: slot.label })}
+                              title={(teacherName ? `${slot.subject} · ${teacherName}` : slot.subject) + ' — click to edit'}
                               style={{
                                 background: tk.bg,
                                 border: '1px solid ' + tk.border,
                                 borderRadius: 6, padding: '8px 6px',
-                                boxShadow: tk.glow,
+                                boxShadow: tk.glow, cursor: 'pointer',
                                 minHeight: 50,
                               }}
                             >
@@ -385,7 +474,79 @@
         <div style={{
           marginTop: 16, fontSize: 10.5, fontFamily: T.mono, color: T.ink4,
           textAlign: 'right', letterSpacing: 0.6,
-        }}>LIVE · UPDATES EVERY 30s · CLOCK TICKS EVERY MINUTE</div>
+        }}>{selDow === todayDow() ? 'LIVE · UPDATES EVERY 30s · CLOCK TICKS EVERY MINUTE' : 'EDITING MODE — not a live day'}</div>
+
+        {/* Assign/edit slot modal */}
+        {editSlot && (
+          <div
+            onClick={() => !saving && setEditSlot(null)}
+            style={{
+              position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              zIndex: 1000, padding: 20,
+            }}
+          >
+            <div onClick={e => e.stopPropagation()} style={{
+              background: T.surface, border: '1px solid ' + T.borderStr,
+              borderRadius: 14, padding: 24, width: '100%', maxWidth: 380,
+            }}>
+              <div style={{ fontSize: 10, fontFamily: T.mono, letterSpacing: 1, color: T.ink3, marginBottom: 4 }}>
+                {DOW_LABELS[selDow]} · PERIOD {editSlot.period} · {fmtTime(editSlot.start_time)}–{fmtTime(editSlot.end_time)}
+              </div>
+              <div style={{ fontSize: 18, fontWeight: 700, color: T.ink, marginBottom: 18 }}>{editSlot.stream}</div>
+
+              <div style={{ fontSize: 10, fontFamily: T.mono, color: T.ink3, marginBottom: 6, letterSpacing: 0.6 }}>SUBJECT</div>
+              <input
+                value={editSlot.subject || ''}
+                onChange={e => setEditSlot(s => ({ ...s, subject: e.target.value }))}
+                placeholder="e.g. Mathematics"
+                style={{
+                  width: '100%', boxSizing: 'border-box', background: T.surface2,
+                  border: '1px solid ' + T.borderStr, borderRadius: 8, color: T.ink,
+                  padding: '10px 12px', fontSize: 13, fontFamily: T.font, marginBottom: 16,
+                }}
+              />
+
+              <div style={{ fontSize: 10, fontFamily: T.mono, color: T.ink3, marginBottom: 6, letterSpacing: 0.6 }}>TEACHER</div>
+              <select
+                value={editSlot.teacher_id || ''}
+                onChange={e => setEditSlot(s => ({ ...s, teacher_id: e.target.value ? Number(e.target.value) : null }))}
+                style={{
+                  width: '100%', boxSizing: 'border-box', background: T.surface2,
+                  border: '1px solid ' + T.borderStr, borderRadius: 8, color: T.ink,
+                  padding: '10px 12px', fontSize: 13, fontFamily: T.font, marginBottom: 22,
+                }}
+              >
+                <option value="">— Unassigned —</option>
+                {(data.teachers || []).slice().sort((a, b) => (a.full_name || '').localeCompare(b.full_name || '')).map(t => (
+                  <option key={t.id} value={t.id}>{t.full_name}</option>
+                ))}
+              </select>
+
+              <div style={{ display: 'flex', gap: 8, justifyContent: 'space-between' }}>
+                {editSlot.id ? (
+                  <button onClick={deleteSlot} disabled={saving} style={{
+                    background: 'transparent', color: T.red, border: '1px solid ' + T.red,
+                    padding: '9px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600,
+                    cursor: saving ? 'wait' : 'pointer', fontFamily: T.font,
+                  }}>Remove slot</button>
+                ) : <span />}
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button onClick={() => setEditSlot(null)} disabled={saving} style={{
+                    background: 'transparent', color: T.ink2, border: '1px solid ' + T.borderStr,
+                    padding: '9px 16px', borderRadius: 8, fontSize: 12, fontWeight: 600,
+                    cursor: saving ? 'wait' : 'pointer', fontFamily: T.font,
+                  }}>Cancel</button>
+                  <button onClick={saveSlotEdit} disabled={saving} style={{
+                    background: T.green, color: T.bg, border: 'none',
+                    padding: '9px 18px', borderRadius: 8, fontSize: 12, fontWeight: 700,
+                    cursor: saving ? 'wait' : 'pointer', fontFamily: T.font,
+                  }}>{saving ? 'Saving…' : 'Save'}</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
