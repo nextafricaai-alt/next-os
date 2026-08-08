@@ -10262,7 +10262,10 @@ const PD_Today = function () {
         color: T.ink,
         lineHeight: 1.55
       }
-    }, 'Good morning ' + function () {
+    }, function () {
+      var h = new Date().getHours();
+      return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
+    }() + ' ' + function () {
       var p = window.PEAK_ROLE && window.PEAK_ROLE.getProfile && window.PEAK_ROLE.getProfile() || {};
       return (p.fullName || '').trim().split(' ')[0] || 'there';
     }() + '. The school is calm. Three things worth knowing before you start:')), /*#__PURE__*/React.createElement("div", {
