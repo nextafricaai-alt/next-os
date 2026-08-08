@@ -409,21 +409,17 @@
     var b=null; try{ b=JSON.parse(localStorage.getItem('nextos.brand.'+_bslug)||'null'); }catch(e){}
     // Fetch the authoritative brand for THIS slug; cache per-slug; reload once if we painted the wrong one.
     function _paintName(nm){ try{ window.__BRAND_NAME=nm; document.title=nm+' \u00b7 NEXT School OS'; var _ld=document.getElementById('nx-loading-text'); if(_ld) _ld.textContent='LOADING '+String(nm).toUpperCase()+' \u00b7 NEXT SCHOOL OS'; }catch(e){} }
-    // EMERGENCY (reverted): the boot-time logo repaint below caused the app to
-    // hang on the loading screen for at least one real tenant (Kabs Lily) once
-    // a genuinely large logo_url (a ~185KB base64 data URI) was actually set \u2014
-    // the very first time this pre-existing localStorage.setItem/_paintLogo
-    // path was exercised with real, sizeable data instead of empty/short
-    // values. Reverted to restore service; re-add once root-caused (suspects:
-    // synchronous localStorage.setItem of a large string in a pre-React-mount
-    // script, or decoding a large data: URI into an <img> that also carries a
-    // CSS animation). The sidebar/header logo fixes are UNAFFECTED \u2014 those run
-    // after React has already mounted and are not implicated.
-    function _paintLogo(url){ /* disabled \u2014 see note above */ }
+    // Global rule: any tenant with a logo_url set gets it on the boot/loading
+    // screen automatically \u2014 no per-school code needed. Re-enabled after
+    // root-causing the real "stuck on loading" bug (it was an unrelated
+    // SyntaxError from a bare `import` statement re-introduced into 7 other
+    // script blocks by the same commit that first added this function \u2014 see
+    // commit bb08330. This logo repaint itself was never the cause.
+    function _paintLogo(url){ try{ var _im=document.getElementById('nx-boot-logo'); if(_im && url){ _im.src=url; _im.style.display=''; var _sv=document.getElementById('nx-logo-svg'); if(_sv) _sv.style.display='none'; } }catch(e){} }
     if(_bslug){ try{ fetch('https://nextos-sentinel.nextafricaai.workers.dev/brand?s='+encodeURIComponent(_bslug)).then(function(r){return r.ok?r.json():null;}).then(function(nb){
       if(nb && nb.name){ var fresh={name:nb.name,color:nb.primary_color||null,logo:nb.logo_url||null};
-        try{ localStorage.setItem('nextos.brand.'+_bslug, JSON.stringify({name:fresh.name,color:fresh.color})); }catch(e){}
-        if(fresh.logo) { window.__BRAND_LOGO=fresh.logo; window.__loadPdfLogo && window.__loadPdfLogo(); }
+        try{ localStorage.setItem('nextos.brand.'+_bslug, JSON.stringify(fresh)); }catch(e){}
+        if(fresh.logo) { window.__BRAND_LOGO=fresh.logo; window.__loadPdfLogo && window.__loadPdfLogo(); _paintLogo(fresh.logo); }
         _paintName(fresh.name);
         try{ if(fresh.color){ var _c=String(fresh.color); if(_c[0]!=='#')_c='#'+_c; if(/^#[0-9a-fA-F]{6}$/.test(_c)){ document.documentElement.style.setProperty('--brand', _c); } } }catch(e){}
       }
