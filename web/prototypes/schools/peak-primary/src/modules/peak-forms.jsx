@@ -289,12 +289,49 @@ const T = window.V4.T;
     const [method, setMethod] = useState(defaultMethod || 'mtn');
     const [ref, setRef] = useState('');
     const [phone, setPhone] = useState('');
+    const [saving, setSaving] = useState(false);
     const student = studs.find(s => s.id === Number(studentId));
     const balance = student ? (student.balance || 0) : 0;
 
     const submit = async () => {
+      if (saving) return;
       const amt = Number(amount.replace(/[^0-9]/g, ''));
       if (!amt || amt <= 0) { window.peakToast('Enter a payment amount', 'error'); return; }
+      setSaving(true);
+
+      // Write the REAL payment row first — this is what every balance figure
+      // in the app (fees-balances, Reports, Parent dashboard, Head Teacher's
+      // outstanding-fees total) actually reads from. store.recordPayment()
+      // below only mutates this browser's in-memory D.students, which used
+      // to be the ONLY thing that happened here: the bursar would see the
+      // balance drop, but nothing was ever saved — a refresh (or anyone else
+      // looking) showed the old, unpaid balance, because the fees table
+      // itself was never touched. Fail loudly here rather than let that
+      // silent desync happen again.
+      const sess = window.NextSession || {};
+      const sb = sess.sb;
+      const tenantId = sess.profile && sess.profile.tenantId;
+      if (!sb || !tenantId) {
+        setSaving(false);
+        window.peakToast('Not signed in — payment was NOT saved', 'error');
+        return;
+      }
+      const { error: feeErr } = await sb.from('fees').insert({
+        tenant_id: tenantId,
+        student_id: Number(studentId),
+        term: 'Term 2 2026',
+        kind: 'payment',
+        amount: -amt, // negative = payment, per the fees table's own convention
+        channel: method,
+        reference: ref || null,
+      });
+      if (feeErr) {
+        setSaving(false);
+        window.peakToast('Payment could NOT be saved to the database', 'error', feeErr.message);
+        return; // Stop here — do not update local state or issue a receipt for a payment that isn't actually recorded.
+      }
+
+      // The real write succeeded — now safe to reflect it locally and issue the receipt.
       store.recordPayment({ studentId: Number(studentId), amount: amt, method, ref });
       const newBal = Math.max(0, balance - amt);
       try {
@@ -305,11 +342,14 @@ const T = window.V4.T;
           amount: amt, method, reference: ref,
           balanceAfter: newBal, term: 'Term 2 2026',
         });
+        setSaving(false);
         window.peakModal.close();
         window.peakModal.open(React.createElement(ReceiptResult, { rec }));
       } catch (e) {
+        setSaving(false);
         window.peakModal.close();
-        window.peakToast('Payment recorded — receipt not saved', 'warn', String((e && e.message) || e) + ' (run the receipts SQL?)');
+        // The payment itself is safely in the database at this point — only the receipt row failed.
+        window.peakToast('Payment saved — receipt not saved', 'warn', String((e && e.message) || e) + ' (run the receipts SQL?)');
       }
     };
 
@@ -358,8 +398,8 @@ const T = window.V4.T;
           </Field>
         </div>
         <ModalFooter>
-          <SecondaryButton onClick={() => window.peakModal.close()}>Cancel</SecondaryButton>
-          <PrimaryButton onClick={submit}>Record payment →</PrimaryButton>
+          <SecondaryButton onClick={() => window.peakModal.close()} disabled={saving}>Cancel</SecondaryButton>
+          <PrimaryButton onClick={submit} disabled={saving}>{saving ? 'Saving…' : 'Record payment →'}</PrimaryButton>
         </ModalFooter>
       </div>
     );
