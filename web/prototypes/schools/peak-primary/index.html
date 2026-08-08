@@ -15010,7 +15010,7 @@ window.PEAK_STAFF = (function () {
     else if (route === 'boarding') Screen = (typeof window.HeadBoardingPanel === 'function' ? React.createElement(window.HeadBoardingPanel, { onNav: navigate }) : <GenericModuleScreen routeKey={route} onNav={navigate} />);
     else if (route === 'setup')   Screen = (window.PEAK_SETUP ? <PEAK_SETUP.Setup /> : <GenericModuleScreen routeKey={route} onNav={navigate} />);
     else if (route === 'staff') Screen = (typeof window.HeadStaffPanel === 'function' ? React.createElement(window.HeadStaffPanel, { onNav: navigate }) : <GenericModuleScreen routeKey={route} onNav={navigate} />);
-    else if (route === 'timetable') Screen = (window.PEAK_TIMETABLE ? <PEAK_TIMETABLE.Timetable onNav={navigate} /> : (typeof window.HeadTimetablePanel === 'function' ? React.createElement(window.HeadTimetablePanel, { onNav: navigate }) : <GenericModuleScreen routeKey={route} onNav={navigate} />));
+    else if (route === 'timetable') Screen = (typeof window.HeadTimetablePanel === 'function' ? React.createElement(window.HeadTimetablePanel, { onNav: navigate }) : (window.PEAK_TIMETABLE ? <PEAK_TIMETABLE.Timetable onNav={navigate} /> : <GenericModuleScreen routeKey={route} onNav={navigate} />));
     else if (route === 'events')  Screen = (window.PEAK_EVENTS ? <PEAK_EVENTS.Events /> : <GenericModuleScreen routeKey={route} onNav={navigate} />);
     else if (route === 'plan')    Screen = (window.PEAK_PACKAGES ? <PEAK_PACKAGES.Plan onNav={navigate} /> : <GenericModuleScreen routeKey={route} onNav={navigate} />);
     else if (route && route.indexOf('addon:') === 0) Screen = (window.PEAK_PACKAGES ? <PEAK_PACKAGES.Addon addonKey={route.slice(6)} /> : <GenericModuleScreen routeKey={route} onNav={navigate} />);

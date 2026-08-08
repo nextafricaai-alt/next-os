@@ -35708,9 +35708,9 @@ window.PEAK_STAFF = function () {
     }) : /*#__PURE__*/React.createElement(GenericModuleScreen, {
       routeKey: route,
       onNav: navigate
-    });else if (route === 'timetable') Screen = window.PEAK_TIMETABLE ? /*#__PURE__*/React.createElement(PEAK_TIMETABLE.Timetable, {
+    });else if (route === 'timetable') Screen = typeof window.HeadTimetablePanel === 'function' ? React.createElement(window.HeadTimetablePanel, {
       onNav: navigate
-    }) : typeof window.HeadTimetablePanel === 'function' ? React.createElement(window.HeadTimetablePanel, {
+    }) : window.PEAK_TIMETABLE ? /*#__PURE__*/React.createElement(PEAK_TIMETABLE.Timetable, {
       onNav: navigate
     }) : /*#__PURE__*/React.createElement(GenericModuleScreen, {
       routeKey: route,
