@@ -47,8 +47,12 @@
     if (!t) return '';
     return t.slice(0, 5);
   };
+  // NOT a module-level constant on purpose: window.SCHOOL_CONFIG starts as a
+  // fallback default and gets replaced once its async fetch resolves. A
+  // frozen snapshot taken when this script first evaluates could capture the
+  // stale fallback and never update — call this fresh wherever streams are
+  // needed (both the header row and the data cells) so both always agree.
   function getTimetableStreams() { var c = (window.SCHOOL_CONFIG && window.SCHOOL_CONFIG.classes) || []; return (c && c.length) ? c : ['P1V','P1P','P2V','P2P','P3V','P3P','P4V','P4P','P5V','P5P','P6V','P6P','P7V','P7P']; }
-  const STREAMS = getTimetableStreams();
 
   async function loadTimetable(tenantId, dowOverride) {
     const sb = window.NextSession?.sb;
@@ -249,15 +253,19 @@
       return Object.values(byPeriod).sort((a, b) => a.period - b.period);
     }, [data]);
 
-    // Stats across all of today's slots
+    // Stats across the selected day's slots. Only compute live (checked-in /
+    // roll-taken) status when actually viewing today — otherwise this used to
+    // compare a past/future day's period times against right-now's clock and
+    // produce meaningless PENDING/MISSED counts for a day that isn't live.
     const stats = useMemo(() => {
       const c = { green: 0, orange: 0, red: 0, free: 0, gray: 0 };
+      const showLive = selDow === todayDow();
       (data.slots || []).forEach(s => {
-        const st = computeSlotStatus(s, ctx);
+        const st = showLive ? computeSlotStatus(s, ctx) : { status: s.teacher_id ? 'gray' : 'free' };
         c[st.status] = (c[st.status] || 0) + 1;
       });
       return c;
-    }, [data, ctx]);
+    }, [data, ctx, selDow]);
 
     return (
       <div style={{
@@ -402,7 +410,7 @@
                           {fmtTime(row.start_time)}–{fmtTime(row.end_time)}
                         </div>
                       </td>
-                      {STREAMS.map(stream => {
+                      {getTimetableStreams().map(stream => {
                         const slot = row.slots[stream];
                         if (!slot) {
                           // No slot defined → free. Click to create one.
