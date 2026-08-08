@@ -409,10 +409,16 @@
     var b=null; try{ b=JSON.parse(localStorage.getItem('nextos.brand.'+_bslug)||'null'); }catch(e){}
     // Fetch the authoritative brand for THIS slug; cache per-slug; reload once if we painted the wrong one.
     function _paintName(nm){ try{ window.__BRAND_NAME=nm; document.title=nm+' \u00b7 NEXT School OS'; var _ld=document.getElementById('nx-loading-text'); if(_ld) _ld.textContent='LOADING '+String(nm).toUpperCase()+' \u00b7 NEXT SCHOOL OS'; }catch(e){} }
+    // Global rule: any tenant with a logo_url set gets it on the boot/loading
+    // screen automatically \u2014 no per-school code needed. This is the one place
+    // that was missing: the boot <img> src was hardcoded to the generic NEXT
+    // logo even though the same brand fetch that already repaints the name
+    // and accent colour has always carried the logo too.
+    function _paintLogo(url){ try{ var _im=document.getElementById('nx-boot-logo'); if(_im && url){ _im.src=url; _im.style.display=''; var _sv=document.getElementById('nx-logo-svg'); if(_sv) _sv.style.display='none'; } }catch(e){} }
     if(_bslug){ try{ fetch('https://nextos-sentinel.nextafricaai.workers.dev/brand?s='+encodeURIComponent(_bslug)).then(function(r){return r.ok?r.json():null;}).then(function(nb){
       if(nb && nb.name){ var fresh={name:nb.name,color:nb.primary_color||null,logo:nb.logo_url||null};
         try{ localStorage.setItem('nextos.brand.'+_bslug, JSON.stringify(fresh)); }catch(e){}
-        if(fresh.logo) { window.__BRAND_LOGO=fresh.logo; window.__loadPdfLogo && window.__loadPdfLogo(); }
+        if(fresh.logo) { window.__BRAND_LOGO=fresh.logo; window.__loadPdfLogo && window.__loadPdfLogo(); _paintLogo(fresh.logo); }
         _paintName(fresh.name);
         try{ if(fresh.color){ var _c=String(fresh.color); if(_c[0]!=='#')_c='#'+_c; if(/^#[0-9a-fA-F]{6}$/.test(_c)){ document.documentElement.style.setProperty('--brand', _c); } } }catch(e){}
       }
@@ -426,7 +432,7 @@
         window.addEventListener('DOMContentLoaded',function(){ try{ document.body.style.background=window.__BG; }catch(e){} });
       }
     }
-    if(b && b.logo){ window.__BRAND_LOGO=b.logo; window.__loadPdfLogo && window.__loadPdfLogo(); }
+    if(b && b.logo){ window.__BRAND_LOGO=b.logo; window.__loadPdfLogo && window.__loadPdfLogo(); _paintLogo(b.logo); }
     if(b && b.name){ window.__BRAND_NAME=b.name;
       try{ document.title = b.name + ' \u00b7 NEXT School OS'; }catch(e){}
       try{ var _ld=document.getElementById('nx-loading-text'); if(_ld) _ld.textContent='LOADING '+String(b.name).toUpperCase()+' \u00b7 NEXT SCHOOL OS'; }catch(e){}
