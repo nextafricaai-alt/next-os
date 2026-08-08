@@ -893,7 +893,7 @@ window.PEAK_STAFF = { Staff };
             display: 'grid', placeItems: 'center', flexShrink: 0,
             boxShadow: '0 0 0 1px ' + T.borderStr,
           }}>
-            <img src="/prototypes/schools/peak-primary/assets/peak-logo.png" alt="Peak" style={{ width: 32, height: 32, objectFit: 'contain' }} />
+            <img src={window.__BRAND_LOGO || "/prototypes/schools/peak-primary/assets/peak-logo.png"} alt="Peak" style={{ width: 32, height: 32, objectFit: 'contain' }} />
           </div>
           <div style={{ lineHeight: 1.15, minWidth: 0, flex: 1 }}>
             <div style={{ fontSize: 14, fontWeight: 600, color: T.ink, letterSpacing: '-0.01em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{(typeof window!=='undefined'&&(window.__BRAND_NAME||window.__BRAND_FALLBACK))||'NEXT School OS'}</div>

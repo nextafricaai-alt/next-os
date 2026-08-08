@@ -7049,7 +7049,9 @@ window.PEAK = (function () {
 })();
 
   </script>
-  <script type="text/javascript" data-src="src/v4-peak-dark.jsx">/* src/v4-peak-dark.jsx */
+  <script type="text/javascript" data-src="src/v4-peak-dark.jsx">import React from 'react';
+
+/* src/v4-peak-dark.jsx */
 /* global React, PEAK */
 // Variation D — "Peak Dark"
 // Peak brand colours · deep navy surfaces · red signal · strong contrast
@@ -7269,7 +7271,7 @@ const V4 = function () {
         boxShadow: '0 0 0 1px ' + T.borderStr
       }
     }, /*#__PURE__*/React.createElement("img", {
-      src: "/prototypes/schools/peak-primary/assets/peak-logo.png",
+      src: window.__BRAND_LOGO || "/prototypes/schools/peak-primary/assets/peak-logo.png",
       alt: "Peak",
       style: {
         width: 32,
@@ -7299,7 +7301,7 @@ const V4 = function () {
         fontFamily: T.mono,
         letterSpacing: '0.04em'
       }
-    }, 'NEXT · ' + (window.getSchoolCalendarLabel ? window.getSchoolCalendarLabel().termWeekStr.replace('Term ', 'T').replace(' · Week ', ' · WK') : 'T2'))), window.NiaBell ? React.createElement(window.NiaBell) : null), /*#__PURE__*/React.createElement("nav", {
+    }, 'NEXT · ' + (window.getSchoolCalendarLabel ? window.getSchoolCalendarLabel().termWeekStr.replace('Term ', 'T').replace(' · Week ', ' · WK') : 'T2'))), window.NiaBell ? /*#__PURE__*/React.createElement(window.NiaBell) : null), /*#__PURE__*/React.createElement("nav", {
       style: {
         padding: '14px 10px',
         display: 'flex',
@@ -7767,13 +7769,14 @@ const V4 = function () {
       onClick: () => window.peakExportRoster && window.peakExportRoster(),
       style: {
         border: '1px solid ' + T.borderStr,
-        background: 'transparent',
-        padding: '8px 14px',
+        background: T.surface2,
+        padding: '8px 16px',
         borderRadius: 9,
         fontSize: 12.5,
-        color: T.ink2,
+        color: T.ink,
         cursor: 'pointer',
-        fontWeight: 500
+        fontWeight: 600,
+        letterSpacing: '0.01em'
       }
     }, "Export"), /*#__PURE__*/React.createElement("button", {
       onClick: () => onNav ? onNav('comm') : window.peakNav && window.peakNav('comm'),
@@ -7791,7 +7794,9 @@ const V4 = function () {
   }
 
   // ─── hero KPIs (the 3 big ones) ───────────────────────────────────────────
-  function HeroKPIs() {
+  function HeroKPIs({
+    period = 'Today'
+  }) {
     const _D = typeof D !== 'undefined' && D ? D : window.PEAK || {};
     const k = _D.kpis || {};
     const att = Number(k.attendancePct) || 0;
@@ -7847,7 +7852,7 @@ const V4 = function () {
         fontWeight: 600,
         marginBottom: 14
       }
-    }, "ATTENDANCE TODAY"), /*#__PURE__*/React.createElement("div", {
+    }, "ATTENDANCE \xB7 ", period.toUpperCase()), /*#__PURE__*/React.createElement("div", {
       style: {
         display: 'flex',
         alignItems: 'flex-end',
@@ -7924,7 +7929,7 @@ const V4 = function () {
         fontWeight: 600,
         marginBottom: 14
       }
-    }, "FEES \xB7 TERM 2"), /*#__PURE__*/React.createElement("div", {
+    }, "FEES \xB7 ", period === 'Today' ? 'TODAY' : period === 'Week' ? 'THIS WEEK' : 'TERM 2'), /*#__PURE__*/React.createElement("div", {
       style: {
         display: 'flex',
         alignItems: 'baseline',
@@ -7982,7 +7987,7 @@ const V4 = function () {
         fontWeight: 600,
         marginBottom: 14
       }
-    }, "PARENT REACH \xB7 TODAY"), window.PEAK && window.PEAK.live ? /*#__PURE__*/React.createElement("div", {
+    }, "PARENT REACH \xB7 ", period.toUpperCase()), window.PEAK && window.PEAK.live ? /*#__PURE__*/React.createElement("div", {
       style: {
         color: T.ink3,
         fontSize: 13,
@@ -8036,12 +8041,15 @@ const V4 = function () {
   }
 
   // ─── secondary KPI strip ──────────────────────────────────────────────────
-  function SecondaryKPIs() {
+  function SecondaryKPIs({
+    period = 'Today'
+  }) {
     const _D = typeof D !== 'undefined' && D ? D : window.PEAK || {};
     const _k = _D.kpis || {};
     const _fmt = _D.fmtUGXshort || (v => 'UGX ' + Number(v || 0).toLocaleString());
+    const periodLabel = period === 'Today' ? 'today' : period === 'Week' ? 'this week' : 'this term';
     const items = [{
-      l: 'Absent today',
+      l: period === 'Today' ? 'Absent today' : period === 'Week' ? 'Absent this week' : 'Absent this term',
       v: String(_k.absentToday || 0),
       sub: _k.students ? Math.round(100 * (_k.absentToday || 0) / _k.students) + '% of roll' : 'no roster',
       tone: 'warn'
@@ -8053,7 +8061,7 @@ const V4 = function () {
     }, {
       l: 'Fees collected',
       v: _fmt(_k.feesCollectedTerm || 0),
-      sub: 'this term',
+      sub: periodLabel,
       tone: 'good'
     }, {
       l: 'At-risk learners',
@@ -9099,26 +9107,32 @@ const V4 = function () {
     }, (typeof D !== 'undefined' && D && D.kpis || window.PEAK && window.PEAK.kpis || {}).presentToday || 0, " of ", (typeof D !== 'undefined' && D && D.kpis || window.PEAK && window.PEAK.kpis || {}).students || 0, " children on campus. Fees at ", (typeof D !== 'undefined' && D && D.kpis || window.PEAK && window.PEAK.kpis || {}).feesTargetTerm ? Math.round(100 * ((typeof D !== 'undefined' && D && D.kpis || window.PEAK && window.PEAK.kpis || {}).feesCollectedTerm || 0) / ((typeof D !== 'undefined' && D && D.kpis || window.PEAK && window.PEAK.kpis || {}).feesTargetTerm || 1)) : 0, "%. ", typeof D !== 'undefined' && D && D.hasData || window.PEAK && window.PEAK.hasData ? 'Here is what needs your attention today.' : 'No roster imported yet — add students to bring this dashboard to life.')), /*#__PURE__*/React.createElement("div", {
       style: {
         display: 'flex',
-        gap: 6,
-        padding: 3,
-        background: T.surface,
-        border: '1px solid ' + T.border,
-        borderRadius: 10
+        gap: 4,
+        padding: 4,
+        background: T.surface2,
+        border: '1px solid ' + T.borderStr,
+        borderRadius: 11
       }
     }, ['Today', 'Week', 'Term 2'].map(p => /*#__PURE__*/React.createElement("button", {
       key: p,
       onClick: () => setPeriod(p),
       style: {
         border: 'none',
-        background: period === p ? T.red : 'transparent',
-        color: period === p ? '#fff' : T.ink2,
-        padding: '7px 14px',
-        borderRadius: 7,
+        background: period === p ? T.red : T.surface3,
+        color: period === p ? '#fff' : T.ink,
+        padding: '7px 16px',
+        borderRadius: 8,
         fontSize: 12.5,
         fontWeight: 600,
-        cursor: 'pointer'
+        cursor: 'pointer',
+        transition: 'background 0.15s, color 0.15s',
+        letterSpacing: '0.01em'
       }
-    }, p)))), /*#__PURE__*/React.createElement(HeroKPIs, null), /*#__PURE__*/React.createElement(SecondaryKPIs, null), /*#__PURE__*/React.createElement("div", {
+    }, p)))), /*#__PURE__*/React.createElement(HeroKPIs, {
+      period: period
+    }), /*#__PURE__*/React.createElement(SecondaryKPIs, {
+      period: period
+    }), /*#__PURE__*/React.createElement("div", {
       style: {
         display: 'grid',
         gridTemplateColumns: '1.4fr 1fr',
@@ -9149,7 +9163,9 @@ const V4 = function () {
   };
 }();
 window.V4 = V4;</script>
-  <script type="text/javascript" data-src="src/v4-today.jsx">/* src/v4-today.jsx */
+  <script type="text/javascript" data-src="src/v4-today.jsx">import React from 'react';
+
+/* src/v4-today.jsx */
 /* global React, PEAK, V4 */
 // Peak Dark · Director's morning ritual — the screen Sarah opens at 07:00
 // Focused, chronological, one-thing-at-a-time. Less dashboard, more checklist.
@@ -9217,7 +9233,7 @@ const PD_Today = function () {
         marginBottom: 18
       }
     }, /*#__PURE__*/React.createElement("img", {
-      src: "/prototypes/schools/peak-primary/assets/peak-logo.png",
+      src: window.__BRAND_LOGO || "/prototypes/schools/peak-primary/assets/peak-logo.png",
       alt: "",
       style: {
         width: 34,
@@ -9779,26 +9795,36 @@ const PD_Today = function () {
         setCur(new Date(y, m - 1, 1));
       },
       style: {
-        background: 'transparent',
-        border: '1px solid ' + T.border,
-        color: T.ink2,
+        background: T.surface2,
+        border: '1px solid ' + T.borderStr,
+        color: T.ink,
         borderRadius: 7,
-        width: 26,
-        height: 26,
-        cursor: 'pointer'
+        width: 28,
+        height: 28,
+        cursor: 'pointer',
+        fontWeight: 700,
+        fontSize: 15,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center'
       }
     }, '‹'), /*#__PURE__*/React.createElement("button", {
       onClick: function () {
         setCur(new Date(y, m + 1, 1));
       },
       style: {
-        background: 'transparent',
-        border: '1px solid ' + T.border,
-        color: T.ink2,
+        background: T.surface2,
+        border: '1px solid ' + T.borderStr,
+        color: T.ink,
         borderRadius: 7,
-        width: 26,
-        height: 26,
-        cursor: 'pointer'
+        width: 28,
+        height: 28,
+        cursor: 'pointer',
+        fontWeight: 700,
+        fontSize: 15,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center'
       }
     }, '›'))), /*#__PURE__*/React.createElement("div", {
       style: {
@@ -10331,7 +10357,9 @@ const PD_Today = function () {
   };
 }();
 window.PD_Today = PD_Today;</script>
-  <script type="text/javascript" data-src="src/v4-students.jsx">/* src/v4-students.jsx */
+  <script type="text/javascript" data-src="src/v4-students.jsx">import React from 'react';
+
+/* src/v4-students.jsx */
 /* global React, PEAK, V4 */
 // Peak Dark · Students roster with detail drawer
 // Working table — search, filter by stream, sort, click row to open drawer
@@ -10391,7 +10419,7 @@ const PD_Students = function () {
         marginBottom: 18
       }
     }, /*#__PURE__*/React.createElement("img", {
-      src: "/prototypes/schools/peak-primary/assets/peak-logo.png",
+      src: window.__BRAND_LOGO || "/prototypes/schools/peak-primary/assets/peak-logo.png",
       alt: "",
       style: {
         width: 34,
@@ -11072,7 +11100,7 @@ const PD_Students = function () {
         gap: 8
       }
     }, /*#__PURE__*/React.createElement("button", {
-      onClick: () => window.peakModal && window.peakModal.open(React.createElement(window.PEAK_FORMS.ImportStudents)),
+      onClick: () => window.peakModal && window.peakModal.open(/*#__PURE__*/React.createElement(window.PEAK_FORMS.ImportStudents)),
       style: {
         border: '1px solid ' + T.borderStr,
         background: 'transparent',
@@ -11303,7 +11331,7 @@ const PD_Students = function () {
         cursor: 'pointer'
       }
     }, "Send WhatsApp"), /*#__PURE__*/React.createElement("button", {
-      onClick: () => window.open(window.peakSchoolLink ? window.peakSchoolLink('enroll') : '/prototypes/schools/peak-primary/student-enrollment-form.html', '_blank'),
+      onClick: () => window.open(window.peakSchoolLink ? window.peakSchoolLink('enroll') : './student-enrollment-form.html', '_blank'),
       style: {
         background: 'rgba(0,252,143,0.12)',
         border: '1px solid rgba(0,252,143,0.25)',
@@ -11415,7 +11443,7 @@ const PD_Profile = function () {
         marginBottom: 18
       }
     }, /*#__PURE__*/React.createElement("img", {
-      src: "/prototypes/schools/peak-primary/assets/peak-logo.png",
+      src: window.__BRAND_LOGO || "/prototypes/schools/peak-primary/assets/peak-logo.png",
       alt: "",
       style: {
         width: 34,
@@ -12595,7 +12623,9 @@ const PD_Profile = function () {
   };
 }();
 window.PD_Profile = PD_Profile;</script>
-  <script type="text/javascript" data-src="src/v4-fees.jsx">/* src/v4-fees.jsx */
+  <script type="text/javascript" data-src="src/v4-fees.jsx">import React from 'react';
+
+/* src/v4-fees.jsx */
 /* global React, PEAK, V4 */
 // Peak Dark · Fees · reconciliation
 // The accountant's workspace — incoming Mobile Money payments matched to student ledgers,
@@ -12655,7 +12685,7 @@ const PD_Fees = function () {
         marginBottom: 18
       }
     }, /*#__PURE__*/React.createElement("img", {
-      src: "/prototypes/schools/peak-primary/assets/peak-logo.png",
+      src: window.__BRAND_LOGO || "/prototypes/schools/peak-primary/assets/peak-logo.png",
       alt: "",
       style: {
         width: 34,
@@ -12825,7 +12855,7 @@ const PD_Fees = function () {
     };
     const recordPay = s => {
       if (onRecordPayment) return onRecordPayment(s);
-      window.peakModal && window.peakModal.open(React.createElement(window.PEAK_FORMS.RecordPayment, {
+      window.peakModal && window.peakModal.open(/*#__PURE__*/React.createElement(window.PEAK_FORMS.RecordPayment, {
         store: window.peakStore,
         defaultStudentId: s && s.id,
         defaultAmount: s && s.balance
@@ -13006,7 +13036,7 @@ const PD_Fees = function () {
         flexWrap: 'wrap'
       }
     }, /*#__PURE__*/React.createElement("button", {
-      onClick: () => window.peakModal && window.peakModal.open(React.createElement(window.PEAK_FORMS.FeesImport)),
+      onClick: () => window.peakModal && window.peakModal.open(/*#__PURE__*/React.createElement(window.PEAK_FORMS.FeesImport)),
       style: {
         border: '1px solid ' + T.borderStr,
         background: 'transparent',
@@ -13017,7 +13047,7 @@ const PD_Fees = function () {
         cursor: 'pointer'
       }
     }, "Import fees"), /*#__PURE__*/React.createElement("button", {
-      onClick: () => window.peakModal && window.peakModal.open(React.createElement(window.PEAK_FORMS.Receipts)),
+      onClick: () => window.peakModal && window.peakModal.open(/*#__PURE__*/React.createElement(window.PEAK_FORMS.Receipts)),
       style: {
         border: '1px solid ' + T.borderStr,
         background: 'transparent',
@@ -13429,7 +13459,9 @@ const PD_Fees = function () {
   };
 }();
 window.PD_Fees = PD_Fees;</script>
-  <script type="text/javascript" data-src="src/v4-broadcast.jsx">/* src/v4-broadcast.jsx */
+  <script type="text/javascript" data-src="src/v4-broadcast.jsx">import React from 'react';
+
+/* src/v4-broadcast.jsx */
 /* global React, PEAK, V4 */
 // Peak Dark · Broadcast composer
 // Director composes a parent message — AI helps with audience, drafting, translation, send timing.
@@ -13856,7 +13888,7 @@ const PD_Broadcast = function () {
         marginBottom: 18
       }
     }, /*#__PURE__*/React.createElement("img", {
-      src: "/prototypes/schools/peak-primary/assets/peak-logo.png",
+      src: window.__BRAND_LOGO || "/prototypes/schools/peak-primary/assets/peak-logo.png",
       alt: "",
       style: {
         width: 34,
@@ -14802,7 +14834,9 @@ const PD_Broadcast = function () {
   };
 }();
 window.PD_Broadcast = PD_Broadcast;</script>
-  <script type="text/javascript" data-src="src/v4-mobile.jsx">/* src/v4-mobile.jsx */
+  <script type="text/javascript" data-src="src/v4-mobile.jsx">import React from 'react';
+
+/* src/v4-mobile.jsx */
 /* global React, PEAK, V4 */
 // Peak Dark · mobile companions — parent + teacher, same brand language as V4 desktop
 
@@ -14905,7 +14939,7 @@ const PD_M = function () {
         boxShadow: '0 0 0 1px ' + T.borderStr
       }
     }, /*#__PURE__*/React.createElement("img", {
-      src: "/prototypes/schools/peak-primary/assets/peak-logo.png",
+      src: window.__BRAND_LOGO || "/prototypes/schools/peak-primary/assets/peak-logo.png",
       alt: "",
       style: {
         width: 32,
@@ -34587,7 +34621,7 @@ window.PEAK_STAFF = function () {
         boxShadow: '0 0 0 1px ' + T.borderStr
       }
     }, /*#__PURE__*/React.createElement("img", {
-      src: "/prototypes/schools/peak-primary/assets/peak-logo.png",
+      src: window.__BRAND_LOGO || "/prototypes/schools/peak-primary/assets/peak-logo.png",
       alt: "Peak",
       style: {
         width: 32,

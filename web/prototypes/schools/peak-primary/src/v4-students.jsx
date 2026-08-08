@@ -22,7 +22,7 @@ const PD_Students = (function () {
         display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '14px 0', flexShrink: 0,
       }}>
         <div style={{ width: 40, height: 40, borderRadius: 10, background: '#fff', display: 'grid', placeItems: 'center', marginBottom: 18 }}>
-          <img src="./assets/peak-logo.png" alt="" style={{ width: 34, height: 34, objectFit: 'contain' }} />
+          <img src={window.__BRAND_LOGO || "/prototypes/schools/peak-primary/assets/peak-logo.png"} alt="" style={{ width: 34, height: 34, objectFit: 'contain' }} />
         </div>
         {items.map(n => {
           const a = active === n.k;

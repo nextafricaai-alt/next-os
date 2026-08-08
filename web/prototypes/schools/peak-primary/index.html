@@ -4793,6 +4793,8 @@ window.PEAK = (function () {
 
   </script>
   <script type="text/babel" data-src="src/v4-peak-dark.jsx">
+import React from 'react';
+
 /* src/v4-peak-dark.jsx */
 /* global React, PEAK */
 // Variation D — "Peak Dark"
@@ -4901,7 +4903,7 @@ const V4 = (function () {
             background: '#fff', display: 'grid', placeItems: 'center', flexShrink: 0,
             boxShadow: '0 0 0 1px ' + T.borderStr,
           }}>
-            <img src="/prototypes/schools/peak-primary/assets/peak-logo.png" alt="Peak" style={{ width: 32, height: 32, objectFit: 'contain' }} />
+            <img src={window.__BRAND_LOGO || "/prototypes/schools/peak-primary/assets/peak-logo.png"} alt="Peak" style={{ width: 32, height: 32, objectFit: 'contain' }} />
           </div>
           <div style={{ lineHeight: 1.15, minWidth: 0, flex: 1 }}>
             <div style={{ fontSize: 14, fontWeight: 600, color: T.ink, letterSpacing: '-0.01em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{(typeof window!=='undefined'&&(window.__BRAND_NAME||window.__BRAND_FALLBACK))||'NEXT School OS'}</div>
@@ -5071,14 +5073,14 @@ const V4 = (function () {
         <span style={{ marginLeft: 6, fontFamily: T.mono, color: T.ink4, fontSize: 11.5 }}>{clockLabel}</span>
         <div style={{ flex: 1 }} />
         <GlobalSearch />
-        <button onClick={() => window.peakExportRoster && window.peakExportRoster()} style={{ border: '1px solid ' + T.borderStr, background: 'transparent', padding: '8px 14px', borderRadius: 9, fontSize: 12.5, color: T.ink2, cursor: 'pointer', fontWeight: 500 }}>Export</button>
+        <button onClick={() => window.peakExportRoster && window.peakExportRoster()} style={{ border: '1px solid ' + T.borderStr, background: T.surface2, padding: '8px 16px', borderRadius: 9, fontSize: 12.5, color: T.ink, cursor: 'pointer', fontWeight: 600, letterSpacing: '0.01em' }}>Export</button>
         <button onClick={() => onNav ? onNav('comm') : (window.peakNav && window.peakNav('comm'))} style={{ border: 'none', background: T.red, color: '#fff', padding: '9px 16px', borderRadius: 9, fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }}>+ New broadcast</button>
       </header>
     );
   }
 
   // ─── hero KPIs (the 3 big ones) ───────────────────────────────────────────
-  function HeroKPIs() {
+  function HeroKPIs({ period = 'Today' }) {
     const _D = (typeof D !== 'undefined' && D) ? D : (window.PEAK || {});
     const k = _D.kpis || {};
     const att = Number(k.attendancePct) || 0;
@@ -5106,7 +5108,7 @@ const V4 = (function () {
             borderRadius: 999, border: '1px solid rgba(255,255,255,0.06)',
           }} />
           <div style={{ fontSize: 11, color: '#a8b4e8', fontFamily: T.mono, letterSpacing: '0.08em', fontWeight: 600, marginBottom: 14 }}>
-            ATTENDANCE TODAY
+            ATTENDANCE · {period.toUpperCase()}
           </div>
           <div style={{ display: 'flex', alignItems: 'flex-end', gap: 12, marginBottom: 10 }}>
             <div style={{ fontFamily: T.font, fontSize: 56, fontWeight: 700, color: '#fff', lineHeight: 0.95, letterSpacing: '-0.035em', fontVariantNumeric: 'tabular-nums' }}>
@@ -5133,7 +5135,7 @@ const V4 = (function () {
 
         {/* Fees */}
         <Card pad={24}>
-          <div style={{ fontSize: 11, color: T.ink3, fontFamily: T.mono, letterSpacing: '0.08em', fontWeight: 600, marginBottom: 14 }}>FEES · TERM 2</div>
+          <div style={{ fontSize: 11, color: T.ink3, fontFamily: T.mono, letterSpacing: '0.08em', fontWeight: 600, marginBottom: 14 }}>FEES · {period === 'Today' ? 'TODAY' : period === 'Week' ? 'THIS WEEK' : 'TERM 2'}</div>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
             <div style={{ fontSize: 40, fontWeight: 700, color: T.ink, lineHeight: 1, letterSpacing: '-0.03em', fontVariantNumeric: 'tabular-nums' }}>{collected > 0 ? fmt(collected) : 'UGX 0'}</div>
           </div>
@@ -5149,7 +5151,7 @@ const V4 = (function () {
 
         {/* Parent reach */}
         <Card pad={24}>
-          <div style={{ fontSize: 11, color: T.ink3, fontFamily: T.mono, letterSpacing: '0.08em', fontWeight: 600, marginBottom: 14 }}>PARENT REACH · TODAY</div>
+          <div style={{ fontSize: 11, color: T.ink3, fontFamily: T.mono, letterSpacing: '0.08em', fontWeight: 600, marginBottom: 14 }}>PARENT REACH · {period.toUpperCase()}</div>
           {(window.PEAK && window.PEAK.live) ? (
             <div style={{ color: T.ink3, fontSize: 13, padding: '6px 0 2px', lineHeight: 1.5 }}>No messages sent yet. When you broadcast to guardians, delivery rate shows here.</div>
           ) : (
@@ -5175,14 +5177,15 @@ const V4 = (function () {
   }
 
   // ─── secondary KPI strip ──────────────────────────────────────────────────
-  function SecondaryKPIs() {
+  function SecondaryKPIs({ period = 'Today' }) {
     const _D = (typeof D !== 'undefined' && D) ? D : (window.PEAK || {});
     const _k = _D.kpis || {};
     const _fmt = _D.fmtUGXshort || (v => 'UGX ' + Number(v||0).toLocaleString());
+    const periodLabel = period === 'Today' ? 'today' : period === 'Week' ? 'this week' : 'this term';
     const items = [
-      { l: 'Absent today',  v: String(_k.absentToday || 0),  sub: (_k.students ? Math.round(100*(_k.absentToday||0)/_k.students)+'% of roll' : 'no roster'), tone: 'warn' },
+      { l: period === 'Today' ? 'Absent today' : period === 'Week' ? 'Absent this week' : 'Absent this term', v: String(_k.absentToday || 0), sub: (_k.students ? Math.round(100*(_k.absentToday||0)/_k.students)+'% of roll' : 'no roster'), tone: 'warn' },
       { l: 'Overdue accounts', v: String(_k.feesOutstandingStudents || 0), sub: _fmt(Math.max(0,(_k.feesTargetTerm||0)-(_k.feesCollectedTerm||0))) + ' due', tone: 'bad' },
-      { l: 'Fees collected', v: _fmt(_k.feesCollectedTerm || 0), sub: 'this term', tone: 'good' },
+      { l: 'Fees collected', v: _fmt(_k.feesCollectedTerm || 0), sub: periodLabel, tone: 'good' },
       { l: 'At-risk learners', v: String((_D.students || []).filter(s => s.flag === 'risk' || (s.attendanceWk != null && s.attendanceWk < 70)).length), sub: 'need follow-up', tone: 'bad' },
     ];
     return (
@@ -5579,19 +5582,23 @@ const V4 = (function () {
                   {((typeof D !== 'undefined' && D && D.kpis) || (window.PEAK && window.PEAK.kpis) || {}).presentToday || 0} of {((typeof D !== 'undefined' && D && D.kpis) || (window.PEAK && window.PEAK.kpis) || {}).students || 0} children on campus. Fees at {((typeof D !== 'undefined' && D && D.kpis) || (window.PEAK && window.PEAK.kpis) || {}).feesTargetTerm ? Math.round(100 * (((typeof D !== 'undefined' && D && D.kpis) || (window.PEAK && window.PEAK.kpis) || {}).feesCollectedTerm || 0) / (((typeof D !== 'undefined' && D && D.kpis) || (window.PEAK && window.PEAK.kpis) || {}).feesTargetTerm || 1)) : 0}%. {((typeof D !== 'undefined' && D && D.hasData) || (window.PEAK && window.PEAK.hasData)) ? 'Here is what needs your attention today.' : 'No roster imported yet — add students to bring this dashboard to life.'}
                 </div>
               </div>
-              <div style={{ display: 'flex', gap: 6, padding: 3, background: T.surface, border: '1px solid ' + T.border, borderRadius: 10 }}>
+              <div style={{ display: 'flex', gap: 4, padding: 4, background: T.surface2, border: '1px solid ' + T.borderStr, borderRadius: 11 }}>
                 {['Today','Week','Term 2'].map((p) => (
                   <button key={p} onClick={() => setPeriod(p)} style={{
-                    border: 'none', background: period === p ? T.red : 'transparent',
-                    color: period === p ? '#fff' : T.ink2, padding: '7px 14px', borderRadius: 7,
+                    border: 'none',
+                    background: period === p ? T.red : T.surface3,
+                    color: period === p ? '#fff' : T.ink,
+                    padding: '7px 16px', borderRadius: 8,
                     fontSize: 12.5, fontWeight: 600, cursor: 'pointer',
+                    transition: 'background 0.15s, color 0.15s',
+                    letterSpacing: '0.01em',
                   }}>{p}</button>
                 ))}
               </div>
             </div>
 
-            <HeroKPIs />
-            <SecondaryKPIs />
+            <HeroKPIs period={period} />
+            <SecondaryKPIs period={period} />
 
             <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 14, marginBottom: 14 }}>
               <AttendanceGrid />
@@ -5622,6 +5629,8 @@ window.V4 = V4;
 
   </script>
   <script type="text/babel" data-src="src/v4-today.jsx">
+import React from 'react';
+
 /* src/v4-today.jsx */
 /* global React, PEAK, V4 */
 // Peak Dark · Director's morning ritual — the screen Sarah opens at 07:00
@@ -5651,7 +5660,7 @@ const PD_Today = (function () {
         <div style={{
           width: 40, height: 40, borderRadius: 10, background: '#fff', display: 'grid', placeItems: 'center', marginBottom: 18,
         }}>
-          <img src="/prototypes/schools/peak-primary/assets/peak-logo.png" alt="" style={{ width: 34, height: 34, objectFit: 'contain' }} />
+          <img src={window.__BRAND_LOGO || "/prototypes/schools/peak-primary/assets/peak-logo.png"} alt="" style={{ width: 34, height: 34, objectFit: 'contain' }} />
         </div>
         {items.map(n => {
           const a = active === n.k;
@@ -5836,8 +5845,8 @@ const PD_Today = (function () {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
           <div style={{ fontSize: 14, fontWeight: 700, color: T.ink }}>{monthName}</div>
           <div style={{ display: 'flex', gap: 4 }}>
-            <button onClick={function () { setCur(new Date(y, m - 1, 1)); }} style={{ background: 'transparent', border: '1px solid ' + T.border, color: T.ink2, borderRadius: 7, width: 26, height: 26, cursor: 'pointer' }}>{'‹'}</button>
-            <button onClick={function () { setCur(new Date(y, m + 1, 1)); }} style={{ background: 'transparent', border: '1px solid ' + T.border, color: T.ink2, borderRadius: 7, width: 26, height: 26, cursor: 'pointer' }}>{'›'}</button>
+            <button onClick={function () { setCur(new Date(y, m - 1, 1)); }} style={{ background: T.surface2, border: '1px solid ' + T.borderStr, color: T.ink, borderRadius: 7, width: 28, height: 28, cursor: 'pointer', fontWeight: 700, fontSize: 15, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{'‹'}</button>
+            <button onClick={function () { setCur(new Date(y, m + 1, 1)); }} style={{ background: T.surface2, border: '1px solid ' + T.borderStr, color: T.ink, borderRadius: 7, width: 28, height: 28, cursor: 'pointer', fontWeight: 700, fontSize: 15, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{'›'}</button>
           </div>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 2, fontSize: 10.5, color: T.ink4, fontFamily: T.mono, marginBottom: 4, textAlign: 'center' }}>
@@ -6022,6 +6031,8 @@ window.PD_Today = PD_Today;
 
   </script>
   <script type="text/babel" data-src="src/v4-students.jsx">
+import React from 'react';
+
 /* src/v4-students.jsx */
 /* global React, PEAK, V4 */
 // Peak Dark · Students roster with detail drawer
@@ -6044,7 +6055,7 @@ const PD_Students = (function () {
         display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '14px 0', flexShrink: 0,
       }}>
         <div style={{ width: 40, height: 40, borderRadius: 10, background: '#fff', display: 'grid', placeItems: 'center', marginBottom: 18 }}>
-          <img src="/prototypes/schools/peak-primary/assets/peak-logo.png" alt="" style={{ width: 34, height: 34, objectFit: 'contain' }} />
+          <img src={window.__BRAND_LOGO || "/prototypes/schools/peak-primary/assets/peak-logo.png"} alt="" style={{ width: 34, height: 34, objectFit: 'contain' }} />
         </div>
         {items.map(n => {
           const a = active === n.k;
@@ -6410,7 +6421,7 @@ const PD_Students = (function () {
                 <Pill tone="brand">1 selected</Pill>
                 <div style={{ display: 'flex', gap: 6 }}>
                   <button style={{ background: 'transparent', border: '1px solid ' + T.border, color: T.ink2, padding: '6px 12px', borderRadius: 7, fontSize: 12, cursor: 'pointer' }}>Send WhatsApp</button>
-                  <button onClick={() => window.open(window.peakSchoolLink ? window.peakSchoolLink('enroll') : '/prototypes/schools/peak-primary/student-enrollment-form.html', '_blank')} style={{ background: 'rgba(0,252,143,0.12)', border: '1px solid rgba(0,252,143,0.25)', color: T.green, padding: '6px 12px', borderRadius: 7, fontSize: 12, cursor: 'pointer', fontWeight: 600 }}>Share Enrollment Form 🔗</button>
+                  <button onClick={() => window.open(window.peakSchoolLink ? window.peakSchoolLink('enroll') : './student-enrollment-form.html', '_blank')} style={{ background: 'rgba(0,252,143,0.12)', border: '1px solid rgba(0,252,143,0.25)', color: T.green, padding: '6px 12px', borderRadius: 7, fontSize: 12, cursor: 'pointer', fontWeight: 600 }}>Share Enrollment Form 🔗</button>
                   <button style={{ background: 'transparent', border: '1px solid ' + T.border, color: T.ink2, padding: '6px 12px', borderRadius: 7, fontSize: 12, cursor: 'pointer' }}>Generate report</button>
                   <button onClick={() => window.peakExportRoster && window.peakExportRoster()} style={{ background: 'transparent', border: '1px solid ' + T.border, color: T.ink2, padding: '6px 12px', borderRadius: 7, fontSize: 12, cursor: 'pointer' }}>Export CSV</button>
                 </div>
@@ -6432,6 +6443,7 @@ window.PD_Students = PD_Students;
 
   </script>
   <script type="text/babel" data-src="src/v4-profile.jsx">
+
 /* src/v4-profile.jsx */
 /* global React, PEAK, V4 */
 // Peak Dark · Student profile deep dive
@@ -6454,7 +6466,7 @@ const PD_Profile = (function () {
         display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '14px 0', flexShrink: 0,
       }}>
         <div style={{ width: 40, height: 40, borderRadius: 10, background: '#fff', display: 'grid', placeItems: 'center', marginBottom: 18 }}>
-          <img src="/prototypes/schools/peak-primary/assets/peak-logo.png" alt="" style={{ width: 34, height: 34, objectFit: 'contain' }} />
+          <img src={window.__BRAND_LOGO || "/prototypes/schools/peak-primary/assets/peak-logo.png"} alt="" style={{ width: 34, height: 34, objectFit: 'contain' }} />
         </div>
         {items.map(n => {
           const a = active === n.k;
@@ -6881,8 +6893,11 @@ const PD_Profile = (function () {
 
 window.PD_Profile = PD_Profile;
 
-  </script>
+  
+</script>
   <script type="text/babel" data-src="src/v4-fees.jsx">
+import React from 'react';
+
 /* src/v4-fees.jsx */
 /* global React, PEAK, V4 */
 // Peak Dark · Fees · reconciliation
@@ -6906,7 +6921,7 @@ const PD_Fees = (function () {
         display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '14px 0', flexShrink: 0,
       }}>
         <div style={{ width: 40, height: 40, borderRadius: 10, background: '#fff', display: 'grid', placeItems: 'center', marginBottom: 18 }}>
-          <img src="/prototypes/schools/peak-primary/assets/peak-logo.png" alt="" style={{ width: 34, height: 34, objectFit: 'contain' }} />
+          <img src={window.__BRAND_LOGO || "/prototypes/schools/peak-primary/assets/peak-logo.png"} alt="" style={{ width: 34, height: 34, objectFit: 'contain' }} />
         </div>
         {items.map(n => {
           const a = active === n.k;
@@ -7140,6 +7155,8 @@ window.PD_Fees = PD_Fees;
 
   </script>
   <script type="text/babel" data-src="src/v4-broadcast.jsx">
+import React from 'react';
+
 /* src/v4-broadcast.jsx */
 /* global React, PEAK, V4 */
 // Peak Dark · Broadcast composer
@@ -7321,7 +7338,7 @@ const PD_Broadcast = (function () {
         display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '14px 0', flexShrink: 0,
       }}>
         <div style={{ width: 40, height: 40, borderRadius: 10, background: '#fff', display: 'grid', placeItems: 'center', marginBottom: 18 }}>
-          <img src="/prototypes/schools/peak-primary/assets/peak-logo.png" alt="" style={{ width: 34, height: 34, objectFit: 'contain' }} />
+          <img src={window.__BRAND_LOGO || "/prototypes/schools/peak-primary/assets/peak-logo.png"} alt="" style={{ width: 34, height: 34, objectFit: 'contain' }} />
         </div>
         {items.map(n => {
           const a = active === n.k;
@@ -7655,6 +7672,8 @@ window.PD_Broadcast = PD_Broadcast;
 
   </script>
   <script type="text/babel" data-src="src/v4-mobile.jsx">
+import React from 'react';
+
 /* src/v4-mobile.jsx */
 /* global React, PEAK, V4 */
 // Peak Dark · mobile companions — parent + teacher, same brand language as V4 desktop
@@ -7704,7 +7723,7 @@ const PD_M = (function () {
           {/* header */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 22 }}>
             <div style={{ width: 38, height: 38, borderRadius: 10, background: '#fff', display: 'grid', placeItems: 'center', boxShadow: '0 0 0 1px ' + T.borderStr }}>
-              <img src="/prototypes/schools/peak-primary/assets/peak-logo.png" alt="" style={{ width: 32, height: 32, objectFit: 'contain' }} />
+              <img src={window.__BRAND_LOGO || "/prototypes/schools/peak-primary/assets/peak-logo.png"} alt="" style={{ width: 32, height: 32, objectFit: 'contain' }} />
             </div>
             <div style={{ lineHeight: 1.15, flex: 1 }}>
               <div style={{ fontSize: 13.5, fontWeight: 600 }}>{(typeof window!=='undefined'&&(window.__BRAND_NAME||window.__BRAND_FALLBACK))||'NEXT School OS'}</div>
@@ -14420,7 +14439,7 @@ window.PEAK_STAFF = (function () {
             display: 'grid', placeItems: 'center', flexShrink: 0,
             boxShadow: '0 0 0 1px ' + T.borderStr,
           }}>
-            <img src="/prototypes/schools/peak-primary/assets/peak-logo.png" alt="Peak" style={{ width: 32, height: 32, objectFit: 'contain' }} />
+            <img src={window.__BRAND_LOGO || "/prototypes/schools/peak-primary/assets/peak-logo.png"} alt="Peak" style={{ width: 32, height: 32, objectFit: 'contain' }} />
           </div>
           <div style={{ lineHeight: 1.15, minWidth: 0, flex: 1 }}>
             <div style={{ fontSize: 14, fontWeight: 600, color: T.ink, letterSpacing: '-0.01em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{(typeof window!=='undefined'&&(window.__BRAND_NAME||window.__BRAND_FALLBACK))||'NEXT School OS'}</div>

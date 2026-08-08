@@ -49,7 +49,7 @@ const PD_M = (function () {
           {/* header */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 22 }}>
             <div style={{ width: 38, height: 38, borderRadius: 10, background: '#fff', display: 'grid', placeItems: 'center', boxShadow: '0 0 0 1px ' + T.borderStr }}>
-              <img src="./assets/peak-logo.png" alt="" style={{ width: 32, height: 32, objectFit: 'contain' }} />
+              <img src={window.__BRAND_LOGO || "/prototypes/schools/peak-primary/assets/peak-logo.png"} alt="" style={{ width: 32, height: 32, objectFit: 'contain' }} />
             </div>
             <div style={{ lineHeight: 1.15, flex: 1 }}>
               <div style={{ fontSize: 13.5, fontWeight: 600 }}>{(typeof window!=='undefined'&&(window.__BRAND_NAME||window.__BRAND_FALLBACK))||'NEXT School OS'}</div>
