@@ -420,13 +420,29 @@ function submitOnboarding() {
     '<div class="done-wrap">' +
       '<div class="done-icon">✓</div>' +
       '<div class="step-title" style="margin-bottom:6px;">' + escHtml(cfg.businessName) + ' is ready to set up</div>' +
-      '<div class="step-sub" style="margin:0 auto 20px;">This is where onboarding hands off to provisioning — not built yet in this phase. For now, here\'s exactly what would be created:</div>' +
-      '<div class="next-steps"><strong>Next phase:</strong> this config gets used to (1) create your dedicated database, (2) deploy your copy of the app pre-filled with everything above, and (3) email your owner login. None of that runs yet — this screen is the checkpoint before building it.</div>' +
+      '<div class="step-sub" style="margin:0 auto 20px;">This is where onboarding hands off to provisioning. Send this config to whoever is setting up your account — they\'ll use it to create your dedicated database and deploy your own copy of the app.</div>' +
+      '<div class="next-steps"><strong>What happens next:</strong> this config gets used to (1) create a dedicated database just for ' + escHtml(cfg.businessName) + ', (2) stamp your own copy of the app with everything above — your name, colors, pipeline, and terminology, (3) create your owner login. See web/prototypes/business/provisioning/README.md for the full checklist.</div>' +
       '<div class="config-box" id="cfgBox"></div>' +
       '<button class="btn btn-ghost" onclick="goTo(0,{skipValidate:true})" style="margin-right:10px;">Start Over</button>' +
+      '<button class="btn btn-primary" id="cfgCopyBtn" onclick="copyConfigJson()">📋 Copy Config JSON</button>' +
     '</div>';
   document.getElementById('cfgBox').textContent = JSON.stringify(cfg, null, 2);
   try { localStorage.setItem('nextbiz.lastOnboarding', JSON.stringify(cfg)); } catch (e) {}
+}
+
+function copyConfigJson() {
+  var text = document.getElementById('cfgBox').textContent;
+  var btn = document.getElementById('cfgCopyBtn');
+  function done(ok) {
+    if (!btn) return;
+    btn.textContent = ok ? '✓ Copied' : '⚠ Copy failed — select the text above manually';
+    setTimeout(function () { btn.textContent = '📋 Copy Config JSON'; }, 2000);
+  }
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(function () { done(true); }, function () { done(false); });
+  } else {
+    done(false);
+  }
 }
 
 // ── shared nav row ──────────────────────────────────────────────────────

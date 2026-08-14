@@ -1163,7 +1163,7 @@ var db = {
       location:          p.location || '',
       budget:            p.budget || 0,
       deposit:           p.deposit || 0,
-      status:            p.status || 'Inquiry',
+      status:            p.status || STAGE_FIRST,
       team:              p.team || [],
       equipment:         p.equipment || [],
       bulk_equipment:    p.bulkEquipment || [],
@@ -2546,6 +2546,16 @@ var ORANGE = '#E86418';
 
 var MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 var STAGES = ['Inquiry','Quotation Sent','Booking Confirmed','Deposit Paid','Contract Signed','Shoot Planning','Shoot Day','Data Backup','Editing','Review & Revisions','Delivered'];
+// Position-based stage anchors — NEXT Business OS provisioning stamps STAGES with a
+// business's own pipeline; everything downstream keys off these positions instead of
+// literal stage-name strings ('Inquiry'/'Delivered'/etc) so any configured pipeline
+// (any length, any labels) keeps working. For Charis's own unmodified pipeline these
+// resolve to the exact same literal values as before.
+var STAGE_FIRST       = STAGES[0];
+var STAGE_SECOND      = STAGES[1];
+var STAGE_THIRD       = STAGES[2];
+var STAGE_LAST        = STAGES[STAGES.length - 1];
+var STAGE_SECOND_LAST = STAGES[STAGES.length - 2];
 var EVENT_TYPES_SHOOT = ['Kukyala (Pre-Visit)','Wedding','Introduction','Corporate Event','Studio Shoot','Graduation','Birthday','Conference','Music Video','Documentary','Product Shoot','Real Estate','Church / Ministry','Testimonial Video','Training Video','Anniversary','Funeral','Outdoor Photoshoot','Podcast','Livestream','Other'];
 var EVENT_TYPES_POST  = ['Album Design','Photo Edit','Video Edit','Color Grade','Podcast Edit','Post-Production Only'];
 var EVENT_TYPES_AGENCY = ['Retainer','Social Media','Brand Identity','Livestream','Podcast Production','Graphic Design'];
@@ -4370,7 +4380,7 @@ function _clientCareEngine() {
     try {
       var annivTasksCreated = 0;
       PROJECTS.forEach(function(p) {
-        if (p.status !== 'Delivered' || !p.date) return;
+        if (p.status !== STAGE_LAST || !p.date) return;
         var evtDate = new Date(p.date.slice(0,10) + 'T12:00:00');
         if (isNaN(evtDate.getTime())) return;
         // Check if today is the anniversary (same month + day, different year)
@@ -5432,7 +5442,7 @@ function _teamLoadAnalysis() {
 
   // Count project assignments
   (PROJECTS || []).forEach(function(p) {
-    if (p.status === 'Delivered' || p.status === 'Cancelled') return;
+    if (p.status === STAGE_LAST || p.status === 'Cancelled') return;
     (p.team || []).forEach(function(tm) {
       var name = tm.name || tm;
       if (!loadMap[name]) loadMap[name] = { total: 0, active: 0, overdue: 0, upcoming: 0, tasks: [], projects: [] };
@@ -5627,8 +5637,8 @@ function _operationalRiskScan() {
 
   // 5. Stale projects (active projects with no task activity in 7+ days)
   (PROJECTS || []).forEach(function(p) {
-    if (p.status === 'Delivered' || p.status === 'Cancelled' || p.status === 'Inquiry' || p.eventType === 'Retainer') return;
-    if (!p.status || p.status === 'Quotation Sent') return;
+    if (p.status === STAGE_LAST || p.status === 'Cancelled' || p.status === STAGE_FIRST || p.eventType === 'Retainer') return;
+    if (!p.status || p.status === STAGE_SECOND) return;
     var projTasks = (TASKS || []).filter(function(t) { return t.projectId === p.id || t.projectRef === p.ref; });
     var lastActivity = null;
     projTasks.forEach(function(t) {
@@ -5998,7 +6008,7 @@ async function saveProject(project) {
     }
 
     // ── AUTO: Post-delivery follow-up sequence — DISABLED (Hudson assigns via Telegram voice bot) ──
-    if (false && project.status === 'Delivered' && project.client) {
+    if (false && project.status === STAGE_LAST && project.client) {
       var _pdRef = project.ref;
       var _pdClient = project.client;
       var _pdFirst = _pdClient.split(' ')[0];
@@ -7642,13 +7652,13 @@ function renderPayPrompts(proj) {
 function countAllPayPrompts() {
   var total = 0;
   PROJECTS.forEach(function(p) {
-    if (p.status === 'Delivered' || p.status === 'Completed') return; // already done
+    if (p.status === STAGE_LAST || p.status === 'Completed') return; // already done
     var prompts = getPayPrompts(p);
     total += prompts.field.length + prompts.editing.length;
   });
   // Also include delivered projects that still have unpaid team
   PROJECTS.forEach(function(p) {
-    if (p.status !== 'Delivered' && p.status !== 'Completed') return;
+    if (p.status !== STAGE_LAST && p.status !== 'Completed') return;
     var prompts = getPayPrompts(p);
     total += prompts.field.length + prompts.editing.length;
   });
@@ -7676,7 +7686,7 @@ function renderTeamLeft() {
   });
 
   // Pre-compute workload for all members in one pass
-  var activeProjects = PROJECTS.filter(function(p){ return p.status !== 'Delivered'; });
+  var activeProjects = PROJECTS.filter(function(p){ return p.status !== STAGE_LAST; });
   var openTasks      = TASKS.filter(function(tk){ return tk.status !== 'Done' && tk.status !== 'Completed'; });
 
   // Total active jobs across all team (for capacity bar scaling)
@@ -7917,7 +7927,7 @@ function renderProfile(t) {
       var tNmLc  = t.name.toLowerCase();
       var tFstLc = t.name.split(' ')[0].toLowerCase();
       var myJobs = PROJECTS.filter(function(p){
-        return p.status !== 'Delivered' &&
+        return p.status !== STAGE_LAST &&
           (p.team||[]).some(function(m){ return m.name && m.name.toLowerCase() === tNmLc; });
       }).sort(function(a,b){ return (a.date||'9999') < (b.date||'9999') ? -1 : 1; });
       var myTasks = TASKS.filter(function(tk){
@@ -8346,7 +8356,7 @@ function renderProjectLeft() {
     return baseList.filter(function(p){
       if (f === 'active')    return _ACTIVE_STAGES.indexOf(p.status) >= 0;
       if (f === 'postprod')  return _POSTPROD_STAGES.indexOf(p.status) >= 0;
-      if (f === 'delivered') return p.status === 'Delivered';
+      if (f === 'delivered') return p.status === STAGE_LAST;
       return true;
     }).length;
   }
@@ -8376,7 +8386,7 @@ function renderProjectLeft() {
     }
     if (S.projFilter === 'active')    return _ACTIVE_STAGES.indexOf(p.status) >= 0;
     if (S.projFilter === 'postprod')  return _POSTPROD_STAGES.indexOf(p.status) >= 0;
-    if (S.projFilter === 'delivered') return p.status === 'Delivered';
+    if (S.projFilter === 'delivered') return p.status === STAGE_LAST;
     return true;
   });
 
@@ -8538,12 +8548,12 @@ function renderProjectLeft() {
     // Deadline/urgency badge
     var urgBadge = '';
     var _dl2 = p.deadline || (isPostProd(p.eventType) ? p.date : '');
-    if (_dl2 && p.status !== 'Delivered') {
+    if (_dl2 && p.status !== STAGE_LAST) {
       var _dlDays2 = Math.ceil((new Date(_dl2+'T00:00:00') - _today) / 86400000);
       if (_dlDays2 < 0)        urgBadge = '<span style="font-size:9px;font-weight:800;color:#ef4444;background:#ef444418;border:1px solid #ef444433;border-radius:4px;padding:1px 5px;">🔥 OVERDUE '+Math.abs(_dlDays2)+'d</span>';
       else if (_dlDays2 <= 3)  urgBadge = '<span style="font-size:9px;font-weight:800;color:#f59e0b;background:#f59e0b18;border:1px solid #f59e0b33;border-radius:4px;padding:1px 5px;">⏰ '+_dlDays2+'d left</span>';
       else if (_dlDays2 <= 7)  urgBadge = '<span style="font-size:9px;color:#f59e0b;background:#f59e0b11;border:1px solid #f59e0b22;border-radius:4px;padding:1px 5px;">📅 '+_dlDays2+'d</span>';
-    } else if (p.date && p.status !== 'Delivered') {
+    } else if (p.date && p.status !== STAGE_LAST) {
       var _sdDays2 = Math.ceil((new Date(p.date+'T00:00:00') - _today) / 86400000);
       if (_sdDays2 >= 0 && _sdDays2 <= 3)  urgBadge = '<span style="font-size:9px;font-weight:800;color:'+ORANGE+';background:'+ORANGE+'18;border:1px solid '+ORANGE+'33;border-radius:4px;padding:1px 5px;">📷 in '+_sdDays2+'d</span>';
       else if (_sdDays2 > 3 && _sdDays2 <= 7) urgBadge = '<span style="font-size:9px;color:var(--muted);border-radius:4px;padding:1px 5px;">📷 in '+_sdDays2+'d</span>';
@@ -8552,7 +8562,7 @@ function renderProjectLeft() {
     // Deposit indicator
     var _dep = p.deposit || 0;
     var _budget = p.budget || 0;
-    var _depDot = p.status === 'Delivered' ? '' :
+    var _depDot = p.status === STAGE_LAST ? '' :
       _dep > 0 ? '<span title="Deposit: '+ugx(_dep)+'" style="font-size:9px;color:#10b981;font-weight:700;">● dep</span>' :
       (_budget > 0 ? '<span title="No deposit paid" style="font-size:9px;color:#ef4444;font-weight:700;">○ dep</span>' : '');
 
@@ -9038,7 +9048,7 @@ function renderBookingForm(existingProj) {
         PROJECTS.forEach(function(other){
           if (!other || (p && other.id === p.id)) return;
           if (!other.date || other.date !== shootDate) return;
-          if (other.status === 'Delivered') return;
+          if (other.status === STAGE_LAST) return;
           (other.equipment||[]).forEach(function(oe){
             if (oe && oe.equipId && existingEquipIds.indexOf(oe.equipId) === -1) {
               // Item not in THIS project but booked same day elsewhere
@@ -9796,7 +9806,7 @@ function renderProjOverview(p) {
       return _cdHtml;
     })() : '')+
     // ── AI CREATIVE BRIEF CARD (Owner/PA/Director) ──────────────────
-    (_poCanManage && ['Inquiry','Quotation Sent','Booking Confirmed','Deposit Paid','Contract Signed','Preparation','Shoot Planning'].indexOf(p.status)>=0 ? (function(){
+    (_poCanManage && [STAGE_FIRST,STAGE_SECOND,STAGE_THIRD,'Deposit Paid','Contract Signed','Preparation','Shoot Planning'].indexOf(p.status)>=0 ? (function(){
       var _abCached = _aiCache['brief_'+p.id];
       if (_abCached && _abCached.result) {
         return '<div style="background:#0f172a;border:1px solid #8b5cf622;border-left:3px solid #8b5cf6;border-radius:10px;padding:14px 16px;margin-bottom:16px;">'+
@@ -10390,7 +10400,7 @@ function renderProjOverview(p) {
 
     // ── CLIENT FEEDBACK (only after delivery) ──
     (function(){
-      if (STAGES.indexOf(p.status) < STAGES.indexOf('Delivered')) return '';
+      if (STAGES.indexOf(p.status) < STAGES.indexOf(STAGE_LAST)) return '';
       var fb = p.clientFeedback || {};
       var rating = fb.rating || 0;
       var comment = fb.comment || '';
@@ -11466,7 +11476,7 @@ function renderProjPostProd(p) {
 
   // ── RETURN TO EDITOR (for Hudson/PA when reviewing) ──
   var returnHtml = '';
-  if (_ppCanManage && p.status === 'Review & Revisions' && _useTaskPipeline) {
+  if (_ppCanManage && p.status === STAGE_SECOND_LAST && _useTaskPipeline) {
     var _retEditors = {};
     wfTasks.forEach(function(t){ if (t.assignTo) _retEditors[t.assignTo] = true; });
     var _retEditorList = Object.keys(_retEditors);
@@ -11500,7 +11510,7 @@ function renderProjPostProd(p) {
     '</div>'+
     generalHtml+
     // SUBMIT FOR REVIEW
-    (pct === 100 && p.status !== 'Delivered' && p.status !== 'Review & Revisions' ?
+    (pct === 100 && p.status !== STAGE_LAST && p.status !== STAGE_SECOND_LAST ?
       '<div style="margin-top:16px;text-align:center;">'+
         '<button class="btn btn-primary" style="padding:14px 32px;font-size:14px;font-weight:800;background:linear-gradient(135deg,#10b981,#059669);border:none;border-radius:12px;letter-spacing:0.5px;" data-action="submitForReview" data-projid="'+p.id+'">🚀 Submit for Review</button>'+
         '<div style="font-size:11px;color:var(--muted);margin-top:8px;">All editing steps are done. Submit to Hudson for final review.</div>'+
@@ -11647,7 +11657,7 @@ function renderProjDeliverables(p) {
 
     // ── REVISION TRACKING ──
     (function(){
-      if (['Editing','Review & Revisions','Final Export','Delivered'].indexOf(p.status) < 0) return '';
+      if (['Editing',STAGE_SECOND_LAST,'Final Export',STAGE_LAST].indexOf(p.status) < 0) return '';
       var revs = (p.distributions && p.distributions.revisions) || [];
       var revCount = revs.length;
       var _revTypes = [
@@ -11722,7 +11732,7 @@ function renderProjDeliverables(p) {
 
     // ── POST-DELIVERY UPSELL PROMPTS ──
     (function(){
-      if (STAGES.indexOf(p.status) < STAGES.indexOf('Delivered')) return '';
+      if (STAGES.indexOf(p.status) < STAGES.indexOf(STAGE_LAST)) return '';
       if (p._upsellDismissed) return '';
       var et = (p.eventType||'').toLowerCase();
       var upsells = [];
@@ -12470,7 +12480,7 @@ function renderProjQuote(p) {
       '</div>'+
     '</div>'+
     // ── Quote → Invoice transition banner ──────────────────────────────────
-    (hasQuoteSaved && p.status !== 'Booking Confirmed' && p.status !== 'In Progress' && p.status !== 'Delivered' && p.status !== 'Completed' ?
+    (hasQuoteSaved && p.status !== STAGE_THIRD && p.status !== 'In Progress' && p.status !== STAGE_LAST && p.status !== 'Completed' ?
       '<div style="background:#10b98112;border:1px solid #10b98133;border-radius:12px;padding:14px 18px;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">'+
         '<div>'+
           '<div style="font-size:13px;font-weight:700;color:#10b981;">Did the client accept this quote?</div>'+
@@ -12478,7 +12488,7 @@ function renderProjQuote(p) {
         '</div>'+
         '<button data-action="confirmAndInvoice" data-id="'+p.id+'" style="background:#10b981;color:#fff;border:none;border-radius:8px;padding:9px 18px;font-size:12px;font-weight:800;cursor:pointer;white-space:nowrap;">✅ Confirm Booking + Issue Invoice</button>'+
       '</div>'
-    : hasQuoteSaved && (p.status === 'Booking Confirmed' || p.status === 'In Progress' || p.status === 'Delivered' || p.status === 'Completed') ?
+    : hasQuoteSaved && (p.status === STAGE_THIRD || p.status === 'In Progress' || p.status === STAGE_LAST || p.status === 'Completed') ?
       '<div style="background:#10b98112;border:1px solid #10b98133;border-radius:12px;padding:12px 16px;margin-bottom:20px;display:flex;align-items:center;gap:10px;">'+
         '<span style="font-size:18px;">✅</span>'+
         '<div style="font-size:12px;font-weight:700;color:#10b981;">Booking Confirmed — Invoice stage active</div>'+
@@ -14454,7 +14464,7 @@ function _getAnniversariesForMonth(month, year) {
   });
   // 2. Project anniversaries — delivered projects whose event date month matches
   PROJECTS.forEach(function(p) {
-    if (p.status !== 'Delivered' && p.status !== 'Complete') return;
+    if (p.status !== STAGE_LAST && p.status !== 'Complete') return;
     if (!p.eventDate) return;
     var parts = p.eventDate.split('-');
     if (parts.length < 3) return;
@@ -15386,7 +15396,7 @@ function getLifeJourneyTouchpoints(client, jobs) {
   function lastJobDate(p) { return p ? (p.date||p.created||'').slice(0,10) : ''; }
 
   // Find most recent delivered job
-  var deliveredJobs = jobs.filter(function(p){ return p.status === 'Delivered'; })
+  var deliveredJobs = jobs.filter(function(p){ return p.status === STAGE_LAST; })
     .sort(function(a,b){ return (b.date||'') > (a.date||'') ? 1 : -1; });
   var lastDelivered = deliveredJobs[0];
   var lastDeliveredDate = lastDelivered ? lastJobDate(lastDelivered) : '';
@@ -15678,7 +15688,7 @@ function renderClientProfileContent(c) {
   var totalBudget = jobs.reduce(function(acc,p){ return acc+(p.budget||0); }, 0);
   var totalPaid   = jobs.reduce(function(acc,p){ return acc+(p.deposit||0); }, 0);
   var outstanding = totalBudget - totalPaid;
-  var activeJobs  = jobs.filter(function(p){ return p.status !== 'Delivered'; }).length;
+  var activeJobs  = jobs.filter(function(p){ return p.status !== STAGE_LAST; }).length;
   var isVIP       = jobs.length >= 3 || (_cpFinance && totalBudget >= 5000000);
   var lastJob     = jobs.length > 0 ? jobs.reduce(function(a,b){ return (a.date||'') > (b.date||'') ? a : b; }) : null;
 
@@ -16077,7 +16087,7 @@ function renderClientProfileContent(c) {
     // RETAINER PITCH — for non-retainer clients with 2+ delivered jobs
     (function(){
       if (c.isRetainer) return '';
-      var deliveredCount = jobs.filter(function(p){ return p.status === 'Delivered'; }).length;
+      var deliveredCount = jobs.filter(function(p){ return p.status === STAGE_LAST; }).length;
       if (deliveredCount < 2) return '';
       var pitchStage = c.retainerPitchStage || 'Not Pitched';
       if (pitchStage === 'Converted' || pitchStage === 'Declined') return '';
@@ -17476,7 +17486,7 @@ function renderFinanceSummary() {
         // Expected income: confirmed projects with dates in this month that haven't fully paid
         var expectedIn = 0;
         PROJECTS.forEach(function(p){
-          if (!p.date || p.status === 'Delivered' || p.status === 'Inquiry') return;
+          if (!p.date || p.status === STAGE_LAST || p.status === STAGE_FIRST) return;
           if ((p.date||'').slice(0,7) !== mKey) return;
           var remaining = Math.max(0, (p.budget||0) - (p.deposit||0));
           expectedIn += remaining;
@@ -17504,7 +17514,7 @@ function renderFinanceSummary() {
         var projCosts = 0;
         PROJECTS.forEach(function(p){
           if (!p.date || (p.date||'').slice(0,7) !== mKey) return;
-          if (p.status === 'Delivered' || p.status === 'Inquiry') return;
+          if (p.status === STAGE_LAST || p.status === STAGE_FIRST) return;
           projCosts += (p.team||[]).filter(function(m){ return !m.paid; }).reduce(function(s,m){ return s+(m.pay||0); }, 0);
         });
         // Add expected retainer team costs
@@ -19136,7 +19146,7 @@ function renderEquipCheckoutForm(e) {
     TEAM.map(function(t){ return '<option>'+t.name+'</option>'; }).join('')+
     '<option value="__external__">-- External / someone not on team --</option>';
   var projOpts = '<option value="">-- No project (standalone borrow) --</option>'+
-    PROJECTS.filter(function(p){ return p.status !== 'Delivered'; })
+    PROJECTS.filter(function(p){ return p.status !== STAGE_LAST; })
             .map(function(p){ return '<option value="'+p.ref+'">'+p.ref+' · '+p.client+'</option>'; }).join('');
   return '<div style="padding:28px;max-width:580px;">'+
     '<div style="margin-bottom:20px;">'+
@@ -19300,7 +19310,7 @@ function renderMobileEquipQuickCheckout(e) {
     TEAM.map(function(t){ return '<option>'+escHtml(t.name)+'</option>'; }).join('')+
     '<option value="__external__">Someone not on team...</option>';
   var projOpts = '<option value="">No project (standalone borrow)</option>'+
-    PROJECTS.filter(function(p){ return p.status !== 'Delivered'; })
+    PROJECTS.filter(function(p){ return p.status !== STAGE_LAST; })
             .map(function(p){ return '<option value="'+p.ref+'">'+p.ref+' · '+escHtml(p.client)+'</option>'; }).join('');
   return '<div style="padding:0;height:100%;display:flex;flex-direction:column;overflow:hidden;">'+
     '<div style="padding:14px 16px;background:var(--card);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;flex-shrink:0;">'+
@@ -20062,8 +20072,8 @@ function renderWorkflowLeft() {
   // Classify: active (Editing, Data Backup, Final Export), review, completed (Delivered)
   var _wfActive = [], _wfReview = [], _wfCompleted = [];
   allEditProjs.forEach(function(p) {
-    if (p.status === 'Delivered') _wfCompleted.push(p);
-    else if (p.status === 'Review & Revisions') _wfReview.push(p);
+    if (p.status === STAGE_LAST) _wfCompleted.push(p);
+    else if (p.status === STAGE_SECOND_LAST) _wfReview.push(p);
     else _wfActive.push(p);
   });
 
@@ -20091,7 +20101,7 @@ function renderWorkflowLeft() {
       var _reDl = p.deadline || '';
       var _reDays = _reDl ? Math.ceil((new Date(_reDl+'T23:59:59') - new Date()) / 86400000) : null;
       var _reUrgBadge = '';
-      if (_reDays !== null && p.status !== 'Delivered') {
+      if (_reDays !== null && p.status !== STAGE_LAST) {
         if (_reDays < 0) _reUrgBadge = '<div style="font-size:9px;font-weight:800;color:#ef4444;background:#ef444418;padding:1px 6px;border-radius:4px;">🔥 OVERDUE</div>';
         else if (_reDays <= 3) _reUrgBadge = '<div style="font-size:9px;font-weight:800;color:#f59e0b;background:#f59e0b18;padding:1px 6px;border-radius:4px;">⏰ '+_reDays+'d</div>';
       }
@@ -20130,7 +20140,7 @@ function renderWorkflowLeft() {
     var _wfDl = p.deadline || '';
     var _wfDays = _wfDl ? Math.ceil((new Date(_wfDl+'T23:59:59') - new Date()) / 86400000) : null;
     var urgBadge = '';
-    if (_wfDays !== null && p.status !== 'Delivered') {
+    if (_wfDays !== null && p.status !== STAGE_LAST) {
       if (_wfDays < 0) urgBadge = '<div style="font-size:9px;font-weight:800;color:#ef4444;background:#ef444418;padding:1px 6px;border-radius:4px;">🔥 OVERDUE '+Math.abs(_wfDays)+'d</div>';
       else if (_wfDays <= 3) urgBadge = '<div style="font-size:9px;font-weight:800;color:#f59e0b;background:#f59e0b18;padding:1px 6px;border-radius:4px;">⏰ '+_wfDays+'d left</div>';
       else if (_wfDays <= 7) urgBadge = '<div style="font-size:9px;font-weight:700;color:#3b82f6;background:#3b82f618;padding:1px 6px;border-radius:4px;">📅 '+_wfDays+'d</div>';
@@ -20139,7 +20149,7 @@ function renderWorkflowLeft() {
     // Left border urgency color
     var _lbCol = _wfDays !== null && _wfDays < 0 ? '#ef4444' : _wfDays !== null && _wfDays <= 3 ? '#f59e0b' : 'transparent';
 
-    return '<div class="proj-row'+cls+'" data-action="selWorkflowProj" data-id="'+p.id+'" style="border-left:3px solid '+_lbCol+';'+(p.status==='Review & Revisions'?'border-right:3px solid #8b5cf6;':'')+'">'+
+    return '<div class="proj-row'+cls+'" data-action="selWorkflowProj" data-id="'+p.id+'" style="border-left:3px solid '+_lbCol+';'+(p.status===STAGE_SECOND_LAST?'border-right:3px solid #8b5cf6;':'')+'">'+
       '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">'+
         '<div style="font-weight:600;font-size:13px;color:#f1f5f9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:140px;">'+p.client+'</div>'+
         '<div style="display:flex;gap:4px;align-items:center;">'+
@@ -20529,7 +20539,7 @@ function _calStatusColor(p) {
 function _calTeamOnDate(dateStr) {
   var names = {};
   PROJECTS.forEach(function(p) {
-    var active = p.status !== 'Delivered' && p.status !== 'Inquiry' && p.status !== 'Quotation Sent';
+    var active = p.status !== STAGE_LAST && p.status !== STAGE_FIRST && p.status !== STAGE_SECOND;
     if (active && p.date && p.date.slice(0,10) === dateStr) {
       (p.team||[]).forEach(function(t) { names[t.name] = true; });
     }
@@ -20929,7 +20939,7 @@ function computeSmartAlerts() {
   var now = new Date();
 
   // ── Project-level alerts ──
-  PROJECTS.filter(function(p){ return p.status !== 'Delivered'; }).forEach(function(proj) {
+  PROJECTS.filter(function(p){ return p.status !== STAGE_LAST; }).forEach(function(proj) {
     var team = proj.team || [];
     var daysToShoot = proj.date ? Math.ceil((new Date(proj.date) - now) / (1000*60*60*24)) : null;
 
@@ -21087,7 +21097,7 @@ function renderDashboardLeft() {
     // Editing queue
     (function(){
       var editing = PROJECTS.filter(function(p){
-        return ['Editing','Review & Revisions'].indexOf(p.status)>=0;
+        return ['Editing',STAGE_SECOND_LAST].indexOf(p.status)>=0;
       });
       if (!editing.length) return '';
       return '<div style="padding:14px 12px;border-bottom:1px solid var(--border);">'+
@@ -21607,7 +21617,7 @@ function getSmartAlerts() {
   // ── Overdue projects (shoot date passed, not Delivered) — Director+ only ────
   if (_saIsDirector) {
     PROJECTS.forEach(function(p) {
-      if (p.status === 'Delivered' || !p.date) return;
+      if (p.status === STAGE_LAST || !p.date) return;
       var shoot = new Date(p.date); shoot.setHours(0,0,0,0);
       if (shoot < today) {
         var d = Math.floor((today - shoot) / 86400000);
@@ -22381,7 +22391,7 @@ function renderReportQC() {
            (p.createdAt && p.createdAt.substring(0,7) === prefix) ||
            (p.distributions && p.distributions.deliveredAt && p.distributions.deliveredAt.substring(0,7) === prefix);
   });
-  if (active.length === 0) active = PROJECTS.filter(function(p){ return p.status !== 'Inquiry'; }).slice(0, 20);
+  if (active.length === 0) active = PROJECTS.filter(function(p){ return p.status !== STAGE_FIRST; }).slice(0, 20);
 
   // Aggregate QC stats
   var totalChecks = 0, totalPassed = 0, totalSendBacks = 0, totalSkips = 0;
@@ -23436,7 +23446,7 @@ function _renderOwnerDashRightInner() {
   var today = new Date();
   var mStart = new Date(today.getFullYear(), today.getMonth(), 1);
 
-  var activeProjs   = PROJECTS.filter(function(p){ return p.status !== 'Delivered'; });
+  var activeProjs   = PROJECTS.filter(function(p){ return p.status !== STAGE_LAST; });
   var upcomingProjs = PROJECTS.filter(function(p) {
     if (!p.date) return false;
     var diff = Math.ceil((new Date(p.date)-today)/(1000*60*60*24));
@@ -23480,7 +23490,7 @@ function _renderOwnerDashRightInner() {
     '<div style="flex:1;min-width:120px;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px 18px;">'+
       '<div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Clients</div>'+
       '<div style="font-size:28px;font-weight:900;color:#a78bfa;">'+CLIENTS.length+'</div>'+
-      '<div style="font-size:11px;color:var(--dim);margin-top:3px;">'+PROJECTS.filter(function(p){ return p.status==='Delivered'; }).length+' delivered</div>'+
+      '<div style="font-size:11px;color:var(--dim);margin-top:3px;">'+PROJECTS.filter(function(p){ return p.status===STAGE_LAST; }).length+' delivered</div>'+
     '</div>'+
   '</div>';
 
@@ -23757,7 +23767,7 @@ function _renderOwnerDashRightInner() {
     var todayISO = todayStr();
 
     // ── Chip data ──
-    var todayShoots = PROJECTS.filter(function(p){ return p.date === todayISO && p.status !== 'Delivered'; });
+    var todayShoots = PROJECTS.filter(function(p){ return p.date === todayISO && p.status !== STAGE_LAST; });
     var overdueTasks = (TASKS||[]).filter(function(t){
       return t.status !== 'Done' && t.dueDate && t.dueDate < todayISO;
     });
@@ -24044,7 +24054,7 @@ function _renderOwnerDashRightInner() {
 
     // 3. Outstanding Reviews — delivered projects without feedback
     var noReview = PROJECTS.filter(function(p){
-      return p.status === 'Delivered' && (!p.clientFeedback || !p.clientFeedback.rating);
+      return p.status === STAGE_LAST && (!p.clientFeedback || !p.clientFeedback.rating);
     });
 
     // 4. Overdue Post-Delivery Tasks
@@ -24303,7 +24313,7 @@ function _renderOwnerDashRightInner() {
       return (p.intakeStatus === 'complete') && p.intakeData && Object.keys(p.intakeData).length > 0;
     });
     var waiting = PROJECTS.filter(function(p) {
-      return p.intakeToken && (!p.intakeStatus || p.intakeStatus === 'pending') && p.status !== 'Delivered';
+      return p.intakeToken && (!p.intakeStatus || p.intakeStatus === 'pending') && p.status !== STAGE_LAST;
     });
     if (submitted.length === 0 && waiting.length === 0) return '';
 
@@ -25000,12 +25010,12 @@ function renderStaffDashLeft() {
   var MON_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][now.getMonth()];
   /* ── stats ── */
   var myProjs = myName ? PROJECTS.filter(function(p){
-    return p.status !== 'Delivered' && (p.team||[]).some(function(x){
+    return p.status !== STAGE_LAST && (p.team||[]).some(function(x){
       return x && typeof x === 'object'
         ? (x.name && x.name.toLowerCase() === myName.toLowerCase())
         : (x === myId || x === String(myId));
     });
-  }) : PROJECTS.filter(function(p){ return p.status!=='Delivered'; });
+  }) : PROJECTS.filter(function(p){ return p.status!==STAGE_LAST; });
   var _sdMyUid = S.currentUser ? S.currentUser.id : null;
   var _sdMyNm  = myName ? myName.toLowerCase() : '';
   var openTasks = (_sdMyUid || _sdMyNm) ? TASKS.filter(function(t){
@@ -25553,13 +25563,13 @@ function _renderStaffDashRightInner() {
 
   /* ── base data ── */
   var myProjs = myName ? PROJECTS.filter(function(p){
-    return p.status !== 'Delivered' && (p.team||[]).some(function(x){
+    return p.status !== STAGE_LAST && (p.team||[]).some(function(x){
       // team entries are {name, role, pay} objects
       return x && typeof x === 'object'
         ? (x.name && x.name.toLowerCase() === myName.toLowerCase())
         : (x === myId || x === String(myId));
     });
-  }) : PROJECTS.filter(function(p){ return p.status!=='Delivered'; });
+  }) : PROJECTS.filter(function(p){ return p.status!==STAGE_LAST; });
 
   var myProjIds = myProjs.map(function(p){ return p.id; });
 
@@ -25578,7 +25588,7 @@ function _renderStaffDashRightInner() {
 
   /* Editing workflow — only show projects where I have a post-production role */
   var editProjs = myProjs.filter(function(p){
-    if (!workflowPct(p) && ['Editing','Review & Revisions'].indexOf(p.status) < 0) return false;
+    if (!workflowPct(p) && ['Editing',STAGE_SECOND_LAST].indexOf(p.status) < 0) return false;
     // Check if I have ANY post-production role on this project
     var ppRoles = ['Photo Editor','Video Editor','Trailer Editor','Album Designer','Graphic Designer','Drone Pilot','Social Media','Music Video Editor','Podcast Producer','Livestream Operator','Delivery'];
     return (p.team||[]).some(function(x){
@@ -26037,7 +26047,7 @@ function _renderStaffDashRightInner() {
     // Equipment role sees ALL shoots; other roles see only their assigned ones
     var isEquipRole = _normaliseRole(S.currentRole) === 'Equipment';
     var _gearShoots = PROJECTS.filter(function(p) {
-      if (!p.date || p.status === 'Delivered') return false;
+      if (!p.date || p.status === STAGE_LAST) return false;
       var diff = Math.ceil((new Date(p.date) - today) / (1000*60*60*24));
       // Show upcoming shoots (next 7d) AND recent shoots (past 3d, for returns)
       if (diff < -3 || diff > 7) return false;
@@ -26344,7 +26354,7 @@ function _renderStaffDashRightInner() {
     var tmrw = new Date(today); tmrw.setDate(tmrw.getDate()+1);
     var tmrwStr = tmrw.getFullYear()+'-'+String(tmrw.getMonth()+1).padStart(2,'0')+'-'+String(tmrw.getDate()).padStart(2,'0');
     var tmrwShoots = myProjs.filter(function(p){
-      return p.date === tmrwStr && p.status !== 'Delivered';
+      return p.date === tmrwStr && p.status !== STAGE_LAST;
     });
 
     // Build compact status badges (only what matters)
@@ -26522,8 +26532,8 @@ function _renderStaffDashRightInner() {
   // Classify: active / upcoming / done-for-me
   var activeJobs = [], upcomingJobs = [], activeJobRefs = {};
   activeSorted.forEach(function(p){
-    if (['Inquiry','Quotation Sent'].indexOf(p.status)>=0) return;  // Not team's concern
-    if (p.status === 'Delivered') return;
+    if ([STAGE_FIRST,STAGE_SECOND].indexOf(p.status)>=0) return;  // Not team's concern
+    if (p.status === STAGE_LAST) return;
     var myRoles = _myRolesOnProj(p);
     var isField = _hasFieldRole(myRoles);
     var isEditor = _hasEditRole(myRoles);
@@ -26744,7 +26754,7 @@ function _renderStaffDashRightInner() {
       var dlUrgent=daysToDL!==null&&daysToDL>=0&&daysToDL<=3;
       var dlSoon=daysToDL!==null&&daysToDL>=4&&daysToDL<=7;
       // Use deadline urgency for editing-stage projects, shoot date for field-stage
-      var isEditStage=['Editing','Review & Revisions','Final Export'].indexOf(p.status)>=0;
+      var isEditStage=['Editing',STAGE_SECOND_LAST,'Final Export'].indexOf(p.status)>=0;
       var urgCol, dateLabel, isToday, isTomorrow;
       if (isEditStage && daysToDL !== null) {
         // Editing projects: show deadline, not shoot date
@@ -27600,7 +27610,7 @@ function renderTasksPage() {
     var addTaskBtn = '';
     if (S._showAddTaskForm) {
       var _atTeam = (TEAM||[]).map(function(m){ return m.name; }).sort();
-      var _atProjects = PROJECTS.filter(function(p){ return p.status !== 'Delivered' && p.status !== 'Inquiry'; }).sort(function(a,b){ return (a.ref||'').localeCompare(b.ref||''); });
+      var _atProjects = PROJECTS.filter(function(p){ return p.status !== STAGE_LAST && p.status !== STAGE_FIRST; }).sort(function(a,b){ return (a.ref||'').localeCompare(b.ref||''); });
 
       // Build the library dropdown with optgroups
       var _libOptions = '<option value="">— Pick from task library —</option>';
@@ -27810,7 +27820,7 @@ function renderCheckoutPrompt() {
 // Quick "record a payment" sheet — reachable in one tap from the phone dashboard
 function renderQuickPayModal() {
   if (!S.showQuickPay) return '';
-  var jobs = (PROJECTS||[]).filter(function(p){ return p.status !== 'Delivered' && p.status !== 'Lost' && !p.lost; });
+  var jobs = (PROJECTS||[]).filter(function(p){ return p.status !== STAGE_LAST && p.status !== 'Lost' && !p.lost; });
   jobs.sort(function(a,b){ return Math.max(0,(b.budget||0)-(b.deposit||0)) - Math.max(0,(a.budget||0)-(a.deposit||0)); });
   var opts = jobs.map(function(p){
     var bal = Math.max(0,(p.budget||0)-(p.deposit||0));
@@ -29389,7 +29399,7 @@ function renderRetainerTrackerView() {
     var cProjs = PROJECTS.filter(function(p){
       return (p.clientId === c.id) || (p.clientName && p.clientName.toLowerCase() === (c.name||'').toLowerCase());
     });
-    var delivered = cProjs.filter(function(p){ return p.status === 'Delivered'; });
+    var delivered = cProjs.filter(function(p){ return p.status === STAGE_LAST; });
     var totalSpend = cProjs.reduce(function(sum, p){ return sum + (parseFloat(p.price) || 0); }, 0);
     var avgJobVal  = delivered.length > 0 ? Math.round(totalSpend / delivered.length) : 0;
     var lastDate   = cProjs.length > 0
@@ -30543,8 +30553,8 @@ function renderKanban() {
   // ── KPIs ──
   var today = new Date(); today.setHours(0,0,0,0);
   var thisMonth = today.getMonth(), thisYear = today.getFullYear();
-  var active    = PROJECTS.filter(function(p){ return p.status !== 'Delivered'; });
-  var delivered = PROJECTS.filter(function(p){ return p.status === 'Delivered'; });
+  var active    = PROJECTS.filter(function(p){ return p.status !== STAGE_LAST; });
+  var delivered = PROJECTS.filter(function(p){ return p.status === STAGE_LAST; });
   var pipelineValue = active.reduce(function(s,p){ return s+(p.budget||0); }, 0);
 
   var wonThisMonth  = delivered.filter(function(p){
@@ -30554,12 +30564,12 @@ function renderKanban() {
   var wonValue  = wonThisMonth.reduce(function(s,p){ return s+(p.budget||0); }, 0);
   var total     = PROJECTS.length;
   var convRate  = total ? Math.round(delivered.length/total*100) : 0;
-  var inquiries = PROJECTS.filter(function(p){ return p.status==='Inquiry'||p.status==='Quotation Sent'; }).length;
+  var inquiries = PROJECTS.filter(function(p){ return p.status===STAGE_FIRST||p.status===STAGE_SECOND; }).length;
   var avgDeal   = total ? Math.round(PROJECTS.reduce(function(s,p){ return s+(p.budget||0); },0)/total) : 0;
 
   // Upcoming shoots (next 14 days)
   var upcoming = PROJECTS.filter(function(p){
-    if (!p.date || p.status==='Delivered') return false;
+    if (!p.date || p.status===STAGE_LAST) return false;
     var d = new Date(p.date); d.setHours(0,0,0,0);
     var diff = Math.ceil((d - today)/86400000);
     return diff >= 0 && diff <= 14;
@@ -30599,7 +30609,7 @@ function renderKanban() {
   // ── STALE LEADS FILTER BANNER ──
   var _kbNow2 = new Date(); _kbNow2.setHours(0,0,0,0);
   var _staleIds = PROJECTS.filter(function(p){
-    if (p.status !== 'Inquiry' && p.status !== 'Quotation Sent') return false;
+    if (p.status !== STAGE_FIRST && p.status !== STAGE_SECOND) return false;
     if (!p.created) return false;
     return Math.floor((_kbNow2.getTime() - new Date(p.created).getTime()) / 86400000) >= 5;
   }).map(function(p){ return p.id; });
@@ -30657,7 +30667,7 @@ function renderKanban() {
 
       // ── Quotation follow-up nudge ──────────────────────────────────────────
       var followUpNudge = '';
-      if (p.status === 'Quotation Sent' && p.created) {
+      if (p.status === STAGE_SECOND && p.created) {
         var qDays = Math.floor((today.getTime() - new Date(p.created).getTime()) / 86400000);
         if (qDays >= 3) {
           var nudgeColor = qDays >= 7 ? '#ef4444' : '#f59e0b';
@@ -30873,7 +30883,7 @@ function renderWeeklyReviewModal() {
 
   // ── 4. Delivered projects last 7 days with no content tasks yet ──
   var recentDelivered = PROJECTS.filter(function(p){
-    if (p.status !== 'Delivered') return false;
+    if (p.status !== STAGE_LAST) return false;
     var hasTasks = TASKS.some(function(t){
       return t.projRef === p.ref && ((t.label||'').toLowerCase().indexOf('reel') >= 0 || (t.label||'').toLowerCase().indexOf('photo') >= 0);
     });
@@ -31315,7 +31325,7 @@ function render() {
     rightPanel = renderTeamRight();
 
   } else if (S.page === 'projects') {
-    var actCount = PROJECTS.filter(function(p){ return p.status !== 'Delivered'; }).length;
+    var actCount = PROJECTS.filter(function(p){ return p.status !== STAGE_LAST; }).length;
     topbar = '<div class="topbar" style="display:flex;align-items:center;justify-content:space-between;">'+
       '<div>'+
         '<div style="font-size:19px;font-weight:800;color:#f1f5f9;">Projects</div>'+
@@ -31421,7 +31431,7 @@ function render() {
     rightPanel = renderAttendanceRight();
 
   } else if (S.page === 'kanban') {
-    var kbActive = PROJECTS.filter(function(p){ return p.status !== 'Delivered'; }).length;
+    var kbActive = PROJECTS.filter(function(p){ return p.status !== STAGE_LAST; }).length;
     topbar = '<div class="topbar" style="display:flex;align-items:center;justify-content:space-between;">'+
       '<div>'+
         '<div style="font-size:19px;font-weight:800;color:#f1f5f9;">📊 Pipeline</div>'+
@@ -31431,7 +31441,7 @@ function render() {
     '</div>';
     var _kbNow = new Date(); _kbNow.setHours(0,0,0,0);
     var _staleLeads = PROJECTS.filter(function(p){
-      if (p.status !== 'Inquiry' && p.status !== 'Quotation Sent') return false;
+      if (p.status !== STAGE_FIRST && p.status !== STAGE_SECOND) return false;
       if (!p.created) return false;
       return Math.floor((_kbNow.getTime() - new Date(p.created).getTime()) / 86400000) >= 5;
     });
@@ -31464,7 +31474,7 @@ function render() {
     rightPanel = renderKanban();
 
   } else if (S.page === 'workflow') {
-    var wfProjs = PROJECTS.filter(function(p){ return ['Editing','Review & Revisions','Data Backup'].indexOf(p.status)>=0; });
+    var wfProjs = PROJECTS.filter(function(p){ return ['Editing',STAGE_SECOND_LAST,'Data Backup'].indexOf(p.status)>=0; });
     var openTasks = TASKS.filter(function(t){ return t.status!=='Done'; }).length;
     topbar = '<div class="topbar" style="display:flex;align-items:center;justify-content:space-between;">'+
       '<div>'+
@@ -31507,10 +31517,10 @@ function render() {
       var MONTHS_R = ['January','February','March','April','May','June','July','August','September','October','November','December'];
       var shoots = PROJECTS.filter(function(p){ return p.date && p.date.slice(0,7)===prefix; })
         .sort(function(a2,b2){ return a2.date.localeCompare(b2.date); });
-      var deadlinesThisMonth = PROJECTS.filter(function(p){ return p.deadline && p.deadline.slice(0,7)===prefix && p.status!=='Delivered'; });
+      var deadlinesThisMonth = PROJECTS.filter(function(p){ return p.deadline && p.deadline.slice(0,7)===prefix && p.status!==STAGE_LAST; });
       var overdue = deadlinesThisMonth.filter(function(p){ var now2=new Date(); return new Date(p.deadline) < now2; });
       var totalRev = shoots.reduce(function(s,p){ return s + (p.budget||0); }, 0);
-      var delivered = shoots.filter(function(p){ return p.status==='Delivered'; }).length;
+      var delivered = shoots.filter(function(p){ return p.status===STAGE_LAST; }).length;
       var holsMonth = getUgandaHolidays(S.calYear).filter(function(h2){ return h2.dateStr.slice(0,7)===prefix; });
       var holdsMonth = (typeof DATE_HOLDS !== 'undefined' ? DATE_HOLDS : []).filter(function(h2){ return h2.date && h2.date.slice(0,7)===prefix && !h2.converted_project_id; });
 
@@ -31739,7 +31749,7 @@ function render() {
 
   } else if (S.page === 'dashboard') {
     if (isFullAccessRole(S.currentRole)) {
-      var dActive = PROJECTS.filter(function(p){ return p.status!=='Delivered'; }).length;
+      var dActive = PROJECTS.filter(function(p){ return p.status!==STAGE_LAST; }).length;
       var dFree   = TEAM.filter(function(t){ return t.availability==='Available'; }).length;
       var dOut    = EQUIPMENT.filter(function(e){ return e.status==='On Shoot'; }).length;
       topbar = '<div class="topbar" style="display:flex;align-items:center;justify-content:space-between;">'+
@@ -32440,7 +32450,7 @@ function attachEvents() {
       var MONTHS_P = ['January','February','March','April','May','June','July','August','September','October','November','December'];
       var prefix = S.calYear+'-'+String(S.calMonth+1).padStart(2,'0');
       var shoots = PROJECTS.filter(function(p){ return p.date && p.date.slice(0,7)===prefix; }).sort(function(a2,b2){ return a2.date.localeCompare(b2.date); });
-      var deadlines = PROJECTS.filter(function(p){ return p.deadline && p.deadline.slice(0,7)===prefix && p.status!=='Delivered'; }).sort(function(a2,b2){ return a2.deadline.localeCompare(b2.deadline); });
+      var deadlines = PROJECTS.filter(function(p){ return p.deadline && p.deadline.slice(0,7)===prefix && p.status!==STAGE_LAST; }).sort(function(a2,b2){ return a2.deadline.localeCompare(b2.deadline); });
       var holsThisMonth = getUgandaHolidays(S.calYear).filter(function(h2){ return h2.date.slice(0,7)===prefix; });
       var printHtml = '<!DOCTYPE html><html><head><title>Charis Schedule — '+MONTHS_P[S.calMonth]+' '+S.calYear+'</title>'+
         '<style>body{font-family:Montserrat,Arial,sans-serif;padding:24px;color:#1a1a1a;} h1{font-size:20px;margin-bottom:4px;} .sub{color:#666;font-size:13px;margin-bottom:20px;} table{width:100%;border-collapse:collapse;margin-bottom:16px;} th{background:#f16623;color:#fff;padding:8px 10px;text-align:left;font-size:12px;} td{padding:8px 10px;border-bottom:1px solid #eee;font-size:12px;} .section{font-size:14px;font-weight:700;margin:16px 0 6px;color:#f16623;} @media print{body{padding:12px;}} @page{margin:10mm;}</style></head><body>'+
@@ -32861,7 +32871,7 @@ function attachEvents() {
     if (a === 'confirmBooking') {
       var cbIdx = PROJECTS.findIndex(function(x){ return x.id === parseInt(el.dataset.id); });
       if (cbIdx < 0) return;
-      PROJECTS[cbIdx].status = 'Booking Confirmed';
+      PROJECTS[cbIdx].status = STAGE_THIRD;
       db.saveProject(PROJECTS[cbIdx]).catch(function(e){ console.warn('confirmBooking:', e); });
       toast('✓ '+PROJECTS[cbIdx].client+' marked as Confirmed!', 'success');
       render(); return;
@@ -32874,7 +32884,7 @@ function attachEvents() {
       if (caiIdx < 0) return;
       var caiP = PROJECTS[caiIdx];
       // Mark confirmed
-      PROJECTS[caiIdx].status = 'Booking Confirmed';
+      PROJECTS[caiIdx].status = STAGE_THIRD;
       db.saveProject(PROJECTS[caiIdx]).catch(function(e){ console.warn('confirmAndInvoice save:', e); });
       // Pre-fill invoice from saved quote items
       var caiQ    = caiP.quote || {};
@@ -33924,7 +33934,7 @@ function attachEvents() {
         if (!PROJECTS[delIdx].distributions.deliveredAt) PROJECTS[delIdx].distributions.deliveredAt = _delDate || todayStr();
         PROJECTS[delIdx].distributions.deliveryLink = _delLink;
         // Auto-create follow-up task if status is Delivered/Completed and not yet created
-        if (PROJECTS[delIdx].status === 'Delivered' || PROJECTS[delIdx].status === 'Completed') {
+        if (PROJECTS[delIdx].status === STAGE_LAST || PROJECTS[delIdx].status === 'Completed') {
           if (!PROJECTS[delIdx].distributions._followUpCreated) {
             _autoFollowUpTask(PROJECTS[delIdx]);
             PROJECTS[delIdx].distributions._followUpCreated = true;
@@ -42079,7 +42089,7 @@ function attachEvents() {
       var kit = EQUIP_KITS.find(function(x){ return x.id===kitId; });
       if (!kit) return;
       var projOpts = '<option value="">-- Select a project --</option>' +
-        PROJECTS.filter(function(p){ return p.status !== 'Delivered'; }).map(function(p) {
+        PROJECTS.filter(function(p){ return p.status !== STAGE_LAST; }).map(function(p) {
           return '<option value="'+p.id+'">'+p.ref+' · '+p.client+'</option>';
         }).join('');
       S.confirmModal = {
@@ -52016,7 +52026,7 @@ function _checkScheduleConflicts(proj) {
   PROJECTS.forEach(function(other){
     if (other.id === proj.id) return;
     if (other.date !== projDate) return;
-    if (other.status === 'Delivered' || other.status === 'Inquiry' || other.status === 'Quotation Sent') return;
+    if (other.status === STAGE_LAST || other.status === STAGE_FIRST || other.status === STAGE_SECOND) return;
     var otherNames = (other.team||[]).map(function(m){ return (m.name||'').toLowerCase(); });
     (proj.team||[]).forEach(function(m){
       if (otherNames.indexOf((m.name||'').toLowerCase()) >= 0) {

@@ -8,10 +8,12 @@
    configured per business via a data-driven vocabulary + workflow layer
    instead of forking the code per business type.
 
-   NOTHING in here is wired into the CharisOS template yet — that's the next
-   phase. This file defines the SHAPE of what onboarding collects and what a
-   finished BUSINESS_CONFIG object looks like, plus five starter presets used
-   to pre-fill sensible defaults for the vocabulary/pipeline the wizard shows.
+   This file feeds web/prototypes/business/provisioning/stamp-template.js,
+   which stamps a business's onboarding answers into its own deployed copy
+   of the template (see web/prototypes/business/template/) — vocabulary at
+   the nav/header/button level, the pipeline stages, and (for non-photography
+   types) a generated qcTemplates checklist standing in for CharisOS's native
+   photography-specific one.
 
    window.BUSINESS_TYPE_PRESETS — keyed by type id, each entry:
      label, icon, description   — for the picker card
@@ -29,6 +31,11 @@
                                     offer" to speed up free-text entry.
      expenseCategoryHints        — quick-pick chips for common expense types
                                     (feeds Finance -> Expenses category list).
+     qcTemplates                 — per-stage checklist object (keyed by stage
+                                    LABEL, same shape as CharisOS's native
+                                    QC_TEMPLATES: { common: [{id,label,who}] }).
+                                    null for photography, which keeps using
+                                    CharisOS's own native one unmodified.
 */
 (function () {
 
@@ -89,6 +96,188 @@
     { key: 'done',      label: 'Done' },
   ];
 
+  /* qcTemplates — the per-stage "quality control" checklist system, one
+     entry per business type, keyed by that type's own stage LABELS (not
+     keys — CharisOS stores a project's pipeline position as the label
+     string, e.g. proj.status === 'Packing'). Mirrors the shape and level
+     of detail of CharisOS's native QC_TEMPLATES object (built for its
+     11-stage photography pipeline): { common: [{id,label,who}] } per
+     stage, `who` a role hint. Photography keeps using CharisOS's own
+     native QC_TEMPLATES untouched — these four are what the stamping
+     script substitutes in for the other business types, since photography's
+     rules (drone battery checks, wedding shot lists, etc.) don't apply to
+     an order-fulfilment or content-agency pipeline. No event-type-specific
+     variants here (CharisOS's `common` + per-event-type layering) — one
+     flat checklist per stage is the right depth for a generic business
+     that hasn't told us anything more specific about its own workflow. */
+
+  var RETAIL_QC = {
+    'New Enquiry': { common: [
+      { id:'re-contact',  label:'Customer contact details confirmed (phone/email)', who:'Owner' },
+      { id:'re-want',     label:'What the customer wants is clearly noted (item, quantity, specs)', who:'Owner' },
+      { id:'re-source',   label:'Enquiry source logged (walk-in, call, social media, referral)', who:'Owner' },
+    ]},
+    'Quote Sent': { common: [
+      { id:'qs-price',    label:'Price confirmed against current cost/stock', who:'Owner' },
+      { id:'qs-sent',     label:'Quote sent to customer via their preferred channel', who:'Team' },
+      { id:'qs-followup', label:'Follow-up date set if customer doesn’t respond', who:'Owner' },
+    ]},
+    'Order Confirmed': { common: [
+      { id:'oc-items',    label:'Items and quantities locked in with customer', who:'Owner' },
+      { id:'oc-address',  label:'Delivery address and date confirmed', who:'Team' },
+      { id:'oc-notes',    label:'Special instructions or requests noted', who:'Team' },
+    ]},
+    'Payment Received': { common: [
+      { id:'pr-method',   label:'Payment method confirmed (cash, mobile money, bank)', who:'Finance' },
+      { id:'pr-amount',   label:'Amount received matches the invoice/quote', who:'Finance' },
+      { id:'pr-receipt',  label:'Receipt issued to customer', who:'Finance' },
+    ]},
+    'Sourcing / Procurement': { common: [
+      { id:'sp-supplier', label:'Supplier confirmed and able to fulfil', who:'Owner' },
+      { id:'sp-stock',    label:'Stock availability double-checked', who:'Team' },
+      { id:'sp-cost',     label:'Cost price locked in before committing', who:'Owner' },
+    ]},
+    'Packing': { common: [
+      { id:'pk-check',    label:'Items checked against the order before packing', who:'Team' },
+      { id:'pk-protect',  label:'Packaging protects goods for transit', who:'Team' },
+      { id:'pk-list',     label:'Packing list / order summary included', who:'Team' },
+    ]},
+    'Dispatched': { common: [
+      { id:'ds-courier',  label:'Courier or rider assigned', who:'Team' },
+      { id:'ds-tracking', label:'Tracking info or ETA shared with customer', who:'Team' },
+      { id:'ds-time',     label:'Dispatch time logged', who:'Team' },
+    ]},
+    'Delivered': { common: [
+      { id:'dl-confirm',  label:'Delivery confirmed by customer', who:'Team' },
+      { id:'dl-proof',    label:'Proof of delivery captured (photo/signature)', who:'Team' },
+      { id:'dl-damage',   label:'Any damage or shortage reported and logged', who:'Team' },
+    ]},
+    'Closed': { common: [
+      { id:'cl-satisfied',label:'Customer satisfaction confirmed', who:'Owner' },
+      { id:'cl-reconcile',label:'Invoice fully reconciled — nothing outstanding', who:'Finance' },
+      { id:'cl-archive',  label:'Order archived / records filed', who:'Team' },
+    ]},
+  };
+
+  var MEDIA_QC = {
+    'Pitch / Brief': { common: [
+      { id:'pb-brief',    label:'Client brief received in writing', who:'Owner' },
+      { id:'pb-goals',    label:'Objectives and target audience defined', who:'Owner' },
+      { id:'pb-budget',   label:'Budget range discussed and confirmed', who:'Owner' },
+    ]},
+    'Approved': { common: [
+      { id:'ap-scope',    label:'Scope of work signed off', who:'Owner' },
+      { id:'ap-timeline', label:'Timeline agreed with client', who:'Owner' },
+      { id:'ap-deliv',    label:'Deliverables list confirmed in writing', who:'Owner' },
+    ]},
+    'Deposit Paid': { common: [
+      { id:'dp-invoice',  label:'Invoice sent to client', who:'Finance' },
+      { id:'dp-received', label:'Deposit received and confirmed', who:'Finance' },
+      { id:'dp-start',    label:'Start date locked in', who:'Owner' },
+    ]},
+    'Pre-Production': { common: [
+      { id:'pp-concept',  label:'Concept, script or storyboard approved', who:'Creative' },
+      { id:'pp-locations',label:'Locations and talent/participants confirmed', who:'Creative' },
+      { id:'pp-shotlist', label:'Shot list or run-of-show ready', who:'Creative' },
+    ]},
+    'Production': { common: [
+      { id:'pd-crew',     label:'Crew and equipment assigned', who:'Creative' },
+      { id:'pd-schedule', label:'Shoot/production schedule confirmed with all parties', who:'Creative' },
+      { id:'pd-backup',   label:'Raw footage/files backed up on-site', who:'Creative' },
+    ]},
+    'Post-Production': { common: [
+      { id:'po-organize', label:'Footage/assets organised and logged', who:'Creative' },
+      { id:'po-assign',   label:'Edit assigned to an editor', who:'Creative' },
+      { id:'po-roughcut', label:'Rough cut scheduled and on track', who:'Creative' },
+    ]},
+    'Client Review': { common: [
+      { id:'cr-draft',    label:'Draft delivered to client', who:'Owner' },
+      { id:'cr-deadline', label:'Feedback deadline communicated', who:'Owner' },
+      { id:'cr-tracked',  label:'Revision rounds used vs. included are tracked', who:'Owner' },
+    ]},
+    'Revisions': { common: [
+      { id:'rv-logged',   label:'Requested changes logged clearly', who:'Creative' },
+      { id:'rv-delivered',label:'Revised version delivered', who:'Creative' },
+      { id:'rv-signoff',  label:'Client sign-off received or pending', who:'Owner' },
+    ]},
+    'Published / Delivered': { common: [
+      { id:'pu-files',    label:'Final files delivered in correct format/resolution', who:'Creative' },
+      { id:'pu-posted',   label:'Published or posted where agreed (if applicable)', who:'Owner' },
+      { id:'pu-confirm',  label:'Client confirmed receipt', who:'Owner' },
+    ]},
+  };
+
+  var SERVICES_QC = {
+    'New Lead': { common: [
+      { id:'nl-contact',  label:'Contact details captured', who:'Owner' },
+      { id:'nl-need',     label:'Need or pain point identified', who:'Owner' },
+      { id:'nl-source',   label:'Lead source logged', who:'Owner' },
+    ]},
+    'Discovery Call': { common: [
+      { id:'dc-held',     label:'Call scheduled and held', who:'Owner' },
+      { id:'dc-docs',     label:'Requirements documented', who:'Owner' },
+      { id:'dc-budget',   label:'Budget and timeline discussed', who:'Owner' },
+    ]},
+    'Proposal Sent': { common: [
+      { id:'ps-scope',    label:'Scope of work clearly defined', who:'Owner' },
+      { id:'ps-pricing',  label:'Pricing confirmed', who:'Owner' },
+      { id:'ps-followup', label:'Proposal sent with a follow-up date set', who:'Owner' },
+    ]},
+    'Negotiation': { common: [
+      { id:'ng-objections', label:'Objections or concerns addressed', who:'Owner' },
+      { id:'ng-terms',    label:'Terms adjusted and re-confirmed if needed', who:'Owner' },
+      { id:'ng-decision',  label:'Decision-maker engaged directly', who:'Owner' },
+    ]},
+    'Contract Signed': { common: [
+      { id:'cs-signed',   label:'Contract signed by both parties', who:'Owner' },
+      { id:'cs-invoice',  label:'Deposit or first invoice issued', who:'Finance' },
+      { id:'cs-kickoff',  label:'Kickoff date set', who:'Owner' },
+    ]},
+    'Client Onboarding': { common: [
+      { id:'co-access',   label:'Access, credentials or materials collected from client', who:'Team' },
+      { id:'co-meeting',  label:'Kickoff meeting held', who:'Owner' },
+      { id:'co-contact',  label:'Main point of contact confirmed on both sides', who:'Owner' },
+    ]},
+    'In Delivery': { common: [
+      { id:'id-milestones', label:'Milestones tracked against the plan', who:'Team' },
+      { id:'id-updates',  label:'Client updated on progress regularly', who:'Owner' },
+      { id:'id-blockers', label:'Blockers escalated promptly, not left silent', who:'Team' },
+    ]},
+    'Review': { common: [
+      { id:'rv-internal', label:'Deliverable reviewed internally before sending', who:'Team' },
+      { id:'rv-feedback', label:'Client feedback collected', who:'Owner' },
+      { id:'rv-open',     label:'Outstanding items logged', who:'Team' },
+    ]},
+    'Complete': { common: [
+      { id:'cp-accepted', label:'Final deliverable accepted by client', who:'Owner' },
+      { id:'cp-paid',     label:'Final invoice issued and paid', who:'Finance' },
+      { id:'cp-retro',    label:'Quick retrospective done — what to repeat/improve', who:'Owner' },
+    ]},
+  };
+
+  var GENERIC_QC = {
+    'New': { common: [
+      { id:'nw-details',  label:'Details captured clearly', who:'Owner' },
+      { id:'nw-owner',    label:'An owner is assigned', who:'Owner' },
+      { id:'nw-priority', label:'Priority set', who:'Owner' },
+    ]},
+    'In Progress': { common: [
+      { id:'ip-started',  label:'Work has actually started', who:'Team' },
+      { id:'ip-blockers', label:'Blockers identified early, not discovered late', who:'Team' },
+      { id:'ip-updates',  label:'Progress updated regularly', who:'Team' },
+    ]},
+    'Review': { common: [
+      { id:'rv-checked',  label:'Work checked before handoff', who:'Team' },
+      { id:'rv-feedback', label:'Feedback collected', who:'Owner' },
+      { id:'rv-logged',   label:'Requested changes logged', who:'Team' },
+    ]},
+    'Done': { common: [
+      { id:'dn-confirmed',label:'Deliverable confirmed complete', who:'Owner' },
+      { id:'dn-notified', label:'Client or stakeholder notified', who:'Owner' },
+      { id:'dn-closed',   label:'Record closed out', who:'Team' },
+    ]},
+  };
+
   window.BUSINESS_TYPE_PRESETS = {
 
     photography: {
@@ -108,6 +297,11 @@
       pipelineStages: PHOTOGRAPHY_STAGES,
       serviceCategoryHints: ['Weddings', 'Portraits', 'Studio Sessions', 'Events', 'Corporate Headshots', 'Videography'],
       expenseCategoryHints: ['Equipment Rental', 'Travel', 'Studio Rent', 'Printing', 'Backup Storage', 'Assistant Pay'],
+      // No qcTemplates here on purpose — photography's stages match the
+      // template's own native pipeline exactly, so the stamping script
+      // leaves CharisOS's existing, richer, event-type-aware QC_TEMPLATES
+      // untouched instead of overwriting it with a flatter generated one.
+      qcTemplates: null,
     },
 
     retail: {
@@ -124,6 +318,7 @@
       pipelineStages: RETAIL_STAGES,
       serviceCategoryHints: ['Clothing & Fashion', 'Electronics', 'Groceries', 'Home & Furniture', 'Beauty & Cosmetics', 'Wholesale'],
       expenseCategoryHints: ['Stock Purchase', 'Shipping', 'Packaging', 'Storefront Rent', 'Marketing', 'Delivery Fuel'],
+      qcTemplates: RETAIL_QC,
     },
 
     media: {
@@ -140,6 +335,7 @@
       pipelineStages: MEDIA_STAGES,
       serviceCategoryHints: ['Social Media Content', 'Video Production', 'Graphic Design', 'Brand Campaigns', 'Photography', 'Copywriting'],
       expenseCategoryHints: ['Equipment', 'Freelancer Fees', 'Location Fees', 'Software Subscriptions', 'Ad Spend', 'Travel'],
+      qcTemplates: MEDIA_QC,
     },
 
     services: {
@@ -156,6 +352,7 @@
       pipelineStages: SERVICES_STAGES,
       serviceCategoryHints: ['Consulting', 'Legal Services', 'Accounting', 'IT & Software', 'Recruitment', 'Training'],
       expenseCategoryHints: ['Office Rent', 'Software & Tools', 'Travel', 'Professional Fees', 'Marketing', 'Utilities'],
+      qcTemplates: SERVICES_QC,
     },
 
     custom: {
@@ -172,6 +369,7 @@
       pipelineStages: GENERIC_STAGES,
       serviceCategoryHints: [],
       expenseCategoryHints: ['Supplies', 'Rent', 'Travel', 'Marketing', 'Utilities'],
+      qcTemplates: GENERIC_QC,
     },
   };
 
