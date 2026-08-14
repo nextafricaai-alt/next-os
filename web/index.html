@@ -5770,7 +5770,7 @@ window.OnboardingPage = function OnboardingPage(props) {
   const VERTICALS = [
     { id: 'schools',    icon: '\u{1F393}', name: 'Schools',            live: true,  desc: 'Students, fees, attendance, exams, reports \u2014 primary & secondary.' },
     { id: 'hospitals',  icon: '\u{1F3E5}', name: 'Hospitals & Clinics', live: false, desc: 'Patients, appointments, records, billing, pharmacy, staff rota.' },
-    { id: 'companies',  icon: '\u{1F3E2}', name: 'Companies',           live: false, desc: 'HR, payroll, operations, projects, performance.' },
+    { id: 'companies',  icon: '\u{1F3E2}', name: 'Companies',           live: true,  desc: 'Photography, retail, media, professional services \u2014 pipeline, clients, finance.' },
     { id: 'businesses', icon: '\u{1F6D2}', name: 'Businesses & SMEs',   live: false, desc: 'Inventory, sales, customers, invoicing, cash flow.' },
     { id: 'government', icon: '\u{1F3DB}', name: 'Government',          live: false, desc: 'Departments, citizens, services, records, workflows.' },
     { id: 'ngos',       icon: '\u{1F91D}', name: 'NGOs',                live: false, desc: 'Beneficiaries, programs, donors, impact reporting.' },
@@ -5785,7 +5785,7 @@ window.OnboardingPage = function OnboardingPage(props) {
           Onboarding <span style={{ color: 'var(--mint)' }}>a new organisation</span>
         </h1>
         <p style={{ fontSize: 14, color: 'var(--text-secondary)', margin: '6px 0 0' }}>
-          Pick the kind of organisation. Schools is live today; the other verticals are reserved and rolling out next.
+          Pick the kind of organisation. Schools and Companies are live today; the other verticals are reserved and rolling out next.
         </p>
       </div>
 
@@ -5808,21 +5808,30 @@ window.OnboardingPage = function OnboardingPage(props) {
       {sel === 'schools' ? (
         <div>
           <p style={{ fontSize: 13.5, color: 'var(--text-secondary)', margin: '0 0 12px' }}>
-            Nia rebrands the Schools OS to a new school in minutes \u2014 name, colour, logo. Preview their login, then hand over their branded OS.
+            Nia rebrands the Schools OS to a new school in minutes — name, colour, logo. Preview their login, then hand over their branded OS.
           </p>
           <iframe src="school-onboarding.html" title="School Onboarding"
+            style={{ width: '100%', height: 'calc(100vh - 360px)', minHeight: 520, border: '1px solid var(--border-subtle)', borderRadius: 12, background: '#0a1029' }} />
+        </div>
+      ) : sel === 'companies' ? (
+        <div>
+          <p style={{ fontSize: 13.5, color: 'var(--text-secondary)', margin: '0 0 12px' }}>
+            Walk the client through this 8-step wizard — business type, branding, pipeline, terminology. Unlike Schools, it doesn't hand you a live link on the spot: it produces a config to feed into <span style={{ fontFamily: 'var(--font-mono)' }}>stamp-template.js</span>, which needs its own Supabase project set up before the client's copy goes live. See <span style={{ fontFamily: 'var(--font-mono)' }}>web/prototypes/business/provisioning/README.md</span> for that part.
+          </p>
+          <iframe src="prototypes/business/onboarding/index.html" title="Company Onboarding"
             style={{ width: '100%', height: 'calc(100vh - 360px)', minHeight: 520, border: '1px solid var(--border-subtle)', borderRadius: 12, background: '#0a1029' }} />
         </div>
       ) : (
         <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: 30, textAlign: 'center' }}>
           <div style={{ fontSize: 40, marginBottom: 12 }}>{cur.icon}</div>
-          <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-primary)' }}>{cur.name} OS \u2014 coming soon</div>
+          <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-primary)' }}>{cur.name} OS — coming soon</div>
           <div style={{ fontSize: 14, color: 'var(--text-secondary)', margin: '10px auto 0', maxWidth: 540, lineHeight: 1.6 }}>
-            We build vertical operating systems one at a time, starting with Schools. The <b>{cur.name}</b> structure is reserved on NEXT \u2014 {cur.desc.toLowerCase()} When you have a real {cur.name.toLowerCase()} client, tell Nia and we'll prioritise building it.
+            We build vertical operating systems one at a time, starting with Schools and Companies. The <b>{cur.name}</b> structure is reserved on NEXT — {cur.desc.toLowerCase()} When you have a real {cur.name.toLowerCase()} client, tell Nia and we'll prioritise building it.
           </div>
           <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginTop: 20 }}>
             <button onClick={() => onNavigate && onNavigate('talk')} style={{ background: 'var(--mint)', color: 'var(--text-inverse)', border: 'none', borderRadius: 'var(--radius-sm)', padding: '11px 20px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>Discuss this with Nia</button>
             <button onClick={() => setSel('schools')} style={{ background: 'transparent', color: 'var(--text-secondary)', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-sm)', padding: '11px 20px', fontSize: 13, cursor: 'pointer' }}>Onboard a school instead</button>
+            <button onClick={() => setSel('companies')} style={{ background: 'transparent', color: 'var(--text-secondary)', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-sm)', padding: '11px 20px', fontSize: 13, cursor: 'pointer' }}>Onboard a company instead</button>
           </div>
         </div>
       )}
