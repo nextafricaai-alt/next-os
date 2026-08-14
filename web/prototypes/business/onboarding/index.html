@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+<title>NEXT Business OS — Get Started</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<script src="business-presets.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#0a0f1e;--card:#111827;--card2:#1a2332;--card3:#212d40;--border:#1e2d40;
+  --orange:#E86418;--orange2:#c9540e;--orange-soft:rgba(232,100,24,0.12);
+  --text:#f1f5f9;--muted:#94a3b8;--dim:#5a6478;
+  --green:#10b981;--red:#ef4444;--blue:#3b82f6;
+}
+body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,system-ui,sans-serif;min-height:100vh;line-height:1.5;-webkit-font-smoothing:antialiased;}
+::selection{background:rgba(232,100,24,0.3);color:#fff;}
+::-webkit-scrollbar{width:6px;height:6px;}
+::-webkit-scrollbar-thumb{background:rgba(148,163,184,0.25);border-radius:10px;}
+
+.shell{max-width:720px;margin:0 auto;padding:28px 20px 80px;}
+@media (max-width:560px){ .shell{padding:18px 14px 60px;} }
+
+/* ── header / progress ── */
+.brand-row{display:flex;align-items:center;gap:10px;margin-bottom:28px;}
+.brand-mark{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,var(--orange) 0%,#f59e0b 100%);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:14px;color:#fff;flex-shrink:0;}
+.brand-name{font-size:14px;font-weight:700;letter-spacing:-0.01em;}
+.brand-sub{font-size:11px;color:var(--dim);font-family:ui-monospace,monospace;}
+
+.progress-track{display:flex;gap:6px;margin-bottom:36px;}
+.progress-seg{flex:1;height:4px;border-radius:99px;background:var(--card2);overflow:hidden;}
+.progress-seg .fill{height:100%;background:var(--orange);border-radius:99px;transition:width .35s ease;}
+
+.step-eyebrow{font-size:11px;font-weight:700;color:var(--orange);text-transform:uppercase;letter-spacing:0.08em;font-family:ui-monospace,monospace;margin-bottom:8px;}
+.step-title{font-size:26px;font-weight:800;letter-spacing:-0.02em;margin-bottom:8px;}
+.step-sub{font-size:14px;color:var(--muted);margin-bottom:28px;max-width:520px;}
+@media (max-width:560px){ .step-title{font-size:21px;} .step-sub{font-size:13px;margin-bottom:22px;} }
+
+/* ── form primitives ── */
+.field{margin-bottom:18px;}
+.field label{display:block;font-size:11.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:7px;}
+.field .hint{font-size:11.5px;color:var(--dim);font-weight:400;text-transform:none;letter-spacing:0;margin-left:6px;}
+input[type=text],input[type=email],input[type=tel],textarea,select{
+  width:100%;background:var(--card2);border:1.5px solid var(--border);border-radius:10px;color:var(--text);
+  padding:13px 14px;font-size:14.5px;font-family:inherit;outline:none;transition:border-color .15s;
+}
+input:focus,textarea:focus,select:focus{border-color:var(--orange);}
+textarea{resize:vertical;min-height:80px;}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+@media (max-width:560px){ .row2{grid-template-columns:1fr;} }
+
+/* ── type picker cards ── */
+.type-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:8px;}
+@media (max-width:560px){ .type-grid{grid-template-columns:1fr;} }
+.type-card{
+  background:var(--card2);border:1.5px solid var(--border);border-radius:14px;padding:18px;cursor:pointer;
+  transition:border-color .15s,background .15s; text-align:left;
+}
+.type-card:hover{border-color:rgba(232,100,24,0.4);}
+.type-card.sel{border-color:var(--orange);background:var(--orange-soft);}
+.type-card .ic{font-size:26px;margin-bottom:10px;}
+.type-card .lb{font-size:14.5px;font-weight:700;margin-bottom:4px;}
+.type-card .ds{font-size:12px;color:var(--muted);line-height:1.4;}
+
+/* ── chips ── */
+.chip-row{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:6px;}
+.chip{
+  padding:7px 13px;border-radius:20px;font-size:12.5px;font-weight:600;cursor:pointer;
+  background:var(--card2);border:1.5px solid var(--border);color:var(--muted);transition:all .15s;
+}
+.chip.sel{background:var(--orange);border-color:var(--orange);color:#fff;}
+.chip.add{background:transparent;border-style:dashed;color:var(--dim);}
+
+/* ── stage list editor ── */
+.stage-list{display:flex;flex-direction:column;gap:6px;margin-bottom:12px;}
+.stage-row{display:flex;align-items:center;gap:8px;background:var(--card2);border:1px solid var(--border);border-radius:9px;padding:9px 12px;}
+.stage-row .num{width:20px;height:20px;border-radius:50%;background:var(--card3);color:var(--muted);font-size:10.5px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-family:ui-monospace,monospace;}
+.stage-row input{flex:1;background:transparent;border:none;padding:2px 4px;font-size:13.5px;color:var(--text);}
+.stage-row input:focus{outline:none;}
+.stage-row .rm{cursor:pointer;color:var(--dim);font-size:16px;line-height:1;padding:2px 6px;flex-shrink:0;}
+.stage-row .rm:hover{color:var(--red);}
+.add-stage-btn{background:transparent;border:1.5px dashed var(--border);color:var(--muted);border-radius:9px;padding:9px 12px;font-size:13px;font-weight:600;cursor:pointer;width:100%;text-align:left;}
+.add-stage-btn:hover{border-color:var(--orange);color:var(--orange);}
+
+/* ── vocab table ── */
+.vocab-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid var(--border);}
+.vocab-row .k{font-size:12.5px;color:var(--muted);font-family:ui-monospace,monospace;}
+.vocab-row input{background:var(--card2);}
+
+/* ── branding step ── */
+.logo-drop{
+  border:1.5px dashed var(--border);border-radius:14px;padding:24px;text-align:center;cursor:pointer;
+  background:var(--card2);transition:border-color .15s;margin-bottom:16px;
+}
+.logo-drop:hover{border-color:var(--orange);}
+.logo-drop.has-logo{padding:16px;}
+.logo-preview{width:64px;height:64px;border-radius:12px;background:#fff;display:flex;align-items:center;justify-content:center;margin:0 auto 10px;overflow:hidden;}
+.logo-preview img{width:100%;height:100%;object-fit:contain;}
+.color-row{display:flex;align-items:center;gap:12px;}
+.color-row input[type=color]{width:50px;height:50px;border:none;background:none;cursor:pointer;border-radius:10px;padding:0;}
+.color-swatch-name{font-size:13px;font-family:ui-monospace,monospace;color:var(--muted);}
+
+/* ── review ── */
+.review-card{background:var(--card2);border:1px solid var(--border);border-radius:12px;padding:16px 18px;margin-bottom:12px;}
+.review-card .rt{font-size:10.5px;font-weight:700;color:var(--orange);text-transform:uppercase;letter-spacing:0.06em;font-family:ui-monospace,monospace;margin-bottom:8px;}
+.review-line{display:flex;justify-content:space-between;gap:12px;font-size:13px;padding:4px 0;}
+.review-line .l{color:var(--muted);flex-shrink:0;}
+.review-line .v{color:var(--text);font-weight:600;text-align:right;}
+
+/* ── nav buttons ── */
+.nav-row{display:flex;justify-content:space-between;align-items:center;margin-top:32px;gap:12px;}
+.btn{padding:13px 24px;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;border:none;font-family:inherit;transition:all .15s;}
+.btn-primary{background:var(--orange);color:#fff;}
+.btn-primary:hover{background:var(--orange2);}
+.btn-primary:disabled{background:var(--card3);color:var(--dim);cursor:not-allowed;}
+.btn-ghost{background:transparent;color:var(--muted);border:1.5px solid var(--border);}
+.btn-ghost:hover{color:var(--text);border-color:var(--dim);}
+
+.err-msg{font-size:12.5px;color:var(--red);margin-top:-10px;margin-bottom:14px;}
+
+/* ── done screen ── */
+.done-wrap{text-align:center;padding:40px 0;}
+.done-icon{width:64px;height:64px;border-radius:50%;background:rgba(16,185,129,0.15);color:var(--green);display:flex;align-items:center;justify-content:center;font-size:30px;margin:0 auto 20px;}
+.config-box{background:var(--card2);border:1px solid var(--border);border-radius:12px;padding:16px;text-align:left;font-family:ui-monospace,monospace;font-size:11.5px;color:var(--muted);max-height:320px;overflow:auto;white-space:pre-wrap;word-break:break-all;margin:20px 0;}
+.next-steps{background:var(--orange-soft);border:1px solid rgba(232,100,24,0.3);border-radius:12px;padding:16px 18px;text-align:left;font-size:13px;color:var(--text);line-height:1.6;margin-bottom:20px;}
+</style>
+</head>
+<body>
+<div class="shell">
+  <div class="brand-row">
+    <div class="brand-mark">N</div>
+    <div>
+      <div class="brand-name">NEXT Business OS</div>
+      <div class="brand-sub">Get your business set up in a few minutes</div>
+    </div>
+  </div>
+
+  <div class="progress-track" id="progressTrack"></div>
+
+  <div id="stepHost"></div>
+</div>
+
+<script>
+// ── State ──────────────────────────────────────────────────────────────────
+var STATE = {
+  step: 0,
+  businessType: null,
+  businessName: '',
+  tagline: '',
+  currency: 'UGX',
+  teamSizeRange: window.BUSINESS_ONBOARDING.TEAM_SIZE_RANGES[0],
+  ownerName: '', ownerEmail: '', ownerPhone: '',
+  servicesOffered: '',
+  selectedServiceHints: [],
+  pipelineStages: null,       // null until user reaches step 4 -> seeded from preset
+  vocabularyOverrides: {},
+  brandColor: '#E86418',
+  logoDataUrl: null,
+};
+
+var STEPS = ['type', 'basics', 'team', 'offer', 'workflow', 'vocabulary', 'branding', 'review'];
+
+function currentPreset() {
+  return (window.BUSINESS_TYPE_PRESETS[STATE.businessType]) || window.BUSINESS_TYPE_PRESETS.custom;
+}
+
+// ── Progress bar ─────────────────────────────────────────────────────────
+function renderProgress() {
+  var track = document.getElementById('progressTrack');
+  track.innerHTML = '';
+  for (var i = 0; i < STEPS.length; i++) {
+    var seg = document.createElement('div');
+    seg.className = 'progress-seg';
+    var fill = document.createElement('div');
+    fill.className = 'fill';
+    fill.style.width = (i <= STATE.step ? '100%' : '0%');
+    seg.appendChild(fill);
+    track.appendChild(seg);
+  }
+}
+
+function goTo(stepIdx, opts) {
+  opts = opts || {};
+  if (!opts.skipValidate && !validateStep(STATE.step)) return;
+  STATE.step = Math.max(0, Math.min(STEPS.length - 1, stepIdx));
+  render();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+function next() { goTo(STATE.step + 1); }
+function back() { goTo(STATE.step - 1, { skipValidate: true }); }
+
+function validateStep(i) {
+  var host = document.getElementById('stepHost');
+  var errEl = host.querySelector('.err-msg');
+  if (errEl) errEl.remove();
+  var msg = null;
+  if (STEPS[i] === 'type' && !STATE.businessType) msg = 'Pick the option closest to your business — you can fine-tune everything later.';
+  if (STEPS[i] === 'basics' && !STATE.businessName.trim()) msg = 'Enter your business name to continue.';
+  if (STEPS[i] === 'team' && (!STATE.ownerName.trim() || !STATE.ownerEmail.trim())) msg = 'Your name and email are needed to create the owner account.';
+  if (msg) {
+    var p = document.createElement('div');
+    p.className = 'err-msg';
+    p.textContent = msg;
+    var navRow = host.querySelector('.nav-row');
+    navRow.parentNode.insertBefore(p, navRow);
+    return false;
+  }
+  return true;
+}
+
+// ── Step renderers ──────────────────────────────────────────────────────
+var RENDERERS = {};
+
+RENDERERS.type = function () {
+  var cards = Object.keys(window.BUSINESS_TYPE_PRESETS).map(function (key) {
+    var p = window.BUSINESS_TYPE_PRESETS[key];
+    var sel = STATE.businessType === key;
+    return '<button class="type-card' + (sel ? ' sel' : '') + '" onclick="selectType(\'' + key + '\')">' +
+      '<div class="ic">' + p.icon + '</div>' +
+      '<div class="lb">' + p.label + '</div>' +
+      '<div class="ds">' + p.description + '</div>' +
+    '</button>';
+  }).join('');
+  return '' +
+    '<div class="step-eyebrow">STEP 1 OF 8</div>' +
+    '<div class="step-title">What kind of business is this?</div>' +
+    '<div class="step-sub">This shapes the language and workflow you\'ll see everywhere — pipeline stages, what we call your jobs, and more. Nothing here is permanent.</div>' +
+    '<div class="type-grid">' + cards + '</div>' +
+    navRow(false, true);
+};
+function selectType(key) {
+  STATE.businessType = key;
+  // Reset downstream selections that depend on the type so switching types
+  // doesn't leave a stale mix of two presets' stages/hints behind.
+  STATE.pipelineStages = null;
+  STATE.selectedServiceHints = [];
+  STATE.vocabularyOverrides = {};
+  render();
+}
+
+RENDERERS.basics = function () {
+  var currencyOpts = window.BUSINESS_ONBOARDING.CURRENCIES.map(function (c) {
+    return '<option value="' + c + '"' + (STATE.currency === c ? ' selected' : '') + '>' + c + '</option>';
+  }).join('');
+  return '' +
+    '<div class="step-eyebrow">STEP 2 OF 8</div>' +
+    '<div class="step-title">Tell us about the business</div>' +
+    '<div class="step-sub">The name and tagline show up on receipts, the login screen, and everywhere your team and clients see this system.</div>' +
+    '<div class="field"><label>Business Name</label>' +
+      '<input type="text" id="inBizName" value="' + escAttr(STATE.businessName) + '" placeholder="e.g. Sunrise Retail Co." oninput="STATE.businessName=this.value"/></div>' +
+    '<div class="field"><label>Tagline <span class="hint">optional</span></label>' +
+      '<input type="text" id="inTagline" value="' + escAttr(STATE.tagline) + '" placeholder="e.g. Quality you can trust" oninput="STATE.tagline=this.value"/></div>' +
+    '<div class="field"><label>Currency</label>' +
+      '<select id="inCurrency" onchange="STATE.currency=this.value">' + currencyOpts + '</select></div>' +
+    navRow(true, true);
+};
+
+RENDERERS.team = function () {
+  var sizeOpts = window.BUSINESS_ONBOARDING.TEAM_SIZE_RANGES.map(function (s) {
+    return '<option value="' + s + '"' + (STATE.teamSizeRange === s ? ' selected' : '') + '>' + s + '</option>';
+  }).join('');
+  return '' +
+    '<div class="step-eyebrow">STEP 3 OF 8</div>' +
+    '<div class="step-title">Who\'s running this?</div>' +
+    '<div class="step-sub">We\'ll create the owner account with full access. You can add the rest of the team once you\'re in.</div>' +
+    '<div class="field"><label>Team Size</label><select onchange="STATE.teamSizeRange=this.value">' + sizeOpts + '</select></div>' +
+    '<div class="row2">' +
+      '<div class="field"><label>Your Name</label><input type="text" value="' + escAttr(STATE.ownerName) + '" placeholder="Full name" oninput="STATE.ownerName=this.value"/></div>' +
+      '<div class="field"><label>Phone <span class="hint">optional</span></label><input type="tel" value="' + escAttr(STATE.ownerPhone) + '" placeholder="+256…" oninput="STATE.ownerPhone=this.value"/></div>' +
+    '</div>' +
+    '<div class="field"><label>Email</label><input type="email" value="' + escAttr(STATE.ownerEmail) + '" placeholder="you@business.com" oninput="STATE.ownerEmail=this.value"/></div>' +
+    navRow(true, true);
+};
+
+RENDERERS.offer = function () {
+  var preset = currentPreset();
+  var hints = (preset.serviceCategoryHints || []).map(function (h) {
+    var sel = STATE.selectedServiceHints.indexOf(h) >= 0;
+    return '<div class="chip' + (sel ? ' sel' : '') + '" onclick="toggleHint(\'' + escAttr(h) + '\')">' + h + '</div>';
+  }).join('');
+  return '' +
+    '<div class="step-eyebrow">STEP 4 OF 8</div>' +
+    '<div class="step-title">What do you offer?</div>' +
+    '<div class="step-sub">Pick what applies, and add anything else in your own words below.</div>' +
+    (hints ? '<div class="chip-row">' + hints + '</div>' : '') +
+    '<div class="field" style="margin-top:14px;"><label>In your own words <span class="hint">optional</span></label>' +
+      '<textarea placeholder="Anything that helps describe what you do…" oninput="STATE.servicesOffered=this.value">' + escHtml(STATE.servicesOffered) + '</textarea></div>' +
+    navRow(true, true);
+};
+function toggleHint(h) {
+  var i = STATE.selectedServiceHints.indexOf(h);
+  if (i >= 0) STATE.selectedServiceHints.splice(i, 1); else STATE.selectedServiceHints.push(h);
+  render();
+}
+
+RENDERERS.workflow = function () {
+  if (!STATE.pipelineStages) STATE.pipelineStages = currentPreset().pipelineStages.map(function (s) { return Object.assign({}, s); });
+  var rows = STATE.pipelineStages.map(function (s, i) {
+    return '<div class="stage-row">' +
+      '<div class="num">' + (i + 1) + '</div>' +
+      '<input type="text" value="' + escAttr(s.label) + '" oninput="renameStage(' + i + ',this.value)"/>' +
+      (STATE.pipelineStages.length > 2 ? '<div class="rm" onclick="removeStage(' + i + ')">×</div>' : '') +
+    '</div>';
+  }).join('');
+  return '' +
+    '<div class="step-eyebrow">STEP 5 OF 8</div>' +
+    '<div class="step-title">Your workflow</div>' +
+    '<div class="step-sub">This is the pipeline every ' + lc(currentPreset().vocabulary.project) + ' moves through, start to finish. We\'ve suggested a starting point — edit, reorder by renaming, or remove any stage.</div>' +
+    '<div class="stage-list">' + rows + '</div>' +
+    '<button class="add-stage-btn" onclick="addStage()">+ Add a stage</button>' +
+    navRow(true, true);
+};
+function renameStage(i, val) { STATE.pipelineStages[i].label = val; }
+function removeStage(i) { STATE.pipelineStages.splice(i, 1); render(); }
+function addStage() {
+  STATE.pipelineStages.push({ key: 'stage_' + Date.now(), label: 'New Stage' });
+  render();
+}
+
+RENDERERS.vocabulary = function () {
+  var preset = currentPreset();
+  var vocab = Object.assign({}, preset.vocabulary, STATE.vocabularyOverrides);
+  var labels = {
+    project: 'A single job/order (singular)', projects: 'Jobs/orders (plural)',
+    client: 'A customer (singular)', clients: 'Customers (plural)',
+    equipmentSingular: 'One item you track', equipment: 'That list, in general',
+    teamMember: 'A staff member',
+    retainer: 'A recurring client (singular)', retainers: 'Recurring clients (plural)',
+  };
+  var rows = Object.keys(labels).map(function (k) {
+    return '<div class="vocab-row"><div class="k">' + labels[k] + '</div>' +
+      '<input type="text" value="' + escAttr(vocab[k]) + '" oninput="setVocab(\'' + k + '\',this.value)"/></div>';
+  }).join('');
+  return '' +
+    '<div class="step-eyebrow">STEP 6 OF 8</div>' +
+    '<div class="step-title">Call things what you call them</div>' +
+    '<div class="step-sub">These words show up throughout the app. We\'ve filled in sensible defaults for ' + preset.label.toLowerCase() + ' — change any of them.</div>' +
+    '<div>' + rows + '</div>' +
+    navRow(true, true);
+};
+function setVocab(k, v) { STATE.vocabularyOverrides[k] = v; }
+
+RENDERERS.branding = function () {
+  var logoInner = STATE.logoDataUrl
+    ? '<div class="logo-preview"><img src="' + STATE.logoDataUrl + '"/></div><div style="font-size:12.5px;color:var(--muted);">Looks good. Click to replace.</div>'
+    : '<div style="font-size:28px;margin-bottom:8px;">📁</div><div style="font-size:13px;color:var(--muted);">Click to upload your logo <span class="hint">optional — PNG or JPG</span></div>';
+  return '' +
+    '<div class="step-eyebrow">STEP 7 OF 8</div>' +
+    '<div class="step-title">Make it yours</div>' +
+    '<div class="step-sub">Your logo and brand colour show up on the login screen, receipts, and everywhere your team works.</div>' +
+    '<div class="logo-drop' + (STATE.logoDataUrl ? ' has-logo' : '') + '" onclick="document.getElementById(\'logoFile\').click()">' + logoInner + '</div>' +
+    '<input type="file" id="logoFile" accept="image/png,image/jpeg" style="display:none" onchange="handleLogoFile(this.files[0])"/>' +
+    '<div class="field"><label>Brand Colour</label>' +
+      '<div class="color-row">' +
+        '<input type="color" value="' + STATE.brandColor + '" oninput="STATE.brandColor=this.value;document.getElementById(\'colorName\').textContent=this.value;"/>' +
+        '<span class="color-swatch-name" id="colorName">' + STATE.brandColor + '</span>' +
+      '</div>' +
+    '</div>' +
+    navRow(true, true);
+};
+function handleLogoFile(file) {
+  if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function (e) {
+    var img = new Image();
+    img.onload = function () {
+      // Resize client-side so we never ship a multi-MB data URI — mirrors
+      // the same size discipline used for the school badge upload (kept
+      // comfortably under typical inline-storage limits for a logo field).
+      var maxDim = 400;
+      var scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+      var w = Math.round(img.width * scale), h = Math.round(img.height * scale);
+      var canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      STATE.logoDataUrl = canvas.toDataURL('image/png');
+      render();
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+RENDERERS.review = function () {
+  var preset = currentPreset();
+  var vocab = Object.assign({}, preset.vocabulary, STATE.vocabularyOverrides);
+  return '' +
+    '<div class="step-eyebrow">STEP 8 OF 8</div>' +
+    '<div class="step-title">Review & create</div>' +
+    '<div class="step-sub">Here\'s everything as it\'ll be set up. You can still go back and change anything.</div>' +
+    '<div class="review-card"><div class="rt">Business</div>' +
+      reviewLine('Name', STATE.businessName) +
+      reviewLine('Type', preset.icon + ' ' + preset.label) +
+      reviewLine('Currency', STATE.currency) +
+      reviewLine('Team size', STATE.teamSizeRange) +
+    '</div>' +
+    '<div class="review-card"><div class="rt">Owner Account</div>' +
+      reviewLine('Name', STATE.ownerName) +
+      reviewLine('Email', STATE.ownerEmail) +
+    '</div>' +
+    '<div class="review-card"><div class="rt">Workflow</div>' +
+      reviewLine('Stages', STATE.pipelineStages.map(function (s) { return s.label; }).join(' → ')) +
+    '</div>' +
+    '<div class="review-card"><div class="rt">Key Terms</div>' +
+      reviewLine('A job, you call it', vocab.project) +
+      reviewLine('A customer, you call it', vocab.client) +
+      reviewLine('Your team, you call it', vocab.teamMember) +
+    '</div>' +
+    navRow(true, false, true);
+};
+function reviewLine(l, v) { return '<div class="review-line"><div class="l">' + l + '</div><div class="v">' + escHtml(v || '—') + '</div></div>'; }
+
+// ── Done / config output ──────────────────────────────────────────────────
+function submitOnboarding() {
+  var cfg = window.BUSINESS_ONBOARDING.buildBusinessConfig(STATE);
+  var host = document.getElementById('stepHost');
+  host.innerHTML = '' +
+    '<div class="done-wrap">' +
+      '<div class="done-icon">✓</div>' +
+      '<div class="step-title" style="margin-bottom:6px;">' + escHtml(cfg.businessName) + ' is ready to set up</div>' +
+      '<div class="step-sub" style="margin:0 auto 20px;">This is where onboarding hands off to provisioning — not built yet in this phase. For now, here\'s exactly what would be created:</div>' +
+      '<div class="next-steps"><strong>Next phase:</strong> this config gets used to (1) create your dedicated database, (2) deploy your copy of the app pre-filled with everything above, and (3) email your owner login. None of that runs yet — this screen is the checkpoint before building it.</div>' +
+      '<div class="config-box" id="cfgBox"></div>' +
+      '<button class="btn btn-ghost" onclick="goTo(0,{skipValidate:true})" style="margin-right:10px;">Start Over</button>' +
+    '</div>';
+  document.getElementById('cfgBox').textContent = JSON.stringify(cfg, null, 2);
+  try { localStorage.setItem('nextbiz.lastOnboarding', JSON.stringify(cfg)); } catch (e) {}
+}
+
+// ── shared nav row ──────────────────────────────────────────────────────
+function navRow(showBack, showNext, isReview) {
+  var backBtn = showBack ? '<button class="btn btn-ghost" onclick="back()">← Back</button>' : '<span></span>';
+  var fwdBtn = isReview
+    ? '<button class="btn btn-primary" onclick="submitOnboarding()">Create My Business OS →</button>'
+    : (showNext ? '<button class="btn btn-primary" onclick="next()">Continue →</button>' : '');
+  return '<div class="nav-row">' + backBtn + fwdBtn + '</div>';
+}
+
+// ── helpers ──────────────────────────────────────────────────────────────
+function escHtml(s) { return String(s == null ? '' : s).replace(/[&<>]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]; }); }
+function escAttr(s) { return escHtml(s).replace(/"/g, '&quot;'); }
+function lc(s) { return String(s || '').toLowerCase(); }
+
+// ── main render ──────────────────────────────────────────────────────────
+function render() {
+  renderProgress();
+  var key = STEPS[STATE.step];
+  document.getElementById('stepHost').innerHTML = RENDERERS[key]();
+}
+render();
+</script>
+</body>
+</html>

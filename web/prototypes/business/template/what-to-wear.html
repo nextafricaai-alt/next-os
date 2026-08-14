@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Charis Creations — What to Wear Guide</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;900&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0D1B2A;
+  --card: #1B2838;
+  --card2: #243447;
+  --border: #2D3F52;
+  --orange: #F16623;
+  --text: #F1F5F9;
+  --muted: #94A3B8;
+  --dim: #64748B;
+  --green: #10B981;
+  --amber: #F59E0B;
+  --red: #EF4444;
+  --purple: #8B5CF6;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:'Montserrat',-apple-system,sans-serif; background:var(--bg); color:var(--text); min-height:100vh; -webkit-font-smoothing:antialiased; }
+.container { max-width:560px; margin:0 auto; padding:0 16px 80px; }
+
+.header { text-align:center; padding:32px 16px 24px; border-bottom:1px solid var(--border); margin-bottom:28px; }
+.logo-text { font-size:13px; font-weight:900; letter-spacing:3px; color:var(--orange); margin-bottom:4px; }
+.tagline { font-size:10px; color:var(--dim); letter-spacing:1px; text-transform:uppercase; }
+.page-title { font-size:22px; font-weight:900; margin-top:20px; line-height:1.2; }
+.page-sub { font-size:13px; color:var(--muted); margin-top:10px; line-height:1.6; }
+
+/* Section label */
+.section-label { font-size:11px; font-weight:800; color:var(--orange); text-transform:uppercase; letter-spacing:1.5px; margin:28px 0 14px; padding-bottom:8px; border-bottom:1px solid var(--border); }
+
+/* Key insight */
+.insight { background:#F1662311; border:1px solid #F1662344; border-radius:12px; padding:16px; margin-bottom:24px; font-size:12px; color:var(--muted); line-height:1.7; }
+.insight strong { color:var(--text); }
+
+/* Colour palette section */
+.palette-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px; }
+.palette-card { border-radius:12px; padding:14px; }
+.palette-title { font-size:12px; font-weight:800; margin-bottom:4px; }
+.palette-note { font-size:11px; line-height:1.6; opacity:0.85; }
+.palette-card.great { background:#10B98122; border:1px solid #10B98144; }
+.palette-card.great .palette-title { color:var(--green); }
+.palette-card.good { background:#F59E0B11; border:1px solid #F59E0B33; }
+.palette-card.good .palette-title { color:var(--amber); }
+.palette-card.avoid { background:#EF444411; border:1px solid #EF444433; }
+.palette-card.avoid .palette-title { color:var(--red); }
+
+/* Colour swatch row */
+.swatches { display:flex; gap:8px; flex-wrap:wrap; margin:10px 0; }
+.swatch { width:36px; height:36px; border-radius:8px; border:2px solid rgba(255,255,255,0.1); flex-shrink:0; position:relative; }
+.swatch-label { font-size:9px; color:var(--dim); text-align:center; margin-top:3px; width:36px; }
+.swatch-wrap { display:flex; flex-direction:column; align-items:center; }
+
+/* Rule cards */
+.rule-card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:16px; margin-bottom:12px; }
+.rule-header { display:flex; align-items:flex-start; gap:12px; margin-bottom:8px; }
+.rule-icon { font-size:22px; flex-shrink:0; }
+.rule-title { font-size:14px; font-weight:700; }
+.rule-sub { font-size:11px; color:var(--dim); margin-top:1px; }
+.rule-body { font-size:12px; color:var(--muted); line-height:1.7; }
+.rule-tip { font-size:11px; color:var(--orange); font-weight:700; margin-top:8px; }
+.rule-card.warn { border-color:#EF444433; background:#EF444408; }
+.rule-card.warn .rule-tip { color:var(--red); }
+
+/* Do / Don't side by side */
+.do-dont { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:24px; }
+.do-card { background:#10B98111; border:1px solid #10B98133; border-radius:12px; padding:14px; }
+.dont-card { background:#EF444411; border:1px solid #EF444433; border-radius:12px; padding:14px; }
+.dd-title { font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:1px; margin-bottom:10px; }
+.do-card .dd-title { color:var(--green); }
+.dont-card .dd-title { color:var(--red); }
+.dd-item { font-size:11px; color:var(--muted); line-height:1.5; padding:4px 0; border-bottom:1px solid rgba(255,255,255,0.05); }
+.dd-item:last-child { border-bottom:none; }
+.dd-item::before { content:''; display:inline-block; width:6px; height:6px; border-radius:50%; margin-right:6px; flex-shrink:0; vertical-align:middle; }
+.do-card .dd-item::before { background:var(--green); }
+.dont-card .dd-item::before { background:var(--red); }
+
+/* Uganda note */
+.uganda-note { background:#8B5CF611; border:1px solid #8B5CF633; border-radius:12px; padding:16px; margin:20px 0; }
+.uganda-title { font-size:12px; font-weight:800; color:var(--purple); margin-bottom:8px; }
+.uganda-body { font-size:12px; color:var(--muted); line-height:1.7; }
+
+/* Groom section */
+.groom-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.groom-card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:14px; text-align:center; }
+.groom-icon { font-size:24px; margin-bottom:8px; }
+.groom-title { font-size:12px; font-weight:700; margin-bottom:4px; }
+.groom-note { font-size:11px; color:var(--muted); line-height:1.6; }
+
+/* Party coordination */
+.party-rule { display:flex; gap:12px; align-items:flex-start; padding:14px 0; border-bottom:1px solid var(--border); }
+.party-rule:last-child { border-bottom:none; }
+.party-icon { font-size:20px; flex-shrink:0; width:32px; text-align:center; }
+.party-body { flex:1; }
+.party-title { font-size:13px; font-weight:700; margin-bottom:3px; }
+.party-note { font-size:11px; color:var(--muted); line-height:1.6; }
+
+/* Footer */
+.footer { text-align:center; padding:24px 0 8px; }
+.wa-btn { display:inline-flex; align-items:center; gap:8px; background:#25D366; color:white; border-radius:12px; padding:14px 24px; font-size:13px; font-weight:700; text-decoration:none; }
+.footer-note { font-size:11px; color:var(--dim); margin-top:12px; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="header">
+    <div class="logo-text">CHARIS CREATIONS</div>
+    <div class="tagline">Bringing Image to Life</div>
+    <div class="page-title">What to Wear on Your Wedding Day</div>
+    <div class="page-sub">Your outfits are not just about looking beautiful in real life. They are about photographing beautifully. These are two different things — and knowing the difference is what separates a good album from a great one.</div>
+  </div>
+
+  <div class="insight">
+    <strong>The camera sees what the eye misses.</strong> Fabrics that shimmer beautifully under a chandelier can blow out under flash. Patterns that look subtle to the eye compete with faces in a photograph. Colour choices that seem neutral on the hanger shift dramatically against outdoor light. This guide helps you choose what will look extraordinary in both worlds.
+  </div>
+
+  <!-- Colour Guide -->
+  <div class="section-label">Colours That Photograph Well</div>
+
+  <div class="palette-grid">
+    <div class="palette-card great">
+      <div class="palette-title">✓ Excellent</div>
+      <div class="palette-note">Ivory, champagne, dusty rose, sage green, navy, burgundy, rust, terracotta, warm taupe</div>
+    </div>
+    <div class="palette-card good">
+      <div class="palette-title">◎ Good with Care</div>
+      <div class="palette-note">Blush, soft lilac, warm grey, deep forest green, caramel brown</div>
+    </div>
+  </div>
+
+  <div class="palette-grid">
+    <div class="palette-card avoid">
+      <div class="palette-title">✕ Avoid if Possible</div>
+      <div class="palette-note">Neon orange, neon yellow, neon green — these colours shift badly under both flash and natural light</div>
+    </div>
+    <div class="palette-card avoid">
+      <div class="palette-title">⚠ Use With Caution</div>
+      <div class="palette-note">Bright white (can overexpose), pure black (loses detail), very pale mint (looks grey)</div>
+    </div>
+  </div>
+
+  <!-- Fabric Rules -->
+  <div class="section-label">Fabrics — What the Camera Loves and Hates</div>
+
+  <div class="rule-card">
+    <div class="rule-header">
+      <div class="rule-icon">✨</div>
+      <div>
+        <div class="rule-title">Matte and Flowing Fabrics</div>
+        <div class="rule-sub">The camera's favourite</div>
+      </div>
+    </div>
+    <div class="rule-body">Chiffon, crepe, georgette, organza, tulle, linen, silk matte — these fabrics move beautifully and hold colour consistently. They photograph the same way they look in real life. Outdoor light and flash both treat them well.</div>
+    <div class="rule-tip">✓ Always a safe choice. Choose these whenever possible.</div>
+  </div>
+
+  <div class="rule-card warn">
+    <div class="rule-header">
+      <div class="rule-icon">⚠️</div>
+      <div>
+        <div class="rule-title">Highly Reflective Fabrics</div>
+        <div class="rule-sub">Beautiful in person, difficult on camera</div>
+      </div>
+    </div>
+    <div class="rule-body">Satin, sequins, heavily beaded fabrics, metallic lace, and mirror-embroidered materials can reflect light so intensely that detail disappears entirely. They may look stunning in the ballroom but read as white blobs in photographs. This is not a failure of the photographer — it is physics.</div>
+    <div class="rule-tip">⚠ If your dress has heavy beading: tell us. We will position our lighting to minimise blow-out.</div>
+  </div>
+
+  <div class="rule-card">
+    <div class="rule-header">
+      <div class="rule-icon">🧵</div>
+      <div>
+        <div class="rule-title">Lace and Embroidery</div>
+        <div class="rule-sub">Usually stunning — with one exception</div>
+      </div>
+    </div>
+    <div class="rule-body">Lace and intricate embroidery are among the most photogenic elements a bride can wear. The detail is captured beautifully in close-up detail shots. The exception: extremely fine mesh-on-mesh lace against skin tones that closely match the lace colour — this can disappear in certain light conditions.</div>
+    <div class="rule-tip">✓ Ask us to do a test close-up shot early in the morning to confirm it is reading correctly.</div>
+  </div>
+
+  <!-- The Do / Don't grid -->
+  <div class="section-label">The Quick Rules</div>
+
+  <div class="do-dont">
+    <div class="do-card">
+      <div class="dd-title">✓ Do</div>
+      <div class="dd-item">Wear colours that complement your skin tone</div>
+      <div class="dd-item">Choose comfort — if you cannot move, neither can we</div>
+      <div class="dd-item">Coordinate your bridal party in a colour family, not identical outfits</div>
+      <div class="dd-item">Iron or steam everything the night before</div>
+      <div class="dd-item">Break in your shoes before the day</div>
+      <div class="dd-item">Tell us if the dress has a long train or cape</div>
+    </div>
+    <div class="dont-card">
+      <div class="dd-title">✕ Don't</div>
+      <div class="dd-item">Match the groomsmen's suit exactly to the bridesmaids' dresses</div>
+      <div class="dd-item">Wear logos or branded text that cannot be edited out</div>
+      <div class="dd-item">Leave jewellery decisions to the morning of</div>
+      <div class="dd-item">Wear anything that restricts how you walk or sit</div>
+      <div class="dd-item">Put on accessories you have not worn before</div>
+      <div class="dd-item">Save the bustle attachment for the reception — practice it first</div>
+    </div>
+  </div>
+
+  <!-- Uganda note -->
+  <div class="uganda-note">
+    <div class="uganda-title">📍 Uganda-Specific Advice</div>
+    <div class="uganda-body">
+      <strong style="color:var(--text);">Heat and humidity:</strong> Uganda's midday sun is intense, especially for outdoor ceremonies between 11am and 2pm. Heavier fabrics will photograph beautifully but may cause visible discomfort. If your ceremony is outdoors, light fabrics are not just aesthetic — they are practical.<br><br>
+      <strong style="color:var(--text);">Kitenge and traditional attire:</strong> Kitenge photographs extraordinarily well. The bold prints and colours hold beautifully in both natural and artificial light. If you are having an introduction or including traditional elements, the camera will love it — make sure the details (fabric quality, fit, finishing) are as intentional as for your western dress.<br><br>
+      <strong style="color:var(--text);">Venue lighting:</strong> Many Ugandan reception halls use warm amber or mixed-temperature lighting. We always bring portable lighting to compensate, but wearing warm tones (ivory, champagne, rust, gold) will work with these environments rather than against them.
+    </div>
+  </div>
+
+  <!-- Groom section -->
+  <div class="section-label">For the Groom &amp; Groomsmen</div>
+
+  <div class="groom-grid">
+    <div class="groom-card">
+      <div class="groom-icon">👔</div>
+      <div class="groom-title">Suits</div>
+      <div class="groom-note">Navy, charcoal, dark grey, and black photograph best. Avoid suits with strong vertical pinstripes — they create an optical pattern in photographs.</div>
+    </div>
+    <div class="groom-card">
+      <div class="groom-icon">👟</div>
+      <div class="groom-title">Shoes</div>
+      <div class="groom-note">Polished shoes photograph significantly better than matte. Give yours a thorough clean the night before — close-ups will reveal scuffs clearly.</div>
+    </div>
+    <div class="groom-card">
+      <div class="groom-icon">🪢</div>
+      <div class="groom-title">Ties &amp; Pocket Squares</div>
+      <div class="groom-note">Solid colours and subtle textures photograph better than bold patterns. Coordinate with the bridal party's colour family, not a perfect match.</div>
+    </div>
+    <div class="groom-card">
+      <div class="groom-icon">💍</div>
+      <div class="groom-title">Details</div>
+      <div class="groom-note">Cufflinks, watches, tie bars — these details are photographed in the morning. Have them clean, polished, and laid out ready before we arrive.</div>
+    </div>
+  </div>
+
+  <!-- Bridal party coordination -->
+  <div class="section-label">Coordinating Your Bridal Party</div>
+  <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;">
+    <div class="party-rule">
+      <div class="party-icon">🎨</div>
+      <div class="party-body">
+        <div class="party-title">Colour Family, Not Clones</div>
+        <div class="party-note">Identical dresses in a group photograph look like a uniform. Coordinate your bridal party within a colour family — same dusty rose but different silhouettes, for example. This photographs with depth, not flatness.</div>
+      </div>
+    </div>
+    <div class="party-rule">
+      <div class="party-icon">🪞</div>
+      <div class="party-body">
+        <div class="party-title">Brief Your Bridesmaids</div>
+        <div class="party-note">Send them this guide. Remind them that what they wear affects your photographs too — not just theirs. A bridesmaid in a heavily patterned fabric will draw the eye away from you in every group shot.</div>
+      </div>
+    </div>
+    <div class="party-rule">
+      <div class="party-icon">📸</div>
+      <div class="party-body">
+        <div class="party-title">Group Shots Need Group Planning</div>
+        <div class="party-note">The most beautiful group photographs are ones where the visual story is intentional — the colours work together, the silhouettes complement each other. Ten minutes of planning saves a lifetime of looking at photographs that feel mismatched.</div>
+      </div>
+    </div>
+    <div class="party-rule">
+      <div class="party-icon">💐</div>
+      <div class="party-body">
+        <div class="party-title">Flowers and Accessories</div>
+        <div class="party-note">Coordinate flowers with the dress colours early. Clashing flowers are one of the most common album regrets — and they are entirely avoidable. Send your florist this colour reference if needed.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Final note -->
+  <div class="insight" style="margin-top:28px;">
+    <strong>One last thing:</strong> Do not buy something new for your wedding day that you have not worn before. The discomfort of an untested heel or a scratchy neckline will show in your face — and we will capture that too. Every beautiful photograph starts with a comfortable person. Wear what makes you feel like the best version of yourself, tested, practised, and ready.
+  </div>
+
+  <div class="footer">
+    <a href="https://wa.me/256706028899?text=Hi%20Charis%20Creations%2C%20I%20have%20a%20question%20about%20what%20to%20wear%20for%20my%20wedding." class="wa-btn">📱 Questions? WhatsApp Us</a>
+    <div class="footer-note">+256 706 028 899 · chariscreationsltd@gmail.com · chariscreationsltd.com</div>
+  </div>
+
+</div>
+</body>
+</html>

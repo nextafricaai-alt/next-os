@@ -1,0 +1,2219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TRG Monthly Content Feed</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    :root {
+      --coral: #F7A092;
+      --coral-dark: #e8856e;
+      --teal: #90D1C2;
+      --teal-dark: #6bb8a8;
+      --gold: #E49944;
+      --linen: #F1F1ED;
+      --blush: #FEF5F4;
+      --dark: #2D2D2D;
+      --mid: #666;
+      --light: #999;
+      --white: #ffffff;
+      --shadow: 0 2px 16px rgba(0,0,0,0.08);
+      --radius: 12px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--blush);
+      color: var(--dark);
+      min-height: 100vh;
+    }
+
+    /* HEADER */
+    .header {
+      background: var(--white);
+      border-bottom: 3px solid var(--coral);
+      padding: 20px 24px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: var(--shadow);
+    }
+    .header-logo {
+      width: 48px;
+      height: 48px;
+      background: var(--coral);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      color: white;
+      font-weight: 800;
+    }
+    .header-text h1 { font-size: 18px; font-weight: 700; color: var(--dark); }
+    .header-text p { font-size: 13px; color: var(--mid); margin-top: 2px; }
+    .header-month {
+      margin-left: auto;
+      background: var(--blush);
+      border: 1px solid var(--coral);
+      border-radius: 20px;
+      padding: 6px 16px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--coral-dark);
+    }
+
+    /* PROGRESS */
+    .progress-bar {
+      background: var(--linen);
+      height: 6px;
+      width: 100%;
+    }
+    .progress-fill {
+      background: linear-gradient(90deg, var(--coral), var(--teal));
+      height: 100%;
+      transition: width 0.4s ease;
+    }
+
+    /* STEPS NAV */
+    .steps-nav {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      padding: 20px 24px 0;
+      flex-wrap: wrap;
+    }
+    .step-dot {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--light);
+      cursor: pointer;
+    }
+    .step-dot .dot {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: var(--linen);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 700;
+      border: 2px solid transparent;
+      transition: all 0.3s;
+    }
+    .step-dot.active .dot { background: var(--coral); color: white; border-color: var(--coral); }
+    .step-dot.done .dot { background: var(--teal); color: white; }
+    .step-dot.active { color: var(--coral-dark); }
+
+    /* MAIN CONTENT */
+    .container { max-width: 720px; margin: 0 auto; padding: 24px 20px 80px; }
+
+    /* STEP PANELS */
+    .step-panel { display: none; }
+    .step-panel.active { display: block; animation: fadeIn 0.3s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* CARDS */
+    .card {
+      background: var(--white);
+      border-radius: var(--radius);
+      padding: 28px;
+      margin-bottom: 16px;
+      box-shadow: var(--shadow);
+    }
+    .card-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--dark);
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .card-title .icon { font-size: 22px; }
+    .card-subtitle { font-size: 13px; color: var(--mid); margin-bottom: 20px; line-height: 1.5; }
+
+    /* WELCOME */
+    .welcome-banner {
+      background: linear-gradient(135deg, var(--coral) 0%, var(--teal) 100%);
+      border-radius: var(--radius);
+      padding: 32px 28px;
+      color: white;
+      margin-bottom: 20px;
+      position: relative;
+      overflow: hidden;
+    }
+    .welcome-banner::before {
+      content: '';
+      position: absolute;
+      top: -30px; right: -30px;
+      width: 120px; height: 120px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 50%;
+    }
+    .welcome-banner h2 { font-size: 22px; font-weight: 800; margin-bottom: 8px; }
+    .welcome-banner p { font-size: 14px; line-height: 1.6; opacity: 0.92; }
+
+    /* DEPT GRID */
+    .dept-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 8px;
+    }
+    @media (max-width: 500px) { .dept-grid { grid-template-columns: 1fr; } }
+    .dept-card {
+      border: 2px solid var(--linen);
+      border-radius: var(--radius);
+      padding: 16px;
+      cursor: pointer;
+      transition: all 0.2s;
+      background: var(--white);
+      position: relative;
+    }
+    .dept-card:hover { border-color: var(--coral); transform: translateY(-2px); box-shadow: var(--shadow); }
+    .dept-card.selected { border-color: var(--coral); background: #fff5f3; }
+    .dept-card.selected::after {
+      content: '✓';
+      position: absolute;
+      top: 10px; right: 12px;
+      background: var(--coral);
+      color: white;
+      width: 22px; height: 22px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .dept-icon { font-size: 26px; margin-bottom: 8px; }
+    .dept-name { font-size: 13px; font-weight: 700; color: var(--dark); line-height: 1.3; }
+    .dept-desc { font-size: 11px; color: var(--mid); margin-top: 3px; }
+
+    /* FORM FIELDS */
+    .field-group { margin-bottom: 22px; }
+    .field-label {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--dark);
+      margin-bottom: 4px;
+      display: block;
+    }
+    .field-hint {
+      font-size: 12px;
+      color: var(--mid);
+      margin-bottom: 8px;
+      line-height: 1.5;
+    }
+    .field-hint em { color: var(--teal-dark); font-style: normal; font-weight: 600; }
+    input[type="text"],
+    input[type="number"],
+    input[type="email"],
+    select,
+    textarea {
+      width: 100%;
+      border: 2px solid var(--linen);
+      border-radius: 8px;
+      padding: 12px 14px;
+      font-size: 14px;
+      color: var(--dark);
+      font-family: inherit;
+      transition: border-color 0.2s;
+      background: var(--white);
+      outline: none;
+    }
+    input:focus, select:focus, textarea:focus { border-color: var(--coral); }
+    textarea { resize: vertical; min-height: 90px; }
+    select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23999' d='M6 8L1 3h10z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 14px center; padding-right: 36px; }
+
+    /* MEDIA SECTION */
+    .media-prompt {
+      background: var(--blush);
+      border: 2px dashed var(--coral);
+      border-radius: var(--radius);
+      padding: 20px;
+      text-align: center;
+      margin-bottom: 12px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .media-prompt:hover { background: #fce8e4; }
+    .media-prompt .media-icon { font-size: 32px; margin-bottom: 8px; }
+    .media-prompt p { font-size: 13px; color: var(--mid); line-height: 1.5; }
+    .media-prompt strong { color: var(--dark); display: block; margin-bottom: 4px; font-size: 14px; }
+    input[type="file"] { display: none; }
+
+    /* DEPT SECTIONS (Step 2) */
+    .dept-section {
+      display: none;
+      animation: fadeIn 0.3s ease;
+    }
+    .dept-section.visible { display: block; }
+    .dept-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 20px;
+      padding: 16px 20px;
+      background: linear-gradient(90deg, var(--blush), var(--white));
+      border-left: 4px solid var(--coral);
+      border-radius: 0 var(--radius) var(--radius) 0;
+    }
+    .dept-header .big-icon { font-size: 32px; }
+    .dept-header h3 { font-size: 17px; font-weight: 800; color: var(--dark); }
+    .dept-header p { font-size: 12px; color: var(--mid); margin-top: 2px; }
+
+    /* MEDIA LIST */
+    .media-list { list-style: none; margin-top: 8px; }
+    .media-list li {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      background: var(--blush);
+      border-radius: 6px;
+      margin-bottom: 6px;
+      font-size: 13px;
+    }
+    .media-list li .remove-btn {
+      margin-left: auto;
+      background: none;
+      border: none;
+      color: var(--light);
+      cursor: pointer;
+      font-size: 16px;
+    }
+
+    /* RADIO / CHECKBOX */
+    .choice-group { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 4px; }
+    .choice-btn {
+      border: 2px solid var(--linen);
+      border-radius: 20px;
+      padding: 6px 16px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      background: var(--white);
+      color: var(--mid);
+    }
+    .choice-btn:hover { border-color: var(--coral); color: var(--coral-dark); }
+    .choice-btn.selected { background: var(--coral); border-color: var(--coral); color: white; }
+
+    /* BUTTONS */
+    .btn {
+      padding: 14px 28px;
+      border-radius: 8px;
+      border: none;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-family: inherit;
+    }
+    .btn-primary {
+      background: var(--coral);
+      color: white;
+    }
+    .btn-primary:hover { background: var(--coral-dark); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(247,160,146,0.4); }
+    .btn-secondary {
+      background: var(--linen);
+      color: var(--dark);
+    }
+    .btn-secondary:hover { background: #e8e6e0; }
+    .btn-teal {
+      background: var(--teal);
+      color: white;
+    }
+    .btn-teal:hover { background: var(--teal-dark); }
+
+    /* NAV BUTTONS */
+    .nav-buttons {
+      display: flex;
+      gap: 12px;
+      margin-top: 28px;
+      justify-content: space-between;
+    }
+    .nav-buttons-right { display: flex; gap: 12px; }
+
+    /* SUCCESS */
+    .success-screen {
+      text-align: center;
+      padding: 60px 20px;
+    }
+    .success-icon {
+      width: 80px; height: 80px;
+      background: linear-gradient(135deg, var(--coral), var(--teal));
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 36px;
+      margin: 0 auto 24px;
+      color: white;
+    }
+    .success-screen h2 { font-size: 24px; font-weight: 800; color: var(--dark); margin-bottom: 12px; }
+    .success-screen p { font-size: 15px; color: var(--mid); line-height: 1.6; max-width: 400px; margin: 0 auto 8px; }
+    .ref-number {
+      display: inline-block;
+      background: var(--blush);
+      border: 1px solid var(--coral);
+      border-radius: 6px;
+      padding: 8px 20px;
+      font-weight: 700;
+      color: var(--coral-dark);
+      margin: 16px 0;
+      font-size: 16px;
+    }
+    .success-steps {
+      margin: 24px auto;
+      max-width: 380px;
+      text-align: left;
+    }
+    .success-steps li {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 12px;
+      font-size: 13px;
+      color: var(--mid);
+    }
+    .success-steps .step-num {
+      width: 22px; height: 22px;
+      min-width: 22px;
+      background: var(--teal);
+      border-radius: 50%;
+      color: white;
+      font-size: 11px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* TAG */
+    .tag {
+      display: inline-block;
+      background: var(--blush);
+      color: var(--coral-dark);
+      border-radius: 4px;
+      padding: 2px 8px;
+      font-size: 11px;
+      font-weight: 700;
+      margin-right: 6px;
+    }
+    .tag.teal { background: #e8f8f5; color: var(--teal-dark); }
+    .tag.gold { background: #fdf3e3; color: #b07020; }
+
+    /* REQUIRED */
+    .required { color: var(--coral); margin-left: 2px; }
+
+    /* DIVIDER */
+    .divider {
+      height: 1px;
+      background: var(--linen);
+      margin: 24px 0;
+    }
+
+    /* STICKY FOOTER */
+    .sticky-footer {
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      background: var(--white);
+      border-top: 2px solid var(--linen);
+      padding: 14px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 -4px 16px rgba(0,0,0,0.06);
+      z-index: 100;
+    }
+    .footer-info { font-size: 12px; color: var(--mid); }
+    .footer-info strong { color: var(--dark); }
+
+    /* NOTIFICATION BADGE */
+    .notification-dot {
+      display: inline-block;
+      width: 8px; height: 8px;
+      background: var(--coral);
+      border-radius: 50%;
+      margin-left: 6px;
+      vertical-align: middle;
+    }
+
+    /* ==================== LANDING SCREEN ==================== */
+    #landing-screen {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 32px 20px 48px;
+      animation: fadeIn 0.35s ease;
+    }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    .landing-hero {
+      background: linear-gradient(135deg, #f7a092 0%, #90d1c2 100%);
+      border-radius: var(--radius);
+      padding: 32px 28px;
+      color: white;
+      margin-bottom: 28px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .landing-hero::before {
+      content: ''; position: absolute; top: -40px; right: -40px;
+      width: 140px; height: 140px; background: rgba(255,255,255,0.12); border-radius: 50%;
+    }
+    .landing-hero::after {
+      content: ''; position: absolute; bottom: -30px; left: -20px;
+      width: 100px; height: 100px; background: rgba(255,255,255,0.08); border-radius: 50%;
+    }
+    .landing-hero h2 { font-size: 22px; font-weight: 800; margin-bottom: 10px; position: relative; z-index: 1; }
+    .landing-hero p { font-size: 14px; line-height: 1.65; opacity: 0.94; position: relative; z-index: 1; margin: 0; }
+    .mode-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 520px) { .mode-cards { grid-template-columns: 1fr; } }
+    .mode-card {
+      background: var(--white);
+      border: 2.5px solid var(--linen);
+      border-radius: var(--radius);
+      padding: 26px 20px;
+      cursor: pointer;
+      transition: all 0.22s;
+      text-align: left;
+      box-shadow: var(--shadow);
+    }
+    .mode-card:hover { transform: translateY(-3px); box-shadow: 0 8px 28px rgba(0,0,0,0.11); }
+    .mode-card.mode-monthly:hover { border-color: var(--coral); }
+    .mode-card.mode-livelog:hover { border-color: var(--teal); }
+    .mode-icon { font-size: 36px; margin-bottom: 14px; display: block; }
+    .mode-who {
+      font-size: 11px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.6px; color: var(--light); margin-bottom: 8px;
+    }
+    .mode-card h3 { font-size: 16px; font-weight: 800; color: var(--dark); margin-bottom: 8px; }
+    .mode-card .mode-desc { font-size: 13px; color: var(--mid); line-height: 1.6; margin-bottom: 20px; }
+    .mode-cta {
+      display: flex; align-items: center; justify-content: center;
+      padding: 11px 20px; border-radius: 8px; font-size: 13px; font-weight: 700;
+      border: none; cursor: pointer; font-family: inherit; transition: all 0.2s; width: 100%;
+    }
+    .mode-cta.cta-coral { background: var(--coral); color: white; }
+    .mode-cta.cta-coral:hover { background: var(--coral-dark); }
+    .mode-cta.cta-teal { background: var(--teal); color: white; }
+    .mode-cta.cta-teal:hover { background: var(--teal-dark); }
+
+    /* ==================== LIVE LOG FORM ==================== */
+    #live-log-form, #live-log-success { display: none; animation: fadeIn 0.3s ease; }
+    .ll-back-btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      color: var(--mid); font-size: 13px; font-weight: 600; cursor: pointer;
+      padding: 8px 0; margin-bottom: 16px; background: none; border: none; font-family: inherit;
+    }
+    .ll-back-btn:hover { color: var(--coral-dark); }
+    .ll-banner {
+      background: linear-gradient(135deg, var(--teal) 0%, #5cbfad 100%);
+      border-radius: var(--radius); padding: 24px 22px; color: white; margin-bottom: 20px;
+    }
+    .ll-banner h2 { font-size: 18px; font-weight: 800; margin-bottom: 6px; }
+    .ll-banner p { font-size: 13px; opacity: 0.93; line-height: 1.55; margin: 0; }
+    .urgency-btns { display: flex; flex-direction: column; gap: 10px; margin-top: 6px; }
+    .urgency-btn {
+      display: flex; align-items: flex-start; gap: 12px; padding: 14px 16px;
+      border: 2px solid var(--linen); border-radius: 10px; cursor: pointer; transition: all 0.2s;
+      background: var(--white); text-align: left; font-family: inherit; width: 100%;
+    }
+    .urgency-btn:hover { border-color: var(--coral); }
+    .urgency-btn.selected { border-color: var(--coral); background: #fff5f3; }
+    .urgency-btn.ub-breaking.selected { border-color: #e04444; background: #fff0f0; }
+    .urgency-btn.ub-good.selected { border-color: var(--teal-dark); background: #f0fbf8; }
+    .urgency-btn.ub-background.selected { border-color: #aaa; background: #f5f5f3; }
+    .ub-icon { font-size: 22px; min-width: 28px; padding-top: 2px; }
+    .ub-label { font-size: 14px; font-weight: 700; color: var(--dark); }
+    .ub-desc { font-size: 12px; color: var(--mid); margin-top: 2px; }
+    .media-select-btns { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 6px; }
+    .media-select-btn {
+      flex: 1; min-width: 110px; padding: 12px 14px;
+      border: 2px solid var(--linen); border-radius: 10px; cursor: pointer;
+      font-size: 13px; font-weight: 600; color: var(--mid); background: var(--white);
+      text-align: center; transition: all 0.2s; font-family: inherit; line-height: 1.4;
+    }
+    .media-select-btn:hover { border-color: var(--teal); color: var(--teal-dark); }
+    .media-select-btn.selected { border-color: var(--teal); background: #f0fbf8; color: var(--teal-dark); font-weight: 700; }
+    .followup-reveal { display: none; margin-top: 12px; animation: fadeIn 0.25s ease; }
+    .followup-reveal.visible { display: block; }
+
+    /* ---- 3-Stage Department Selection ---- */
+    .org-type-card {
+      padding: 20px 16px; border: 2px solid var(--linen); border-radius: var(--radius);
+      cursor: pointer; text-align: center; transition: all 0.2s; background: var(--white);
+    }
+    .org-type-card:hover { border-color: var(--coral); transform: translateY(-2px); box-shadow: var(--shadow); }
+    .org-type-card.selected { border-color: var(--coral); background: #fff5f3; }
+    .stage-container { margin-top: 22px; }
+    .stage-label { font-size: 14px; font-weight: 700; color: var(--dark); margin-bottom: 12px;
+      padding: 8px 0; border-bottom: 1px solid var(--linen); }
+    .region-selector { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 10px; }
+    .region-chip {
+      padding: 12px 28px; border: 2px solid var(--linen); border-radius: 50px;
+      cursor: pointer; font-size: 15px; font-weight: 600; color: var(--mid);
+      background: var(--white); transition: all 0.2s; letter-spacing: 0.3px;
+    }
+    .region-chip:hover { border-color: var(--teal); color: var(--teal-dark); }
+    .region-chip.selected { border-color: var(--teal); background: #f0fbf8; color: var(--teal-dark); }
+    .sub-prog-grid { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+    .sub-prog-pill {
+      padding: 9px 18px; border: 2px solid var(--linen); border-radius: 50px;
+      cursor: pointer; font-size: 13px; font-weight: 600; color: var(--mid);
+      background: var(--white); transition: all 0.2s;
+    }
+    .sub-prog-pill:hover { border-color: var(--gold); color: var(--dark); }
+    .sub-prog-pill.selected { border-color: var(--gold); background: #fdf5e8; color: var(--dark); font-weight: 700; }
+    .dept-selection-summary {
+      margin-top: 16px; padding: 14px 18px; background: #f0fbf8; border-radius: 10px;
+      border-left: 4px solid var(--teal); font-size: 14px; line-height: 1.6;
+    }
+  </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-logo">TRG</div>
+  <div class="header-text">
+    <h1>Monthly Content Feed</h1>
+    <p>Help Charis Creations tell your story this month</p>
+  </div>
+  <div class="header-month" id="headerMonth">Loading...</div>
+</div>
+
+<!-- PROGRESS BAR -->
+<div class="progress-bar">
+  <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+</div>
+
+<!-- STEPS NAV -->
+<div class="steps-nav" id="stepsNav">
+  <div class="step-dot active" data-step="1" onclick="goToStep(1)">
+    <div class="dot">1</div> <span>Your Info</span>
+  </div>
+  <div class="step-dot" data-step="2" onclick="goToStep(2)">
+    <div class="dot">2</div> <span>Department</span>
+  </div>
+  <div class="step-dot" data-step="3" onclick="goToStep(3)">
+    <div class="dot">3</div> <span>Stories</span>
+  </div>
+  <div class="step-dot" data-step="4" onclick="goToStep(4)">
+    <div class="dot">4</div> <span>Media</span>
+  </div>
+  <div class="step-dot" data-step="5" onclick="goToStep(5)">
+    <div class="dot">5</div> <span>Submit</span>
+  </div>
+</div>
+
+<div class="container">
+
+  <!-- ==================== LANDING SCREEN ==================== -->
+  <div id="landing-screen">
+    <div class="landing-hero">
+      <h2>📋 TRG Content Portal</h2>
+      <p>Share what's happening at TRG so Charis can tell your story.<br>Choose what you're here to do — it only takes a few minutes.</p>
+    </div>
+
+    <div class="mode-cards">
+      <div class="mode-card mode-monthly">
+        <span class="mode-icon">📋</span>
+        <div class="mode-who">For department heads &amp; senior leaders</div>
+        <h3>Monthly Department Plan</h3>
+        <p class="mode-desc">Fill this in once a month for the month ahead. Give Charis everything they need to plan your content — stories, numbers, media, and upcoming events.</p>
+        <button class="mode-cta cta-coral" onclick="selectMode('monthly')">Start Monthly Plan →</button>
+      </div>
+
+      <div class="mode-card mode-livelog">
+        <span class="mode-icon">⚡</span>
+        <div class="mode-who">For everyone — any day, any time</div>
+        <h3>Log Something That Happened</h3>
+        <p class="mode-desc">Something just happened and it needs to be told. Fill this in right now — it takes under 3 minutes. Don't let the story go cold.</p>
+        <button class="mode-cta cta-teal" onclick="selectMode('livelog')">Log It Now →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== LIVE LOG FORM ==================== -->
+  <div id="live-log-form">
+    <button class="ll-back-btn" onclick="backToLanding()">← Back to menu</button>
+
+    <div class="ll-banner">
+      <h2>⚡ Log Something That Happened</h2>
+      <p>This is for real moments — something that happened today or this week that the world should know about. Write it like you're sending a WhatsApp message. No polish needed.</p>
+    </div>
+
+    <div style="background:#fff0f0;border:1px solid #f3c2c2;border-left:4px solid #c0392b;border-radius:10px;padding:12px 16px;margin-bottom:16px;">
+      <strong style="font-size:13px;color:#c0392b;">🛡️ Protect the children first.</strong>
+      <p style="font-size:12px;color:#8a4040;margin-top:4px;line-height:1.6;">Never write a child's full name, school, exact village, or anything that could identify them — especially in rescue or court cases. Describe <em>the situation, not the identity</em>. Charis will tell the story safely. When in doubt, leave it out.</p>
+    </div>
+
+    <div class="card">
+      <div class="field-group">
+        <label class="field-label">Your name <span class="required">*</span></label>
+        <input type="text" id="ll_name" placeholder="e.g. Sarah Nakato" />
+      </div>
+
+      <div class="field-group">
+        <label class="field-label">TRG access code <span class="required">*</span></label>
+        <div class="field-hint">From Charis — pinned in the WhatsApp group. Entered once per device.</div>
+        <input type="text" id="ll_accessCode" placeholder="Enter the access code" />
+      </div>
+
+      <div class="field-group">
+        <label class="field-label">Which department are you from? <span class="required">*</span></label>
+        <select id="ll_dept">
+          <option value="">— Select your department —</option>
+          <optgroup label="📍 Central Region">
+            <option value="rescue_c">🛡️ Central — Rescue &amp; Restoration</option>
+            <option value="mentalhealth_c">💚 Central — Maternal &amp; Child Health Services</option>
+            <option value="education_c">🌟 Central — Thrive</option>
+          </optgroup>
+          <optgroup label="📍 Eastern Region">
+            <option value="rescue_e">🛡️ Eastern — Rescue &amp; Restoration</option>
+            <option value="mentalhealth_e">💚 Eastern — Maternal &amp; Child Health Services</option>
+            <option value="education_e">🌟 Eastern — Thrive</option>
+          </optgroup>
+          <optgroup label="📍 Western Region">
+            <option value="rescue_w">🛡️ Western — Rescue &amp; Restoration</option>
+            <option value="mentalhealth_w">💚 Western — Maternal &amp; Child Health Services</option>
+            <option value="education_w">🌟 Western — Thrive</option>
+          </optgroup>
+          <optgroup label="⚙️ Operational Departments">
+            <option value="hr">👥 Human Resources</option>
+            <option value="fundraising">🤝 Donor Relations, Partnerships &amp; ED</option>
+            <option value="programs">📊 Programs, Monitoring, Learning &amp; Evaluation</option>
+          </optgroup>
+        </select>
+      </div>
+
+      <div class="field-group">
+        <label class="field-label">When did this happen? <span class="required">*</span></label>
+        <div class="field-hint">It's okay if it was a few days ago. Approximate is fine.</div>
+        <input type="date" id="ll_date" />
+      </div>
+
+      <div class="field-group">
+        <label class="field-label">What happened? <span class="required">*</span></label>
+        <div class="field-hint">Write it like you're telling a friend. What happened, where, who was involved, why it matters. No need to polish — we'll do that.<br><em style="color:var(--light)">Example: "We just rescued a 7-year-old from Mukono. She had been missing for 3 days. She is safe now and in our shelter. First smile was this afternoon."</em></div>
+        <textarea id="ll_what" rows="6" placeholder="Just tell us what happened. Write freely. We're listening..."></textarea>
+      </div>
+
+      <div class="field-group">
+        <label class="field-label">Is this a follow-up to something shared before?</label>
+        <div class="choice-group" id="ll_followup_choice">
+          <div class="choice-btn" onclick="selectChoice(this, 'll_followup_choice'); toggleLLFollowup(false)">No, this is new</div>
+          <div class="choice-btn" onclick="selectChoice(this, 'll_followup_choice'); toggleLLFollowup(true)">Yes, this is an update</div>
+        </div>
+        <div id="ll_followup_field" class="followup-reveal">
+          <label class="field-label" style="font-size:13px; margin-top:12px; display:block;">What was the original story or situation?</label>
+          <textarea id="ll_followup_context" rows="3" placeholder="e.g. 'The rescue case from last week — here's the update'"></textarea>
+        </div>
+      </div>
+
+      <div class="field-group">
+        <label class="field-label">Do you have photos or video? <span class="required">*</span></label>
+        <div class="media-select-btns" id="ll_media_btns">
+          <button class="media-select-btn" onclick="selectMediaBtn(this, 'yes')">📸 Yes, I have it</button>
+          <button class="media-select-btn" onclick="selectMediaBtn(this, 'no')">📵 No</button>
+          <button class="media-select-btn" onclick="selectMediaBtn(this, 'whatsapp')">💬 I'll send via WhatsApp</button>
+        </div>
+      </div>
+
+      <div class="field-group">
+        <label class="field-label">How important is this for content? <span class="required">*</span></label>
+        <div class="urgency-btns" id="ll_urgency_btns">
+          <button class="urgency-btn ub-breaking" onclick="selectUrgency(this, 'breaking')">
+            <span class="ub-icon">🔥</span>
+            <div>
+              <div class="ub-label">Breaking — use now</div>
+              <div class="ub-desc">This needs to be published or posted within 48 hours. Time-sensitive.</div>
+            </div>
+          </button>
+          <button class="urgency-btn ub-good" onclick="selectUrgency(this, 'good_story')">
+            <span class="ub-icon">⭐</span>
+            <div>
+              <div class="ub-label">Good story — use this month</div>
+              <div class="ub-desc">Valuable content. Use it in the regular monthly cycle.</div>
+            </div>
+          </button>
+          <button class="urgency-btn ub-background" onclick="selectUrgency(this, 'background')">
+            <span class="ub-icon">📝</span>
+            <div>
+              <div class="ub-label">Background info</div>
+              <div class="ub-desc">Good context for the team. Not urgent. Use when there's space.</div>
+            </div>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-top: 24px; display: flex; gap: 12px; justify-content: flex-end; flex-wrap: wrap;">
+      <button class="btn btn-secondary" onclick="backToLanding()">← Back</button>
+      <button class="btn btn-teal" onclick="submitLiveLog()" style="padding: 14px 32px; font-size: 15px;">
+        ⚡ Submit Live Log
+      </button>
+    </div>
+  </div>
+
+  <!-- ==================== LIVE LOG SUCCESS ==================== -->
+  <div id="live-log-success">
+    <div class="success-screen">
+      <div class="success-icon">⚡</div>
+      <h2>Got it. Story logged.</h2>
+      <p>The Charis team has been notified. Your entry is in the Content Hub and Patience will see it now.</p>
+      <div class="ref-number" id="llRefNumber">Log: TRG-LOG-001</div>
+      <p style="font-size: 13px; margin-top: 8px; color: var(--mid);">If you have photos or video, send them to the <strong>TRG Content Feed WhatsApp group</strong>.</p>
+      <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 32px;">
+        <button class="btn btn-teal" onclick="startAnotherLog()">⚡ Log another</button>
+        <button class="btn btn-secondary" onclick="backToLanding()">← Back to menu</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== STEP 1: Welcome + Info ==================== -->
+  <div class="step-panel active" id="step-1">
+    <div class="welcome-banner">
+      <h2>👋 Welcome to your monthly content feed</h2>
+      <p>This takes about 10–15 minutes. Your answers help Charis Creations write your stories, plan your social media, and prepare your newsletter — so the more detail you give us, the better your content will be. There are no wrong answers here.</p>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><span class="icon">👤</span> Tell us who you are</div>
+      <div class="card-subtitle">This helps us know which department is speaking and who to contact if we have questions.</div>
+
+      <div id="welcomeBack" style="display:none; background:#f0fbf8; border-left:4px solid var(--teal); border-radius:10px; padding:10px 14px; margin-bottom:14px;">
+        <span style="font-size:13px; color:var(--dark);">👋 Welcome back, <strong id="welcomeName"></strong>!</span>
+        <span style="font-size:12px; color:var(--mid);"> &nbsp;Not you? <a href="#" onclick="switchUser(event)" style="color:var(--teal-dark); font-weight:600;">Switch user</a></span>
+      </div>
+
+      <div class="field-group">
+        <label class="field-label">Your full name <span class="required">*</span></label>
+        <div class="field-hint">Type your name once — this phone will remember you next time.</div>
+        <input type="text" id="submitterName" placeholder="e.g. Sarah Nakato" />
+      </div>
+
+      <div class="field-group">
+        <label class="field-label">Your role / title</label>
+        <input type="text" id="submitterRole" placeholder="e.g. Child Protection Officer, Programs Manager" />
+      </div>
+
+      <div class="field-group">
+        <label class="field-label">Your phone or WhatsApp number</label>
+        <input type="text" id="submitterPhone" placeholder="e.g. 0772 000 000" />
+      </div>
+
+      <div class="field-group">
+        <label class="field-label">Your email address</label>
+        <div class="field-hint">Optional — used if we need to send you a reminder or follow-up.</div>
+        <input type="email" id="submitterEmail" placeholder="e.g. sarah@trg.org" />
+      </div>
+
+      <div class="field-group">
+        <label class="field-label">Which month is this for? <span class="required">*</span></label>
+        <select id="contentMonth">
+          <option value="">— Select month —</option>
+          <option>January</option><option>February</option><option>March</option>
+          <option>April</option><option>May</option><option>June</option>
+          <option>July</option><option>August</option><option>September</option>
+          <option>October</option><option>November</option><option>December</option>
+        </select>
+      </div>
+
+      <div class="field-group">
+        <label class="field-label">Year <span class="required">*</span></label>
+        <select id="contentYear">
+          <option>2026</option><option>2027</option><option>2025</option>
+        </select>
+      </div>
+
+      <div class="field-group">
+        <label class="field-label">TRG access code <span class="required">*</span></label>
+        <div class="field-hint">A short code from Charis — pinned in the TRG Content Feed WhatsApp group. You only enter it once on this device.</div>
+        <input type="text" id="accessCode" placeholder="Enter the access code" />
+      </div>
+    </div>
+
+    <div class="nav-buttons">
+      <span></span>
+      <div class="nav-buttons-right">
+        <button class="btn btn-primary" onclick="nextStep(1)">Continue →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== STEP 2: Department Selection ==================== -->
+  <div class="step-panel" id="step-2">
+    <div class="card">
+      <div class="card-title"><span class="icon">🏛️</span> Which department are you from?</div>
+      <div class="card-subtitle">We will ask you the right questions once we know your department. Start by selecting your type, then your region and specific department.</div>
+
+      <!-- STAGE 1: Program vs Operational -->
+      <div class="stage-container" id="stage-orgtype">
+        <div class="stage-label">Step 1 — What type of department are you in?</div>
+        <div class="dept-grid" style="grid-template-columns: 1fr 1fr;">
+          <div class="org-type-card" onclick="selectOrgType(this, 'program')">
+            <div class="dept-icon">🌍</div>
+            <div class="dept-name">Program Department</div>
+            <div class="dept-desc">Works directly with children and communities in the regions — Rescue, Health Services, or Thrive</div>
+          </div>
+          <div class="org-type-card" onclick="selectOrgType(this, 'operational')">
+            <div class="dept-icon">⚙️</div>
+            <div class="dept-name">Operational Department</div>
+            <div class="dept-desc">Supports the whole organisation — HR, Donor Relations, or Programs &amp; M&amp;E</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- STAGE 2a: Region (Program only) -->
+      <div class="stage-container" id="stage-region" style="display:none;">
+        <div class="stage-label">Step 2 — Which region are you reporting from?</div>
+        <div class="region-selector">
+          <div class="region-chip" onclick="selectRegion(this, 'Central')">📍 Central</div>
+          <div class="region-chip" onclick="selectRegion(this, 'Eastern')">📍 Eastern</div>
+          <div class="region-chip" onclick="selectRegion(this, 'Western')">📍 Western</div>
+        </div>
+      </div>
+
+      <!-- STAGE 2b: Program Dept (after region) -->
+      <div class="stage-container" id="stage-progdept" style="display:none;">
+        <div class="stage-label">Step 3 — Which program department?</div>
+        <div class="dept-grid" style="grid-template-columns: 1fr 1fr 1fr;">
+          <div class="dept-card" onclick="selectProgramDept(this, 'rescue', 'Rescue &amp; Restoration')">
+            <div class="dept-icon">🛡️</div>
+            <div class="dept-name">Rescue &amp; Restoration</div>
+            <div class="dept-desc">Princess Shelter, Jewels of Honour, Community Care, Legal, Family Tracing</div>
+          </div>
+          <div class="dept-card" onclick="selectProgramDept(this, 'mentalhealth', 'Maternal &amp; Child Health Services')">
+            <div class="dept-icon">💚</div>
+            <div class="dept-name">Maternal &amp; Child Health Services</div>
+            <div class="dept-desc">Maisha Clinic, Safe Spaces, Mental Health, Nutrition, Hygiene</div>
+          </div>
+          <div class="dept-card" onclick="selectProgramDept(this, 'education', 'Thrive')">
+            <div class="dept-icon">🌟</div>
+            <div class="dept-name">Thrive</div>
+            <div class="dept-desc">TVC, Education, ECD, Internships, Job Placements, Music Academy</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- STAGE 2c: Operational Dept (no region) -->
+      <div class="stage-container" id="stage-opdept" style="display:none;">
+        <div class="stage-label">Step 2 — Which operational department?</div>
+        <div class="dept-grid" style="grid-template-columns: 1fr 1fr 1fr;">
+          <div class="dept-card" onclick="selectOperationalDept(this, 'hr', 'Human Resources')">
+            <div class="dept-icon">👥</div>
+            <div class="dept-name">Human Resources</div>
+            <div class="dept-desc">Trainings, Recruitment, Staff Exits, Birthdays, Volunteers &amp; Interns</div>
+          </div>
+          <div class="dept-card" onclick="selectOperationalDept(this, 'fundraising', 'Donor Relations, Partnerships &amp; Executive Director')">
+            <div class="dept-icon">🤝</div>
+            <div class="dept-name">Donor Relations &amp; Executive Director</div>
+            <div class="dept-desc">Governance, Fundraising Trips &amp; Campaigns, Partner Updates, Newsletters</div>
+          </div>
+          <div class="dept-card" onclick="selectOperationalDept(this, 'programs', 'Programs, Monitoring, Learning &amp; Evaluation')">
+            <div class="dept-icon">📊</div>
+            <div class="dept-name">Programs, M&amp;E</div>
+            <div class="dept-desc">Research, Events &amp; Conferences, Special Reports, Hope Alive Network</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- STAGE 3: Sub-program -->
+      <div class="stage-container" id="stage-subprog" style="display:none;">
+        <div class="stage-label">Step 4 — Which specific program or area are you reporting on? <span style="font-weight:400;color:var(--light)">(optional but helpful)</span></div>
+        <div class="sub-prog-grid" id="subProgGrid"></div>
+      </div>
+
+      <!-- Summary of selection -->
+      <div id="deptSelectionSummary" class="dept-selection-summary" style="display:none;"></div>
+
+    </div>
+
+    <div class="nav-buttons">
+      <button class="btn btn-secondary" onclick="prevStep(2)">← Back</button>
+      <button class="btn btn-primary" onclick="nextStep(2)">Continue →</button>
+    </div>
+  </div>
+
+  <!-- ==================== STEP 3: Department Questions ==================== -->
+  <div class="step-panel" id="step-3">
+    <div style="background:#f0fbf8;border-left:4px solid var(--teal);border-radius:10px;padding:14px 18px;margin-bottom:16px;">
+      <strong style="font-size:13px;color:var(--dark);">💛 Honest answers are the most valuable answers.</strong>
+      <p style="font-size:12px;color:var(--mid);margin-top:4px;line-height:1.6;">Donors give most to organisations that are honest about difficulty. A hard month, a setback, a challenge that still exists — these are often the most powerful stories. Your honest answer here is valuable, not a problem.</p>
+    </div>
+    <div style="background:#fff0f0;border:1px solid #f3c2c2;border-left:4px solid #c0392b;border-radius:10px;padding:12px 18px;margin-bottom:16px;">
+      <strong style="font-size:13px;color:#c0392b;">🛡️ Protect the children first.</strong>
+      <p style="font-size:12px;color:#8a4040;margin-top:4px;line-height:1.6;">Never write a child's full name, school, exact village, or anything that could identify them — especially in rescue or court cases. Describe <em>the situation, not the identity</em>. Charis will tell the story safely. When in doubt, leave it out.</p>
+    </div>
+
+    <!-- RESCUE -->
+    <div class="dept-section" id="dept-rescue">
+      <div class="dept-header">
+        <div class="big-icon">🛡️</div>
+        <div>
+          <h3>Child Rescue &amp; Protection</h3>
+          <p>Share what your team has been doing — we'll turn it into stories that move people</p>
+        </div>
+      </div>
+      <div class="card">
+        <div class="field-group">
+          <label class="field-label">How many children did your team reach, rescue, or support this month? <span class="required">*</span></label>
+          <div class="field-hint">Even a rough number helps. Include rescues, follow-ups, court cases, or children in shelter.</div>
+          <input type="number" id="rescue_count" placeholder="e.g. 14" />
+        </div>
+        <div class="field-group">
+          <label class="field-label">Tell us about one child — in your own words <span class="required">*</span></label>
+          <div class="field-hint">Don't worry about writing skills. Just talk to us like you're telling a colleague. <em>Example: "There was a 9-year-old girl from Masaka. Her neighbours called us. She had been out of school for 2 years. We got her placed in a safe home within 4 days."</em> We will write the story — you just give us the facts.</div>
+          <textarea id="rescue_story" placeholder="Start with where they came from, how you heard about them, what happened, and how the team helped..."></textarea>
+        </div>
+        <div class="field-group">
+          <label class="field-label">What was the most difficult moment for your team this month?</label>
+          <div class="field-hint">Challenges and hard moments make stories real. What case or situation was hardest?</div>
+          <textarea id="rescue_challenge" placeholder="e.g. We had a case where we arrived too late. Or: The courts are very slow and it's affecting our children..." rows="3"></textarea>
+        </div>
+        <div class="field-group">
+          <label class="field-label">What is one thing your team did that you are proud of?</label>
+          <textarea id="rescue_proud" placeholder="e.g. We reunited a child with their family after 6 months. Or: Our officer stayed late to finish a court file..." rows="3"></textarea>
+        </div>
+        <div class="field-group">
+          <label class="field-label">Any cases or campaigns the public should know about?</label>
+          <div class="field-hint">Awareness moments, calls for the community to act, or something TRG wants people to understand.</div>
+          <textarea id="rescue_awareness" rows="3" placeholder="Optional — anything you want people to know or do"></textarea>
+        </div>
+        <div class="field-group">
+          <label class="field-label">Any upcoming events or work we should plan content for?</label>
+          <input type="text" id="rescue_upcoming" placeholder="e.g. Court hearing for 3 children in Week 2, Community awareness walk on 20th" />
+        </div>
+      </div>
+    </div>
+
+    <!-- EDUCATION -->
+    <div class="dept-section" id="dept-education">
+      <div class="dept-header">
+        <div class="big-icon">📚</div>
+        <div>
+          <h3>Education &amp; ECD</h3>
+          <p>Tell us what's happening in the classrooms and learning programs</p>
+        </div>
+      </div>
+      <div class="card">
+        <div class="field-group">
+          <label class="field-label">Which schools or ECD centers were active this month?</label>
+          <input type="text" id="edu_schools" placeholder="e.g. Princess of Peace, ECD Kampala, Hope Learning Centre" />
+        </div>
+        <div class="field-group">
+          <label class="field-label">How many children attended? How many teachers or facilitators? <span class="required">*</span></label>
+          <input type="text" id="edu_numbers" placeholder="e.g. 80 children across 3 centers, 6 facilitators" />
+        </div>
+        <div class="field-group">
+          <label class="field-label">Tell us about one moment that stood out this month <span class="required">*</span></label>
+          <div class="field-hint">A child who did something that surprised you. A parent who showed up. A teacher who went above and beyond. <em>Example: "One boy who never spoke started reading out loud in class. His teacher cried. We all did."</em></div>
+          <textarea id="edu_moment" placeholder="Describe the moment. Who was there, what happened, how it felt..."></textarea>
+        </div>
+        <div class="field-group">
+          <label class="field-label">Is there a child's progress or milestone worth featuring?</label>
+          <div class="field-hint">A promotion, an award, overcoming a barrier, returning to school after a gap.</div>
+          <textarea id="edu_milestone" rows="3" placeholder="Optional — describe the child (no full names needed, just the story)"></textarea>
+        </div>
+        <div class="field-group">
+          <label class="field-label">Any challenges with materials, space, attendance, or resources?</label>
+          <textarea id="edu_challenge" rows="3" placeholder="Be honest — real challenges help us tell the full story and attract support"></textarea>
+        </div>
+        <div class="field-group">
+          <label class="field-label">Upcoming: graduations, events, or special programs?</label>
+          <input type="text" id="edu_upcoming" placeholder="e.g. End-of-term party on the 28th, New term starts August 5th" />
+        </div>
+      </div>
+    </div>
+
+    <!-- MENTAL HEALTH -->
+    <div class="dept-section" id="dept-mentalhealth">
+      <div class="dept-header">
+        <div class="big-icon">💚</div>
+        <div>
+          <h3>Mental Health &amp; Counseling</h3>
+          <p>Help us share this important work — even in general, anonymized ways</p>
+        </div>
+      </div>
+      <div class="card">
+        <div class="field-group">
+          <label class="field-label">How many people received counseling or mental health support this month? <span class="required">*</span></label>
+          <input type="number" id="mh_count" placeholder="e.g. 23 sessions, 15 individual clients" />
+        </div>
+        <div class="field-group">
+          <label class="field-label">What themes or patterns are you seeing most in your work right now?</label>
+          <div class="field-hint">No names needed. Just the issues — <em>e.g. "Many young women coming with anxiety after domestic situations" or "We're seeing a lot of children carrying grief they've never talked about."</em></div>
+          <textarea id="mh_themes" placeholder="General patterns you're noticing in the community..."></textarea>
+        </div>
+        <div class="field-group">
+          <label class="field-label">Share an anonymized success story <span class="required">*</span></label>
+          <div class="field-hint">Someone who made real progress. No name, no identifying details — just the journey. <em>Example: "A young man came to us after 2 years of isolation. After 6 sessions, he enrolled back in a vocational program."</em></div>
+          <textarea id="mh_success" placeholder="Describe what they came with, what changed, and where they are now..."></textarea>
+        </div>
+        <div class="field-group">
+          <label class="field-label">Any community outreach or awareness work happening?</label>
+          <textarea id="mh_outreach" rows="3" placeholder="e.g. Mental health talks in schools, community awareness sessions, workshops"></textarea>
+        </div>
+        <div class="field-group">
+          <label class="field-label">Is there a mental health message TRG wants to put out publicly this month?</label>
+          <textarea id="mh_message" rows="3" placeholder="e.g. Awareness around a specific issue, breaking a stigma, a call for the community..."></textarea>
+        </div>
+      </div>
+    </div>
+
+    <!-- HOPE FARM -->
+    <div class="dept-section" id="dept-hopefarm">
+      <div class="dept-header">
+        <div class="big-icon">🌱</div>
+        <div>
+          <h3>Hope Farm / Lyantonde</h3>
+          <p>Tell us what's growing — the crops, the people, the transformation</p>
+        </div>
+      </div>
+      <div class="card">
+        <div class="field-group">
+          <label class="field-label">What activities happened at the farm or in Lyantonde this month?</label>
+          <textarea id="hf_activities" placeholder="e.g. Maize harvest, new beneficiaries arrived, vocational training classes ran..." rows="3"></textarea>
+        </div>
+        <div class="field-group">
+          <label class="field-label">How many beneficiaries were involved? <span class="required">*</span></label>
+          <input type="number" id="hf_count" placeholder="e.g. 18 residents, 30 community participants" />
+        </div>
+        <div class="field-group">
+          <label class="field-label">Tell us something that grew this month — literally or in people <span class="required">*</span></label>
+          <div class="field-hint">A bumper harvest. A person who started a skill. A change in someone's mindset. <em>Example: "Mary came to us unable to read. She is now teaching two others how to sew and she earned money for the first time last week."</em></div>
+          <textarea id="hf_growth" placeholder="Describe the growth — in crops, in skills, in confidence, in the community..."></textarea>
+        </div>
+        <div class="field-group">
+          <label class="field-label">What is the biggest challenge the farm is facing?</label>
+          <textarea id="hf_challenge" rows="3" placeholder="e.g. Dry season affecting the crops, need more seedlings, funding for tools running low..."></textarea>
+        </div>
+        <div class="field-group">
+          <label class="field-label">Any upcoming seasons, harvests, or events to plan content for?</label>
+          <input type="text" id="hf_upcoming" placeholder="e.g. Next planting season begins in August, Skills graduation in July" />
+        </div>
+      </div>
+    </div>
+
+    <!-- FUNDRAISING -->
+    <div class="dept-section" id="dept-fundraising">
+      <div class="dept-header">
+        <div class="big-icon">🤝</div>
+        <div>
+          <h3>Partnerships &amp; Fundraising</h3>
+          <p>Help us show donors and partners the impact of their support</p>
+        </div>
+      </div>
+      <div class="card">
+        <div class="field-group">
+          <label class="field-label">Any new partnerships or donor relationships to announce or acknowledge?</label>
+          <textarea id="fr_partners" rows="3" placeholder="e.g. New MOU with XYZ Foundation, recurring donation from ABC Church..."></textarea>
+        </div>
+        <div class="field-group">
+          <label class="field-label">Is there a fundraising campaign running or coming up?</label>
+          <input type="text" id="fr_campaign" placeholder="e.g. End-of-year giving campaign, Back to school appeal in July" />
+        </div>
+        <div class="field-group">
+          <label class="field-label">Are there donors or supporters to publicly recognize this month?</label>
+          <div class="field-hint">Only include people or organisations who have given permission to be featured.</div>
+
+          <label class="field-label" style="font-size:13px; margin-top:12px; display:block;">
+            Their name (person or organisation)
+          </label>
+          <input type="text" id="fr_recognition_name" placeholder="e.g. ABC Foundation, Pastor John Ssali" />
+
+          <label class="field-label" style="font-size:13px; margin-top:12px; display:block;">
+            What did they give or do?
+          </label>
+          <input type="text" id="fr_recognition_gave" placeholder="e.g. Donated school materials for 40 children" />
+
+          <label class="field-label" style="font-size:13px; margin-top:12px; display:block;">
+            Any message from them? <span style="font-weight:400; color:var(--light)">(optional)</span>
+          </label>
+          <textarea id="fr_recognition_message" rows="2"
+            placeholder="e.g. 'We are proud to support TRG's work in Eastern Uganda'"></textarea>
+        </div>
+        <div class="field-group">
+          <label class="field-label">Is there a specific ask or call to action for this month?</label>
+          <div class="field-hint">What do you want donors or the public to do? <em>Example: "We need 50 people to donate 50,000 UGX to cover school fees for our shelter children."</em></div>
+          <textarea id="fr_ask" placeholder="Be specific — amounts, deadlines, links to donate, what the money covers..."></textarea>
+        </div>
+      </div>
+    </div>
+
+    <!-- LEADERSHIP -->
+    <div class="dept-section" id="dept-leadership">
+      <div class="dept-header">
+        <div class="big-icon">🔑</div>
+        <div>
+          <h3>Leadership / General TRG</h3>
+          <p>Org-wide updates, milestones, and messages from TRG leadership</p>
+        </div>
+      </div>
+      <div class="card">
+        <div class="field-group">
+          <label class="field-label">What is the most important thing happening at TRG this month?</label>
+          <textarea id="lead_highlight" placeholder="e.g. We are celebrating 5 years, we launched a new program, the board made a key decision..."></textarea>
+        </div>
+        <div class="field-group">
+          <label class="field-label">Is there a message from leadership (Annabelle or the board) to the community or donors?</label>
+          <div class="field-hint">Even a short message or theme — <em>e.g. "This month we want to focus on the theme of resilience."</em></div>
+          <textarea id="lead_message" rows="3" placeholder="The message or theme leadership wants to communicate this month..."></textarea>
+        </div>
+        <div class="field-group">
+          <label class="field-label">Any organizational milestones, anniversaries, or landmarks?</label>
+          <input type="text" id="lead_milestones" placeholder="e.g. 5 years of operation, 1,000th child served, new office opening" />
+        </div>
+        <div class="field-group">
+          <label class="field-label">Any events, launches, or public appearances TRG is part of?</label>
+          <input type="text" id="lead_events" placeholder="e.g. Conference on 14th, Media interview on 20th, Launch event on 28th" />
+        </div>
+      </div>
+    </div>
+
+    <!-- PROGRAMS & IMPACT -->
+    <div class="dept-section" id="dept-programs">
+      <div class="dept-header">
+        <div class="big-icon">📊</div>
+        <div>
+          <h3>Programs &amp; Impact</h3>
+          <p>Numbers and reach tell the story at scale</p>
+        </div>
+      </div>
+      <div class="card">
+        <div class="field-group">
+          <label class="field-label">What is TRG's total reach this month — across all programs? <span class="required">*</span></label>
+          <input type="text" id="prog_reach" placeholder="e.g. 312 beneficiaries, 6 districts, 4 active programs" />
+        </div>
+        <div class="field-group">
+          <label class="field-label">What key metrics or data points do you want highlighted?</label>
+          <textarea id="prog_metrics" placeholder="e.g. 14 children rescued, 80 in school, 23 in counseling, 18 at Hope Farm, 42 fathers engaged..." rows="3"></textarea>
+        </div>
+        <div class="field-group">
+          <label class="field-label">What community feedback have you received?</label>
+          <div class="field-hint">Testimonials, community reactions, things people have said about TRG's work.</div>
+          <textarea id="prog_feedback" placeholder="e.g. A village elder thanked us. A church offered space. A mother said..."></textarea>
+        </div>
+        <div class="field-group">
+          <label class="field-label">Are there any geographic areas or new locations TRG is expanding into?</label>
+          <input type="text" id="prog_geography" placeholder="e.g. New reach in Mbarara district, Second ECD in Lyantonde" />
+        </div>
+      </div>
+    </div>
+
+    <!-- HUMAN RESOURCES -->
+    <div class="dept-section" id="dept-hr">
+      <div class="dept-header">
+        <div class="big-icon">👥</div>
+        <div>
+          <h3>Human Resources</h3>
+          <p>People are the heart of TRG — help us celebrate and share the team story</p>
+        </div>
+      </div>
+      <div class="card">
+        <div class="field-group">
+          <label class="field-label">Any staff updates or milestones to share publicly? <span class="required">*</span></label>
+          <div class="field-hint">New team members, promotions, work anniversaries, retirements. Only share what the person is comfortable with publicly.</div>
+          <textarea id="hr_staff_updates" placeholder="e.g. We welcomed two new case workers this month. Sarah reached 5 years with TRG..."></textarea>
+        </div>
+        <div class="field-group">
+          <label class="field-label">Any training or capacity building that happened this month?</label>
+          <div class="field-hint">Workshops, certifications, external training, team development sessions.</div>
+          <textarea id="hr_trainings" rows="3" placeholder="e.g. 8 staff completed child safeguarding training. Our case workers attended a trauma-informed care workshop..."></textarea>
+        </div>
+        <div class="field-group">
+          <label class="field-label">Are you recruiting? Any volunteer or intern opportunities to publicize?</label>
+          <textarea id="hr_recruitment" rows="3" placeholder="e.g. We are looking for a social worker in Jinja. Internship positions open for university students..."></textarea>
+        </div>
+        <div class="field-group">
+          <label class="field-label">Staff birthdays or special recognition days to celebrate publicly?</label>
+          <div class="field-hint">Only with the person's consent. Birthdays, work anniversaries, team awards.</div>
+          <input type="text" id="hr_birthdays" placeholder="e.g. Grace celebrates 3 years with TRG on the 15th. Happy birthday to John on the 22nd." />
+        </div>
+        <div class="field-group">
+          <label class="field-label">Any upcoming HR events or dates the content team should plan around?</label>
+          <input type="text" id="hr_upcoming" placeholder="e.g. All-staff retreat on 18th, New team member starting 1st August" />
+        </div>
+      </div>
+    </div>
+
+    <div class="nav-buttons">
+      <button class="btn btn-secondary" onclick="prevStep(3)">← Back</button>
+      <button class="btn btn-primary" onclick="nextStep(3)">Continue →</button>
+    </div>
+  </div>
+
+  <!-- ==================== STEP 4: Media ==================== -->
+  <div class="step-panel" id="step-4">
+    <div class="card">
+      <div class="card-title"><span class="icon">📸</span> Photos &amp; Videos</div>
+      <div class="card-subtitle">You don't have to upload everything right now — just tell us what you have. If you have files, you can share them here or send them via WhatsApp to the Content Feed group after submitting.</div>
+
+      <div class="field-group">
+        <label class="field-label">Do you have photos from this month's work? <span class="required">*</span></label>
+        <div class="choice-group" id="photoChoice">
+          <div class="choice-btn" onclick="selectChoice(this, 'photoChoice')">✅ Yes, I have photos</div>
+          <div class="choice-btn" onclick="selectChoice(this, 'photoChoice')">📵 No photos this time</div>
+          <div class="choice-btn" onclick="selectChoice(this, 'photoChoice')">📤 Sending via WhatsApp</div>
+        </div>
+      </div>
+
+      <div class="field-group" id="photoUploadSection">
+        <label class="field-label">Upload your photos (optional)</label>
+        <div class="field-hint">JPG, PNG — any quality is fine. If photos have children's faces, we will handle blurring where needed.</div>
+        <div class="media-prompt" onclick="document.getElementById('photoInput').click()">
+          <div class="media-icon">🖼️</div>
+          <strong>Click to select photos</strong>
+          <p>Or drag and drop your photos here<br>You can select multiple files at once</p>
+        </div>
+        <input type="file" id="photoInput" accept="image/*" multiple onchange="handleFiles(this, 'photos')">
+        <ul class="media-list" id="photoList"></ul>
+      </div>
+
+      <div class="field-group">
+        <label class="field-label">Describe the best photos you have</label>
+        <div class="field-hint">Even if you can't upload, tell us what photos exist so we know what to request. <em>Example: "Photos of the children at the shelter playing. A group shot from the community outreach. Before/after of the garden."</em></div>
+        <textarea id="photosDescription" rows="3" placeholder="Tell us what photos you have and what they show..."></textarea>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="field-group">
+        <label class="field-label">Do you have video footage from this month? <span class="required">*</span></label>
+        <div class="choice-group" id="videoChoice">
+          <div class="choice-btn" onclick="selectChoice(this, 'videoChoice')">🎬 Yes, I have video</div>
+          <div class="choice-btn" onclick="selectChoice(this, 'videoChoice')">📵 No video this time</div>
+          <div class="choice-btn" onclick="selectChoice(this, 'videoChoice')">📤 Sending via WhatsApp</div>
+        </div>
+      </div>
+
+      <div class="field-group">
+        <label class="field-label">Describe the video footage you have</label>
+        <div class="field-hint"><em>Example: "A short clip from the community outreach — about 3 minutes. Phone footage of the children during reading time. Raw video from the farm harvest."</em></div>
+        <textarea id="videoDescription" rows="3" placeholder="What does the footage show? Length? Quality? Who is in it?"></textarea>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="field-group">
+        <label class="field-label">Are there any people we should NOT photograph or feature?</label>
+        <div class="field-hint">Important for child protection — names or descriptions of people who should stay private.</div>
+        <textarea id="privacyNotes" rows="2" placeholder="e.g. All children in the shelter must remain anonymous. Case XYZ is under active court order..."></textarea>
+      </div>
+
+      <div class="field-group">
+        <label class="field-label">Is there anyone — staff, beneficiary, parent — who has agreed to be featured publicly?</label>
+        <textarea id="featuredPeople" rows="2" placeholder="e.g. Sarah (Thrive graduate) agreed to share her story publicly. Contact: 0700 000 000"></textarea>
+      </div>
+    </div>
+
+    <div class="nav-buttons">
+      <button class="btn btn-secondary" onclick="prevStep(4)">← Back</button>
+      <button class="btn btn-primary" onclick="nextStep(4)">Continue →</button>
+    </div>
+  </div>
+
+  <!-- ==================== STEP 5: Final + Submit ==================== -->
+  <div class="step-panel" id="step-5">
+    <div class="card">
+      <div class="card-title"><span class="icon">✍️</span> Final notes</div>
+      <div class="card-subtitle">Almost done. Just a few more things before we submit.</div>
+
+      <div class="field-group">
+        <label class="field-label">Is there anything important happening next month that Charis should start planning content for?</label>
+        <textarea id="nextMonth" placeholder="e.g. Big graduation event in 3 weeks. New partnership being announced. Special campaign launching..."></textarea>
+      </div>
+
+      <div class="field-group">
+        <label class="field-label">Is there a specific type of content TRG needs this month?</label>
+        <div class="choice-group" id="contentNeeds">
+          <div class="choice-btn" onclick="selectChoice(this, 'contentNeeds', true)">📱 Social media posts</div>
+          <div class="choice-btn" onclick="selectChoice(this, 'contentNeeds', true)">📧 Newsletter content</div>
+          <div class="choice-btn" onclick="selectChoice(this, 'contentNeeds', true)">🎬 Video script</div>
+          <div class="choice-btn" onclick="selectChoice(this, 'contentNeeds', true)">📑 Donor report</div>
+          <div class="choice-btn" onclick="selectChoice(this, 'contentNeeds', true)">📣 Campaign material</div>
+        </div>
+      </div>
+
+      <div class="field-group">
+        <label class="field-label">Any other message or request for the Charis team?</label>
+        <textarea id="finalNotes" rows="3" placeholder="Anything else you want to say, request, or flag — we're listening"></textarea>
+      </div>
+
+      <div class="field-group">
+        <label class="field-label">On a scale of 1–5, how much content do you feel happened in your department this month?</label>
+        <div class="choice-group" id="volumeRating">
+          <div class="choice-btn" onclick="selectChoice(this, 'volumeRating')">1 – Very quiet</div>
+          <div class="choice-btn" onclick="selectChoice(this, 'volumeRating')">2 – Slow</div>
+          <div class="choice-btn" onclick="selectChoice(this, 'volumeRating')">3 – Normal</div>
+          <div class="choice-btn" onclick="selectChoice(this, 'volumeRating')">4 – Busy</div>
+          <div class="choice-btn" onclick="selectChoice(this, 'volumeRating')">5 – A LOT happened</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SUMMARY PREVIEW -->
+    <div class="card" id="summaryCard">
+      <div class="card-title"><span class="icon">📋</span> Your submission summary</div>
+      <div id="summaryContent" style="font-size: 13px; color: var(--mid); line-height: 1.8;"></div>
+    </div>
+
+    <div class="nav-buttons">
+      <button class="btn btn-secondary" onclick="prevStep(5)">← Back</button>
+      <button class="btn btn-primary" onclick="submitForm()" style="padding: 14px 36px; font-size: 16px;">
+        ✅ Submit Content Feed
+      </button>
+    </div>
+  </div>
+
+  <!-- ==================== SUCCESS ==================== -->
+  <div class="step-panel" id="step-success">
+    <div class="success-screen">
+      <div class="success-icon">✅</div>
+      <h2>Thank you! Your content feed is in.</h2>
+      <p>The Charis Creations team has been notified. Your stories and information will be used to create this month's content.</p>
+      <div class="ref-number" id="refNumber">Ref: TRG-2026-001</div>
+      <p style="font-size: 13px;">Save this reference number in case you need to follow up.</p>
+
+      <ul class="success-steps">
+        <li>
+          <div class="step-num">1</div>
+          <span>Charis will review everything you submitted within 48 hours.</span>
+        </li>
+        <li>
+          <div class="step-num">2</div>
+          <span>If they need more details, they'll reach out via WhatsApp or the Content Feed group.</span>
+        </li>
+        <li>
+          <div class="step-num">3</div>
+          <span>Content drafts will be shared with TRG for approval before anything is posted.</span>
+        </li>
+        <li>
+          <div class="step-num">4</div>
+          <span>Remember to send your photos and videos to the <strong>TRG Content Feed WhatsApp group</strong> if you didn't upload them here.</span>
+        </li>
+      </ul>
+
+      <div style="margin-top: 28px; padding: 18px 20px; background: #f0fbf8; border-radius: 10px;
+        border-left: 4px solid var(--teal); text-align: left; max-width: 420px; margin-left: auto; margin-right: auto;">
+        <strong style="font-size: 14px; color: var(--dark);">Reporting for more than one department?</strong>
+        <p style="font-size: 13px; color: var(--mid); margin-top: 6px; line-height: 1.6;">
+          If you oversee multiple departments or regions, click below — your name and month will carry over
+          automatically. Just select the next department and fill in its section.
+        </p>
+        <button class="btn btn-teal" onclick="window.location.reload()" style="margin-top: 12px; width: 100%;">
+          ✅ Submit another department →
+        </button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- STICKY FOOTER -->
+<div class="sticky-footer" id="stickyFooter">
+  <div class="footer-info">
+    Step <strong id="footerStep">1</strong> of 5 &nbsp;·&nbsp; <span id="footerDept">No department selected yet</span>
+  </div>
+  <div style="font-size: 12px; color: var(--mid);">
+    🔒 Your responses are private and sent directly to Charis
+  </div>
+</div>
+
+<script>
+  // ===================== SUPABASE =====================
+  const _SB_URL = 'https://vlmcwmjhmenbnymwfkdk.supabase.co';
+  const _SB_KEY = 'sb_publishable_Q7wTRJK-hCy87Tfy7ROkeA_94Q9HQQw';
+  let _sbClient = null;
+  try {
+    _sbClient = supabase.createClient(_SB_URL, _SB_KEY);
+  } catch(e) {
+    console.warn('[TRG Form] Supabase init failed — localStorage fallback active', e);
+  }
+
+  // ===================== STATE =====================
+  let currentStep = 1;
+  let selectedDept = null;       // internal dept key: rescue | mentalhealth | education | hr | fundraising | programs
+  let selectedOrgType = null;    // 'program' | 'operational'
+  let selectedRegion = null;     // 'Central' | 'Eastern' | 'Western' | 'operational'
+  let selectedFullDept = null;   // full display name of the department
+  let selectedSubProgram = null; // specific sub-program name (optional)
+  const totalSteps = 5;
+  let _llMediaChoice = null;
+  let _llUrgency = null;
+
+  // Sub-program lists per dept key
+  const SUB_PROGRAMS = {
+    rescue: ['Princess Shelter','Jewels of Honour','Community Based Care','Legal & Referrals','Family Tracing/Reconciliation/Reintegration'],
+    mentalhealth: ['Maisha Clinic/Ask The Doctor','Safe Spaces','Mental Health/Therapy & Rehab Support (Healing Space)','Birth Prep/Maternity Gym','Hygiene & Sanitation','Food & Nutrition','Collaborations & Partnerships','Trainings & Conferences','Team Updates'],
+    education: ['TVC','Education (Formal)','ECD','Internship Placements','Job Placements','Mentorship & Leadership Development','Sinza Music Academy','Graduations'],
+    hr: ['Trainings','Recruitment','Staff Exits','Staff Birthdays & Special Days','Volunteers & Interns'],
+    fundraising: ['Governance','Fundraising Trips','Fundraising Campaigns','Partner Updates','Newsletters'],
+    programs: ['Research','Events & Conferences','Special Reports & Features','Lessons Learnt','Hope Alive Network'],
+  };
+
+  // Full dept name lookup by key
+  const DEPT_FULL_NAMES = {
+    rescue: 'Rescue & Restoration',
+    mentalhealth: 'Maternal & Child Health Services',
+    education: 'Thrive',
+    hr: 'Human Resources',
+    fundraising: 'Donor Relations, Partnerships & Executive Director',
+    programs: 'Programs, Monitoring, Learning & Evaluation',
+  };
+
+  // ===================== INIT =====================
+  document.addEventListener('DOMContentLoaded', () => {
+    const now = new Date();
+    const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    document.getElementById('headerMonth').textContent = monthNames[now.getMonth()] + ' ' + now.getFullYear();
+
+    // Auto-select current month
+    const monthSel = document.getElementById('contentMonth');
+    for (let i = 0; i < monthSel.options.length; i++) {
+      if (monthSel.options[i].text === monthNames[now.getMonth()]) {
+        monthSel.selectedIndex = i;
+        break;
+      }
+    }
+    updateProgress();
+
+    // Hide step navigation — shown only when Monthly Plan mode is selected
+    document.getElementById('stepsNav').style.display = 'none';
+    document.querySelector('.progress-bar').style.display = 'none';
+    document.getElementById('stickyFooter').style.display = 'none';
+
+    // Set default date on live log form to today
+    const todayStr = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
+    const llDate = document.getElementById('ll_date');
+    if (llDate) llDate.value = todayStr;
+
+    // ── ACCESS CODE: prefill from this device so it's entered only once ──
+    try {
+      const savedCode = localStorage.getItem('trg_access_code') || '';
+      const ac = document.getElementById('accessCode');
+      const lac = document.getElementById('ll_accessCode');
+      if (ac && savedCode) ac.value = savedCode;
+      if (lac && savedCode) lac.value = savedCode;
+    } catch(e) {}
+
+    // ── REMEMBER ME: this device remembers the person's name, role and last department ──
+    _restoreMe();
+    try {
+      const lastDept = localStorage.getItem('trg_my_dept') || '';
+      const llDept = document.getElementById('ll_dept');
+      if (llDept && lastDept) llDept.value = lastDept;   // live log default; they can change it
+    } catch(e) {}
+
+    // ── AUTOSAVE: restore any unsent draft (connection drops must never lose work) ──
+    try {
+      const draft = JSON.parse(localStorage.getItem('trg_form_draft') || '{}');
+      Object.keys(draft).forEach(function(id){
+        const elx = document.getElementById(id);
+        if (elx && ('value' in elx) && draft[id]) elx.value = draft[id];
+      });
+    } catch(e) {}
+    // Save every keystroke (debounced) — text fields and selects only
+    let _asTimer = null;
+    document.addEventListener('input', function(ev){
+      if (!ev.target || !ev.target.id) return;
+      clearTimeout(_asTimer);
+      _asTimer = setTimeout(function(){
+        try {
+          const d = JSON.parse(localStorage.getItem('trg_form_draft') || '{}');
+          d[ev.target.id] = ev.target.value;
+          localStorage.setItem('trg_form_draft', JSON.stringify(d));
+        } catch(e) {}
+      }, 400);
+    }, true);
+  });
+
+  function _clearFormDraft() {
+    try { localStorage.removeItem('trg_form_draft'); } catch(e) {}
+  }
+
+  // ===================== MODE SELECTION =====================
+  function selectMode(mode) {
+    document.getElementById('landing-screen').style.display = 'none';
+    if (mode === 'monthly') {
+      document.getElementById('stepsNav').style.display = 'flex';
+      document.querySelector('.progress-bar').style.display = 'block';
+      document.getElementById('stickyFooter').style.display = 'flex';
+      showStep(1);
+    } else {
+      document.getElementById('live-log-form').style.display = 'block';
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }
+
+  function backToLanding() {
+    document.getElementById('stepsNav').style.display = 'none';
+    document.querySelector('.progress-bar').style.display = 'none';
+    document.getElementById('stickyFooter').style.display = 'none';
+    document.querySelectorAll('.step-panel').forEach(p => p.classList.remove('active'));
+    document.getElementById('live-log-form').style.display = 'none';
+    document.getElementById('live-log-success').style.display = 'none';
+    document.getElementById('landing-screen').style.display = 'block';
+    _llMediaChoice = null;
+    _llUrgency = null;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function toggleLLFollowup(show) {
+    const el = document.getElementById('ll_followup_field');
+    if (show) el.classList.add('visible'); else el.classList.remove('visible');
+  }
+
+  function selectMediaBtn(btn, choice) {
+    document.querySelectorAll('#ll_media_btns .media-select-btn').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+    _llMediaChoice = choice;
+  }
+
+  function selectUrgency(btn, urgency) {
+    document.querySelectorAll('#ll_urgency_btns .urgency-btn').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+    _llUrgency = urgency;
+  }
+
+  function startAnotherLog() {
+    document.getElementById('live-log-success').style.display = 'none';
+    // Keep their name + usual department (this device remembers them) — only clear the story
+    try {
+      document.getElementById('ll_name').value = localStorage.getItem('trg_my_name') || '';
+      document.getElementById('ll_dept').value = localStorage.getItem('trg_my_dept') || '';
+    } catch(e) { document.getElementById('ll_dept').value = ''; }
+    document.getElementById('ll_what').value = '';
+    document.getElementById('ll_followup_context').value = '';
+    document.getElementById('ll_followup_field').classList.remove('visible');
+    document.querySelectorAll('#ll_media_btns .media-select-btn').forEach(b => b.classList.remove('selected'));
+    document.querySelectorAll('#ll_urgency_btns .urgency-btn').forEach(b => b.classList.remove('selected'));
+    document.querySelectorAll('#ll_followup_choice .choice-btn').forEach(b => b.classList.remove('selected'));
+    const now = new Date();
+    document.getElementById('ll_date').value = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
+    _llMediaChoice = null;
+    _llUrgency = null;
+    document.getElementById('live-log-form').style.display = 'block';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  // ===================== LIVE LOG SUBMIT =====================
+  async function submitLiveLog() {
+    const name = document.getElementById('ll_name').value.trim();
+    const dept = document.getElementById('ll_dept').value;
+    const eventDate = document.getElementById('ll_date').value;
+    const whatHappened = document.getElementById('ll_what').value.trim();
+
+    const llCode = (document.getElementById('ll_accessCode')||{}).value || '';
+    if (!name) { alert('Please enter your name.'); document.getElementById('ll_name').focus(); return; }
+    if (!llCode.trim()) { alert('Please enter the TRG access code (pinned in the WhatsApp group).'); document.getElementById('ll_accessCode').focus(); return; }
+    if (!dept) { alert('Please select your department.'); return; }
+    if (!whatHappened) { alert('Please tell us what happened.'); document.getElementById('ll_what').focus(); return; }
+    if (!_llMediaChoice) { alert('Please select whether you have photos or video.'); return; }
+    if (!_llUrgency) { alert('Please select how important this is for content.'); return; }
+
+    const isFollowUp = !!(document.querySelector('#ll_followup_choice .choice-btn.selected') &&
+      document.querySelector('#ll_followup_choice .choice-btn.selected').textContent.includes('update'));
+    const followUpContext = document.getElementById('ll_followup_context').value.trim();
+
+    const evtDate = eventDate ? new Date(eventDate) : new Date();
+    const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    const month = monthNames[evtDate.getMonth()];
+    const year = evtDate.getFullYear().toString();
+
+    const logId = 'TRG-LOG-' + year + '-' + String(Date.now()).slice(-5);
+    const _llParsed = _parseLLDept(dept);
+
+    const submission = {
+      id: logId,
+      submission_type: 'live_log',
+      access_code: llCode.trim(),
+      submittedAt: new Date().toISOString(),
+      submitterName: name,
+      submitterRole: '',
+      submitterPhone: '',
+      department: _llParsed.fullDept,
+      dept_key: _llParsed.dept,
+      org_type: _llParsed.orgType,
+      region: _llParsed.region,
+      sub_program: null,
+      month: month,
+      year: year,
+      read: false,
+      eventDate: eventDate,
+      whatHappened: whatHappened,
+      isFollowUp: isFollowUp,
+      followUpContext: followUpContext,
+      mediaAvailable: _llMediaChoice,
+      urgency: _llUrgency,
+    };
+
+    // Primary: Supabase
+    if (_sbClient) {
+      try {
+        const { data, error } = await _sbClient.rpc('submit_trg_content', {
+          p_id: submission.id,
+          p_data: submission
+        });
+        if (error) throw error;
+        if (data && data.success === false && data.error === 'invalid_access_code') {
+          alert('That access code is not correct. Please check the code pinned in the TRG WhatsApp group and try again.');
+          document.getElementById('ll_accessCode').focus();
+          return;
+        }
+        try {
+          localStorage.setItem('trg_access_code', llCode.trim());
+          if (name) localStorage.setItem('trg_my_name', name);   // remember name across both forms
+          if (dept) localStorage.setItem('trg_my_dept', dept);   // remember their usual department as a default
+        } catch(e) {}
+      } catch(err) {
+        console.warn('[TRG Live Log] Supabase save failed — localStorage fallback:', err.message);
+      }
+    }
+
+    // Fallback: localStorage
+    try {
+      const existing = JSON.parse(localStorage.getItem('trg_submissions') || '[]');
+      existing.unshift(submission);
+      localStorage.setItem('trg_submissions', JSON.stringify(existing));
+      const unread = parseInt(localStorage.getItem('trg_unread') || '0');
+      localStorage.setItem('trg_unread', unread + 1);
+      localStorage.setItem('trg_last_submission', new Date().toISOString());
+    } catch(e) {}
+
+    // 🔥 BREAKING stories notify the Charis team INSTANTLY — emergency pathway
+    if (_llUrgency === 'breaking') {
+      try {
+        fetch(_SB_URL + '/functions/v1/send-notification', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'send', to: 'all', tag: 'trg-breaking',
+            title: '🔥 BREAKING TRG story from ' + name,
+            body: whatHappened.slice(0, 110) + ' — open Content Hub → Live Logs now' })
+        }).catch(function(){});
+      } catch(e) {}
+    }
+
+    _clearFormDraft();
+    document.getElementById('live-log-form').style.display = 'none';
+    document.getElementById('llRefNumber').textContent = 'Log: ' + logId;
+    document.getElementById('live-log-success').style.display = 'block';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  // ===================== STEP NAVIGATION =====================
+  function goToStep(step) {
+    if (step >= currentStep || canNavigate(step)) {
+      showStep(step);
+    }
+  }
+
+  function nextStep(from) {
+    if (!validateStep(from)) return;
+    if (from < totalSteps) {
+      showStep(from + 1);
+    }
+    if (from === 4) buildSummary();
+  }
+
+  function prevStep(from) {
+    if (from > 1) showStep(from - 1);
+  }
+
+  function showStep(step) {
+    document.querySelectorAll('.step-panel').forEach(p => p.classList.remove('active'));
+    document.getElementById('step-' + step).classList.add('active');
+    currentStep = step;
+    updateProgress();
+    updateStepNav();
+    updateFooter();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function showSuccess() {
+    document.querySelectorAll('.step-panel').forEach(p => p.classList.remove('active'));
+    document.getElementById('step-success').classList.add('active');
+    document.getElementById('stickyFooter').style.display = 'none';
+    document.getElementById('stepsNav').style.display = 'none';
+    document.querySelector('.progress-bar').style.display = 'none';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function updateProgress() {
+    const pct = ((currentStep - 1) / totalSteps) * 100;
+    document.getElementById('progressFill').style.width = pct + '%';
+  }
+
+  function updateStepNav() {
+    document.querySelectorAll('.step-dot').forEach(dot => {
+      const s = parseInt(dot.getAttribute('data-step'));
+      dot.classList.remove('active', 'done');
+      if (s === currentStep) dot.classList.add('active');
+      else if (s < currentStep) dot.classList.add('done');
+    });
+  }
+
+  function updateFooter() {
+    document.getElementById('footerStep').textContent = currentStep;
+    let deptLabel = 'No department selected';
+    if (selectedFullDept) {
+      deptLabel = selectedFullDept;
+      if (selectedRegion && selectedRegion !== 'operational') deptLabel = selectedRegion + ' — ' + deptLabel;
+      if (selectedSubProgram) deptLabel += ' › ' + selectedSubProgram;
+    } else if (selectedRegion && selectedRegion !== 'operational') {
+      deptLabel = selectedRegion + ' — selecting department...';
+    } else if (selectedOrgType === 'program') {
+      deptLabel = 'Program — selecting region...';
+    } else if (selectedOrgType === 'operational') {
+      deptLabel = 'Operational — selecting department...';
+    }
+    document.getElementById('footerDept').textContent = deptLabel;
+  }
+
+  function _updateDeptSummary() {
+    const el = document.getElementById('deptSelectionSummary');
+    if (!el) return;
+    if (!selectedFullDept) { el.style.display = 'none'; return; }
+    let parts = [];
+    if (selectedOrgType) parts.push(selectedOrgType === 'program' ? '🌍 Program' : '⚙️ Operational');
+    if (selectedRegion && selectedRegion !== 'operational') parts.push('📍 ' + selectedRegion);
+    if (selectedFullDept) parts.push(selectedFullDept);
+    if (selectedSubProgram) parts.push('› ' + selectedSubProgram);
+    el.innerHTML = '<strong>Your selection:</strong> ' + parts.join(' &nbsp;·&nbsp; ');
+    el.style.display = 'block';
+  }
+
+  function canNavigate(step) { return step <= currentStep; }
+
+  // ===================== REMEMBER ME (name + role on this device) =====================
+  // Resolve the submitter name from the text input
+  function _resolveSubmitterName() {
+    const el = document.getElementById('submitterName');
+    return el ? el.value.trim() : '';
+  }
+
+  // Save who this person is, on this device, so they never type it again
+  function _rememberMe() {
+    try {
+      const name = _resolveSubmitterName();
+      const role = (document.getElementById('submitterRole')||{}).value || '';
+      const phone = (document.getElementById('submitterPhone')||{}).value || '';
+      if (name) {
+        localStorage.setItem('trg_my_name', name);
+        if (role)  localStorage.setItem('trg_my_role', role);
+        if (phone) localStorage.setItem('trg_my_phone', phone);
+      }
+    } catch(e) {}
+  }
+
+  // Pre-fill from this device's memory; greet returning users
+  function _restoreMe() {
+    try {
+      const name = localStorage.getItem('trg_my_name') || '';
+      const role = localStorage.getItem('trg_my_role') || '';
+      const phone = localStorage.getItem('trg_my_phone') || '';
+      const nameEl = document.getElementById('submitterName');
+      const roleEl = document.getElementById('submitterRole');
+      const phoneEl = document.getElementById('submitterPhone');
+      const llNameEl = document.getElementById('ll_name');
+      if (nameEl && name)  nameEl.value = name;
+      if (roleEl && role)  roleEl.value = role;
+      if (phoneEl && phone) phoneEl.value = phone;
+      if (llNameEl && name) llNameEl.value = name;   // live log shares the same identity
+      // Greeting banner
+      const wb = document.getElementById('welcomeBack');
+      const wn = document.getElementById('welcomeName');
+      if (wb && wn && name) { wn.textContent = name; wb.style.display = 'block'; }
+    } catch(e) {}
+  }
+
+  // "Switch user" on a shared phone — clears the remembered identity
+  function switchUser(ev) {
+    if (ev) ev.preventDefault();
+    try {
+      localStorage.removeItem('trg_my_name');
+      localStorage.removeItem('trg_my_role');
+      localStorage.removeItem('trg_my_phone');
+    } catch(e) {}
+    ['submitterName','submitterRole','submitterPhone','ll_name'].forEach(function(id){
+      const el = document.getElementById(id); if (el) el.value = '';
+    });
+    const wb = document.getElementById('welcomeBack'); if (wb) wb.style.display = 'none';
+    const nameEl = document.getElementById('submitterName'); if (nameEl) nameEl.focus();
+  }
+
+  // ===================== VALIDATION =====================
+  function validateStep(step) {
+    if (step === 1) {
+      if (!_resolveSubmitterName()) {
+        alert('Please enter your name before continuing.');
+        document.getElementById('submitterName').focus();
+        return false;
+      }
+      if (!document.getElementById('contentMonth').value) {
+        alert('Please select the month this content is for.');
+        return false;
+      }
+      if (!(document.getElementById('accessCode').value || '').trim()) {
+        alert('Please enter the TRG access code (pinned in the WhatsApp group). You only enter it once on this device.');
+        document.getElementById('accessCode').focus();
+        return false;
+      }
+      return true;
+    }
+    if (step === 2) {
+      if (!selectedOrgType) {
+        alert('Please select whether you are from a Program or Operational department.');
+        return false;
+      }
+      if (selectedOrgType === 'program' && !selectedRegion) {
+        alert('Please select your region — Central, Eastern, or Western.');
+        return false;
+      }
+      if (!selectedDept) {
+        alert('Please select your specific department before continuing.');
+        return false;
+      }
+      return true;
+    }
+    return true;
+  }
+
+  // ===================== DEPT SELECTION — 3-Stage System =====================
+
+  function selectOrgType(el, type) {
+    selectedOrgType = type;
+    selectedRegion = null;
+    selectedDept = null;
+    selectedFullDept = null;
+    selectedSubProgram = null;
+
+    document.querySelectorAll('.org-type-card').forEach(c => c.classList.remove('selected'));
+    el.classList.add('selected');
+
+    if (type === 'program') {
+      document.getElementById('stage-region').style.display = 'block';
+      document.getElementById('stage-progdept').style.display = 'none';
+      document.getElementById('stage-opdept').style.display = 'none';
+    } else {
+      selectedRegion = 'operational';
+      document.getElementById('stage-region').style.display = 'none';
+      document.getElementById('stage-progdept').style.display = 'none';
+      document.getElementById('stage-opdept').style.display = 'block';
+    }
+    document.getElementById('stage-subprog').style.display = 'none';
+    document.querySelectorAll('.dept-section').forEach(s => s.classList.remove('visible'));
+    _updateDeptSummary();
+    updateFooter();
+  }
+
+  function selectRegion(el, region) {
+    selectedRegion = region;
+    selectedDept = null;
+    selectedFullDept = null;
+    selectedSubProgram = null;
+
+    document.querySelectorAll('.region-chip').forEach(c => c.classList.remove('selected'));
+    el.classList.add('selected');
+    document.querySelectorAll('#stage-progdept .dept-card').forEach(c => c.classList.remove('selected'));
+
+    document.getElementById('stage-progdept').style.display = 'block';
+    document.getElementById('stage-subprog').style.display = 'none';
+    document.querySelectorAll('.dept-section').forEach(s => s.classList.remove('visible'));
+    _updateDeptSummary();
+    updateFooter();
+  }
+
+  function selectProgramDept(el, deptKey, fullNameRaw) {
+    // fullNameRaw has HTML entities — store the plain version
+    const fullName = fullNameRaw.replace(/&amp;/g,'&');
+    selectedDept = deptKey;
+    selectedFullDept = fullName;
+    selectedSubProgram = null;
+
+    document.querySelectorAll('#stage-progdept .dept-card').forEach(c => c.classList.remove('selected'));
+    el.classList.add('selected');
+
+    _showDeptSection(deptKey);
+    _showSubPrograms(deptKey);
+    _updateDeptSummary();
+    updateFooter();
+  }
+
+  function selectOperationalDept(el, deptKey, fullNameRaw) {
+    const fullName = fullNameRaw.replace(/&amp;/g,'&');
+    selectedDept = deptKey;
+    selectedFullDept = fullName;
+    selectedSubProgram = null;
+
+    document.querySelectorAll('#stage-opdept .dept-card').forEach(c => c.classList.remove('selected'));
+    el.classList.add('selected');
+
+    _showDeptSection(deptKey);
+    _showSubPrograms(deptKey);
+    _updateDeptSummary();
+    updateFooter();
+  }
+
+  function _showDeptSection(deptKey) {
+    document.querySelectorAll('.dept-section').forEach(s => s.classList.remove('visible'));
+    const deptEl = document.getElementById('dept-' + deptKey);
+    if (deptEl) {
+      deptEl.classList.add('visible');
+      // Update the section context sub-header
+      const subtitle = deptEl.querySelector('p');
+      if (subtitle && selectedRegion && selectedRegion !== 'operational') {
+        subtitle.textContent = 'Reporting for: ' + selectedRegion + ' Region — ' + (selectedFullDept || deptKey);
+      }
+    }
+  }
+
+  function _showSubPrograms(deptKey) {
+    const subs = SUB_PROGRAMS[deptKey] || [];
+    const grid = document.getElementById('subProgGrid');
+    if (!subs.length) { document.getElementById('stage-subprog').style.display = 'none'; return; }
+    grid.innerHTML = subs.map(sp =>
+      `<div class="sub-prog-pill" data-sp="${sp.replace(/"/g,'&quot;')}" onclick="selectSubProgram(this)">${sp}</div>`
+    ).join('');
+    document.getElementById('stage-subprog').style.display = 'block';
+  }
+
+  function selectSubProgram(el) {
+    const name = el.getAttribute('data-sp');
+    selectedSubProgram = name;
+    document.querySelectorAll('.sub-prog-pill').forEach(p => p.classList.remove('selected'));
+    el.classList.add('selected');
+    _updateDeptSummary();
+    updateFooter();
+  }
+
+  // Legacy compatibility — kept so old bookmarks or any remaining calls don't break
+  function selectDept(el, dept) {
+    selectedDept = dept;
+    selectedFullDept = DEPT_FULL_NAMES[dept] || dept;
+    document.querySelectorAll('.dept-card').forEach(c => c.classList.remove('selected'));
+    el.classList.add('selected');
+    document.querySelectorAll('.dept-section').forEach(s => s.classList.remove('visible'));
+    const deptEl = document.getElementById('dept-' + dept);
+    if (deptEl) deptEl.classList.add('visible');
+    updateFooter();
+  }
+
+  // Helper: parse live-log dept value (rescue_e → {dept:'rescue', region:'Eastern'})
+  function _parseLLDept(val) {
+    const regionSuffixes = {c:'Central', e:'Eastern', w:'Western'};
+    const parts = val.split('_');
+    const suffix = parts.length > 1 ? parts[parts.length-1] : null;
+    const baseKey = (suffix && regionSuffixes[suffix]) ? parts.slice(0,-1).join('_') : val;
+    const region = (suffix && regionSuffixes[suffix]) ? regionSuffixes[suffix]
+      : (['hr','fundraising','programs'].includes(val) ? 'operational' : 'Central');
+    const orgType = ['hr','fundraising','programs'].includes(baseKey) ? 'operational' : 'program';
+    return { dept: baseKey, region, orgType, fullDept: DEPT_FULL_NAMES[baseKey] || baseKey };
+  }
+
+  // ===================== CHOICE BUTTONS =====================
+  function selectChoice(el, groupId, multiSelect = false) {
+    const group = document.getElementById(groupId);
+    if (!multiSelect) {
+      group.querySelectorAll('.choice-btn').forEach(b => b.classList.remove('selected'));
+    }
+    el.classList.toggle('selected');
+  }
+
+  // ===================== FILE HANDLING =====================
+  function handleFiles(input, type) {
+    const list = document.getElementById(type + 'List');
+    const files = Array.from(input.files);
+    files.forEach(file => {
+      const li = document.createElement('li');
+      const icon = file.type.startsWith('video') ? '🎬' : '🖼️';
+      li.innerHTML = `
+        <span>${icon}</span>
+        <span>${file.name}</span>
+        <span style="color: var(--light); font-size: 11px;">${(file.size/1024/1024).toFixed(1)} MB</span>
+        <button class="remove-btn" onclick="this.parentElement.remove()">×</button>
+      `;
+      list.appendChild(li);
+    });
+  }
+
+  // ===================== SUMMARY =====================
+  function buildSummary() {
+    const name = _resolveSubmitterName() || '—';
+    const role = document.getElementById('submitterRole').value || '—';
+    const month = document.getElementById('contentMonth').value || '—';
+    const year = document.getElementById('contentYear').value || '';
+    const deptLabel = selectedDept ? selectedDept.replace(/([A-Z])/g, ' $1') : '—';
+
+    let html = `
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
+        <div><strong>Submitted by:</strong><br>${name}</div>
+        <div><strong>Role:</strong><br>${role}</div>
+        <div><strong>Department:</strong><br>${selectedDept || '—'}</div>
+        <div><strong>Month:</strong><br>${month} ${year}</div>
+      </div>
+    `;
+
+    const nextMonth = document.getElementById('nextMonth').value;
+    if (nextMonth) html += `<div style="margin-top: 8px;"><strong>Next month preview:</strong><br>${nextMonth}</div>`;
+
+    const finalNotes = document.getElementById('finalNotes').value;
+    if (finalNotes) html += `<div style="margin-top: 8px;"><strong>Notes for Charis:</strong><br>${finalNotes}</div>`;
+
+    document.getElementById('summaryContent').innerHTML = html;
+  }
+
+  // ===================== SUBMIT =====================
+  // Build payload for ONLY the selected department — keeps CharisOS clean of N/A noise
+  function _buildDeptPayload(deptKey) {
+    const readers = {
+      rescue: () => ({
+        count: document.getElementById('rescue_count')?.value || null,
+        story: document.getElementById('rescue_story')?.value || null,
+        challenge: document.getElementById('rescue_challenge')?.value || null,
+        proud: document.getElementById('rescue_proud')?.value || null,
+        awareness: document.getElementById('rescue_awareness')?.value || null,
+        upcoming: document.getElementById('rescue_upcoming')?.value || null,
+      }),
+      education: () => ({
+        schools: document.getElementById('edu_schools')?.value || null,
+        numbers: document.getElementById('edu_numbers')?.value || null,
+        moment: document.getElementById('edu_moment')?.value || null,
+        milestone: document.getElementById('edu_milestone')?.value || null,
+        challenge: document.getElementById('edu_challenge')?.value || null,
+        upcoming: document.getElementById('edu_upcoming')?.value || null,
+      }),
+      mentalhealth: () => ({
+        count: document.getElementById('mh_count')?.value || null,
+        themes: document.getElementById('mh_themes')?.value || null,
+        success: document.getElementById('mh_success')?.value || null,
+        outreach: document.getElementById('mh_outreach')?.value || null,
+        message: document.getElementById('mh_message')?.value || null,
+      }),
+      hr: () => ({
+        staff_updates: document.getElementById('hr_staff_updates')?.value || null,
+        trainings: document.getElementById('hr_trainings')?.value || null,
+        recruitment: document.getElementById('hr_recruitment')?.value || null,
+        birthdays: document.getElementById('hr_birthdays')?.value || null,
+        upcoming: document.getElementById('hr_upcoming')?.value || null,
+      }),
+      fundraising: () => ({
+        partners: document.getElementById('fr_partners')?.value || null,
+        campaign: document.getElementById('fr_campaign')?.value || null,
+        recognition_name: document.getElementById('fr_recognition_name')?.value || null,
+        recognition_gave: document.getElementById('fr_recognition_gave')?.value || null,
+        recognition_message: document.getElementById('fr_recognition_message')?.value || null,
+        ask: document.getElementById('fr_ask')?.value || null,
+      }),
+      programs: () => ({
+        reach: document.getElementById('prog_reach')?.value || null,
+        metrics: document.getElementById('prog_metrics')?.value || null,
+        feedback: document.getElementById('prog_feedback')?.value || null,
+        geography: document.getElementById('prog_geography')?.value || null,
+      }),
+    };
+    const fn = readers[deptKey];
+    return fn ? { [deptKey]: fn() } : {};
+  }
+
+  async function submitForm() {
+    const month = document.getElementById('contentMonth').value;
+    const year = document.getElementById('contentYear').value;
+    const name = _resolveSubmitterName();
+
+    if (!name.trim()) {
+      alert('Please go back and enter your name.');
+      return;
+    }
+
+    // Disable submit button while processing
+    const submitBtn = document.querySelector('#step-5 .btn-submit');
+    if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = '⏳ Submitting...'; }
+
+    // Build submission object
+    const submission = {
+      id: 'TRG-' + year + '-' + String(Date.now()).slice(-4),
+      submission_type: 'monthly_plan',
+      access_code: (document.getElementById('accessCode')?.value || '').trim(),
+      submittedAt: new Date().toISOString(),
+      submitterName: name,
+      submitterRole: document.getElementById('submitterRole').value,
+      submitterPhone: document.getElementById('submitterPhone').value,
+      submitterEmail: document.getElementById('submitterEmail')?.value || null,
+      month: month,
+      year: year,
+      department: selectedFullDept || selectedDept,
+      dept_key: selectedDept,
+      org_type: selectedOrgType,
+      region: selectedRegion || 'Central',
+      sub_program: selectedSubProgram,
+      read: false,
+
+      // Department data — only the selected department, no N/A noise
+      dept_data: _buildDeptPayload(selectedDept),
+      media: {
+        photosDescription: document.getElementById('photosDescription')?.value,
+        videoDescription: document.getElementById('videoDescription')?.value,
+        privacyNotes: document.getElementById('privacyNotes')?.value,
+        featuredPeople: document.getElementById('featuredPeople')?.value,
+      },
+      finalNotes: document.getElementById('finalNotes')?.value,
+      nextMonth: document.getElementById('nextMonth')?.value,
+    };
+
+    // === PRIMARY: Save to Supabase via RPC ===
+    let savedToSupabase = false;
+    if (_sbClient) {
+      try {
+        const { data, error } = await _sbClient.rpc('submit_trg_content', {
+          p_id: submission.id,
+          p_data: submission
+        });
+        if (error) throw error;
+        if (data && data.success === false && data.error === 'invalid_access_code') {
+          if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = '✅ Submit Content Feed'; }
+          alert('That access code is not correct. Please check the code pinned in the TRG WhatsApp group and try again. Your answers are saved — nothing is lost.');
+          return;
+        }
+        savedToSupabase = true;
+        try { localStorage.setItem('trg_access_code', submission.access_code); } catch(e) {}
+        _rememberMe(); // this device now remembers their name + role
+        console.log('[TRG Form] Saved to Supabase:', submission.id);
+      } catch(err) {
+        console.warn('[TRG Form] Supabase save failed — using localStorage fallback:', err.message);
+      }
+    }
+
+    // === FALLBACK: Save to localStorage (also used when offline) ===
+    try {
+      const existing = JSON.parse(localStorage.getItem('trg_submissions') || '[]');
+      existing.unshift(submission);
+      localStorage.setItem('trg_submissions', JSON.stringify(existing));
+      const unread = parseInt(localStorage.getItem('trg_unread') || '0');
+      localStorage.setItem('trg_unread', unread + 1);
+      localStorage.setItem('trg_last_submission', new Date().toISOString());
+    } catch(e) { /* localStorage may not be available */ }
+
+    // Re-enable button in case we need to show an error
+    if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = '✅ Submit Report'; }
+
+    // Show reference number and success screen
+    _clearFormDraft();
+    document.getElementById('refNumber').textContent = 'Ref: ' + submission.id;
+    showSuccess();
+  }
+</script>
+</body>
+</html>

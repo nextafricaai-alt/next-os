@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Charis Creations — Client Update</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--orange:#f16623;--dark:#0d1b2a;--card:#1e293b;--muted:#94a3b8;--green:#22c55e;--red:#ef4444;--border:#334155}
+body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--dark);color:#e2e8f0;min-height:100vh;padding:0}
+.header{background:linear-gradient(135deg,#0d1b2a 0%,#1a2d45 100%);padding:24px 20px;text-align:center;border-bottom:3px solid var(--orange)}
+.logo-text{font-size:24px;font-weight:800;color:#fff;letter-spacing:1px}
+.logo-text span{color:var(--orange)}
+.tagline{font-size:12px;color:var(--muted);margin-top:4px;letter-spacing:2px;text-transform:uppercase}
+.welcome-msg{background:var(--card);margin:16px;padding:16px 20px;border-radius:12px;border-left:4px solid var(--orange);font-size:14px;line-height:1.6;color:#cbd5e1}
+.welcome-msg strong{color:var(--orange)}
+.progress-bar{display:flex;gap:4px;padding:12px 20px;background:rgba(0,0,0,0.2)}
+.progress-bar .step{flex:1;height:4px;border-radius:2px;background:var(--border);transition:background 0.3s}
+.progress-bar .step.active{background:var(--orange)}
+.progress-bar .step.done{background:var(--green)}
+.form-container{padding:16px 20px 100px}
+.section{display:none}
+.section.active{display:block}
+.section-title{font-size:20px;font-weight:700;margin-bottom:4px;color:#fff}
+.section-sub{font-size:13px;color:var(--muted);margin-bottom:20px}
+.field{margin-bottom:16px}
+.field label{display:block;font-size:13px;font-weight:600;color:#cbd5e1;margin-bottom:6px}
+.field label .optional{font-weight:400;color:var(--muted);font-size:11px}
+.field input,.field select,.field textarea{width:100%;padding:12px 14px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,0.05);color:#fff;font-size:15px;outline:none;transition:border-color 0.2s}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--orange)}
+.field input::placeholder,.field textarea::placeholder{color:#64748b}
+.field textarea{resize:vertical;min-height:80px}
+.field select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2394a3b8' d='M6 8L1 3h10z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center}
+.field select option{background:var(--dark);color:#fff}
+
+/* Star Rating */
+.stars{display:flex;gap:8px;margin-top:4px}
+.stars .star{font-size:36px;cursor:pointer;color:var(--border);transition:color 0.2s;user-select:none;-webkit-user-select:none}
+.stars .star.filled{color:#f59e0b}
+.stars .star:active{transform:scale(1.2)}
+.star-label{font-size:13px;color:var(--muted);margin-top:4px;min-height:18px}
+
+/* Toggle */
+.toggle-group{display:flex;gap:8px;flex-wrap:wrap}
+.toggle-btn{padding:10px 16px;border-radius:8px;border:1px solid var(--border);background:rgba(255,255,255,0.03);color:#cbd5e1;font-size:14px;cursor:pointer;transition:all 0.2s;user-select:none;-webkit-user-select:none}
+.toggle-btn.selected{background:var(--orange);border-color:var(--orange);color:#fff;font-weight:600}
+
+/* Checkbox toggles */
+.check-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.05)}
+.check-row:last-child{border-bottom:none}
+.check-box{width:24px;height:24px;border-radius:6px;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all 0.2s;flex-shrink:0}
+.check-box.checked{background:var(--orange);border-color:var(--orange)}
+.check-box.checked::after{content:'✓';color:#fff;font-weight:700;font-size:14px}
+.check-label{font-size:14px;color:#cbd5e1;cursor:pointer}
+
+/* Children dynamic fields */
+.child-entry{background:rgba(255,255,255,0.03);padding:12px;border-radius:10px;margin-bottom:10px;border:1px solid var(--border)}
+.child-entry .field{margin-bottom:10px}
+.child-entry .field:last-child{margin-bottom:0}
+.child-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.date-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.date-row select{padding:12px 8px;font-size:14px}
+.add-btn{display:inline-flex;align-items:center;gap:6px;padding:10px 16px;border-radius:8px;border:1px dashed var(--orange);background:transparent;color:var(--orange);font-size:14px;cursor:pointer;transition:all 0.2s}
+.add-btn:hover{background:rgba(241,102,35,0.1)}
+.remove-btn{float:right;background:none;border:none;color:var(--red);font-size:18px;cursor:pointer;padding:0 4px}
+
+/* Services used - checkboxes */
+.services-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+
+/* Nav buttons */
+.nav-bar{position:fixed;bottom:0;left:0;right:0;padding:12px 20px;background:linear-gradient(0deg,var(--dark) 80%,transparent);display:flex;gap:10px}
+.nav-btn{flex:1;padding:14px;border-radius:10px;border:none;font-size:16px;font-weight:600;cursor:pointer;transition:all 0.2s}
+.btn-back{background:var(--card);color:#cbd5e1;border:1px solid var(--border)}
+.btn-next{background:var(--orange);color:#fff}
+.btn-next:disabled{opacity:0.4;cursor:not-allowed}
+.btn-submit{background:var(--green);color:#fff;font-size:17px}
+
+/* Success screen */
+.success-screen{display:none;text-align:center;padding:60px 20px}
+.success-icon{font-size:64px;margin-bottom:16px}
+.success-title{font-size:24px;font-weight:700;color:#fff;margin-bottom:8px}
+.success-sub{font-size:14px;color:var(--muted);line-height:1.6}
+.wa-btn{display:inline-flex;align-items:center;gap:8px;margin-top:24px;padding:14px 28px;border-radius:10px;background:#25d366;color:#fff;font-size:16px;font-weight:600;text-decoration:none}
+
+/* Error */
+.error-msg{background:rgba(239,68,68,0.1);border:1px solid var(--red);border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:13px;color:#fca5a5;display:none}
+
+/* Loading */
+.loading{display:none;text-align:center;padding:40px}
+.spinner{width:40px;height:40px;border:3px solid var(--border);border-top-color:var(--orange);border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 16px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+@media(max-width:400px){
+  .services-grid{grid-template-columns:1fr}
+  .child-row{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo-text">CHARIS <span>CREATIONS</span></div>
+  <div class="tagline">Bringing Image to Life</div>
+</div>
+
+<div class="welcome-msg">
+  We're upgrading how we look after our clients. Please take <strong>2 minutes</strong> to fill in your details — it helps us remember your special dates, serve you better, and keep you in the family. 🧡
+</div>
+
+<div class="progress-bar" id="progressBar"></div>
+
+<div class="error-msg" id="errorMsg"></div>
+
+<div class="form-container" id="formContainer">
+
+  <!-- STEP 1: About You -->
+  <div class="section active" data-step="0">
+    <div class="section-title">About You</div>
+    <div class="section-sub">Let's start with your basic details</div>
+    <div class="field">
+      <label>Your Full Name *</label>
+      <input type="text" id="f_name" placeholder="e.g. Sarah Namukasa" autocomplete="name">
+    </div>
+    <div class="field">
+      <label>Phone Number *</label>
+      <input type="tel" id="f_phone" placeholder="e.g. 0706 028 899" autocomplete="tel">
+    </div>
+    <div class="field">
+      <label>Email Address <span class="optional">(optional)</span></label>
+      <input type="email" id="f_email" placeholder="e.g. sarah@email.com" autocomplete="email">
+    </div>
+    <div class="field">
+      <label>Your Birthday <span class="optional">(optional)</span></label>
+      <div class="date-row" id="f_birthday_row"></div>
+    </div>
+    <div class="field">
+      <label>Where are you based? <span class="optional">(optional)</span></label>
+      <input type="text" id="f_location" placeholder="e.g. Kampala, Mukono, Entebbe">
+    </div>
+  </div>
+
+  <!-- STEP 2: Partner / Spouse -->
+  <div class="section" data-step="1">
+    <div class="section-title">Your Special Person 💍</div>
+    <div class="section-sub">We love celebrating couples! If you have a partner or spouse, let us know them — we'd love to send them a birthday message too.</div>
+    <div style="background:rgba(241,102,35,0.08);border:1px solid rgba(241,102,35,0.2);border-radius:10px;padding:12px 14px;margin-bottom:18px;font-size:13px;color:#f59e0b;line-height:1.5">
+      🧡 <strong>Why?</strong> Every year, we send birthday wishes and special surprises to our clients and their loved ones. We don't want to miss your partner!
+    </div>
+    <div class="field">
+      <label>Partner's Full Name</label>
+      <input type="text" id="f_partner_name" placeholder="e.g. James Mukasa">
+    </div>
+    <div class="field">
+      <label>Relationship</label>
+      <select id="f_partner_relation">
+        <option value="">— Select —</option>
+        <option value="Spouse">Spouse (Married)</option>
+        <option value="Fiancé">Fiancé / Fiancée (Engaged)</option>
+        <option value="Partner">Partner</option>
+        <option value="Girlfriend">Girlfriend</option>
+        <option value="Boyfriend">Boyfriend</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Partner's Birthday 🎂</label>
+      <div class="date-row" id="f_partner_birthday_row"></div>
+      <div style="font-size:11px;color:var(--muted);margin-top:4px;">So we can celebrate them on their special day!</div>
+    </div>
+    <div class="field">
+      <label>Partner's Phone Number</label>
+      <input type="tel" id="f_partner_phone" placeholder="e.g. 0778 123 456">
+      <div style="font-size:11px;color:var(--muted);margin-top:4px;">We'll send them a personal birthday greeting and holiday wishes too</div>
+    </div>
+    <div class="field">
+      <label>Partner's Email <span class="optional">(optional)</span></label>
+      <input type="email" id="f_partner_email" placeholder="">
+    </div>
+    <div class="field">
+      <label>Partner's Instagram <span class="optional">(optional)</span></label>
+      <input type="text" id="f_partner_instagram" placeholder="@handle">
+    </div>
+  </div>
+
+  <!-- STEP 3: Important Dates -->
+  <div class="section" data-step="2">
+    <div class="section-title">Your Family Celebrations 🎉</div>
+    <div class="section-sub">Help us remember the dates that matter most to your family</div>
+    <div class="field">
+      <label>Wedding / Introduction Date</label>
+      <div class="date-row" id="f_wedding_date_row"></div>
+      <div style="font-size:11px;color:var(--muted);margin-top:4px;">We send anniversary greetings and exclusive couple shoot offers every year!</div>
+    </div>
+
+    <div style="background:rgba(241,102,35,0.08);border:1px solid rgba(241,102,35,0.2);border-radius:10px;padding:14px;margin:20px 0 12px;line-height:1.5">
+      <div style="font-size:15px;font-weight:700;color:#fff;margin-bottom:6px;">🧒 Your Children</div>
+      <div style="font-size:13px;color:#f59e0b;">Every year, we send a special birthday message to our clients' children — with a surprise offer for a birthday portrait session. We don't want to miss any of your little ones!</div>
+    </div>
+
+    <div class="field">
+      <div id="childrenList"></div>
+      <div id="noChildrenYet" onclick="addChild()" style="background:rgba(241,102,35,0.1);border:2px dashed var(--orange);border-radius:14px;padding:24px 16px;text-align:center;margin-bottom:12px;cursor:pointer;">
+        <div style="font-size:44px;margin-bottom:8px;">👶</div>
+        <div style="font-size:16px;font-weight:700;color:#fff;margin-bottom:6px;">Tap here to add your children</div>
+        <div style="font-size:13px;color:#f59e0b;line-height:1.5;">Each child gets a personal birthday greeting<br>and a surprise portrait session offer from Charis every year! 🎁</div>
+      </div>
+      <button class="add-btn" onclick="addChild()" style="width:100%;justify-content:center;padding:14px;font-size:16px;font-weight:700;background:rgba(241,102,35,0.15);border:2px solid var(--orange);border-radius:12px;color:var(--orange);">+ Add a Child</button>
+    </div>
+  </div>
+
+  <!-- STEP 4: Social Media -->
+  <div class="section" data-step="3">
+    <div class="section-title">Social Media</div>
+    <div class="section-sub">So we can tag you when we share your beautiful content</div>
+    <div class="field">
+      <label>Your Instagram <span class="optional">(optional)</span></label>
+      <input type="text" id="f_instagram" placeholder="@yourhandle">
+    </div>
+    <div class="field">
+      <label>Your TikTok <span class="optional">(optional)</span></label>
+      <input type="text" id="f_tiktok" placeholder="@yourhandle">
+    </div>
+    <div class="field">
+      <label>Can we tag you when we post your photos / videos?</label>
+      <div class="toggle-group" style="margin-top:8px">
+        <div class="toggle-btn selected" data-field="tag" data-val="yes">Yes, tag me! 🧡</div>
+        <div class="toggle-btn" data-field="tag" data-val="no">No thanks</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 5: Services & How You Found Us -->
+  <div class="section" data-step="4">
+    <div class="section-title">You & Charis</div>
+    <div class="section-sub">Tell us about your experience with us</div>
+    <div class="field">
+      <label>Which services have you used with us? <span class="optional">(select all that apply)</span></label>
+      <div class="services-grid" id="servicesGrid">
+        <div class="check-row" data-svc="Wedding Photography/Videography"><div class="check-box"></div><div class="check-label">Wedding</div></div>
+        <div class="check-row" data-svc="Introduction / Kwanjula"><div class="check-box"></div><div class="check-label">Introduction / Kwanjula</div></div>
+        <div class="check-row" data-svc="Studio Session"><div class="check-box"></div><div class="check-label">Studio Session</div></div>
+        <div class="check-row" data-svc="Corporate / Event"><div class="check-box"></div><div class="check-label">Corporate / Event</div></div>
+        <div class="check-row" data-svc="Podcast Production"><div class="check-box"></div><div class="check-label">Podcast</div></div>
+        <div class="check-row" data-svc="Livestreaming"><div class="check-box"></div><div class="check-label">Livestreaming</div></div>
+        <div class="check-row" data-svc="Brand / Graphic Design"><div class="check-box"></div><div class="check-label">Brand / Design</div></div>
+        <div class="check-row" data-svc="Social Media Management"><div class="check-box"></div><div class="check-label">Social Media</div></div>
+      </div>
+    </div>
+    <div class="field" style="margin-top:16px">
+      <label>How did you first hear about Charis?</label>
+      <select id="f_referral">
+        <option value="">— Select —</option>
+        <option value="Instagram">Instagram</option>
+        <option value="WhatsApp">WhatsApp</option>
+        <option value="Facebook">Facebook</option>
+        <option value="TikTok">TikTok</option>
+        <option value="Referral">A friend / someone referred me</option>
+        <option value="Website">Website</option>
+        <option value="Walk-in">Walked in / visited studio</option>
+        <option value="Event">Saw Charis at an event</option>
+        <option value="Other">Other</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- STEP 6: Review -->
+  <div class="section" data-step="5">
+    <div class="section-title">Your Review</div>
+    <div class="section-sub">We'd love to hear how your experience was — this means the world to us</div>
+    <div class="field">
+      <label>How would you rate your experience with Charis?</label>
+      <div class="stars" id="starsContainer">
+        <span class="star" data-val="1">★</span>
+        <span class="star" data-val="2">★</span>
+        <span class="star" data-val="3">★</span>
+        <span class="star" data-val="4">★</span>
+        <span class="star" data-val="5">★</span>
+      </div>
+      <div class="star-label" id="starLabel"></div>
+    </div>
+    <div class="field">
+      <label>What event was this for? <span class="optional">(optional)</span></label>
+      <input type="text" id="f_review_event" placeholder="e.g. Our Wedding, Studio shoot, Corporate event">
+    </div>
+    <div class="field">
+      <label>Tell us about your experience <span class="optional">(optional)</span></label>
+      <textarea id="f_review_text" placeholder="What did you love about working with Charis? Your words help other clients find us..." rows="4"></textarea>
+    </div>
+    <div class="check-row" style="margin-top:8px;border:none">
+      <div class="check-box" id="reviewPublicBox"></div>
+      <div class="check-label">Charis can use my review on their website and social media</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Loading -->
+<div class="loading" id="loadingScreen">
+  <div class="spinner"></div>
+  <div style="color:#fff;font-size:16px">Submitting your details...</div>
+</div>
+
+<!-- Success -->
+<div class="success-screen" id="successScreen">
+  <div class="success-icon">🧡</div>
+  <div class="success-title">Thank You!</div>
+  <div class="success-sub">Your details have been received.<br>We appreciate you being part of the Charis family.</div>
+  <a class="wa-btn" href="https://wa.me/256706028899">💬 Chat with us on WhatsApp</a>
+</div>
+
+<!-- Navigation -->
+<div class="nav-bar" id="navBar">
+  <button class="nav-btn btn-back" id="btnBack" onclick="prevStep()" style="display:none">Back</button>
+  <button class="nav-btn btn-next" id="btnNext" onclick="nextStep()">Next →</button>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://vlmcwmjhmenbnymwfkdk.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZsbWN3bWpobWVuYm55bXdma2RrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM0MzYwMjIsImV4cCI6MjA4OTAxMjAyMn0.qp-wNmFwqXHaYmmUGoNLSPsdg5vejLN4CTDK9j7UxnA';
+
+let currentStep = 0;
+const totalSteps = 6;
+let selectedRating = 0;
+let canTag = true;
+let reviewPublic = true;
+let childCount = 0;
+
+const MONTHS = ['','January','February','March','April','May','June','July','August','September','October','November','December'];
+
+function initDateDropdowns(rowId, existingVal, type){
+  const row = document.getElementById(rowId);
+  if(!row) return;
+  // Parse existing YYYY-MM-DD value
+  let ey='', em='', ed='';
+  if(existingVal && existingVal.includes('-')){
+    const p = existingVal.split('-');
+    ey = p[0]; em = String(parseInt(p[1])||''); ed = String(parseInt(p[2])||'');
+  }
+  const now = new Date();
+  const curYear = now.getFullYear();
+  // Year range: birthdays go back to 1940, wedding dates to 1980
+  const minYear = type === 'wedding' ? 1980 : 1940;
+  const maxYear = curYear;
+  // Build day select
+  let dayOpts = '<option value="">Day</option>';
+  for(let i = 1; i <= 31; i++) dayOpts += `<option value="${i}"${ed==String(i)?' selected':''}>${i}</option>`;
+  // Build month select
+  let monOpts = '<option value="">Month</option>';
+  for(let i = 1; i <= 12; i++) monOpts += `<option value="${i}"${em==String(i)?' selected':''}>${MONTHS[i].slice(0,3)}</option>`;
+  // Build year select (most recent first for easier picking)
+  let yrOpts = '<option value="">Year</option>';
+  for(let i = maxYear; i >= minYear; i--) yrOpts += `<option value="${i}"${ey==String(i)?' selected':''}>${i}</option>`;
+  row.innerHTML = `<select class="dd-day">${dayOpts}</select><select class="dd-month">${monOpts}</select><select class="dd-year">${yrOpts}</select>`;
+}
+
+function getDateFromRow(rowId){
+  const row = document.getElementById(rowId);
+  if(!row) return '';
+  const d = row.querySelector('.dd-day')?.value;
+  const m = row.querySelector('.dd-month')?.value;
+  const y = row.querySelector('.dd-year')?.value;
+  if(!d || !m || !y) return '';
+  return `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+}
+
+// Init
+(function(){
+  renderProgress();
+  // Restore from localStorage
+  let savedBday = '', savedPartnerBday = '', savedWedding = '';
+  try {
+    const saved = localStorage.getItem('charis_client_form');
+    if(saved){
+      const d = JSON.parse(saved);
+      if(d.f_name) document.getElementById('f_name').value = d.f_name;
+      if(d.f_phone) document.getElementById('f_phone').value = d.f_phone;
+      if(d.f_email) document.getElementById('f_email').value = d.f_email;
+      savedBday = d.f_birthday || '';
+      if(d.f_location) document.getElementById('f_location').value = d.f_location;
+      if(d.f_partner_name) document.getElementById('f_partner_name').value = d.f_partner_name;
+      if(d.f_partner_relation) document.getElementById('f_partner_relation').value = d.f_partner_relation;
+      if(d.f_partner_phone) document.getElementById('f_partner_phone').value = d.f_partner_phone;
+      if(d.f_partner_email) document.getElementById('f_partner_email').value = d.f_partner_email;
+      savedPartnerBday = d.f_partner_birthday || '';
+      if(d.f_partner_instagram) document.getElementById('f_partner_instagram').value = d.f_partner_instagram;
+      savedWedding = d.f_wedding_date || '';
+      if(d.f_instagram) document.getElementById('f_instagram').value = d.f_instagram;
+      if(d.f_tiktok) document.getElementById('f_tiktok').value = d.f_tiktok;
+      if(d.f_referral) document.getElementById('f_referral').value = d.f_referral;
+      if(d.f_review_event) document.getElementById('f_review_event').value = d.f_review_event;
+      if(d.f_review_text) document.getElementById('f_review_text').value = d.f_review_text;
+      if(d.selectedRating) { selectedRating = d.selectedRating; renderStars(); }
+      if(d.canTag === false) { canTag = false; updateToggle('tag','no'); }
+      if(d.reviewPublic === false) { reviewPublic = false; document.getElementById('reviewPublicBox').classList.remove('checked'); }
+      else { document.getElementById('reviewPublicBox').classList.add('checked'); }
+      if(d.children && d.children.length){
+        d.children.forEach(c => { addChild(c.name, c.birthday); });
+        const nk = document.getElementById('noChildrenYet');
+        if(nk) nk.style.display = 'none';
+      }
+      if(d.services && d.services.length){
+        d.services.forEach(s => {
+          const el = document.querySelector(`.check-row[data-svc="${s}"] .check-box`);
+          if(el) el.classList.add('checked');
+        });
+      }
+    } else {
+      document.getElementById('reviewPublicBox').classList.add('checked');
+    }
+  } catch(e){}
+  // Init date dropdowns (with restored values if any)
+  initDateDropdowns('f_birthday_row', savedBday, 'birthday');
+  initDateDropdowns('f_partner_birthday_row', savedPartnerBday, 'birthday');
+  initDateDropdowns('f_wedding_date_row', savedWedding, 'wedding');
+  // Auto-save every 3 seconds
+  setInterval(autoSave, 3000);
+})();
+
+function autoSave(){
+  try {
+    const d = collectData();
+    localStorage.setItem('charis_client_form', JSON.stringify(d));
+  } catch(e){}
+}
+
+function collectData(){
+  const children = [];
+  document.querySelectorAll('.child-entry').forEach(el => {
+    const n = el.querySelector('.child-name')?.value?.trim();
+    const row = el.querySelector('.child-bday-row');
+    let b = '';
+    if(row && row.id) b = getDateFromRow(row.id);
+    if(n || b) children.push({name: n || '', birthday: b || ''});
+  });
+  const services = [];
+  document.querySelectorAll('.check-row[data-svc] .check-box.checked').forEach(el => {
+    services.push(el.parentElement.getAttribute('data-svc'));
+  });
+  return {
+    f_name: document.getElementById('f_name').value.trim(),
+    f_phone: document.getElementById('f_phone').value.trim(),
+    f_email: document.getElementById('f_email').value.trim(),
+    f_birthday: getDateFromRow('f_birthday_row'),
+    f_location: document.getElementById('f_location').value.trim(),
+    f_partner_name: document.getElementById('f_partner_name').value.trim(),
+    f_partner_relation: document.getElementById('f_partner_relation').value,
+    f_partner_phone: document.getElementById('f_partner_phone').value.trim(),
+    f_partner_birthday: getDateFromRow('f_partner_birthday_row'),
+    f_partner_email: document.getElementById('f_partner_email').value.trim(),
+    f_partner_instagram: document.getElementById('f_partner_instagram').value.trim(),
+    f_wedding_date: getDateFromRow('f_wedding_date_row'),
+    f_instagram: document.getElementById('f_instagram').value.trim(),
+    f_tiktok: document.getElementById('f_tiktok').value.trim(),
+    f_referral: document.getElementById('f_referral').value,
+    f_review_event: document.getElementById('f_review_event').value.trim(),
+    f_review_text: document.getElementById('f_review_text').value.trim(),
+    selectedRating,
+    canTag,
+    reviewPublic,
+    children,
+    services
+  };
+}
+
+function renderProgress(){
+  let h = '';
+  for(let i = 0; i < totalSteps; i++){
+    const cls = i < currentStep ? 'done' : (i === currentStep ? 'active' : '');
+    h += `<div class="step ${cls}"></div>`;
+  }
+  document.getElementById('progressBar').innerHTML = h;
+}
+
+function showStep(n){
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  const target = document.querySelector(`.section[data-step="${n}"]`);
+  if(target) target.classList.add('active');
+
+  document.getElementById('btnBack').style.display = n === 0 ? 'none' : '';
+
+  const btnNext = document.getElementById('btnNext');
+  if(n === totalSteps - 1){
+    btnNext.textContent = 'Submit ✓';
+    btnNext.className = 'nav-btn btn-submit';
+  } else {
+    btnNext.textContent = 'Next →';
+    btnNext.className = 'nav-btn btn-next';
+  }
+
+  renderProgress();
+  window.scrollTo(0, 0);
+}
+
+function nextStep(){
+  hideError();
+
+  // Validate step 0 (name + phone required)
+  if(currentStep === 0){
+    const name = document.getElementById('f_name').value.trim();
+    const phone = document.getElementById('f_phone').value.trim();
+    if(!name){ showError('Please enter your full name'); return; }
+    if(!phone){ showError('Please enter your phone number'); return; }
+    if(phone.replace(/\D/g,'').length < 9){ showError('Please enter a valid phone number'); return; }
+  }
+
+  if(currentStep === totalSteps - 1){
+    submitForm();
+    return;
+  }
+
+  currentStep++;
+  showStep(currentStep);
+}
+
+function prevStep(){
+  if(currentStep > 0){
+    currentStep--;
+    showStep(currentStep);
+  }
+}
+
+function showError(msg){
+  const el = document.getElementById('errorMsg');
+  el.textContent = msg;
+  el.style.display = 'block';
+  el.scrollIntoView({behavior:'smooth'});
+}
+function hideError(){
+  document.getElementById('errorMsg').style.display = 'none';
+}
+
+// Stars
+document.getElementById('starsContainer').addEventListener('click', function(e){
+  const star = e.target.closest('.star');
+  if(!star) return;
+  selectedRating = parseInt(star.getAttribute('data-val'));
+  renderStars();
+});
+
+function renderStars(){
+  const labels = ['','Not great','Okay','Good','Very good','Absolutely loved it! 🧡'];
+  document.querySelectorAll('#starsContainer .star').forEach(s => {
+    const v = parseInt(s.getAttribute('data-val'));
+    s.classList.toggle('filled', v <= selectedRating);
+  });
+  document.getElementById('starLabel').textContent = labels[selectedRating] || '';
+}
+
+// Toggles
+document.addEventListener('click', function(e){
+  const tb = e.target.closest('.toggle-btn');
+  if(tb){
+    const field = tb.getAttribute('data-field');
+    const val = tb.getAttribute('data-val');
+    updateToggle(field, val);
+    if(field === 'tag') canTag = val === 'yes';
+    return;
+  }
+
+  const cb = e.target.closest('.check-box');
+  if(cb){
+    cb.classList.toggle('checked');
+    if(cb.id === 'reviewPublicBox') reviewPublic = cb.classList.contains('checked');
+    return;
+  }
+
+  const cl = e.target.closest('.check-label');
+  if(cl){
+    const box = cl.parentElement.querySelector('.check-box');
+    if(box){
+      box.classList.toggle('checked');
+      if(box.id === 'reviewPublicBox') reviewPublic = box.classList.contains('checked');
+    }
+  }
+});
+
+function updateToggle(field, val){
+  document.querySelectorAll(`.toggle-btn[data-field="${field}"]`).forEach(b => {
+    b.classList.toggle('selected', b.getAttribute('data-val') === val);
+  });
+}
+
+// Children
+function addChild(name, bday){
+  childCount++;
+  // Hide the placeholder
+  const noKids = document.getElementById('noChildrenYet');
+  if(noKids) noKids.style.display = 'none';
+  const div = document.createElement('div');
+  div.className = 'child-entry';
+  const cid = 'child_bday_' + childCount;
+  div.innerHTML = `
+    <button class="remove-btn" onclick="removeChild(this)">✕</button>
+    <div style="font-size:12px;font-weight:700;color:var(--orange);margin-bottom:8px;">🧒 Child ${childCount}</div>
+    <div class="child-row">
+      <div class="field"><label>Child's Name</label><input type="text" class="child-name" placeholder="e.g. David Jr." value="${name||''}"></div>
+      <div class="field"><label>Birthday 🎂</label><div class="date-row child-bday-row" id="${cid}_row"></div></div>
+    </div>`;
+  document.getElementById('childrenList').appendChild(div);
+  initDateDropdowns(cid + '_row', bday || '', 'birthday');
+}
+function removeChild(btn){
+  btn.parentElement.remove();
+  childCount--;
+  // Show placeholder again if no children
+  if(childCount <= 0){
+    childCount = 0;
+    const noKids = document.getElementById('noChildrenYet');
+    if(noKids) noKids.style.display = '';
+  }
+  // Re-number remaining children
+  document.querySelectorAll('.child-entry').forEach((el, i) => {
+    const lbl = el.querySelector('div[style*="color:var(--orange)"]');
+    if(lbl) lbl.innerHTML = '🧒 Child ' + (i+1);
+  });
+}
+
+// Submit
+async function submitForm(){
+  autoSave();
+  const d = collectData();
+
+  document.getElementById('formContainer').style.display = 'none';
+  document.getElementById('navBar').style.display = 'none';
+  document.getElementById('loadingScreen').style.display = 'block';
+
+  // Build payload
+  const payload = {
+    name: d.f_name,
+    phone: d.f_phone,
+    email: d.f_email,
+    client_birthday: d.f_birthday || null,
+    location: d.f_location,
+    partner_name: d.f_partner_name,
+    partner_relation: d.f_partner_relation,
+    partner_phone: d.f_partner_phone,
+    partner_birthday: d.f_partner_birthday || null,
+    partner_email: d.f_partner_email,
+    partner_instagram: d.f_partner_instagram,
+    wedding_date: d.f_wedding_date || null,
+    client_instagram: d.f_instagram,
+    client_tiktok: d.f_tiktok,
+    can_tag_on_social: d.canTag,
+    referral_source: d.f_referral,
+    children: d.children.filter(c => c.name || c.birthday),
+    review_rating: d.selectedRating,
+    review_text: d.f_review_text,
+    review_event_type: d.f_review_event,
+    services_used: d.services.join(', ')
+  };
+
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/submit_client_form`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`
+      },
+      body: JSON.stringify({ p_data: payload })
+    });
+
+    const result = await res.json();
+
+    if(result && result.success){
+      localStorage.removeItem('charis_client_form');
+      document.getElementById('loadingScreen').style.display = 'none';
+      document.getElementById('successScreen').style.display = 'block';
+      document.getElementById('progressBar').style.display = 'none';
+      document.querySelector('.welcome-msg').style.display = 'none';
+    } else {
+      throw new Error(result?.error || 'Something went wrong');
+    }
+  } catch(err){
+    document.getElementById('loadingScreen').style.display = 'none';
+    document.getElementById('formContainer').style.display = 'block';
+    document.getElementById('navBar').style.display = 'flex';
+    showError('Failed to submit: ' + (err.message || 'Please check your connection and try again'));
+  }
+}
+</script>
+</body>
+</html>

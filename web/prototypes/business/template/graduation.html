@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Charis Creations — Graduation Shoot Booking</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;900&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0D1B2A;
+  --card: #1B2838;
+  --card2: #243447;
+  --border: #2D3F52;
+  --orange: #F16623;
+  --gold: #D4A853;
+  --text: #F1F5F9;
+  --muted: #94A3B8;
+  --dim: #64748B;
+  --green: #10B981;
+  --red: #EF4444;
+  --amber: #F59E0B;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Montserrat',-apple-system,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;-webkit-font-smoothing:antialiased;}
+.container{max-width:560px;margin:0 auto;padding:0 16px 80px;}
+
+.header{text-align:center;padding:32px 16px 24px;border-bottom:1px solid var(--border);margin-bottom:24px;}
+.logo-text{font-size:11px;font-weight:900;letter-spacing:3px;color:var(--orange);text-transform:uppercase;margin-bottom:12px;}
+.header h1{font-size:26px;font-weight:900;line-height:1.2;margin-bottom:4px;}
+.header h1 span{color:var(--gold);}
+.grad-icon{font-size:36px;margin-bottom:8px;}
+.header-sub{font-size:13px;color:var(--muted);line-height:1.6;max-width:400px;margin:0 auto;}
+
+.urgency-bar{background:linear-gradient(90deg,#EF4444,#F59E0B);padding:10px 16px;border-radius:10px;text-align:center;margin-bottom:20px;animation:pulse 2s infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.85;}}
+.urgency-bar span{font-size:12px;font-weight:800;color:#fff;letter-spacing:0.3px;}
+
+.section-label{font-size:10px;font-weight:800;color:var(--orange);text-transform:uppercase;letter-spacing:1.2px;margin-bottom:10px;}
+.section-title{font-size:18px;font-weight:900;margin-bottom:16px;}
+
+.pkg-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;}
+@media(max-width:380px){.pkg-grid{grid-template-columns:1fr;}}
+.pkg-card{background:var(--card);border:2px solid var(--border);border-radius:12px;padding:14px 12px;cursor:pointer;transition:all 0.2s;position:relative;text-align:center;}
+.pkg-card:hover{border-color:var(--orange);transform:translateY(-2px);}
+.pkg-card.selected{border-color:var(--orange);background:#F1662311;}
+.pkg-card.popular::before{content:'MOST BOOKED';position:absolute;top:-8px;left:50%;transform:translateX(-50%);background:var(--orange);color:#fff;font-size:8px;font-weight:800;padding:2px 8px;border-radius:4px;letter-spacing:0.5px;white-space:nowrap;}
+.pkg-name{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:0.6px;color:var(--gold);margin-bottom:6px;}
+.pkg-price{font-size:28px;font-weight:900;line-height:1;margin-bottom:2px;}
+.pkg-price small{font-size:11px;font-weight:600;color:var(--muted);}
+.pkg-details{font-size:10px;color:var(--muted);line-height:1.6;margin-top:8px;}
+.pkg-check{position:absolute;top:8px;right:8px;width:20px;height:20px;border-radius:50%;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:11px;color:transparent;transition:all 0.2s;}
+.pkg-card.selected .pkg-check{background:var(--orange);border-color:var(--orange);color:#fff;}
+
+.makeup-row{display:flex;gap:10px;margin-bottom:16px;}
+.makeup-card{flex:1;background:var(--card);border:2px solid var(--border);border-radius:12px;padding:14px 10px;cursor:pointer;text-align:center;transition:all 0.2s;}
+.makeup-card:hover{border-color:var(--orange);}
+.makeup-card.selected{border-color:var(--orange);background:#F1662311;}
+.makeup-icon{font-size:24px;margin-bottom:4px;}
+.makeup-name{font-size:11px;font-weight:800;margin-bottom:2px;}
+.makeup-price{font-size:14px;font-weight:900;color:var(--gold);}
+.makeup-desc{font-size:9px;color:var(--muted);margin-top:4px;line-height:1.4;}
+
+.total-bar{background:var(--card);border:2px solid var(--orange);border-radius:12px;padding:16px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;}
+.total-label{font-size:12px;font-weight:700;color:var(--muted);}
+.total-amount{font-size:24px;font-weight:900;color:var(--orange);}
+.total-breakdown{font-size:10px;color:var(--dim);margin-top:4px;}
+
+.btn-book{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;padding:16px;background:#25D366;color:#fff;border:none;border-radius:12px;font-family:inherit;font-size:16px;font-weight:900;cursor:pointer;text-decoration:none;letter-spacing:0.3px;transition:all 0.15s;}
+.btn-book:hover{filter:brightness(1.1);transform:translateY(-1px);}
+
+.info-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:14px;}
+.info-title{font-size:10px;font-weight:800;color:var(--orange);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;}
+
+.hidden{display:none!important;}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <div class="logo-text">CHARIS CREATIONS</div>
+    <div class="grad-icon">🎓</div>
+    <h1><span>Graduate</span> With Your Best Shot</h1>
+    <p class="header-sub">Studio graduation photoshoot at Charis Creations, Namugongo Sonde. Pick your package and book on WhatsApp in seconds.</p>
+  </div>
+  <div id="app"></div>
+</div>
+
+<script>
+(function(){
+'use strict';
+
+var APP = document.getElementById('app');
+
+// ── Packages (starting from 100K) ──
+var PACKAGES = [
+  { id:'memory',   name:'The Memory',   price:100000, photos:15, extras:'Same day edit\nDigital delivery', icon:'📸' },
+  { id:'legacy',   name:'The Legacy',   price:150000, photos:18, extras:'Same day edit\nDigital delivery', icon:'🖼️', popular:true },
+  { id:'fullstory',name:'The Full Story',price:250000, photos:25, extras:'1 A3 printed board\n60-sec Instagram reel', icon:'🎬' }
+];
+
+// ── Makeup ──
+var MAKEUP = [
+  { id:'none',      name:'No Makeup', price:0, icon:'✋', desc:"I'll come ready" },
+  { id:'soft_glow', name:'Soft Glow', price:50000, icon:'✨', desc:'Natural, simple, clean makeup' },
+  { id:'luxe_glow', name:'Luxe Glow', price:100000, icon:'💄', desc:'Full glam, more detail, longer-lasting' }
+];
+
+// ── State ──
+var S = {
+  package: '',
+  makeup: 'none'
+};
+
+function esc(s){ var d=document.createElement('div'); d.textContent=s||''; return d.innerHTML; }
+function fmt(n){ return (n||0).toLocaleString('en-UG'); }
+function getTotal(){
+  var pkg = PACKAGES.find(function(p){return p.id===S.package;});
+  var mup = MAKEUP.find(function(m){return m.id===S.makeup;});
+  return (pkg?pkg.price:0)+(mup?mup.price:0);
+}
+
+function buildWhatsAppUrl(){
+  var pkg = PACKAGES.find(function(p){return p.id===S.package;});
+  var mup = MAKEUP.find(function(m){return m.id===S.makeup;});
+  if(!pkg) return '';
+  var msg = 'Hi Charis Creations! 🎓\n\n';
+  msg += "I'd like to book a graduation photoshoot.\n\n";
+  msg += '📦 Package: ' + pkg.name + ' (UGX ' + fmt(pkg.price) + ' — ' + pkg.photos + ' photos)\n';
+  if(mup && mup.id !== 'none') msg += '💄 Makeup: ' + mup.name + ' (+UGX ' + fmt(mup.price) + ')\n';
+  msg += '💰 Total: UGX ' + fmt(getTotal()) + '\n';
+  msg += '📍 Studio: Namugongo Sonde\n\n';
+  msg += "I'd like to confirm my slot. What times are available?";
+  return 'https://wa.me/256706028899?text=' + encodeURIComponent(msg);
+}
+
+function render(){
+  var h = '';
+
+  // ── Urgency banner ──
+  h += '<div class="urgency-bar">';
+  h += '<span>🔥 LAST 2 DAYS — Today & Tomorrow Only! Slots filling fast.</span>';
+  h += '</div>';
+
+  // ── Location ──
+  h += '<div style="text-align:center;margin-bottom:20px;">';
+  h += '<div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 16px;display:inline-block;">';
+  h += '<span style="font-size:12px;color:var(--muted);">📍 </span>';
+  h += '<span style="font-size:12px;font-weight:700;color:var(--text);">Charis Creations Studio, Namugongo Sonde</span>';
+  h += '</div>';
+  h += '</div>';
+
+  // ── Step 1: Choose Package ──
+  h += '<div class="section-label">Step 1</div>';
+  h += '<div class="section-title">Choose Your Package</div>';
+  h += '<div class="pkg-grid">';
+  PACKAGES.forEach(function(p){
+    var sel = S.package === p.id;
+    h += '<div class="pkg-card'+(sel?' selected':'')+(p.popular?' popular':'')+'" data-pkg="'+p.id+'">';
+    h += '<div class="pkg-check">'+(sel?'✓':'')+'</div>';
+    h += '<div style="font-size:24px;margin-bottom:4px;">'+p.icon+'</div>';
+    h += '<div class="pkg-name">'+p.name+'</div>';
+    h += '<div class="pkg-price"><small>UGX </small>'+fmt(p.price)+'</div>';
+    h += '<div class="pkg-details">'+p.photos+' edited photos<br>'+p.extras.replace(/\n/g,'<br>')+'</div>';
+    h += '</div>';
+  });
+  h += '</div>';
+  h += '<div style="font-size:11px;color:var(--muted);text-align:center;margin-bottom:24px;">All packages include <strong style="color:var(--gold);">same-day phone previews</strong> — see your shots before you leave.</div>';
+
+  // ── Step 2: Makeup (optional) ──
+  h += '<div class="section-label">Step 2 — Optional</div>';
+  h += '<div class="section-title">Add Makeup?</div>';
+  h += '<div class="makeup-row">';
+  MAKEUP.forEach(function(m){
+    var sel = S.makeup === m.id;
+    h += '<div class="makeup-card'+(sel?' selected':'')+'" data-makeup="'+m.id+'">';
+    h += '<div class="makeup-icon">'+m.icon+'</div>';
+    h += '<div class="makeup-name">'+m.name+'</div>';
+    if(m.price > 0) h += '<div class="makeup-price">+'+fmt(m.price)+'</div>';
+    else h += '<div class="makeup-price" style="color:var(--dim);">Free</div>';
+    h += '<div class="makeup-desc">'+m.desc+'</div>';
+    h += '</div>';
+  });
+  h += '</div>';
+  h += '<div style="font-size:10px;color:var(--dim);text-align:center;margin-bottom:24px;">Powered by <strong style="color:var(--gold);">Charis Artistry</strong> — Glow with Joy, Shine with Style</div>';
+
+  // ── Total + Book Now ──
+  if(S.package){
+    var pkg = PACKAGES.find(function(p){return p.id===S.package;});
+    var mup = MAKEUP.find(function(m){return m.id===S.makeup;});
+    var total = getTotal();
+
+    h += '<div class="total-bar">';
+    h += '<div><div class="total-label">Total Amount</div>';
+    if(S.makeup !== 'none' && mup){
+      h += '<div class="total-breakdown">'+pkg.name+': '+fmt(pkg.price)+' + '+mup.name+': '+fmt(mup.price)+'</div>';
+    }
+    h += '</div>';
+    h += '<div class="total-amount">UGX '+fmt(total)+'</div>';
+    h += '</div>';
+
+    h += '<a href="'+buildWhatsAppUrl()+'" target="_blank" class="btn-book" id="book-btn">';
+    h += '💬 Book Now on WhatsApp';
+    h += '</a>';
+    h += '<div style="text-align:center;font-size:10px;color:var(--dim);margin-top:8px;">Tap to chat with us and confirm your slot instantly</div>';
+  } else {
+    h += '<div style="background:var(--card);border:2px dashed var(--border);border-radius:12px;padding:20px;text-align:center;margin-bottom:16px;">';
+    h += '<div style="font-size:13px;color:var(--muted);font-weight:600;">👆 Pick a package above to continue</div>';
+    h += '</div>';
+  }
+
+  // ── Why Book Now section ──
+  h += '<div style="margin-top:28px;border-top:1px solid var(--border);padding-top:24px;">';
+  h += '<div class="info-card" style="border-left:3px solid var(--red);">';
+  h += '<div class="info-title">⏰ Why You Shouldn\'t Wait</div>';
+  h += '<div style="font-size:12px;color:var(--muted);line-height:1.8;">';
+  h += '• <strong style="color:var(--text);">Only 2 days left</strong> — after tomorrow, the graduation shoot window closes.<br>';
+  h += '• Slots are limited — once a time is taken, it\'s gone.<br>';
+  h += '• You worked years for this degree. <strong style="color:var(--gold);">Give it the photos it deserves.</strong><br>';
+  h += '• Same-day phone previews — you\'ll see your shots before you leave the studio.<br>';
+  h += '• Your classmates are already booking. Don\'t be the one who missed out.';
+  h += '</div>';
+  h += '</div>';
+
+  // ── What you get ──
+  h += '<div class="info-card">';
+  h += '<div class="info-title">📸 What You Get</div>';
+  h += '<div style="font-size:12px;color:var(--muted);line-height:1.8;">';
+  h += '• Professional studio lighting and backdrop<br>';
+  h += '• Expert photographer who guides every pose<br>';
+  h += '• Same-day edited phone previews<br>';
+  h += '• Full digital delivery of all edited photos<br>';
+  h += '• Bring family or friends for bonus shots — no extra charge';
+  h += '</div>';
+  h += '</div>';
+
+  // ── What to bring ──
+  h += '<div class="info-card">';
+  h += '<div class="info-title">🎒 Come Prepared</div>';
+  h += '<div style="font-size:12px;color:var(--muted);line-height:1.8;">';
+  h += '• Your graduation gown — <strong style="color:var(--text);">ironed and wrinkle-free</strong><br>';
+  h += '• Cap, hood, and scroll/certificate holder<br>';
+  h += '• Clean, polished shoes (we shoot full body)<br>';
+  h += '• Solid-colour outfit under the gown (black, white, navy, cream)<br>';
+  h += '• Your phone — fully charged for same-day previews';
+  h += '</div>';
+  h += '</div>';
+
+  h += '</div>'; // end bottom section
+
+  // ── Contact ──
+  h += '<div style="text-align:center;margin-top:20px;">';
+  h += '<div style="font-size:11px;color:var(--dim);margin-bottom:6px;">Questions? Call us:</div>';
+  h += '<a href="tel:+256706028899" style="color:var(--orange);font-size:14px;font-weight:800;text-decoration:none;">+256 706 028 899</a>';
+  h += '</div>';
+
+  // ── Footer ──
+  h += '<div style="text-align:center;padding:32px 16px;margin-top:24px;border-top:1px solid var(--border);">';
+  h += '<div style="font-size:11px;font-weight:900;letter-spacing:2px;color:var(--orange);">CHARIS CREATIONS</div>';
+  h += '<div style="font-size:10px;color:var(--dim);letter-spacing:1px;">Bringing Image to Life</div>';
+  h += '</div>';
+
+  APP.innerHTML = h;
+  wireEvents();
+}
+
+function wireEvents(){
+  document.querySelectorAll('[data-pkg]').forEach(function(el){
+    el.addEventListener('click', function(){ S.package = this.dataset.pkg; render(); });
+  });
+  document.querySelectorAll('[data-makeup]').forEach(function(el){
+    el.addEventListener('click', function(){ S.makeup = this.dataset.makeup; render(); });
+  });
+}
+
+render();
+
+})();
+</script>
+</body>
+</html>

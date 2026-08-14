@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>My Project — Charis Creations</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;700;900&display=swap" rel="stylesheet"/>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Montserrat',sans-serif;background:#0d1b2a;color:#e2e8f0;min-height:100vh;}
+
+.wrap{max-width:600px;margin:0 auto;padding:40px 20px;}
+.header{text-align:center;margin-bottom:32px;}
+.header .logo{height:56px;margin-bottom:16px;}
+.header h1{font-size:22px;font-weight:900;color:#fff;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;}
+.header p{font-size:13px;color:#94a3b8;line-height:1.6;}
+
+/* Search */
+.search-card{background:#1e293b;border-radius:12px;padding:28px 24px;border:1px solid rgba(241,102,35,0.15);margin-bottom:24px;}
+.search-card label{display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:#f16623;margin-bottom:8px;}
+.search-row{display:flex;gap:10px;}
+.search-row input{flex:1;padding:12px 14px;background:#0d1b2a;border:1px solid #334155;border-radius:8px;color:#e2e8f0;font-size:14px;font-family:inherit;}
+.search-row input:focus{outline:none;border-color:#f16623;}
+.search-row button{padding:12px 20px;background:#f16623;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;font-family:inherit;cursor:pointer;white-space:nowrap;transition:transform 0.15s;}
+.search-row button:hover{transform:translateY(-1px);}
+.search-row button:disabled{opacity:0.6;cursor:not-allowed;transform:none;}
+.hint{font-size:11px;color:#64748b;margin-top:6px;}
+
+/* Results */
+#results{display:none;}
+.err-banner{background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:8px;padding:12px 16px;font-size:13px;color:#fca5a5;text-align:center;margin-bottom:16px;display:none;}
+
+.project-card{background:#1e293b;border-radius:12px;padding:20px;border:1px solid #334155;margin-bottom:16px;}
+.proj-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;}
+.proj-ref{font-size:11px;font-weight:700;color:#f16623;letter-spacing:0.5px;}
+.proj-client{font-size:16px;font-weight:700;color:#fff;margin-top:2px;}
+.proj-type{font-size:12px;color:#94a3b8;margin-top:2px;}
+
+.status-badge{
+  display:inline-block;padding:4px 12px;border-radius:20px;
+  font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;
+}
+
+.proj-details{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px;}
+.detail-item{background:#0d1b2a;border-radius:8px;padding:10px 12px;}
+.detail-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:#64748b;margin-bottom:3px;}
+.detail-value{font-size:13px;color:#e2e8f0;font-weight:600;}
+
+/* Pipeline visual */
+.pipeline{margin-top:16px;padding-top:16px;border-top:1px solid #334155;}
+.pipeline-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:#64748b;margin-bottom:10px;}
+.pipeline-bar{display:flex;gap:3px;height:6px;border-radius:3px;overflow:hidden;}
+.pipeline-seg{flex:1;background:#334155;border-radius:3px;transition:background 0.3s;}
+.pipeline-seg.done{background:#f16623;}
+.pipeline-seg.current{background:#f59e0b;animation:pulse 1.5s ease-in-out infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.5;}}
+.pipeline-status{font-size:11px;color:#94a3b8;margin-top:6px;text-align:center;}
+
+/* WhatsApp */
+.wa-bar{text-align:center;margin-top:24px;padding-top:20px;border-top:1px solid #1e293b;}
+.wa-bar p{font-size:12px;color:#64748b;margin-bottom:10px;}
+.wa-btn{
+  display:inline-flex;align-items:center;gap:8px;
+  padding:10px 20px;background:#25d366;color:#fff;
+  font-size:13px;font-weight:600;border-radius:8px;
+  text-decoration:none;font-family:inherit;transition:transform 0.15s;
+}
+.wa-btn:hover{transform:translateY(-1px);}
+.wa-btn svg{width:18px;height:18px;}
+
+@media(max-width:480px){
+  .proj-details{grid-template-columns:1fr;}
+  .search-row{flex-direction:column;}
+}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <div class="header">
+    <h1>Track Your Project</h1>
+    <p>Enter the phone number you used when booking to check the status of your project.</p>
+  </div>
+
+  <div class="search-card">
+    <label>Your Phone Number</label>
+    <div class="search-row">
+      <input type="tel" id="searchPhone" placeholder="+256 7XX XXX XXX" autocomplete="tel"/>
+      <button id="btnSearch" onclick="searchProjects()">Check Status</button>
+    </div>
+    <div class="hint">Use the same number you gave us when booking</div>
+  </div>
+
+  <div id="errBanner" class="err-banner"></div>
+  <div id="results"></div>
+
+  <div class="wa-bar">
+    <p>Need to talk to us?</p>
+    <a class="wa-btn" href="https://wa.me/256706028899" target="_blank">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+      Chat on WhatsApp
+    </a>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+(function() {
+  'use strict';
+
+  var SUPA_URL = 'https://vlmcwmjhmenbnymwfkdk.supabase.co';
+  var SUPA_KEY = 'sb_publishable_Q7wTRJK-hCy87Tfy7ROkeA_94Q9HQQw';
+  var SB = window.supabase.createClient(SUPA_URL, SUPA_KEY);
+
+  // Pipeline stages for visual
+  var STAGES = [
+    'Inquiry','Quotation Sent','Booking Confirmed','Deposit Paid',
+    'Contract Signed','Preparation','Shooting Day','Data Backup',
+    'Editing','Review & Revisions','Final Export','Delivered'
+  ];
+
+  // Stage colours for badges
+  var STAGE_COLORS = {
+    'Inquiry':            { bg:'#334155', fg:'#94a3b8' },
+    'Quotation Sent':     { bg:'#1e3a5f', fg:'#60a5fa' },
+    'Booking Confirmed':  { bg:'#14532d', fg:'#4ade80' },
+    'Deposit Paid':       { bg:'#14532d', fg:'#4ade80' },
+    'Contract Signed':    { bg:'#14532d', fg:'#4ade80' },
+    'Preparation':        { bg:'#422006', fg:'#fbbf24' },
+    'Shooting Day':       { bg:'#7c2d12', fg:'#f16623' },
+    'Data Backup':        { bg:'#422006', fg:'#fbbf24' },
+    'Editing':            { bg:'#312e81', fg:'#a78bfa' },
+    'Review & Revisions': { bg:'#312e81', fg:'#a78bfa' },
+    'Final Export':       { bg:'#312e81', fg:'#a78bfa' },
+    'Delivered':          { bg:'#064e3b', fg:'#34d399' }
+  };
+
+  // Client-friendly stage names
+  var FRIENDLY = {
+    'Inquiry':            'Inquiry Received',
+    'Quotation Sent':     'Quote Sent — Awaiting Your Response',
+    'Booking Confirmed':  'Booking Confirmed',
+    'Deposit Paid':       'Deposit Received — You\'re Locked In',
+    'Contract Signed':    'Contract Signed',
+    'Preparation':        'We\'re Preparing for Your Event',
+    'Shooting Day':       'Shoot Day!',
+    'Data Backup':        'Footage Secured & Backed Up',
+    'Editing':            'Your Content is Being Edited',
+    'Review & Revisions': 'Review in Progress',
+    'Final Export':       'Final Touches — Almost Ready',
+    'Delivered':          'Delivered — Enjoy!'
+  };
+
+  window.searchProjects = async function() {
+    var phone = document.getElementById('searchPhone').value.trim();
+    var errEl = document.getElementById('errBanner');
+    var resEl = document.getElementById('results');
+    errEl.style.display = 'none';
+    resEl.style.display = 'none';
+    resEl.innerHTML = '';
+
+    if (!phone || phone.length < 7) {
+      errEl.textContent = 'Please enter a valid phone number.';
+      errEl.style.display = 'block';
+      return;
+    }
+
+    var btn = document.getElementById('btnSearch');
+    btn.disabled = true;
+    btn.textContent = 'Checking...';
+
+    try {
+      var { data, error } = await SB.rpc('get_project_status', { p_phone: phone });
+      if (error) throw error;
+
+      if (!data || !data.success) {
+        errEl.textContent = (data && data.error) || 'No projects found. Please check the number and try again.';
+        errEl.style.display = 'block';
+        btn.disabled = false;
+        btn.textContent = 'Check Status';
+        return;
+      }
+
+      var projects = data.projects || [];
+      var html = '';
+
+      for (var i = 0; i < projects.length; i++) {
+        var p = projects[i];
+        var stageIdx = STAGES.indexOf(p.status);
+        var colors = STAGE_COLORS[p.status] || { bg:'#334155', fg:'#94a3b8' };
+        var friendly = FRIENDLY[p.status] || p.status;
+
+        // Pipeline bar
+        var pipeHtml = '';
+        for (var s = 0; s < STAGES.length; s++) {
+          var cls = 'pipeline-seg';
+          if (s < stageIdx) cls += ' done';
+          else if (s === stageIdx) cls += ' current';
+          pipeHtml += '<div class="' + cls + '"></div>';
+        }
+
+        // Format date
+        var dateDisplay = p.date ? formatDate(p.date) : '—';
+        var deadlineDisplay = p.deadline ? formatDate(p.deadline) : '—';
+
+        html += '<div class="project-card">' +
+          '<div class="proj-header">' +
+            '<div>' +
+              '<div class="proj-ref">' + esc(p.ref || '') + '</div>' +
+              '<div class="proj-client">' + esc(p.client || '') + '</div>' +
+              '<div class="proj-type">' + esc(p.eventType || '') + '</div>' +
+            '</div>' +
+            '<span class="status-badge" style="background:' + colors.bg + ';color:' + colors.fg + ';">' + esc(p.status || '') + '</span>' +
+          '</div>' +
+          '<div class="proj-details">' +
+            '<div class="detail-item"><div class="detail-label">Event Date</div><div class="detail-value">' + dateDisplay + '</div></div>' +
+            '<div class="detail-item"><div class="detail-label">Expected Delivery</div><div class="detail-value">' + deadlineDisplay + '</div></div>' +
+            (p.location ? '<div class="detail-item"><div class="detail-label">Location</div><div class="detail-value">' + esc(p.location) + '</div></div>' : '') +
+          '</div>' +
+          '<div class="pipeline">' +
+            '<div class="pipeline-label">Progress</div>' +
+            '<div class="pipeline-bar">' + pipeHtml + '</div>' +
+            '<div class="pipeline-status">' + esc(friendly) + '</div>' +
+          '</div>' +
+        '</div>';
+      }
+
+      resEl.innerHTML = html;
+      resEl.style.display = 'block';
+    } catch(e) {
+      console.error(e);
+      errEl.textContent = 'Connection error. Please check your internet and try again.';
+      errEl.style.display = 'block';
+    }
+
+    btn.disabled = false;
+    btn.textContent = 'Check Status';
+  };
+
+  function formatDate(d) {
+    if (!d) return '—';
+    try {
+      var parts = d.split('-');
+      var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      return parseInt(parts[2]) + ' ' + months[parseInt(parts[1])-1] + ' ' + parts[0];
+    } catch(e) { return d; }
+  }
+
+  function esc(s) {
+    var d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+  }
+
+  // Enter key triggers search
+  document.getElementById('searchPhone').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') { e.preventDefault(); window.searchProjects(); }
+  });
+})();
+</script>
+</body>
+</html>

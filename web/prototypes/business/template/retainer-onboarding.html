@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Charis Creations — Retainer Client Onboarding</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#0d1b2a;color:#e0e0e0;min-height:100vh;}
+.container{max-width:640px;margin:0 auto;padding:20px 16px 40px;}
+.logo-bar{text-align:center;padding:20px 0 10px;}
+.logo-bar h1{font-size:22px;font-weight:800;color:#f16623;letter-spacing:1px;}
+.logo-bar p{font-size:11px;color:#94a3b8;letter-spacing:3px;text-transform:uppercase;margin-top:2px;}
+.progress{display:flex;gap:4px;margin:20px 0 24px;}
+.progress .dot{flex:1;height:4px;border-radius:2px;background:#1e293b;transition:background .3s;}
+.progress .dot.active{background:#f16623;}
+.progress .dot.done{background:#22c55e;}
+.card{background:#1e293b;border-radius:12px;padding:24px 20px;margin-bottom:16px;}
+.card h2{font-size:16px;font-weight:700;color:#f16623;margin-bottom:4px;}
+.card p.sub{font-size:12px;color:#94a3b8;margin-bottom:16px;line-height:1.5;}
+label{display:block;font-size:12px;font-weight:600;color:#cbd5e1;margin-bottom:6px;margin-top:14px;}
+label:first-of-type{margin-top:0;}
+input,select,textarea{width:100%;padding:12px 14px;border-radius:8px;border:1px solid #334155;background:#0f172a;color:#e0e0e0;font-size:14px;font-family:inherit;}
+input:focus,select:focus,textarea:focus{outline:none;border-color:#f16623;box-shadow:0 0 0 2px #f1662233;}
+textarea{resize:vertical;min-height:80px;}
+select{cursor:pointer;appearance:auto;}
+.row{display:flex;gap:10px;}
+.row>div{flex:1;}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:14px 24px;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;width:100%;transition:all .2s;}
+.btn-primary{background:#f16623;color:#fff;}
+.btn-primary:hover{background:#d95a1f;}
+.btn-secondary{background:#334155;color:#cbd5e1;}
+.btn-secondary:hover{background:#475569;}
+.btn-row{display:flex;gap:10px;margin-top:20px;}
+.btn-row .btn{flex:1;}
+.staff-entry{background:#0f172a;border:1px solid #334155;border-radius:10px;padding:14px;margin-bottom:10px;position:relative;}
+.staff-entry .remove{position:absolute;top:8px;right:10px;background:none;border:none;color:#ef4444;font-size:18px;cursor:pointer;padding:4px;}
+.add-btn{display:flex;align-items:center;justify-content:center;gap:6px;padding:12px;border:2px dashed #334155;border-radius:10px;color:#94a3b8;font-size:13px;cursor:pointer;background:none;width:100%;margin-top:10px;transition:all .2s;}
+.add-btn:hover{border-color:#f16623;color:#f16623;}
+.help{font-size:11px;color:#64748b;margin-top:4px;line-height:1.4;}
+.alert{padding:14px;border-radius:10px;margin-bottom:16px;font-size:13px;line-height:1.5;}
+.alert-info{background:#f1662211;border:1px solid #f1662244;color:#f16623;}
+.hidden{display:none !important;}
+.success-screen{text-align:center;padding:60px 20px;}
+.success-screen .icon{font-size:64px;margin-bottom:16px;}
+.success-screen h2{font-size:22px;color:#22c55e;margin-bottom:8px;}
+.success-screen p{color:#94a3b8;font-size:14px;line-height:1.6;}
+.error-screen{text-align:center;padding:60px 20px;}
+.error-screen .icon{font-size:64px;margin-bottom:16px;}
+.error-screen h2{font-size:22px;color:#ef4444;margin-bottom:8px;}
+.check-row{display:flex;align-items:center;gap:10px;padding:8px 0;}
+.check-row input[type="checkbox"]{width:18px;height:18px;accent-color:#f16623;flex-shrink:0;}
+.check-row label{margin:0;font-size:13px;cursor:pointer;}
+.section-divider{border:none;border-top:1px solid #334155;margin:20px 0;}
+</style>
+</head>
+<body>
+
+<div class="container">
+  <div class="logo-bar">
+    <h1>CHARIS CREATIONS</h1>
+    <p>Retainer Client Onboarding</p>
+  </div>
+
+  <div class="progress" id="progressBar"></div>
+
+  <!-- Loading -->
+  <div id="loading" class="card" style="text-align:center;padding:60px 20px;">
+    <div style="font-size:40px;margin-bottom:12px;">⏳</div>
+    <p style="color:#94a3b8;">Loading your onboarding form...</p>
+  </div>
+
+  <!-- Error Screen -->
+  <div id="errorScreen" class="error-screen hidden">
+    <div class="icon">🔗</div>
+    <h2>Form Not Found</h2>
+    <p>This link may have expired or already been submitted.<br>Please contact Charis Creations for a new link.</p>
+    <div style="margin-top:24px;">
+      <a href="https://wa.me/256706028899" style="display:inline-flex;align-items:center;gap:6px;background:#25D366;color:#fff;padding:12px 24px;border-radius:10px;font-weight:700;text-decoration:none;font-size:14px;">📱 WhatsApp Us</a>
+    </div>
+  </div>
+
+  <!-- Success Screen -->
+  <div id="successScreen" class="success-screen hidden">
+    <div class="icon">✅</div>
+    <h2>Thank You!</h2>
+    <p>Your onboarding information has been submitted successfully.<br>The Charis Creations team will review it and get back to you.</p>
+    <div style="margin-top:24px;">
+      <a href="https://wa.me/256706028899" style="display:inline-flex;align-items:center;gap:6px;background:#25D366;color:#fff;padding:12px 24px;border-radius:10px;font-weight:700;text-decoration:none;font-size:14px;">📱 Message Us on WhatsApp</a>
+    </div>
+  </div>
+
+  <!-- STEP 1: Organization Details -->
+  <div id="step1" class="hidden">
+    <div class="card">
+      <h2>Step 1: Your Organization</h2>
+      <p class="sub">Tell us about your organization so we can create content that perfectly represents your brand.</p>
+
+      <label>Organization Name</label>
+      <input type="text" id="orgName" placeholder="e.g. The Remnant Generation">
+
+      <label>What does your organization do? (Brief description)</label>
+      <textarea id="orgDescription" placeholder="e.g. We are an NGO focused on youth empowerment and community development..."></textarea>
+
+      <label>Organization Type</label>
+      <select id="orgType">
+        <option value="">Select...</option>
+        <option value="NGO">NGO / Non-Profit</option>
+        <option value="Church">Church / Religious Organization</option>
+        <option value="Corporate">Corporate / Business</option>
+        <option value="Government">Government</option>
+        <option value="School">School / Educational Institution</option>
+        <option value="Other">Other</option>
+      </select>
+
+      <label>Mission Statement / Tagline</label>
+      <input type="text" id="orgMission" placeholder="Your organization's mission or tagline">
+
+      <label>Website (if any)</label>
+      <input type="url" id="orgWebsite" placeholder="https://">
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="goStep(2)">Next →</button>
+    </div>
+  </div>
+
+  <!-- STEP 2: Brand Kit -->
+  <div id="step2" class="hidden">
+    <div class="card">
+      <h2>Step 2: Brand Identity</h2>
+      <p class="sub">Share your brand colours, fonts, and style so every piece of content matches your look.</p>
+
+      <label>Primary Brand Colour (hex code or name)</label>
+      <input type="text" id="brandColor1" placeholder="e.g. #1E3A5F or Dark Blue">
+
+      <label>Secondary Brand Colour</label>
+      <input type="text" id="brandColor2" placeholder="e.g. #FFD700 or Gold">
+
+      <label>Any other colours?</label>
+      <input type="text" id="brandColor3" placeholder="Optional">
+
+      <label>Brand Font (if you know it)</label>
+      <input type="text" id="brandFont" placeholder="e.g. Montserrat, Poppins, Open Sans">
+
+      <label>How should your brand voice sound?</label>
+      <select id="brandVoice">
+        <option value="">Select the closest match...</option>
+        <option value="formal">Formal & Professional</option>
+        <option value="friendly">Warm & Friendly</option>
+        <option value="inspirational">Inspirational & Uplifting</option>
+        <option value="authoritative">Authoritative & Expert</option>
+        <option value="playful">Playful & Creative</option>
+        <option value="compassionate">Compassionate & Caring</option>
+      </select>
+
+      <label>Any words, phrases, or slogans you always use?</label>
+      <textarea id="brandPhrases" placeholder="e.g. 'Transforming lives, one community at a time'"></textarea>
+
+      <label>Anything you do NOT want in your content?</label>
+      <textarea id="brandAvoid" placeholder="e.g. Don't use informal language, avoid political references..."></textarea>
+
+      <div class="alert alert-info" style="margin-top:16px;">
+        📎 <strong>Please also email your logo files</strong> (PNG with transparent background preferred) to <strong>chariscreationsltd@gmail.com</strong> with the subject "Brand Kit — [Your Organization Name]"
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="goStep(1)">← Back</button>
+      <button class="btn btn-primary" onclick="goStep(3)">Next →</button>
+    </div>
+  </div>
+
+  <!-- STEP 3: Staff List with Birthdays -->
+  <div id="step3" class="hidden">
+    <div class="card">
+      <h2>Step 3: Staff Members</h2>
+      <p class="sub">We create birthday flyers, anniversary posts, and staff features. Please list all team members with their birthdays so we can prepare content in advance — no more last-minute requests!</p>
+
+      <div id="staffList"></div>
+
+      <button class="add-btn" onclick="addStaff()">
+        ➕ Add Staff Member
+      </button>
+
+      <p class="help" style="margin-top:12px;">Don't worry if you can't fill in everyone right now — you can always send us updates later.</p>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="goStep(2)">← Back</button>
+      <button class="btn btn-primary" onclick="goStep(4)">Next →</button>
+    </div>
+  </div>
+
+  <!-- STEP 4: Calendar & Events -->
+  <div id="step4" class="hidden">
+    <div class="card">
+      <h2>Step 4: Calendar & Events</h2>
+      <p class="sub">Tell us about your upcoming events and important dates so we can plan content well in advance.</p>
+
+      <label>What events do you have coming up this year?</label>
+      <textarea id="upcomingEvents" placeholder="e.g. Annual Gala — June 15, Youth Conference — August 20, End of Year Party — December 10"></textarea>
+
+      <label>Do you observe any special awareness days?</label>
+      <textarea id="awarenessDays" placeholder="e.g. World Refugee Day (June 20), International Youth Day (August 12), Day of the African Child (June 16)"></textarea>
+
+      <label>Which public holidays do you want us to create content for?</label>
+      <div style="margin-top:8px;">
+        <div class="check-row"><input type="checkbox" id="hol-newyear" checked><label for="hol-newyear">New Year</label></div>
+        <div class="check-row"><input type="checkbox" id="hol-womensday"><label for="hol-womensday">International Women's Day (March 8)</label></div>
+        <div class="check-row"><input type="checkbox" id="hol-easter" checked><label for="hol-easter">Easter</label></div>
+        <div class="check-row"><input type="checkbox" id="hol-labour"><label for="hol-labour">Labour Day (May 1)</label></div>
+        <div class="check-row"><input type="checkbox" id="hol-martyrs"><label for="hol-martyrs">Uganda Martyrs Day (June 3)</label></div>
+        <div class="check-row"><input type="checkbox" id="hol-independence"><label for="hol-independence">Independence Day (October 9)</label></div>
+        <div class="check-row"><input type="checkbox" id="hol-christmas" checked><label for="hol-christmas">Christmas</label></div>
+      </div>
+
+      <label>Annual report / major deadline dates?</label>
+      <input type="text" id="reportDeadlines" placeholder="e.g. Annual Report due March 31, Board Meeting every quarter">
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="goStep(3)">← Back</button>
+      <button class="btn btn-primary" onclick="goStep(5)">Next →</button>
+    </div>
+  </div>
+
+  <!-- STEP 5: Social Media & Content Preferences -->
+  <div id="step5" class="hidden">
+    <div class="card">
+      <h2>Step 5: Social Media & Content</h2>
+      <p class="sub">Help us understand your social media presence and content preferences.</p>
+
+      <label>Instagram Handle</label>
+      <input type="text" id="socialIG" placeholder="@yourhandle">
+
+      <label>Facebook Page</label>
+      <input type="text" id="socialFB" placeholder="Your Facebook page name or URL">
+
+      <label>Twitter / X Handle</label>
+      <input type="text" id="socialTW" placeholder="@yourhandle">
+
+      <label>TikTok Handle</label>
+      <input type="text" id="socialTT" placeholder="@yourhandle">
+
+      <label>LinkedIn</label>
+      <input type="text" id="socialLI" placeholder="Company LinkedIn page URL">
+
+      <label>YouTube</label>
+      <input type="text" id="socialYT" placeholder="Channel name or URL">
+
+      <hr class="section-divider">
+
+      <label>How often do you want us to post?</label>
+      <select id="postFrequency">
+        <option value="">Select...</option>
+        <option value="daily">Daily (7 posts/week)</option>
+        <option value="5x">5 times per week</option>
+        <option value="3x">3 times per week</option>
+        <option value="2x">2 times per week</option>
+        <option value="weekly">Once a week</option>
+        <option value="asNeeded">As needed</option>
+      </select>
+
+      <label>What hashtags does your organization use?</label>
+      <textarea id="hashtags" placeholder="e.g. #TheRemnantGeneration #YouthEmpowerment #TransformingLives"></textarea>
+
+      <label>What type of content performs best for you? (if you know)</label>
+      <textarea id="bestContent" placeholder="e.g. Motivational quotes do well, video reels get the most engagement..."></textarea>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="goStep(4)">← Back</button>
+      <button class="btn btn-primary" onclick="goStep(6)">Next →</button>
+    </div>
+  </div>
+
+  <!-- STEP 6: Contacts & Approval Process -->
+  <div id="step6" class="hidden">
+    <div class="card">
+      <h2>Step 6: Contacts & Approvals</h2>
+      <p class="sub">Who should we contact for content approvals and day-to-day communication?</p>
+
+      <label>Primary Contact Person (Name)</label>
+      <input type="text" id="contactName" placeholder="Full name">
+
+      <div class="row">
+        <div>
+          <label>Role / Title</label>
+          <input type="text" id="contactRole" placeholder="e.g. Communications Manager">
+        </div>
+        <div>
+          <label>Phone (WhatsApp)</label>
+          <input type="tel" id="contactPhone" placeholder="+256...">
+        </div>
+      </div>
+
+      <label>Primary Contact Email</label>
+      <input type="email" id="contactEmail" placeholder="email@organization.com">
+
+      <hr class="section-divider">
+
+      <label>Backup Contact Person</label>
+      <input type="text" id="backupName" placeholder="Full name">
+
+      <div class="row">
+        <div>
+          <label>Role</label>
+          <input type="text" id="backupRole" placeholder="e.g. HR Manager">
+        </div>
+        <div>
+          <label>Phone</label>
+          <input type="tel" id="backupPhone" placeholder="+256...">
+        </div>
+      </div>
+
+      <hr class="section-divider">
+
+      <label>Who approves content before it's published?</label>
+      <input type="text" id="approver" placeholder="e.g. Director of Communications, or the ED">
+
+      <label>How quickly do you typically approve content?</label>
+      <select id="approvalSpeed">
+        <option value="">Select...</option>
+        <option value="sameDay">Same day</option>
+        <option value="24hrs">Within 24 hours</option>
+        <option value="48hrs">Within 48 hours</option>
+        <option value="varies">It varies</option>
+      </select>
+
+      <label>Preferred communication channel with our team</label>
+      <select id="commChannel">
+        <option value="">Select...</option>
+        <option value="whatsapp">WhatsApp</option>
+        <option value="email">Email</option>
+        <option value="call">Phone Calls</option>
+        <option value="mixed">Mix of WhatsApp and Email</option>
+      </select>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="goStep(5)">← Back</button>
+      <button class="btn btn-primary" onclick="goStep(7)">Next →</button>
+    </div>
+  </div>
+
+  <!-- STEP 7: Review & Submit -->
+  <div id="step7" class="hidden">
+    <div class="card">
+      <h2>Step 7: Review & Submit</h2>
+      <p class="sub">Please review your information and submit. You can always update details later through your Charis Creations contact.</p>
+
+      <div id="reviewSummary" style="font-size:13px;line-height:1.8;color:#cbd5e1;"></div>
+
+      <label>Anything else you'd like us to know?</label>
+      <textarea id="additionalNotes" placeholder="Any other information that would help us serve you better..."></textarea>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="goStep(6)">← Back</button>
+      <button class="btn btn-primary" id="submitBtn" onclick="submitForm()">✓ Submit Onboarding Form</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+var SUPABASE_URL = 'https://vlmcwmjhmenbnymwfkdk.supabase.co';
+var SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZsbWN3bWpobWVuYm55bXdma2RrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MTA2NzQyMjgsImV4cCI6MjAyNjI1MDIyOH0.sb_publishable_Q7wTRJK-hCy87Tfy7ROkeA_94Q9HQQw';
+
+var TOKEN = '';
+var TOTAL_STEPS = 7;
+var currentStep = 1;
+var staffCount = 0;
+
+// Get token from URL
+var params = new URLSearchParams(window.location.search);
+TOKEN = params.get('token') || '';
+
+// Auto-save to localStorage
+var SAVE_KEY = 'charis_retainer_' + TOKEN;
+
+function saveLocal() {
+  try {
+    var data = collectAllData();
+    localStorage.setItem(SAVE_KEY, JSON.stringify(data));
+  } catch(e) {}
+}
+
+function loadLocal() {
+  try {
+    var saved = localStorage.getItem(SAVE_KEY);
+    if (!saved) return;
+    var data = JSON.parse(saved);
+    // Restore form fields
+    var fields = ['orgName','orgDescription','orgType','orgMission','orgWebsite',
+      'brandColor1','brandColor2','brandColor3','brandFont','brandVoice','brandPhrases','brandAvoid',
+      'upcomingEvents','awarenessDays','reportDeadlines',
+      'socialIG','socialFB','socialTW','socialTT','socialLI','socialYT',
+      'postFrequency','hashtags','bestContent',
+      'contactName','contactRole','contactPhone','contactEmail',
+      'backupName','backupRole','backupPhone',
+      'approver','approvalSpeed','commChannel','additionalNotes'];
+    fields.forEach(function(f) {
+      var el = document.getElementById(f);
+      if (el && data[f]) el.value = data[f];
+    });
+    // Restore holidays
+    if (data.holidays) {
+      Object.keys(data.holidays).forEach(function(k) {
+        var cb = document.getElementById('hol-' + k);
+        if (cb) cb.checked = data.holidays[k];
+      });
+    }
+    // Restore staff
+    if (data.staff && data.staff.length > 0) {
+      data.staff.forEach(function(s) { addStaff(s); });
+    }
+  } catch(e) {}
+}
+
+function gv(id) { var el = document.getElementById(id); return el ? el.value.trim() : ''; }
+
+function collectAllData() {
+  var holidays = {};
+  ['newyear','womensday','easter','labour','martyrs','independence','christmas'].forEach(function(h) {
+    var cb = document.getElementById('hol-' + h);
+    if (cb) holidays[h] = cb.checked;
+  });
+
+  var staff = [];
+  document.querySelectorAll('.staff-entry').forEach(function(entry) {
+    var name = entry.querySelector('.staff-name');
+    var role = entry.querySelector('.staff-role');
+    var dept = entry.querySelector('.staff-dept');
+    var bday = entry.querySelector('.staff-bday');
+    var email = entry.querySelector('.staff-email');
+    var phone = entry.querySelector('.staff-phone');
+    if (name && name.value.trim()) {
+      staff.push({
+        name: name.value.trim(),
+        role: role ? role.value.trim() : '',
+        department: dept ? dept.value.trim() : '',
+        birthday: bday ? bday.value.trim() : '',
+        email: email ? email.value.trim() : '',
+        phone: phone ? phone.value.trim() : ''
+      });
+    }
+  });
+
+  return {
+    orgName: gv('orgName'), orgDescription: gv('orgDescription'), orgType: gv('orgType'),
+    orgMission: gv('orgMission'), orgWebsite: gv('orgWebsite'),
+    brandColor1: gv('brandColor1'), brandColor2: gv('brandColor2'), brandColor3: gv('brandColor3'),
+    brandFont: gv('brandFont'), brandVoice: gv('brandVoice'), brandPhrases: gv('brandPhrases'), brandAvoid: gv('brandAvoid'),
+    staff: staff,
+    upcomingEvents: gv('upcomingEvents'), awarenessDays: gv('awarenessDays'), holidays: holidays, reportDeadlines: gv('reportDeadlines'),
+    socialIG: gv('socialIG'), socialFB: gv('socialFB'), socialTW: gv('socialTW'), socialTT: gv('socialTT'),
+    socialLI: gv('socialLI'), socialYT: gv('socialYT'),
+    postFrequency: gv('postFrequency'), hashtags: gv('hashtags'), bestContent: gv('bestContent'),
+    contactName: gv('contactName'), contactRole: gv('contactRole'), contactPhone: gv('contactPhone'), contactEmail: gv('contactEmail'),
+    backupName: gv('backupName'), backupRole: gv('backupRole'), backupPhone: gv('backupPhone'),
+    approver: gv('approver'), approvalSpeed: gv('approvalSpeed'), commChannel: gv('commChannel'),
+    additionalNotes: gv('additionalNotes'),
+    submittedAt: new Date().toISOString()
+  };
+}
+
+function addStaff(prefill) {
+  staffCount++;
+  var div = document.createElement('div');
+  div.className = 'staff-entry';
+  div.innerHTML =
+    '<button class="remove" onclick="this.parentElement.remove();saveLocal();">&times;</button>' +
+    '<div class="row"><div>' +
+      '<label style="margin-top:0;">Name *</label>' +
+      '<input type="text" class="staff-name" placeholder="Full name" value="' + (prefill ? (prefill.name||'') : '') + '" oninput="saveLocal()">' +
+    '</div><div>' +
+      '<label style="margin-top:0;">Role / Title</label>' +
+      '<input type="text" class="staff-role" placeholder="e.g. Accountant" value="' + (prefill ? (prefill.role||'') : '') + '" oninput="saveLocal()">' +
+    '</div></div>' +
+    '<div class="row"><div>' +
+      '<label>Department</label>' +
+      '<input type="text" class="staff-dept" placeholder="e.g. Finance" value="' + (prefill ? (prefill.department||'') : '') + '" oninput="saveLocal()">' +
+    '</div><div>' +
+      '<label>Birthday (DD/MM)</label>' +
+      '<input type="text" class="staff-bday" placeholder="e.g. 25/03" value="' + (prefill ? (prefill.birthday||'') : '') + '" oninput="saveLocal()">' +
+    '</div></div>' +
+    '<div class="row"><div>' +
+      '<label>Email</label>' +
+      '<input type="email" class="staff-email" placeholder="email@org.com" value="' + (prefill ? (prefill.email||'') : '') + '" oninput="saveLocal()">' +
+    '</div><div>' +
+      '<label>Phone</label>' +
+      '<input type="tel" class="staff-phone" placeholder="+256..." value="' + (prefill ? (prefill.phone||'') : '') + '" oninput="saveLocal()">' +
+    '</div></div>';
+  document.getElementById('staffList').appendChild(div);
+}
+
+function updateProgress() {
+  var bar = document.getElementById('progressBar');
+  bar.innerHTML = '';
+  for (var i = 1; i <= TOTAL_STEPS; i++) {
+    var dot = document.createElement('div');
+    dot.className = 'dot' + (i === currentStep ? ' active' : '') + (i < currentStep ? ' done' : '');
+    bar.appendChild(dot);
+  }
+}
+
+function goStep(n) {
+  saveLocal();
+  // Hide all steps
+  for (var i = 1; i <= TOTAL_STEPS; i++) {
+    var el = document.getElementById('step' + i);
+    if (el) el.classList.add('hidden');
+  }
+  // Build review summary on step 7
+  if (n === 7) buildReview();
+  // Show target step
+  var target = document.getElementById('step' + n);
+  if (target) target.classList.remove('hidden');
+  currentStep = n;
+  updateProgress();
+  window.scrollTo(0, 0);
+}
+
+function buildReview() {
+  var data = collectAllData();
+  var html = '<div style="margin-bottom:12px;">';
+  html += '<strong style="color:#f16623;">Organization:</strong> ' + (data.orgName || '(not provided)') + '<br>';
+  html += '<strong style="color:#f16623;">Type:</strong> ' + (data.orgType || '(not selected)') + '<br>';
+  html += '<strong style="color:#f16623;">Brand Colours:</strong> ' + [data.brandColor1, data.brandColor2, data.brandColor3].filter(Boolean).join(', ') + '<br>';
+  html += '<strong style="color:#f16623;">Brand Voice:</strong> ' + (data.brandVoice || '(not selected)') + '<br>';
+  html += '<strong style="color:#f16623;">Staff Listed:</strong> ' + data.staff.length + ' members<br>';
+  html += '<strong style="color:#f16623;">Posting Frequency:</strong> ' + (data.postFrequency || '(not selected)') + '<br>';
+  html += '<strong style="color:#f16623;">Primary Contact:</strong> ' + (data.contactName || '(not provided)') + (data.contactPhone ? ' — ' + data.contactPhone : '') + '<br>';
+  html += '<strong style="color:#f16623;">Approval By:</strong> ' + (data.approver || '(not provided)') + '<br>';
+  html += '</div>';
+  document.getElementById('reviewSummary').innerHTML = html;
+}
+
+async function submitForm() {
+  var btn = document.getElementById('submitBtn');
+  btn.disabled = true;
+  btn.textContent = 'Submitting...';
+
+  var data = collectAllData();
+
+  try {
+    var resp = await fetch(SUPABASE_URL + '/rest/v1/rpc/submit_retainer_onboarding', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': SUPABASE_KEY,
+        'Authorization': 'Bearer ' + SUPABASE_KEY
+      },
+      body: JSON.stringify({ p_token: TOKEN, p_data: data })
+    });
+
+    if (!resp.ok) throw new Error('Server error: ' + resp.status);
+    var result = await resp.json();
+    if (result === false) throw new Error('Token not found');
+
+    // Clear local storage
+    localStorage.removeItem(SAVE_KEY);
+
+    // Show success
+    for (var i = 1; i <= TOTAL_STEPS; i++) {
+      var el = document.getElementById('step' + i);
+      if (el) el.classList.add('hidden');
+    }
+    document.getElementById('progressBar').classList.add('hidden');
+    document.getElementById('successScreen').classList.remove('hidden');
+  } catch(e) {
+    btn.disabled = false;
+    btn.textContent = '✓ Submit Onboarding Form';
+    alert('Error submitting: ' + e.message + '. Please try again or contact Charis Creations.');
+  }
+}
+
+// Initialize
+async function init() {
+  if (!TOKEN) {
+    document.getElementById('loading').classList.add('hidden');
+    document.getElementById('errorScreen').classList.remove('hidden');
+    return;
+  }
+
+  try {
+    var resp = await fetch(SUPABASE_URL + '/rest/v1/rpc/get_retainer_onboarding_info', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': SUPABASE_KEY,
+        'Authorization': 'Bearer ' + SUPABASE_KEY
+      },
+      body: JSON.stringify({ p_token: TOKEN })
+    });
+
+    var info = await resp.json();
+    if (!info || info.status === 'submitted') {
+      document.getElementById('loading').classList.add('hidden');
+      document.getElementById('errorScreen').classList.remove('hidden');
+      return;
+    }
+
+    // Pre-fill org name from project data
+    var orgInput = document.getElementById('orgName');
+    if (orgInput && info.clientName) orgInput.value = info.clientName;
+
+    // Load any saved local data
+    loadLocal();
+
+    // If no staff entries, add 3 empty ones to start
+    if (document.querySelectorAll('.staff-entry').length === 0) {
+      addStaff(); addStaff(); addStaff();
+    }
+
+    document.getElementById('loading').classList.add('hidden');
+    goStep(1);
+
+  } catch(e) {
+    document.getElementById('loading').classList.add('hidden');
+    document.getElementById('errorScreen').classList.remove('hidden');
+  }
+}
+
+// Auto-save on input
+document.addEventListener('input', function() { saveLocal(); });
+
+init();
+</script>
+</body>
+</html>

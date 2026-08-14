@@ -1,0 +1,1438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Charis Creations — Client Brief</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;900&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0D1B2A;
+  --card: #1B2838;
+  --card2: #243447;
+  --border: #2D3F52;
+  --orange: #F16623;
+  --orange-dim: #F1662333;
+  --text: #F1F5F9;
+  --muted: #94A3B8;
+  --dim: #64748B;
+  --green: #10B981;
+  --red: #EF4444;
+  --amber: #F59E0B;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  font-family: 'Montserrat', -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+.container { max-width: 560px; margin: 0 auto; padding: 0 16px 80px; }
+
+/* Header */
+.header {
+  text-align: center;
+  padding: 32px 16px 20px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 24px;
+}
+.logo-text { font-size: 13px; font-weight: 900; letter-spacing: 3px; color: var(--orange); margin-bottom: 4px; }
+.tagline { font-size: 10px; color: var(--dim); letter-spacing: 1px; text-transform: uppercase; }
+.form-title { font-size: 20px; font-weight: 900; margin-top: 16px; }
+.form-sub { font-size: 12px; color: var(--muted); margin-top: 6px; line-height: 1.5; }
+.project-badge {
+  display: inline-block;
+  background: var(--orange-dim);
+  color: var(--orange);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 12px;
+  border-radius: 20px;
+  margin-top: 10px;
+}
+
+/* Progress bar */
+.progress-bar {
+  display: flex;
+  gap: 4px;
+  padding: 0 4px;
+  margin-bottom: 24px;
+}
+.progress-step {
+  flex: 1;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--border);
+  transition: background 0.3s;
+}
+.progress-step.done { background: var(--green); }
+.progress-step.active { background: var(--orange); }
+
+/* Steps */
+.step { display: none; animation: fadeIn 0.3s ease; }
+.step.active { display: block; }
+@keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+
+.step-header {
+  font-size: 16px;
+  font-weight: 800;
+  margin-bottom: 4px;
+}
+.step-desc {
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 20px;
+  line-height: 1.5;
+}
+
+/* Form elements */
+.field { margin-bottom: 16px; }
+.field-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+}
+.field-label .req { color: var(--orange); }
+.field-input {
+  width: 100%;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-size: 14px;
+  color: var(--text);
+  font-family: 'Montserrat', sans-serif;
+  outline: none;
+  transition: border-color 0.2s;
+  -webkit-appearance: none;
+}
+.field-input:focus { border-color: var(--orange); }
+.field-input::placeholder { color: var(--dim); }
+select.field-input { cursor: pointer; }
+textarea.field-input { resize: vertical; min-height: 80px; }
+.field-hint { font-size: 10px; color: var(--dim); margin-top: 4px; }
+
+/* Row layout */
+.row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 400px) { .row { grid-template-columns: 1fr; } }
+
+/* Section divider */
+.section-title {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--orange);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  margin: 24px 0 14px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+.section-title:first-child { border-top: none; margin-top: 0; padding-top: 0; }
+
+/* Toggle (Yes/No) */
+.toggle-group { display: flex; flex-direction: column; gap: 10px; }
+.toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+.toggle-label { font-size: 13px; font-weight: 600; flex: 1; padding-right: 12px; }
+.toggle-btns { display: flex; gap: 4px; flex-shrink: 0; }
+.toggle-btn {
+  padding: 6px 16px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--dim);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: 'Montserrat', sans-serif;
+  transition: all 0.2s;
+}
+.toggle-btn.yes.sel { background: #10B98122; color: var(--green); border-color: #10B98144; }
+.toggle-btn.no.sel { background: #EF444422; color: var(--red); border-color: #EF444444; }
+
+/* Navigation */
+.nav-bar {
+  display: flex;
+  gap: 10px;
+  margin-top: 28px;
+}
+.btn {
+  flex: 1;
+  padding: 14px 20px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  border: none;
+  font-family: 'Montserrat', sans-serif;
+  transition: all 0.2s;
+}
+.btn-back {
+  background: var(--card);
+  color: var(--muted);
+  border: 1px solid var(--border);
+  flex: 0.4;
+}
+.btn-next {
+  background: var(--orange);
+  color: white;
+}
+.btn-next:active { transform: scale(0.98); }
+.btn-submit {
+  background: var(--green);
+  color: white;
+}
+
+/* T&Cs */
+.tcs-box {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px;
+  max-height: 200px;
+  overflow-y: auto;
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.6;
+  margin-bottom: 16px;
+}
+.tcs-box h4 { color: var(--text); font-size: 12px; margin: 10px 0 4px; }
+.tcs-box h4:first-child { margin-top: 0; }
+.tc-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background: var(--card2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px;
+  cursor: pointer;
+}
+.tc-check input {
+  width: 20px; height: 20px;
+  accent-color: var(--orange);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.tc-check-text { font-size: 12px; color: var(--muted); line-height: 1.5; }
+
+/* Loading / Error / Success states */
+.state-screen {
+  text-align: center;
+  padding: 80px 20px;
+}
+.state-icon { font-size: 48px; margin-bottom: 16px; }
+.state-title { font-size: 20px; font-weight: 800; margin-bottom: 8px; }
+.state-desc { font-size: 13px; color: var(--muted); line-height: 1.6; }
+
+/* Person row (emergency contacts, vendors) */
+.person-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px;
+  margin-bottom: 10px;
+}
+.person-card .card-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--orange);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 10px;
+}
+
+/* Conditional section visibility */
+.cond { display: none; }
+.cond.show { display: block; }
+</style>
+</head>
+<body>
+
+<div class="container" id="app">
+  <!-- Loading state -->
+  <div class="state-screen" id="loading-state">
+    <div class="state-icon">⏳</div>
+    <div class="state-title">Loading your form...</div>
+    <div class="state-desc">Please wait while we prepare your client brief.</div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+(function() {
+  'use strict';
+
+  // ── CONFIG ───────────────────────────────────────────────
+  var SUPA_URL  = 'https://vlmcwmjhmenbnymwfkdk.supabase.co';
+  var SUPA_KEY  = 'sb_publishable_Q7wTRJK-hCy87Tfy7ROkeA_94Q9HQQw';
+  var SB = window.supabase.createClient(SUPA_URL, SUPA_KEY);
+
+  // ── STATE ────────────────────────────────────────────────
+  var TOKEN = new URLSearchParams(window.location.search).get('token');
+  var INFO = null;     // project info from DB
+  var STEP = 0;        // current wizard step
+  var DATA = {};       // form data collected so far
+  var STEPS = [];      // step definitions (built after INFO loads)
+  var SUBMITTED = false;
+  var RESUMED = false; // true when we restored answers from a previous session (server draft or localStorage)
+
+  // ── BOOT ─────────────────────────────────────────────────
+  async function boot() {
+    if (!TOKEN) {
+      showError('No form link provided', 'This page requires a valid intake form link from Charis Creations. If you received a link, please try again or contact us on WhatsApp.');
+      return;
+    }
+
+    try {
+      var { data, error } = await SB.rpc('get_intake_info', { p_token: TOKEN });
+      if (error) throw error;
+      if (!data || !data.project_id) {
+        showError('Form not found', 'This link may have expired or already been submitted. Please contact Charis Creations for a new link.');
+        return;
+      }
+      if (data.intake_status === 'complete') {
+        showSuccess();
+        return;
+      }
+
+      INFO = data;
+      buildSteps();
+
+      // Restore progress — server draft first (works even on a new device or after
+      // the browser cache was cleared), then localStorage on top (same-device
+      // continuation, most recent field-level edits win). Neither call blocks the
+      // form from opening if it fails — a fresh blank form is still a safe fallback.
+      try {
+        var draftRes = await SB.rpc('get_intake_draft', { p_token: TOKEN });
+        if (draftRes && !draftRes.error && draftRes.data && typeof draftRes.data === 'object') {
+          Object.keys(draftRes.data).forEach(function(k) {
+            var v = draftRes.data[k];
+            if (v !== null && v !== undefined && v !== '') { DATA[k] = v; RESUMED = true; }
+          });
+        }
+      } catch (e) { console.warn('Could not load saved progress from server:', e); }
+      if (loadSavedData()) RESUMED = true;
+
+      renderForm();
+    } catch (e) {
+      console.error(e);
+      showError('Connection error', 'Could not connect to the server. Please check your internet connection and try again.');
+    }
+  }
+
+  // ── BUILD STEPS based on event type ──────────────────────
+  function buildSteps() {
+    var et = (INFO.event_type || '').toLowerCase();
+    STEPS = [
+      { id: 'core', title: 'Your Details', desc: 'Please confirm your contact information.', icon: '👤' }
+    ];
+
+    if (et.indexOf('kukyala') >= 0) {
+      STEPS.push({ id: 'kuk_visit', title: 'The Visit', desc: 'Tell us about the day of the pre-visit.', icon: '🏡' });
+      STEPS.push({ id: 'kuk_people', title: 'The People', desc: 'Who should we know before we arrive?', icon: '👥' });
+      STEPS.push({ id: 'kuk_story', title: 'The Story', desc: 'Help us capture the visit the way you want it remembered.', icon: '🎬' });
+      STEPS.push({ id: 'kuk_practical', title: 'Practical Details', desc: 'A few last things so the day runs smoothly.', icon: '📋' });
+    } else if (et === 'wedding' || et === 'introduction') {
+      STEPS.push({ id: 'party', title: et === 'introduction' ? 'Couple & Entourage' : 'Wedding Party', desc: 'Tell us about the key people on the day.', icon: '💍' });
+      STEPS.push({ id: 'prep', title: 'Preparation', desc: 'Where will the bride and groom get ready?', icon: '👗' });
+      STEPS.push({ id: 'ceremony', title: et === 'introduction' ? 'Introduction Ceremony' : 'Ceremony', desc: 'Details about the ceremony venue and programme.', icon: '⛪' });
+      if (et === 'wedding') {
+        STEPS.push({ id: 'photosession', title: 'Photo Session', desc: 'The couple photo/video session after ceremony.', icon: '📸' });
+      }
+      STEPS.push({ id: 'reception', title: 'Reception & Vendors', desc: 'Reception details and other vendors on the day.', icon: '🎉' });
+    } else if (et === 'studio shoot') {
+      STEPS.push({ id: 'studio', title: 'Session Details', desc: 'Help us prepare the studio for your shoot.', icon: '📸' });
+    } else if (et.includes('corporate') || et.includes('conference') || et.includes('livestream')) {
+      STEPS.push({ id: 'corporate', title: 'Event Details', desc: 'Tell us about the event and what you need.', icon: '🏢' });
+    } else {
+      // Generic event
+      STEPS.push({ id: 'event', title: 'Event Details', desc: 'Tell us about your project.', icon: '📋' });
+    }
+
+    STEPS.push({ id: 'permissions', title: 'Social Media & Permissions', desc: 'Help us know how we can share your content.', icon: '📱' });
+    STEPS.push({ id: 'final', title: 'Final Details', desc: 'Emergency contacts, notes, and terms.', icon: '✅' });
+  }
+
+  // ── RENDER ───────────────────────────────────────────────
+  function renderForm() {
+    var app = document.getElementById('app');
+    var evType = INFO.event_type || 'Event';
+
+    var html = '';
+    // Header
+    html += '<div class="header">';
+    html += '<div class="logo-text">CHARIS CREATIONS</div>';
+    html += '<div class="tagline">Bringing Image to Life</div>';
+    html += '<div class="form-title">' + evType + ' Client Brief</div>';
+    html += '<div class="form-sub">Please fill in the details below so our team can prepare perfectly for your special day.</div>';
+    if (INFO.project_ref) html += '<div class="project-badge">' + INFO.project_ref + (INFO.event_date ? ' · ' + INFO.event_date.slice(0, 10) : '') + '</div>';
+    html += '</div>';
+
+    if (RESUMED) {
+      html += '<div style="background:rgba(34,197,94,0.12);border:1px solid rgba(34,197,94,0.35);border-radius:10px;padding:12px 14px;margin:0 0 18px 0;font-size:13px;color:#86efac;line-height:1.5;">👋 Welcome back — we\'ve restored what you already told us. Please review and continue where you left off.</div>';
+    }
+
+    // Progress
+    html += '<div class="progress-bar">';
+    for (var i = 0; i < STEPS.length; i++) {
+      var cls = i < STEP ? 'done' : i === STEP ? 'active' : '';
+      html += '<div class="progress-step ' + cls + '"></div>';
+    }
+    html += '</div>';
+
+    // Steps
+    for (var s = 0; s < STEPS.length; s++) {
+      html += '<div class="step' + (s === STEP ? ' active' : '') + '" id="step-' + STEPS[s].id + '">';
+      html += '<div class="step-header">' + STEPS[s].icon + ' ' + STEPS[s].title + '</div>';
+      html += '<div class="step-desc">' + STEPS[s].desc + '</div>';
+      html += renderStepContent(STEPS[s].id);
+      html += renderNav(s);
+      html += '</div>';
+    }
+
+    app.innerHTML = html;
+    attachEvents();
+  }
+
+  // ── STEP CONTENT RENDERERS ───────────────────────────────
+  function renderStepContent(id) {
+    var et = (INFO.event_type || '').toLowerCase();
+    switch (id) {
+      case 'core': return renderCore();
+      case 'kuk_visit': return renderKukyalaVisit();
+      case 'kuk_people': return renderKukyalaPeople();
+      case 'kuk_story': return renderKukyalaStory();
+      case 'kuk_practical': return renderKukyalaPractical();
+      case 'party': return renderParty(et);
+      case 'prep': return renderPrep(et);
+      case 'ceremony': return renderCeremony(et);
+      case 'photosession': return renderPhotoSession();
+      case 'reception': return renderReception(et);
+      case 'studio': return renderStudio();
+      case 'corporate': return renderCorporate();
+      case 'event': return renderGenericEvent();
+      case 'permissions': return renderPermissions();
+      case 'final': return renderFinal();
+      default: return '';
+    }
+  }
+
+  function gd(key) { return DATA[key] || ''; }
+  function gdb(key) { return DATA[key] === true ? true : DATA[key] === false ? false : null; }
+
+  function inp(key, label, opts) {
+    opts = opts || {};
+    var type = opts.type || 'text';
+    var ph = opts.placeholder || '';
+    var hint = opts.hint || '';
+    var req = opts.required ? ' <span class="req">*</span>' : '';
+    var val = gd(key);
+    var tag = type === 'textarea'
+      ? '<textarea class="field-input" data-key="' + key + '" placeholder="' + ph + '">' + val + '</textarea>'
+      : '<input class="field-input" type="' + type + '" data-key="' + key + '" value="' + val + '" placeholder="' + ph + '"/>';
+    return '<div class="field">' +
+      '<label class="field-label">' + label + req + '</label>' +
+      tag +
+      (hint ? '<div class="field-hint">' + hint + '</div>' : '') +
+      '</div>';
+  }
+
+  function sel(key, label, options, opts) {
+    opts = opts || {};
+    var req = opts.required ? ' <span class="req">*</span>' : '';
+    var val = gd(key);
+    var optHtml = '<option value="">Select...</option>';
+    options.forEach(function(o) {
+      optHtml += '<option' + (val === o ? ' selected' : '') + '>' + o + '</option>';
+    });
+    return '<div class="field">' +
+      '<label class="field-label">' + label + req + '</label>' +
+      '<select class="field-input" data-key="' + key + '">' + optHtml + '</select>' +
+      '</div>';
+  }
+
+  function toggle(key, label) {
+    var val = gdb(key);
+    return '<div class="toggle-row">' +
+      '<div class="toggle-label">' + label + '</div>' +
+      '<div class="toggle-btns">' +
+        '<button class="toggle-btn yes' + (val === true ? ' sel' : '') + '" data-key="' + key + '" data-val="true">Yes</button>' +
+        '<button class="toggle-btn no' + (val === false ? ' sel' : '') + '" data-key="' + key + '" data-val="false">No</button>' +
+      '</div>' +
+    '</div>';
+  }
+
+  function personCard(prefix, title, fields) {
+    var h = '<div class="person-card"><div class="card-title">' + title + '</div>';
+    h += '<div class="row">';
+    fields.forEach(function(f) {
+      h += inp(prefix + '_' + f.key, f.label, f.opts || {});
+    });
+    h += '</div></div>';
+    return h;
+  }
+
+  // ── CORE ─────────────────────────────────────────────────
+  function renderCore() {
+    DATA.core_name = DATA.core_name || INFO.client_name || '';
+    DATA.core_phone = DATA.core_phone || INFO.client_phone || '';
+    DATA.core_email = DATA.core_email || INFO.client_email || '';
+    DATA.core_location = DATA.core_location || INFO.location || '';
+    DATA.core_date = DATA.core_date || (INFO.event_date ? INFO.event_date.slice(0,10) : '');
+
+    return inp('core_name', 'Your Full Name', { required: true, placeholder: 'e.g. David Mugisha' }) +
+      '<div class="row">' +
+        inp('core_phone', 'Phone (WhatsApp)', { required: true, type: 'tel', placeholder: '+256 7XX XXX XXX' }) +
+        inp('core_email', 'Email Address', { required: true, type: 'email', placeholder: 'your@email.com' }) +
+      '</div>' +
+      inp('core_location', 'Event / Shoot Location', { required: true, placeholder: 'Full address of main venue' }) +
+      '<div class="row">' +
+        inp('core_date', 'Event Date', { required: true, type: 'date' }) +
+        inp('core_time', 'Event Start Time', { required: true, type: 'time', hint: 'What time should our crew arrive?' }) +
+      '</div>' +
+      sel('core_referral', 'How did you hear about us?', ['Instagram', 'WhatsApp', 'Facebook', 'TikTok', 'Website', 'Referral from a friend', 'Google', 'Walk-in', 'Repeat Client', 'Other']) +
+      personCard('coord', 'Who Should Our Crew Contact on the Day?', [
+        { key: 'name', label: 'Name', opts: { placeholder: 'e.g. Wedding planner, family member, coordinator' } },
+        { key: 'phone', label: 'Phone', opts: { type: 'tel', placeholder: '+256...' } }
+      ]) +
+      '<div class="field-hint" style="font-size:10px;margin:-8px 0 12px 0;">This person will be our go-to if we need directions, schedule changes, or any help on the day.</div>';
+  }
+
+  // ── KUKYALA (PRE-VISIT) ──────────────────────────────────
+  function renderKukyalaVisit() {
+    return inp('kuk_ssenga_area', "Ssenga's Home — Area / Neighbourhood", { required: true, placeholder: 'e.g. Ntinda, Mukono' }) +
+      inp('kuk_ssenga_pin', 'Map Pin / Directions Link', { placeholder: 'Google Maps link, or clear directions', hint: 'A map pin helps our crew arrive on time, every time' }) +
+      inp('kuk_arrival_time', 'What time should our crew arrive?', { required: true, type: 'time' }) +
+      '<div class="row">' +
+        sel('kuk_guests_groom', "Expected Guests — Man's Side", ['Just him', '2–5', '6–10', '11–15', '15+']) +
+        sel('kuk_guests_total', 'Expected Total Attendance', ['Under 10', '10–20', '20–30', '30–50', '50+']) +
+      '</div>';
+  }
+
+  function renderKukyalaPeople() {
+    return personCard('kuk_ssenga', "Ssenga (Paternal Auntie)", [
+        { key: 'name', label: 'Name', opts: { required: true, placeholder: "Ssenga's full name" } },
+        { key: 'phone', label: 'Phone', opts: { type: 'tel', placeholder: '+256...' } }
+      ]) +
+      personCard('kuk_spokesperson', 'Family Spokesperson (if any)', [
+        { key: 'name', label: 'Name', opts: { placeholder: 'If someone will speak on behalf of the family' } },
+        { key: 'phone', label: 'Phone', opts: { type: 'tel', placeholder: '+256...' } }
+      ]) +
+      '<div class="row">' +
+        inp('kuk_woman_name', "Bride-to-be's Full Name", { required: true, placeholder: 'Full name' }) +
+        inp('kuk_man_name', "Groom-to-be's Full Name", { required: true, placeholder: 'Full name' }) +
+      '</div>' +
+      '<div class="field-hint" style="margin:-6px 0 16px 0;">Your main contact for the day is already captured in Step 1 — no need to repeat it here.</div>';
+  }
+
+  function renderKukyalaStory() {
+    return inp('kuk_flow', 'Brief Flow / Schedule of the Visit', { type: 'textarea', placeholder: 'e.g. Arrival & greeting, introductions, sharing a meal, informal conversation, departure', hint: 'A rough order of how the visit will unfold' }) +
+      inp('kuk_must_capture', 'Must-Capture Moments', { type: 'textarea', placeholder: 'What moments MUST be captured? e.g. First greeting at the gate, the couple together, the Ssenga\'s blessing' }) +
+      inp('kuk_do_not_film', 'Anyone or anything we should NOT film?', { type: 'textarea', placeholder: 'List names, moments, or private conversations to avoid', hint: 'For privacy or family reasons — we respect all requests' }) +
+      inp('kuk_dress_code', 'Dress Code / Colours', { placeholder: 'e.g. Traditional wear, family colours, casual smart' });
+  }
+
+  function renderKukyalaPractical() {
+    return inp('kuk_hm_vendor', 'Hair & Makeup Artist (if booked)', { placeholder: 'Name of your MUA, if you have one' }) +
+      '<div class="field-hint" style="color:var(--orange);font-size:11px;margin:-6px 0 16px 0;">💡 Leave this blank and Charis Artistry — our in-house hair & makeup team — will reach out with a free camera-test trial.</div>' +
+      '<div class="field-hint" style="margin-bottom:16px;">Parking, access notes, emergency contacts, and our Terms & Conditions are covered in the next steps.</div>';
+  }
+
+  // ── WEDDING PARTY ────────────────────────────────────────
+  function renderParty(et) {
+    var isIntro = et === 'introduction';
+    // Init counts
+    if (DATA.bm_count === undefined) DATA.bm_count = 2;
+    if (DATA.gm_count === undefined) DATA.gm_count = 2;
+
+    var h = '<div class="row">' +
+      inp('party_bride', "Bride's Full Name", { required: true, placeholder: 'Full name' }) +
+      inp('party_groom', "Groom's Full Name", { required: true, placeholder: 'Full name' }) +
+    '</div>' +
+    '<div class="row">' +
+      inp('party_flower_girl', 'Flower Girl(s)', { placeholder: 'Names of flower girls' }) +
+      inp('party_peg_boy', 'Peg Boy / Ring Bearer', { placeholder: 'Name' }) +
+    '</div>' +
+    personCard('party_moh', 'Maid of Honour / Chief Bridesmaid', [
+      { key: 'name', label: 'Name', opts: { placeholder: 'Full name' } },
+      { key: 'phone', label: 'Phone', opts: { type: 'tel', placeholder: '+256...' } },
+      { key: 'ig', label: 'Instagram', opts: { placeholder: '@herhandle' } }
+    ]) +
+    personCard('party_bm', 'Best Man', [
+      { key: 'name', label: 'Name', opts: { placeholder: 'Full name' } },
+      { key: 'phone', label: 'Phone', opts: { type: 'tel', placeholder: '+256...' } },
+      { key: 'ig', label: 'Instagram', opts: { placeholder: '@hishandle' } }
+    ]) +
+    '<div class="row">' +
+      inp('party_bride_parents', "Bride's Parents Names", { placeholder: 'e.g. Mr & Mrs Ssekandi' }) +
+      inp('party_groom_parents', "Groom's Parents Names", { placeholder: 'e.g. Mr & Mrs Mukasa' }) +
+    '</div>' +
+
+    '<div class="section-title">Bridesmaids</div>' +
+    '<div style="font-size:11px;color:var(--dim);margin:-8px 0 12px;">Getting Instagram handles lets us tag each bridesmaid directly in her photos — turning your guests into future clients for you and us both.</div>' +
+    '<div id="bm-list">' + renderBridesmaidsCards() + '</div>' +
+    '<button type="button" onclick="window._intake.addBridesmaid()" style="width:100%;padding:10px;background:transparent;border:1px dashed var(--orange);border-radius:10px;color:var(--orange);font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;cursor:pointer;margin-bottom:16px;">+ Add Bridesmaid</button>' +
+
+    '<div class="section-title">Groomsmen</div>' +
+    '<div id="gm-list">' + renderGroomsmenCards() + '</div>' +
+    '<button type="button" onclick="window._intake.addGroomsman()" style="width:100%;padding:10px;background:transparent;border:1px dashed var(--border);border-radius:10px;color:var(--muted);font-family:Montserrat,sans-serif;font-size:12px;font-weight:700;cursor:pointer;margin-bottom:16px;">+ Add Groomsman</button>';
+
+    if (isIntro) {
+      h += personCard('party_spokesperson', 'Spokesperson / Omukyala', [
+        { key: 'name', label: 'Name', opts: { placeholder: 'Cultural coordinator' } },
+        { key: 'phone', label: 'Phone', opts: { type: 'tel', placeholder: '+256...' } }
+      ]) +
+      personCard('party_abako', "Groom's Spokesperson / Abako", [
+        { key: 'name', label: 'Name', opts: { placeholder: "Lead on groom's side" } },
+        { key: 'phone', label: 'Phone', opts: { type: 'tel', placeholder: '+256...' } }
+      ]) +
+      inp('party_cultural', 'Clan / Cultural Traditions to Capture', { type: 'textarea', placeholder: 'Any specific rituals or traditions we must know about?', hint: 'e.g. gift presentation order, bark cloth ceremony, specific dances' });
+    }
+
+    return h;
+  }
+
+  function renderBridesmaidsCards() {
+    var count = parseInt(DATA.bm_count) || 0;
+    var h = '';
+    for (var i = 0; i < count; i++) {
+      h += '<div class="person-card" style="border-left:2px solid #F1662344;">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">' +
+          '<div class="card-title" style="margin-bottom:0;">Bridesmaid ' + (i + 1) + '</div>' +
+          '<button type="button" onclick="window._intake.removeBridesmaid(' + i + ')" style="background:none;border:none;color:var(--red);font-size:16px;cursor:pointer;padding:0;">✕</button>' +
+        '</div>' +
+        '<div class="row">' +
+          inp('bm_' + i + '_name', 'Full Name', { placeholder: 'Her name' }) +
+          inp('bm_' + i + '_phone', 'Phone / WhatsApp', { type: 'tel', placeholder: '+256...' }) +
+        '</div>' +
+        inp('bm_' + i + '_ig', 'Instagram Handle', { placeholder: '@herhandle', hint: "We'll tag her in her photos — every tag is a referral 🧡" }) +
+      '</div>';
+    }
+    if (count === 0) h = '<div style="color:var(--dim);font-size:12px;padding:8px 0 12px;">No bridesmaids added yet. Tap the button below to add.</div>';
+    return h;
+  }
+
+  function renderGroomsmenCards() {
+    var count = parseInt(DATA.gm_count) || 0;
+    var h = '';
+    for (var i = 0; i < count; i++) {
+      h += '<div class="person-card">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">' +
+          '<div class="card-title" style="margin-bottom:0;">Groomsman ' + (i + 1) + '</div>' +
+          '<button type="button" onclick="window._intake.removeGroomsman(' + i + ')" style="background:none;border:none;color:var(--red);font-size:16px;cursor:pointer;padding:0;">✕</button>' +
+        '</div>' +
+        '<div class="row">' +
+          inp('gm_' + i + '_name', 'Full Name', { placeholder: 'His name' }) +
+          inp('gm_' + i + '_phone', 'Phone / WhatsApp', { type: 'tel', placeholder: '+256...' }) +
+        '</div>' +
+        inp('gm_' + i + '_ig', 'Instagram Handle', { placeholder: '@hishandle' }) +
+      '</div>';
+    }
+    if (count === 0) h = '<div style="color:var(--dim);font-size:12px;padding:8px 0 12px;">No groomsmen added yet. Tap the button below to add.</div>';
+    return h;
+  }
+
+  function attachListeners(parentEl) {
+    parentEl.querySelectorAll('.field-input').forEach(function(el) {
+      el.addEventListener('input', function() { DATA[el.dataset.key] = el.value; autoSave(); });
+      el.addEventListener('change', function() { DATA[el.dataset.key] = el.value; autoSave(); });
+    });
+  }
+
+  // ── PREPARATION ──────────────────────────────────────────
+  function renderPrep(et) {
+    var isIntro = et === 'introduction';
+    return '<div class="section-title">Bride Preparation</div>' +
+      inp('prep_bride_hair', 'Hair & Makeup Location', { required: true, placeholder: 'Full address where bride will have hair/makeup done' }) +
+      inp('prep_bride_dress', 'Getting Dressed Location', { placeholder: 'Full address (if different from above)' }) +
+      inp('prep_bride_depart', 'Departure Time from Prep', { type: 'time' }) +
+      personCard('prep_mua', 'Hair & Makeup Artist', [
+        { key: 'name', label: 'Name', opts: { placeholder: 'MUA name' } },
+        { key: 'phone', label: 'Phone', opts: { type: 'tel', placeholder: '+256...' } }
+      ]) +
+      '<div class="field-hint" style="color:var(--orange);font-size:11px;margin:-6px 0 16px 0;">💡 Charis Creations also offers professional hair & makeup services. Ask us!</div>' +
+      toggle('prep_bride_gift', 'Gift exchange in the morning?') +
+
+      '<div class="section-title">Groom Preparation</div>' +
+      toggle('prep_groom_activity', 'Pre-wedding activity? (sports, grooming, etc.)') +
+      '<div class="cond" id="cond-groom-activity">' +
+        '<div class="row">' +
+          inp('prep_groom_activity_time', 'Activity Time', { type: 'time' }) +
+          inp('prep_groom_activity_where', 'Activity Location', { placeholder: 'Full address' }) +
+        '</div>' +
+        inp('prep_groom_activity_desc', 'What activity?', { placeholder: 'e.g. Barbershop visit, morning jog with groomsmen' }) +
+      '</div>' +
+      inp('prep_groom_dress', 'Groom Getting Dressed Location', { required: true, placeholder: 'Full address' }) +
+      inp('prep_groom_depart', 'Groom Departure Time', { type: 'time' }) +
+      (isIntro ? '' :
+        '<div class="section-title">First Look</div>' +
+        toggle('prep_first_look', 'Will the couple see each other before the ceremony?') +
+        '<div class="cond" id="cond-first-look">' +
+          '<div class="row">' +
+            inp('prep_fl_location', 'First Look Location', { placeholder: 'Full address' }) +
+            inp('prep_fl_time', 'First Look Time', { type: 'time' }) +
+          '</div>' +
+        '</div>'
+      ) +
+      (isIntro ?
+        inp('prep_cultural_dress', 'Cultural Dress Details', { placeholder: 'Gomesi colours, bark cloth, kanzu details — helps our colour grading' })
+      : '');
+  }
+
+  // ── CEREMONY ─────────────────────────────────────────────
+  function renderCeremony(et) {
+    var isIntro = et === 'introduction';
+    return inp('cer_location', (isIntro ? 'Introduction' : 'Ceremony') + ' Location', { required: true, placeholder: 'Full address of the venue' }) +
+      '<div class="row">' +
+        inp('cer_bride_arrival', 'Bride Arrival Time', { type: 'time' }) +
+        inp('cer_groom_arrival', (isIntro ? 'Groom (Abako) Arrival Time' : 'Groom Arrival Time'), { type: 'time' }) +
+      '</div>' +
+      sel('cer_duration', 'Approximate Duration', ['Less than 1 hour', '1–2 hours', '2–3 hours', '3–5 hours', '5+ hours']) +
+      (isIntro ?
+        inp('cer_officiant', 'Master of Ceremonies / Programme Host', { placeholder: 'Name' })
+      :
+        inp('cer_officiant', 'Officiant Name(s)', { placeholder: 'Pastor, Priest, or officiant name' })
+      ) +
+      personCard('cer_coord', (isIntro ? 'Ceremony Coordinator' : 'Church / Ceremony Coordinator'), [
+        { key: 'name', label: 'Name', opts: { placeholder: 'Name' } },
+        { key: 'phone', label: 'Phone', opts: { type: 'tel', placeholder: '+256...' } }
+      ]) +
+      inp('cer_restrictions', 'Photography / Videography Restrictions', { type: 'textarea', placeholder: 'Has the venue given any restrictions on photography or videography? Please be specific.', hint: 'e.g. No flash during vows, cameras must stay behind the altar, no drone' }) +
+      toggle('cer_program', 'Will there be a printed programme?') +
+      (et === 'wedding' ? toggle('cer_rehearsal', 'Rehearsal before the ceremony?') : '') +
+      '<div class="cond" id="cond-rehearsal">' +
+        '<div class="row">' +
+          inp('cer_rehearsal_date', 'Rehearsal Date', { type: 'date' }) +
+          inp('cer_rehearsal_time', 'Rehearsal Time', { type: 'time' }) +
+        '</div>' +
+      '</div>' +
+      (isIntro ?
+        toggle('cer_gift_presentation', 'Gift presentation moment?') +
+        inp('cer_gift_details', 'Gift presentation details', { placeholder: 'Any specific order or customs for the gifts?' })
+      : '') +
+      inp('cer_parking', 'Parking / Access Notes', { placeholder: 'Any security gates, loading zones, parking restrictions?', hint: 'Helps our crew arrive smoothly with equipment' });
+  }
+
+  // ── PHOTO SESSION (wedding only) ─────────────────────────
+  function renderPhotoSession() {
+    var groupShots = [
+      'Bride & Groom only',
+      'Full bridal party (all bridesmaids & groomsmen)',
+      'Bridesmaids with bride',
+      'Groomsmen with groom',
+      'Bride with her parents',
+      'Groom with his parents',
+      'Bride with her siblings',
+      'Groom with his siblings',
+      'Both families together',
+      'All parents together',
+      'Bride with all her family',
+      'Groom with all his family',
+      'Flower girls & ring bearers',
+      'Church / Religious leaders',
+      'Couple with closest friends',
+      'Couple with children (if any)'
+    ];
+    var groupHtml = '<div class="section-title">Must-Have Group Photos</div>' +
+      '<div style="font-size:11px;color:var(--dim);margin:-8px 0 12px;">Tick every group shot you want. Our photographer will work through this list on the day.</div>' +
+      '<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px;">';
+    groupShots.forEach(function(shot, idx) {
+      var key = 'ps_group_' + idx;
+      var checked = DATA[key] ? 'checked' : '';
+      groupHtml += '<label style="display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 14px;cursor:pointer;">' +
+        '<input type="checkbox" data-key="' + key + '" ' + checked + ' style="width:18px;height:18px;accent-color:var(--orange);flex-shrink:0;" />' +
+        '<span style="font-size:13px;">' + shot + '</span>' +
+        '</label>';
+    });
+    groupHtml += '</div>' +
+      inp('ps_extra_groups', 'Additional Group Shots', { type: 'textarea', placeholder: 'Any specific groupings not listed? e.g. All aunties on bride\'s side, university friends, workmates', hint: 'The more detail, the better — we\'ll make sure every important group is captured' });
+
+    return inp('ps_location', 'Photo Session Location', { required: true, placeholder: 'Address (if different from ceremony venue)' }) +
+      sel('ps_duration', 'Time Allocated for Photos', ['30 minutes', '1 hour', '1.5 hours', '2 hours', '2+ hours']) +
+      inp('ps_wrap', 'Wrap-Up Time', { type: 'time', hint: 'When should we finish and head to reception?' }) +
+      toggle('ps_cinema', 'OK for cinema crew to have 10 min at end for cinematic couple shots?') +
+      toggle('ps_drone', 'Drone shots at the photo session?') +
+      '<div class="cond" id="cond-drone">' +
+        '<div class="row">' +
+          inp('ps_drone_loc', 'Drone Location', { placeholder: 'e.g. Garden, rooftop, lake view' }) +
+          inp('ps_drone_notes', 'Any venue restrictions on drone?', { placeholder: 'e.g. Permission granted, no-fly zone, need CAA clearance' }) +
+        '</div>' +
+      '</div>' +
+      groupHtml;
+  }
+
+  // ── RECEPTION & VENDORS ──────────────────────────────────
+  function renderReception(et) {
+    var isIntro = et === 'introduction';
+    return inp('rec_location', 'Reception Location', { required: true, placeholder: 'Full address (if different from ceremony)' }) +
+      '<div class="row">' +
+        inp('rec_start', 'Reception Start Time', { type: 'time' }) +
+        inp('rec_end', 'Reception End Time', { type: 'time' }) +
+      '</div>' +
+      personCard('rec_mc', 'Emcee / MC', [
+        { key: 'name', label: 'Name', opts: { placeholder: 'Full name' } },
+        { key: 'phone', label: 'Phone', opts: { type: 'tel', placeholder: '+256...' } }
+      ]) +
+      personCard('rec_coord', (isIntro ? 'Event Coordinator' : 'Wedding Coordinator'), [
+        { key: 'name', label: 'Name', opts: { placeholder: 'Full name' } },
+        { key: 'phone', label: 'Phone', opts: { type: 'tel', placeholder: '+256...' } }
+      ]) +
+      toggle('rec_uplighting', 'Up-lighting at the reception?') +
+      (et === 'wedding' ? toggle('rec_bouquet', 'Bouquet / garter toss?') : '') +
+
+      '<div class="section-title">Key Moments Timeline</div>' +
+      '<div style="font-size:11px;color:var(--dim);margin:-8px 0 12px;">Tell us what time these moments happen so our crew is always positioned and ready — never caught off-guard.</div>' +
+      '<div class="row">' +
+        inp('rec_first_dance', 'First Dance', { type: 'time' }) +
+        inp('rec_cake_cut', 'Cake Cutting', { type: 'time' }) +
+      '</div>' +
+      '<div class="row">' +
+        inp('rec_speeches', 'Speeches Begin', { type: 'time' }) +
+        inp('rec_send_off', 'Couple Send-Off / Exit', { type: 'time', hint: 'Grand exit, car-off, confetti moment' }) +
+      '</div>' +
+      inp('rec_programme', 'Any other timed moments?', { placeholder: 'e.g. Money dance at 8pm, surprise performance at 9pm, flower girl dance — anything we must be ready for' }) +
+
+      '<div class="section-title">Surprises & Special Moments</div>' +
+      toggle('rec_surprise', 'Is there a planned surprise moment at the reception?') +
+      '<div class="cond" id="cond-rec-surprise">' +
+        inp('rec_surprise_desc', 'Tell us everything about the surprise', { type: 'textarea', placeholder: 'e.g. Groom will perform a surprise song at 7:30pm. MCs will announce \'special performance\' — that is our cue. Guests do not know.\n\nWe will keep it secret but we MUST know so we are positioned and rolling before it starts.' }) +
+      '</div>' +
+
+      '<div class="section-title">Other Vendors</div>' +
+      personCard('rec_dj', 'DJ / Music', [
+        { key: 'name', label: 'Name / Company', opts: { placeholder: 'DJ name' } },
+        { key: 'phone', label: 'Phone', opts: { type: 'tel', placeholder: '+256...' } }
+      ]) +
+      personCard('rec_decor', 'Decorator', [
+        { key: 'name', label: 'Name / Company', opts: { placeholder: 'Decorator' } },
+        { key: 'phone', label: 'Phone', opts: { type: 'tel', placeholder: '+256...' } }
+      ]) +
+      personCard('rec_mua', 'Hair & Makeup Artist (if different from prep)', [
+        { key: 'name', label: 'Name', opts: { placeholder: 'MUA for reception look' } },
+        { key: 'phone', label: 'Phone', opts: { type: 'tel', placeholder: '+256...' } }
+      ]) +
+      inp('rec_caterer', 'Caterer Name', { placeholder: 'Catering company' }) +
+      sel('rec_crew_meal', 'When will our crew meal be served?', ['Same time as guests (required)', 'After guest service', 'We will arrange separately', 'Not providing']) +
+      '<div style="background:#F59E0B18;border:1px solid #F59E0B55;border-radius:12px;padding:16px;margin-top:4px;margin-bottom:8px;">' +
+        '<div style="font-size:12px;font-weight:800;color:#F59E0B;margin-bottom:8px;">🍽️ Important — Crew Meal Policy (Please Read)</div>' +
+        '<div style="font-size:12px;color:var(--muted);line-height:1.7;">' +
+          'If video coverage is greater than 5 hours, the client must provide a hot meal to our crew. <strong style="color:var(--text);">It is very important that this be served at the same time as any other food is served to guests.</strong> Meals provided at the end of guest service may affect what footage we are available to capture — our crew cannot leave position during key moments to eat.<br><br>' +
+          '<span style="color:var(--text);">Note:</span> Our crew does not film or photograph guests while eating, as this is considered unprofessional. Meal service is when our team takes their break and resets for the next part of your event.' +
+        '</div>' +
+      '</div>' +
+      '<div style="background:#F1662311;border:1px solid #F1662344;border-radius:10px;padding:14px 16px;margin-top:8px;">' +
+        '<div style="font-size:12px;font-weight:700;color:#F16623;margin-bottom:6px;">📸 What We Focus On Instead</div>' +
+        '<div style="font-size:12px;color:var(--muted);line-height:1.6;">We focus on the moments that matter — speeches, dances, laughter, toasts, hugs, and celebrations. These are the scenes that make your film extraordinary.</div>' +
+      '</div>';
+  }
+
+  // ── STUDIO SESSION ───────────────────────────────────────
+  function renderStudio() {
+    return sel('stu_purpose', 'Purpose of Shoot', ['Personal / Memory', 'Professional Headshots', 'Brand / Business', 'Social Media Content', 'Family Portrait', 'Maternity', 'Graduation', 'Portfolio', 'Other'], { required: true }) +
+      sel('stu_outfits', 'How many outfit changes?', ['1', '2', '3', '4', '5+']) +
+      sel('stu_people', 'How many people in the shoot?', ['1', '2', '3–4', '5–8', '8+']) +
+      sel('stu_background', 'Preferred Background', ['White', 'Black', 'Grey', 'Coloured', 'Textured', 'Outdoor (if available)', 'Let Charis decide']) +
+      toggle('stu_props', 'Bringing your own props?') +
+      '<div class="cond" id="cond-props">' +
+        inp('stu_props_desc', 'What props?', { placeholder: 'Describe what you are bringing' }) +
+      '</div>' +
+      toggle('stu_mua', 'Do you need hair & makeup?') +
+      '<div class="field-hint" style="color:var(--orange);font-size:11px;margin:-6px 0 16px 0;">💡 Charis Creations offers professional hair & makeup. We can arrange this for you!</div>' +
+      sel('stu_delivery', 'Preferred Delivery Format', ['Digital only', 'Printed photos', 'Social media sizes', 'All of the above']) +
+      inp('stu_deadline', 'When do you need the photos?', { type: 'date', hint: 'Helps us prioritise your editing' }) +
+      toggle('stu_engagement', 'Are you planning a wedding or introduction soon?') +
+      '<div class="field-hint" style="color:var(--dim);font-size:10px;margin:-6px 0 16px 0;">We\'d love to be part of your big day too!</div>';
+  }
+
+  // ── CORPORATE ────────────────────────────────────────────
+  function renderCorporate() {
+    return inp('corp_event_name', 'Event / Project Name', { required: true, placeholder: 'e.g. Annual General Meeting 2026' }) +
+      sel('corp_type', 'Event Type', ['Conference', 'Product Launch', 'Corporate Brand Shoot', 'Training Video', 'Brand Profile Video', 'Testimonial Video', 'Church / Ministry Service', 'Graduation', 'School Event', 'Other']) +
+      '<div class="section-title">Deliverables</div>' +
+      '<div class="toggle-group">' +
+        toggle('corp_del_photos', 'Photos') +
+        toggle('corp_del_highlight', 'Highlight Video') +
+        toggle('corp_del_full', 'Full Event Video') +
+        toggle('corp_del_livestream', 'Livestream') +
+        toggle('corp_del_sde', 'Same-Day Edit') +
+        toggle('corp_del_social', 'Social Media Content') +
+      '</div>' +
+      '<div class="cond" id="cond-livestream">' +
+        sel('corp_stream_platform', 'Livestream Platform', ['YouTube', 'Facebook Live', 'Zoom', 'Custom RTMP', 'Other']) +
+      '</div>' +
+      '<div class="section-title">Brand & Content</div>' +
+      inp('corp_brand_notes', 'Brand Guidelines / Colours', { type: 'textarea', placeholder: 'Any brand colours, fonts, or guidelines we should follow in editing?' }) +
+      toggle('corp_logo_in_video', 'Do you need your logo/branding in the video?') +
+      inp('corp_speakers', 'Speaker / VIP List', { type: 'textarea', placeholder: 'Names of key people we must capture (one per line)' }) +
+      inp('corp_schedule', 'Event Programme / Schedule', { type: 'textarea', placeholder: 'Paste the event schedule or describe the timeline' }) +
+      '<div class="section-title">Approval</div>' +
+      personCard('corp_approver', 'Who approves the final content?', [
+        { key: 'name', label: 'Name', opts: { required: true, placeholder: 'Decision maker' } },
+        { key: 'email', label: 'Email', opts: { type: 'email', placeholder: 'For sending drafts' } },
+        { key: 'phone', label: 'Phone', opts: { type: 'tel', placeholder: '+256...' } }
+      ]) +
+      sel('corp_approval_time', 'Expected Approval Timeline', ['Same week', '1 week', '2 weeks', '1 month']);
+  }
+
+  // ── GENERIC EVENT ────────────────────────────────────────
+  function renderGenericEvent() {
+    return inp('gen_desc', 'Describe the Event / Project', { type: 'textarea', required: true, placeholder: 'What are we covering? What do you need from us?' }) +
+      sel('gen_duration', 'Expected Duration', ['1–2 hours', '3–5 hours', '5–8 hours', 'Full day (8+ hours)', 'Multiple days']) +
+      inp('gen_deliverables', 'What deliverables do you expect?', { type: 'textarea', placeholder: 'e.g. Highlight video, full event video, photos, livestream' }) +
+      personCard('gen_contact', 'On-site Contact Person', [
+        { key: 'name', label: 'Name', opts: { placeholder: 'Who do we report to on the day?' } },
+        { key: 'phone', label: 'Phone', opts: { type: 'tel', placeholder: '+256...' } }
+      ]);
+  }
+
+  // ── PERMISSIONS ──────────────────────────────────────────
+  function renderPermissions() {
+    return '<div class="step-desc" style="color:var(--amber);font-size:12px;margin-bottom:16px;">We love showcasing our work. Please let us know how we can share your content.</div>' +
+      '<div class="toggle-group">' +
+        toggle('perm_instagram', 'Can we feature your content on our Instagram?') +
+        toggle('perm_tiktok', 'Can we feature your content on our TikTok?') +
+        toggle('perm_website', 'Can we use your content on our website portfolio?') +
+        toggle('perm_marketing', 'Can we use your content in paid advertising?') +
+        toggle('perm_tag', 'Can we tag you on social media?') +
+      '</div>' +
+      '<div class="section-title">Your Film Online</div>' +
+      toggle('perm_upload_online', 'Would you love your final film to be uploaded online (YouTube / our channel)?') +
+      '<div class="field-hint" style="margin:-4px 0 16px 0;">Many of our clients love having their highlight film shared publicly — it becomes a permanent keepsake you can share with anyone.</div>' +
+      '<div class="section-title">Your Social Media (optional)</div>' +
+      '<div class="row">' +
+        inp('perm_client_ig', 'Your Instagram Handle', { placeholder: '@yourhandle' }) +
+        inp('perm_client_tiktok', 'Your TikTok Handle', { placeholder: '@yourhandle' }) +
+      '</div>' +
+      '<div class="section-title">Content Preferences</div>' +
+      inp('perm_must_shots', 'Must-Have Shots / Moments', { type: 'textarea', placeholder: 'What moments MUST be captured? What would disappoint you if we missed it?\n\ne.g. First dance, vows, cake cutting, parents\' reaction, exit send-off' }) +
+      inp('perm_song', 'Song Preference for Highlight Film (optional)', { placeholder: 'Do you have a special song you want featured?', hint: 'We\'ll do our best to include it if licensing allows' }) +
+      inp('perm_do_not_film', 'Anyone who should NOT be filmed?', { type: 'textarea', placeholder: 'List names or descriptions of anyone who should not appear in photos or videos', hint: 'For privacy, cultural, or personal reasons — we respect all requests' });
+  }
+
+  // ── FINAL STEP ───────────────────────────────────────────
+  function renderFinal() {
+    var h = '<div class="section-title">Emergency Contacts</div>' +
+      '<div class="field-hint" style="margin-bottom:12px;">Please provide 4 emergency contacts including your own number.</div>';
+
+    for (var i = 1; i <= 4; i++) {
+      h += personCard('em' + i, 'Contact ' + i + (i === 1 ? ' (your own)' : ''), [
+        { key: 'name', label: 'Name', opts: { placeholder: 'Full name' } },
+        { key: 'phone', label: 'Phone', opts: { type: 'tel', placeholder: '+256...' } },
+        { key: 'rel', label: 'Relationship', opts: { placeholder: 'e.g. Bride, Groom\'s brother, Coordinator' } }
+      ]);
+    }
+
+    h += '<div class="section-title">Photo & Video Delivery</div>' +
+      sel('final_delivery_how', 'How would you like to receive your final photos?', ['Online gallery link (we send you a private link)', 'USB drive (collected from our studio)', 'Both — online gallery and USB', 'Not sure — advise me'], { required: true }) +
+      '<div class="section-title">Additional Notes</div>' +
+      inp('final_notes', 'Anything else we should know?', { type: 'textarea', placeholder: 'Special requests, restrictions, sensitive details, accommodation for distant events, allergies for crew meals...' }) +
+      inp('final_parking', 'Parking / Equipment Access Notes', { type: 'textarea', placeholder: 'Any security gates, loading zones, or access instructions for our crew and equipment?' });
+
+    // T&Cs — conditional on event type
+    var _et = (INFO.event_type || '').toLowerCase();
+    var _isStudio = (_et === 'studio shoot' || _et === 'studio');
+    var _isCorporate = (_et.includes('corporate') || _et.includes('conference') || _et.includes('livestream'));
+
+    if (_isStudio) {
+      // ── STUDIO SESSION TERMS ──────────────────────────────────────────
+      h += '<div class="section-title">Terms & Conditions — Studio Session</div>' +
+        '<div class="tcs-box">' +
+          '<h4>Booking & Payment</h4>' +
+          'a. A session fee is required to secure your booking (non-refundable).<br>' +
+          'b. Your date and time slot is only confirmed once the session fee is received and cleared. Until then, the slot remains open to other clients.<br>' +
+          'c. The remaining balance is payable in full on or before the day of your session. We do not begin shooting until payment is complete.' +
+          '<h4>Arrival & Preparation</h4>' +
+          'a. Please arrive at the studio at least 10 minutes before your scheduled start time.<br>' +
+          'b. If hair and makeup is required, it must be completed before your session begins. Time lost to preparation is time taken from your shoot — your session ends at the scheduled time regardless.<br>' +
+          'c. Please bring all outfits, accessories, and props confirmed in this form. Items forgotten on the day cannot always be accommodated.' +
+          '<h4>The Session</h4>' +
+          'a. Charis Creations will photograph and/or film within the scope of the package booked. Specific shot requests made in this form will be given priority, but are not binding instructions.<br>' +
+          'b. The number of edited images or video deliverables is determined by your package. Additional edited images or footage are charged at current retail rates.<br>' +
+          'c. Children under 18 must be accompanied by a parent or guardian throughout the session.<br>' +
+          'd. Charis Creations reserves the right to end a session early if the conduct of any person on the premises is disruptive or disrespectful to our team or studio environment.' +
+          '<h4>The Edit & Delivery</h4>' +
+          'a. Edited images and/or footage will be delivered within 1–2 weeks of your session date, unless otherwise agreed in writing.<br>' +
+          'b. You will receive a private online gallery link (SmugMug) or USB drive per your delivery preference.<br>' +
+          'c. One round of minor revision requests is included. Additional edits, retouching beyond standard correction, or further alterations after final delivery will be charged at current rates.<br>' +
+          'd. Charis Creations retains the right to style, colour grade, and deliver images according to our professional standard. We do not supply unedited raw files.' +
+          '<h4>Cancellation & Rescheduling</h4>' +
+          'a. Cancellations made more than 48 hours before your session: the session fee may be transferred to a new date within 3 months, subject to availability.<br>' +
+          'b. Cancellations made within 48 hours of your session: the session fee is forfeited in full. No transfer or refund will be given.<br>' +
+          'c. No-shows (arriving more than 30 minutes late without prior notice) are treated as a cancellation with less than 48 hours notice.<br>' +
+          'd. If Charis Creations must cancel due to circumstances beyond our control, a full refund or rescheduled date will be offered at your preference.' +
+          '<h4>Content Usage</h4>' +
+          'Charis Creations may use photos and videos from your session for portfolio, social media, and marketing purposes only where you have given explicit permission above. Your privacy preferences will be fully respected.' +
+        '</div>' +
+        '<label class="tc-check">' +
+          '<input type="checkbox" id="tc-accept" ' + (DATA.tc_accepted ? 'checked' : '') + '/>' +
+          '<div class="tc-check-text">' +
+            'I/We have read and fully understand the terms of this studio session booking and accept that this agreement becomes effective immediately. I/We understand that the session fee is non-refundable within 48 hours of the session date. I/We understand that the remaining balance must be paid in full on or before the day of the session.' +
+          '</div>' +
+        '</label>';
+
+    } else if (_isCorporate) {
+      // ── CORPORATE / EVENT TERMS ────────────────────────────────────────
+      h += '<div class="section-title">Terms & Conditions — Corporate & Event Coverage</div>' +
+        '<div class="tcs-box">' +
+          '<h4>Booking & Payment</h4>' +
+          'a. A booking fee is required to confirm this engagement (non-refundable).<br>' +
+          'b. The date is only secured once the booking fee is received and cleared.<br>' +
+          'c. The full balance is payable at least 2 days prior to the event date. A late payment charge of UGX 200,000 applies if this deadline is not met.' +
+          '<h4>Scope of Coverage</h4>' +
+          'a. Charis Creations will cover the event as described in this brief and in the agreed deliverables. Any significant changes to the event programme or schedule must be communicated as early as possible.<br>' +
+          'b. The client is responsible for obtaining all necessary venue permissions for filming and photography, and for any venue-related fees.<br>' +
+          'c. Coverage will be guided by the brief provided but professional discretion applies. Charis Creations cannot guarantee coverage of every individual or session where multiple simultaneous activities occur.' +
+          '<h4>Accommodation & Logistics</h4>' +
+          'For events beyond 80 miles of our studio, the client must arrange accommodation for the Charis crew for the night of the event and the night prior. Crew meals during events lasting more than 5 hours must be provided.' +
+          '<h4>Deliverables & The Edit</h4>' +
+          'a. Specific deliverables are determined by the package and this brief. Completion is typically within 2–4 weeks of the event date, unless otherwise agreed.<br>' +
+          'b. One round of feedback on the final cut is included. Further changes after delivery are charged at current rates.<br>' +
+          'c. Charis Creations retains the right to present work according to our professional and cinematic standards.' +
+          '<h4>Cancellation</h4>' +
+          'a. If Charis Creations is unable to fulfil the booking due to circumstances beyond our control, a suitable alternative will be arranged or a full refund offered.<br>' +
+          'b. Cancellations by the client: all monies paid are non-refundable. If the event is rescheduled to a date within 6 months and the team is available, the booking fee may be transferred.' +
+          '<h4>Content Usage</h4>' +
+          'Charis Creations may use photos and videos from this event for portfolio, social media, and marketing purposes only where explicit permission has been given above. Where corporate branding or sensitive content is involved, we will seek specific approval before any public use.' +
+        '</div>' +
+        '<label class="tc-check">' +
+          '<input type="checkbox" id="tc-accept" ' + (DATA.tc_accepted ? 'checked' : '') + '/>' +
+          '<div class="tc-check-text">' +
+            'I/We have read and fully understand the terms of this event booking and accept that this contract becomes effective immediately. I/We understand that the booking fee is non-refundable. I/We understand that payment must be paid in full at least 2 days prior to the event date.' +
+          '</div>' +
+        '</label>';
+
+    } else {
+      // ── WEDDING / INTRODUCTION TERMS (default) ────────────────────────
+      h += '<div class="section-title">Terms & Conditions</div>' +
+        '<div class="tcs-box">' +
+          '<h4>Booking & Payment</h4>' +
+          'a. A booking fee is required upon return of this form (non-refundable).<br>' +
+          'b. Completion of this form alone will not secure your booking — the date may be booked by other parties.<br>' +
+          'c. A date may only be considered reserved once a completed form is received and 70% of funds are cleared. Until that point, dates cannot be guaranteed. If a date is no longer available, any deposit received will be returned with no further liability on either party.<br>' +
+          'd. The full balance is payable at least 2 days prior to the event date. Failure to pay within this period will incur an additional charge of UGX 200,000.' +
+          '<h4>Accommodation</h4>' +
+          'For commissions beyond 80 miles of our studio, accommodation must be provided by the client for the night of the event and the night prior.' +
+          '<h4>Food</h4>' +
+          'If video coverage is greater than 5 hours, the client must provide a hot meal to the camera operatives. It is very important that this be served at the same time as any other food is served to guests. Vendor meals provided at the end of guest service may affect what footage we are available to capture. Our crew does not film or photograph guests while eating — meal service is when our team takes their break — unless specifically requested in advance.' +
+          '<h4>Filming the Day</h4>' +
+          'a. Any variations in times or dates must be communicated to Charis Creations as soon as possible.<br>' +
+          'b. The client must obtain permission to film at all venues and is responsible for any fees at those locations.<br>' +
+          'c. Coverage will be as the photographer and cinematographer\'s professional expertise determines. Charis Creations cannot guarantee coverage of any particular individual or group.<br>' +
+          'd. We use broadcast quality equipment. We will not be liable for any radio signal losses, power failures, sound failures, or material defects beyond our control.' +
+          '<h4>The Edit</h4>' +
+          'Charis Creations will endeavour to build your film around special requests made in this form, but such requests are not binding instructions. Artistic interpretation cannot be guaranteed, but every attempt will be made to comply with your wishes. Charis Creations will not be held responsible for scenes not captured due to inclement weather or conditions outside our control. Any changes requested on the final copy once delivered will be subject to additional charges. Additional copies are supplied at current retail costs. Completion is usually within 4–18 weeks from the date of the event.' +
+          '<h4>Package Specifics</h4>' +
+          'As standard, Charis Creations provides: full event coverage · short cinematic film (average 1–3 minutes) · full cinematic film (average 1–3 hours) · collaged album with over 600 prints. Specific deliverables are determined by your booked package.' +
+          '<h4>Cancellation</h4>' +
+          'a. If Charis Creations is unable to provide the service due to circumstances beyond our control, a suitable alternative of similar style and quality will be arranged.<br>' +
+          'b. If the client changes the event date, all monies paid are non-refundable. However, if the photographer is available on the new date within 6 months of the original date, the retainer fee may be transferred.' +
+          '<h4>Content Usage</h4>' +
+          'Charis Creations may use photos and videos from your event for portfolio, social media, and marketing purposes only where you have given explicit permission above. Your privacy preferences will be fully respected.' +
+        '</div>' +
+        '<label class="tc-check">' +
+          '<input type="checkbox" id="tc-accept" ' + (DATA.tc_accepted ? 'checked' : '') + '/>' +
+          '<div class="tc-check-text">' +
+            'I/We have read and fully understand the terms of this booking and accept that this contract becomes effective immediately. I/We understand that the retainer fee is non-refundable. ' +
+            'I/We understand that payment must be paid in full within 2 days of the event date. ' +
+            'I/We agree that if cancellation occurs within 60 days of the event date, the cancellation terms set out above will apply.' +
+          '</div>' +
+        '</label>';
+    }
+
+    return h;
+  }
+
+  // ── NAV BUTTONS ──────────────────────────────────────────
+  function renderNav(stepIdx) {
+    var isFirst = stepIdx === 0;
+    var isLast = stepIdx === STEPS.length - 1;
+    var h = '<div class="nav-bar">';
+    if (!isFirst) h += '<button class="btn btn-back" onclick="window._intake.prev()">← Back</button>';
+    if (isLast) {
+      h += '<button class="btn btn-submit" onclick="window._intake.submit()">✓ Submit Brief</button>';
+    } else {
+      h += '<button class="btn btn-next" onclick="window._intake.next()">Next →</button>';
+    }
+    h += '</div>';
+    return h;
+  }
+
+  // ── EVENTS ───────────────────────────────────────────────
+  function attachEvents() {
+    // Auto-save on input change
+    document.querySelectorAll('.field-input').forEach(function(el) {
+      el.addEventListener('input', function() {
+        DATA[el.dataset.key] = el.value;
+        autoSave();
+      });
+      el.addEventListener('change', function() {
+        DATA[el.dataset.key] = el.value;
+        autoSave();
+        updateConditionals();
+      });
+    });
+
+    // Toggle buttons
+    document.querySelectorAll('.toggle-btn').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var key = btn.dataset.key;
+        var val = btn.dataset.val === 'true';
+        DATA[key] = val;
+        // Update UI
+        var row = btn.closest('.toggle-row') || btn.closest('.toggle-btns');
+        row.querySelectorAll('.toggle-btn').forEach(function(b) { b.classList.remove('sel'); });
+        btn.classList.add('sel');
+        autoSave();
+        updateConditionals();
+      });
+    });
+
+    // Group shot checkboxes
+    document.querySelectorAll('input[type="checkbox"][data-key]').forEach(function(cb) {
+      cb.addEventListener('change', function() {
+        DATA[cb.dataset.key] = cb.checked;
+        autoSave();
+      });
+    });
+
+    // T&C checkbox
+    var tcBox = document.getElementById('tc-accept');
+    if (tcBox) {
+      tcBox.addEventListener('change', function() {
+        DATA.tc_accepted = tcBox.checked;
+        autoSave();
+      });
+    }
+
+    updateConditionals();
+  }
+
+  function updateConditionals() {
+    // Groom activity
+    var ga = document.getElementById('cond-groom-activity');
+    if (ga) ga.classList.toggle('show', DATA.prep_groom_activity === true);
+    // First look
+    var fl = document.getElementById('cond-first-look');
+    if (fl) fl.classList.toggle('show', DATA.prep_first_look === true);
+    // Rehearsal
+    var rh = document.getElementById('cond-rehearsal');
+    if (rh) rh.classList.toggle('show', DATA.cer_rehearsal === true);
+    // Props
+    var pr = document.getElementById('cond-props');
+    if (pr) pr.classList.toggle('show', DATA.stu_props === true);
+    // Livestream
+    var ls = document.getElementById('cond-livestream');
+    if (ls) ls.classList.toggle('show', DATA.corp_del_livestream === true);
+    // Drone
+    var dr = document.getElementById('cond-drone');
+    if (dr) dr.classList.toggle('show', DATA.ps_drone === true);
+    // Reception surprise
+    var rs = document.getElementById('cond-rec-surprise');
+    if (rs) rs.classList.toggle('show', DATA.rec_surprise === true);
+  }
+
+  // ── AUTO-SAVE (localStorage + server draft) ──────────────
+  // Two tiers: localStorage fires fast (500ms) for instant same-device resume;
+  // the server draft fires slower (2.5s, debounced) so typing doesn't spam the
+  // network, but it's what lets "send me the link again" actually resume her
+  // progress instead of starting blank — same device or not.
+  var _saveTimer = null;
+  var _serverSaveTimer = null;
+  function autoSave() {
+    clearTimeout(_saveTimer);
+    _saveTimer = setTimeout(function() {
+      try { localStorage.setItem('charis_intake_' + TOKEN, JSON.stringify(DATA)); } catch(e) {}
+    }, 500);
+
+    clearTimeout(_serverSaveTimer);
+    _serverSaveTimer = setTimeout(function() {
+      SB.rpc('save_intake_draft', { p_token: TOKEN, p_draft: DATA }).catch(function(e) {
+        console.warn('Could not sync progress to server (will retry on next edit):', e);
+      });
+    }, 2500);
+  }
+  // Merges (not replaces) into DATA, since a server draft may already have been
+  // loaded first — whichever wrote a field most recently should win, and
+  // localStorage on the same device is the freshest source. Returns true if
+  // anything was found, so boot() knows whether to show the "welcome back" banner.
+  function loadSavedData() {
+    try {
+      var saved = localStorage.getItem('charis_intake_' + TOKEN);
+      if (saved) {
+        var parsed = JSON.parse(saved);
+        Object.keys(parsed).forEach(function(k) { DATA[k] = parsed[k]; });
+        return true;
+      }
+    } catch(e) {}
+    return false;
+  }
+
+  // ── NAVIGATION ───────────────────────────────────────────
+  function nextStep() {
+    // Collect current values from DOM
+    collectCurrentStep();
+    if (STEP < STEPS.length - 1) {
+      STEP++;
+      renderForm();
+      window.scrollTo(0, 0);
+    }
+  }
+
+  function prevStep() {
+    collectCurrentStep();
+    if (STEP > 0) {
+      STEP--;
+      renderForm();
+      window.scrollTo(0, 0);
+    }
+  }
+
+  function collectCurrentStep() {
+    document.querySelectorAll('.step.active .field-input').forEach(function(el) {
+      if (el.dataset.key) DATA[el.dataset.key] = el.value;
+    });
+    var tc = document.getElementById('tc-accept');
+    if (tc) DATA.tc_accepted = tc.checked;
+  }
+
+  // ── SUBMIT ───────────────────────────────────────────────
+  async function submitForm() {
+    if (SUBMITTED) return;
+    collectCurrentStep();
+
+    // Validate required
+    if (!DATA.core_name || !DATA.core_phone) {
+      alert('Please fill in your name and phone number (Step 1).');
+      return;
+    }
+    if (!DATA.tc_accepted) {
+      alert('Please read and accept the Terms & Conditions to submit.');
+      return;
+    }
+
+    SUBMITTED = true;
+
+    // Build structured payload
+    var payload = {
+      client: {
+        name: DATA.core_name,
+        phone: DATA.core_phone,
+        email: DATA.core_email,
+        referralSource: DATA.core_referral
+      },
+      permissions: {
+        instagram: DATA.perm_instagram || false,
+        tiktok: DATA.perm_tiktok || false,
+        website: DATA.perm_website || false,
+        marketing: DATA.perm_marketing || false,
+        canTag: DATA.perm_tag || false,
+        clientInstagram: DATA.perm_client_ig || '',
+        clientTikTok: DATA.perm_client_tiktok || '',
+        mustHaveShots: DATA.perm_must_shots || '',
+        songPreference: DATA.perm_song || '',
+        doNotFilm: DATA.perm_do_not_film || ''
+      },
+      party: {},
+      prep: {},
+      ceremony: {},
+      reception: {},
+      vendors: {},
+      emergency: [],
+      coordinator: { name: DATA.coord_name || '', phone: DATA.coord_phone || '' },
+      notes: DATA.final_notes || '',
+      parking: DATA.final_parking || '',
+      termsAccepted: true,
+      termsAcceptedAt: new Date().toISOString(),
+      submittedAt: new Date().toISOString()
+    };
+
+    // Collect all DATA keys into appropriate sections
+    Object.keys(DATA).forEach(function(k) {
+      if (k.startsWith('party_')) payload.party[k] = DATA[k];
+      if (k.startsWith('prep_')) payload.prep[k] = DATA[k];
+      if (k.startsWith('cer_')) payload.ceremony[k] = DATA[k];
+      if (k.startsWith('ps_')) payload.ceremony[k] = DATA[k];
+      if (k.startsWith('rec_')) payload.reception[k] = DATA[k];
+      if (k.startsWith('kuk_')) payload.kukyala = payload.kukyala || {}; if (k.startsWith('kuk_')) payload.kukyala[k] = DATA[k];
+      if (k.startsWith('stu_')) payload.studio = payload.studio || {}; if (k.startsWith('stu_')) payload.studio[k] = DATA[k];
+      if (k.startsWith('corp_')) payload.corporate = payload.corporate || {}; if (k.startsWith('corp_')) payload.corporate[k] = DATA[k];
+      if (k.startsWith('gen_')) payload.generic = payload.generic || {}; if (k.startsWith('gen_')) payload.generic[k] = DATA[k];
+    });
+
+    // Emergency contacts
+    for (var i = 1; i <= 4; i++) {
+      var n = DATA['em' + i + '_name'], p = DATA['em' + i + '_phone'], r = DATA['em' + i + '_rel'];
+      if (n || p) payload.emergency.push({ name: n || '', phone: p || '', relationship: r || '' });
+    }
+
+    // Vendors
+    ['rec_dj', 'rec_decor', 'rec_mua', 'prep_mua'].forEach(function(prefix) {
+      var vn = DATA[prefix + '_name'], vp = DATA[prefix + '_phone'];
+      if (vn || vp) payload.vendors[prefix] = { name: vn || '', phone: vp || '' };
+    });
+    if (DATA.rec_caterer) payload.vendors.caterer = DATA.rec_caterer;
+
+    // Bridesmaids array (with Instagram)
+    var bmCount = parseInt(DATA.bm_count) || 0;
+    payload.party.bridesmaids = [];
+    for (var i = 0; i < bmCount; i++) {
+      var bmn = DATA['bm_'+i+'_name'], bmp = DATA['bm_'+i+'_phone'], bmig = DATA['bm_'+i+'_ig'];
+      if (bmn || bmp || bmig) payload.party.bridesmaids.push({ name: bmn||'', phone: bmp||'', instagram: bmig||'' });
+    }
+    // Groomsmen array
+    var gmCount = parseInt(DATA.gm_count) || 0;
+    payload.party.groomsmen = [];
+    for (var j = 0; j < gmCount; j++) {
+      var gmn = DATA['gm_'+j+'_name'], gmp = DATA['gm_'+j+'_phone'], gmig = DATA['gm_'+j+'_ig'];
+      if (gmn || gmp || gmig) payload.party.groomsmen.push({ name: gmn||'', phone: gmp||'', instagram: gmig||'' });
+    }
+    // MOH and Best Man Instagram
+    if (DATA.party_moh_ig)       payload.party.mohInstagram = DATA.party_moh_ig;
+    if (DATA.party_bm_ig)        payload.party.bestManInstagram = DATA.party_bm_ig;
+    if (DATA.party_flower_girl)  payload.party.flowerGirl = DATA.party_flower_girl;
+    if (DATA.party_peg_boy)      payload.party.pegBoy = DATA.party_peg_boy;
+    payload.permissions.uploadOnline = DATA.perm_upload_online || false;
+    // Group shots (collect ticked ones)
+    var groupShotLabels = ['Bride & Groom only','Full bridal party (all bridesmaids & groomsmen)','Bridesmaids with bride','Groomsmen with groom','Bride with her parents','Groom with his parents','Bride with her siblings','Groom with his siblings','Both families together','All parents together','Bride with all her family','Groom with all his family','Flower girls & ring bearers','Church / Religious leaders','Couple with closest friends','Couple with children (if any)'];
+    payload.groupShots = groupShotLabels.filter(function(_, idx) { return DATA['ps_group_' + idx]; });
+    if (DATA.ps_extra_groups) payload.groupShotsExtra = DATA.ps_extra_groups;
+    // Key moments
+    payload.reception = payload.reception || {};
+    payload.reception.firstDance = DATA.rec_first_dance || '';
+    payload.reception.cakeCutting = DATA.rec_cake_cut || '';
+    payload.reception.speeches = DATA.rec_speeches || '';
+    payload.reception.sendOff = DATA.rec_send_off || '';
+    payload.reception.surprise = DATA.rec_surprise || false;
+    payload.reception.surpriseDesc = DATA.rec_surprise_desc || '';
+    // Delivery
+    payload.delivery = { preference: DATA.final_delivery_how || '', deadline: DATA.final_delivery_deadline || '' };
+    // Partner name from party
+    if (DATA.party_bride) payload.party.brideName = DATA.party_bride;
+    if (DATA.party_groom) payload.party.groomName = DATA.party_groom;
+
+    try {
+      var { data, error } = await SB.rpc('submit_intake', { p_token: TOKEN, p_data: payload });
+      if (error) throw error;
+      if (data && data.success) {
+        try { localStorage.removeItem('charis_intake_' + TOKEN); } catch(e) {}
+        showSuccess();
+      } else {
+        SUBMITTED = false;
+        alert((data && data.error) || 'Submission failed. Please try again.');
+      }
+    } catch (e) {
+      SUBMITTED = false;
+      console.error(e);
+      alert('Connection error. Please check your internet and try again.');
+    }
+  }
+
+  // ── STATE SCREENS ────────────────────────────────────────
+  function showError(title, desc) {
+    document.getElementById('app').innerHTML =
+      '<div class="header">' +
+        '<div class="logo-text">CHARIS CREATIONS</div>' +
+        '<div class="tagline">Bringing Image to Life</div>' +
+      '</div>' +
+      '<div class="state-screen">' +
+        '<div class="state-icon">⚠️</div>' +
+        '<div class="state-title">' + title + '</div>' +
+        '<div class="state-desc">' + desc + '</div>' +
+        '<div style="margin-top:24px;">' +
+          '<a href="https://wa.me/256706028899" style="display:inline-flex;align-items:center;gap:6px;background:#25D36622;color:#25D366;border-radius:10px;padding:12px 20px;font-size:13px;font-weight:700;text-decoration:none;">📱 Contact us on WhatsApp</a>' +
+        '</div>' +
+      '</div>';
+  }
+
+  function showSuccess() {
+    document.getElementById('app').innerHTML =
+      '<div class="header">' +
+        '<div class="logo-text">CHARIS CREATIONS</div>' +
+        '<div class="tagline">Bringing Image to Life</div>' +
+      '</div>' +
+      '<div class="state-screen">' +
+        '<div class="state-icon">🎉</div>' +
+        '<div class="state-title">Brief Submitted!</div>' +
+        '<div class="state-desc">Thank you for completing your client brief. Our team is now preparing for your special day.<br><br>If you need to make any changes, please contact us directly.</div>' +
+        '<div style="margin-top:24px;">' +
+          '<a href="https://wa.me/256706028899" style="display:inline-flex;align-items:center;gap:6px;background:#25D36622;color:#25D366;border-radius:10px;padding:12px 20px;font-size:13px;font-weight:700;text-decoration:none;">📱 WhatsApp Us</a>' +
+        '</div>' +
+        '<div style="margin-top:16px;font-size:11px;color:var(--dim);">chariscreationsltd.com</div>' +
+      '</div>';
+  }
+
+  // ── BRIDESMAID / GROOMSMAN ADD & REMOVE ──────────────────
+  function refreshPartyList(listId, renderFn, countKey) {
+    collectCurrentStep();
+    var el = document.getElementById(listId);
+    if (!el) return;
+    el.innerHTML = renderFn();
+    attachListeners(el);
+  }
+
+  // ── PUBLIC API for onclick handlers ──────────────────────
+  window._intake = {
+    next: nextStep,
+    prev: prevStep,
+    submit: submitForm,
+    addBridesmaid: function() {
+      collectCurrentStep();
+      DATA.bm_count = (parseInt(DATA.bm_count) || 0) + 1;
+      refreshPartyList('bm-list', renderBridesmaidsCards, 'bm_count');
+    },
+    removeBridesmaid: function(idx) {
+      collectCurrentStep();
+      var count = parseInt(DATA.bm_count) || 0;
+      for (var i = idx; i < count - 1; i++) {
+        DATA['bm_' + i + '_name']  = DATA['bm_' + (i+1) + '_name']  || '';
+        DATA['bm_' + i + '_phone'] = DATA['bm_' + (i+1) + '_phone'] || '';
+        DATA['bm_' + i + '_ig']    = DATA['bm_' + (i+1) + '_ig']    || '';
+      }
+      delete DATA['bm_' + (count-1) + '_name'];
+      delete DATA['bm_' + (count-1) + '_phone'];
+      delete DATA['bm_' + (count-1) + '_ig'];
+      DATA.bm_count = Math.max(0, count - 1);
+      refreshPartyList('bm-list', renderBridesmaidsCards, 'bm_count');
+    },
+    addGroomsman: function() {
+      collectCurrentStep();
+      DATA.gm_count = (parseInt(DATA.gm_count) || 0) + 1;
+      refreshPartyList('gm-list', renderGroomsmenCards, 'gm_count');
+    },
+    removeGroomsman: function(idx) {
+      collectCurrentStep();
+      var count = parseInt(DATA.gm_count) || 0;
+      for (var i = idx; i < count - 1; i++) {
+        DATA['gm_' + i + '_name']  = DATA['gm_' + (i+1) + '_name']  || '';
+        DATA['gm_' + i + '_phone'] = DATA['gm_' + (i+1) + '_phone'] || '';
+        DATA['gm_' + i + '_ig']    = DATA['gm_' + (i+1) + '_ig']    || '';
+      }
+      delete DATA['gm_' + (count-1) + '_name'];
+      delete DATA['gm_' + (count-1) + '_phone'];
+      delete DATA['gm_' + (count-1) + '_ig'];
+      DATA.gm_count = Math.max(0, count - 1);
+      refreshPartyList('gm-list', renderGroomsmenCards, 'gm_count');
+    }
+  };
+
+  // ── GO ───────────────────────────────────────────────────
+  boot();
+
+})();
+</script>
+</body>
+</html>

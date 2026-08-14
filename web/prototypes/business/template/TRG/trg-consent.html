@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TRG Photo & Video Consent</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    :root{--coral:#F7A092;--coral-dark:#e8856e;--teal:#90D1C2;--teal-dark:#6bb8a8;--linen:#F1F1ED;--blush:#FEF5F4;--dark:#2D2D2D;--mid:#666;--light:#999;--white:#fff;}
+    *{box-sizing:border-box;margin:0;padding:0;}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--blush);color:var(--dark);min-height:100vh;}
+    .header{background:var(--white);border-bottom:3px solid var(--coral);padding:16px 20px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:50;}
+    .logo{width:42px;height:42px;background:var(--coral);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;color:#fff;font-weight:800;}
+    .header h1{font-size:16px;font-weight:800;}
+    .header p{font-size:11px;color:var(--mid);margin-top:2px;}
+    .net{margin-left:auto;font-size:10px;font-weight:700;padding:4px 10px;border-radius:20px;}
+    .net.on{background:#e7f7ef;color:#0a8f5b;} .net.off{background:#fdf3df;color:#a16207;}
+    .wrap{max-width:560px;margin:0 auto;padding:18px 16px 70px;}
+    .hero{background:linear-gradient(135deg,var(--coral) 0%,var(--teal) 100%);border-radius:12px;padding:20px;color:#fff;margin-bottom:16px;}
+    .hero h2{font-size:18px;font-weight:800;margin-bottom:6px;}
+    .hero p{font-size:13px;line-height:1.6;opacity:.95;}
+    .card{background:var(--white);border-radius:12px;padding:18px;margin-bottom:14px;box-shadow:0 2px 14px rgba(0,0,0,.06);}
+    .fg{margin-bottom:16px;}
+    label{font-size:13px;font-weight:700;display:block;margin-bottom:5px;}
+    .hint{font-size:11px;color:var(--mid);margin-bottom:7px;line-height:1.5;}
+    input[type=text],input[type=tel],select,textarea{width:100%;border:2px solid var(--linen);border-radius:8px;padding:11px 13px;font-size:14px;font-family:inherit;outline:none;background:#fff;}
+    input:focus,select:focus,textarea:focus{border-color:var(--coral);}
+    .req{color:var(--coral);}
+    .seg{display:flex;gap:10px;}
+    .seg .opt{flex:1;border:2px solid var(--linen);border-radius:10px;padding:14px;text-align:center;cursor:pointer;font-weight:700;font-size:14px;color:var(--mid);transition:all .2s;}
+    .seg .opt.sel{border-color:var(--coral);background:#fff5f3;color:var(--coral-dark);}
+    .scope{display:flex;flex-direction:column;gap:8px;}
+    .scope label{display:flex;align-items:center;gap:10px;font-weight:600;font-size:14px;cursor:pointer;border:2px solid var(--linen);border-radius:10px;padding:11px 13px;margin:0;}
+    .scope input{width:20px;height:20px;}
+    .minor{display:none;}
+    .minor.show{display:block;}
+    .sigwrap{border:2px dashed var(--coral);border-radius:10px;background:var(--blush);position:relative;}
+    canvas{display:block;width:100%;height:180px;border-radius:10px;touch-action:none;}
+    .sigtools{display:flex;gap:8px;margin-top:8px;}
+    .btn{padding:13px 22px;border-radius:9px;border:none;font-size:15px;font-weight:800;cursor:pointer;font-family:inherit;}
+    .btn-coral{background:var(--coral);color:#fff;width:100%;}
+    .btn-coral:disabled{background:#e7c5bd;}
+    .btn-ghost{background:var(--linen);color:var(--dark);font-size:13px;padding:9px 16px;}
+    .tabs{display:flex;gap:8px;margin-bottom:10px;}
+    .tab{flex:1;padding:10px;border:2px solid var(--linen);border-radius:10px;text-align:center;font-weight:700;font-size:13px;cursor:pointer;color:var(--mid);}
+    .tab.sel{border-color:var(--teal);background:#f0fbf8;color:var(--teal-dark);}
+    .pane{display:none;} .pane.show{display:block;}
+    input[type=file]{display:none;}
+    .photo-drop{border:2px dashed var(--teal);border-radius:10px;padding:22px;text-align:center;cursor:pointer;background:#f0fbf8;}
+    .photo-drop p{font-size:12px;color:var(--mid);margin-top:6px;}
+    .err{background:#fff0f0;border:1px solid #f3c2c2;color:#c0392b;border-radius:8px;padding:10px 14px;font-size:12px;margin-top:12px;display:none;line-height:1.5;}
+    .cp{background:#fff0f0;border:1px solid #f3c2c2;border-left:4px solid #c0392b;border-radius:10px;padding:12px 16px;font-size:12px;color:#8a4040;line-height:1.6;margin-bottom:14px;}
+    .success{text-align:center;padding:50px 18px;display:none;}
+    .success .ic{width:74px;height:74px;background:linear-gradient(135deg,var(--coral),var(--teal));border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:32px;margin:0 auto 18px;color:#fff;}
+    .success h2{font-size:21px;font-weight:800;margin-bottom:10px;}
+    .success p{font-size:14px;color:var(--mid);line-height:1.6;max-width:360px;margin:0 auto 6px;}
+    .queued{background:#fdf3df;border:1px solid #f0d9a0;border-radius:8px;padding:10px 14px;font-size:12px;color:#a16207;margin-top:12px;display:none;line-height:1.5;}
+  </style>
+</head>
+<body>
+<div class="header">
+  <div class="logo">✍️</div>
+  <div><h1>Photo &amp; Video Consent</h1><p>The Remnant Generation · captured by Charis Creations</p></div>
+  <div class="net off" id="netBadge">offline</div>
+</div>
+
+<div class="wrap">
+  <div id="form-view">
+    <div class="hero">
+      <h2>Permission to share a story</h2>
+      <p>Before we photograph or film someone, we ask their permission. This takes a minute and protects everyone — especially children.</p>
+    </div>
+
+    <div class="cp">🛡️ <strong>For children:</strong> a parent or guardian must give consent — never the child. Only record what is needed. If anyone is unsure, do not photograph.</div>
+
+    <div class="card">
+      <div class="fg">
+        <label>Your access code <span class="req">*</span></label>
+        <div class="hint">From Charis — entered once on this device.</div>
+        <input type="text" id="accessCode" placeholder="Access code"/>
+      </div>
+
+      <div class="fg">
+        <label>Who is being photographed / filmed? <span class="req">*</span></label>
+        <div class="seg" id="subjectSeg">
+          <div class="opt sel" data-v="adult" onclick="pickSubject('adult')">An adult (18+)</div>
+          <div class="opt" data-v="minor" onclick="pickSubject('minor')">A child (under 18)</div>
+        </div>
+      </div>
+
+      <div class="fg">
+        <label id="subjLabel">Person's name <span class="req">*</span></label>
+        <div class="hint">First name or a reference is fine — you don't have to write a full name.</div>
+        <input type="text" id="subjectName" placeholder="e.g. Sarah, or 'boy in blue shirt'"/>
+      </div>
+
+      <div class="minor" id="minorBlock">
+        <div class="fg">
+          <label>Parent / guardian giving consent <span class="req">*</span></label>
+          <input type="text" id="guardianName" placeholder="Guardian's name"/>
+        </div>
+        <div class="fg">
+          <label>Their relationship to the child</label>
+          <select id="guardianRelation">
+            <option value="">— Select —</option>
+            <option>Mother</option><option>Father</option><option>Legal Guardian</option>
+            <option>Grandparent</option><option>TRG Caregiver</option><option>Other</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="fg">
+        <label>Phone (optional)</label>
+        <input type="tel" id="phone" placeholder="In case we need to follow up"/>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="fg">
+        <label>What do they agree to us using the photos/video for? <span class="req">*</span></label>
+        <div class="hint">Tick only what they agree to. They can say yes to some and no to others.</div>
+        <div class="scope" id="scopeBox">
+          <label><input type="checkbox" value="social"> 📱 Social media (Facebook, Instagram, TikTok)</label>
+          <label><input type="checkbox" value="newsletter"> 📧 Email newsletter</label>
+          <label><input type="checkbox" value="website"> 🌐 TRG website</label>
+          <label><input type="checkbox" value="fundraising"> 🤝 Fundraising appeals &amp; donor materials</label>
+          <label><input type="checkbox" value="print"> 🖨️ Printed reports &amp; brochures</label>
+        </div>
+      </div>
+      <div class="fg">
+        <label>Any limits they asked for?</label>
+        <div class="hint">e.g. "first name only", "do not show face", "anonymous".</div>
+        <textarea id="limits" rows="2" placeholder="Write any limits in their words…"></textarea>
+      </div>
+    </div>
+
+    <div class="card">
+      <label>Their consent <span class="req">*</span></label>
+      <div class="hint">They sign on the screen, or photograph a signed paper form. Either works.</div>
+      <div class="tabs">
+        <div class="tab sel" id="tab-sign" onclick="pickTab('sign')">✍️ Sign on screen</div>
+        <div class="tab" id="tab-photo" onclick="pickTab('photo')">📷 Photo of paper form</div>
+      </div>
+      <div class="pane show" id="pane-sign">
+        <div class="sigwrap"><canvas id="sig"></canvas></div>
+        <div class="sigtools"><button class="btn btn-ghost" type="button" onclick="clearSig()">Clear</button>
+          <span style="font-size:11px;color:var(--light);align-self:center;">Sign above with a finger</span></div>
+      </div>
+      <div class="pane" id="pane-photo">
+        <div class="photo-drop" onclick="document.getElementById('formPhoto').click()">
+          <div style="font-size:30px;">📷</div>
+          <strong style="font-size:14px;">Tap to photograph the signed form</strong>
+          <p id="photoName">JPG or PNG</p>
+        </div>
+        <input type="file" id="formPhoto" accept="image/*" capture="environment" onchange="photoPicked(this)"/>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="fg">
+        <label>Captured by <span class="req">*</span></label>
+        <input type="text" id="capturedBy" placeholder="Your name (Charis team)"/>
+      </div>
+      <div class="fg">
+        <label>Where / what event? (optional)</label>
+        <input type="text" id="location" placeholder="e.g. Lyantonde outreach, 12 June"/>
+      </div>
+    </div>
+
+    <div class="err" id="errBox"></div>
+    <div class="queued" id="queuedBox"></div>
+    <button class="btn btn-coral" id="saveBtn" onclick="submitConsent()">✅ Record Consent</button>
+    <p style="font-size:11px;color:var(--light);text-align:center;margin-top:10px;line-height:1.5;">Works without internet — if you have no signal, it saves on this phone and sends automatically when you're back online.</p>
+  </div>
+
+  <div class="success" id="success-view">
+    <div class="ic">✅</div>
+    <h2>Consent recorded</h2>
+    <p id="sucLine">Thank you. This person's permission is on file.</p>
+    <button class="btn btn-coral" style="max-width:280px;margin-top:20px;" onclick="resetForm()">＋ Record another</button>
+  </div>
+</div>
+
+<script>
+  var _SB_URL='https://vlmcwmjhmenbnymwfkdk.supabase.co';
+  var _SB_KEY='sb_publishable_Q7wTRJK-hCy87Tfy7ROkeA_94Q9HQQw';
+  var sb=null; try{ sb=supabase.createClient(_SB_URL,_SB_KEY); }catch(e){}
+
+  var subjectType='adult', sigTab='sign', formPhotoFile=null, hasSignature=false;
+
+  // network badge + auto-sync of queued consents
+  function updateNet(){ var on=navigator.onLine; var b=document.getElementById('netBadge'); b.className='net '+(on?'on':'off'); b.textContent=on?'online':'offline'; if(on) syncQueue(); }
+  window.addEventListener('online',updateNet); window.addEventListener('offline',updateNet);
+
+  // ── signature canvas ──
+  var canvas, ctx, drawing=false;
+  function initSig(){
+    canvas=document.getElementById('sig');
+    var rect=canvas.getBoundingClientRect();
+    canvas.width=rect.width*2; canvas.height=180*2;
+    ctx=canvas.getContext('2d'); ctx.scale(2,2); ctx.lineWidth=2.5; ctx.lineCap='round'; ctx.strokeStyle='#2d2d2d';
+    function pos(e){ var r=canvas.getBoundingClientRect(); var t=e.touches?e.touches[0]:e; return {x:t.clientX-r.left,y:t.clientY-r.top}; }
+    function start(e){ drawing=true; hasSignature=true; var p=pos(e); ctx.beginPath(); ctx.moveTo(p.x,p.y); e.preventDefault(); }
+    function move(e){ if(!drawing)return; var p=pos(e); ctx.lineTo(p.x,p.y); ctx.stroke(); e.preventDefault(); }
+    function end(){ drawing=false; }
+    canvas.addEventListener('mousedown',start); canvas.addEventListener('mousemove',move); document.addEventListener('mouseup',end);
+    canvas.addEventListener('touchstart',start,{passive:false}); canvas.addEventListener('touchmove',move,{passive:false}); canvas.addEventListener('touchend',end);
+  }
+  function clearSig(){ ctx.clearRect(0,0,canvas.width,canvas.height); hasSignature=false; }
+
+  function pickSubject(v){ subjectType=v; document.querySelectorAll('#subjectSeg .opt').forEach(function(o){ o.classList.toggle('sel',o.dataset.v===v); });
+    document.getElementById('minorBlock').classList.toggle('show',v==='minor');
+    document.getElementById('subjLabel').innerHTML = v==='minor' ? 'Child’s name / reference <span class="req">*</span>' : 'Person’s name <span class="req">*</span>';
+  }
+  function pickTab(t){ sigTab=t; document.getElementById('tab-sign').classList.toggle('sel',t==='sign'); document.getElementById('tab-photo').classList.toggle('sel',t==='photo');
+    document.getElementById('pane-sign').classList.toggle('show',t==='sign'); document.getElementById('pane-photo').classList.toggle('show',t==='photo'); }
+  function photoPicked(inp){ formPhotoFile=inp.files[0]||null; document.getElementById('photoName').textContent=formPhotoFile?formPhotoFile.name:'JPG or PNG'; }
+
+  document.addEventListener('DOMContentLoaded',function(){
+    initSig(); updateNet();
+    try{ var c=localStorage.getItem('trg_access_code')||''; if(c) document.getElementById('accessCode').value=c; }catch(e){}
+    try{ var n=localStorage.getItem('trg_my_name')||''; if(n) document.getElementById('capturedBy').value=n; }catch(e){}
+    renderQueueNote();
+  });
+
+  function showErr(m){ var e=document.getElementById('errBox'); e.textContent=m; e.style.display='block'; }
+
+  function dataURLtoBlob(d){ var arr=d.split(','),mime=arr[0].match(/:(.*?);/)[1],bstr=atob(arr[1]),n=bstr.length,u=new Uint8Array(n); while(n--)u[n]=bstr.charCodeAt(n); return new Blob([u],{type:mime}); }
+
+  async function submitConsent(){
+    document.getElementById('errBox').style.display='none';
+    var code=(document.getElementById('accessCode').value||'').trim();
+    var name=(document.getElementById('subjectName').value||'').trim();
+    var scope=Array.prototype.slice.call(document.querySelectorAll('#scopeBox input:checked')).map(function(x){return x.value;});
+    var capturedBy=(document.getElementById('capturedBy').value||'').trim();
+    if(!code){ showErr('Enter the access code.'); return; }
+    if(!name){ showErr('Enter who is being photographed.'); return; }
+    if(subjectType==='minor' && !(document.getElementById('guardianName').value||'').trim()){ showErr('For a child, the parent/guardian giving consent is required.'); return; }
+    if(!scope.length){ showErr('Tick at least one thing they agree to.'); return; }
+    if(!capturedBy){ showErr('Enter your name (captured by).'); return; }
+    var sigData = (sigTab==='sign' && hasSignature) ? canvas.toDataURL('image/png') : null;
+    if(!sigData && !formPhotoFile){ showErr('Capture their signature on screen, or a photo of the signed form.'); return; }
+
+    var btn=document.getElementById('saveBtn'); btn.disabled=true; btn.textContent='⏳ Saving…';
+    var id='CONSENT-'+Date.now()+'-'+Math.floor(Math.random()*1000);
+    var rec={ id:id, client:'TRG', access_code:code, subjectType:subjectType, subjectName:name,
+      guardianName:(document.getElementById('guardianName').value||'').trim(),
+      guardianRelation:(document.getElementById('guardianRelation').value||''),
+      phone:(document.getElementById('phone').value||'').trim(),
+      scope:scope, limits:(document.getElementById('limits').value||'').trim(),
+      capturedBy:capturedBy, location:(document.getElementById('location').value||'').trim(),
+      _sigData:sigData, _hasPhoto:!!formPhotoFile };
+
+    try{ localStorage.setItem('trg_access_code',code); localStorage.setItem('trg_my_name',capturedBy); }catch(e){}
+
+    // If offline OR no supabase, queue it
+    if(!navigator.onLine || !sb){
+      queueRecord(rec, formPhotoFile, sigData);
+      finishSuccess(true);
+      return;
+    }
+    try{
+      await uploadAndSubmit(rec, formPhotoFile, sigData);
+      finishSuccess(false);
+    }catch(err){
+      // network failed mid-way — queue it so nothing is lost
+      queueRecord(rec, formPhotoFile, sigData);
+      finishSuccess(true);
+    }
+  }
+
+  async function uploadAndSubmit(rec, photoFile, sigData){
+    var ym=new Date().toISOString().slice(0,7);
+    var sigPath='', photoPath='';
+    if(sigData){ var sb1=dataURLtoBlob(sigData); var r1=await sb.storage.from('trg-consent').upload(ym+'/'+rec.id+'_sig.png',sb1,{upsert:true,contentType:'image/png'}); if(!r1.error) sigPath=ym+'/'+rec.id+'_sig.png'; }
+    if(photoFile){ var safe=(photoFile.name||'form.jpg').replace(/[^A-Za-z0-9._-]/g,'_'); var r2=await sb.storage.from('trg-consent').upload(ym+'/'+rec.id+'_'+safe,photoFile,{upsert:true,contentType:photoFile.type||'image/jpeg'}); if(!r2.error) photoPath=ym+'/'+rec.id+'_'+safe; }
+    var payload={ id:rec.id, client:'TRG', access_code:rec.access_code, subjectType:rec.subjectType, subjectName:rec.subjectName,
+      guardianName:rec.guardianName, guardianRelation:rec.guardianRelation, phone:rec.phone, scope:rec.scope, limits:rec.limits,
+      signaturePath:sigPath, formPhotoPath:photoPath, capturedBy:rec.capturedBy, location:rec.location, eventRef:'' };
+    var rpc=await sb.rpc('submit_consent',{ p_id:rec.id, p_data:payload });
+    if(rpc.error) throw rpc.error;
+    if(rpc.data && rpc.data.success===false){ if(rpc.data.error==='invalid_access_code'){ throw new Error('CODE'); } }
+  }
+
+  // ── offline queue ──
+  function queueRecord(rec, photoFile, sigData){
+    try{
+      var q=JSON.parse(localStorage.getItem('trg_consent_queue')||'[]');
+      // photo can't easily serialize; store sig data + note that a photo is pending (re-attach not supported offline for photo)
+      q.push({ rec:rec, sigData:sigData||null, photoPending:!!photoFile });
+      localStorage.setItem('trg_consent_queue', JSON.stringify(q));
+    }catch(e){}
+    renderQueueNote();
+  }
+  async function syncQueue(){
+    if(!sb) return;
+    var q; try{ q=JSON.parse(localStorage.getItem('trg_consent_queue')||'[]'); }catch(e){ return; }
+    if(!q.length) return;
+    var remaining=[];
+    for(var i=0;i<q.length;i++){
+      try{ await uploadAndSubmit(q[i].rec, null, q[i].sigData); }
+      catch(e){ remaining.push(q[i]); }
+    }
+    localStorage.setItem('trg_consent_queue', JSON.stringify(remaining));
+    renderQueueNote();
+  }
+  function renderQueueNote(){
+    var q=[]; try{ q=JSON.parse(localStorage.getItem('trg_consent_queue')||'[]'); }catch(e){}
+    var box=document.getElementById('queuedBox');
+    if(q.length){ box.style.display='block'; box.textContent='📥 '+q.length+' consent'+(q.length>1?'s':'')+' saved on this phone, waiting for signal. They will send automatically when you are back online.'; }
+    else box.style.display='none';
+  }
+
+  function finishSuccess(queued){
+    document.getElementById('sucLine').textContent = queued
+      ? 'Saved on this phone. It will send to Charis automatically when you have signal.'
+      : 'Thank you. This person’s permission is now on file with Charis.';
+    document.getElementById('form-view').style.display='none';
+    document.getElementById('success-view').style.display='block';
+    window.scrollTo({top:0,behavior:'smooth'});
+  }
+
+  function resetForm(){
+    document.getElementById('subjectName').value='';
+    document.getElementById('guardianName').value='';
+    document.getElementById('guardianRelation').value='';
+    document.getElementById('phone').value='';
+    document.getElementById('limits').value='';
+    document.getElementById('location').value='';
+    document.querySelectorAll('#scopeBox input:checked').forEach(function(x){x.checked=false;});
+    formPhotoFile=null; document.getElementById('photoName').textContent='JPG or PNG'; document.getElementById('formPhoto').value='';
+    clearSig(); pickSubject('adult'); pickTab('sign');
+    var btn=document.getElementById('saveBtn'); btn.disabled=false; btn.textContent='✅ Record Consent';
+    document.getElementById('success-view').style.display='none';
+    document.getElementById('form-view').style.display='block';
+    window.scrollTo({top:0,behavior:'smooth'});
+  }
+</script>
+</body>
+</html>

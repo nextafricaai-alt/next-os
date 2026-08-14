@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Testimonials — Charis Creations</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;700;900&display=swap" rel="stylesheet"/>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Montserrat',sans-serif;background:transparent;color:#e2e8f0;}
+
+.testimonials-grid{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));
+  gap:20px;padding:20px 0;
+}
+
+.testimonial-card{
+  background:#1e293b;border-radius:12px;padding:24px;
+  border:1px solid #334155;position:relative;
+  transition:transform 0.2s,box-shadow 0.2s;
+}
+.testimonial-card:hover{
+  transform:translateY(-2px);
+  box-shadow:0 8px 24px rgba(0,0,0,0.3);
+}
+
+/* Quote mark */
+.testimonial-card::before{
+  content:'\201C';position:absolute;top:12px;left:20px;
+  font-size:48px;color:rgba(241,102,35,0.2);font-family:Georgia,serif;line-height:1;
+}
+
+.test-stars{margin-bottom:12px;font-size:16px;letter-spacing:2px;}
+.star-filled{color:#f59e0b;}
+.star-empty{color:#334155;}
+
+.test-comment{
+  font-size:14px;line-height:1.7;color:#cbd5e1;
+  margin-bottom:16px;font-style:italic;
+  min-height:60px;
+}
+
+.test-author{display:flex;align-items:center;gap:12px;padding-top:14px;border-top:1px solid #334155;}
+.test-avatar{
+  width:40px;height:40px;border-radius:50%;
+  background:linear-gradient(135deg,#f16623,#e05515);
+  display:flex;align-items:center;justify-content:center;
+  font-size:16px;font-weight:700;color:#fff;
+}
+.test-name{font-size:13px;font-weight:700;color:#fff;}
+.test-event{font-size:11px;color:#94a3b8;margin-top:1px;}
+
+/* Loading */
+.loading{text-align:center;padding:40px;color:#64748b;font-size:13px;}
+.loading .spinner{
+  width:24px;height:24px;border:2px solid #334155;border-top-color:#f16623;
+  border-radius:50%;animation:spin 0.8s linear infinite;
+  margin:0 auto 12px;
+}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+/* Empty */
+.empty-state{text-align:center;padding:40px;color:#64748b;font-size:13px;}
+</style>
+</head>
+<body>
+
+<div id="container">
+  <div class="loading">
+    <div class="spinner"></div>
+    Loading testimonials...
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+(function() {
+  'use strict';
+
+  var SUPA_URL = 'https://vlmcwmjhmenbnymwfkdk.supabase.co';
+  var SUPA_KEY = 'sb_publishable_Q7wTRJK-hCy87Tfy7ROkeA_94Q9HQQw';
+  var SB = window.supabase.createClient(SUPA_URL, SUPA_KEY);
+
+  var container = document.getElementById('container');
+
+  async function load() {
+    try {
+      var { data, error } = await SB.rpc('get_public_testimonials', { p_limit: 6 });
+      if (error) throw error;
+
+      if (!data || !data.success || !data.testimonials || data.testimonials.length === 0) {
+        container.innerHTML = '<div class="empty-state">More testimonials coming soon.</div>';
+        return;
+      }
+
+      var html = '<div class="testimonials-grid">';
+      var items = data.testimonials;
+
+      for (var i = 0; i < items.length; i++) {
+        var t = items[i];
+        var rating = parseInt(t.rating) || 5;
+        var initials = getInitials(t.name || 'C');
+        var comment = esc(t.comment || '');
+        var name = esc(t.name || 'Client');
+        var eventType = esc(t.eventType || '');
+
+        // Stars
+        var stars = '';
+        for (var s = 1; s <= 5; s++) {
+          stars += '<span class="' + (s <= rating ? 'star-filled' : 'star-empty') + '">&#9733;</span>';
+        }
+
+        // Truncate long comments
+        if (comment.length > 180) {
+          comment = comment.substring(0, 177) + '...';
+        }
+
+        html += '<div class="testimonial-card">' +
+          '<div class="test-stars">' + stars + '</div>' +
+          '<div class="test-comment">"' + comment + '"</div>' +
+          '<div class="test-author">' +
+            '<div class="test-avatar">' + initials + '</div>' +
+            '<div><div class="test-name">' + name + '</div>' +
+            (eventType ? '<div class="test-event">' + eventType + '</div>' : '') +
+            '</div>' +
+          '</div>' +
+        '</div>';
+      }
+
+      html += '</div>';
+      container.innerHTML = html;
+
+    } catch(e) {
+      console.error('Testimonials error:', e);
+      container.innerHTML = '<div class="empty-state">Could not load testimonials.</div>';
+    }
+  }
+
+  function getInitials(name) {
+    var parts = name.trim().split(/\s+/);
+    if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+    return name.substring(0, 2).toUpperCase();
+  }
+
+  function esc(s) {
+    var d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+  }
+
+  load();
+})();
+</script>
+</body>
+</html>

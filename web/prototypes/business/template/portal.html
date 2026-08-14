@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Charis Creations — Client Portal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;900&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0D1B2A;
+  --card: #1B2838;
+  --card2: #243447;
+  --border: #2D3F52;
+  --orange: #F16623;
+  --orange-dim: #F1662333;
+  --text: #F1F5F9;
+  --muted: #94A3B8;
+  --dim: #64748B;
+  --green: #10B981;
+  --red: #EF4444;
+  --amber: #F59E0B;
+  --purple: #8B5CF6;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  font-family: 'Montserrat', -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+.container { max-width: 560px; margin: 0 auto; padding: 0 16px 80px; }
+
+/* Header */
+.header {
+  text-align: center;
+  padding: 32px 16px 20px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 24px;
+}
+.logo-text {
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 3px;
+  color: var(--orange);
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+.header h1 {
+  font-size: 22px;
+  font-weight: 900;
+  margin-bottom: 6px;
+  line-height: 1.3;
+}
+.header h1 span { color: var(--orange); }
+.header-sub {
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+/* Loading */
+.loading {
+  text-align: center;
+  padding: 80px 20px;
+}
+.loading-spinner {
+  width: 40px; height: 40px;
+  border: 3px solid var(--border);
+  border-top-color: var(--orange);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin: 0 auto 16px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading p { font-size: 13px; color: var(--muted); }
+
+/* Error */
+.error-screen {
+  text-align: center;
+  padding: 60px 20px;
+}
+.error-screen .icon { font-size: 48px; margin-bottom: 16px; }
+.error-screen h2 { font-size: 18px; font-weight: 800; color: var(--orange); margin-bottom: 8px; }
+.error-screen p { font-size: 13px; color: var(--muted); line-height: 1.7; max-width: 360px; margin: 0 auto 20px; }
+
+/* Section */
+.section { margin-bottom: 20px; }
+.section-label {
+  font-size: 10px;
+  font-weight: 800;
+  color: var(--orange);
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  margin-bottom: 12px;
+}
+
+/* Info card */
+.info-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px;
+  margin-bottom: 12px;
+}
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+.info-row:last-child { border-bottom: none; }
+.info-label { color: var(--muted); font-size: 11px; font-weight: 600; }
+.info-value { font-weight: 700; text-align: right; }
+
+/* Pipeline */
+.pipeline {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  margin-bottom: 8px;
+  position: relative;
+}
+.pipe-step {
+  flex: 1;
+  height: 6px;
+  background: var(--card2);
+  position: relative;
+}
+.pipe-step:first-child { border-radius: 4px 0 0 4px; }
+.pipe-step:last-child { border-radius: 0 4px 4px 0; }
+.pipe-step.done { background: var(--green); }
+.pipe-step.current { background: var(--orange); animation: pulse-bar 1.5s ease-in-out infinite; }
+@keyframes pulse-bar { 0%,100% { opacity:1; } 50% { opacity:0.6; } }
+
+.pipeline-labels {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+.pipe-label {
+  font-size: 9px;
+  color: var(--dim);
+  text-align: center;
+  flex: 1;
+}
+.pipe-label.active { color: var(--orange); font-weight: 700; }
+.pipe-label.done-label { color: var(--green); }
+
+.stage-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  margin-top: 8px;
+}
+
+/* Payment */
+.payment-bar-bg {
+  height: 10px;
+  background: var(--card2);
+  border-radius: 6px;
+  overflow: hidden;
+  margin: 8px 0;
+}
+.payment-bar-fill {
+  height: 100%;
+  border-radius: 6px;
+  transition: width 0.6s ease;
+}
+
+/* Gallery */
+.gallery-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 14px;
+  background: var(--orange);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+  text-decoration: none;
+  letter-spacing: 0.5px;
+}
+.gallery-btn:hover { filter: brightness(1.1); }
+
+/* Feedback */
+.stars { display: flex; gap: 6px; justify-content: center; margin: 16px 0; }
+.star {
+  font-size: 36px;
+  cursor: pointer;
+  color: var(--card2);
+  transition: color 0.15s, transform 0.15s;
+  user-select: none;
+}
+.star:hover { transform: scale(1.15); }
+.star.on { color: #F59E0B; }
+textarea.fb-text {
+  width: 100%;
+  min-height: 80px;
+  background: var(--card2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 13px;
+  padding: 12px;
+  resize: vertical;
+  margin-bottom: 12px;
+}
+textarea.fb-text:focus { outline: none; border-color: var(--orange); }
+
+.fb-approve {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  background: var(--card2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 16px;
+  cursor: pointer;
+  font-size: 13px;
+}
+.fb-approve input { width: 18px; height: 18px; accent-color: var(--green); cursor: pointer; }
+
+.submit-btn {
+  width: 100%;
+  padding: 14px;
+  background: var(--orange);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+  letter-spacing: 0.5px;
+}
+.submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.submit-btn:hover:not(:disabled) { filter: brightness(1.1); }
+
+.fb-success {
+  text-align: center;
+  padding: 24px;
+  background: #10B98111;
+  border: 1px solid #10B98133;
+  border-radius: 10px;
+}
+.fb-success .icon { font-size: 40px; margin-bottom: 8px; }
+.fb-success h3 { font-size: 15px; font-weight: 800; color: var(--green); margin-bottom: 6px; }
+.fb-success p { font-size: 12px; color: var(--muted); line-height: 1.6; }
+
+/* Footer */
+.footer {
+  text-align: center;
+  padding: 32px 16px;
+  border-top: 1px solid var(--border);
+  margin-top: 32px;
+}
+.footer-logo { font-size: 11px; font-weight: 900; letter-spacing: 2px; color: var(--orange); margin-bottom: 4px; }
+.footer-tag { font-size: 10px; color: var(--dim); letter-spacing: 1px; }
+.footer-contact { margin-top: 12px; }
+.footer-contact a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: #25D36622;
+  color: #25D366;
+  border: 1px solid #25D36644;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  text-decoration: none;
+}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <div class="logo-text">CHARIS CREATIONS</div>
+    <h1>Your <span>Project Portal</span></h1>
+    <p class="header-sub">Track your project progress, payments, and deliverables.</p>
+  </div>
+  <div id="app">
+    <div class="loading">
+      <div class="loading-spinner"></div>
+      <p>Loading your project...</p>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+(function() {
+  'use strict';
+
+  var SUPA_URL = 'https://vlmcwmjhmenbnymwfkdk.supabase.co';
+  var SUPA_KEY = 'sb_publishable_Q7wTRJK-hCy87Tfy7ROkeA_94Q9HQQw';
+  var SB = window.supabase.createClient(SUPA_URL, SUPA_KEY);
+
+  var APP  = document.getElementById('app');
+  var token = new URLSearchParams(window.location.search).get('token');
+
+  // ── Client-friendly stage names ──
+  var CLIENT_STAGES = [
+    { key: 'booked',    label: 'Booked',    icon: '📋', nums: [1,2,3,4,5] },
+    { key: 'preparing', label: 'Preparing',  icon: '🎬', nums: [6] },
+    { key: 'shooting',  label: 'Shoot Day',  icon: '📸', nums: [7] },
+    { key: 'editing',   label: 'Editing',    icon: '✂️', nums: [8,9,10,11] },
+    { key: 'delivered', label: 'Delivered',  icon: '🎉', nums: [12] }
+  ];
+
+  // ── Helpers ──
+  function esc(s) { var d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+  function fmt(n) { return (n || 0).toLocaleString('en-UG'); }
+  function fmtDate(d) {
+    if (!d) return '—';
+    var dt = new Date(d);
+    if (isNaN(dt)) return d;
+    var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return dt.getDate() + ' ' + months[dt.getMonth()] + ' ' + dt.getFullYear();
+  }
+
+  // ── Error screen ──
+  function showError(icon, title, msg) {
+    APP.innerHTML =
+      '<div class="error-screen">' +
+        '<div class="icon">' + icon + '</div>' +
+        '<h2>' + esc(title) + '</h2>' +
+        '<p>' + msg + '</p>' +
+        '<div style="margin-top:16px;">' +
+          '<a href="https://wa.me/256706028899" style="display:inline-flex;align-items:center;gap:6px;padding:10px 20px;background:#25D36622;color:#25D366;border:1px solid #25D36644;border-radius:8px;font-size:12px;font-weight:700;text-decoration:none;">💬 Contact Charis Creations</a>' +
+        '</div>' +
+      '</div>';
+  }
+
+  // ── Validate token ──
+  if (!token || !token.trim()) {
+    showError('🔗', 'No portal link found', 'This link appears to be incomplete. Please use the portal link sent to you by Charis Creations via WhatsApp.');
+    return;
+  }
+
+  // ── Load data ──
+  SB.rpc('get_portal_data', { p_token: token.trim() }).then(function(res) {
+    if (res.error) {
+      showError('⚠️', 'Connection error', 'We couldn\'t reach our servers. Please check your internet connection and try again.');
+      console.error('Portal RPC error:', res.error);
+      return;
+    }
+
+    var d = res.data;
+    if (!d || d.error === 'invalid_token' || d.error === 'no_token') {
+      showError('🔒', 'Link not recognised', 'This portal link is invalid or has expired. Please contact Charis Creations for an updated link.');
+      return;
+    }
+
+    renderPortal(d);
+  }).catch(function(e) {
+    showError('⚠️', 'Something went wrong', 'We couldn\'t load your project. Please check your connection and try again.');
+    console.error('Portal fetch error:', e);
+  });
+
+  // ── Render ──
+  function renderPortal(d) {
+    var stageNum   = d.stage_number || 1;
+    var budget     = d.budget || 0;
+    var deposit    = d.deposit_paid || 0;
+    var outstanding = Math.max(0, budget - deposit);
+    var paidPct    = budget > 0 ? Math.min(100, Math.round((deposit / budget) * 100)) : 0;
+    var isDelivered = stageNum >= 12;
+    var hasGallery  = !!d.gallery_link;
+    var hasFeedback = d.feedback_rating && d.feedback_rating > 0;
+    var firstName   = (d.client_name || 'there').split(' ')[0];
+
+    // Find current client stage
+    var currentClientStage = null;
+    for (var i = 0; i < CLIENT_STAGES.length; i++) {
+      if (CLIENT_STAGES[i].nums.indexOf(stageNum) >= 0) {
+        currentClientStage = CLIENT_STAGES[i];
+        break;
+      }
+    }
+
+    var html = '';
+
+    // ── Greeting ──
+    html += '<div style="text-align:center;margin-bottom:24px;">' +
+      '<div style="font-size:24px;font-weight:900;margin-bottom:4px;">Hello, <span style="color:var(--orange);">' + esc(firstName) + '</span>!</div>' +
+      '<div style="font-size:12px;color:var(--muted);">' + esc(d.project_ref || '') + ' &middot; ' + esc(d.event_type || 'Project') + '</div>' +
+    '</div>';
+
+    // ── Project Progress ──
+    html += '<div class="section">' +
+      '<div class="section-label">Project Progress</div>' +
+      '<div class="info-card">';
+
+    // Pipeline bar
+    html += '<div class="pipeline-labels">';
+    for (var s = 0; s < CLIENT_STAGES.length; s++) {
+      var cs = CLIENT_STAGES[s];
+      var isDone = false;
+      var isCurrent = false;
+      for (var n = 0; n < cs.nums.length; n++) {
+        if (stageNum > cs.nums[cs.nums.length - 1]) isDone = true;
+        if (cs.nums.indexOf(stageNum) >= 0) isCurrent = true;
+      }
+      html += '<div class="pipe-label' + (isCurrent ? ' active' : '') + (isDone ? ' done-label' : '') + '">' + cs.icon + '<br>' + cs.label + '</div>';
+    }
+    html += '</div>';
+
+    html += '<div class="pipeline">';
+    for (var s2 = 0; s2 < CLIENT_STAGES.length; s2++) {
+      var cs2 = CLIENT_STAGES[s2];
+      var isDone2 = stageNum > cs2.nums[cs2.nums.length - 1];
+      var isCurrent2 = cs2.nums.indexOf(stageNum) >= 0;
+      html += '<div class="pipe-step' + (isDone2 ? ' done' : '') + (isCurrent2 ? ' current' : '') + '"></div>';
+    }
+    html += '</div>';
+
+    // Stage badge
+    var stageBg, stageColor;
+    if (isDelivered) { stageBg = '#10B98122'; stageColor = 'var(--green)'; }
+    else if (stageNum >= 8) { stageBg = '#8B5CF622'; stageColor = 'var(--purple)'; }
+    else if (stageNum >= 6) { stageBg = '#F1662322'; stageColor = 'var(--orange)'; }
+    else { stageBg = 'var(--card2)'; stageColor = 'var(--muted)'; }
+
+    html += '<div style="text-align:center;">' +
+      '<div class="stage-badge" style="background:' + stageBg + ';color:' + stageColor + ';">' +
+        (currentClientStage ? currentClientStage.icon : '📋') + ' ' + esc(d.project_stage || 'In Progress') +
+      '</div>' +
+    '</div>';
+
+    html += '</div></div>';
+
+    // ── Event Details ──
+    html += '<div class="section">' +
+      '<div class="section-label">Event Details</div>' +
+      '<div class="info-card">' +
+        '<div class="info-row"><span class="info-label">Event</span><span class="info-value">' + esc(d.event_type || '—') + '</span></div>' +
+        '<div class="info-row"><span class="info-label">Date</span><span class="info-value">' + fmtDate(d.event_date) + '</span></div>' +
+        (d.package_name ? '<div class="info-row"><span class="info-label">Package</span><span class="info-value">' + esc(d.package_name) + '</span></div>' : '') +
+        (d.delivery_deadline ? '<div class="info-row"><span class="info-label">Delivery By</span><span class="info-value">' + fmtDate(d.delivery_deadline) + '</span></div>' : '') +
+      '</div>' +
+    '</div>';
+
+    // ── Payment Status ──
+    if (budget > 0) {
+      var barColor = paidPct >= 100 ? 'var(--green)' : paidPct >= 50 ? 'var(--orange)' : 'var(--amber)';
+      html += '<div class="section">' +
+        '<div class="section-label">Payment Status</div>' +
+        '<div class="info-card">' +
+          '<div class="info-row"><span class="info-label">Total</span><span class="info-value">UGX ' + fmt(budget) + '</span></div>' +
+          '<div class="info-row"><span class="info-label">Paid</span><span class="info-value" style="color:var(--green);">UGX ' + fmt(deposit) + '</span></div>' +
+          (outstanding > 0 ? '<div class="info-row"><span class="info-label">Balance</span><span class="info-value" style="color:var(--amber);">UGX ' + fmt(outstanding) + '</span></div>' : '') +
+          '<div class="payment-bar-bg"><div class="payment-bar-fill" style="width:' + paidPct + '%;background:' + barColor + ';"></div></div>' +
+          '<div style="text-align:center;font-size:11px;color:var(--muted);">' + paidPct + '% paid</div>' +
+        '</div>' +
+      '</div>';
+
+      // Payment methods if balance outstanding
+      if (outstanding > 0) {
+        html += '<div class="info-card" style="border-left:3px solid var(--amber);">' +
+          '<div style="font-size:11px;font-weight:700;color:var(--amber);margin-bottom:8px;">💳 Payment Methods</div>' +
+          '<div style="font-size:12px;color:var(--muted);line-height:1.8;">' +
+            '<strong style="color:var(--text);">Equity Bank:</strong> 1025203511681<br>' +
+            '<em style="color:var(--dim);">Account Name: Charis Creations Limited</em><br>' +
+            '<strong style="color:var(--text);">MTN MoMo:</strong> 060215<br>' +
+            '<strong style="color:var(--text);">Airtel Money:</strong> 1320567<br>' +
+            '<strong style="color:var(--text);">FlexiPay:</strong> 267071' +
+          '</div>' +
+        '</div>';
+      }
+    }
+
+    // ── Gallery Link ──
+    if (hasGallery) {
+      html += '<div class="section">' +
+        '<div class="section-label">Your Gallery</div>' +
+        '<a href="' + esc(d.gallery_link) + '" target="_blank" class="gallery-btn">🖼️ View Your Gallery</a>' +
+      '</div>';
+    } else if (isDelivered) {
+      html += '<div class="section">' +
+        '<div class="section-label">Your Gallery</div>' +
+        '<div class="info-card" style="text-align:center;">' +
+          '<div style="font-size:28px;margin-bottom:8px;">🖼️</div>' +
+          '<div style="font-size:13px;color:var(--muted);">Your gallery link will appear here once it\'s ready.</div>' +
+        '</div>' +
+      '</div>';
+    }
+
+    // ── Client Brief Status ──
+    if (d.intake_status === 'pending') {
+      html += '<div class="info-card" style="border-left:3px solid var(--amber);">' +
+        '<div style="font-size:11px;font-weight:700;color:var(--amber);margin-bottom:6px;">📋 Client Brief</div>' +
+        '<div style="font-size:12px;color:var(--muted);line-height:1.6;">We\'ve sent you a brief form to help us prepare for your event. Please fill it out as soon as possible so we can make everything perfect for you.</div>' +
+      '</div>';
+    } else if (d.intake_status === 'submitted') {
+      html += '<div class="info-card" style="border-left:3px solid var(--green);">' +
+        '<div style="font-size:11px;font-weight:700;color:var(--green);margin-bottom:4px;">✅ Brief Received</div>' +
+        '<div style="font-size:12px;color:var(--muted);">Thank you for completing your brief. Our team is reviewing your preferences.</div>' +
+      '</div>';
+    }
+
+    // ── Feedback ──
+    if (isDelivered || stageNum >= 10) {
+      html += '<div class="section" id="feedback-section">' +
+        '<div class="section-label">Your Feedback</div>';
+
+      if (hasFeedback) {
+        // Already submitted
+        var starsFilled = '';
+        for (var fs = 1; fs <= 5; fs++) {
+          starsFilled += '<span style="font-size:24px;color:' + (fs <= d.feedback_rating ? '#F59E0B' : 'var(--card2)') + ';">★</span>';
+        }
+        html += '<div class="fb-success">' +
+          '<div class="icon">🙏</div>' +
+          '<h3>Thank you for your feedback!</h3>' +
+          '<div style="margin:8px 0;">' + starsFilled + '</div>' +
+          (d.feedback_comment ? '<p style="font-style:italic;">"' + esc(d.feedback_comment) + '"</p>' : '') +
+          (d.delivery_approved ? '<div style="font-size:11px;color:var(--green);margin-top:8px;">✅ Delivery approved</div>' : '') +
+        '</div>';
+      } else {
+        // Feedback form
+        html += '<div class="info-card">' +
+          '<div style="text-align:center;margin-bottom:8px;">' +
+            '<div style="font-size:14px;font-weight:700;margin-bottom:4px;">How was your experience?</div>' +
+            '<div style="font-size:11px;color:var(--muted);">Your feedback helps us serve you better.</div>' +
+          '</div>' +
+          '<div class="stars" id="stars">';
+        for (var st = 1; st <= 5; st++) {
+          html += '<span class="star" data-val="' + st + '">★</span>';
+        }
+        html += '</div>' +
+          '<textarea class="fb-text" id="fb-comment" placeholder="Tell us about your experience... (optional)"></textarea>' +
+          '<label class="fb-approve">' +
+            '<input type="checkbox" id="fb-approve">' +
+            '<span>I approve the final delivery</span>' +
+          '</label>' +
+          '<button class="submit-btn" id="fb-submit" disabled>Submit Feedback</button>' +
+          '<div id="fb-status" style="text-align:center;margin-top:8px;font-size:12px;"></div>' +
+        '</div>';
+      }
+      html += '</div>';
+    }
+
+    // ── What to Expect (if not yet delivered) ──
+    if (!isDelivered) {
+      var tips = [];
+      if (stageNum <= 5) {
+        tips = [
+          { icon: '📋', text: 'We\'ll send you a client brief form to help us understand your vision and preferences.' },
+          { icon: '📱', text: 'Stay in touch with us via WhatsApp for any questions or updates.' },
+          { icon: '📸', text: 'Start thinking about your must-have shots and any special moments you want captured.' }
+        ];
+      } else if (stageNum === 6) {
+        tips = [
+          { icon: '👔', text: 'Prepare your outfits and ensure everything is ready for the shoot day.' },
+          { icon: '📍', text: 'Confirm all locations and timing with your event coordinator.' },
+          { icon: '📱', text: 'Our team will reach out to confirm final details before the day.' }
+        ];
+      } else if (stageNum === 7) {
+        tips = [
+          { icon: '🎬', text: 'Our team is with you! Trust the process and enjoy your day.' },
+          { icon: '📸', text: 'We\'ll capture every important moment — just focus on making memories.' }
+        ];
+      } else {
+        tips = [
+          { icon: '✂️', text: 'Our editors are working on your footage. Great things take time.' },
+          { icon: '🎥', text: 'We\'ll share a preview for your review before the final delivery.' },
+          { icon: '⏰', text: d.delivery_deadline ? 'Expected delivery by ' + fmtDate(d.delivery_deadline) + '.' : 'We\'ll notify you when your gallery is ready.' }
+        ];
+      }
+
+      html += '<div class="section">' +
+        '<div class="section-label">What to Expect</div>' +
+        '<div class="info-card">';
+      for (var t = 0; t < tips.length; t++) {
+        html += '<div style="display:flex;gap:10px;align-items:flex-start;' + (t < tips.length - 1 ? 'margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);' : '') + '">' +
+          '<span style="font-size:18px;flex-shrink:0;">' + tips[t].icon + '</span>' +
+          '<span style="font-size:12px;color:var(--muted);line-height:1.6;">' + tips[t].text + '</span>' +
+        '</div>';
+      }
+      html += '</div></div>';
+    }
+
+    // ── Footer ──
+    html += '<div class="footer">' +
+      '<div class="footer-logo">CHARIS CREATIONS</div>' +
+      '<div class="footer-tag">Bringing Image to Life</div>' +
+      '<div class="footer-contact">' +
+        '<a href="https://wa.me/256706028899">💬 WhatsApp Us</a>' +
+      '</div>' +
+    '</div>';
+
+    APP.innerHTML = html;
+
+    // ── Wire up feedback form ──
+    if (!hasFeedback && (isDelivered || stageNum >= 10)) {
+      var selectedRating = 0;
+      var stars = document.querySelectorAll('#stars .star');
+      var submitBtn = document.getElementById('fb-submit');
+      var statusEl  = document.getElementById('fb-status');
+
+      stars.forEach(function(star) {
+        star.addEventListener('click', function() {
+          selectedRating = parseInt(this.dataset.val);
+          stars.forEach(function(s) {
+            s.classList.toggle('on', parseInt(s.dataset.val) <= selectedRating);
+          });
+          if (submitBtn) submitBtn.disabled = false;
+        });
+      });
+
+      if (submitBtn) {
+        submitBtn.addEventListener('click', function() {
+          if (selectedRating < 1) return;
+          submitBtn.disabled = true;
+          submitBtn.textContent = 'Submitting...';
+          if (statusEl) statusEl.textContent = '';
+
+          var comment  = (document.getElementById('fb-comment') || {}).value || '';
+          var approved = (document.getElementById('fb-approve') || {}).checked || false;
+
+          SB.rpc('submit_portal_feedback', {
+            p_token:    token.trim(),
+            p_rating:   selectedRating,
+            p_comment:  comment,
+            p_approved: approved
+          }).then(function(res) {
+            if (res.error || (res.data && res.data.error)) {
+              submitBtn.disabled = false;
+              submitBtn.textContent = 'Submit Feedback';
+              if (statusEl) { statusEl.style.color = 'var(--red)'; statusEl.textContent = 'Something went wrong. Please try again.'; }
+              return;
+            }
+            // Success — replace form with thank you
+            var section = document.getElementById('feedback-section');
+            if (section) {
+              var starsFilled = '';
+              for (var fs = 1; fs <= 5; fs++) {
+                starsFilled += '<span style="font-size:24px;color:' + (fs <= selectedRating ? '#F59E0B' : 'var(--card2)') + ';">★</span>';
+              }
+              section.innerHTML =
+                '<div class="section-label">Your Feedback</div>' +
+                '<div class="fb-success">' +
+                  '<div class="icon">🙏</div>' +
+                  '<h3>Thank you for your feedback!</h3>' +
+                  '<div style="margin:8px 0;">' + starsFilled + '</div>' +
+                  (comment ? '<p style="font-style:italic;">"' + esc(comment) + '"</p>' : '') +
+                  (approved ? '<div style="font-size:11px;color:var(--green);margin-top:8px;">✅ Delivery approved</div>' : '') +
+                '</div>';
+            }
+          }).catch(function(e) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Submit Feedback';
+            if (statusEl) { statusEl.style.color = 'var(--red)'; statusEl.textContent = 'Connection error. Please check your internet and try again.'; }
+            console.error('Feedback submit error:', e);
+          });
+        });
+      }
+    }
+  }
+
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Charis Team Pulse — Your Honest Voice</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{ --orange:#f16623; --bg:#0d1b2a; --card:#16263a; --card2:#1e3247; --line:#2b4159; --text:#e8eef5; --muted:#93a4b8; --green:#22c55e; }
+  *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  body{ margin:0; background:var(--bg); color:var(--text); font-family:'Montserrat',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif; line-height:1.5; }
+  .wrap{ max-width:640px; margin:0 auto; padding:20px 16px 60px; }
+  .logo{ text-align:center; font-weight:800; letter-spacing:.5px; color:var(--orange); font-size:14px; margin-bottom:6px; }
+  h1{ font-size:26px; margin:6px 0 4px; text-align:center; }
+  .sub{ text-align:center; color:var(--muted); font-size:14px; margin-bottom:20px; }
+  .intro{ background:var(--card); border:1px solid var(--line); border-radius:14px; padding:16px 18px; margin-bottom:22px; font-size:14px; }
+  .intro b{ color:var(--orange); }
+  .sec{ background:var(--card); border:1px solid var(--line); border-radius:14px; padding:18px; margin-bottom:18px; }
+  .sec h2{ font-size:17px; margin:0 0 4px; color:var(--orange); }
+  .sec .secwhy{ color:var(--muted); font-size:12.5px; font-style:italic; margin:0 0 14px; }
+  .q{ margin-bottom:16px; }
+  .q-label{ font-size:14.5px; margin-bottom:8px; display:block; }
+  .req{ color:var(--orange); }
+  .scale{ display:flex; gap:6px; flex-wrap:wrap; }
+  .scale button{ flex:1 1 0; min-width:54px; background:var(--card2); border:1px solid var(--line); color:var(--text); border-radius:10px; padding:9px 4px; font-size:12px; cursor:pointer; transition:.12s; text-align:center; }
+  .scale button .n{ display:block; font-size:16px; font-weight:700; margin-bottom:2px; }
+  .scale button.on{ background:var(--orange); border-color:var(--orange); color:#fff; font-weight:700; }
+  .scale10{ display:flex; gap:5px; flex-wrap:wrap; }
+  .scale10 button{ flex:1 1 8%; min-width:34px; background:var(--card2); border:1px solid var(--line); color:var(--text); border-radius:9px; padding:10px 0; font-size:15px; font-weight:700; cursor:pointer; transition:.12s; }
+  .scale10 button.on{ background:var(--orange); border-color:var(--orange); color:#fff; }
+  textarea, select, input[type=text]{ width:100%; background:var(--card2); border:1px solid var(--line); color:var(--text); border-radius:10px; padding:11px 12px; font-size:14px; font-family:inherit; resize:vertical; }
+  textarea:focus, select:focus, input:focus{ outline:none; border-color:var(--orange); }
+  .hint{ color:var(--muted); font-size:11.5px; margin-top:5px; }
+  .submit{ width:100%; background:var(--orange); color:#fff; border:none; border-radius:12px; padding:16px; font-size:16px; font-weight:700; cursor:pointer; margin-top:6px; }
+  .submit:disabled{ opacity:.6; }
+  .scalekey{ color:var(--muted); font-size:11px; text-align:right; margin-bottom:8px; }
+  .ok{ display:none; text-align:center; padding:50px 20px; }
+  .ok .big{ font-size:54px; }
+  .ok h2{ color:var(--green); }
+  .err{ color:#fca5a5; font-size:13px; margin-top:10px; text-align:center; display:none; }
+  .codebox{ background:var(--card); border:1px solid var(--line); border-radius:14px; padding:16px 18px; margin-bottom:18px; }
+  .foot{ text-align:center; color:var(--muted); font-size:11px; margin-top:24px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="logo">CHARIS CREATIONS</div>
+  <h1>Team Pulse</h1>
+  <div class="sub">Your honest voice — how are we really doing?</div>
+
+  <div id="form">
+    <div class="intro">
+      Hudson reads every answer personally — <b>not to judge anyone, but to make Charis better for all of us.</b>
+      Please be honest. Where there's a comment box, the real value is in the "why." This takes about 10 minutes.
+      Your name is attached so we can follow up and support you properly.
+    </div>
+
+    <div class="codebox">
+      <label class="q-label">Your name <span class="req">*</span></label>
+      <select id="who"><option value="">— select your name —</option></select>
+      <div id="otherWrap" style="display:none; margin-top:10px;">
+        <input type="text" id="otherName" placeholder="Type your name" />
+      </div>
+      <label class="q-label" style="margin-top:14px;">Team access code <span class="req">*</span></label>
+      <input type="text" id="code" placeholder="Pinned in the team WhatsApp group" />
+      <div class="hint">You only enter this once on this device.</div>
+    </div>
+
+    <div id="sections"></div>
+
+    <button class="submit" id="submitBtn">Submit my answers</button>
+    <div class="err" id="err"></div>
+    <div class="foot">Charis Creations Limited · Bringing Image to Life</div>
+  </div>
+
+  <div class="ok" id="ok">
+    <div class="big">🧡</div>
+    <h2>Thank you, <span id="okName">team</span>.</h2>
+    <p style="color:var(--muted);">Your voice has been received. It matters — and it will be acted on.</p>
+    <div class="foot">You can close this page now.</div>
+  </div>
+</div>
+
+<script>
+// ===================== SUPABASE =====================
+const _SB_URL = 'https://vlmcwmjhmenbnymwfkdk.supabase.co';
+const _SB_KEY = 'sb_publishable_Q7wTRJK-hCy87Tfy7ROkeA_94Q9HQQw';
+let _sb = null;
+try { _sb = supabase.createClient(_SB_URL, _SB_KEY); }
+catch(e){ console.warn('Supabase init failed; localStorage fallback active', e); }
+
+// ===================== TEAM =====================
+const TEAM = [
+  ["Hudson Tumusiime","Founder & Executive Creative Director"],
+  ["Jonathan Tugume","Lead Cinematographer & DOP"],
+  ["Kawalya Jessy","Cinematographer & Visual Storyteller"],
+  ["David Ahimbisibwe","Portrait Photographer & Content Creator"],
+  ["Grace Nakyambadde","Studio Photographer & Brand Designer"],
+  ["Elizabeth Nazziwa (Liz)","Cinematographer & Film Editor"],
+  ["Kibaro Darious","Content Creator & Social Media Strategist"],
+  ["Brian Mukosa","Photographer & Retouching Specialist"],
+  ["Ukasha Semirimu","Videographer & Film Editor"],
+  ["Wabwire Prosper","Brand Identity & Graphic Designer"],
+  ["Patience Tumusiime","Beauty Director & Client Experience Manager"],
+  ["Ibra Elo","Director & Lead Photographer"],
+  ["Emmanuel Patrick Yiga","Web Designer & Digital Developer"],
+  ["Mukisa Dickson","Lighting Director & Production Specialist"]
+];
+
+// ===================== QUESTIONS =====================
+// type: 'scale' (1-5), 'scale10' (1-10), 'text'
+const SCALE_LABELS = ["Not at all","A little","Somewhat","Mostly","Absolutely"];
+const SECTIONS = [
+  { id:"direction", title:"1. Direction & Clarity", why:"Do you know where we're going — and does it make sense?",
+    qs:[
+      {id:"dir1", t:"I clearly understand where Charis is going, and why.", type:"scale"},
+      {id:"dir2", t:"I can explain our mission and vision in my own words.", type:"scale"},
+      {id:"dir3", t:"I know what we're working toward this month / quarter / year.", type:"scale"},
+      {id:"dir4", t:"When I'm unsure what to do, I have enough direction to figure it out.", type:"scale"},
+      {id:"dir_c", t:"Anything to add on direction? (optional)", type:"text", optional:true},
+    ]},
+  { id:"comms", title:"2. Communication", why:"Does information reach you clearly and in time?",
+    qs:[
+      {id:"com1", t:"I feel informed about what's happening in the company.", type:"scale"},
+      {id:"com2", t:"When something is communicated to me, it's clear and easy to act on.", type:"scale"},
+      {id:"com3", t:"Important information reaches me in time (I rarely find out too late).", type:"scale"},
+      {id:"com_c", t:"What do you wish was communicated more often, or more clearly? (optional)", type:"text", optional:true},
+    ]},
+  { id:"support", title:"3. Support & Resources", why:"Are you set up to win, or set up to struggle?",
+    qs:[
+      {id:"sup1", t:"I have what I need to do my job well.", type:"scale"},
+      {id:"sup2", t:"When I face a challenge, I feel supported.", type:"scale"},
+      {id:"sup3", t:"I feel equipped to handle what's expected of me.", type:"scale"},
+      {id:"sup_tools", t:"What tools, training or resources do you need that you don't have? (optional)", type:"text", optional:true},
+      {id:"sup_slow", t:"What constantly slows you down that I could fix? (optional)", type:"text", optional:true},
+    ]},
+  { id:"safety", title:"4. Culture & Safety", why:"Do you feel safe enough to be honest here?",
+    qs:[
+      {id:"saf1", t:"I feel comfortable bringing problems or bad news to Hudson.", type:"scale"},
+      {id:"saf2", t:"My opinion matters in this company.", type:"scale"},
+      {id:"saf3", t:"I feel respected as a person — not just as an employee.", type:"scale"},
+      {id:"saf4", t:"I have NOT held back ideas out of fear of how they'd be received.", type:"scale"},
+      {id:"saf_c", t:"Is there anything about how we work together that feels unhealthy or unfair? (optional)", type:"text", optional:true},
+    ]},
+  { id:"lead", title:"5. Leadership — About Hudson", why:"The most direct questions. Be honest — this is how I grow.",
+    qs:[
+      {id:"led1", t:"Hudson follows through on what he says he'll do.", type:"scale"},
+      {id:"led2", t:"Hudson leads by example.", type:"scale"},
+      {id:"led3", t:"Hudson is easy to approach when I need help or clarity.", type:"scale"},
+      {id:"led4", t:"I get the right amount of guidance (not micromanaged, not abandoned).", type:"scale"},
+      {id:"led_harder", t:"One thing Hudson does that makes your work HARDER:", type:"text"},
+      {id:"led_better", t:"One thing Hudson does that makes your work BETTER:", type:"text"},
+      {id:"led_change", t:"If you could change one thing about how Hudson leads, what would it be?", type:"text"},
+    ]},
+  { id:"growth", title:"6. Growth & Development", why:"Are you growing here, or just working here?",
+    qs:[
+      {id:"gro1", t:"I feel like I'm growing in this company.", type:"scale"},
+      {id:"gro2", t:"I feel Hudson cares about my future — not just my output.", type:"scale"},
+      {id:"gro3", t:"I feel there is a future for me here.", type:"scale"},
+      {id:"gro4", t:"I feel challenged in a way that's good for me.", type:"scale"},
+      {id:"gro_skill", t:"What skill do you want to develop that you haven't had the chance to? (optional)", type:"text", optional:true},
+    ]},
+  { id:"company", title:"7. The Company — Straight Talk", why:"Help me see what I might be missing.",
+    qs:[
+      {id:"co_pretend", t:"What are we all pretending is fine that actually isn't?", type:"text"},
+      {id:"co_more", t:"What's working so well that we should do MORE of it?", type:"text", optional:true},
+      {id:"co_stop", t:"What should we STOP doing? (something that wastes time or money)", type:"text", optional:true},
+      {id:"co_future", t:"In your own words, where is Charis going in 3 years — and do you believe we'll get there?", type:"text"},
+      {id:"co_client", t:"What's one thing that would make a client tell ten people about us? (optional)", type:"text", optional:true},
+    ]},
+  { id:"retention", title:"8. The Most Important Question", why:"Honestly — and tell me what would change the number.",
+    qs:[
+      {id:"ret_score", t:"On a scale of 1–10, how likely are you to still be at Charis in two years?", type:"scale10"},
+      {id:"ret_raise", t:"What would make that number HIGHER?", type:"text"},
+    ]},
+  { id:"final", title:"9. Anything Else", why:"The floor is yours.",
+    qs:[
+      {id:"final_else", t:"Anything else you want me to know? (optional)", type:"text", optional:true},
+    ]},
+];
+
+// ===================== RENDER =====================
+const answers = {};
+const sel = document.getElementById('who');
+TEAM.forEach(([n])=>{ const o=document.createElement('option'); o.value=n; o.textContent=n; sel.appendChild(o); });
+{ const o=document.createElement('option'); o.value="__other"; o.textContent="Other / not listed"; sel.appendChild(o); }
+
+const roleMap = {}; TEAM.forEach(([n,r])=> roleMap[n]=r);
+
+sel.addEventListener('change', ()=>{
+  document.getElementById('otherWrap').style.display = sel.value==="__other" ? "block":"none";
+  try{ localStorage.setItem('charis_pulse_name', sel.value); }catch(e){}
+});
+
+const secWrap = document.getElementById('sections');
+SECTIONS.forEach(sec=>{
+  const d = document.createElement('div'); d.className='sec';
+  d.innerHTML = '<h2>'+sec.title+'</h2><p class="secwhy">'+sec.why+'</p>';
+  sec.qs.forEach(q=>{
+    const qd = document.createElement('div'); qd.className='q';
+    const reqMark = q.optional ? '' : ' <span class="req">*</span>';
+    qd.innerHTML = '<label class="q-label">'+q.t+reqMark+'</label>';
+    if(q.type==='scale'){
+      qd.innerHTML += '<div class="scalekey">1 = Not at all · 5 = Absolutely</div>';
+      const sc=document.createElement('div'); sc.className='scale';
+      for(let i=1;i<=5;i++){ const b=document.createElement('button'); b.type='button';
+        b.innerHTML='<span class="n">'+i+'</span>'+SCALE_LABELS[i-1];
+        b.onclick=()=>{ answers[q.id]=i; sc.querySelectorAll('button').forEach(x=>x.classList.remove('on')); b.classList.add('on'); };
+        sc.appendChild(b); }
+      qd.appendChild(sc);
+    } else if(q.type==='scale10'){
+      const sc=document.createElement('div'); sc.className='scale10';
+      for(let i=1;i<=10;i++){ const b=document.createElement('button'); b.type='button'; b.textContent=i;
+        b.onclick=()=>{ answers[q.id]=i; sc.querySelectorAll('button').forEach(x=>x.classList.remove('on')); b.classList.add('on'); };
+        sc.appendChild(b); }
+      qd.appendChild(sc);
+    } else {
+      const ta=document.createElement('textarea'); ta.rows=2; ta.placeholder='Type here...';
+      ta.oninput=()=>{ answers[q.id]=ta.value.trim(); };
+      qd.appendChild(ta);
+    }
+    d.appendChild(qd);
+  });
+  secWrap.appendChild(d);
+});
+
+// remember name + code on device
+try{
+  const sn=localStorage.getItem('charis_pulse_name'); if(sn){ sel.value=sn; if(sn==="__other") document.getElementById('otherWrap').style.display="block"; }
+  const sc=localStorage.getItem('charis_pulse_code'); if(sc) document.getElementById('code').value=sc;
+}catch(e){}
+
+// ===================== SUBMIT =====================
+const REQUIRED = [];
+SECTIONS.forEach(s=> s.qs.forEach(q=>{ if(!q.optional) REQUIRED.push({id:q.id, t:q.t}); }));
+
+document.getElementById('submitBtn').addEventListener('click', async ()=>{
+  const err = document.getElementById('err'); err.style.display='none';
+  let name = sel.value;
+  if(name==="__other") name = document.getElementById('otherName').value.trim();
+  const code = document.getElementById('code').value.trim();
+  if(!name){ return showErr('Please select or type your name.'); }
+  if(!code){ return showErr('Please enter the team access code (pinned in the WhatsApp group).'); }
+
+  for(const r of REQUIRED){
+    const v = answers[r.id];
+    if(v===undefined || v==='' ){ return showErr('Please answer: "'+r.t+'"'); }
+  }
+
+  const role = roleMap[name] || '';
+  const period = new Date().toISOString().slice(0,7); // YYYY-MM
+  const payload = Object.assign({ name, role, period, submitted_at:new Date().toISOString() }, answers);
+
+  const btn = document.getElementById('submitBtn'); btn.disabled=true; btn.textContent='Sending...';
+  try{ localStorage.setItem('charis_pulse_code', code); }catch(e){}
+
+  let saved=false;
+  if(_sb){
+    try{
+      const { data, error } = await _sb.rpc('submit_team_pulse', { p_code: code, p_data: payload });
+      if(error) throw error;
+      if(data === 'bad_code'){ btn.disabled=false; btn.textContent='Submit my answers'; return showErr('That access code is not correct. Check the code pinned in the team WhatsApp group.'); }
+      saved = true;
+    }catch(e){ console.warn('Supabase save failed; localStorage fallback', e); }
+  }
+  if(!saved){
+    try{ const k='charis_pulse_pending'; const arr=JSON.parse(localStorage.getItem(k)||'[]'); arr.push(payload); localStorage.setItem(k, JSON.stringify(arr)); saved=true; }
+    catch(e){ btn.disabled=false; btn.textContent='Submit my answers'; return showErr('Could not save. Please check your connection and try again.'); }
+  }
+
+  document.getElementById('form').style.display='none';
+  document.getElementById('okName').textContent = name.split(' ')[0];
+  document.getElementById('ok').style.display='block';
+  window.scrollTo(0,0);
+});
+
+function showErr(m){ const e=document.getElementById('err'); e.textContent=m; e.style.display='block'; window.scrollTo(0, document.body.scrollHeight); }
+</script>
+</body>
+</html>

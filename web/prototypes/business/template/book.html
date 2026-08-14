@@ -1,0 +1,884 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Book a Studio Session — Charis Creations</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;900&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0D1B2A;
+  --card: #1B2838;
+  --card2: #243447;
+  --border: #2D3F52;
+  --orange: #F16623;
+  --orange-dim: #F1662333;
+  --text: #F1F5F9;
+  --muted: #94A3B8;
+  --dim: #64748B;
+  --green: #10B981;
+  --red: #EF4444;
+  --amber: #F59E0B;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  font-family: 'Montserrat', -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+.container { max-width: 560px; margin: 0 auto; padding: 0 16px 80px; }
+
+/* Header */
+.header { text-align: center; padding: 32px 16px 20px; border-bottom: 1px solid var(--border); margin-bottom: 24px; }
+.logo-text { font-size: 13px; font-weight: 900; letter-spacing: 3px; color: var(--orange); margin-bottom: 4px; }
+.tagline { font-size: 10px; color: var(--dim); letter-spacing: 1px; text-transform: uppercase; }
+.form-title { font-size: 20px; font-weight: 900; margin-top: 16px; }
+.form-sub { font-size: 12px; color: var(--muted); margin-top: 6px; line-height: 1.5; }
+
+/* Progress bar */
+.progress-bar { display: flex; gap: 4px; padding: 0 4px; margin-bottom: 24px; }
+.progress-step { flex: 1; height: 4px; border-radius: 2px; background: var(--border); transition: background 0.3s; }
+.progress-step.done { background: var(--green); }
+.progress-step.active { background: var(--orange); }
+
+/* Steps */
+.step { display: none; animation: fadeIn 0.3s ease; }
+.step.active { display: block; }
+@keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+.step-header { font-size: 16px; font-weight: 800; margin-bottom: 4px; }
+.step-desc { font-size: 12px; color: var(--muted); margin-bottom: 20px; line-height: 1.5; }
+
+/* Form elements */
+.field { margin-bottom: 16px; }
+.field-label { display: block; font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+.field-label .req { color: var(--orange); }
+.field-input {
+  width: 100%; background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+  padding: 12px 14px; font-size: 14px; color: var(--text); font-family: 'Montserrat', sans-serif;
+  outline: none; transition: border-color 0.2s; -webkit-appearance: none;
+}
+.field-input:focus { border-color: var(--orange); }
+.field-input::placeholder { color: var(--dim); }
+select.field-input { cursor: pointer; }
+textarea.field-input { resize: vertical; min-height: 80px; }
+.field-hint { font-size: 10px; color: var(--dim); margin-top: 4px; }
+.row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 400px) { .row { grid-template-columns: 1fr; } }
+
+/* Honeypot — visually hidden but present for real browsers/bots that autofill everything */
+.hp-field { position: absolute; left: -9999px; top: -9999px; width: 1px; height: 1px; overflow: hidden; }
+
+/* Navigation */
+.nav-bar { display: flex; gap: 10px; margin-top: 28px; }
+.btn { flex: 1; padding: 14px 20px; border-radius: 12px; font-size: 14px; font-weight: 700; cursor: pointer; border: none; font-family: 'Montserrat', sans-serif; transition: all 0.2s; }
+.btn-back { background: var(--card); color: var(--muted); border: 1px solid var(--border); flex: 0.4; }
+.btn-next { background: var(--orange); color: white; }
+.btn-next:active, .btn-submit:active { transform: scale(0.98); }
+.btn-submit { background: var(--green); color: white; }
+.btn-next:disabled, .btn-submit:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-wa { display:flex; align-items:center; justify-content:center; gap:8px; background:#25D36622; color:#25D366; border:1px solid #25D36644; border-radius:12px; padding:14px 20px; font-size:14px; font-weight:700; text-decoration:none; }
+
+/* Loading / Error / Success states */
+.state-screen { text-align: center; padding: 60px 20px; }
+.state-icon { font-size: 48px; margin-bottom: 16px; }
+.state-title { font-size: 20px; font-weight: 800; margin-bottom: 8px; }
+.state-desc { font-size: 13px; color: var(--muted); line-height: 1.6; }
+
+/* Package / glam cards */
+.opt-card {
+  background: var(--card); border: 2px solid var(--border); border-radius: 14px; padding: 16px;
+  margin-bottom: 12px; cursor: pointer; transition: all 0.15s; position: relative;
+}
+.opt-card.sel { border-color: var(--orange); background: var(--orange-dim); }
+.opt-card-top { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; }
+.opt-name { font-size: 14px; font-weight: 800; }
+.opt-price { font-size: 15px; font-weight: 900; color: var(--orange); white-space:nowrap; }
+.opt-desc { font-size: 11.5px; color: var(--muted); margin-top: 6px; line-height: 1.5; }
+.opt-badge {
+  position: absolute; top: -9px; left: 14px; background: var(--orange); color: #fff;
+  font-size: 9px; font-weight: 800; letter-spacing: 0.5px; padding: 3px 9px; border-radius: 20px; text-transform: uppercase;
+}
+
+/* Add-ons */
+.addon-row {
+  display:flex; align-items:center; justify-content:space-between; background: var(--card);
+  border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; margin-bottom: 10px; gap: 10px;
+}
+.addon-info { flex:1; }
+.addon-name { font-size: 13px; font-weight: 700; }
+.addon-price { font-size: 11px; color: var(--dim); margin-top: 2px; }
+.addon-check { width: 22px; height: 22px; accent-color: var(--orange); flex-shrink:0; cursor:pointer; }
+.stepper { display:flex; align-items:center; gap:10px; flex-shrink:0; }
+.stepper button {
+  width: 28px; height: 28px; border-radius: 8px; border: 1px solid var(--border); background: var(--card2);
+  color: var(--text); font-size: 16px; font-weight: 700; cursor: pointer;
+}
+.stepper-val { font-size: 14px; font-weight: 800; min-width: 18px; text-align: center; }
+
+/* Calendar */
+.cal-nav { display:flex; align-items:center; justify-content:space-between; margin-bottom: 12px; }
+.cal-nav button { background: var(--card); border: 1px solid var(--border); color: var(--text); border-radius: 8px; width: 34px; height: 34px; font-size: 16px; cursor: pointer; }
+.cal-nav button:disabled { opacity: 0.3; cursor: not-allowed; }
+.cal-month-label { font-size: 14px; font-weight: 800; }
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; margin-bottom: 18px; }
+.cal-wd { text-align:center; font-size: 9.5px; font-weight: 700; color: var(--dim); text-transform: uppercase; padding-bottom: 4px; }
+.cal-day {
+  aspect-ratio: 1; display:flex; align-items:center; justify-content:center; border-radius: 9px;
+  font-size: 12.5px; font-weight: 700; background: var(--card); border: 1px solid var(--border); color: var(--muted); cursor: default;
+}
+.cal-day.empty { background: transparent; border: none; }
+.cal-day.avail { color: var(--text); border-color: var(--border); cursor: pointer; }
+.cal-day.avail:hover { border-color: var(--orange); }
+.cal-day.sel { background: var(--orange); border-color: var(--orange); color: #fff; }
+.cal-day.disabled { color: var(--dim); opacity: 0.4; }
+.cal-day.today { box-shadow: inset 0 0 0 1px var(--orange); }
+.cal-legend { display:flex; gap:14px; font-size:10px; color:var(--dim); margin-bottom:16px; flex-wrap:wrap; }
+.cal-legend span { display:flex; align-items:center; gap:5px; }
+.dot { width:8px; height:8px; border-radius:50%; display:inline-block; }
+
+.slots-wrap { margin-top: 6px; }
+.slots-title { font-size: 12px; font-weight: 800; color: var(--orange); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; }
+.slots-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+.slot-chip {
+  background: var(--card); border: 1px solid var(--border); color: var(--text); border-radius: 20px;
+  padding: 9px 16px; font-size: 12.5px; font-weight: 700; cursor: pointer; transition: all 0.15s;
+}
+.slot-chip:hover { border-color: var(--orange); }
+.slot-chip.sel { background: var(--orange); border-color: var(--orange); color: #fff; }
+.slots-empty { font-size: 12.5px; color: var(--dim); padding: 10px 0; }
+
+/* Summary card */
+.summary-card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 18px; margin-bottom: 18px; }
+.summary-row { display:flex; justify-content:space-between; font-size: 13px; padding: 7px 0; border-bottom: 1px solid var(--border); }
+.summary-row:last-child { border-bottom: none; }
+.summary-row .l { color: var(--muted); }
+.summary-row .r { font-weight: 700; }
+.summary-total { display:flex; justify-content:space-between; font-size: 16px; font-weight: 900; padding-top: 12px; margin-top: 6px; border-top: 2px solid var(--border); }
+.summary-total .r { color: var(--orange); }
+.deposit-box { background: var(--orange-dim); border: 1px solid var(--orange); border-radius: 12px; padding: 16px; margin-bottom: 18px; text-align:center; }
+.deposit-box .amt { font-size: 22px; font-weight: 900; color: var(--orange); margin: 4px 0; }
+.deposit-box .lbl { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+.hold-timer { font-size: 12px; color: var(--amber); font-weight: 700; text-align:center; margin-bottom: 14px; }
+.payment-box { background: var(--card2); border: 1px solid var(--border); border-radius: 12px; padding: 14px; font-size: 12.5px; color: var(--muted); line-height: 1.6; margin-bottom: 18px; white-space: pre-line; }
+.payment-box .ttl { font-size: 11px; font-weight: 800; color: var(--orange); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+
+.section-title { font-size: 12px; font-weight: 800; color: var(--orange); text-transform: uppercase; letter-spacing: 0.8px; margin: 20px 0 12px; }
+</style>
+</head>
+<body>
+
+<div class="container" id="app">
+  <div class="state-screen" id="loading-state">
+    <div class="state-icon">⏳</div>
+    <div class="state-title">Loading...</div>
+    <div class="state-desc">Preparing your studio booking.</div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+(function() {
+  'use strict';
+
+  // ── CONFIG ───────────────────────────────────────────────
+  // Same project + publishable (anon) key already used by intake.html —
+  // safe to reuse verbatim: it is the public key, not a secret, and RLS +
+  // the SECURITY DEFINER RPCs below are what actually gate access.
+  var SUPA_URL  = 'https://vlmcwmjhmenbnymwfkdk.supabase.co';
+  var SUPA_KEY  = 'sb_publishable_Q7wTRJK-hCy87Tfy7ROkeA_94Q9HQQw';
+  var SB = window.supabase.createClient(SUPA_URL, SUPA_KEY);
+  var STUDIO_WA = '256706028899'; // official Charis WhatsApp line — public contact info, not a secret
+
+  // ── STATIC CATALOG (mirrors the server-side duration lookup in
+  //    submit_studio_booking — keep these two in sync if prices/durations
+  //    ever change) ────────────────────────────────────────────
+  var PACKAGES = [
+    { key:'starter',   name:'The Starter Glow Session',        price:150000, duration:30,  desc:'30 min · 10 edited photos · white/grey backdrop' },
+    { key:'signature', name:'The Signature Look Session',      price:300000, duration:60,  desc:'1 hr · 20 edited photos · 2 backdrops · 2 A4 prints', badge:'Most Booked' },
+    { key:'celebrity', name:'The Celebrity Portrait Experience', price:450000, duration:90, desc:'1.5 hrs · 30 edited photos · 3 backdrops · 2 A4 + A3 collage' },
+    { key:'family',    name:'The Family Legacy Collection',    price:600000, duration:120, desc:'2 hrs · 40 edited photos · 4 backdrops · 3 A4 + framed A2 · group + individual' },
+    { key:'trial',     name:'The Camera-Ready Trial',          price:100000, duration:60,  desc:'1 hr — see your event look through our cameras (hair + makeup trial by Charis Artistry)' }
+  ];
+  var GLAM_OPTIONS = [
+    { key:'none',    name:"None — I'll arrive camera-ready", price:0 },
+    { key:'touchup', name:'Camera-Ready Touch-Up', price:50000,  desc:'Light makeup refresh before the shoot' },
+    { key:'full',    name:'Full Glam by Charis Artistry', price:100000, desc:'Full hair + makeup — arrive 1 hour earlier, we handle everything' }
+  ];
+  var OCCASIONS = ['Birthday','Branding','Family','Graduation','Maternity','Other'];
+  var MAX_MONTHS_AHEAD = 2; // sane default booking horizon — not in booking_settings, adjust here if Hudson wants further out
+
+  // ── STATE ────────────────────────────────────────────────
+  var CFG = null;          // booking_settings (public fields) from get_booking_page_config
+  var STEP = 0;
+  var STEPS = [];
+  var DATA = {};           // form data collected so far
+  var SUBMITTED = false;
+  var RESULT = null;       // response from submit_studio_booking once held
+  var AVAIL_CACHE = {};    // 'YYYY-MM' -> rows from get_studio_availability
+  var CAL_YEAR, CAL_MONTH; // calendar nav state (0-indexed month)
+  var _statusPoll = null;
+  var _holdTick = null;
+
+  // ── BOOT ─────────────────────────────────────────────────
+  async function boot() {
+    try {
+      var { data, error } = await SB.rpc('get_booking_page_config');
+      if (error) throw error;
+      if (!data) { showError('Booking unavailable', 'We could not load the booking page right now. Please WhatsApp us to book your session.'); return; }
+      CFG = data;
+      if (!CFG.page_enabled) {
+        showError('Online booking is paused', 'We are not taking online bookings at the moment. Please WhatsApp us and we will sort you out personally.');
+        return;
+      }
+      var today = new Date();
+      CAL_YEAR = today.getFullYear();
+      CAL_MONTH = today.getMonth();
+      loadSavedData();
+      buildSteps();
+      renderForm();
+    } catch (e) {
+      console.error(e);
+      showError('Connection error', 'Could not connect to the server. Please check your internet connection and try again.');
+    }
+  }
+
+  // ── STEPS (glam is skipped entirely for the Camera-Ready Trial — glam is inherent to it) ──
+  var BASE_STEPS = [
+    { id:'package', title:'Choose Your Session', desc:'Pick the studio session that fits your moment.', icon:'📸' },
+    { id:'glam',    title:'Add Glam',            desc:'Arrive camera-ready, or let Charis Artistry take care of it?', icon:'💄' },
+    { id:'addons',  title:'Add-Ons',             desc:'A few extras to make it even better (optional).', icon:'✨' },
+    { id:'datetime',title:'Pick Date & Time',    desc:'Choose a real available slot — no back-and-forth needed.', icon:'📅' },
+    { id:'details', title:'Your Details',        desc:'So we know who to expect.', icon:'👤' }
+  ];
+  function buildSteps() {
+    STEPS = BASE_STEPS.filter(function(s) {
+      if (s.id === 'glam' && DATA.package_key === 'trial') return false;
+      return true;
+    });
+    if (STEP >= STEPS.length) STEP = STEPS.length - 1;
+  }
+
+  // ── HELPERS ──────────────────────────────────────────────
+  function fmtUGX(n) { return 'UGX ' + Math.round(n||0).toLocaleString(); }
+  function toMinutes(hhmm) { var p = (hhmm||'00:00').split(':'); return (parseInt(p[0])||0)*60 + (parseInt(p[1])||0); }
+  function fromMinutes(m) { m = ((m%1440)+1440)%1440; var h = Math.floor(m/60), mm = m%60; return (h<10?'0':'')+h+':'+(mm<10?'0':'')+mm; }
+  function fmt12h(hhmm) {
+    var p = (hhmm||'00:00').split(':'); var h = parseInt(p[0])||0, mm = p[1]||'00';
+    var ap = h >= 12 ? 'PM' : 'AM'; var h12 = h % 12; if (h12 === 0) h12 = 12;
+    return h12 + ':' + mm + ' ' + ap;
+  }
+  function pkgOf(key) { return PACKAGES.find(function(p){ return p.key === key; }); }
+  function glamOf(key) { return GLAM_OPTIONS.find(function(g){ return g.key === key; }) || GLAM_OPTIONS[0]; }
+  function dateStr(y,m,d) { return y + '-' + (m+1<10?'0':'')+(m+1) + '-' + (d<10?'0':'')+d; }
+
+  function addonsList() {
+    var list = [];
+    var pkg = DATA.package_key;
+    var qty = parseInt(DATA.addon_extra_photos_qty) || 0;
+    if (qty > 0) list.push({ key:'extra_photos', label:'Extra edited photos ×'+qty, qty:qty, price:10000 });
+    if (DATA.addon_short_reel)   list.push({ key:'short_reel',   label:'Short Reel',   qty:1, price:100000 });
+    if (DATA.addon_custom_props) list.push({ key:'custom_props', label:'Custom Props', qty:1, price:50000 });
+    if (pkg === 'celebrity' && DATA.addon_bts_reel) list.push({ key:'bts_reel', label:'BTS Reel', qty:1, price:100000 });
+    return list;
+  }
+
+  function calcTotal() {
+    var pkg = pkgOf(DATA.package_key);
+    if (!pkg) return 0;
+    var total = pkg.price;
+    if (pkg.key !== 'trial') total += glamOf(DATA.glam_key).price;
+    addonsList().forEach(function(a) { total += a.price * a.qty; });
+    return total;
+  }
+
+  // ── RENDER ───────────────────────────────────────────────
+  function renderForm() {
+    var app = document.getElementById('app');
+    var html = '';
+    html += '<div class="header">';
+    html += '<div class="logo-text">CHARIS CREATIONS</div>';
+    html += '<div class="tagline">Bringing Image to Life</div>';
+    html += '<div class="form-title">📸 Book a Studio Session</div>';
+    html += '<div class="form-sub">Pick your session, pick a real available time, and you\'re locked in — no back-and-forth needed.</div>';
+    html += '</div>';
+
+    html += '<div class="progress-bar">';
+    for (var i = 0; i < STEPS.length; i++) {
+      var cls = i < STEP ? 'done' : i === STEP ? 'active' : '';
+      html += '<div class="progress-step ' + cls + '"></div>';
+    }
+    html += '</div>';
+
+    for (var s = 0; s < STEPS.length; s++) {
+      html += '<div class="step' + (s === STEP ? ' active' : '') + '" id="step-' + STEPS[s].id + '">';
+      html += '<div class="step-header">' + STEPS[s].icon + ' ' + STEPS[s].title + '</div>';
+      html += '<div class="step-desc">' + STEPS[s].desc + '</div>';
+      html += renderStepContent(STEPS[s].id);
+      html += renderNav(s);
+      html += '</div>';
+    }
+
+    app.innerHTML = html;
+    attachEvents();
+  }
+
+  function renderStepContent(id) {
+    switch (id) {
+      case 'package':  return renderPackageStep();
+      case 'glam':     return renderGlamStep();
+      case 'addons':   return renderAddonsStep();
+      case 'datetime': return renderDateTimeStep();
+      case 'details':  return renderDetailsStep();
+      default: return '';
+    }
+  }
+
+  // ── STEP 1: PACKAGE ──────────────────────────────────────
+  function renderPackageStep() {
+    var h = '';
+    PACKAGES.forEach(function(p) {
+      var sel = DATA.package_key === p.key;
+      h += '<div class="opt-card' + (sel?' sel':'') + '" data-action="pickPackage" data-key="' + p.key + '">';
+      if (p.badge) h += '<div class="opt-badge">' + p.badge + '</div>';
+      h += '<div class="opt-card-top"><div class="opt-name">' + p.name + '</div><div class="opt-price">' + fmtUGX(p.price) + '</div></div>';
+      h += '<div class="opt-desc">' + p.desc + '</div>';
+      h += '</div>';
+    });
+    return h;
+  }
+
+  // ── STEP 2: GLAM ─────────────────────────────────────────
+  function renderGlamStep() {
+    if (!DATA.glam_key) DATA.glam_key = 'none';
+    var h = '';
+    GLAM_OPTIONS.forEach(function(g) {
+      var sel = DATA.glam_key === g.key;
+      h += '<div class="opt-card' + (sel?' sel':'') + '" data-action="pickGlam" data-key="' + g.key + '">';
+      h += '<div class="opt-card-top"><div class="opt-name">' + g.name + '</div><div class="opt-price">' + (g.price ? '+' + fmtUGX(g.price) : '') + '</div></div>';
+      if (g.desc) h += '<div class="opt-desc">' + g.desc + '</div>';
+      h += '</div>';
+    });
+    return h;
+  }
+
+  // ── STEP 3: ADD-ONS ──────────────────────────────────────
+  function renderAddonsStep() {
+    var qty = parseInt(DATA.addon_extra_photos_qty) || 0;
+    var h = '';
+    h += '<div class="addon-row"><div class="addon-info"><div class="addon-name">Extra edited photos</div><div class="addon-price">' + fmtUGX(10000) + ' each</div></div>' +
+      '<div class="stepper">' +
+        '<button data-action="addonQtyStep" data-dir="-1">−</button>' +
+        '<div class="stepper-val">' + qty + '</div>' +
+        '<button data-action="addonQtyStep" data-dir="1">+</button>' +
+      '</div></div>';
+    h += addonCheckRow('short_reel', 'Short Reel', 100000, DATA.addon_short_reel);
+    h += addonCheckRow('custom_props', 'Custom Props', 50000, DATA.addon_custom_props);
+    if (DATA.package_key === 'celebrity') {
+      h += addonCheckRow('bts_reel', 'BTS Reel', 100000, DATA.addon_bts_reel);
+    }
+    h += '<div class="field-hint" style="margin-top:6px;">All optional — skip this step if you don\'t need anything extra.</div>';
+    return h;
+  }
+  function addonCheckRow(key, label, price, checked) {
+    return '<div class="addon-row"><div class="addon-info"><div class="addon-name">' + label + '</div><div class="addon-price">+' + fmtUGX(price) + '</div></div>' +
+      '<input type="checkbox" class="addon-check" data-action="addonToggle" data-key="' + key + '"' + (checked ? ' checked' : '') + '/></div>';
+  }
+
+  // ── STEP 4: DATE & TIME ──────────────────────────────────
+  function renderDateTimeStep() {
+    var h = '<div id="cal-wrap">' + renderCalendar() + '</div>';
+    h += '<div id="slots-wrap">' + renderSlots() + '</div>';
+    return h;
+  }
+
+  function renderCalendar() {
+    var monthKey = CAL_YEAR + '-' + (CAL_MONTH+1);
+    var monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    var today = new Date();
+    var isCurrentMonth = (CAL_YEAR === today.getFullYear() && CAL_MONTH === today.getMonth());
+    var maxDate = new Date(today.getFullYear(), today.getMonth() + MAX_MONTHS_AHEAD, 1);
+    var isMaxMonth = (CAL_YEAR === maxDate.getFullYear() && CAL_MONTH === maxDate.getMonth());
+
+    var h = '<div class="cal-nav">';
+    h += '<button data-action="calPrev"' + (isCurrentMonth ? ' disabled' : '') + '>‹</button>';
+    h += '<div class="cal-month-label">' + monthNames[CAL_MONTH] + ' ' + CAL_YEAR + '</div>';
+    h += '<button data-action="calNext"' + (isMaxMonth ? ' disabled' : '') + '>›</button>';
+    h += '</div>';
+
+    h += '<div class="cal-legend">' +
+      '<span><span class="dot" style="background:var(--orange)"></span>Selected</span>' +
+      '<span><span class="dot" style="background:var(--dim)"></span>Closed / Full</span>' +
+      '<span><span class="dot" style="background:var(--card);border:1px solid var(--border)"></span>Available</span>' +
+    '</div>';
+
+    h += '<div class="cal-grid">';
+    ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].forEach(function(w){ h += '<div class="cal-wd">' + w + '</div>'; });
+
+    var firstDow = new Date(CAL_YEAR, CAL_MONTH, 1).getDay();
+    var daysInMonth = new Date(CAL_YEAR, CAL_MONTH + 1, 0).getDate();
+    for (var i = 0; i < firstDow; i++) h += '<div class="cal-day empty"></div>';
+
+    var busyRows = AVAIL_CACHE[monthKey] || [];
+    for (var d = 1; d <= daysInMonth; d++) {
+      var ds = dateStr(CAL_YEAR, CAL_MONTH, d);
+      var dow = new Date(CAL_YEAR, CAL_MONTH, d).getDay();
+      var isToday = (ds === dateStr(today.getFullYear(), today.getMonth(), today.getDate()));
+      var isPastDay = new Date(CAL_YEAR, CAL_MONTH, d) < new Date(today.getFullYear(), today.getMonth(), today.getDate());
+      var closed = (CFG && dow === CFG.closed_weekday);
+      var allDayBusy = busyRows.some(function(r){ return r.busy_date === ds && r.all_day; });
+      var disabled = isPastDay || closed || allDayBusy;
+      var sel = DATA.date === ds;
+      var cls = 'cal-day' + (isToday?' today':'') + (sel?' sel':'') + (disabled && !sel ? ' disabled' : (!disabled ? ' avail' : ''));
+      h += '<div class="' + cls + '"' + (disabled ? '' : ' data-action="pickDate" data-date="' + ds + '"') + '>' + d + '</div>';
+    }
+    h += '</div>';
+    return h;
+  }
+
+  function getBusyForDate(ds) {
+    var monthKey = ds.slice(0,7).replace(/^(\d{4})-0?(\d+)$/, function(_, y, m){ return y + '-' + parseInt(m); });
+    var rows = AVAIL_CACHE[monthKey] || [];
+    var dayRows = rows.filter(function(r){ return r.busy_date === ds; });
+    var allDay = dayRows.some(function(r){ return r.all_day; });
+    var intervals = allDay ? [] : dayRows.map(function(r){ return [toMinutes(r.busy_start), toMinutes(r.busy_end)]; });
+    return { allDay: allDay, intervals: intervals };
+  }
+
+  function computeSlotsForDate(ds) {
+    var pkg = pkgOf(DATA.package_key);
+    if (!pkg || !CFG) return [];
+    var openMin = toMinutes(CFG.studio_open_time);
+    var closeMin = toMinutes(CFG.studio_close_time);
+    var duration = pkg.duration;
+    var buffer = CFG.buffer_minutes;
+    var glamOn = DATA.glam_key && DATA.glam_key !== 'none' && DATA.package_key !== 'trial';
+    var glamLead = glamOn ? CFG.glam_lead_minutes : 0;
+    var busy = getBusyForDate(ds);
+    if (busy.allDay) return [];
+
+    var today = new Date();
+    var isToday = ds === dateStr(today.getFullYear(), today.getMonth(), today.getDate());
+    // Best-effort client-side lead-time check using the device's local clock.
+    // The server (submit_studio_booking) is the real authority and always
+    // re-validates in true Kampala time regardless of the visitor's device.
+    var nowMin = isToday ? (today.getHours()*60 + today.getMinutes()) : -1;
+    var leadMin = (CFG.min_lead_hours||12) * 60;
+
+    var slots = [];
+    for (var t = openMin; t + duration + buffer <= closeMin; t += 30) {
+      var glamStart = t - glamLead;
+      if (glamStart < openMin) continue;
+      var slotEnd = t + duration + buffer;
+      if (isToday && (t - nowMin) < leadMin) continue;
+      var conflict = busy.intervals.some(function(iv){ return glamStart < iv[1] && slotEnd > iv[0]; });
+      if (conflict) continue;
+      slots.push({ start: fromMinutes(t), end: fromMinutes(slotEnd), glamStart: glamOn ? fromMinutes(glamStart) : null });
+    }
+    return slots;
+  }
+
+  function renderSlots() {
+    if (!DATA.date) return '<div class="slots-empty">Pick a date above to see available times.</div>';
+    var slots = computeSlotsForDate(DATA.date);
+    var h = '<div class="slots-wrap"><div class="slots-title">Available times — ' + DATA.date + '</div>';
+    if (slots.length === 0) {
+      h += '<div class="slots-empty">No slots left that day for this session length. Please pick another date.</div>';
+    } else {
+      h += '<div class="slots-grid">';
+      slots.forEach(function(sl) {
+        var sel = DATA.start_time === sl.start;
+        h += '<div class="slot-chip' + (sel?' sel':'') + '" data-action="pickSlot" data-start="' + sl.start + '" data-end="' + sl.end + '" data-glam="' + (sl.glamStart||'') + '">' + fmt12h(sl.start) + '</div>';
+      });
+      h += '</div>';
+      if (DATA.start_time && DATA.glam_start_time) {
+        h += '<div class="field-hint" style="margin-top:10px;">💄 Glam chair from ' + fmt12h(DATA.glam_start_time) + ' — please arrive then.</div>';
+      }
+    }
+    h += '</div>';
+    return h;
+  }
+
+  async function loadAvailabilityForMonth(y, m) {
+    var monthKey = y + '-' + (m+1);
+    if (AVAIL_CACHE[monthKey]) { rerenderCalendarArea(); return; }
+    var from = dateStr(y, m, 1);
+    var to = dateStr(y, m, new Date(y, m+1, 0).getDate());
+    try {
+      var { data, error } = await SB.rpc('get_studio_availability', { p_from: from, p_to: to });
+      if (error) throw error;
+      AVAIL_CACHE[monthKey] = data || [];
+    } catch (e) {
+      console.error('availability load failed', e);
+      AVAIL_CACHE[monthKey] = [];
+    }
+    rerenderCalendarArea();
+  }
+  function rerenderCalendarArea() {
+    var calWrap = document.getElementById('cal-wrap');
+    var slotsWrap = document.getElementById('slots-wrap');
+    if (calWrap) calWrap.innerHTML = renderCalendar();
+    if (slotsWrap) slotsWrap.innerHTML = renderSlots();
+    attachEvents();
+  }
+
+  // ── STEP 5: DETAILS ──────────────────────────────────────
+  function renderDetailsStep() {
+    var h = '';
+    h += field('client_name', 'Your Full Name', { required:true, placeholder:'e.g. David Mugisha' });
+    h += '<div class="row">' +
+      field('phone', 'WhatsApp Number', { required:true, type:'tel', placeholder:'07XX XXX XXX' }) +
+      field('email', 'Email (optional)', { type:'email', placeholder:'your@email.com' }) +
+    '</div>';
+    h += select('occasion', 'What\'s the occasion?', OCCASIONS);
+    h += field('notes', 'Anything we should know?', { type:'textarea', placeholder:'Allergies, outfit changes, special requests...' });
+    h += '<input type="text" class="hp-field" tabindex="-1" autocomplete="off" data-key="hp" name="company_website" placeholder="Leave this blank">';
+    h += renderSummary();
+    return h;
+  }
+
+  function field(key, label, opts) {
+    opts = opts || {};
+    var type = opts.type || 'text';
+    var val = DATA[key] || '';
+    var req = opts.required ? ' <span class="req" style="color:var(--orange)">*</span>' : '';
+    var tag = type === 'textarea'
+      ? '<textarea class="field-input" data-key="' + key + '" placeholder="' + (opts.placeholder||'') + '">' + val + '</textarea>'
+      : '<input class="field-input" type="' + type + '" data-key="' + key + '" value="' + val + '" placeholder="' + (opts.placeholder||'') + '"/>';
+    return '<div class="field"><label class="field-label">' + label + req + '</label>' + tag + '</div>';
+  }
+  function select(key, label, options) {
+    var val = DATA[key] || '';
+    var h = '<option value="">Select...</option>';
+    options.forEach(function(o){ h += '<option' + (val===o?' selected':'') + '>' + o + '</option>'; });
+    return '<div class="field"><label class="field-label">' + label + '</label><select class="field-input" data-key="' + key + '">' + h + '</select></div>';
+  }
+
+  function renderSummary() {
+    var pkg = pkgOf(DATA.package_key);
+    if (!pkg) return '';
+    var glam = glamOf(DATA.glam_key);
+    var total = calcTotal();
+    var depositPct = (CFG && CFG.deposit_pct) || 50;
+    var deposit = Math.round(total * depositPct / 100);
+    var h = '<div class="section-title">Your Session</div><div class="summary-card">';
+    h += summaryRow(pkg.name, fmtUGX(pkg.price));
+    if (pkg.key !== 'trial' && glam.key !== 'none') h += summaryRow(glam.name, '+' + fmtUGX(glam.price));
+    addonsList().forEach(function(a){ h += summaryRow(a.label, '+' + fmtUGX(a.price * a.qty)); });
+    if (DATA.date && DATA.start_time) h += summaryRow('Date & Time', DATA.date + ' · ' + fmt12h(DATA.start_time));
+    h += '<div class="summary-total"><div>Total</div><div class="r">' + fmtUGX(total) + '</div></div>';
+    h += '</div>';
+    h += '<div class="field-hint" style="margin-bottom:16px;">A ' + depositPct + '% deposit (' + fmtUGX(deposit) + ') holds your slot for ' + ((CFG&&CFG.hold_hours)||6) + ' hours after you submit.</div>';
+    return h;
+  }
+  function summaryRow(l, r) { return '<div class="summary-row"><div class="l">' + l + '</div><div class="r">' + r + '</div></div>'; }
+
+  // ── NAV ──────────────────────────────────────────────────
+  function renderNav(stepIdx) {
+    var isFirst = stepIdx === 0;
+    var isLast = stepIdx === STEPS.length - 1;
+    var h = '<div class="nav-bar">';
+    if (!isFirst) h += '<button class="btn btn-back" data-action="prevStep">← Back</button>';
+    if (isLast) h += '<button class="btn btn-submit" data-action="submitBooking">🔒 Hold My Slot</button>';
+    else h += '<button class="btn btn-next" data-action="nextStep">Next →</button>';
+    h += '</div>';
+    return h;
+  }
+
+  // ── EVENTS ───────────────────────────────────────────────
+  function attachEvents() {
+    document.querySelectorAll('.field-input[data-key]').forEach(function(el) {
+      el.addEventListener('input', function() { DATA[el.dataset.key] = el.value; autoSave(); });
+      el.addEventListener('change', function() { DATA[el.dataset.key] = el.value; autoSave(); });
+    });
+    document.querySelectorAll('.hp-field').forEach(function(el) {
+      el.addEventListener('input', function() { DATA.hp = el.value; });
+    });
+
+    document.querySelectorAll('[data-action]').forEach(function(el) {
+      el.addEventListener('click', onAction);
+    });
+  }
+
+  function onAction(e) {
+    var el = e.currentTarget;
+    var a = el.dataset.action;
+    if (a === 'pickPackage') {
+      DATA.package_key = el.dataset.key;
+      DATA.date = ''; DATA.start_time = ''; DATA.end_time = ''; DATA.glam_start_time = ''; // slot depends on package duration — clear any prior pick
+      buildSteps(); autoSave(); renderForm(); return;
+    }
+    if (a === 'pickGlam') {
+      DATA.glam_key = el.dataset.key;
+      DATA.date = ''; DATA.start_time = ''; // glam lead time changes slot math — clear any prior pick
+      autoSave(); renderForm(); return;
+    }
+    if (a === 'addonQtyStep') {
+      var dir = parseInt(el.dataset.dir);
+      var q = (parseInt(DATA.addon_extra_photos_qty)||0) + dir;
+      DATA.addon_extra_photos_qty = Math.max(0, q);
+      autoSave(); renderForm(); return;
+    }
+    if (a === 'addonToggle') {
+      DATA[el.dataset.key] = el.checked;
+      autoSave(); return;
+    }
+    if (a === 'calPrev' || a === 'calNext') {
+      CAL_MONTH += (a === 'calNext' ? 1 : -1);
+      if (CAL_MONTH < 0) { CAL_MONTH = 11; CAL_YEAR--; }
+      if (CAL_MONTH > 11) { CAL_MONTH = 0; CAL_YEAR++; }
+      loadAvailabilityForMonth(CAL_YEAR, CAL_MONTH);
+      return;
+    }
+    if (a === 'pickDate') {
+      DATA.date = el.dataset.date; DATA.start_time = ''; DATA.end_time = ''; DATA.glam_start_time = '';
+      autoSave(); rerenderCalendarArea(); return;
+    }
+    if (a === 'pickSlot') {
+      DATA.start_time = el.dataset.start; DATA.end_time = el.dataset.end; DATA.glam_start_time = el.dataset.glam || '';
+      autoSave(); rerenderCalendarArea(); return;
+    }
+    if (a === 'nextStep') { nextStep(); return; }
+    if (a === 'prevStep') { prevStep(); return; }
+    if (a === 'submitBooking') { submitBooking(); return; }
+  }
+
+  // ── AUTO-SAVE (localStorage — cleared on successful submit) ──
+  var _saveTimer = null;
+  function autoSave() {
+    clearTimeout(_saveTimer);
+    _saveTimer = setTimeout(function() {
+      try { localStorage.setItem('charis_book_draft', JSON.stringify(DATA)); } catch(e) {}
+    }, 400);
+  }
+  function loadSavedData() {
+    try {
+      var saved = localStorage.getItem('charis_book_draft');
+      if (saved) DATA = JSON.parse(saved) || {};
+    } catch(e) { DATA = {}; }
+  }
+
+  // ── STEP VALIDATION + NAV ────────────────────────────────
+  function validateStep(id) {
+    if (id === 'package' && !DATA.package_key) { alert('Please choose a session.'); return false; }
+    if (id === 'datetime' && (!DATA.date || !DATA.start_time)) { alert('Please choose a date and time.'); return false; }
+    return true;
+  }
+
+  function nextStep() {
+    var cur = STEPS[STEP];
+    if (!validateStep(cur.id)) return;
+    if (STEP < STEPS.length - 1) { STEP++; renderForm(); window.scrollTo(0,0); loadAvailabilityIfNeeded(); }
+  }
+  function prevStep() {
+    if (STEP > 0) { STEP--; renderForm(); window.scrollTo(0,0); loadAvailabilityIfNeeded(); }
+  }
+  function loadAvailabilityIfNeeded() {
+    if (STEPS[STEP] && STEPS[STEP].id === 'datetime') loadAvailabilityForMonth(CAL_YEAR, CAL_MONTH);
+  }
+
+  // ── SUBMIT ───────────────────────────────────────────────
+  var ERROR_MESSAGES = {
+    rejected: 'Something went wrong. Please try again or WhatsApp us directly.',
+    page_disabled: 'Online booking is temporarily paused. Please WhatsApp us to book your session.',
+    missing_name: 'Please enter your name.',
+    bad_phone: 'Please enter a valid Ugandan phone number (07XX XXX XXX).',
+    bad_package: 'Please choose a session package.',
+    bad_datetime: 'Please choose a valid date and time.',
+    closed_day: 'The studio is closed that day — please pick another date.',
+    outside_hours: 'That time is outside our studio hours. Please pick another slot.',
+    too_soon: 'Please choose a time further ahead — we need a little more notice.',
+    pending_exists: 'You already have a booking on hold. Please check your WhatsApp, or wait for your current hold to expire before booking again.',
+    slot_taken: 'Sorry — that slot was just taken by someone else. Please pick another time.'
+  };
+
+  function validPhone(v) {
+    var digits = (v||'').replace(/[^0-9]/g, '');
+    return /^07[0-9]{8}$/.test(digits) || /^2567[0-9]{8}$/.test(digits);
+  }
+
+  async function submitBooking() {
+    if (SUBMITTED) return;
+    document.querySelectorAll('.step.active .field-input[data-key]').forEach(function(el){ DATA[el.dataset.key] = el.value; });
+    var hp = document.querySelector('.hp-field'); if (hp) DATA.hp = hp.value;
+
+    if (!DATA.client_name || !DATA.client_name.trim()) { alert('Please enter your name.'); return; }
+    if (!validPhone(DATA.phone)) { alert('Please enter a valid Ugandan WhatsApp number (07XX XXX XXX).'); return; }
+    if (!DATA.package_key || !DATA.date || !DATA.start_time) { alert('Please complete the previous steps first.'); return; }
+
+    SUBMITTED = true;
+    var btn = document.querySelector('[data-action="submitBooking"]');
+    if (btn) { btn.disabled = true; btn.textContent = 'Holding your slot...'; }
+
+    var total = calcTotal();
+    var depositPct = (CFG && CFG.deposit_pct) || 50;
+    var deposit = Math.round(total * depositPct / 100);
+    var pkg = pkgOf(DATA.package_key);
+    var glam = glamOf(DATA.glam_key);
+
+    var payload = {
+      client_name: DATA.client_name.trim(),
+      phone: DATA.phone.trim(),
+      email: DATA.email || '',
+      occasion: DATA.occasion || '',
+      notes: DATA.notes || '',
+      package_key: DATA.package_key,
+      package_price: pkg.price,
+      glam_key: DATA.package_key === 'trial' ? 'none' : DATA.glam_key,
+      glam_price: DATA.package_key === 'trial' ? 0 : glam.price,
+      addons: addonsList(),
+      total: total,
+      deposit_due: deposit,
+      date: DATA.date,
+      start_time: DATA.start_time,
+      hp: DATA.hp || ''
+    };
+
+    try {
+      var { data, error } = await SB.rpc('submit_studio_booking', { p: payload });
+      if (error) throw error;
+      if (data && data.ok) {
+        RESULT = data;
+        try { localStorage.removeItem('charis_book_draft'); } catch(e) {}
+        showConfirmation();
+      } else {
+        SUBMITTED = false;
+        if (btn) { btn.disabled = false; btn.textContent = '🔒 Hold My Slot'; }
+        alert((data && ERROR_MESSAGES[data.error]) || 'Could not complete your booking. Please try again.');
+      }
+    } catch (e) {
+      SUBMITTED = false;
+      if (btn) { btn.disabled = false; btn.textContent = '🔒 Hold My Slot'; }
+      console.error(e);
+      alert('Connection error. Please check your internet and try again.');
+    }
+  }
+
+  // ── STEP 6 — HOLD & DEPOSIT (confirmation screen) ────────
+  function buildWaMessage() {
+    var pkg = pkgOf(DATA.package_key);
+    var glam = glamOf(DATA.glam_key);
+    var lines = [];
+    lines.push('Hi Charis Creations! I just held a studio session online:');
+    lines.push('');
+    lines.push('📸 ' + pkg.name);
+    if (pkg.key !== 'trial' && glam.key !== 'none') lines.push('💄 ' + glam.name);
+    addonsList().forEach(function(a){ lines.push('✨ ' + a.label); });
+    lines.push('📅 ' + DATA.date + ' at ' + fmt12h(DATA.start_time));
+    lines.push('');
+    lines.push('Total: ' + fmtUGX(RESULT.total));
+    lines.push('Deposit due (' + RESULT.deposit_pct + '%): ' + fmtUGX(RESULT.deposit_due));
+    lines.push('');
+    lines.push('My name: ' + (DATA.client_name||''));
+    lines.push('');
+    lines.push('I am sending my deposit now — here is my receipt 👇');
+    return lines.join('\n');
+  }
+
+  function showConfirmation() {
+    var app = document.getElementById('app');
+    var pkg = pkgOf(DATA.package_key);
+    var glam = glamOf(DATA.glam_key);
+    var waUrl = 'https://wa.me/' + STUDIO_WA + '?text=' + encodeURIComponent(buildWaMessage());
+
+    var h = '';
+    h += '<div class="header"><div class="logo-text">CHARIS CREATIONS</div><div class="tagline">Bringing Image to Life</div></div>';
+    h += '<div class="state-screen" style="padding:30px 0 0;">';
+    h += '<div class="state-icon">🔒</div>';
+    h += '<div class="state-title">Your Slot Is Held!</div>';
+    h += '<div class="state-desc">Send your deposit and share your receipt on WhatsApp — you\'ll get an instant confirmation.</div>';
+    h += '</div>';
+
+    h += '<div id="hold-timer" class="hold-timer"></div>';
+
+    h += '<div class="summary-card">';
+    h += summaryRow(pkg.name, fmtUGX(pkg.price));
+    if (pkg.key !== 'trial' && glam.key !== 'none') h += summaryRow(glam.name, '+' + fmtUGX(glam.price));
+    addonsList().forEach(function(a){ h += summaryRow(a.label, '+' + fmtUGX(a.price * a.qty)); });
+    h += summaryRow('Date & Time', RESULT.date + ' · ' + fmt12h(RESULT.start_time));
+    h += '<div class="summary-total"><div>Total</div><div class="r">' + fmtUGX(RESULT.total) + '</div></div>';
+    h += '</div>';
+
+    h += '<div class="deposit-box"><div class="lbl">Deposit Due Now (' + RESULT.deposit_pct + '%)</div><div class="amt">' + fmtUGX(RESULT.deposit_due) + '</div></div>';
+
+    h += '<div class="payment-box"><div class="ttl">Payment Instructions</div>' + escHtml(RESULT.payment_instructions || '') + '</div>';
+
+    h += '<a class="btn-wa" href="' + waUrl + '" target="_blank" id="wa-confirm-link">💬 Send Deposit Receipt on WhatsApp</a>';
+    h += '<div class="field-hint" style="text-align:center;margin-top:14px;">Booking reference: ' + RESULT.id.slice(0,8).toUpperCase() + '</div>';
+
+    app.innerHTML = h;
+
+    // Auto-open WhatsApp once (best-effort — browsers may block popups not
+    // triggered by a direct user click; the button above is the reliable fallback)
+    try {
+      var w = window.open(waUrl, '_blank');
+      if (!w) { /* popup blocked — button remains the fallback */ }
+    } catch(e) {}
+
+    startHoldTimer(RESULT.hold_expires_at);
+    startStatusPoll(RESULT.id);
+  }
+
+  function startHoldTimer(expiresAtISO) {
+    clearInterval(_holdTick);
+    var expires = new Date(expiresAtISO).getTime();
+    function tick() {
+      var el = document.getElementById('hold-timer');
+      if (!el) { clearInterval(_holdTick); return; }
+      var diff = expires - Date.now();
+      if (diff <= 0) {
+        el.textContent = '⏰ Your hold has expired — please book again.';
+        clearInterval(_holdTick);
+        return;
+      }
+      var h = Math.floor(diff / 3600000);
+      var m = Math.floor((diff % 3600000) / 60000);
+      el.textContent = '⏰ Slot held for ' + h + 'h ' + m + 'm — send your deposit before it expires';
+    }
+    tick();
+    _holdTick = setInterval(tick, 30000);
+  }
+
+  function startStatusPoll(id) {
+    clearInterval(_statusPoll);
+    _statusPoll = setInterval(async function() {
+      try {
+        var { data, error } = await SB.rpc('get_booking_status', { p_id: id });
+        if (error || !data || !data.length) return;
+        var row = data[0];
+        if (row.status === 'confirmed') {
+          clearInterval(_statusPoll); clearInterval(_holdTick);
+          var el = document.getElementById('hold-timer');
+          if (el) { el.textContent = '✅ Confirmed! We can\'t wait to see you.'; el.style.color = 'var(--green)'; }
+        } else if (row.status === 'expired' || row.status === 'cancelled') {
+          clearInterval(_statusPoll); clearInterval(_holdTick);
+          var el2 = document.getElementById('hold-timer');
+          if (el2) { el2.textContent = row.status === 'cancelled' ? '❌ This booking was cancelled.' : '⏰ Your hold has expired — please book again.'; el2.style.color = 'var(--red)'; }
+        }
+      } catch(e) { /* silent — non-critical background poll */ }
+    }, 15000);
+  }
+
+  // ── STATE SCREENS ────────────────────────────────────────
+  function escHtml(s) {
+    return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+  function showError(title, desc) {
+    document.getElementById('app').innerHTML =
+      '<div class="header"><div class="logo-text">CHARIS CREATIONS</div><div class="tagline">Bringing Image to Life</div></div>' +
+      '<div class="state-screen">' +
+        '<div class="state-icon">⚠️</div>' +
+        '<div class="state-title">' + escHtml(title) + '</div>' +
+        '<div class="state-desc">' + escHtml(desc) + '</div>' +
+        '<div style="margin-top:24px;"><a href="https://wa.me/' + STUDIO_WA + '" style="display:inline-flex;align-items:center;gap:6px;background:#25D36622;color:#25D366;border-radius:10px;padding:12px 20px;font-size:13px;font-weight:700;text-decoration:none;">📱 Contact us on WhatsApp</a></div>' +
+      '</div>' +
+      '<div style="text-align:center;font-size:11px;color:var(--dim);padding:20px 0;">chariscreationsltd@gmail.com · +256 706 028 899</div>';
+  }
+
+  boot();
+})();
+</script>
+</body>
+</html>

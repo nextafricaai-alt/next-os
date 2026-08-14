@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Team Pulse — Results (Private)</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{ --orange:#f16623; --bg:#0d1b2a; --card:#16263a; --card2:#1e3247; --line:#2b4159; --text:#e8eef5; --muted:#93a4b8; --green:#22c55e; --amber:#f59e0b; --red:#ef4444; }
+  *{ box-sizing:border-box; }
+  body{ margin:0; background:var(--bg); color:var(--text); font-family:'Montserrat',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif; }
+  .wrap{ max-width:900px; margin:0 auto; padding:20px 16px 80px; }
+  .logo{ color:var(--orange); font-weight:800; font-size:13px; letter-spacing:.5px; }
+  h1{ font-size:24px; margin:4px 0 2px; }
+  .sub{ color:var(--muted); font-size:13px; margin-bottom:20px; }
+  .gate{ max-width:380px; margin:60px auto; background:var(--card); border:1px solid var(--line); border-radius:14px; padding:24px; text-align:center; }
+  input{ width:100%; background:var(--card2); border:1px solid var(--line); color:var(--text); border-radius:10px; padding:12px; font-size:15px; margin:12px 0; }
+  button{ background:var(--orange); color:#fff; border:none; border-radius:10px; padding:12px 18px; font-size:14px; font-weight:700; cursor:pointer; }
+  button.ghost{ background:var(--card2); border:1px solid var(--line); }
+  .kpis{ display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:12px; margin-bottom:22px; }
+  .kpi{ background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px; text-align:center; }
+  .kpi .v{ font-size:26px; font-weight:800; color:var(--orange); }
+  .kpi .l{ font-size:11px; color:var(--muted); margin-top:2px; }
+  .card{ background:var(--card); border:1px solid var(--line); border-radius:14px; padding:18px; margin-bottom:18px; }
+  .card h2{ font-size:16px; margin:0 0 14px; color:var(--orange); }
+  .bar-row{ display:flex; align-items:center; gap:10px; margin-bottom:9px; font-size:13px; }
+  .bar-row .nm{ width:150px; flex:none; color:var(--text); }
+  .bar-track{ flex:1; background:var(--card2); border-radius:6px; height:18px; overflow:hidden; }
+  .bar-fill{ height:100%; border-radius:6px; }
+  .bar-row .sc{ width:42px; text-align:right; font-weight:700; }
+  .ret-row{ display:flex; align-items:center; gap:10px; padding:7px 0; border-bottom:1px solid var(--line); font-size:13px; }
+  .ret-row .nm{ flex:1; }
+  .pill{ padding:2px 9px; border-radius:20px; font-weight:700; font-size:12px; color:#fff; }
+  .cmt{ background:var(--card2); border-left:3px solid var(--orange); border-radius:8px; padding:10px 12px; margin-bottom:9px; font-size:13px; }
+  .cmt .by{ color:var(--muted); font-size:11px; margin-top:5px; }
+  .qblock{ margin-bottom:20px; }
+  .qblock .qh{ font-size:13.5px; font-weight:700; margin-bottom:9px; color:var(--text); }
+  .toolbar{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:18px; }
+  select{ background:var(--card2); border:1px solid var(--line); color:var(--text); border-radius:9px; padding:9px; font-size:13px; }
+  .muted{ color:var(--muted); font-size:12px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div id="gate" class="gate">
+    <div class="logo">CHARIS CREATIONS</div>
+    <h1>Team Pulse Results</h1>
+    <p class="muted">Private — owner only.</p>
+    <input type="password" id="secret" placeholder="Owner secret" />
+    <button id="unlock">Unlock</button>
+    <p id="gateErr" class="muted" style="color:#fca5a5; display:none;">Wrong secret, or no responses yet.</p>
+  </div>
+
+  <div id="app" style="display:none;">
+    <div class="logo">CHARIS CREATIONS</div>
+    <h1>Team Pulse — Results</h1>
+    <div class="sub" id="meta"></div>
+
+    <div class="toolbar">
+      <label class="muted">View person:</label>
+      <select id="person"><option value="">All responses (averages)</option></select>
+      <button class="ghost" id="csv">⬇ Export CSV</button>
+      <button class="ghost" id="reload">↻ Reload</button>
+    </div>
+
+    <div class="kpis" id="kpis"></div>
+    <div class="card"><h2>Section scores (average 1–5)</h2><div id="sectionBars"></div></div>
+    <div class="card"><h2>“Will you still be here in 2 years?” (1–10)</h2><div id="retList"></div></div>
+    <div class="card"><h2>What the team said — in their words</h2><div id="comments"></div></div>
+  </div>
+</div>
+
+<script>
+const _SB_URL='https://vlmcwmjhmenbnymwfkdk.supabase.co';
+const _SB_KEY='sb_publishable_Q7wTRJK-hCy87Tfy7ROkeA_94Q9HQQw';
+const _sb = supabase.createClient(_SB_URL,_SB_KEY);
+
+// section -> scale question ids (must match team-pulse.html)
+const SCALE_GROUPS = {
+  "Direction & Clarity":["dir1","dir2","dir3","dir4"],
+  "Communication":["com1","com2","com3"],
+  "Support & Resources":["sup1","sup2","sup3"],
+  "Culture & Safety":["saf1","saf2","saf3","saf4"],
+  "Leadership (Hudson)":["led1","led2","led3","led4"],
+  "Growth & Development":["gro1","gro2","gro3","gro4"],
+};
+const TEXT_QS = [
+  ["led_harder","One thing Hudson does that makes work HARDER"],
+  ["led_better","One thing Hudson does that makes work BETTER"],
+  ["led_change","One thing to change about how Hudson leads"],
+  ["sup_tools","Tools / training / resources needed"],
+  ["sup_slow","What slows them down that I could fix"],
+  ["saf_c","Anything unhealthy or unfair in how we work"],
+  ["co_pretend","What we're pretending is fine that isn't"],
+  ["co_more","What's working — do MORE of"],
+  ["co_stop","What to STOP doing"],
+  ["co_future","Where Charis is going in 3 years — do they believe it"],
+  ["co_client","One thing that makes a client tell ten people"],
+  ["gro_skill","A skill they want to develop"],
+  ["dir_c","Notes on direction"],
+  ["com_c","Notes on communication"],
+  ["ret_raise","What would raise their 'stay' number"],
+  ["final_else","Anything else they want me to know"],
+];
+let ROWS=[];
+
+document.getElementById('unlock').onclick = unlock;
+document.getElementById('secret').addEventListener('keydown',e=>{ if(e.key==='Enter') unlock(); });
+async function unlock(){
+  const s=document.getElementById('secret').value.trim();
+  const { data, error } = await _sb.rpc('get_team_pulse',{ p_secret:s });
+  if(error || !data || data.length===0){ document.getElementById('gateErr').style.display='block'; return; }
+  ROWS=data; try{ sessionStorage.setItem('cps', s); }catch(e){}
+  document.getElementById('gate').style.display='none';
+  document.getElementById('app').style.display='block';
+  buildPersonFilter(); render();
+}
+document.getElementById('reload').onclick = unlock;
+
+function buildPersonFilter(){
+  const sel=document.getElementById('person'); sel.innerHTML='<option value="">All responses (averages)</option>';
+  ROWS.forEach((r,i)=>{ const o=document.createElement('option'); o.value=i; o.textContent=r.name+' · '+(r.period||''); sel.appendChild(o); });
+  sel.onchange=render;
+}
+
+function ans(r,id){ const a=r.answers||{}; return a[id]; }
+function num(v){ return (typeof v==='number')?v:(v&&!isNaN(+v)?+v:null); }
+
+function render(){
+  const pv=document.getElementById('person').value;
+  const subset = pv==='' ? ROWS : [ROWS[+pv]];
+  document.getElementById('meta').textContent = ROWS.length+' total responses · latest '+(ROWS[0]?.period||'') + (pv!==''?' · viewing '+subset[0].name:'');
+
+  // KPIs
+  let retVals=[]; ROWS.forEach(r=>{ const v=num(ans(r,'ret_score')); if(v!=null) retVals.push(v); });
+  const retAvg = retVals.length? (retVals.reduce((a,b)=>a+b,0)/retVals.length).toFixed(1):'–';
+  let allScale=[]; ROWS.forEach(r=>{ Object.values(SCALE_GROUPS).flat().forEach(id=>{ const v=num(ans(r,id)); if(v!=null) allScale.push(v); }); });
+  const overall = allScale.length? (allScale.reduce((a,b)=>a+b,0)/allScale.length).toFixed(1):'–';
+  const atRisk = retVals.filter(v=>v<=6).length;
+  document.getElementById('kpis').innerHTML =
+    kpi(ROWS.length,'Responses') + kpi(overall+' / 5','Overall morale') + kpi(retAvg+' / 10','Avg. "will stay"') + kpi(atRisk,'At-risk (≤6)');
+
+  // Section bars
+  let bars='';
+  for(const [name,ids] of Object.entries(SCALE_GROUPS)){
+    let vals=[]; subset.forEach(r=> ids.forEach(id=>{ const v=num(ans(r,id)); if(v!=null) vals.push(v); }));
+    const avg = vals.length? vals.reduce((a,b)=>a+b,0)/vals.length : 0;
+    const pct = avg/5*100; const col = avg>=4?'var(--green)':avg>=3?'var(--amber)':'var(--red)';
+    bars += '<div class="bar-row"><div class="nm">'+name+'</div><div class="bar-track"><div class="bar-fill" style="width:'+pct+'%;background:'+col+'"></div></div><div class="sc">'+(vals.length?avg.toFixed(1):'–')+'</div></div>';
+  }
+  document.getElementById('sectionBars').innerHTML = bars;
+
+  // Retention list
+  let rl=''; const ranked=[...subset].map(r=>({n:r.name,v:num(ans(r,'ret_score'))})).filter(x=>x.v!=null).sort((a,b)=>a.v-b.v);
+  if(!ranked.length) rl='<p class="muted">No scores yet.</p>';
+  ranked.forEach(x=>{ const col=x.v>=8?'var(--green)':x.v>=6?'var(--amber)':'var(--red)';
+    rl+='<div class="ret-row"><div class="nm">'+esc(x.n)+'</div><span class="pill" style="background:'+col+'">'+x.v+'/10</span></div>'; });
+  document.getElementById('retList').innerHTML = rl;
+
+  // Comments grouped by question
+  let ch='';
+  TEXT_QS.forEach(([id,label])=>{
+    const items = subset.map(r=>({n:r.name,t:(ans(r,id)||'').trim()})).filter(x=>x.t);
+    if(!items.length) return;
+    ch += '<div class="qblock"><div class="qh">'+esc(label)+'</div>';
+    items.forEach(x=> ch += '<div class="cmt">'+esc(x.t)+'<div class="by">— '+esc(x.n)+'</div></div>');
+    ch += '</div>';
+  });
+  document.getElementById('comments').innerHTML = ch || '<p class="muted">No written comments yet.</p>';
+}
+
+function kpi(v,l){ return '<div class="kpi"><div class="v">'+v+'</div><div class="l">'+l+'</div></div>'; }
+function esc(s){ return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+document.getElementById('csv').onclick=()=>{
+  const ids=[...Object.values(SCALE_GROUPS).flat(), 'ret_score', ...TEXT_QS.map(t=>t[0])];
+  const head=['name','role','period',...ids];
+  const rows=[head.join(',')];
+  ROWS.forEach(r=>{ const line=[r.name,r.role,r.period,...ids.map(id=>{ let v=ans(r,id); v=(v==null?'':String(v)).replace(/"/g,'""'); return '"'+v+'"'; })]; rows.push(line.join(',')); });
+  const blob=new Blob([rows.join('\n')],{type:'text/csv'}); const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob); a.download='charis_team_pulse.csv'; a.click();
+};
+
+// auto-unlock if secret remembered this session
+try{ const s=sessionStorage.getItem('cps'); if(s){ document.getElementById('secret').value=s; unlock(); } }catch(e){}
+</script>
+</body>
+</html>

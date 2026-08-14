@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Charis Creations — Welcome to the Family</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;900&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0D1B2A;
+  --card: #1B2838;
+  --card2: #243447;
+  --border: #2D3F52;
+  --orange: #F16623;
+  --text: #F1F5F9;
+  --muted: #94A3B8;
+  --dim: #64748B;
+  --green: #10B981;
+  --amber: #F59E0B;
+  --purple: #8B5CF6;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:'Montserrat',-apple-system,sans-serif; background:var(--bg); color:var(--text); min-height:100vh; -webkit-font-smoothing:antialiased; }
+.container { max-width:560px; margin:0 auto; padding:0 16px 80px; }
+
+/* Hero */
+.hero { text-align:center; padding:40px 16px 32px; }
+.logo-text { font-size:13px; font-weight:900; letter-spacing:3px; color:var(--orange); margin-bottom:16px; }
+.hero-greeting { font-size:28px; font-weight:900; line-height:1.2; margin-bottom:12px; }
+.hero-greeting span { color:var(--orange); }
+.hero-sub { font-size:14px; color:var(--muted); line-height:1.7; max-width:400px; margin:0 auto; }
+
+/* Divider */
+.divider { height:1px; background:var(--border); margin:28px 0; }
+
+/* Section header */
+.section-label { font-size:11px; font-weight:800; color:var(--orange); text-transform:uppercase; letter-spacing:1.5px; margin-bottom:16px; }
+
+/* What happens next — journey steps */
+.journey { position:relative; }
+.journey::before { content:''; position:absolute; left:20px; top:0; bottom:0; width:2px; background:linear-gradient(to bottom, var(--orange), #8B5CF688); }
+.j-step { display:flex; gap:16px; margin-bottom:20px; position:relative; }
+.j-dot {
+  width:42px; height:42px; border-radius:50%; flex-shrink:0;
+  display:flex; align-items:center; justify-content:center;
+  font-size:18px; position:relative; z-index:1;
+  background:var(--card); border:2px solid var(--orange);
+}
+.j-dot.dim { border-color:var(--border); }
+.j-body { flex:1; padding-top:10px; }
+.j-title { font-size:14px; font-weight:700; line-height:1.3; margin-bottom:4px; }
+.j-note { font-size:12px; color:var(--muted); line-height:1.6; }
+.j-badge { display:inline-block; font-size:10px; font-weight:700; background:#F1662322; color:var(--orange); border:1px solid #F1662344; border-radius:6px; padding:2px 8px; margin-top:4px; }
+.j-badge.green { background:#10B98122; color:var(--green); border-color:#10B98144; }
+.j-badge.purple { background:#8B5CF622; color:var(--purple); border-color:#8B5CF644; }
+
+/* Insight card */
+.insight { background:#F1662311; border:1px solid #F1662344; border-radius:12px; padding:18px; margin:24px 0; }
+.insight-title { font-size:13px; font-weight:800; color:var(--orange); margin-bottom:8px; }
+.insight-body { font-size:12px; color:var(--muted); line-height:1.7; }
+.insight-body strong { color:var(--text); }
+
+/* Action cards */
+.action-card { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:18px; margin-bottom:14px; display:flex; gap:14px; align-items:flex-start; }
+.action-icon { font-size:24px; flex-shrink:0; margin-top:2px; }
+.action-body { flex:1; }
+.action-title { font-size:14px; font-weight:700; margin-bottom:4px; }
+.action-note { font-size:12px; color:var(--muted); line-height:1.6; margin-bottom:10px; }
+.action-btn { display:inline-flex; align-items:center; gap:6px; background:var(--orange); color:white; border:none; border-radius:8px; padding:9px 16px; font-size:12px; font-weight:700; font-family:inherit; cursor:pointer; text-decoration:none; }
+.action-btn.ghost { background:transparent; border:1px solid var(--border); color:var(--muted); }
+.action-btn.green-btn { background:#10B981; }
+
+/* Promise list */
+.promise-list { list-style:none; }
+.promise-list li { display:flex; gap:12px; padding:12px 0; border-bottom:1px solid var(--border); font-size:13px; line-height:1.5; }
+.promise-list li:last-child { border-bottom:none; }
+.promise-list li::before { content:'✓'; color:var(--green); font-weight:900; font-size:14px; flex-shrink:0; margin-top:1px; }
+
+/* Contact card */
+.contact-card { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:18px; }
+.contact-row { display:flex; align-items:center; gap:12px; padding:10px 0; border-bottom:1px solid var(--border); font-size:13px; }
+.contact-row:last-child { border-bottom:none; }
+.contact-icon { font-size:18px; width:32px; text-align:center; flex-shrink:0; }
+.contact-label { color:var(--dim); font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; display:block; }
+.contact-value { color:var(--text); font-weight:600; }
+.contact-link { color:var(--orange); text-decoration:none; font-weight:600; }
+
+/* Bottom CTA */
+.cta-box { background:linear-gradient(135deg, #F1662322, #8B5CF611); border:1px solid #F1662333; border-radius:14px; padding:24px 20px; text-align:center; margin-top:28px; }
+.cta-title { font-size:16px; font-weight:900; margin-bottom:8px; }
+.cta-sub { font-size:12px; color:var(--muted); margin-bottom:16px; line-height:1.6; }
+.wa-btn { display:inline-flex; align-items:center; gap:8px; background:#25D366; color:white; border-radius:12px; padding:14px 28px; font-size:13px; font-weight:700; text-decoration:none; }
+
+/* Number chips */
+.chips { display:flex; gap:10px; margin:20px 0; flex-wrap:wrap; }
+.chip { background:var(--card); border:1px solid var(--border); border-radius:10px; padding:12px 14px; flex:1; min-width:100px; text-align:center; }
+.chip .num { font-size:22px; font-weight:900; color:var(--orange); }
+.chip .lbl { font-size:10px; color:var(--muted); margin-top:3px; text-transform:uppercase; letter-spacing:0.5px; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="hero">
+    <div class="logo-text">CHARIS CREATIONS</div>
+    <div class="hero-greeting" id="greeting">You just made one of the<br><span>best decisions</span> for your day.</div>
+    <div class="hero-sub" id="hero-sub">Your wedding deserves more than a photographer who shows up and disappears. It deserves a team who understands what is at stake — and has spent years preparing for exactly this moment.</div>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="chips">
+    <div class="chip"><div class="num">13+</div><div class="lbl">Years of experience</div></div>
+    <div class="chip"><div class="num">500+</div><div class="lbl">Weddings documented</div></div>
+    <div class="chip"><div class="num">10+</div><div class="lbl">Professionals on your day</div></div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- Journey -->
+  <div class="section-label">What Happens From Here</div>
+  <div class="journey">
+
+    <div class="j-step">
+      <div class="j-dot">📋</div>
+      <div class="j-body">
+        <div class="j-title">Fill in Your Client Brief</div>
+        <div class="j-note">This is the most important thing you will do before your day. We use your brief to build your personalised shoot plan — the exact timeline, the group shots, the moments you cannot miss. The more detail you give us, the more intentional every frame will be.</div>
+        <div class="j-badge">Complete within 2 weeks of booking</div>
+      </div>
+    </div>
+
+    <div class="j-step">
+      <div class="j-dot">📸</div>
+      <div class="j-body">
+        <div class="j-title">Review Your Preparation Guide</div>
+        <div class="j-note">We will send you our Wedding Preparation Checklist — a simple guide for setting up your prep space, managing your morning, and protecting the moments that are hardest to photograph under pressure. Read it with your partner. Share it with your bridal party.</div>
+        <div class="j-badge">Before your wedding month</div>
+      </div>
+    </div>
+
+    <div class="j-step">
+      <div class="j-dot">📅</div>
+      <div class="j-body">
+        <div class="j-title">Your Pre-Wedding Call</div>
+        <div class="j-note">About 2–3 weeks before your day, we will connect to go through the timeline together — your venues, your ceremony details, the group shot list, and any specific requests. This is when we lock in every detail.</div>
+        <div class="j-badge green">2–3 weeks before your wedding</div>
+      </div>
+    </div>
+
+    <div class="j-step">
+      <div class="j-dot">📄</div>
+      <div class="j-body">
+        <div class="j-title">Your Call Sheet Arrives</div>
+        <div class="j-note">A few days before the wedding, you will receive a personalised call sheet — the exact schedule our crew will follow. If anything has changed, this is your last chance to tell us.</div>
+        <div class="j-badge purple">2–3 days before</div>
+      </div>
+    </div>
+
+    <div class="j-step">
+      <div class="j-dot" style="font-size:22px;">💍</div>
+      <div class="j-body">
+        <div class="j-title">Your Wedding Day</div>
+        <div class="j-note">We arrive early. We stay present. We leave nothing to chance. You will not need to manage us — we manage ourselves, so you can be fully in the moment.</div>
+        <div class="j-badge green">The day everything becomes real</div>
+      </div>
+    </div>
+
+    <div class="j-step">
+      <div class="j-dot dim">🖼️</div>
+      <div class="j-body">
+        <div class="j-title">Your Gallery Is Delivered</div>
+        <div class="j-note">Your edited gallery is delivered via SmugMug — a private, password-protected link just for you. Download every image, share with family, and revisit your day anytime. For as long as you need it.</div>
+        <div class="j-badge purple">Per your package timeline</div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- What we need from you -->
+  <div class="section-label">Three Things We Need From You</div>
+
+  <div class="action-card">
+    <div class="action-icon">📋</div>
+    <div class="action-body">
+      <div class="action-title">Your Client Brief</div>
+      <div class="action-note">Every detail of your day — your bridal party, your vendors, your key moments, your must-have shots. This is how we arrive knowing your day, not just your date.</div>
+      <a href="intake.html" class="action-btn">Open Client Brief →</a>
+    </div>
+  </div>
+
+  <div class="action-card">
+    <div class="action-icon">✅</div>
+    <div class="action-body">
+      <div class="action-title">Your Preparation Checklist</div>
+      <div class="action-note">Eleven things that protect the quality of your morning photographs. Small decisions made now that will matter enormously on the day.</div>
+      <a href="prep-checklist.html" class="action-btn" id="prep-link">View Prep Checklist →</a>
+    </div>
+  </div>
+
+  <div class="action-card">
+    <div class="action-icon">💬</div>
+    <div class="action-body">
+      <div class="action-title">Keep Us Updated</div>
+      <div class="action-note">If anything changes — the venue, the time, the plan — tell us immediately. We would rather adjust with notice than adapt without it. WhatsApp is always the fastest way to reach us.</div>
+      <a href="https://wa.me/256706028899" class="action-btn" style="background:#25D366;">WhatsApp Hudson →</a>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- Insight -->
+  <div class="insight">
+    <div class="insight-title">The truth about the best wedding photographs</div>
+    <div class="insight-body">They are not the result of expensive cameras. They are the result of <strong>time</strong>, <strong>trust</strong>, and <strong>preparation</strong>. The clients who walk away with extraordinary albums are the ones who filled in their brief, read the prep guide, and gave us honest access to their morning. Every word you put into your brief is another image in your album.</div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- Our promise -->
+  <div class="section-label">What You Can Count On From Us</div>
+  <ul class="promise-list">
+    <li>We will be at your prep location before your makeup artist arrives — never late.</li>
+    <li>We will learn your bridal party's names before the day. You will not hear "hey you" at your wedding.</li>
+    <li>We will not photograph your guests eating. Dignity is part of what we shoot.</li>
+    <li>We will tell you the truth about your timeline — even if it is not what you want to hear.</li>
+    <li>We will carry backup equipment for every piece of gear we bring. Your day has no second take.</li>
+    <li>We will deliver your images with the same care we captured them. Every edit matters.</li>
+  </ul>
+
+  <div class="divider"></div>
+
+  <!-- Contact -->
+  <div class="section-label">How to Reach Us</div>
+  <div class="contact-card">
+    <div class="contact-row">
+      <div class="contact-icon">📱</div>
+      <div>
+        <span class="contact-label">WhatsApp (Fastest)</span>
+        <a href="https://wa.me/256706028899" class="contact-link">+256 706 028 899</a>
+      </div>
+    </div>
+    <div class="contact-row">
+      <div class="contact-icon">📞</div>
+      <div>
+        <span class="contact-label">Phone (Backup)</span>
+        <span class="contact-value">+256 778 028 899</span>
+      </div>
+    </div>
+    <div class="contact-row">
+      <div class="contact-icon">✉️</div>
+      <div>
+        <span class="contact-label">Email</span>
+        <a href="mailto:chariscreationsltd@gmail.com" class="contact-link">chariscreationsltd@gmail.com</a>
+      </div>
+    </div>
+    <div class="contact-row">
+      <div class="contact-icon">🌐</div>
+      <div>
+        <span class="contact-label">Website</span>
+        <a href="https://chariscreationsltd.com" class="contact-link">chariscreationsltd.com</a>
+      </div>
+    </div>
+    <div class="contact-row">
+      <div class="contact-icon">📍</div>
+      <div>
+        <span class="contact-label">Studio Address</span>
+        <span class="contact-value">Block 103/Plot 801, Mungu Valley Rd, Namugongo Sonde</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- CTA -->
+  <div class="cta-box">
+    <div class="cta-title" id="cta-title">You are in good hands.</div>
+    <div class="cta-sub">If you have any questions between now and your wedding day, we are always here. No question is too small. This is your day — and we take that seriously.</div>
+    <a href="https://wa.me/256706028899?text=Hi%20Charis%20Creations%2C%20I%20just%20reviewed%20my%20welcome%20pack%20and%20have%20a%20question." class="wa-btn" id="wa-btn">📱 Message Us on WhatsApp</a>
+  </div>
+
+</div>
+
+<script>
+(function() {
+  // URL personalisation
+  var params = new URLSearchParams(window.location.search);
+  var name = params.get('name') || '';
+  var cleanName = name.replace(/[^a-zA-Z\s'-]/g, '').trim();
+
+  if (cleanName) {
+    var greeting = document.getElementById('greeting');
+    if (greeting) {
+      greeting.innerHTML = 'Welcome, <span style="color:var(--orange);">' + cleanName + '</span>.<br>You made the right call.';
+    }
+
+    var heroSub = document.getElementById('hero-sub');
+    if (heroSub) {
+      heroSub.textContent = 'Your wedding deserves more than a photographer who shows up and disappears. We know your name. We know your date. And from this moment, your day is one of ours.';
+    }
+
+    var ctaTitle = document.getElementById('cta-title');
+    if (ctaTitle) {
+      ctaTitle.textContent = cleanName + ', you are in good hands.';
+    }
+
+    var waBtn = document.getElementById('wa-btn');
+    if (waBtn) {
+      waBtn.href = 'https://wa.me/256706028899?text=Hi%20Charis%20Creations%2C%20this%20is%20' + encodeURIComponent(cleanName) + '.%20I%20just%20reviewed%20my%20welcome%20pack.';
+    }
+
+    var prepLink = document.getElementById('prep-link');
+    if (prepLink) {
+      prepLink.href = 'prep-checklist.html?name=' + encodeURIComponent(cleanName);
+    }
+  }
+})();
+</script>
+</body>
+</html>

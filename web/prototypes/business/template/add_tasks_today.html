@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Add Today's Tasks — CharisOS</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:Arial,sans-serif;background:#0f172a;color:#f1f5f9;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;}
+  .card{background:#1e293b;border:1px solid #334155;border-radius:16px;padding:32px;max-width:560px;width:100%;}
+  h1{font-size:22px;font-weight:700;color:#6366f1;margin-bottom:6px;}
+  .sub{font-size:13px;color:#64748b;margin-bottom:28px;}
+  .task{background:#0f172a;border:1px solid #334155;border-radius:10px;padding:14px 16px;margin-bottom:12px;}
+  .task-name{font-size:13px;font-weight:700;color:#6366f1;margin-bottom:4px;}
+  .task-label{font-size:14px;color:#f1f5f9;line-height:1.4;}
+  .task-note{font-size:12px;color:#64748b;margin-top:4px;}
+  .task-row{display:flex;align-items:center;gap:10px;margin-top:8px;}
+  .status{font-size:11px;padding:3px 10px;border-radius:20px;font-weight:600;background:#1e293b;border:1px solid #334155;color:#94a3b8;}
+  button{width:100%;margin-top:24px;padding:14px;border:none;border-radius:10px;background:#6366f1;color:#fff;font-size:15px;font-weight:700;cursor:pointer;letter-spacing:0.3px;}
+  button:hover{background:#4f46e5;}
+  button:disabled{background:#334155;color:#64748b;cursor:not-allowed;}
+  .result{margin-top:16px;padding:14px;border-radius:10px;font-size:13px;display:none;}
+  .result.success{background:#14532d;border:1px solid #16a34a;color:#bbf7d0;display:block;}
+  .result.error{background:#450a0a;border:1px solid #dc2626;color:#fca5a5;display:block;}
+  .tick{color:#22c55e;font-size:18px;}
+  .dot{width:8px;height:8px;border-radius:50%;background:#f59e0b;flex-shrink:0;}
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>📋 Today's Tasks</h1>
+  <div class="sub" id="dateLabel"></div>
+
+  <div class="task">
+    <div class="task-name">🎨 Ahibisibwe</div>
+    <div class="task-label">Study Claude AI and build the April content calendar for Charis Creations social media</div>
+    <div class="task-note">Research Claude, understand what we do, then plan all April posts — types, captions, days to post</div>
+    <div class="task-row"><div class="dot"></div><span class="status">Due Today</span></div>
+  </div>
+
+  <div class="task">
+    <div class="task-name">🎒 Brian</div>
+    <div class="task-label">Collect the new light bags and cut the sponge/foam to fit the equipment properly</div>
+    <div class="task-note">All lights must sit securely in their bags before end of day</div>
+    <div class="task-row"><div class="dot"></div><span class="status">Due Today</span></div>
+  </div>
+
+  <div class="task">
+    <div class="task-name">🎙️ Jessy</div>
+    <div class="task-label">Record the voice over for the Affinity podcast and complete the full edit today</div>
+    <div class="task-note">Must be finished and ready to publish by end of day</div>
+    <div class="task-row"><div class="dot"></div><span class="status">Due Today</span></div>
+  </div>
+
+  <div class="task">
+    <div class="task-name">📸 Darious  <span style="color:#64748b;font-weight:400">(with Brian)</span></div>
+    <div class="task-label">Go through the photo library and select the best photos to post on social media</div>
+    <div class="task-note">Work together with Brian — pick and shortlist images ready for posting</div>
+    <div class="task-row"><div class="dot"></div><span class="status">Due Today</span></div>
+  </div>
+
+  <div class="task">
+    <div class="task-name">💻 Patrick</div>
+    <div class="task-label">Continue the website development work</div>
+    <div class="task-note">Pick up from where you left off and push progress forward today</div>
+    <div class="task-row"><div class="dot"></div><span class="status">Due Today</span></div>
+  </div>
+
+  <button id="btn" onclick="addTasks()">➕ Add All Tasks to CharisOS</button>
+  <div class="result" id="result"></div>
+</div>
+
+<script>
+const SUPABASE_URL  = 'https://vlmcwmjhmenbnymwfkdk.supabase.co';
+const SUPABASE_ANON = 'sb_publishable_Q7wTRJK-hCy87Tfy7ROkeA_94Q9HQQw';
+const supa = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+
+const today = new Date().toLocaleDateString('en-UG', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+document.getElementById('dateLabel').textContent = today;
+
+const tasks = [
+  {
+    label:     'Study Claude AI and build the April content calendar for Charis Creations social media',
+    assign_to: 'Ahibisibwe',
+    notes:     'Research Claude AI, understand our brand and services, then plan all April posts — content types, captions, and days to post. Have a draft ready by end of day.',
+    status:    'Pending'
+  },
+  {
+    label:     'Collect the new light bags — cut sponge/foam to fit the equipment properly',
+    assign_to: 'Brian',
+    notes:     'Get the new bags that were bought for the lights. Cut and shape the sponge so that every light sits securely and snugly in its bag. All lights must be packed by end of day.',
+    status:    'Pending'
+  },
+  {
+    label:     'Record voice over for the Affinity podcast and complete the full edit today',
+    assign_to: 'Jessy',
+    notes:     'Record the voice over, then do the full edit — music, pacing, levels. Episode must be finished and ready to publish by close of business today.',
+    status:    'Pending'
+  },
+  {
+    label:     'Select and shortlist the best photos to post on social media (work with Brian)',
+    assign_to: 'Darious',
+    notes:     'Work together with Brian. Go through the photo library, pick the strongest images, and have a shortlist ready for posting.',
+    status:    'Pending'
+  },
+  {
+    label:     'Continue website development work',
+    assign_to: 'Patrick',
+    notes:     'Pick up from where you left off yesterday and push progress forward. Update the team on what was completed at end of day.',
+    status:    'Pending'
+  }
+];
+
+async function addTasks() {
+  const btn = document.getElementById('btn');
+  const result = document.getElementById('result');
+  btn.disabled = true;
+  btn.textContent = '⏳ Adding tasks...';
+  result.className = 'result';
+  result.textContent = '';
+
+  try {
+    // Try to get team members to match names → assigned_user_id
+    const { data: team } = await supa.from('team').select('id, name');
+
+    const rows = tasks.map(t => {
+      const member = team ? team.find(m => m.name && m.name.toLowerCase().includes(t.assign_to.toLowerCase())) : null;
+      return {
+        label:            t.label,
+        assign_to:        t.assign_to,
+        assigned_user_id: member ? member.id : null,
+        status:           t.status,
+        notes:            t.notes,
+        project_id:       null,
+        proj_ref:         '',
+        step_id:          0
+      };
+    });
+
+    const { data, error } = await supa.from('tasks').insert(rows).select();
+    if (error) throw error;
+
+    result.className = 'result success';
+    result.innerHTML = '✅ All 5 tasks have been added to CharisOS successfully!<br><br>The team will see them when they open the app. You can close this page.';
+    btn.textContent = '✅ Done!';
+  } catch(e) {
+    result.className = 'result error';
+    result.textContent = '❌ Error: ' + (e.message || JSON.stringify(e));
+    btn.disabled = false;
+    btn.textContent = '➕ Add All Tasks to CharisOS';
+  }
+}
+</script>
+</body>
+</html>

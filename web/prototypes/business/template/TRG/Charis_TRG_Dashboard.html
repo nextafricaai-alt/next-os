@@ -1,0 +1,2252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Charis × TRG Content Hub</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    :root {
+      --orange: #E8751A;
+      --orange-dark: #c45f10;
+      --orange-light: #fff3ea;
+      --dark: #2D2D2D;
+      --mid: #555;
+      --light: #888;
+      --border: #e8e8e8;
+      --bg: #f5f5f3;
+      --white: #ffffff;
+      --coral: #F7A092;
+      --teal: #90D1C2;
+      --gold: #E49944;
+      --linen: #F1F1ED;
+      --blush: #FEF5F4;
+      --green: #27ae60;
+      --red: #e74c3c;
+      --shadow: 0 2px 12px rgba(0,0,0,0.07);
+      --radius: 10px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--dark); min-height: 100vh; }
+
+    /* TOP BAR */
+    .topbar {
+      background: var(--dark);
+      color: white;
+      padding: 14px 24px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      position: sticky;
+      top: 0;
+      z-index: 200;
+    }
+    .topbar-logo {
+      font-weight: 900;
+      font-size: 18px;
+      color: var(--orange);
+      letter-spacing: -0.5px;
+    }
+    .topbar-logo span { color: white; }
+    .topbar-subtitle { font-size: 12px; color: #aaa; border-left: 1px solid #444; padding-left: 16px; margin-left: 4px; }
+    .topbar-right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+    .notif-bell {
+      position: relative;
+      cursor: pointer;
+      font-size: 20px;
+      padding: 4px 8px;
+    }
+    .notif-badge {
+      position: absolute;
+      top: -2px; right: -2px;
+      background: var(--red);
+      color: white;
+      font-size: 10px;
+      font-weight: 700;
+      min-width: 18px;
+      height: 18px;
+      border-radius: 9px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 4px;
+    }
+    .topbar-user { font-size: 13px; color: #ccc; }
+
+    /* LAYOUT */
+    .layout { display: flex; min-height: calc(100vh - 52px); }
+
+    /* SIDEBAR */
+    .sidebar {
+      width: 220px;
+      background: var(--white);
+      border-right: 1px solid var(--border);
+      padding: 20px 0;
+      position: sticky;
+      top: 52px;
+      height: calc(100vh - 52px);
+      overflow-y: auto;
+      flex-shrink: 0;
+    }
+    .sidebar-section { padding: 0 16px; margin-bottom: 24px; }
+    .sidebar-label { font-size: 10px; font-weight: 800; letter-spacing: 1px; color: var(--light); text-transform: uppercase; margin-bottom: 8px; }
+    .sidebar-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--mid);
+      cursor: pointer;
+      transition: all 0.15s;
+      margin-bottom: 2px;
+    }
+    .sidebar-item:hover { background: var(--bg); color: var(--dark); }
+    .sidebar-item.active { background: var(--orange-light); color: var(--orange); }
+    .sidebar-item .count {
+      margin-left: auto;
+      background: var(--orange);
+      color: white;
+      font-size: 10px;
+      font-weight: 700;
+      min-width: 18px;
+      height: 18px;
+      border-radius: 9px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 4px;
+    }
+    .sidebar-month-filter { margin-top: 4px; }
+    .month-chip {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 600;
+      background: var(--bg);
+      color: var(--mid);
+      margin: 3px 2px;
+      cursor: pointer;
+      border: 1px solid var(--border);
+      transition: all 0.15s;
+    }
+    .month-chip.active { background: var(--orange); color: white; border-color: var(--orange); }
+
+    /* MAIN */
+    .main { flex: 1; padding: 24px; overflow-y: auto; }
+
+    /* PAGE HEADER */
+    .page-header { margin-bottom: 20px; }
+    .page-header h1 { font-size: 22px; font-weight: 800; color: var(--dark); }
+    .page-header p { font-size: 13px; color: var(--light); margin-top: 4px; }
+
+    /* STATS ROW */
+    .stats-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 12px; margin-bottom: 20px; }
+    @media (max-width: 800px) { .stats-row { grid-template-columns: 1fr 1fr; } }
+    .stat-card.purple { border-left-color: #9b86c2; }
+    .stat-card.green { border-left-color: var(--green); }
+    .stat-card {
+      background: var(--white);
+      border-radius: var(--radius);
+      padding: 16px 18px;
+      box-shadow: var(--shadow);
+      border-left: 4px solid var(--border);
+    }
+    .stat-card.orange { border-left-color: var(--orange); }
+    .stat-card.teal { border-left-color: var(--teal); }
+    .stat-card.coral { border-left-color: var(--coral); }
+    .stat-card.gold { border-left-color: var(--gold); }
+    .stat-num { font-size: 28px; font-weight: 900; color: var(--dark); }
+    .stat-label { font-size: 11px; color: var(--light); margin-top: 2px; font-weight: 600; }
+
+    /* ACTIONS BAR */
+    .actions-bar {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+    .btn {
+      padding: 10px 20px;
+      border-radius: 8px;
+      border: none;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-family: inherit;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .btn-orange { background: var(--orange); color: white; }
+    .btn-orange:hover { background: var(--orange-dark); }
+    .btn-teal { background: var(--teal); color: white; }
+    .btn-teal:hover { background: #6bb8a8; }
+    .btn-outline { background: var(--white); color: var(--dark); border: 1.5px solid var(--border); }
+    .btn-outline:hover { border-color: var(--orange); color: var(--orange); }
+    .btn-sm { padding: 6px 12px; font-size: 12px; }
+
+    /* SUBMISSION CARDS */
+    .submission-card {
+      background: var(--white);
+      border-radius: var(--radius);
+      padding: 20px;
+      margin-bottom: 14px;
+      box-shadow: var(--shadow);
+      border-left: 4px solid var(--border);
+      transition: box-shadow 0.2s;
+      position: relative;
+    }
+    .submission-card.unread { border-left-color: var(--orange); }
+    .submission-card:hover { box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
+    .sub-header { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 14px; }
+    .sub-dept-icon {
+      width: 44px; height: 44px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      background: var(--blush);
+      flex-shrink: 0;
+    }
+    .sub-meta { flex: 1; }
+    .sub-meta h3 { font-size: 15px; font-weight: 800; color: var(--dark); }
+    .sub-meta .sub-info { font-size: 12px; color: var(--light); margin-top: 3px; }
+    .sub-actions { display: flex; gap: 6px; }
+    .new-badge {
+      background: var(--orange);
+      color: white;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 4px;
+      margin-left: 6px;
+    }
+
+    /* CONTENT PREVIEW */
+    .content-preview { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 14px; }
+    @media (max-width: 600px) { .content-preview { grid-template-columns: 1fr; } }
+    .preview-item {
+      background: var(--bg);
+      border-radius: 8px;
+      padding: 12px;
+    }
+    .preview-label { font-size: 10px; font-weight: 700; color: var(--light); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+    .preview-value { font-size: 13px; color: var(--dark); line-height: 1.5; }
+    .preview-value.empty { color: var(--light); font-style: italic; }
+
+    /* EXPAND/COLLAPSE */
+    .expand-toggle {
+      margin-top: 12px;
+      font-size: 12px;
+      color: var(--orange);
+      cursor: pointer;
+      font-weight: 600;
+    }
+    .expanded-content { display: none; margin-top: 14px; }
+    .expanded-content.open { display: block; }
+    .full-field { margin-bottom: 12px; }
+    .full-field .field-lbl { font-size: 11px; font-weight: 700; color: var(--light); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+    .full-field .field-val { font-size: 13px; color: var(--dark); line-height: 1.6; background: var(--bg); border-radius: 6px; padding: 10px 12px; }
+
+    /* STATUS TAGS */
+    .status-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 10px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+    .status-new { background: #fff0ea; color: var(--orange); }
+    .status-reviewed { background: #e8f8f0; color: var(--green); }
+    .status-inprogress { background: #fff9e6; color: #b07020; }
+
+    /* MODAL */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 500;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: var(--white);
+      border-radius: 16px;
+      width: 100%;
+      max-width: 720px;
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+    }
+    .modal-header {
+      padding: 20px 24px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      background: var(--white);
+    }
+    .modal-header h2 { font-size: 18px; font-weight: 800; }
+    .modal-close { font-size: 22px; cursor: pointer; color: var(--light); border: none; background: none; }
+    .modal-body { padding: 24px; }
+    .modal-footer { padding: 16px 24px; border-top: 1px solid var(--border); display: flex; gap: 10px; justify-content: flex-end; }
+
+    /* NEWSLETTER / TASKS OUTPUT */
+    .output-box {
+      background: var(--bg);
+      border-radius: 8px;
+      padding: 20px;
+      font-size: 13px;
+      line-height: 1.8;
+      white-space: pre-wrap;
+      color: var(--dark);
+      font-family: Georgia, serif;
+      border: 1px solid var(--border);
+    }
+    .output-section { margin-bottom: 20px; }
+    .output-section h3 { font-size: 15px; font-weight: 800; color: var(--orange); margin-bottom: 8px; font-family: inherit; }
+    .output-section h4 { font-size: 13px; font-weight: 700; color: var(--dark); margin-bottom: 6px; margin-top: 12px; }
+    .output-section p { margin-bottom: 8px; color: var(--mid); }
+    .output-section ul { margin-left: 16px; }
+    .output-section ul li { margin-bottom: 4px; }
+    .task-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 10px 12px;
+      background: var(--white);
+      border-radius: 6px;
+      margin-bottom: 8px;
+      border: 1px solid var(--border);
+    }
+    .task-priority {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 4px;
+      white-space: nowrap;
+      margin-top: 2px;
+    }
+    .priority-high { background: #fde8e8; color: var(--red); }
+    .priority-medium { background: #fff9e6; color: #b07020; }
+    .priority-low { background: #e8f8f0; color: var(--green); }
+    .task-text { font-size: 13px; color: var(--dark); line-height: 1.5; }
+    .task-dept { font-size: 11px; color: var(--light); margin-top: 2px; }
+
+    /* EMPTY STATE */
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+    }
+    .empty-state .empty-icon { font-size: 48px; margin-bottom: 16px; }
+    .empty-state h3 { font-size: 18px; font-weight: 700; color: var(--dark); margin-bottom: 8px; }
+    .empty-state p { font-size: 14px; color: var(--light); max-width: 360px; margin: 0 auto 20px; line-height: 1.6; }
+
+    /* PRINT */
+    @media print {
+      .topbar, .sidebar, .actions-bar, .btn, .modal-overlay { display: none !important; }
+      .main { padding: 0; }
+      body { background: white; }
+    }
+
+    /* LIVE FEED TIMELINE */
+    .live-feed-timeline { display: flex; flex-direction: column; gap: 10px; }
+    .live-feed-item {
+      background: var(--white);
+      border-radius: 8px;
+      padding: 14px 16px;
+      border-left: 4px solid var(--border);
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      box-shadow: var(--shadow);
+      cursor: pointer;
+      transition: box-shadow 0.15s;
+    }
+    .live-feed-item:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.1); }
+    .live-feed-item.urgency-breaking { border-left-color: var(--orange); }
+    .live-feed-item.urgency-good_story { border-left-color: var(--teal); }
+    .live-feed-item.urgency-background { border-left-color: #bbb; }
+    .live-feed-item.unread-log { background: var(--blush); }
+    .lf-dept-icon { font-size: 20px; margin-top: 2px; flex-shrink: 0; }
+    .lf-body { flex: 1; min-width: 0; }
+    .lf-header { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 4px; }
+    .lf-dept-name { font-size: 13px; font-weight: 700; color: var(--dark); }
+    .lf-name { font-size: 12px; color: var(--light); }
+    .lf-time { font-size: 11px; color: var(--light); margin-left: auto; white-space: nowrap; }
+    .lf-preview { font-size: 13px; color: var(--mid); line-height: 1.5; }
+    .lf-tags { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; align-items: center; }
+    .urgency-badge {
+      font-size: 10px; font-weight: 700; padding: 2px 8px;
+      border-radius: 10px; text-transform: uppercase;
+    }
+    .ub-breaking { background: #fff0ea; color: var(--orange); }
+    .ub-good_story { background: #e8f6f3; color: #278a75; }
+    .ub-background { background: #f0f0f0; color: #777; }
+    .lf-followup-icon, .lf-media-icon {
+      font-size: 11px; color: var(--light);
+      background: var(--bg); padding: 2px 7px; border-radius: 8px;
+    }
+    .lf-read-btn {
+      font-size: 10px; font-weight: 700; padding: 2px 8px;
+      border-radius: 8px; border: 1px solid var(--border);
+      background: var(--white); color: var(--light); cursor: pointer;
+      margin-left: auto;
+    }
+    .lf-read-btn:hover { border-color: var(--orange); color: var(--orange); }
+
+    /* DEPT STATUS PANEL */
+    .dept-status-panel {
+      background: var(--white); border-radius: var(--radius);
+      padding: 18px 20px; margin-bottom: 20px; box-shadow: var(--shadow);
+    }
+    .dept-status-panel-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 14px;
+    }
+    .dept-status-panel-header h4 { font-size: 13px; font-weight: 800; color: var(--dark); }
+    .dept-status-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+    @media (max-width: 900px) { .dept-status-grid { grid-template-columns: repeat(2, 1fr); } }
+    .dept-status-card {
+      background: var(--bg); border-radius: 8px;
+      padding: 12px 14px; border-left: 3px solid var(--border);
+    }
+    .dept-status-card.plan-in { border-left-color: var(--green); }
+    .dept-status-card.plan-missing { border-left-color: var(--gold); }
+    .dsc-top { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+    .dsc-icon { font-size: 16px; }
+    .dsc-name { font-size: 11px; font-weight: 700; color: var(--dark); flex: 1; }
+    .dsc-plan-ok { font-size: 13px; color: var(--green); }
+    .dsc-plan-missing { font-size: 13px; color: var(--gold); }
+    .dsc-stats { font-size: 11px; color: var(--light); margin-top: 2px; }
+    .dsc-last { font-size: 10px; color: var(--light); margin-top: 1px; font-style: italic; }
+
+    /* DEMO NOTICE */
+    .demo-banner {
+      background: linear-gradient(90deg, var(--orange-light), #fff);
+      border: 1px solid var(--orange);
+      border-radius: 8px;
+      padding: 12px 16px;
+      margin-bottom: 20px;
+      font-size: 13px;
+      color: var(--orange-dark);
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+    }
+  </style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <div class="topbar-logo">Charis<span>×TRG</span></div>
+  <div class="topbar-subtitle">Content Hub · Operations Dashboard</div>
+  <div class="topbar-right">
+    <div class="notif-bell" onclick="markAllRead()" title="Mark all read">
+      🔔
+      <div class="notif-badge" id="notifBadge" style="display:none">0</div>
+    </div>
+    <div class="topbar-user">Patience · Content Manager</div>
+  </div>
+</div>
+
+<div class="layout">
+
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="sidebar-section">
+      <div class="sidebar-label">Views</div>
+      <div class="sidebar-item active" onclick="setView('all', this)">📥 All Submissions <div class="count" id="allCount">0</div></div>
+      <div class="sidebar-item" onclick="setView('monthly_plans', this)">📋 Monthly Plans <div class="count" id="plansCount" style="display:none">0</div></div>
+      <div class="sidebar-item" onclick="setView('live_feed', this)">⚡ Live Feed <div class="count" id="liveCount" style="display:none">0</div></div>
+      <div class="sidebar-item" onclick="setView('unread', this)">🔴 Unread <div class="count" id="unreadCount" style="display:none">0</div></div>
+      <div class="sidebar-item" onclick="setView('inprogress', this)">⏳ In Progress</div>
+      <div class="sidebar-item" onclick="setView('done', this)">✅ Reviewed</div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-label">Intelligence</div>
+      <div class="sidebar-item" onclick="setView('story_bank', this)">📚 Story Bank <div class="count" id="storyBankCount" style="display:none">0</div></div>
+      <div class="sidebar-item" onclick="setView('intelligence', this)">📈 Quality Trends</div>
+      <div class="sidebar-item" onclick="setView('upcoming_events', this)">📅 Upcoming Events</div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-label">Filter by Month</div>
+      <div class="sidebar-month-filter" id="monthFilter">
+        <div class="month-chip active" onclick="filterMonth('all', this)">All months</div>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-label">Filter by Dept</div>
+      <div id="deptFilter">
+        <div class="month-chip active" onclick="filterDept('all', this)">All depts</div>
+      </div>
+    </div>
+
+    <div class="sidebar-section" style="margin-top: auto;">
+      <div class="sidebar-label">Quick Actions</div>
+      <div class="sidebar-item" onclick="openModal('newsletter')">📧 Generate Newsletter</div>
+      <div class="sidebar-item" onclick="openModal('tasks')">✅ Generate Tasks</div>
+      <div class="sidebar-item" onclick="openModal('report')">📊 Monthly Report</div>
+      <div class="sidebar-item" onclick="clearAll()">🗑️ Clear Demo Data</div>
+    </div>
+  </div>
+
+  <!-- MAIN CONTENT -->
+  <div class="main">
+
+    <!-- DEMO BANNER -->
+    <div class="demo-banner" id="demoBanner">
+      <span>💡</span>
+      <div>
+        <strong>Getting started:</strong> Open the TRG Content Portal form and submit a test entry to see it appear here. In your live system, TRG departments will fill the form and submissions will appear here automatically. Click <strong>Generate Newsletter</strong> or <strong>Generate Tasks</strong> to process submissions.
+      </div>
+    </div>
+
+    <!-- PAGE HEADER -->
+    <div class="page-header">
+      <h1>TRG Content Hub</h1>
+      <p id="lastUpdated">Checking for new submissions...</p>
+    </div>
+
+    <!-- STATS -->
+    <div class="stats-row" id="statsRow">
+      <div class="stat-card orange">
+        <div class="stat-num" id="statTotal">0</div>
+        <div class="stat-label">Total Submissions</div>
+      </div>
+      <div class="stat-card teal">
+        <div class="stat-num" id="statThisMonth">0</div>
+        <div class="stat-label">This Month</div>
+      </div>
+      <div class="stat-card coral">
+        <div class="stat-num" id="statDepts">0</div>
+        <div class="stat-label">Departments In</div>
+      </div>
+      <div class="stat-card gold">
+        <div class="stat-num" id="statUnread">0</div>
+        <div class="stat-label">Unread</div>
+      </div>
+      <div class="stat-card purple">
+        <div class="stat-num" id="statLiveLogs">0</div>
+        <div class="stat-label">Live Logs This Month</div>
+      </div>
+      <div class="stat-card green">
+        <div class="stat-num" id="statDaysSince">—</div>
+        <div class="stat-label">Days Since Last Entry</div>
+      </div>
+    </div>
+
+    <!-- DEPT STATUS PANEL -->
+    <div class="dept-status-panel" id="deptStatusPanel"></div>
+
+    <!-- ACTIONS -->
+    <div class="actions-bar">
+      <button class="btn btn-orange" onclick="openModal('newsletter')">📧 Generate Newsletter Brief</button>
+      <button class="btn btn-teal" onclick="openModal('tasks')">✅ Create Task List</button>
+      <button class="btn btn-outline" onclick="openModal('report')">📊 Monthly Report</button>
+      <button class="btn btn-outline" onclick="window.open('TRG_ContentPortal_Form.html', '_blank')">🔗 Open TRG Form</button>
+      <button class="btn btn-outline" onclick="loadDemoData()">🧪 Load Demo Data</button>
+    </div>
+
+    <!-- SUBMISSIONS LIST -->
+    <div id="submissionsList">
+      <div class="empty-state">
+        <div class="empty-icon">📬</div>
+        <h3>No submissions yet</h3>
+        <p>When TRG departments fill in the Content Portal, their submissions will appear here for you to review and process.</p>
+        <button class="btn btn-orange" onclick="loadDemoData()">Load Demo Data to Preview</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== NEWSLETTER MODAL ==================== -->
+<div class="modal-overlay" id="modal-newsletter">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>📧 Newsletter Brief Generator</h2>
+      <button class="modal-close" onclick="closeModal('newsletter')">×</button>
+    </div>
+    <div class="modal-body" id="newsletterContent">
+      <p style="color: var(--light); font-size: 13px; margin-bottom: 16px;">Generated from all submissions for the selected month. Share this with your writing team or use it to draft the newsletter directly.</p>
+      <div id="newsletterOutput"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline btn-sm" onclick="copyContent('newsletterOutput')">📋 Copy Text</button>
+      <button class="btn btn-outline btn-sm" onclick="window.print()">🖨️ Print</button>
+      <button class="btn btn-orange btn-sm" onclick="closeModal('newsletter')">Done</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== TASKS MODAL ==================== -->
+<div class="modal-overlay" id="modal-tasks">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>✅ Task List Generator</h2>
+      <button class="modal-close" onclick="closeModal('tasks')">×</button>
+    </div>
+    <div class="modal-body">
+      <p style="color: var(--light); font-size: 13px; margin-bottom: 16px;">Tasks generated from all submissions. Assign these to the team in your project management tool.</p>
+      <div id="tasksOutput"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline btn-sm" onclick="copyContent('tasksOutput')">📋 Copy Text</button>
+      <button class="btn btn-teal btn-sm" onclick="closeModal('tasks')">Done</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== REPORT MODAL ==================== -->
+<div class="modal-overlay" id="modal-report">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>📊 Monthly Report</h2>
+      <button class="modal-close" onclick="closeModal('report')">×</button>
+    </div>
+    <div class="modal-body">
+      <div id="reportOutput"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline btn-sm" onclick="copyContent('reportOutput')">📋 Copy</button>
+      <button class="btn btn-orange btn-sm" onclick="closeModal('report')">Done</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== FULL SUBMISSION MODAL ==================== -->
+<div class="modal-overlay" id="modal-submission">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="submissionModalTitle">Submission Details</h2>
+      <button class="modal-close" onclick="closeModal('submission')">×</button>
+    </div>
+    <div class="modal-body" id="submissionModalBody"></div>
+    <div class="modal-footer" id="submissionModalFooter">
+      <button class="btn btn-outline btn-sm" onclick="closeModal('submission')">Close</button>
+      <button class="btn btn-outline btn-sm" id="storyBankSaveBtn" style="background:rgba(80,200,120,0.12);border-color:#4CAF50;color:#4CAF50;" onclick="storyBankPrompt()">💾 Save to Story Bank</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== STORY BANK SAVE MODAL ==================== -->
+<div class="modal-overlay" id="modal-storybank">
+  <div class="modal" style="max-width:500px;">
+    <div class="modal-header">
+      <h2>💾 Save to Story Bank</h2>
+      <button class="modal-close" onclick="closeModal('storybank')">×</button>
+    </div>
+    <div class="modal-body" id="storybankSaveBody"></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline btn-sm" onclick="closeModal('storybank')">Cancel</button>
+      <button class="btn btn-orange btn-sm" onclick="confirmSaveToBank()">💾 Save</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ===================== SUPABASE =====================
+  const _SB_URL = 'https://vlmcwmjhmenbnymwfkdk.supabase.co';
+  const _SB_KEY = 'sb_publishable_Q7wTRJK-hCy87Tfy7ROkeA_94Q9HQQw';
+  let _sbClient = null;
+  try {
+    _sbClient = supabase.createClient(_SB_URL, _SB_KEY);
+  } catch(e) {
+    console.warn('[TRG Dashboard] Supabase init failed — localStorage fallback active', e);
+  }
+
+  // ===================== DEPT CONFIG =====================
+  // Active program departments
+  const deptConfig = {
+    rescue:      { icon: '🛡️', label: 'Rescue & Restoration',                         color: '#F7A092' },
+    mentalhealth:{ icon: '💚', label: 'Maternal & Child Health Services',               color: '#6db89a' },
+    education:   { icon: '🌟', label: 'Thrive',                                         color: '#90D1C2' },
+    // Operational departments
+    hr:          { icon: '👥', label: 'Human Resources',                                color: '#9b86c2' },
+    fundraising: { icon: '🤝', label: 'Donor Relations, Partnerships & ED',             color: '#E49944' },
+    programs:    { icon: '📊', label: 'Programs, Monitoring, Learning & Evaluation',    color: '#5da8c4' },
+    // Legacy keys — kept so old submissions still display correctly
+    hopefarm:    { icon: '🌱', label: 'Hope Farm (Legacy)',                              color: '#b0b0b0' },
+    leadership:  { icon: '🔑', label: 'Leadership / General (Legacy)',                  color: '#b0b0b0' },
+  };
+
+  // Maps full department name (new submissions) → short key
+  const FULL_NAME_TO_KEY = {
+    'Rescue & Restoration': 'rescue',
+    'Maternal & Child Health Services': 'mentalhealth',
+    'Thrive': 'education',
+    'Human Resources': 'hr',
+    'Donor Relations, Partnerships & Executive Director': 'fundraising',
+    'Donor Relations, Partnerships & ED': 'fundraising',
+    'Programs, Monitoring, Learning & Evaluation': 'programs',
+  };
+
+  // Normalize any dept value (short key OR full name) → short key
+  function normalizeDept(dept) {
+    if (!dept) return 'unknown';
+    if (deptConfig[dept]) return dept;
+    if (FULL_NAME_TO_KEY[dept]) return FULL_NAME_TO_KEY[dept];
+    const lower = dept.toLowerCase();
+    if (lower.includes('rescue') || lower.includes('restoration')) return 'rescue';
+    if (lower.includes('maternal') || lower.includes('child health') || lower.includes('maisha')) return 'mentalhealth';
+    if (lower.includes('thrive')) return 'education';
+    if (lower.includes('human resource')) return 'hr';
+    if (lower.includes('donor') || lower.includes('fundraising') || lower.includes('partnerships')) return 'fundraising';
+    if (lower.includes('program') || lower.includes('monitoring')) return 'programs';
+    return dept;
+  }
+
+  // Hierarchy constants
+  const PROGRAM_DEPT_KEYS  = ['rescue', 'mentalhealth', 'education'];
+  const OPERATIONAL_DEPT_KEYS = ['hr', 'fundraising', 'programs'];
+  const REGIONS = ['Central', 'Eastern', 'Western'];
+
+  let allSubmissions = [];
+  let activeView = 'all';
+  let activeMonth = 'all';
+  let activeDept = 'all';
+  let activeRegion = 'all';
+  let submissionStatuses = {};
+
+  // ===================== INIT =====================
+  document.addEventListener('DOMContentLoaded', () => {
+    loadData();
+    // Poll for new submissions every 30s
+    setInterval(loadData, 30000);
+  });
+
+  async function loadData() {
+    // === PRIMARY: Load from Supabase ===
+    let loadedFromDB = false;
+    if (_sbClient) {
+      try {
+        const { data, error } = await _sbClient
+          .from('trg_content_submissions')
+          .select('*')
+          .order('submitted_at', { ascending: false });
+        if (error) throw error;
+        // Normalise: the full object is in `data.data` column
+        allSubmissions = (data || []).map(row => {
+          const sub = row.data || {};
+          sub.id = row.id;
+          sub.read = row.read;
+          sub._status = row.status;
+          sub.submittedAt = row.submitted_at;
+          sub.submitterName = row.submitter_name;
+          sub.submitterRole = row.submitter_role;
+          sub.submitterPhone = row.submitter_phone;
+          sub.month = row.month;
+          sub.year = row.year;
+          sub.department = row.department;
+          sub._tasksGenerated = row.tasks_generated;
+          sub.submissionType = row.submission_type || sub.submission_type || 'monthly_plan';
+          return sub;
+        });
+        // Build statuses map from DB status field
+        submissionStatuses = {};
+        allSubmissions.forEach(s => { if (s._status) submissionStatuses[s.id] = s._status; });
+        loadedFromDB = true;
+        // Mirror to localStorage for offline use
+        try {
+          localStorage.setItem('trg_submissions', JSON.stringify(allSubmissions));
+          if (allSubmissions.length > 0) {
+            localStorage.setItem('trg_last_submission', allSubmissions[0].submittedAt || new Date().toISOString());
+          }
+        } catch(e) {}
+      } catch(err) {
+        console.warn('[TRG Dashboard] Supabase load failed — using localStorage fallback:', err.message);
+      }
+    }
+
+    // === FALLBACK: Load from localStorage ===
+    if (!loadedFromDB) {
+      const raw = localStorage.getItem('trg_submissions');
+      allSubmissions = raw ? JSON.parse(raw) : [];
+      // Normalize submissionType for localStorage entries
+      allSubmissions = allSubmissions.map(s => {
+        if (!s.submissionType) s.submissionType = s.submission_type || 'monthly_plan';
+        return s;
+      });
+      submissionStatuses = JSON.parse(localStorage.getItem('trg_statuses') || '{}');
+    }
+
+    updateStats();
+    buildMonthFilter();
+    buildDeptFilter();
+    renderSubmissions();
+    updateNotifBadge();
+
+    const lastSub = allSubmissions.length > 0 ? (allSubmissions[0].submittedAt || localStorage.getItem('trg_last_submission')) : localStorage.getItem('trg_last_submission');
+    const el = document.getElementById('lastUpdated');
+    if (lastSub) {
+      const d = new Date(lastSub);
+      el.textContent = 'Last submission: ' + d.toLocaleDateString('en-UG', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    } else {
+      el.textContent = 'No submissions yet · Auto-refreshes every 30 seconds';
+    }
+
+    if (allSubmissions.length > 0) {
+      document.getElementById('demoBanner').style.display = 'none';
+    }
+  }
+
+  function updateStats() {
+    const now = new Date();
+    const currentMonth = now.toLocaleString('en', { month: 'long' });
+    const currentYear = String(now.getFullYear());
+    const thisMonth = allSubmissions.filter(s => s.month === currentMonth);
+    const unread = allSubmissions.filter(s => s.read === false);
+    const depts = new Set(allSubmissions.map(s => s.department)).size;
+    const liveLogs = allSubmissions.filter(s => s.submissionType === 'live_log' && s.month === currentMonth && s.year === currentYear);
+    const plans = allSubmissions.filter(s => s.submissionType !== 'live_log');
+    const liveAll = allSubmissions.filter(s => s.submissionType === 'live_log');
+
+    document.getElementById('statTotal').textContent = allSubmissions.length;
+    document.getElementById('statThisMonth').textContent = thisMonth.length;
+    document.getElementById('statDepts').textContent = depts;
+    document.getElementById('statUnread').textContent = unread.length;
+    document.getElementById('statLiveLogs').textContent = liveLogs.length;
+    document.getElementById('allCount').textContent = allSubmissions.length;
+
+    // Days since last entry (any type)
+    const daysEl = document.getElementById('statDaysSince');
+    if (allSubmissions.length > 0) {
+      const sorted = [...allSubmissions].sort((a, b) => new Date(b.submittedAt) - new Date(a.submittedAt));
+      const lastDate = new Date(sorted[0].submittedAt);
+      const diffMs = now - lastDate;
+      const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+      daysEl.textContent = diffDays === 0 ? 'Today' : diffDays;
+    } else {
+      daysEl.textContent = '—';
+    }
+
+    // Sidebar counts
+    const unreadCountEl = document.getElementById('unreadCount');
+    if (unread.length > 0) {
+      unreadCountEl.style.display = 'flex';
+      unreadCountEl.textContent = unread.length;
+    } else {
+      unreadCountEl.style.display = 'none';
+    }
+    const plansCountEl = document.getElementById('plansCount');
+    if (plans.length > 0) {
+      plansCountEl.style.display = 'flex';
+      plansCountEl.textContent = plans.length;
+    } else {
+      plansCountEl.style.display = 'none';
+    }
+    const liveCountEl = document.getElementById('liveCount');
+    if (liveAll.length > 0) {
+      liveCountEl.style.display = 'flex';
+      liveCountEl.textContent = liveAll.length;
+    } else {
+      liveCountEl.style.display = 'none';
+    }
+
+    renderDeptStatusPanel();
+    updateStoryBankBadge();
+  }
+
+  function updateNotifBadge() {
+    const unread = allSubmissions.filter(s => s.read === false).length;
+    const badge = document.getElementById('notifBadge');
+    if (unread > 0) {
+      badge.style.display = 'flex';
+      badge.textContent = unread;
+    } else {
+      badge.style.display = 'none';
+    }
+  }
+
+  // ===================== FILTERS =====================
+  function buildMonthFilter() {
+    const months = [...new Set(allSubmissions.map(s => s.month + ' ' + s.year))];
+    const container = document.getElementById('monthFilter');
+    container.innerHTML = '<div class="month-chip active" onclick="filterMonth(\'all\', this)">All months</div>';
+    months.forEach(m => {
+      const chip = document.createElement('div');
+      chip.className = 'month-chip';
+      chip.textContent = m;
+      chip.onclick = function() { filterMonth(m, this); };
+      container.appendChild(chip);
+    });
+  }
+
+  function buildDeptFilter() {
+    const container = document.getElementById('deptFilter');
+    let html = '<div class="month-chip active" onclick="filterRegion(\'all\', this)">All</div>';
+    // Region chips first
+    REGIONS.forEach(r => {
+      html += `<div class="month-chip" onclick="filterRegion('${r}', this)">📍 ${r}</div>`;
+    });
+    html += `<div class="month-chip" onclick="filterRegion('operational', this)">⚙️ Ops</div>`;
+    // Divider then dept chips (based on what's actually in submissions)
+    const normDepts = [...new Set(allSubmissions.map(s => normalizeDept(s.department)).filter(k => deptConfig[k]))];
+    normDepts.forEach(key => {
+      const cfg = deptConfig[key];
+      if (!cfg) return;
+      html += `<div class="month-chip" style="margin-left:4px;" onclick="filterDept('${key}', this)">${cfg.icon} ${cfg.label.split(' ')[0]}</div>`;
+    });
+    container.innerHTML = html;
+  }
+
+  function filterRegion(region, el) {
+    activeRegion = region;
+    activeDept = 'all';
+    document.querySelectorAll('#deptFilter .month-chip').forEach(c => c.classList.remove('active'));
+    el.classList.add('active');
+    renderSubmissions();
+  }
+
+  function filterMonth(month, el) {
+    activeMonth = month;
+    document.querySelectorAll('#monthFilter .month-chip').forEach(c => c.classList.remove('active'));
+    el.classList.add('active');
+    renderSubmissions();
+  }
+
+  function filterDept(dept, el) {
+    activeDept = dept;
+    document.querySelectorAll('#deptFilter .month-chip').forEach(c => c.classList.remove('active'));
+    el.classList.add('active');
+    renderSubmissions();
+  }
+
+  function setView(view, el) {
+    activeView = view;
+    document.querySelectorAll('.sidebar-item').forEach(i => i.classList.remove('active'));
+    el.classList.add('active');
+    renderSubmissions();
+  }
+
+  function getFilteredSubmissions() {
+    let list = [...allSubmissions];
+    if (activeView === 'unread') list = list.filter(s => s.read === false);
+    if (activeView === 'reviewed') list = list.filter(s => submissionStatuses[s.id] === 'reviewed');
+    if (activeView === 'inprogress') list = list.filter(s => submissionStatuses[s.id] === 'inprogress');
+    if (activeView === 'monthly_plans') list = list.filter(s => s.submissionType !== 'live_log');
+    if (activeView === 'live_feed') list = list.filter(s => s.submissionType === 'live_log');
+    if (activeMonth !== 'all') list = list.filter(s => (s.month + ' ' + s.year) === activeMonth);
+    if (activeDept !== 'all') list = list.filter(s => normalizeDept(s.department) === activeDept);
+    if (activeRegion !== 'all') {
+      if (activeRegion === 'operational') {
+        list = list.filter(s => {
+          const k = normalizeDept(s.department);
+          return OPERATIONAL_DEPT_KEYS.includes(k) || s.org_type === 'operational';
+        });
+      } else {
+        list = list.filter(s => s.region === activeRegion || s.org_type === 'program');
+      }
+    }
+    return list;
+  }
+
+  // ===================== RENDER SUBMISSIONS =====================
+  function renderSubmissions() {
+    // Intelligence views — route before filtering
+    if (activeView === 'story_bank') { renderStoryBankView(); return; }
+    if (activeView === 'upcoming_events') { renderUpcomingEventsView(); return; }
+    if (activeView === 'intelligence') { renderIntelligenceView(); return; }
+
+    const list = getFilteredSubmissions();
+    const container = document.getElementById('submissionsList');
+
+    if (list.length === 0) {
+      const isLive = activeView === 'live_feed';
+      container.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-icon">${isLive ? '⚡' : '📭'}</div>
+          <h3>${isLive ? 'No live logs yet' : 'No submissions found'}</h3>
+          <p>${isLive ? 'When TRG team members log real-time events or stories from the field, they\'ll appear here as a live activity feed.' : 'Try adjusting the filter or check back when TRG departments have submitted.'}</p>
+        </div>`;
+      return;
+    }
+
+    // Live Feed — timeline rendering
+    if (activeView === 'live_feed') {
+      // Sort newest first — live logs are time-sensitive
+      const sorted = [...list].sort((a, b) => new Date(b.submittedAt) - new Date(a.submittedAt));
+      container.innerHTML = '<div class="live-feed-timeline">' + sorted.map(sub => renderLiveFeedCard(sub)).join('') + '</div>';
+      return;
+    }
+
+    container.innerHTML = list.map(sub => renderCard(sub)).join('');
+  }
+
+  // Build a readable hierarchy label for a submission
+  function subHierarchyLabel(sub) {
+    const key = normalizeDept(sub.department);
+    const cfg = deptConfig[key] || { icon: '📋', label: sub.department || 'Unknown' };
+    const parts = [];
+    if (sub.region && sub.region !== 'operational') parts.push('📍 ' + sub.region);
+    else if (sub.org_type === 'operational') parts.push('⚙️ Operational');
+    parts.push(cfg.icon + ' ' + cfg.label);
+    if (sub.sub_program) parts.push('› ' + sub.sub_program);
+    return parts.join('  ·  ');
+  }
+
+  function renderCard(sub) {
+    const key = normalizeDept(sub.department);
+    const cfg = deptConfig[key] || { icon: '📋', label: sub.department || 'Unknown', color: '#999' };
+    const status = submissionStatuses[sub.id] || 'new';
+    const isUnread = sub.read === false;
+    const date = new Date(sub.submittedAt);
+    const dateStr = date.toLocaleDateString('en-UG', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+    // Get key content preview — check under both new key and legacy short key
+    const deptData = sub[key] || sub[sub.department] || {};
+    const story = deptData.story || deptData.moment || deptData.success || deptData.growth || deptData.quote || deptData.highlight || '';
+    const count = deptData.count || deptData.numbers || deptData.reach || '';
+    const upcoming = deptData.upcoming || deptData.events || '';
+    const challenge = deptData.challenge || '';
+    const score = calcQualityScore(sub);
+    const scoreInfo = scoreLabel(score);
+
+    const statusBadge = {
+      new: '<span class="status-tag status-new">🟠 New</span>',
+      inprogress: '<span class="status-tag status-inprogress">⏳ In Progress</span>',
+      reviewed: '<span class="status-tag status-reviewed">✅ Reviewed</span>',
+    }[status] || '';
+
+    const hierarchyLabel = subHierarchyLabel(sub);
+    return `
+      <div class="submission-card ${isUnread ? 'unread' : ''}" id="card-${sub.id}">
+        <div class="sub-header">
+          <div class="sub-dept-icon">${cfg.icon}</div>
+          <div class="sub-meta">
+            <h3>${hierarchyLabel} ${isUnread ? '<span class="new-badge">NEW</span>' : ''}</h3>
+            <div class="sub-info">
+              Submitted by <strong>${sub.submitterName || 'Unknown'}</strong> (${sub.submitterRole || 'No role'})
+              · ${sub.month} ${sub.year}
+              · ${dateStr}
+            </div>
+            <div style="margin-top: 6px;">${statusBadge}</div>
+          </div>
+          <div class="sub-actions">
+            <button class="btn btn-outline btn-sm" onclick="viewFull('${sub.id}')">View All</button>
+            <button class="btn btn-orange btn-sm" onclick="changeStatus('${sub.id}', 'reviewed')">✓ Done</button>
+          </div>
+        </div>
+
+        <div class="content-preview">
+          ${story ? `
+            <div class="preview-item" style="grid-column: 1/-1;">
+              <div class="preview-label">📖 Key Story</div>
+              <div class="preview-value">${truncate(story, 200)}</div>
+            </div>` : ''}
+          ${count ? `
+            <div class="preview-item">
+              <div class="preview-label">📊 Numbers</div>
+              <div class="preview-value">${count}</div>
+            </div>` : ''}
+          ${challenge ? `
+            <div class="preview-item">
+              <div class="preview-label">⚡ Challenge</div>
+              <div class="preview-value">${truncate(challenge, 120)}</div>
+            </div>` : ''}
+          ${upcoming ? `
+            <div class="preview-item">
+              <div class="preview-label">📅 Coming Up</div>
+              <div class="preview-value">${upcoming}</div>
+            </div>` : ''}
+          ${sub.media?.photosDescription ? `
+            <div class="preview-item">
+              <div class="preview-label">📸 Media Available</div>
+              <div class="preview-value">${truncate(sub.media.photosDescription, 100)}</div>
+            </div>` : ''}
+        </div>
+
+        <div style="margin-top:10px;display:flex;align-items:center;gap:8px;">
+          <span style="font-size:11px;color:var(--mid);white-space:nowrap;flex-shrink:0;">Quality</span>
+          <div style="flex:1;height:5px;background:rgba(0,0,0,0.12);border-radius:4px;overflow:hidden;">
+            <div style="width:${score}%;height:100%;background:${scoreInfo.color};border-radius:4px;"></div>
+          </div>
+          <span style="font-size:11px;font-weight:700;color:${scoreInfo.color};white-space:nowrap;">${score}/100 · ${scoreInfo.label}</span>
+          <button class="btn btn-outline btn-sm" style="font-size:10px;padding:2px 7px;" onclick="addToStoryBank('${sub.id}','community')">💾</button>
+        </div>
+
+        <div style="margin-top: 10px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+          <button class="btn btn-outline btn-sm" onclick="changeStatus('${sub.id}', 'inprogress')">⏳ Mark In Progress</button>
+          ${isUnread ? `<button class="btn btn-outline btn-sm" onclick="markRead('${sub.id}')">Mark Read</button>` : ''}
+          ${sub.finalNotes ? `<span style="font-size: 12px; color: var(--mid);">💬 "${truncate(sub.finalNotes, 80)}"</span>` : ''}
+        </div>
+      </div>`;
+  }
+
+  // ===================== LIVE FEED CARD =====================
+  function renderLiveFeedCard(sub) {
+    const key = normalizeDept(sub.department);
+    const cfg = deptConfig[key] || { icon: '📋', label: sub.department || 'Unknown', color: '#999' };
+    const urgency = sub.urgency || 'background';
+    const isUnread = sub.read === false;
+    const date = new Date(sub.submittedAt);
+    const timeStr = date.toLocaleDateString('en-UG', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+    const preview = truncate(sub.whatHappened || '', 150);
+    const urgencyLabel = { breaking: '🔥 Breaking', good_story: '📖 Good Story', background: '🗒 Background' }[urgency] || urgency;
+    const urgencyClass = { breaking: 'ub-breaking', good_story: 'ub-good_story', background: 'ub-background' }[urgency] || 'ub-background';
+    const mediaIcons = { yes: '📸 Has Media', no: 'No media', whatsapp: '📲 Via WhatsApp' }[sub.mediaAvailable] || '';
+    const eventDateStr = sub.eventDate ? (' · ' + sub.eventDate) : '';
+
+    return `
+      <div class="live-feed-item urgency-${urgency} ${isUnread ? 'unread-log' : ''}" onclick="viewLiveLog('${sub.id}')">
+        <div class="lf-dept-icon">${cfg.icon}</div>
+        <div class="lf-body">
+          <div class="lf-header">
+            <span class="lf-dept-name">${subHierarchyLabel(sub)}</span>
+            <span class="lf-name">· ${sub.submitterName || 'Unknown'}${eventDateStr}</span>
+            <span class="lf-time">${timeStr}</span>
+          </div>
+          <div class="lf-preview">${preview || '<em style="color:var(--light)">No details</em>'}</div>
+          <div class="lf-tags">
+            <span class="urgency-badge ${urgencyClass}">${urgencyLabel}</span>
+            ${sub.isFollowUp ? '<span class="lf-followup-icon">🔗 Follow-up</span>' : ''}
+            ${sub.mediaAvailable && sub.mediaAvailable !== 'no' ? `<span class="lf-media-icon">${mediaIcons}</span>` : ''}
+            ${isUnread ? `<button class="lf-read-btn" onclick="event.stopPropagation();markRead('${sub.id}')">Mark Read</button>` : ''}
+          </div>
+        </div>
+      </div>`;
+  }
+
+  function viewLiveLog(id) {
+    const sub = allSubmissions.find(s => s.id === id);
+    if (!sub) return;
+    markRead(id);
+    const cfg = deptConfig[normalizeDept(sub.department)] || { icon: '📋', label: sub.department, color: '#999' };
+    const urgency = sub.urgency || 'background';
+    const urgencyLabel = { breaking: '🔥 Breaking — use now', good_story: '📖 Good story — use this month', background: '🗒 Background info' }[urgency] || urgency;
+    const urgencyClass = { breaking: 'ub-breaking', good_story: 'ub-good_story', background: 'ub-background' }[urgency] || 'ub-background';
+    const mediaText = { yes: 'Yes — they have media', no: 'No media', whatsapp: 'Will send via WhatsApp' }[sub.mediaAvailable] || sub.mediaAvailable || '—';
+    const date = new Date(sub.submittedAt);
+    const dateStr = date.toLocaleDateString('en-UG', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+    document.getElementById('submissionModalTitle').innerHTML = subHierarchyLabel(sub) + ' · Live Log <span class="urgency-badge ' + urgencyClass + '" style="margin-left:8px">' + urgencyLabel + '</span>';
+
+    let html = `
+      <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 20px; padding: 16px; background: var(--bg); border-radius: 8px;">
+        <div><strong style="font-size: 11px; color: var(--light);">LOGGED BY</strong><br>${sub.submitterName || '—'}</div>
+        <div><strong style="font-size: 11px; color: var(--light);">EVENT DATE</strong><br>${sub.eventDate || sub.month + ' ' + sub.year}</div>
+        <div><strong style="font-size: 11px; color: var(--light);">SUBMITTED AT</strong><br>${dateStr}</div>
+      </div>`;
+
+    html += `<div class="full-field"><div class="field-lbl">📝 What Happened</div><div class="field-val" style="white-space:pre-wrap;">${sub.whatHappened || '—'}</div></div>`;
+
+    if (sub.isFollowUp) {
+      html += `<div class="full-field"><div class="field-lbl">🔗 Follow-Up Context</div><div class="field-val">${sub.followUpContext || '—'}</div></div>`;
+    }
+
+    html += `<div class="full-field"><div class="field-lbl">📸 Media Available</div><div class="field-val">${mediaText}</div></div>`;
+
+    document.getElementById('submissionModalBody').innerHTML = html;
+    openModal('submission');
+  }
+
+  // ===================== DEPT STATUS PANEL — 12-unit grouped grid =====================
+  function renderDeptStatusPanel() {
+    const panelEl = document.getElementById('deptStatusPanel');
+    if (!panelEl) return;
+
+    const now = new Date();
+    const currentMonth = now.toLocaleString('en', { month: 'long' });
+    const currentYear = String(now.getFullYear());
+
+    // Helper: find submission for a specific region+dept (handles new schema + legacy)
+    function _findPlan(region, deptKey) {
+      return allSubmissions.find(s => {
+        const k = normalizeDept(s.department);
+        if (k !== deptKey) return false;
+        if (s.month !== currentMonth || s.year !== currentYear) return false;
+        if (s.submissionType === 'live_log') return false;
+        // New submission with region field
+        if (s.region && s.region === region) return true;
+        // Legacy submission (no region) — only match for Central to avoid triple-counting
+        if (!s.region && region === 'Central') return true;
+        return false;
+      });
+    }
+    function _countLiveLogs(region, deptKey) {
+      return allSubmissions.filter(s => {
+        const k = normalizeDept(s.department);
+        if (k !== deptKey) return false;
+        if (s.month !== currentMonth || s.year !== currentYear) return false;
+        if (s.submissionType !== 'live_log') return false;
+        if (s.region && s.region === region) return true;
+        if (!s.region && region === 'Central') return true;
+        return false;
+      }).length;
+    }
+    function _lastEntry(region, deptKey) {
+      const entries = allSubmissions.filter(s => {
+        const k = normalizeDept(s.department);
+        if (k !== deptKey) return false;
+        if (s.month !== currentMonth || s.year !== currentYear) return false;
+        if (s.region && s.region === region) return true;
+        if (!s.region && region === 'Central') return true;
+        return false;
+      }).sort((a, b) => new Date(b.submittedAt) - new Date(a.submittedAt));
+      return entries[0] || null;
+    }
+    function _findOpPlan(deptKey) {
+      return allSubmissions.find(s => {
+        const k = normalizeDept(s.department);
+        return k === deptKey && s.month === currentMonth && s.year === currentYear && s.submissionType !== 'live_log';
+      });
+    }
+    function _countOpLogs(deptKey) {
+      return allSubmissions.filter(s => {
+        const k = normalizeDept(s.department);
+        return k === deptKey && s.month === currentMonth && s.year === currentYear && s.submissionType === 'live_log';
+      }).length;
+    }
+    function _lastOpEntry(deptKey) {
+      return allSubmissions.filter(s => {
+        const k = normalizeDept(s.department);
+        return k === deptKey && s.month === currentMonth && s.year === currentYear;
+      }).sort((a, b) => new Date(b.submittedAt) - new Date(a.submittedAt))[0] || null;
+    }
+
+    function _dscCard(cfg, planSub, liveCount, lastSub) {
+      const planClass = planSub ? 'plan-in' : 'plan-missing';
+      const planIcon = planSub ? '<span class="dsc-plan-ok">✓</span>' : '<span class="dsc-plan-missing">⚠</span>';
+      const lastDate = lastSub ? new Date(lastSub.submittedAt).toLocaleDateString('en-UG', { day: 'numeric', month: 'short' }) : null;
+      return `<div class="dept-status-card ${planClass}">
+        <div class="dsc-top">
+          <span class="dsc-icon">${cfg.icon}</span>
+          <span class="dsc-name">${cfg.label.split(' ')[0]}</span>
+          ${planIcon}
+        </div>
+        <div class="dsc-stats">Plan: ${planSub ? '<strong style="color:var(--green)">In ✓</strong>' : '<span style="color:var(--gold)">Missing</span>'}</div>
+        <div class="dsc-stats">Live logs: <strong>${liveCount}</strong></div>
+        ${lastDate ? `<div class="dsc-last">Last: ${lastDate}</div>` : '<div class="dsc-last">No entries</div>'}
+      </div>`;
+    }
+
+    let html = `<div class="dept-status-panel-header"><h4>📊 Department Status — ${currentMonth} ${currentYear}</h4></div>`;
+
+    // === PROGRAM DEPARTMENTS — by region ===
+    REGIONS.forEach(region => {
+      html += `<div style="margin: 14px 0 6px; font-size: 11px; font-weight: 800; color: var(--mid); text-transform: uppercase; letter-spacing: 0.6px;">📍 ${region} Region</div>`;
+      html += '<div class="dept-status-grid" style="grid-template-columns: repeat(3, 1fr); margin-bottom: 6px;">';
+      PROGRAM_DEPT_KEYS.forEach(key => {
+        const cfg = deptConfig[key];
+        const plan = _findPlan(region, key);
+        const logs = _countLiveLogs(region, key);
+        const last = _lastEntry(region, key);
+        html += _dscCard(cfg, plan, logs, last);
+      });
+      html += '</div>';
+    });
+
+    // === OPERATIONAL DEPARTMENTS ===
+    html += `<div style="margin: 14px 0 6px; font-size: 11px; font-weight: 800; color: var(--mid); text-transform: uppercase; letter-spacing: 0.6px;">⚙️ Operational Departments</div>`;
+    html += '<div class="dept-status-grid" style="grid-template-columns: repeat(3, 1fr);">';
+    OPERATIONAL_DEPT_KEYS.forEach(key => {
+      const cfg = deptConfig[key];
+      const plan = _findOpPlan(key);
+      const logs = _countOpLogs(key);
+      const last = _lastOpEntry(key);
+      html += _dscCard(cfg, plan, logs, last);
+    });
+    html += '</div>';
+
+    panelEl.innerHTML = html;
+  }
+
+  // ===================== FULL VIEW =====================
+  function viewFull(id) {
+    _sbCurrentSubId = id;
+    const sub = allSubmissions.find(s => s.id === id);
+    if (!sub) return;
+    markRead(id);
+
+    const key = normalizeDept(sub.department);
+    const cfg = deptConfig[key] || { icon: '📋', label: sub.department, color: '#999' };
+    document.getElementById('submissionModalTitle').textContent = subHierarchyLabel(sub) + ' — ' + sub.month + ' ' + sub.year;
+
+    const deptData = sub[key] || sub[sub.department] || {};
+    const fields = Object.entries(deptData).filter(([k, v]) => v && v.toString().trim());
+
+    const fieldLabels = {
+      count: 'Number of people/children',
+      story: 'Key story',
+      challenge: 'Challenges',
+      proud: 'What you\'re proud of',
+      awareness: 'Awareness message',
+      upcoming: 'Upcoming events',
+      schools: 'Schools / Centers active',
+      numbers: 'Attendance numbers',
+      moment: 'Standout moment',
+      milestone: 'Milestones',
+      themes: 'Themes seen in counseling',
+      success: 'Anonymized success story',
+      outreach: 'Community outreach',
+      message: 'Public message',
+      events: 'Events / Meetings',
+      quote: 'Father\'s quote',
+      mission: 'Mission statement',
+      featured: 'People who can be featured',
+      activities: 'Farm activities',
+      growth: 'What grew this month',
+      partners: 'Partners / Donors',
+      campaign: 'Campaign details',
+      recognition: 'Recognition / Testimonials',
+      ask: 'Call to action / Ask',
+      highlight: 'Main highlight',
+      milestones: 'Org milestones',
+      reach: 'Total reach',
+      metrics: 'Key metrics',
+      feedback: 'Community feedback',
+      geography: 'Geographic reach',
+    };
+
+    let html = `
+      <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 20px; padding: 16px; background: var(--bg); border-radius: 8px;">
+        <div><strong style="font-size: 11px; color: var(--light);">SUBMITTED BY</strong><br>${sub.submitterName} · ${sub.submitterRole || '—'}</div>
+        <div><strong style="font-size: 11px; color: var(--light);">CONTACT</strong><br>${sub.submitterPhone || '—'}</div>
+        <div><strong style="font-size: 11px; color: var(--light);">MONTH</strong><br>${sub.month} ${sub.year}</div>
+      </div>`;
+
+    if (fields.length > 0) {
+      html += '<div style="margin-bottom: 16px;"><strong>Department Information</strong></div>';
+      fields.forEach(([key, val]) => {
+        html += `
+          <div class="full-field">
+            <div class="field-lbl">${fieldLabels[key] || key}</div>
+            <div class="field-val">${val}</div>
+          </div>`;
+      });
+    }
+
+    // Media section
+    const media = sub.media || {};
+    if (Object.values(media).some(v => v)) {
+      html += '<div class="full-field"><div class="field-lbl" style="margin-top: 16px;">📸 MEDIA & ASSETS</div></div>';
+      if (media.photosDescription) html += `<div class="full-field"><div class="field-lbl">Photos available</div><div class="field-val">${media.photosDescription}</div></div>`;
+      if (media.videoDescription) html += `<div class="full-field"><div class="field-lbl">Video footage</div><div class="field-val">${media.videoDescription}</div></div>`;
+      if (media.privacyNotes) html += `<div class="full-field"><div class="field-lbl">⚠️ Privacy notes</div><div class="field-val" style="border-left: 3px solid var(--red); border-radius: 0 6px 6px 0;">${media.privacyNotes}</div></div>`;
+      if (media.featuredPeople) html += `<div class="full-field"><div class="field-lbl">People who can be featured</div><div class="field-val">${media.featuredPeople}</div></div>`;
+    }
+
+    if (sub.nextMonth) html += `<div class="full-field"><div class="field-lbl">📅 Next month preview</div><div class="field-val">${sub.nextMonth}</div></div>`;
+    if (sub.finalNotes) html += `<div class="full-field"><div class="field-lbl">💬 Notes for Charis</div><div class="field-val">${sub.finalNotes}</div></div>`;
+
+    document.getElementById('submissionModalBody').innerHTML = html;
+    openModal('submission');
+  }
+
+  // ===================== QUALITY SCORE ENGINE =====================
+  function calcQualityScore(sub) {
+    var score = 0;
+    var key = normalizeDept(sub.department);
+    var d = sub[key] || sub[sub.department] || {};
+    var media = sub.media || {};
+    var storyText = d.story || d.moment || d.success || d.growth || d.quote || d.highlight || sub.whatHappened || '';
+    if (storyText.length > 200) score += 30;
+    else if (storyText.length > 50) score += 15;
+    else if (storyText.length > 0) score += 5;
+    var cnt = d.count || d.numbers || d.reach || '';
+    if (cnt && cnt.toString().trim()) score += 10;
+    if (media.photosDescription && media.photosDescription.trim()) score += 15;
+    if (media.videoDescription && media.videoDescription.trim()) score += 10;
+    if (media.featuredPeople && media.featuredPeople.trim()) score += 10;
+    var upcoming = d.upcoming || d.events || '';
+    if (upcoming && upcoming.toString().trim()) score += 10;
+    if (sub.finalNotes && sub.finalNotes.trim()) score += 5;
+    if (media.privacyNotes && media.privacyNotes.trim()) score += 5;
+    if (sub.sub_program && sub.sub_program.trim()) score += 5;
+    return Math.min(100, score);
+  }
+  function scoreLabel(score) {
+    if (score >= 80) return { label: 'Excellent', color: '#4CAF50' };
+    if (score >= 60) return { label: 'Strong',    color: '#8BC34A' };
+    if (score >= 40) return { label: 'Good',      color: '#FFC107' };
+    if (score >= 20) return { label: 'Partial',   color: '#FF9800' };
+    return { label: 'Thin', color: '#E53935' };
+  }
+  function escHtml(str) {
+    return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // ===================== STORY BANK =====================
+  var _sbCurrentSubId = null;
+
+  function getStoryBank() {
+    try { return JSON.parse(localStorage.getItem('trg_story_bank') || '[]'); }
+    catch(e) { return []; }
+  }
+  function saveStoryBank(arr) {
+    localStorage.setItem('trg_story_bank', JSON.stringify(arr));
+  }
+  function updateStoryBankBadge() {
+    var bank = getStoryBank();
+    var el = document.getElementById('storyBankCount');
+    if (!el) return;
+    if (bank.length > 0) { el.textContent = bank.length; el.style.display = 'inline-flex'; }
+    else { el.style.display = 'none'; }
+  }
+
+  function storyBankPrompt() {
+    // Find the current open submission ID
+    var id = _sbCurrentSubId;
+    if (!id) return;
+    var sub = allSubmissions.find(function(s){ return s.id === id; });
+    if (!sub) return;
+
+    var key = normalizeDept(sub.department);
+    var d = sub[key] || sub[sub.department] || {};
+    var storyText = d.story || d.moment || d.success || d.growth || d.quote || d.highlight || sub.whatHappened || '';
+    var themes = ['restoration','healing','education','provision','resilience','community','family','leadership'];
+    var existing = getStoryBank();
+    var alreadySaved = existing.find(function(e){ return e.subId === id; });
+
+    var html = '<div style="padding:4px 0;">';
+    if (alreadySaved) {
+      html += '<div style="padding:10px;background:rgba(76,175,80,0.12);border-radius:8px;border:1px solid #4CAF50;margin-bottom:14px;color:#4CAF50;font-size:13px;">✅ Already in Story Bank · You can update tags or URL below.</div>';
+    }
+    html += '<div style="margin-bottom:12px;"><strong style="font-size:12px;color:var(--light);">STORY PREVIEW</strong><div style="background:var(--bg);border-radius:8px;padding:12px;margin-top:6px;font-size:13px;line-height:1.5;max-height:120px;overflow-y:auto;color:var(--fg);">' + escHtml(storyText.slice(0,400)) + (storyText.length > 400 ? '…' : '') + '</div></div>';
+    html += '<div style="margin-bottom:14px;"><strong style="font-size:12px;color:var(--light);">THEMES (select all that apply)</strong><div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;">';
+    var savedTags = alreadySaved ? alreadySaved.tags : [];
+    themes.forEach(function(t) {
+      var checked = savedTags.indexOf(t) > -1 ? 'checked' : '';
+      html += '<label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:13px;background:var(--bg);padding:5px 10px;border-radius:20px;border:1px solid var(--border);"><input type="checkbox" value="' + t + '" class="sb-theme-cb" ' + checked + ' style="cursor:pointer;"> ' + t + '</label>';
+    });
+    html += '</div></div>';
+    html += '<div style="margin-bottom:6px;"><strong style="font-size:12px;color:var(--light);">OPTIONAL: Content URL (paste link if used)</strong><input type="text" id="sbUrlInput" value="' + escHtml(alreadySaved ? (alreadySaved.usedUrl||'') : '') + '" placeholder="https://..." style="width:100%;margin-top:6px;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--fg);font-size:13px;box-sizing:border-box;"></div>';
+    html += '</div>';
+
+    document.getElementById('storybankSaveBody').innerHTML = html;
+    window._sbSavingId = id;
+    closeModal('submission');
+    openModal('storybank');
+  }
+
+  function confirmSaveToBank() {
+    var id = window._sbSavingId;
+    if (!id) return;
+    var sub = allSubmissions.find(function(s){ return s.id === id; });
+    if (!sub) return;
+
+    var checkboxes = document.querySelectorAll('.sb-theme-cb:checked');
+    var tags = [];
+    checkboxes.forEach(function(cb){ tags.push(cb.value); });
+    var url = (document.getElementById('sbUrlInput') || {}).value || '';
+
+    var key = normalizeDept(sub.department);
+    var d = sub[key] || sub[sub.department] || {};
+    var storyText = d.story || d.moment || d.success || d.growth || d.quote || d.highlight || sub.whatHappened || '';
+
+    var bank = getStoryBank();
+    var idx = bank.findIndex(function(e){ return e.subId === id; });
+    var entry = {
+      subId: id,
+      department: sub.department,
+      submitterName: sub.submitterName,
+      month: sub.month,
+      year: sub.year,
+      storyText: storyText,
+      tags: tags,
+      usedUrl: url,
+      isUsed: url ? true : (idx > -1 ? bank[idx].isUsed : false),
+      savedAt: idx > -1 ? bank[idx].savedAt : new Date().toISOString()
+    };
+    if (idx > -1) bank[idx] = entry;
+    else bank.unshift(entry);
+
+    saveStoryBank(bank);
+    updateStoryBankBadge();
+    closeModal('storybank');
+
+    // Toast feedback
+    var toast = document.createElement('div');
+    toast.textContent = '💾 Saved to Story Bank';
+    toast.style.cssText = 'position:fixed;bottom:24px;right:24px;background:#4CAF50;color:#fff;padding:10px 20px;border-radius:8px;font-size:13px;font-weight:600;z-index:9999;box-shadow:0 4px 12px rgba(0,0,0,0.3);';
+    document.body.appendChild(toast);
+    setTimeout(function(){ document.body.removeChild(toast); }, 2500);
+  }
+
+  function addToStoryBank(id, defaultTag) {
+    _sbCurrentSubId = id;
+    storyBankPrompt();
+  }
+
+  function renderStoryBankView() {
+    var container = document.getElementById('submissionsList');
+    var bank = getStoryBank();
+
+    var searchQ = (document.getElementById('sbSearch') ? document.getElementById('sbSearch').value : '').toLowerCase();
+    var filterTag = (document.getElementById('sbTagFilter') ? document.getElementById('sbTagFilter').value : '');
+    var filterUsed = (document.getElementById('sbUsedFilter') ? document.getElementById('sbUsedFilter').value : '');
+
+    var filtered = bank.filter(function(e) {
+      if (searchQ && e.storyText.toLowerCase().indexOf(searchQ) < 0 && (e.tags.join(' ')).indexOf(searchQ) < 0) return false;
+      if (filterTag && e.tags.indexOf(filterTag) < 0) return false;
+      if (filterUsed === 'used' && !e.isUsed) return false;
+      if (filterUsed === 'unused' && e.isUsed) return false;
+      return true;
+    });
+
+    var html = '<div style="padding:16px;">';
+    html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;">';
+    html += '<h2 style="margin:0;font-size:18px;">📚 Story Bank <span style="font-size:14px;color:var(--light);font-weight:400;">(' + bank.length + ' saved)</span></h2>';
+    html += '<div style="display:flex;gap:8px;flex-wrap:wrap;">';
+    html += '<input id="sbSearch" type="text" placeholder="Search stories…" oninput="renderSubmissions()" value="' + escHtml(searchQ) + '" style="padding:7px 12px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--fg);font-size:13px;width:160px;">';
+    html += '<select id="sbTagFilter" onchange="renderSubmissions()" style="padding:7px 10px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--fg);font-size:13px;"><option value="">All themes</option>';
+    ['restoration','healing','education','provision','resilience','community','family','leadership'].forEach(function(t){
+      html += '<option value="' + t + '"' + (filterTag===t?' selected':'') + '>' + t + '</option>';
+    });
+    html += '</select>';
+    html += '<select id="sbUsedFilter" onchange="renderSubmissions()" style="padding:7px 10px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--fg);font-size:13px;"><option value="">All stories</option><option value="unused"' + (filterUsed==='unused'?' selected':'') + '>Unused only</option><option value="used"' + (filterUsed==='used'?' selected':'') + '>Used only</option></select>';
+    html += '</div></div>';
+
+    if (filtered.length === 0) {
+      html += '<div class="empty-state"><div class="empty-icon">📚</div><h3>' + (bank.length === 0 ? 'Story Bank is empty' : 'No stories match') + '</h3><p>' + (bank.length === 0 ? 'Open any submission and click 💾 to save powerful stories here.' : 'Try adjusting the search or filters.') + '</p></div>';
+    } else {
+      filtered.forEach(function(entry) {
+        var cfg = deptConfig[normalizeDept(entry.department)] || { icon: '📋', label: entry.department, color: '#999' };
+        var tagHtml = entry.tags.map(function(t){ return '<span style="font-size:11px;background:rgba(144,209,194,0.18);color:var(--teal);padding:2px 8px;border-radius:12px;">' + t + '</span>'; }).join(' ');
+        var usedBadge = entry.isUsed ? '<span style="font-size:11px;background:rgba(76,175,80,0.15);color:#4CAF50;padding:2px 8px;border-radius:12px;">✅ Used</span>' : '<span style="font-size:11px;background:rgba(255,152,0,0.15);color:#FF9800;padding:2px 8px;border-radius:12px;">⏳ Unused</span>';
+        html += '<div class="submission-card" style="margin-bottom:12px;">';
+        html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:6px;">';
+        html += '<span style="font-size:12px;font-weight:700;color:' + cfg.color + ';">' + cfg.icon + ' ' + cfg.label + ' · ' + entry.month + ' ' + entry.year + '</span>';
+        html += '<div style="display:flex;gap:6px;align-items:center;">' + usedBadge + '</div>';
+        html += '</div>';
+        html += '<div style="font-size:13px;line-height:1.6;color:var(--fg);margin-bottom:10px;">' + escHtml(entry.storyText.slice(0, 300)) + (entry.storyText.length > 300 ? '…' : '') + '</div>';
+        if (tagHtml) html += '<div style="margin-bottom:10px;display:flex;gap:6px;flex-wrap:wrap;">' + tagHtml + '</div>';
+        html += '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">';
+        if (entry.usedUrl) html += '<a href="' + escHtml(entry.usedUrl) + '" target="_blank" style="font-size:12px;color:var(--teal);">🔗 View published content</a>';
+        html += '<button class="btn btn-outline btn-sm" onclick="sbMarkUsed(\'' + entry.subId + '\')" style="font-size:11px;">' + (entry.isUsed ? '↩ Mark Unused' : '✅ Mark as Used') + '</button>';
+        html += '<button class="btn btn-outline btn-sm" onclick="sbEdit(\'' + entry.subId + '\')" style="font-size:11px;">✏️ Edit tags</button>';
+        html += '<button class="btn btn-outline btn-sm" onclick="sbRemove(\'' + entry.subId + '\')" style="font-size:11px;color:#E53935;border-color:#E53935;">🗑 Remove</button>';
+        html += '</div></div>';
+      });
+    }
+    html += '</div>';
+    container.innerHTML = html;
+  }
+
+  function sbMarkUsed(subId) {
+    var bank = getStoryBank();
+    var entry = bank.find(function(e){ return e.subId === subId; });
+    if (!entry) return;
+    if (!entry.isUsed) {
+      var url = prompt('Paste the published content URL (optional):') || '';
+      entry.usedUrl = url;
+      entry.isUsed = true;
+    } else {
+      entry.isUsed = false;
+      entry.usedUrl = '';
+    }
+    saveStoryBank(bank);
+    updateStoryBankBadge();
+    renderSubmissions();
+  }
+
+  function sbEdit(subId) {
+    window._sbSavingId = subId;
+    _sbCurrentSubId = subId;
+    var sub = allSubmissions.find(function(s){ return s.id === subId; });
+    if (sub) { storyBankPrompt(); }
+    else {
+      // Story saved but submission not loaded? Edit tags via simple prompt
+      var bank = getStoryBank();
+      var entry = bank.find(function(e){ return e.subId === subId; });
+      if (entry) { alert('Edit via the original submission. Open the submission and click 💾 Save to Story Bank.'); }
+    }
+  }
+
+  function sbRemove(subId) {
+    if (!confirm('Remove this story from the Story Bank?')) return;
+    var bank = getStoryBank().filter(function(e){ return e.subId !== subId; });
+    saveStoryBank(bank);
+    updateStoryBankBadge();
+    renderSubmissions();
+  }
+
+  // ===================== UPCOMING EVENTS VIEW =====================
+  function renderUpcomingEventsView() {
+    var container = document.getElementById('submissionsList');
+    var today = new Date(); today.setHours(0,0,0,0);
+    var horizon = new Date(today); horizon.setDate(horizon.getDate() + 60);
+    var allSubs = allSubmissions;
+
+    // Collect all upcoming event lines from every submission
+    var events = [];
+    allSubs.forEach(function(sub) {
+      var key = normalizeDept(sub.department);
+      var d = sub[key] || sub[sub.department] || {};
+      var raw = (d.upcoming || d.events || sub.nextMonth || '').toString().trim();
+      if (!raw) return;
+      var cfg = deptConfig[key] || { icon: '📋', label: sub.department || 'Unknown', color: '#999' };
+      // Split by commas, semicolons, or newlines
+      var lines = raw.split(/[,;\n]+/).map(function(l){ return l.trim(); }).filter(Boolean);
+      lines.forEach(function(line) {
+        // Try to detect a date in the line
+        var dateMatch = line.match(/(\d{1,2})[\/\-\s](\w+)[\/\-\s]?(\d{4})?/) ||
+                        line.match(/(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*[\s,]+(\d{1,2})[\s,]+(\d{4})?/i) ||
+                        line.match(/(\d{4}[-\/]\d{2}[-\/]\d{2})/);
+        var parsedDate = null;
+        if (dateMatch) {
+          try { var d2 = new Date(line.match(/\d{4}[-\/]\d{2}[-\/]\d{2}/) ? dateMatch[1] : line); if (!isNaN(d2)) parsedDate = d2; } catch(e){}
+        }
+        events.push({
+          dept: key,
+          cfg: cfg,
+          text: line,
+          parsedDate: parsedDate,
+          month: sub.month,
+          year: sub.year,
+          submitter: sub.submitterName
+        });
+      });
+    });
+
+    // Sort: dated events first (by date), undated after
+    events.sort(function(a, b) {
+      if (a.parsedDate && b.parsedDate) return a.parsedDate - b.parsedDate;
+      if (a.parsedDate) return -1;
+      if (b.parsedDate) return 1;
+      return 0;
+    });
+
+    // Group by department
+    var byDept = {};
+    events.forEach(function(ev) {
+      if (!byDept[ev.dept]) byDept[ev.dept] = [];
+      byDept[ev.dept].push(ev);
+    });
+
+    var html = '<div style="padding:16px;">';
+    html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">';
+    html += '<h2 style="margin:0;font-size:18px;">📅 Upcoming Events <span style="font-size:13px;color:var(--light);font-weight:400;">Next 60 days — from all reports</span></h2>';
+    html += '</div>';
+
+    if (events.length === 0) {
+      html += '<div class="empty-state"><div class="empty-icon">📅</div><h3>No upcoming events found</h3><p>When departments fill in their "Upcoming Events" or "Next Month" fields, they\'ll appear here.</p></div>';
+    } else {
+      Object.keys(deptConfig).forEach(function(dKey) {
+        var deptEvents = byDept[dKey];
+        if (!deptEvents || deptEvents.length === 0) return;
+        var cfg = deptConfig[dKey];
+        html += '<div style="margin-bottom:18px;">';
+        html += '<div style="font-size:12px;font-weight:800;color:' + cfg.color + ';text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">' + cfg.icon + ' ' + cfg.label + '</div>';
+        deptEvents.forEach(function(ev) {
+          var icon = ev.parsedDate ? '📆' : '📌';
+          var dateLabel = ev.parsedDate ? (' <span style="font-size:11px;background:rgba(144,209,194,0.2);color:var(--teal);padding:2px 7px;border-radius:10px;">' + ev.parsedDate.toLocaleDateString('en-UG',{day:'numeric',month:'short',year:'numeric'}) + '</span>') : '';
+          html += '<div style="padding:10px 14px;background:var(--card);border-radius:8px;margin-bottom:6px;border-left:3px solid ' + cfg.color + ';display:flex;align-items:flex-start;gap:10px;">';
+          html += '<span style="font-size:16px;flex-shrink:0;">' + icon + '</span>';
+          html += '<div style="flex:1;"><div style="font-size:13px;line-height:1.5;color:var(--fg);">' + escHtml(ev.text) + dateLabel + '</div>';
+          html += '<div style="font-size:11px;color:var(--light);margin-top:3px;">From ' + ev.month + ' ' + ev.year + ' report · ' + escHtml(ev.submitter) + '</div></div>';
+          html += '</div>';
+        });
+        html += '</div>';
+      });
+      // Undated from depts not in deptConfig
+      if (byDept[''] || byDept['undefined']) {
+        var others = (byDept[''] || []).concat(byDept['undefined'] || []);
+        if (others.length > 0) {
+          html += '<div style="margin-bottom:18px;"><div style="font-size:12px;font-weight:800;color:var(--mid);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">📋 Other</div>';
+          others.forEach(function(ev) {
+            html += '<div style="padding:10px 14px;background:var(--card);border-radius:8px;margin-bottom:6px;"><div style="font-size:13px;">' + escHtml(ev.text) + '</div><div style="font-size:11px;color:var(--light);margin-top:3px;">From ' + ev.month + ' ' + ev.year + ' · ' + escHtml(ev.submitter) + '</div></div>';
+          });
+          html += '</div>';
+        }
+      }
+    }
+    html += '</div>';
+    container.innerHTML = html;
+  }
+
+  // ===================== INTELLIGENCE / TRENDS VIEW =====================
+  function renderIntelligenceView() {
+    var container = document.getElementById('submissionsList');
+    var allSubs = allSubmissions.filter(function(s){ return s.submissionType !== 'live_log'; });
+
+    // Build monthly data: last 4 months
+    var monthMap = {};
+    allSubs.forEach(function(sub) {
+      var mk = sub.month + ' ' + sub.year;
+      if (!monthMap[mk]) monthMap[mk] = { label: mk, subs: [] };
+      monthMap[mk].subs.push(sub);
+    });
+    var monthKeys = Object.keys(monthMap).sort(function(a, b) {
+      var da = new Date('01 ' + a), db = new Date('01 ' + b);
+      return da - db;
+    }).slice(-4);
+
+    // Per dept per month: count + avg quality
+    var deptKeys = Object.keys(deptConfig);
+
+    var html = '<div style="padding:16px;">';
+    html += '<h2 style="margin:0 0 6px;font-size:18px;">📈 Intelligence Layer</h2>';
+    html += '<p style="font-size:13px;color:var(--light);margin-bottom:20px;">Submission quality and volume trends by department — last 4 months</p>';
+
+    // Overall quality leaderboard
+    html += '<div style="margin-bottom:24px;">';
+    html += '<div style="font-size:12px;font-weight:800;color:var(--light);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">🏆 Department Quality Scores — All Time</div>';
+    var deptScores = deptKeys.map(function(dKey) {
+      var dsubs = allSubs.filter(function(s){ return normalizeDept(s.department) === dKey; });
+      if (dsubs.length === 0) return null;
+      var avg = dsubs.reduce(function(sum, s){ return sum + calcQualityScore(s); }, 0) / dsubs.length;
+      return { dKey: dKey, cfg: deptConfig[dKey], avg: Math.round(avg), count: dsubs.length };
+    }).filter(Boolean).sort(function(a,b){ return b.avg - a.avg; });
+
+    deptScores.forEach(function(ds) {
+      var si = scoreLabel(ds.avg);
+      html += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">';
+      html += '<span style="width:180px;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:' + ds.cfg.color + ';">' + ds.cfg.icon + ' ' + ds.cfg.label + '</span>';
+      html += '<div style="flex:1;height:12px;background:var(--border);border-radius:6px;overflow:hidden;"><div style="width:' + ds.avg + '%;height:100%;background:' + si.color + ';border-radius:6px;"></div></div>';
+      html += '<span style="width:90px;font-size:12px;font-weight:700;color:' + si.color + ';text-align:right;">' + ds.avg + '/100 · ' + si.label + '</span>';
+      html += '<span style="font-size:11px;color:var(--light);width:50px;text-align:right;">' + ds.count + ' sub' + (ds.count===1?'':'s') + '</span>';
+      html += '</div>';
+    });
+    html += '</div>';
+
+    // Monthly trend table
+    if (monthKeys.length > 0) {
+      html += '<div style="margin-bottom:24px;">';
+      html += '<div style="font-size:12px;font-weight:800;color:var(--light);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">📊 Month-over-Month Trends</div>';
+      html += '<div style="overflow-x:auto;">';
+      html += '<table style="width:100%;border-collapse:collapse;font-size:12px;">';
+      html += '<thead><tr><th style="text-align:left;padding:8px 10px;border-bottom:1px solid var(--border);color:var(--light);">Department</th>';
+      monthKeys.forEach(function(mk) { html += '<th style="text-align:center;padding:8px 10px;border-bottom:1px solid var(--border);color:var(--light);">' + mk + '</th>'; });
+      html += '</tr></thead><tbody>';
+
+      deptKeys.forEach(function(dKey) {
+        var cfg = deptConfig[dKey];
+        var hasAny = monthKeys.some(function(mk) {
+          return monthMap[mk] && monthMap[mk].subs.some(function(s){ return normalizeDept(s.department) === dKey; });
+        });
+        if (!hasAny) return;
+        html += '<tr><td style="padding:8px 10px;border-bottom:1px solid var(--border);color:' + cfg.color + ';white-space:nowrap;">' + cfg.icon + ' ' + cfg.label + '</td>';
+        monthKeys.forEach(function(mk) {
+          var msubs = monthMap[mk] ? monthMap[mk].subs.filter(function(s){ return normalizeDept(s.department) === dKey; }) : [];
+          if (msubs.length === 0) {
+            html += '<td style="text-align:center;padding:8px 10px;border-bottom:1px solid var(--border);color:var(--light);">—</td>';
+          } else {
+            var avg = Math.round(msubs.reduce(function(sum,s){ return sum + calcQualityScore(s); }, 0) / msubs.length);
+            var si = scoreLabel(avg);
+            html += '<td style="text-align:center;padding:8px 10px;border-bottom:1px solid var(--border);">';
+            html += '<div style="font-weight:700;color:' + si.color + ';">' + avg + '</div>';
+            html += '<div style="font-size:10px;color:var(--light);">' + msubs.length + ' sub</div>';
+            html += '</td>';
+          }
+        });
+        html += '</tr>';
+      });
+      html += '</tbody></table></div></div>';
+    }
+
+    // Tips for low-quality departments
+    var lowDepts = deptScores.filter(function(ds){ return ds.avg < 40; });
+    if (lowDepts.length > 0) {
+      html += '<div style="background:rgba(255,152,0,0.08);border:1px solid rgba(255,152,0,0.3);border-radius:10px;padding:14px 16px;margin-bottom:16px;">';
+      html += '<div style="font-size:12px;font-weight:800;color:#FF9800;margin-bottom:8px;">⚠️ Departments Needing Better Reporting</div>';
+      lowDepts.forEach(function(ds) {
+        html += '<div style="font-size:12px;color:var(--fg);margin-bottom:4px;">· ' + ds.cfg.icon + ' ' + ds.cfg.label + ' — avg score ' + ds.avg + '/100. Encourage more story detail, photos, and metrics.</div>';
+      });
+      html += '</div>';
+    }
+
+    html += '</div>';
+    container.innerHTML = html;
+  }
+
+  // ===================== NEWSLETTER GENERATOR =====================
+  function generateNewsletter() {
+    const list = getFilteredSubmissions();
+    if (list.length === 0) {
+      document.getElementById('newsletterOutput').innerHTML = '<p style="color: var(--light);">No submissions to generate from. Try adjusting your filters.</p>';
+      return;
+    }
+
+    const monthlyPlans = list.filter(s => s.submissionType !== 'live_log');
+    const liveLogs = list.filter(s => s.submissionType === 'live_log');
+    const months = [...new Set(list.map(s => s.month + ' ' + s.year))].join(', ');
+    let html = '';
+
+    html += `<div class="output-section">
+      <h3>📧 TRG NEWSLETTER BRIEF — ${months.toUpperCase()}</h3>
+      <p><em>Generated ${new Date().toLocaleDateString()} · ${monthlyPlans.length} monthly plan(s) + ${liveLogs.length} live log(s) · For Patience / Content Team</em></p>
+    </div>`;
+
+    // INTRO SUGGESTION
+    html += `<div class="output-section">
+      <h4>SUGGESTED INTRO (Personalize this)</h4>
+      <p>This month at The Remnant Generation, [theme word — e.g. "resilience" / "restoration" / "growth"] ran through everything we did. From the classrooms in [location] to the fields in Lyantonde, our teams showed up for the children, the fathers, the families, and the communities who need us most.</p>
+    </div>`;
+
+    // REAL STORIES from Live Logs (higher value for newsletter)
+    if (liveLogs.length > 0) {
+      const breakingLogs = liveLogs.filter(s => s.urgency === 'breaking');
+      const goodLogs = liveLogs.filter(s => s.urgency === 'good_story');
+      const featuredLogs = [...breakingLogs, ...goodLogs];
+
+      if (featuredLogs.length > 0) {
+        html += `<div class="output-section"><h4>⚡ REAL STORIES — USE THESE FIRST</h4>
+          <p style="font-size:12px;color:var(--light);">These are live field reports. Use as feature content — verify details before publishing.</p>`;
+        featuredLogs.forEach(sub => {
+          const cfg = deptConfig[normalizeDept(sub.department)] || { icon: '📋', label: sub.department };
+          const urgencyLabel = sub.urgency === 'breaking' ? '🔥 Breaking' : '📖 Good Story';
+          html += `<div style="margin: 14px 0; padding: 14px; background: var(--bg); border-radius: 8px; border-left: 3px solid var(--orange);">
+            <strong>${subHierarchyLabel(sub)}</strong>
+            <span class="urgency-badge ub-${sub.urgency}" style="margin-left:8px">${urgencyLabel}</span>
+            <br><em style="font-size:12px;color:var(--light);">Logged by ${sub.submitterName} · ${sub.eventDate || sub.month + ' ' + sub.year}</em>
+            <br><br>${truncate(sub.whatHappened || '', 400)}
+            ${sub.mediaAvailable === 'yes' ? '<br><br>📸 <strong>Media available</strong> — request from submitter' : ''}
+            ${sub.mediaAvailable === 'whatsapp' ? '<br><br>📲 <strong>Media coming via WhatsApp</strong> — follow up' : ''}
+            <br><br><em style="font-size:11px;color:var(--light);">✅ Real story — use as feature content</em>
+          </div>`;
+        });
+        html += '</div>';
+      }
+    }
+
+    // PLANNED HIGHLIGHTS — Geographic structure: Central → Eastern → Western → Operational
+    if (monthlyPlans.length > 0) {
+      // Group by region
+      const byRegion = {};
+      const opSubs = [];
+      monthlyPlans.forEach(sub => {
+        const key = normalizeDept(sub.department);
+        if (OPERATIONAL_DEPT_KEYS.includes(key) || sub.org_type === 'operational') {
+          opSubs.push(sub);
+        } else {
+          const region = sub.region || 'Central';
+          if (!byRegion[region]) byRegion[region] = [];
+          byRegion[region].push(sub);
+        }
+      });
+
+      const renderSubBlock = (sub) => {
+        const key = normalizeDept(sub.department);
+        const cfg = deptConfig[key] || { icon: '📋', label: sub.department };
+        const d = sub[key] || sub[sub.department] || {};
+        const story = d.story || d.moment || d.success || d.growth || d.quote || d.highlight || '';
+        const count = d.count || d.numbers || d.reach || '';
+        const proud = d.proud || '';
+        const upcoming = d.upcoming || d.events || '';
+        const hierLabel = subHierarchyLabel(sub);
+        return `<div style="margin: 14px 0; padding: 14px; background: var(--bg); border-radius: 8px; border-left: 3px solid var(--teal);">
+          <strong>${hierLabel}</strong>
+          ${count ? `<br><em>In numbers: ${count}</em>` : ''}
+          ${story ? `<br><br>📖 <strong>Story angle:</strong> ${truncate(story, 300)}` : ''}
+          ${proud ? `<br><br>💪 <strong>Team moment:</strong> ${truncate(proud, 200)}` : ''}
+          ${upcoming ? `<br><br>📅 <strong>Mention upcoming:</strong> ${upcoming}` : ''}
+          ${sub.sub_program ? `<br><em style="font-size:11px;color:var(--teal)">Sub-program: ${sub.sub_program}</em>` : ''}
+          ${sub.media?.photosDescription ? `<br><br>📸 <strong>Media available:</strong> ${truncate(sub.media.photosDescription, 150)}` : ''}
+          <br><br><em style="font-size:11px;color:var(--light);">📋 Planned content — confirm details before publishing</em>
+        </div>`;
+      };
+
+      ['Central', 'Eastern', 'Western'].forEach(region => {
+        const regionSubs = byRegion[region] || [];
+        if (regionSubs.length === 0) return;
+        html += `<div class="output-section"><h4>📍 ${region.toUpperCase()} REGION</h4>`;
+        regionSubs.forEach(sub => { html += renderSubBlock(sub); });
+        html += '</div>';
+      });
+
+      if (opSubs.length > 0) {
+        html += `<div class="output-section"><h4>⚙️ OPERATIONAL DEPARTMENTS</h4>`;
+        opSubs.forEach(sub => { html += renderSubBlock(sub); });
+        html += '</div>';
+      }
+    }
+
+    // STATS SECTION
+    html += `<div class="output-section">
+      <h4>STATS TO INCLUDE IN NEWSLETTER</h4>
+      <p>Pull these from the submissions and use them as callout numbers or a visual stats block:</p>
+      <ul>`;
+    monthlyPlans.forEach(sub => {
+      const key = normalizeDept(sub.department);
+      const d = sub[key] || sub[sub.department] || {};
+      const count = d.count || d.numbers || d.reach;
+      const cfg = deptConfig[key] || { icon: '📋', label: sub.department };
+      if (count) html += `<li>${subHierarchyLabel(sub)}: ${count}</li>`;
+    });
+    html += `</ul></div>`;
+
+    // CALL TO ACTION
+    const fundraisingSub = monthlyPlans.find(s => normalizeDept(s.department) === 'fundraising');
+    const frDeptData = fundraisingSub ? (fundraisingSub['fundraising'] || fundraisingSub[fundraisingSub.department] || {}) : {};
+    const frAsk = frDeptData.ask;
+    html += `<div class="output-section">
+      <h4>CALL TO ACTION / CLOSING</h4>
+      <p>${frAsk ? frAsk : 'Insert the main call to action here — donate, share, pray, volunteer. Make it specific and time-bound.'}</p>
+    </div>`;
+
+    // SUBJECT LINE OPTIONS
+    html += `<div class="output-section">
+      <h4>SUGGESTED EMAIL SUBJECT LINES</h4>
+      <ul>
+        <li>📧 The stories you made possible this ${months}</li>
+        <li>📧 [Name], look what happened this month at TRG</li>
+        <li>📧 Rescue. Restore. Rebuild. Here's what we did this month.</li>
+        <li>📧 This month, a child got a second chance. Here's the story.</li>
+      </ul>
+    </div>`;
+
+    document.getElementById('newsletterOutput').innerHTML = html;
+  }
+
+  // ===================== TASK GENERATOR =====================
+  function generateTasks() {
+    const list = getFilteredSubmissions();
+    if (list.length === 0) {
+      document.getElementById('tasksOutput').innerHTML = '<p style="color: var(--light);">No submissions to generate tasks from.</p>';
+      return;
+    }
+
+    const tasks = [];
+    const liveLogs = list.filter(s => s.submissionType === 'live_log');
+    const monthlyPlans = list.filter(s => s.submissionType !== 'live_log');
+
+    // === LIVE LOG TASKS — always higher priority ===
+    liveLogs.forEach(sub => {
+      const cfg = deptConfig[normalizeDept(sub.department)] || { icon: '📋', label: sub.department };
+      const hierTag = subHierarchyLabel(sub);
+      const urgency = sub.urgency || 'background';
+      const eventDate = sub.eventDate || (sub.month + ' ' + sub.year);
+
+      if (urgency === 'breaking') {
+        tasks.push({ priority: 'urgent', dept: hierTag, icon: '🔥', text: `URGENT — ${hierTag} logged a breaking story on ${eventDate}. Write and publish within 48 hours. Story: "${truncate(sub.whatHappened || '', 100)}"` });
+        tasks.push({ priority: 'urgent', dept: hierTag, icon: cfg.icon, text: `Create breaking news social post — ${hierTag} · ${eventDate}` });
+      } else if (urgency === 'good_story') {
+        tasks.push({ priority: 'high', dept: hierTag, icon: '📖', text: `Write feature story from live log — ${hierTag} · ${eventDate}: "${truncate(sub.whatHappened || '', 120)}"` });
+        tasks.push({ priority: 'high', dept: hierTag, icon: cfg.icon, text: `Create social media post from this story — ${hierTag}` });
+      } else {
+        tasks.push({ priority: 'medium', dept: hierTag, icon: '🗒', text: `Background info logged by ${sub.submitterName} (${hierTag}) on ${eventDate} — file for future content: "${truncate(sub.whatHappened || '', 100)}"` });
+      }
+
+      if (sub.mediaAvailable === 'yes') {
+        tasks.push({ priority: urgency === 'breaking' ? 'urgent' : 'high', dept: hierTag, icon: '📸', text: `Collect media from ${sub.submitterName} (${hierTag}) — they confirmed they have photos/video` });
+      } else if (sub.mediaAvailable === 'whatsapp') {
+        tasks.push({ priority: urgency === 'breaking' ? 'urgent' : 'medium', dept: hierTag, icon: '📲', text: `Follow up on WhatsApp with ${sub.submitterName} (${hierTag}) to receive media for this story` });
+      }
+
+      if (sub.isFollowUp) {
+        tasks.push({ priority: 'medium', dept: hierTag, icon: '🔗', text: `This is a follow-up log from ${sub.submitterName} (${hierTag}) — check previous context for continuity` });
+      }
+    });
+
+    // === MONTHLY PLAN TASKS ===
+    monthlyPlans.forEach(sub => {
+      const key = normalizeDept(sub.department);
+      const cfg = deptConfig[key] || { icon: '📋', label: sub.department };
+      const d = sub[key] || sub[sub.department] || {};
+      const media = sub.media || {};
+      const hierTag = subHierarchyLabel(sub);
+
+      // Story tasks
+      if (d.story || d.moment || d.success || d.growth || d.quote) {
+        tasks.push({ priority: 'high', dept: hierTag, icon: cfg.icon, text: `Write feature story from ${hierTag} submission — "${truncate(d.story || d.moment || d.success || d.growth || d.quote || '', 80)}"` });
+      }
+
+      // Social post tasks
+      tasks.push({ priority: 'high', dept: hierTag, icon: cfg.icon, text: `Create social media post(s) for ${hierTag} — ${sub.month} content` });
+
+      // Sub-program content task (if set)
+      if (sub.sub_program) {
+        tasks.push({ priority: 'medium', dept: hierTag, icon: '🎯', text: `Sub-program focus — ${sub.sub_program} (${hierTag}): create dedicated content for this program area` });
+      }
+
+      // Photo tasks
+      if (media.photosDescription && media.photosDescription.trim()) {
+        tasks.push({ priority: 'medium', dept: hierTag, icon: '📸', text: `Collect & select photos from ${hierTag}: "${truncate(media.photosDescription, 100)}"` });
+      }
+
+      // Video tasks
+      if (media.videoDescription && media.videoDescription.trim()) {
+        tasks.push({ priority: 'medium', dept: hierTag, icon: '🎬', text: `Get video footage from ${hierTag}: "${truncate(media.videoDescription, 100)}"` });
+      }
+
+      // Privacy check
+      if (media.privacyNotes && media.privacyNotes.trim()) {
+        tasks.push({ priority: 'high', dept: hierTag, icon: '⚠️', text: `PRIVACY CHECK before publishing ${hierTag} content: "${media.privacyNotes}"` });
+      }
+
+      // Upcoming events
+      const upcoming = d.upcoming || d.events;
+      if (upcoming && upcoming.trim()) {
+        tasks.push({ priority: 'medium', dept: hierTag, icon: '📅', text: `Schedule content for upcoming: ${upcoming} (${hierTag})` });
+      }
+
+      // Featured people
+      if (media.featuredPeople && media.featuredPeople.trim()) {
+        tasks.push({ priority: 'low', dept: hierTag, icon: '🎤', text: `Contact for feature interview/story: ${media.featuredPeople}` });
+      }
+
+      // Follow-up contact
+      tasks.push({ priority: 'low', dept: hierTag, icon: '📞', text: `Follow up with ${sub.submitterName} (${sub.submitterPhone || sub.submitterRole || hierTag}) if more detail needed` });
+    });  // end monthlyPlans.forEach
+
+    // General tasks always added
+    tasks.push({ priority: 'high', dept: 'All Departments', icon: '📧', text: 'Draft monthly newsletter from newsletter brief generator' });
+    tasks.push({ priority: 'medium', dept: 'All Departments', icon: '📊', text: 'Update monthly analytics report after content is published' });
+    tasks.push({ priority: 'low', dept: 'All Departments', icon: '📋', text: 'Send content calendar to Annabelle for approval before scheduling' });
+
+    const priorityOrder = { urgent: 0, high: 1, medium: 2, low: 3 };
+    tasks.sort((a, b) => (priorityOrder[a.priority] || 9) - (priorityOrder[b.priority] || 9));
+
+    const liveLogCount = liveLogs.length;
+    const monthlyCount = monthlyPlans.length;
+    let html = `<div style="margin-bottom: 16px; font-size: 13px; color: var(--mid);">${tasks.length} tasks generated — from ${liveLogCount} live log(s) + ${monthlyCount} monthly plan(s)</div>`;
+
+    ['urgent', 'high', 'medium', 'low'].forEach(p => {
+      const pTasks = tasks.filter(t => t.priority === p);
+      if (pTasks.length === 0) return;
+      const label = { urgent: '🔥 URGENT (Breaking Stories)', high: '🔴 High Priority', medium: '🟡 Medium Priority', low: '🟢 Low Priority' }[p];
+      const headerStyle = p === 'urgent' ? 'color:var(--orange);background:#fff0ea;padding:4px 10px;border-radius:6px;' : '';
+      html += `<div style="margin: 12px 0 6px; font-size: 12px; font-weight: 800; color: var(--light); text-transform: uppercase; letter-spacing: 0.5px; ${headerStyle}">${label}</div>`;
+      pTasks.forEach(t => {
+        const priorityClass = p === 'urgent' ? 'priority-high' : 'priority-' + p;
+        html += `<div class="task-item" style="${p === 'urgent' ? 'border:1.5px solid var(--orange);' : ''}">
+          <div style="min-width: 28px; font-size: 18px;">${t.icon}</div>
+          <div style="flex: 1;">
+            <div class="task-text">${t.text}</div>
+            <div class="task-dept">${t.dept}</div>
+          </div>
+          <span class="task-priority ${priorityClass}">${p.toUpperCase()}</span>
+        </div>`;
+      });
+    });
+
+    document.getElementById('tasksOutput').innerHTML = html;
+  }
+
+  // ===================== REPORT GENERATOR =====================
+  function generateReport() {
+    const list = getFilteredSubmissions();
+    const months = [...new Set(list.map(s => s.month + ' ' + s.year))].join(', ');
+    const depts = [...new Set(list.map(s => s.department))];
+
+    let html = `<div class="output-section">
+      <h3>📊 TRG CONTENT REPORT — ${months || 'All Time'}</h3>
+      <p>Charis Creations · Content Operations Report · Generated ${new Date().toLocaleDateString()}</p>
+    </div>`;
+
+    html += `<div class="output-section" style="padding: 16px; background: var(--bg); border-radius: 8px;">
+      <h4>SUBMISSION SUMMARY</h4>
+      <ul>
+        <li>Total submissions received: <strong>${list.length}</strong></li>
+        <li>Departments that submitted: <strong>${depts.length}</strong> (${depts.map(d => { const k = normalizeDept(d); const c = deptConfig[k]; return (c?.icon || '') + ' ' + (c?.label || d); }).join(', ')})</li>
+        <li>Departments not yet submitted: <strong>${[...PROGRAM_DEPT_KEYS, ...OPERATIONAL_DEPT_KEYS].filter(k => !depts.map(d => normalizeDept(d)).includes(k)).map(k => deptConfig[k]?.label || k).join(', ') || 'All submitted'}</strong></li>
+      </ul>
+    </div>`;
+
+    html += `<div class="output-section">
+      <h4>DEPARTMENTS BREAKDOWN</h4>`;
+    list.forEach(sub => {
+      const key = normalizeDept(sub.department);
+      const cfg = deptConfig[key] || { icon: '📋', label: sub.department };
+      const d = sub[key] || sub[sub.department] || {};
+      const story = d.story || d.moment || d.success || d.growth || d.quote || d.highlight || '(See full submission)';
+      html += `<div style="margin: 10px 0; padding: 12px; background: var(--bg); border-radius: 8px;">
+        <strong>${subHierarchyLabel(sub)}</strong> · Submitted by ${sub.submitterName}
+        <br><em>${truncate(story, 200)}</em>
+      </div>`;
+    });
+    html += '</div>';
+
+    document.getElementById('reportOutput').innerHTML = html;
+  }
+
+  // ===================== STATUS MANAGEMENT =====================
+  async function changeStatus(id, status) {
+    submissionStatuses[id] = status;
+    // Update in memory
+    const idx = allSubmissions.findIndex(s => s.id === id);
+    if (idx > -1) allSubmissions[idx]._status = status;
+    // Write to DB
+    if (_sbClient) {
+      try {
+        await _sbClient.rpc('update_trg_submission_status', { p_id: id, p_status: status });
+      } catch(e) { console.warn('DB status update failed:', e.message); }
+    }
+    // Fallback localStorage
+    try { localStorage.setItem('trg_statuses', JSON.stringify(submissionStatuses)); } catch(e) {}
+    if (status === 'reviewed') markRead(id);
+    else renderSubmissions();
+  }
+
+  async function markRead(id) {
+    const idx = allSubmissions.findIndex(s => s.id === id);
+    if (idx > -1) allSubmissions[idx].read = true;
+    // Write to DB
+    if (_sbClient) {
+      try {
+        await _sbClient.rpc('mark_trg_submission_read', { p_id: id });
+      } catch(e) { console.warn('DB mark read failed:', e.message); }
+    }
+    // Fallback localStorage
+    try { localStorage.setItem('trg_submissions', JSON.stringify(allSubmissions)); } catch(e) {}
+    updateStats();
+    updateNotifBadge();
+    renderSubmissions();
+  }
+
+  async function markAllRead() {
+    allSubmissions.forEach(s => s.read = true);
+    // Write all to DB
+    if (_sbClient) {
+      try {
+        const ids = allSubmissions.filter(s => !s.read).map(s => s.id);
+        for (const id of ids) {
+          await _sbClient.rpc('mark_trg_submission_read', { p_id: id });
+        }
+        // Simpler: direct update
+        await _sbClient.from('trg_content_submissions').update({ read: true }).eq('read', false);
+      } catch(e) { console.warn('DB mark all read failed:', e.message); }
+    }
+    // Fallback localStorage
+    try {
+      localStorage.setItem('trg_submissions', JSON.stringify(allSubmissions));
+      localStorage.setItem('trg_unread', '0');
+    } catch(e) {}
+    updateStats();
+    updateNotifBadge();
+    renderSubmissions();
+  }
+
+  // ===================== MODALS =====================
+  function openModal(type) {
+    document.getElementById('modal-' + type).classList.add('open');
+    if (type === 'newsletter') generateNewsletter();
+    if (type === 'tasks') generateTasks();
+    if (type === 'report') generateReport();
+  }
+
+  function closeModal(type) {
+    document.getElementById('modal-' + type).classList.remove('open');
+  }
+
+  // Close on overlay click
+  document.querySelectorAll('.modal-overlay').forEach(overlay => {
+    overlay.addEventListener('click', function(e) {
+      if (e.target === this) {
+        this.classList.remove('open');
+      }
+    });
+  });
+
+  // ===================== HELPERS =====================
+  function truncate(str, len) {
+    if (!str) return '';
+    str = str.trim();
+    return str.length > len ? str.slice(0, len) + '...' : str;
+  }
+
+  function copyContent(id) {
+    const el = document.getElementById(id);
+    const text = el.innerText || el.textContent;
+    navigator.clipboard.writeText(text).then(() => {
+      alert('Copied to clipboard!');
+    });
+  }
+
+  async function clearAll() {
+    if (confirm('Clear all demo/test data? This cannot be undone.')) {
+      // Clear localStorage
+      try {
+        localStorage.removeItem('trg_submissions');
+        localStorage.removeItem('trg_statuses');
+        localStorage.removeItem('trg_unread');
+        localStorage.removeItem('trg_last_submission');
+      } catch(e) {}
+      // Clear demo rows from DB (only rows with ID matching TRG-XXXX-DEMO pattern)
+      if (_sbClient) {
+        try {
+          await _sbClient.from('trg_content_submissions').delete().like('id', '%-DEMO%');
+        } catch(e) { console.warn('DB clear demo failed:', e.message); }
+      }
+      allSubmissions = [];
+      submissionStatuses = {};
+      loadData();
+    }
+  }
+
+  // ===================== DEMO DATA =====================
+  function loadDemoData() {
+    const demo = [
+      {
+        id: 'TRG-2026-DEMO1',
+        submittedAt: new Date().toISOString(),
+        submitterName: 'Sarah Nakato',
+        submitterRole: 'Child Protection Officer',
+        submitterPhone: '0772 100 200',
+        month: 'June',
+        year: '2026',
+        department: 'rescue',
+        read: false,
+        rescue: {
+          count: '14',
+          story: 'There was a 9-year-old girl from Masaka who had been locked in a room by a relative for over a week. A neighbour called us. Our officer drove through the night and she was safely removed within 24 hours. She is now in the Princess of Peace shelter and she started smiling again on day 3. She said she thought no one was coming for her.',
+          challenge: 'The court process is painfully slow. We have two children whose cases have been pending for 4 months. It affects the children mentally when they don\'t know what will happen.',
+          proud: 'Our officer Grace Apio stayed at the courthouse for 7 hours to ensure a child\'s file was not lost in the system. That persistence made a difference.',
+          awareness: 'We want the community to know that if they see a child in danger, they should call us immediately. Silence is not protection.',
+          upcoming: 'Court hearing for 3 children on 15th June, Community awareness walk in Masaka on 24th June',
+        },
+        media: {
+          photosDescription: 'Group photo from team debrief. Safe photos of the shelter space (no children\'s faces). Officer Grace at the courthouse.',
+          videoDescription: '2-minute phone clip from the community awareness session. Raw footage only.',
+          privacyNotes: 'All children in the shelter must remain completely anonymous. No names, faces, or locations to be shared publicly.',
+          featuredPeople: 'Officer Grace Apio has agreed to share her story in a video.',
+        },
+        nextMonth: 'Big case closure expected in July — a child returning to a safe family after 8 months. We want to prepare a full story for that.',
+        finalNotes: 'Please prioritize the Masaka story — Annabelle said it is very powerful.',
+      },
+      {
+        id: 'TRG-2026-DEMO3',
+        submittedAt: new Date(Date.now() - 7200000).toISOString(),
+        submitterName: 'Dr. Miriam Atim',
+        submitterRole: 'Mental Health Lead',
+        submitterPhone: '0704 500 600',
+        month: 'June',
+        year: '2026',
+        department: 'mentalhealth',
+        read: true,
+        mentalhealth: {
+          count: '23',
+          themes: 'We are seeing a significant number of young women and adolescent girls carrying unspoken grief and anxiety — particularly related to family breakdown and abuse. The numbers are growing. This is a community-wide issue, not individual.',
+          success: 'A young man came to us 6 months ago unable to leave his house. He had not spoken to his family in 2 years. After consistent sessions, he enrolled in a vocational training program last week. He sent his first payment home to his mother. He wrote us a note that said "You gave me back to myself."',
+          outreach: 'Community mental health talk at Makerere University secondary school — 200 students reached. Stigma-breaking session with a community men\'s group.',
+          message: 'Mental health is not a weakness. It is strength to ask for help. TRG wants every Ugandan family to know that healing is possible and help is available.',
+        },
+        media: {
+          photosDescription: 'Team photo at the university outreach. No client photos.',
+          videoDescription: 'Short clip from the university session.',
+          privacyNotes: 'No client photos or stories with identifying details. All mental health client references must be fully anonymized.',
+          featuredPeople: 'Dr. Miriam is happy to be interviewed for a general mental health awareness video.',
+        },
+        nextMonth: 'Planning a public mental health awareness campaign for July in partnership with a local radio station.',
+        finalNotes: 'The young man\'s story is anonymized but very powerful. Use it freely.',
+      }
+    ];
+
+    const existing = JSON.parse(localStorage.getItem('trg_submissions') || '[]');
+    const merged = [...demo, ...existing.filter(s => !demo.find(d => d.id === s.id))];
+    localStorage.setItem('trg_submissions', JSON.stringify(merged));
+    localStorage.setItem('trg_unread', '2');
+    localStorage.setItem('trg_last_submission', new Date().toISOString());
+    loadData();
+  }
+</script>
+</body>
+</html>

@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Charis Creations — Wedding Preparation Checklist</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;900&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0D1B2A;
+  --card: #1B2838;
+  --card2: #243447;
+  --border: #2D3F52;
+  --orange: #F16623;
+  --orange-dim: #F1662322;
+  --text: #F1F5F9;
+  --muted: #94A3B8;
+  --dim: #64748B;
+  --green: #10B981;
+  --green-dim: #10B98122;
+  --amber: #F59E0B;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  font-family: 'Montserrat', -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+.container { max-width: 560px; margin: 0 auto; padding: 0 16px 80px; }
+
+.header {
+  text-align: center;
+  padding: 32px 16px 24px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 24px;
+}
+.logo-text { font-size: 13px; font-weight: 900; letter-spacing: 3px; color: var(--orange); margin-bottom: 4px; }
+.tagline { font-size: 10px; color: var(--dim); letter-spacing: 1px; text-transform: uppercase; }
+.page-title { font-size: 22px; font-weight: 900; margin-top: 20px; line-height: 1.2; }
+.page-sub { font-size: 13px; color: var(--muted); margin-top: 10px; line-height: 1.6; }
+
+/* Progress */
+.progress-wrap { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 24px; }
+.progress-label { display: flex; justify-content: space-between; margin-bottom: 8px; }
+.progress-label span { font-size: 12px; font-weight: 700; }
+.progress-label .pct { color: var(--orange); }
+.progress-bar { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+.progress-fill { height: 100%; background: var(--orange); border-radius: 3px; transition: width 0.4s ease; }
+.progress-fill.done { background: var(--green); }
+
+/* Section */
+.section { margin-bottom: 24px; }
+.section-title {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--orange);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+/* Checklist item */
+.check-item {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-bottom: 10px;
+  transition: all 0.25s;
+  cursor: pointer;
+}
+.check-item.checked {
+  background: var(--green-dim);
+  border-color: #10B98144;
+}
+.check-item-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+.checkbox {
+  width: 22px; height: 22px;
+  border-radius: 6px;
+  border: 2px solid var(--border);
+  flex-shrink: 0;
+  margin-top: 1px;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.2s;
+  background: transparent;
+}
+.check-item.checked .checkbox {
+  background: var(--green);
+  border-color: var(--green);
+}
+.check-icon { font-size: 13px; display: none; }
+.check-item.checked .check-icon { display: block; }
+.check-title { font-size: 14px; font-weight: 700; flex: 1; line-height: 1.4; }
+.check-item.checked .check-title { color: var(--muted); text-decoration: line-through; text-decoration-color: #10B98166; }
+
+.why-toggle {
+  font-size: 10px;
+  color: var(--orange);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-top: 8px;
+  margin-left: 34px;
+  cursor: pointer;
+  display: inline-block;
+}
+.why-text {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.7;
+  margin-top: 8px;
+  margin-left: 34px;
+  display: none;
+  background: var(--card2);
+  border-radius: 8px;
+  padding: 10px 12px;
+  border-left: 2px solid var(--orange);
+}
+.why-text.open { display: block; }
+
+/* Completion card */
+.complete-card {
+  background: var(--green-dim);
+  border: 1px solid #10B98144;
+  border-radius: 16px;
+  padding: 24px;
+  text-align: center;
+  margin-bottom: 24px;
+  display: none;
+}
+.complete-card.show { display: block; }
+.complete-icon { font-size: 40px; margin-bottom: 12px; }
+.complete-title { font-size: 18px; font-weight: 900; color: var(--green); margin-bottom: 8px; }
+.complete-sub { font-size: 12px; color: var(--muted); line-height: 1.6; margin-bottom: 16px; }
+.wa-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #25D366;
+  color: white;
+  border-radius: 12px;
+  padding: 14px 24px;
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: none;
+  font-family: 'Montserrat', sans-serif;
+}
+
+/* Name banner */
+.name-banner {
+  background: var(--orange-dim);
+  border: 1px solid #F1662344;
+  border-radius: 10px;
+  padding: 12px 16px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--orange);
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.footer { text-align: center; padding: 24px 0; font-size: 11px; color: var(--dim); }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="header">
+    <div class="logo-text">CHARIS CREATIONS</div>
+    <div class="tagline">Bringing Image to Life</div>
+    <div class="page-title">Your Wedding Preparation Checklist</div>
+    <div class="page-sub">Our job is to capture your story from the moment it begins — not the ceremony, but the very first minute of your morning. Everything on this list protects that story.</div>
+  </div>
+
+  <div id="name-banner" class="name-banner" style="display:none;"></div>
+
+  <div class="progress-wrap">
+    <div class="progress-label">
+      <span>Your preparation progress</span>
+      <span class="pct" id="pct-text">0% complete</span>
+    </div>
+    <div class="progress-bar">
+      <div class="progress-fill" id="progress-fill" style="width:0%"></div>
+    </div>
+  </div>
+
+  <div id="complete-card" class="complete-card">
+    <div class="complete-icon">✅</div>
+    <div class="complete-title">You're Ready.</div>
+    <div class="complete-sub">Every box is ticked. You've done everything to give us the best possible chance of capturing your day beautifully. Now breathe — we've got you from here.</div>
+    <a id="wa-ready" href="#" class="wa-btn">📱 Tell Charis I'm Ready</a>
+  </div>
+
+  <!-- SECTION 1 -->
+  <div class="section">
+    <div class="section-title">📍 The Space</div>
+
+    <div class="check-item" data-id="room_bride">
+      <div class="check-item-top">
+        <div class="checkbox"><span class="check-icon">✓</span></div>
+        <div class="check-title">Bride's prep room is tidy, clear, and clutter-free</div>
+      </div>
+      <div class="why-toggle" onclick="toggleWhy(this)">↓ Why this matters</div>
+      <div class="why-text">When your room tells a beautiful story, every corner becomes a backdrop. We are shooting your morning constantly — the windowsill, the mirror, the moment your mother does up your zip. A clear space lets us focus entirely on you, not on clearing away last night's bags or moving chairs out of frame.</div>
+    </div>
+
+    <div class="check-item" data-id="room_groom">
+      <div class="check-item-top">
+        <div class="checkbox"><span class="check-icon">✓</span></div>
+        <div class="check-title">Groom's room is organised and presentable</div>
+      </div>
+      <div class="why-toggle" onclick="toggleWhy(this)">↓ Why this matters</div>
+      <div class="why-text">The groom's prep is often the most natural and emotionally raw footage we capture — the laughter, the nerves, the tie that won't cooperate. We want nothing in the background competing with that. A clean room puts the men front and centre, exactly where they should be.</div>
+    </div>
+  </div>
+
+  <!-- SECTION 2 -->
+  <div class="section">
+    <div class="section-title">💍 Your Details</div>
+
+    <div class="check-item" data-id="details_together">
+      <div class="check-item-top">
+        <div class="checkbox"><span class="check-icon">✓</span></div>
+        <div class="check-title">Dress, rings, shoes, veil, and bouquet are all in one spot</div>
+      </div>
+      <div class="why-toggle" onclick="toggleWhy(this)">↓ Why this matters</div>
+      <div class="why-text">The detail shoot is one of the most important parts of your album — and most people never realise it until they see the final photos. When everything is gathered together, we can arrange and photograph each item deliberately, artistically, as part of your story. When items are scattered across three rooms, we spend 30 minutes gathering instead of shooting. That time cannot be recovered.</div>
+    </div>
+
+    <div class="check-item" data-id="hanger">
+      <div class="check-item-top">
+        <div class="checkbox"><span class="check-icon">✓</span></div>
+        <div class="check-title">A beautiful wooden or custom hanger is ready for the dress</div>
+      </div>
+      <div class="why-toggle" onclick="toggleWhy(this)">↓ Why this matters</div>
+      <div class="why-text">The dress-on-hanger photograph is one of the most requested and most shared images from any wedding. A wooden or personalised hanger transforms that shot into something frame-worthy. A white plastic boutique hanger will appear in your photos for the rest of your life. This costs almost nothing to prepare and makes an enormous difference to the image.</div>
+    </div>
+
+    <div class="check-item" data-id="jewellery">
+      <div class="check-item-top">
+        <div class="checkbox"><span class="check-icon">✓</span></div>
+        <div class="check-title">All jewellery and accessories are laid out and waiting</div>
+      </div>
+      <div class="why-toggle" onclick="toggleWhy(this)">↓ Why this matters</div>
+      <div class="why-text">Rings, earrings, bracelet, hair piece, perfume — each of these gets its own moment in front of the lens. They are the quiet details that tell the story of who you are on this day. Have them waiting, together, somewhere with good light.</div>
+    </div>
+  </div>
+
+  <!-- SECTION 3 -->
+  <div class="section">
+    <div class="section-title">💄 Hair & Makeup</div>
+
+    <div class="check-item" data-id="bride_first">
+      <div class="check-item-top">
+        <div class="checkbox"><span class="check-icon">✓</span></div>
+        <div class="check-title">Bride is scheduled to be the FIRST person in the chair — not the last</div>
+      </div>
+      <div class="why-toggle" onclick="toggleWhy(this)">↓ Why this matters</div>
+      <div class="why-text">This is the single most important timing decision of your morning. If your bridesmaids go first and run long, your time in the chair shrinks. Every minute of delay at makeup is a photography moment that disappears from your album. You only get one morning as a bride. Protect it. Your bridesmaids will understand — they love you.</div>
+    </div>
+
+    <div class="check-item" data-id="mua_timing">
+      <div class="check-item-top">
+        <div class="checkbox"><span class="check-icon">✓</span></div>
+        <div class="check-title">Bride will be fully ready at least 45 minutes before departure</div>
+      </div>
+      <div class="why-toggle" onclick="toggleWhy(this)">↓ Why this matters</div>
+      <div class="why-text">Those last 45 minutes — fully dressed, fully done — are where some of the most powerful photographs happen. The quiet moment in front of the mirror. Your mother seeing you. Your bridesmaids gathered around you. These moments cannot be posed or recreated. They happen once, in real time, and only if you have given yourself the time to breathe.</div>
+    </div>
+
+    <div class="check-item" data-id="mua_aware">
+      <div class="check-item-top">
+        <div class="checkbox"><span class="check-icon">✓</span></div>
+        <div class="check-title">Your hair and makeup artist knows our crew will be shooting during the process</div>
+      </div>
+      <div class="why-toggle" onclick="toggleWhy(this)">↓ Why this matters</div>
+      <div class="why-text">Getting-ready photographs are some of the most intimate in your entire album. When the MUA knows we are present, they naturally position themselves and work in a way that keeps you in the frame beautifully. A good MUA is part of your story — let them know we will be capturing it.</div>
+    </div>
+  </div>
+
+  <!-- SECTION 4 -->
+  <div class="section">
+    <div class="section-title">👥 The People Around You</div>
+
+    <div class="check-item" data-id="people_low">
+      <div class="check-item-top">
+        <div class="checkbox"><span class="check-icon">✓</span></div>
+        <div class="check-title">Only bridesmaids, immediate family, and vendors are in the prep room</div>
+      </div>
+      <div class="why-toggle" onclick="toggleWhy(this)">↓ Why this matters</div>
+      <div class="why-text">More people means more energy, more noise, more movement — and more faces appearing in your photographs that are not part of your story. Every extra person in the room adds stress to a morning that should feel calm and intimate. Everyone else loves you and can celebrate with you at the reception. Give yourself this morning.</div>
+    </div>
+
+    <div class="check-item" data-id="family_near">
+      <div class="check-item-top">
+        <div class="checkbox"><span class="check-icon">✓</span></div>
+        <div class="check-title">Parents and close siblings are nearby during the getting-ready moments</div>
+      </div>
+      <div class="why-toggle" onclick="toggleWhy(this)">↓ Why this matters</div>
+      <div class="why-text">The moment a mother sees her daughter in her dress for the first time. The moment a father straightens his son's tie in the mirror and neither of them says a word. These are the photographs people frame and keep for the rest of their lives. We cannot stage them. We can only be there when they happen — and only if your family is present.</div>
+    </div>
+  </div>
+
+  <!-- SECTION 5 -->
+  <div class="section">
+    <div class="section-title">⏱️ Give Us Time</div>
+
+    <div class="check-item" data-id="time_1hr">
+      <div class="check-item-top">
+        <div class="checkbox"><span class="check-icon">✓</span></div>
+        <div class="check-title">Our crew has at least 1.5 hours at the bride's prep location</div>
+      </div>
+      <div class="why-toggle" onclick="toggleWhy(this)">↓ Why this matters</div>
+      <div class="why-text">This is not about us — it is about your album. Thirty minutes of prep coverage gives you approximately 30 usable photographs of getting ready. Ninety minutes gives you well over 200. That difference appears in your album on every page. Every. Single. Page.</div>
+    </div>
+
+    <div class="check-item" data-id="groom_confirmed">
+      <div class="check-item-top">
+        <div class="checkbox"><span class="check-icon">✓</span></div>
+        <div class="check-title">Groom's location and departure time is confirmed and shared with Charis</div>
+      </div>
+      <div class="why-toggle" onclick="toggleWhy(this)">↓ Why this matters</div>
+      <div class="why-text">Our crew splits between locations on your morning. Knowing exactly where the groom will be and when he is leaving means we can be there for his moments too — not rushing in at the last minute, but already in position, already part of the morning.</div>
+    </div>
+  </div>
+
+  <!-- SECTION 6 -->
+  <div class="section">
+    <div class="section-title">🕐 On the Day</div>
+
+    <div class="check-item" data-id="coord_contact">
+      <div class="check-item-top">
+        <div class="checkbox"><span class="check-icon">✓</span></div>
+        <div class="check-title">Your day-of coordinator or contact person has our crew's number</div>
+      </div>
+      <div class="why-toggle" onclick="toggleWhy(this)">↓ Why this matters</div>
+      <div class="why-text">Weddings change in real time — a gate that's locked, a ceremony that starts early, a programme that shifts. When someone on the ground can reach us directly, we adapt instantly. When they can't, we miss moments trying to find out what's happening.</div>
+    </div>
+
+    <div class="check-item" data-id="no_surprises">
+      <div class="check-item-top">
+        <div class="checkbox"><span class="check-icon">✓</span></div>
+        <div class="check-title">Any planned surprises (performances, entrances, reveals) have been noted in our intake form</div>
+      </div>
+      <div class="why-toggle" onclick="toggleWhy(this)">↓ Why this matters</div>
+      <div class="why-text">A surprise we know about is a moment we can capture beautifully. A surprise we don't know about is a moment we might miss entirely. Tell us everything — we are professional secret-keepers. Not knowing costs you the shot.</div>
+    </div>
+  </div>
+
+</div><!-- end container -->
+
+<script>
+(function() {
+  var NAME = new URLSearchParams(window.location.search).get('name') || '';
+  var STORE_KEY = 'charis_prep_' + (NAME || 'default');
+  var STATE = {};
+
+  function load() {
+    try { STATE = JSON.parse(localStorage.getItem(STORE_KEY) || '{}'); } catch(e) { STATE = {}; }
+  }
+
+  function save() {
+    try { localStorage.setItem(STORE_KEY, JSON.stringify(STATE)); } catch(e) {}
+  }
+
+  function getItems() {
+    return document.querySelectorAll('.check-item');
+  }
+
+  function updateProgress() {
+    var items = getItems();
+    var total = items.length;
+    var done = 0;
+    items.forEach(function(el) {
+      if (STATE[el.dataset.id]) done++;
+    });
+    var pct = total ? Math.round((done / total) * 100) : 0;
+    document.getElementById('pct-text').textContent = pct + '% complete';
+    var fill = document.getElementById('progress-fill');
+    fill.style.width = pct + '%';
+    fill.className = 'progress-fill' + (pct === 100 ? ' done' : '');
+
+    var card = document.getElementById('complete-card');
+    if (pct === 100) {
+      card.classList.add('show');
+      card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    } else {
+      card.classList.remove('show');
+    }
+  }
+
+  function renderItems() {
+    getItems().forEach(function(el) {
+      var id = el.dataset.id;
+      if (STATE[id]) {
+        el.classList.add('checked');
+      } else {
+        el.classList.remove('checked');
+      }
+    });
+    updateProgress();
+  }
+
+  function attachClicks() {
+    getItems().forEach(function(el) {
+      el.addEventListener('click', function(e) {
+        if (e.target.classList.contains('why-toggle') || e.target.classList.contains('why-text')) return;
+        var id = el.dataset.id;
+        STATE[id] = !STATE[id];
+        save();
+        renderItems();
+      });
+    });
+  }
+
+  window.toggleWhy = function(btn) {
+    var text = btn.nextElementSibling;
+    var open = text.classList.toggle('open');
+    btn.textContent = open ? '↑ Hide' : '↓ Why this matters';
+  };
+
+  // Name banner
+  if (NAME) {
+    var banner = document.getElementById('name-banner');
+    banner.style.display = 'block';
+    banner.textContent = '💍 ' + decodeURIComponent(NAME) + ' — Your Personal Preparation Checklist';
+    document.title = decodeURIComponent(NAME) + ' — Wedding Prep Checklist';
+  }
+
+  // WhatsApp link
+  var waMsg = encodeURIComponent("Hi Charis! 🎉 It's " + (NAME ? decodeURIComponent(NAME) : 'your client') + ". I've just gone through our wedding preparation checklist — everything is ticked off and we're ready for our big day! 💍");
+  document.getElementById('wa-ready').href = 'https://wa.me/256706028899?text=' + waMsg;
+
+  load();
+  attachClicks();
+  renderItems();
+})();
+</script>
+</body>
+</html>
