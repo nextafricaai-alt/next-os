@@ -1,0 +1,22 @@
+name = "nextos-sentinel"
+main = "sentinel-worker.js"
+account_id = "b5aecdced030bf84d0a1fb6dcec80e09"
+compatibility_date = "2026-07-30"
+compatibility_flags = ["nodejs_compat"]
+
+# This file exists specifically so `wrangler deploy` run from inside
+# cloudflare-worker/ deploys THIS script as a Workers script — without it,
+# wrangler walks up to the repo root and picks up the root wrangler.toml
+# instead (which deploys the whole web/ folder as static assets under
+# [assets] directory = "web"). That's what happened on 2026-08-15: running
+# `wrangler deploy --name nextos-sentinel` from cloudflare-worker/ with no
+# config here borrowed the root config and overwrote the real
+# nextos-sentinel worker (Nia's AI chat, /provision-school, /brand,
+# /provision-business, ...) with a static copy of web/index.html instead of
+# this script. Never delete this file without checking that doesn't
+# reintroduce that failure mode.
+#
+# Secrets (GATE_PIN, SUPABASE_URL, SUPABASE_KEY, GH_DISPATCH_TOKEN, ...) are
+# stored on the Worker by name via `wrangler secret put <NAME> --name
+# nextos-sentinel` — they are NOT in this file and survive redeploys of the
+# script as long as the Worker name here stays "nextos-sentinel".
