@@ -1,0 +1,76 @@
+name: Provision a new Business OS client
+
+# Manual, one-click provisioning: given a business's onboarding config
+# (the JSON the onboarding wizard produces), this creates a dedicated
+# Supabase project, applies the schema, invites the owner by email, and
+# stamps a ready-to-deploy copy of the app — everything provision-business.js
+# does, see web/prototypes/business/provisioning/README.md.
+#
+# This repo is public, so the workflow log and any artifact it uploads are
+# publicly visible. provision-business.js is written with that in mind: it
+# never prints or persists a real password anywhere (the owner is invited
+# by email, not given a generated password), and an anon key is safe to
+# expose by design (that's what it's for). Nothing else in the stamped
+# output is sensitive. Do not change this workflow to print or upload
+# anything from SUPABASE_ACCESS_TOKEN or a service_role key.
+
+on:
+  workflow_dispatch:
+    inputs:
+      business_config_json:
+        description: 'The full config JSON from the onboarding wizard''s review step (paste the whole block)'
+        required: true
+        type: string
+      org_slug:
+        description: 'Supabase organization slug to create the project in (leave blank to auto-detect, only works if the token belongs to exactly one org)'
+        required: false
+        type: string
+      region:
+        description: 'Supabase project region'
+        required: false
+        type: string
+        default: 'us-east-1'
+
+jobs:
+  provision:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Write the business config to a file
+        # Written via an env var, not direct ${{ }} interpolation into the
+        # script — GitHub's own guidance: untrusted-shaped text substituted
+        # straight into a run: block is a script-injection risk, since the
+        # substitution happens before the shell ever sees it. An env var is
+        # passed through safely instead.
+        env:
+          BUSINESS_CONFIG_JSON: ${{ inputs.business_config_json }}
+        run: |
+          printf '%s' "$BUSINESS_CONFIG_JSON" > /tmp/business-config.json
+          node -e "JSON.parse(require('fs').readFileSync('/tmp/business-config.json','utf8')); console.log('Config JSON is valid.')"
+
+      - name: Provision + stamp
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          ORG_SLUG: ${{ inputs.org_slug }}
+          REGION: ${{ inputs.region }}
+        run: |
+          cd web/prototypes/business/provisioning
+          ARGS=(--config /tmp/business-config.json --out /tmp/stamped-output --region "$REGION")
+          if [ -n "$ORG_SLUG" ]; then
+            ARGS+=(--org-slug "$ORG_SLUG")
+          fi
+          node provision-business.js "${ARGS[@]}"
+
+      - name: Upload the stamped app
+        uses: actions/upload-artifact@v4
+        with:
+          name: stamped-app
+          path: /tmp/stamped-output
+          retention-days: 14
