@@ -5,9 +5,11 @@ This is step 2 of the pipeline. Step 1 is the onboarding wizard
 `business-config.json`-shaped object — that's the input to everything below.
 
 **Creating the Supabase project, applying the schema, and inviting the
-owner are now fully automated** via `provision-business.js` (or the
-"Provision a new Business OS client" GitHub Action). The only thing left
-manual is deploying the stamped output somewhere — see Step 3.
+owner are now fully automated** via `provision-business.js`, and can be
+kicked off three ways — a button right in the onboarding wizard (Option A,
+zero copy-pasting once set up), the GitHub Actions UI by hand (Option B),
+or locally (Option C). The only thing left manual is deploying the stamped
+output somewhere — see Step 3.
 
 ## What you need before you start
 
@@ -25,7 +27,40 @@ manual is deploying the stamped output somewhere — see Step 3.
 - Node.js 18+ (native `fetch`), if running this locally instead of via the
   GitHub Action.
 
-## Option A — Run the GitHub Action (recommended)
+## Option A — Click "Start Provisioning" in the wizard (no copying anything)
+
+The onboarding wizard's last step has a **Start Provisioning** button
+(next to Copy Config JSON) that skips the copy-paste entirely — it POSTs
+the finished config straight to the `nextos-sentinel` Cloudflare Worker,
+which triggers the GitHub Action below on your behalf and hands you back a
+link to watch it run.
+
+**One-time setup**, in addition to the `SUPABASE_ACCESS_TOKEN` GitHub
+secret from Option B below:
+
+1. Generate a GitHub token with `repo` scope (classic PAT, or a
+   fine-grained token with "Actions: write" on this repo) — this is
+   different from the Supabase token, and separate from whatever token this
+   repo's own git remote uses. GitHub → Settings → Developer settings →
+   Personal access tokens.
+2. Add it as a secret on the `nextos-sentinel` Worker (not GitHub —
+   `wrangler secret put GH_DISPATCH_TOKEN --name nextos-sentinel`, or via
+   the Cloudflare dashboard → Workers → nextos-sentinel → Settings →
+   Variables and Secrets).
+3. Deploy the updated worker: `cd cloudflare-worker && wrangler deploy
+   --name nextos-sentinel` (this doesn't happen automatically — there's no
+   CI pipeline for this worker, someone has to run it).
+4. The wizard's button is gated behind the same operator PIN the school
+   onboarding form already uses (`GATE_PIN` on the worker, defaults to
+   `1379` if unset — change it) — anyone who found the wizard page
+   otherwise could trigger real, billable Supabase project creation with no
+   gate at all.
+
+Once that's done: fill out the wizard, click **Start Provisioning**, enter
+the PIN, and it does everything Option B does — you never touch GitHub's
+UI or copy any JSON.
+
+## Option B — Run the GitHub Action by hand
 
 1. One-time setup: add the PAT as a repository secret named
    `SUPABASE_ACCESS_TOKEN` (Settings → Secrets and variables → Actions →
@@ -48,7 +83,7 @@ into the stamped output is the `anon` key, which is meant to be public
 client-side (that's what "anon" means; it's not a secret, Row Level Security
 is what actually protects the data).
 
-## Option B — Run it locally
+## Option C — Run it locally
 
 ```bash
 cd web/prototypes/business/provisioning
@@ -100,14 +135,19 @@ made yet.
 ```
 onboarding wizard → business-config.json
         │
-        ▼
-provision-business.js (or the GitHub Action)
-  ├─ create Supabase project
-  ├─ wait for it to come online
-  ├─ run schema.sql
-  ├─ invite the owner by email
-  └─ stamp the app template with the real project's URL + anon key
-        │
-        ▼
-Step 3: deploy the stamped output as a static site (manual)
+        ├─ Option A: click "Start Provisioning" in the wizard
+        │     └─ nextos-sentinel Worker → triggers the GitHub Action below
+        ├─ Option B: paste into the GitHub Actions "Run workflow" UI
+        └─ Option C: pass --config to provision-business.js locally
+                │
+                ▼
+     provision-business.js actually runs, either way:
+       ├─ create Supabase project
+       ├─ wait for it to come online
+       ├─ run schema.sql
+       ├─ invite the owner by email
+       └─ stamp the app template with the real project's URL + anon key
+                │
+                ▼
+     Step 3: deploy the stamped output as a static site (manual)
 ```

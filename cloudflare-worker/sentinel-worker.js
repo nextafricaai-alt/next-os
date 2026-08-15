@@ -325,6 +325,10 @@ export default {
     if (url.pathname === '/provision-school') {
       return handleProvisionSchool(request, env, cors);
     }
+    // ─── Route: /provision-business — kick off Business OS provisioning ──
+    if (url.pathname === '/provision-business') {
+      return handleProvisionBusiness(request, env, cors);
+    }
     if (url.pathname === '/provision-teacher') {
       return handleProvisionTeacher(request, env, cors);
     }
@@ -3470,6 +3474,69 @@ async function handleProvisionSchool(request, env, cors) {
       tempPassword: authId ? tempPassword : null,
       note: authId ? 'School created. Share the link + temp password with the head teacher.'
                    : 'School created/updated. Admin login not set automatically (' + userNote + ') — set the password in Supabase.',
+    });
+  } catch (e) {
+    return reply({ ok: false, error: String(e && e.message || e) }, 500);
+  }
+}
+
+// ─── Route: /provision-business — kick off Business OS provisioning ─────────
+// Removes the "copy the config JSON, paste it into GitHub Actions by hand"
+// step: the onboarding wizard POSTs its finished config straight here, and
+// this triggers the same "Provision a new Business OS client" GitHub Actions
+// workflow that already does the real work (create the Supabase project, run
+// schema.sql, invite the owner, stamp the app — see provision-business.js).
+// Deliberately does NOT do that work itself: Workers have no filesystem/child
+// process, and the stamping step needs both, so GitHub Actions' full Node.js
+// runner stays the actual execution engine. This endpoint is just a secure
+// trigger — the alternative (calling GitHub's API straight from the wizard's
+// own client-side JS) would mean shipping a repo-scoped GitHub token in
+// public page source, which is a real credential leak, not a shortcut.
+async function handleProvisionBusiness(request, env, cors) {
+  const reply = (o, st) => new Response(JSON.stringify(o), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
+  let body;
+  try { body = await request.json(); } catch (e) { return reply({ ok: false, error: 'Invalid JSON body' }, 400); }
+  const { pin, config } = body || {};
+  const ADMIN_PIN = env.GATE_PIN || '1379';
+  if (pin !== ADMIN_PIN) return reply({ ok: false, error: 'Invalid admin PIN' }, 401);
+  if (!config || !config.businessName || !config.businessType) {
+    return reply({ ok: false, error: 'config.businessName and config.businessType are required' }, 400);
+  }
+  if (!config.owner || !config.owner.email) {
+    return reply({ ok: false, error: 'config.owner.email is required' }, 400);
+  }
+  if (!env.GH_DISPATCH_TOKEN) {
+    return reply({ ok: false, error: 'GH_DISPATCH_TOKEN not configured on the worker — see web/prototypes/business/provisioning/README.md' }, 503);
+  }
+  const repo = env.GH_REPO || 'nextafricaai-alt/next-os';
+
+  try {
+    const ghRes = await fetch('https://api.github.com/repos/' + repo + '/actions/workflows/provision-business.yml/dispatches', {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + env.GH_DISPATCH_TOKEN,
+        'Accept': 'application/vnd.github+json',
+        'X-GitHub-Api-Version': '2022-11-28',
+        'User-Agent': 'nextos-sentinel-worker',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        ref: 'main',
+        inputs: { business_config_json: JSON.stringify(config) },
+        return_run_details: true,
+      }),
+    });
+    if (!ghRes.ok) {
+      const errText = await ghRes.text().catch(() => '');
+      return reply({ ok: false, error: 'GitHub dispatch failed (' + ghRes.status + '): ' + errText }, 502);
+    }
+    const ghBody = await ghRes.json().catch(() => ({}));
+    const runUrl = (ghBody && ghBody.html_url) || ('https://github.com/' + repo + '/actions/workflows/provision-business.yml');
+    return reply({
+      ok: true,
+      businessName: config.businessName,
+      runUrl,
+      note: 'Provisioning started — watch progress at ' + runUrl + '. Takes a few minutes; the Supabase project alone is usually 1-2.',
     });
   } catch (e) {
     return reply({ ok: false, error: String(e && e.message || e) }, 500);

@@ -42,7 +42,7 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,sy
 .field{margin-bottom:18px;}
 .field label{display:block;font-size:11.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:7px;}
 .field .hint{font-size:11.5px;color:var(--dim);font-weight:400;text-transform:none;letter-spacing:0;margin-left:6px;}
-input[type=text],input[type=email],input[type=tel],textarea,select{
+input[type=text],input[type=email],input[type=tel],input[type=password],textarea,select{
   width:100%;background:var(--card2);border:1.5px solid var(--border);border-radius:10px;color:var(--text);
   padding:13px 14px;font-size:14.5px;font-family:inherit;outline:none;transition:border-color .15s;
 }
@@ -125,6 +125,14 @@ textarea{resize:vertical;min-height:80px;}
 .done-icon{width:64px;height:64px;border-radius:50%;background:rgba(16,185,129,0.15);color:var(--green);display:flex;align-items:center;justify-content:center;font-size:30px;margin:0 auto 20px;}
 .config-box{background:var(--card2);border:1px solid var(--border);border-radius:12px;padding:16px;text-align:left;font-family:ui-monospace,monospace;font-size:11.5px;color:var(--muted);max-height:320px;overflow:auto;white-space:pre-wrap;word-break:break-all;margin:20px 0;}
 .next-steps{background:var(--orange-soft);border:1px solid rgba(232,100,24,0.3);border-radius:12px;padding:16px 18px;text-align:left;font-size:13px;color:var(--text);line-height:1.6;margin-bottom:20px;}
+.provision-box{background:var(--card2);border:1px solid var(--border);border-radius:12px;padding:16px 18px;text-align:left;margin-bottom:20px;}
+.provision-row{display:flex;gap:10px;flex-wrap:wrap;}
+.provision-row input{flex:0 1 auto;}
+.provision-status{font-size:13px;margin-top:10px;min-height:18px;}
+.provision-status.ok{color:var(--green);}
+.provision-status.err{color:#f87171;}
+.provision-status a{color:inherit;text-decoration:underline;}
+.provision-hint{font-size:11.5px;color:var(--dim);margin-top:10px;}
 </style>
 </head>
 <body>
@@ -413,16 +421,28 @@ RENDERERS.review = function () {
 function reviewLine(l, v) { return '<div class="review-line"><div class="l">' + l + '</div><div class="v">' + escHtml(v || '—') + '</div></div>'; }
 
 // ── Done / config output ──────────────────────────────────────────────────
+var SENTINEL_WORKER_URL = 'https://nextos-sentinel.nextafricaai.workers.dev';
+var _lastConfig = null;
+
 function submitOnboarding() {
   var cfg = window.BUSINESS_ONBOARDING.buildBusinessConfig(STATE);
+  _lastConfig = cfg;
   var host = document.getElementById('stepHost');
   host.innerHTML = '' +
     '<div class="done-wrap">' +
       '<div class="done-icon">✓</div>' +
       '<div class="step-title" style="margin-bottom:6px;">' + escHtml(cfg.businessName) + ' is ready to set up</div>' +
-      '<div class="step-sub" style="margin:0 auto 20px;">This is where onboarding hands off to provisioning. Send this config to whoever is setting up your account — they\'ll use it to create your dedicated database and deploy your own copy of the app.</div>' +
-      '<div class="next-steps"><strong>What happens next:</strong> this config gets used to (1) create a dedicated database just for ' + escHtml(cfg.businessName) + ', (2) stamp your own copy of the app with everything above — your name, colors, pipeline, and terminology, (3) create your owner login. See web/prototypes/business/provisioning/README.md for the full checklist.</div>' +
+      '<div class="step-sub" style="margin:0 auto 20px;">Have the NEXT team start provisioning right from here, or copy the config to hand off / run manually — see web/prototypes/business/provisioning/README.md for the full checklist either way.</div>' +
+      '<div class="next-steps"><strong>What happens next:</strong> this config gets used to (1) create a dedicated database just for ' + escHtml(cfg.businessName) + ', (2) stamp your own copy of the app with everything above — your name, colors, pipeline, and terminology, (3) create your owner login (' + escHtml(cfg.owner.email) + ' will get an email to set a password).</div>' +
       '<div class="config-box" id="cfgBox"></div>' +
+      '<div class="provision-box">' +
+        '<div class="provision-row">' +
+          '<input type="password" id="provisionPin" placeholder="Operator PIN" autocomplete="off" style="max-width:160px;">' +
+          '<button class="btn btn-primary" id="provisionBtn" onclick="startProvisioning()">🚀 Start Provisioning</button>' +
+        '</div>' +
+        '<div class="provision-status" id="provisionStatus"></div>' +
+        '<div class="provision-hint">NEXT-team only — creates real, billable infrastructure. Everyone else: use Copy Config JSON below and hand it off.</div>' +
+      '</div>' +
       '<button class="btn btn-ghost" onclick="goTo(0,{skipValidate:true})" style="margin-right:10px;">Start Over</button>' +
       '<button class="btn btn-primary" id="cfgCopyBtn" onclick="copyConfigJson()">📋 Copy Config JSON</button>' +
     '</div>';
@@ -443,6 +463,40 @@ function copyConfigJson() {
   } else {
     done(false);
   }
+}
+
+function startProvisioning() {
+  var pinEl = document.getElementById('provisionPin');
+  var btn = document.getElementById('provisionBtn');
+  var statusEl = document.getElementById('provisionStatus');
+  var pin = pinEl ? pinEl.value.trim() : '';
+  if (!pin) { statusEl.textContent = 'Enter the operator PIN first.'; statusEl.className = 'provision-status err'; return; }
+  if (!_lastConfig) { statusEl.textContent = 'No config to send — this shouldn\'t happen, try Start Over.'; statusEl.className = 'provision-status err'; return; }
+
+  btn.disabled = true; btn.textContent = 'Starting…';
+  statusEl.textContent = ''; statusEl.className = 'provision-status';
+
+  fetch(SENTINEL_WORKER_URL + '/provision-business', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ pin: pin, config: _lastConfig }),
+  })
+    .then(function (r) { return r.json().then(function (body) { return { ok: r.ok, body: body }; }); })
+    .then(function (res) {
+      btn.disabled = false; btn.textContent = '🚀 Start Provisioning';
+      if (res.ok && res.body && res.body.ok) {
+        statusEl.className = 'provision-status ok';
+        statusEl.innerHTML = '✓ Started. <a href="' + escAttr(res.body.runUrl) + '" target="_blank" rel="noopener">Watch progress on GitHub →</a>';
+      } else {
+        statusEl.className = 'provision-status err';
+        statusEl.textContent = '✗ ' + ((res.body && res.body.error) || 'Something went wrong — check the worker is deployed and GH_DISPATCH_TOKEN is set.');
+      }
+    })
+    .catch(function (e) {
+      btn.disabled = false; btn.textContent = '🚀 Start Provisioning';
+      statusEl.className = 'provision-status err';
+      statusEl.textContent = '✗ Could not reach the provisioning worker: ' + e.message;
+    });
 }
 
 // ── shared nav row ──────────────────────────────────────────────────────
