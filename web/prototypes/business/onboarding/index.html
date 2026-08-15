@@ -486,7 +486,8 @@ function startProvisioning() {
       btn.disabled = false; btn.textContent = '🚀 Start Provisioning';
       if (res.ok && res.body && res.body.ok) {
         statusEl.className = 'provision-status ok';
-        statusEl.innerHTML = '✓ Started. <a href="' + escAttr(res.body.runUrl) + '" target="_blank" rel="noopener">Watch progress on GitHub →</a>';
+        statusEl.innerHTML = '✓ Started. <a href="' + escAttr(res.body.runUrl) + '" target="_blank" rel="noopener">Watch progress on GitHub →</a>'
+          + (res.body.logoSkipped ? '<br><span style="color:#f59e0b;">⚠ Logo not included (too large for this trigger) — see the run log for how to add it.</span>' : '');
       } else {
         statusEl.className = 'provision-status err';
         statusEl.textContent = '✗ ' + ((res.body && res.body.error) || 'Something went wrong — check the worker is deployed and GH_DISPATCH_TOKEN is set.');

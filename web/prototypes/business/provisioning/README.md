@@ -60,6 +60,16 @@ Once that's done: fill out the wizard, click **Start Provisioning**, enter
 the PIN, and it does everything Option B does — you never touch GitHub's
 UI or copy any JSON.
 
+**One limitation of this path specifically:** GitHub's `workflow_dispatch`
+API has a real size cap on its inputs, and an uploaded logo's base64 data
+blows through it (confirmed live — a config with a logo gets a 422 "inputs
+are too large"). The worker strips the logo before dispatching so the run
+still succeeds; the stamped app just falls back to a generated brand-color
+initial badge instead of the real logo. CharisOS has no in-app way to add
+a logo afterward, so if the real logo matters for this business right now,
+use **Copy Config JSON** (which still has the logo — only the auto-trigger
+path strips it) with Option B or C below instead of the button.
+
 ## Option B — Run the GitHub Action by hand
 
 1. One-time setup: add the PAT as a repository secret named

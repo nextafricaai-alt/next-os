@@ -3510,6 +3510,15 @@ async function handleProvisionBusiness(request, env, cors) {
   }
   const repo = env.GH_REPO || 'nextafricaai-alt/next-os';
 
+  // GitHub's workflow_dispatch inputs have a real size cap that an uploaded
+  // logo's base64 data URI blows straight through (confirmed live: a config
+  // with a logo gets a 422 "inputs are too large"). Strip it before
+  // dispatching — stamp-template.js already falls back cleanly to a
+  // generated brand-color initial badge on the login screen when there's no
+  // logo, so this degrades gracefully rather than failing the whole run.
+  const hadLogo = !!config.logoDataUrl;
+  const dispatchConfig = hadLogo ? Object.assign({}, config, { logoDataUrl: null }) : config;
+
   try {
     const ghRes = await fetch('https://api.github.com/repos/' + repo + '/actions/workflows/provision-business.yml/dispatches', {
       method: 'POST',
@@ -3522,7 +3531,7 @@ async function handleProvisionBusiness(request, env, cors) {
       },
       body: JSON.stringify({
         ref: 'main',
-        inputs: { business_config_json: JSON.stringify(config) },
+        inputs: { business_config_json: JSON.stringify(dispatchConfig) },
         return_run_details: true,
       }),
     });
@@ -3536,7 +3545,9 @@ async function handleProvisionBusiness(request, env, cors) {
       ok: true,
       businessName: config.businessName,
       runUrl,
-      note: 'Provisioning started — watch progress at ' + runUrl + '. Takes a few minutes; the Supabase project alone is usually 1-2.',
+      logoSkipped: hadLogo,
+      note: 'Provisioning started — watch progress at ' + runUrl + '. Takes a few minutes; the Supabase project alone is usually 1-2.'
+        + (hadLogo ? ' Note: the uploaded logo was NOT sent (too large for this trigger) — this run will fall back to a generated brand-color badge instead. CharisOS has no in-app way to add a logo afterward, so if the real logo matters now, use Copy Config JSON (which still has it) with Option B or C in the README instead of this button, or re-run stamp-template.js locally later with the same config to produce a corrected copy.' : ''),
     });
   } catch (e) {
     return reply({ ok: false, error: String(e && e.message || e) }, 500);
