@@ -34,6 +34,7 @@
   #send{background:var(--grad);color:#fff;border:0;border-radius:10px;padding:0 16px;font-weight:600;cursor:pointer}
   .hist{display:flex;gap:6px;align-items:center}
 </style>
+<script src="/nia-llm.js"></script>
 </head>
 <body>
   <div id="top">
@@ -58,7 +59,7 @@
       <div id="board"><div id="empty"><h2>Let's design something.</h2>Tell Nia your idea &mdash; &ldquo;a bold poster for the Fathers Arise conference, navy and gold&rdquo; &mdash; and she'll draw it here. Then refine it together: &ldquo;bigger title&rdquo;, &ldquo;warmer palette&rdquo;, &ldquo;add a date strip&rdquo;.</div></div>
     </div>
     <div id="side">
-      <div id="sh"><span id="dot"></span><b>Nia</b> <span style="color:var(--ink3);font-size:12px">&middot; graphic designer</span></div>
+      <div id="sh"><span id="dot"></span><b>Nia</b> <span style="color:var(--ink3);font-size:12px">&middot; graphic designer</span><span id="brainTag" style="margin-left:auto;font-size:10px;font-family:ui-monospace,monospace;color:var(--ink3);background:var(--panel2);border:1px solid var(--line);border-radius:999px;padding:3px 9px;"></span></div>
       <div id="chat"></div>
       <div id="quick">
         <button data-q="Design a poster for an event. Ask me 2 quick questions if you need details, otherwise propose a concept and draw a first version.">Poster</button>
@@ -71,11 +72,11 @@
     </div>
   </div>
 <script>
-  var WK='https://nextos-sentinel.nextafricaai.workers.dev';
   var $=function(id){return document.getElementById(id);};
-  var W=1080,H=1080, history=[], svgHist=[], hi=-1;
+  var W=1080,H=1080, chatHistory=[], svgHist=[], hi=-1;
   function dims(){ var p=$('preset').value.split('x'); W=parseInt(p[0]); H=parseInt(p[1]); $('sz').textContent=W+' x '+H+' px'; }
   dims();
+  try{ $('brainTag').textContent=NiaLLM.brainLabel(); }catch(e){}
   $('preset').onchange=function(){ dims(); if(svgHist.length) ask('Redesign / adapt the current concept to fit the new artboard size '+W+'x'+H+'. Keep the same idea and brand.'); };
 
   function SYS(){ return "You are Nia, NEXT's master graphic designer. You create original graphics FROM SCRATCH as clean, self-contained SVG - posters, logos, social posts, banners, icons. You are excellent at composition, visual hierarchy, type, colour theory and balance, at the level of award-winning design.\n\nHARD RULES for every graphic you draw:\n- Output exactly ONE fenced code block labelled svg containing a COMPLETE, valid <svg> element and nothing else inside the block.\n- The svg MUST start with: <svg xmlns=\"http://www.w3.org/2000/svg\" width=\""+W+"\" height=\""+H+"\" viewBox=\"0 0 "+W+" "+H+"\">  (use exactly these dimensions: "+W+"x"+H+").\n- Use ONLY vector content: rect, circle, ellipse, path, polygon, line, linearGradient/radialGradient, and <text>. NO external images, NO <image> with URLs, NO external fonts or @import (so it exports to PNG cleanly).\n- For type use bold, safe font stacks via font-family on <text>, e.g. font-family=\"Georgia, serif\" or font-family=\"Arial, Helvetica, sans-serif\" or \"Impact, sans-serif\". Set font-size in px, font-weight, letter-spacing, and text-anchor for alignment. Keep all text inside the artboard with comfortable margins.\n- Make it genuinely beautiful: a clear focal point, strong hierarchy, an intentional colour palette with real depth (gradients, accents), generous spacing.\n\nHOW YOU WORK: When the idea is clear, design immediately and draw the full SVG. When the user asks for a change (\"bigger title\", \"warmer\", \"add a date\"), REDRAW the complete updated SVG (always a full svg block, never a fragment). Before or after the code block, write ONE short line describing the concept or what you changed - keep prose minimal. Ask a question only if you truly cannot proceed."; }
@@ -87,14 +88,12 @@
   $('undo').onclick=function(){ if(hi>0){ hi--; render(svgHist[hi]); } };
   $('redo').onclick=function(){ if(hi<svgHist.length-1){ hi++; render(svgHist[hi]); } };
 
-  function ask(text){ if(!text) return; addMsg(text,'me'); history.push({role:'user',content:text}); var th=addMsg('designing...','nia');
-    fetch(WK+'/',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({system:SYS(),messages:history})})
-    .then(function(r){return r.json();}).then(function(data){ var txt='';
-      if(data&&data.content&&data.content.length){ txt=data.content.filter(function(c){return c.type==='text';}).map(function(c){return c.text;}).join(''); }
-      else if(data&&data.error){ txt='Error: '+data.error; } else { txt=typeof data==='string'?data:JSON.stringify(data).slice(0,300); }
+  function ask(text){ if(!text) return; addMsg(text,'me'); chatHistory.push({role:'user',content:text}); var th=addMsg('designing...','nia');
+    NiaLLM.ask(SYS(),chatHistory)
+    .then(function(txt){ txt=txt||'';
       var svg=extractSvg(txt); var disp=txt.replace(/```[\s\S]*?```/g,'').replace(/\n{3,}/g,'\n\n').trim();
       th.textContent=disp||(svg?'Here you go - refine it however you like.':txt)||'(no reply)';
-      history.push({role:'assistant',content:txt});
+      chatHistory.push({role:'assistant',content:txt});
       if(svg){ render(svg); pushHist(svg); }
     }).catch(function(e){ th.textContent='Could not reach Nia: '+e.message; }); }
 

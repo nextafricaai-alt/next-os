@@ -19,8 +19,18 @@
  * ============================================================================
  */
 
-const MODEL = '@cf/meta/llama-3.3-70b-instruct-fp8-fast';
-const MAX_TOKENS = 1024;
+// Upgraded 2026-08-15 from @cf/meta/llama-3.3-70b-instruct-fp8-fast: gpt-oss-120b
+// is a materially stronger reasoning model (128K context, native function
+// calling) on Workers AI's current catalog, still inside the free-tier daily
+// neuron budget. This is the free brain behind BOTH the main "Talk to Nia"
+// agent and all of Nia Studio (Site/Graphics/Intel) whenever no BYO Claude/
+// OpenAI key is set — one change here raises quality everywhere at once.
+const MODEL = '@cf/openai/gpt-oss-120b';
+// Was 1024 — too low for what Studio actually asks for: a complete SVG
+// poster, a full batch of redesign actions, or an entire CMS blueprint with
+// embedded SQL routinely need more than that and were likely getting
+// silently truncated mid-output.
+const MAX_TOKENS = 4096;
 
 const ALLOWED_ORIGINS = [
   'https://nextafrica.ai',
@@ -4081,7 +4091,7 @@ Output ONLY the raw fixed source code, without any markdown formatting, backtick
     { role: 'user', content: prompt }
   ];
   
-  const aiRes = await env.AI.run('@cf/meta/llama-3.3-70b-instruct-fp8-fast', { messages, max_tokens: 4096 });
+  const aiRes = await env.AI.run(MODEL, { messages, max_tokens: 4096 });
   let fixedCode = aiRes.response || '';
   
   // Strip markdown if Llama ignored instructions

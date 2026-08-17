@@ -20,3 +20,27 @@ compatibility_flags = ["nodejs_compat"]
 # stored on the Worker by name via `wrangler secret put <NAME> --name
 # nextos-sentinel` — they are NOT in this file and survive redeploys of the
 # script as long as the Worker name here stays "nextos-sentinel".
+#
+# BINDINGS are different from secrets: Cloudflare treats whatever this file
+# declares as the full, authoritative set for the worker on every deploy —
+# a binding that was only ever set up via the dashboard and never written
+# here gets silently dropped the first time `wrangler deploy` runs against
+# this file. That's exactly what happened to the Workers AI binding below:
+# it existed on the worker from earlier dashboard setup, wasn't declared
+# here, and the very first correct deploy against this file (fixing the
+# static-assets mistake above) wiped it — env.AI became undefined and every
+# AI-backed route started failing with "Cannot read properties of
+# undefined (reading 'run')" until this block was added back.
+#
+# sentinel-worker.js also references env.BRIEFS_KV (a KV namespace) that
+# is NOT declared here yet for the same reason — unlike env.AI, that code
+# already checks `if (env.BRIEFS_KV)` before using it, so it fails quietly
+# (the briefs/notifications feature going empty) rather than crashing.
+# Still worth restoring properly: run `wrangler kv namespace list` to find
+# its id, then add:
+#   [[kv_namespaces]]
+#   binding = "BRIEFS_KV"
+#   id = "<the id>"
+
+[ai]
+binding = "AI"
