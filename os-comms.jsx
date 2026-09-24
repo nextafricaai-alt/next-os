@@ -895,6 +895,82 @@ const ActivityEntry = ({ item }) => (
   </div>
 );
 
+/* Public client-facing form links; submissions remain private to authorized admins. */
+const PublicClientFormsPanel = ({ onAdminAccess }) => {
+  const [forms, setForms] = React.useState([]);
+  const [loading, setLoading] = React.useState(true);
+  const [loadError, setLoadError] = React.useState('');
+  const [sharing, setSharing] = React.useState(null);
+
+  React.useEffect(() => {
+    let active = true;
+    getSb().then(async sb => {
+      const { data, error } = await sb.from('os_forms')
+        .select('id,title,description,fields,status,created_at')
+        .eq('status', 'active')
+        .order('created_at', { ascending: false });
+      if (!active) return;
+      if (error) setLoadError(error.message || 'Could not load active client forms.');
+      else setForms(data || []);
+      setLoading(false);
+    }).catch(error => {
+      if (!active) return;
+      setLoadError(error.message || 'Could not connect to the forms service.');
+      setLoading(false);
+    });
+    return () => { active = false; };
+  }, []);
+
+  const page = { fontFamily: 'var(--font-body)' };
+  const pageHeader = { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20, flexWrap: 'wrap', gap: 12 };
+  const heading = { fontFamily: 'var(--font-display)', fontSize: 25, fontWeight: 800, color: C.textPrim };
+  const subheading = { fontSize: 13, color: C.textSec, marginTop: 4 };
+  const card = { background: C.elevated, border: `1px solid ${C.border}`, borderRadius: 12, padding: '20px 22px' };
+  const secondaryButton = { background: 'transparent', border: `1px solid ${C.border}`, color: C.textSec, borderRadius: 8, padding: '8px 14px', cursor: 'pointer', fontSize: 12 };
+  const button = { background: 'rgba(0,252,143,0.1)', border: '1px solid rgba(0,252,143,0.3)', color: C.mint, borderRadius: 7, padding: '8px 13px', cursor: 'pointer', fontSize: 12, fontWeight: 600 };
+
+  return (
+    <div style={page}>
+      <div style={pageHeader}>
+        <div>
+          <div style={heading}>Forms for clients</div>
+          <div style={subheading}>Open a form and share its link. Clients can fill it out without signing in.</div>
+        </div>
+        <button style={secondaryButton} onClick={onAdminAccess}>Review submissions</button>
+      </div>
+
+      <div style={{ display: 'grid', gap: 12 }}>
+        <div style={card}>
+          <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
+            <div style={{ width: 42, height: 42, borderRadius: 10, background: 'rgba(0,252,143,0.08)', display: 'grid', placeItems: 'center', fontSize: 21, flexShrink: 0 }}>🧭</div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 15, fontWeight: 600, color: C.textPrim }}>Sembule Media — Project Discovery</div>
+              <div style={{ fontSize: 12, color: C.textTer, lineHeight: 1.55, margin: '5px 0 12px' }}>Tony’s guided discovery form for company, brand, website, operations, systems, and supporting files.</div>
+              <button style={button} onClick={() => setSharing({ id: 'sembule-discovery', title: 'Sembule Media — Project Discovery', isDiscovery: true })}>🔗 Share discovery form</button>
+            </div>
+          </div>
+        </div>
+
+        {loading && <div style={{ ...card, color: C.textTer, fontSize: 13 }}>Loading active client forms…</div>}
+        {loadError && <div role="alert" style={{ ...card, color: '#ff9b9b', fontSize: 13 }}>Could not load other client forms: {loadError}</div>}
+        {!loading && !loadError && forms.length === 0 && <div style={{ ...card, color: C.textTer, fontSize: 13 }}>No other active forms yet. The discovery form above is ready to share.</div>}
+        {forms.map(form => (
+          <div key={form.id} style={card}>
+            <div style={{ fontSize: 15, fontWeight: 600, color: C.textPrim }}>{form.title}</div>
+            {form.description && <div style={{ fontSize: 12, color: C.textTer, lineHeight: 1.55, margin: '5px 0 12px' }}>{form.description}</div>}
+            <button style={button} onClick={() => setSharing(form)}>🔗 Share form</button>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ ...card, marginTop: 16, fontSize: 12, color: C.textSec, lineHeight: 1.6 }}>
+        Client responses and uploaded files stay private. Verify an authorized admin account only when you need to review submissions.
+      </div>
+      {sharing && <ShareModal form={sharing} onClose={() => setSharing(null)} />}
+    </div>
+  );
+};
+
 /* ─── Main Forms Page ─── */
 const CommsPage = ({ onNavigate, embedded = false }) => {
   const [forms, setForms] = React.useState([]);
@@ -911,6 +987,7 @@ const CommsPage = ({ onNavigate, embedded = false }) => {
   const [authCode, setAuthCode] = React.useState('');
   const [authCodeSent, setAuthCodeSent] = React.useState(false);
   const [authNotice, setAuthNotice] = React.useState('');
+  const [adminAccessRequested, setAdminAccessRequested] = React.useState(false);
   const [authBusy, setAuthBusy] = React.useState(false);
   const [liveStatus, setLiveStatus] = React.useState(CF_RUNTIME.status);
   const [building, setBuilding] = React.useState(null);    // null | 'new' | form object (edit)
@@ -1085,6 +1162,21 @@ const CommsPage = ({ onNavigate, embedded = false }) => {
     }
   };
 
+  const handleRequestAdminAccess = async () => {
+    if (session && !cfIsAdmin(session)) {
+      try {
+        const sb = await getSb();
+        const { error } = await sb.auth.signOut();
+        if (error) throw error;
+        setSession(null);
+      } catch (error) {
+        setLoadError(error.message || 'Could not switch to an authorized admin account.');
+        return;
+      }
+    }
+    setAdminAccessRequested(true);
+  };
+
   const handleSave = async (draft) => {
     try {
       await cfSaveForm(draft);
@@ -1217,6 +1309,10 @@ const CommsPage = ({ onNavigate, embedded = false }) => {
 
   if (authLoading) return <div style={s.page}><div style={s.empty}>Connecting to secure Communications…</div></div>;
 
+  if (embedded && !cfIsAdmin(session) && !adminAccessRequested) {
+    return <PublicClientFormsPanel onAdminAccess={handleRequestAdminAccess} />;
+  }
+
   if (!session) return (
     <div style={s.page}>
       <form style={s.loginCard} onSubmit={handleSignIn}>
@@ -1234,6 +1330,7 @@ const CommsPage = ({ onNavigate, embedded = false }) => {
           {authBusy ? (authCodeSent ? 'Verifying…' : 'Sending code…') : (authCodeSent ? 'Verify code' : 'Send sign-in code')}
         </button>
         {authCodeSent && <button style={{ ...s.filterBtn(false), marginTop: 10 }} type="button" disabled={authBusy} onClick={handleResendCode}>Resend code</button>}
+        {embedded && <button style={{ ...s.filterBtn(false), marginTop: 10 }} type="button" onClick={() => setAdminAccessRequested(false)}>Back to client forms</button>}
       </form>
     </div>
   );
