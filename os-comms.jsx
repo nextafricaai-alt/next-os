@@ -41,6 +41,45 @@ async function cfLoadForms() {
   }));
 }
 
+async function cfLoadDiscoveryInbox() {
+  const sb = await getSb();
+  const { data, error, count } = await sb.from('discovery_submissions')
+    .select('id,created_at,client_company,contact_name,contact_email,contact_phone,status', { count: 'exact' })
+    .order('created_at', { ascending: false })
+    .limit(100);
+  if (error) throw new Error(`Could not load the Sembule discovery inbox: ${error.message}`);
+  return { submissions: data || [], count: count ?? (data || []).length };
+}
+
+async function cfLoadDiscoverySubmission(id) {
+  const sb = await getSb();
+  const { data, error } = await sb.from('discovery_submissions')
+    .select('id,created_at,client_company,contact_name,contact_email,contact_phone,status,answers')
+    .eq('id', id)
+    .single();
+  if (error) throw new Error(`Could not open the discovery submission: ${error.message}`);
+  return data;
+}
+
+async function cfDownloadDiscoveryFile(submissionId, file) {
+  const path = file?.path;
+  if (typeof path !== 'string' || !path.startsWith(`${submissionId}/`) ||
+      !/^[-a-f0-9]{36}\/[-a-f0-9]{36}\.(png|jpe?g|webp|gif|svg|pdf|docx?|xlsx?|csv)$/i.test(path)) {
+    throw new Error('This attachment path is not valid.');
+  }
+  const sb = await getSb();
+  const { data, error } = await sb.storage.from('discovery-uploads').download(path);
+  if (error) throw new Error(`Could not download ${file.name || 'the attachment'}: ${error.message}`);
+  const url = URL.createObjectURL(data);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = String(file.name || 'client-attachment').replace(/[\\/:*?"<>|]/g, '_');
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
 async function cfSaveForm(form) {
   const sb = await getSb();
   const { id, title, description, fields, status } = form;
@@ -72,6 +111,9 @@ const CF_RUNTIME = window.__NEXT_OS_FORMS_RUNTIME || (window.__NEXT_OS_FORMS_RUN
   baselineReady: false,
   baselineIds: new Set(),
   notifiedIds: new Set(),
+  discoveryBaselineIds: new Set(),
+  discoveryNotifiedIds: new Set(),
+  discovery: { submissions: [], count: 0, error: '' },
   status: 'CLOSED',
   authSubscription: null,
 });
@@ -111,16 +153,46 @@ function cfAnnounceResponse(response, form) {
   }
 }
 
+function cfAnnounceDiscoverySubmission(submission) {
+  if (!submission?.id || CF_RUNTIME.discoveryNotifiedIds.has(submission.id)) return;
+  CF_RUNTIME.discoveryNotifiedIds.add(submission.id);
+  const client = [submission.contact_name, submission.client_company].filter(Boolean).join(' · ');
+  const message = `${client || 'A client'} submitted the Sembule Media discovery form.`;
+  cfDispatchChange({ type: 'discovery-response', submissionId: submission.id, clientName: submission.contact_name, clientCompany: submission.client_company });
+  if (window.NEXT_OS?.notify) {
+    window.NEXT_OS.notify({
+      severity: 'success',
+      title: 'New discovery submission',
+      body: message,
+      source: 'Communications',
+      actionUrl: 'os://comms',
+      actionLabel: 'View submission',
+      dedupeKey: `discovery-submission:${submission.id}`,
+    });
+  }
+}
+
 async function cfRefreshRuntime() {
   const forms = await cfLoadForms();
+  let discovery = { submissions: [], count: 0, error: '' };
+  try {
+    discovery = await cfLoadDiscoveryInbox();
+  } catch (error) {
+    discovery.error = error.message || 'Could not load the discovery inbox.';
+  }
   if (CF_RUNTIME.baselineReady) {
     forms.forEach(form => (form.responses || []).forEach(response => {
       if (!CF_RUNTIME.baselineIds.has(response.id)) cfAnnounceResponse(response, form);
     }));
+    discovery.submissions.forEach(submission => {
+      if (!CF_RUNTIME.discoveryBaselineIds.has(submission.id)) cfAnnounceDiscoverySubmission(submission);
+    });
   }
   forms.forEach(form => (form.responses || []).forEach(response => CF_RUNTIME.baselineIds.add(response.id)));
+  discovery.submissions.forEach(submission => CF_RUNTIME.discoveryBaselineIds.add(submission.id));
+  CF_RUNTIME.discovery = discovery;
   CF_RUNTIME.baselineReady = true;
-  cfDispatchChange({ type: 'refresh' });
+  cfDispatchChange({ type: 'refresh', discovery });
   return forms;
 }
 
@@ -133,6 +205,9 @@ function cfStopRealtime(sb) {
   CF_RUNTIME.baselineReady = false;
   CF_RUNTIME.baselineIds.clear();
   CF_RUNTIME.notifiedIds.clear();
+  CF_RUNTIME.discoveryBaselineIds.clear();
+  CF_RUNTIME.discoveryNotifiedIds.clear();
+  CF_RUNTIME.discovery = { submissions: [], count: 0, error: '' };
   CF_RUNTIME.status = 'CLOSED';
 }
 
@@ -162,6 +237,15 @@ async function cfStartRealtime(sb) {
           cfAnnounceResponse(response, form);
         } catch (error) {
           console.warn('[NEXT OS] Could not refresh after a client response:', error);
+        }
+      })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'discovery_submissions' }, async payload => {
+        try {
+          await cfRefreshRuntime();
+          const submission = CF_RUNTIME.discovery.submissions.find(item => item.id === payload.new?.id) || payload.new;
+          cfAnnounceDiscoverySubmission(submission);
+        } catch (error) {
+          console.warn('[NEXT OS] Could not refresh after a discovery submission:', error);
         }
       })
       .subscribe(status => {
@@ -472,9 +556,10 @@ const FormBuilder = ({ form, onSave, onCancel }) => {
 /* ─── Share link panel ─── */
 const ShareModal = ({ form, onClose }) => {
   const [copied, setCopied] = React.useState(false);
-  // Build a shareable URL — client-form.html with form ID in query string
-  const baseUrl = window.location.origin + window.location.pathname.replace(/[^/]*$/, '') + 'client-form.html';
-  const shareUrl = `${baseUrl}?id=${form.id}`;
+  const baseUrl = window.location.origin + window.location.pathname.replace(/[^/]*$/, '');
+  const shareUrl = form.isDiscovery
+    ? `${baseUrl}discovery/discovery.html`
+    : `${baseUrl}client-form.html?id=${form.id}`;
 
   const copy = () => {
     navigator.clipboard.writeText(shareUrl).then(() => {
@@ -606,6 +691,118 @@ const ResponsesModal = ({ form, onClose }) => {
   );
 };
 
+/* ─── Sembule discovery inbox ─── */
+const DiscoveryFormCard = ({ count, ready, error, onShare, onView }) => {
+  const s = {
+    card: { background: C.elevated, border: `1px solid ${C.border}`, borderRadius: 12, padding: '20px 22px', display: 'flex', alignItems: 'flex-start', gap: 16 },
+    icon: { width: 44, height: 44, borderRadius: 10, background: 'rgba(0,252,143,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, flexShrink: 0 },
+    title: { fontWeight: 600, fontSize: 15, color: C.textPrim, marginBottom: 4 },
+    desc: { fontSize: 12, color: C.textTer, lineHeight: 1.5, marginBottom: 10 },
+    meta: { display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' },
+    metaItem: { fontSize: 11, fontFamily: 'var(--font-mono)', color: C.textTer },
+    actionRow: { display: 'flex', gap: 8, marginTop: 14, flexWrap: 'wrap' },
+    btn: accent => ({ background: accent ? 'rgba(0,252,143,0.1)' : 'rgba(255,255,255,0.05)', border: `1px solid ${accent ? 'rgba(0,252,143,0.3)' : C.border}`, color: accent ? C.mint : C.textSec, borderRadius: 7, padding: '6px 12px', cursor: ready ? 'pointer' : 'not-allowed', fontSize: 12, fontWeight: 500, opacity: ready ? 1 : 0.55 }),
+  };
+  return (
+    <div style={s.card} className="project-card">
+      <div style={s.icon}>🧭</div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
+          <div style={s.title}>Sembule Media — Project Discovery</div>
+          {ready ? <StatusBadge status="active" /> : <span style={{ fontSize: 10, fontWeight: 600, color: '#ffcc66', border: '1px solid rgba(255,204,102,0.3)', borderRadius: 6, padding: '3px 8px' }}>Setup required</span>}
+        </div>
+        <div style={s.desc}>Tony’s guided discovery: company, brand, website, operations, systems, and supporting files. Progress saves on the client’s device.</div>
+        <div style={s.meta}>
+          <span style={s.metaItem}>Multi-section · file uploads · save and resume</span>
+          <span style={s.metaItem}>{count} submission{count !== 1 ? 's' : ''}</span>
+        </div>
+        {error && <div role="status" style={{ ...s.desc, color: C.warn || '#ffcc66', marginTop: 8, marginBottom: 0 }}>Submission inbox setup required: {error}</div>}
+        <div style={s.actionRow}>
+          <button style={s.btn(true)} disabled={!ready} onClick={onShare}>🔗 Share discovery form</button>
+          <button style={s.btn(false)} disabled={!ready} onClick={onView}>📥 View submissions</button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const DiscoveryInboxModal = ({ submissions, count, selected, error, onSelect, onDownload, onClose }) => {
+  const [downloadError, setDownloadError] = React.useState('');
+  const s = {
+    overlay: { position: 'fixed', inset: 0, zIndex: 1002, background: 'rgba(6,0,18,0.85)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '24px 16px', overflowY: 'auto' },
+    modal: { background: C.elevated, border: `1px solid ${C.borderDef}`, borderRadius: 16, maxWidth: 1120, width: '100%', minHeight: 360, boxShadow: '0 24px 80px rgba(0,0,0,0.6)', overflow: 'hidden' },
+    header: { padding: '20px 24px', borderBottom: `1px solid ${C.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
+    layout: { display: 'grid', gridTemplateColumns: 'minmax(220px, 300px) 1fr', minHeight: 320 },
+    list: { borderRight: `1px solid ${C.border}`, maxHeight: '70vh', overflowY: 'auto', padding: 12 },
+    item: active => ({ width: '100%', textAlign: 'left', padding: 12, marginBottom: 8, borderRadius: 8, border: `1px solid ${active ? 'rgba(0,252,143,0.35)' : C.border}`, background: active ? 'rgba(0,252,143,0.08)' : 'transparent', color: C.textPrim, cursor: 'pointer' }),
+    detail: { padding: 24, maxHeight: '70vh', overflowY: 'auto' },
+    section: { borderTop: `1px solid ${C.border}`, paddingTop: 14, marginTop: 18 },
+    answer: { padding: '10px 0', borderBottom: `1px solid ${C.border}` },
+    label: { fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em', color: C.textTer, marginBottom: 4 },
+    value: { whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', fontSize: 13, color: C.textPrim, lineHeight: 1.55 },
+  };
+  const renderValue = (answer, submissionId) => {
+    const value = answer?.value;
+    if (answer?.type === 'file') {
+      const files = Array.isArray(value) ? value : [];
+      return files.length ? files.map((file, index) => (
+        <button key={`${file.path || file.name}-${index}`} style={{ ...s.item(false), width: 'auto', display: 'inline-flex', gap: 8, alignItems: 'center', marginRight: 8 }} onClick={async () => {
+          setDownloadError('');
+          try { await onDownload(submissionId, file); } catch (err) { setDownloadError(err.message || 'Download failed.'); }
+        }}>⬇ {file.name || 'Attachment'} <span style={{ color: C.textTer }}>{Math.max(1, Math.round(Number(file.size || 0) / 1024))} KB</span></button>
+      )) : <span style={{ color: C.textTer }}>No file attached</span>;
+    }
+    if (value === null || value === undefined || value === '') return <span style={{ color: C.textTer }}>Not provided</span>;
+    if (typeof value === 'boolean') return value ? 'Yes' : 'No';
+    if (Array.isArray(value)) {
+      if (value.every(item => item && typeof item === 'object')) return value.map((item, index) => (
+        <div key={index} style={{ padding: 8, marginTop: 6, borderRadius: 6, background: 'rgba(255,255,255,0.035)' }}>
+          {Object.entries(item).map(([key, cell]) => <div key={key}><strong>{key}: </strong>{String(cell ?? '')}</div>)}
+        </div>
+      ));
+      return value.join(' · ');
+    }
+    if (typeof value === 'object') return <pre style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{JSON.stringify(value, null, 2)}</pre>;
+    return String(value);
+  };
+  return (
+    <div style={s.overlay} onClick={event => event.target === event.currentTarget && onClose()}>
+      <div style={s.modal}>
+        <div style={s.header}>
+          <div><div style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 700 }}>Sembule Media discovery submissions</div><div style={{ color: C.textTer, fontSize: 12, marginTop: 4 }}>{count} total · newest first</div></div>
+          <button style={{ background: 'none', border: 'none', color: C.textTer, fontSize: 20, cursor: 'pointer' }} onClick={onClose}>✕</button>
+        </div>
+        {error ? <div role="alert" style={{ padding: 20, color: '#ff9b9b' }}>{error}</div> : (
+          <div style={s.layout}>
+            <div style={s.list}>
+              {!submissions.length && <div style={{ color: C.textTer, padding: 12 }}>No submissions yet.</div>}
+              {submissions.map(item => <button key={item.id} style={s.item(selected?.id === item.id)} onClick={() => onSelect(item.id)}>
+                <strong>{item.client_company || 'Unnamed company'}</strong><br />
+                <span style={{ fontSize: 12, color: C.textSec }}>{item.contact_name || 'Unknown contact'}</span><br />
+                <span style={{ fontSize: 10, color: C.textTer }}>{new Date(item.created_at).toLocaleString()} · {item.status}</span>
+              </button>)}
+            </div>
+            <div style={s.detail}>
+              {!selected ? <div style={{ color: C.textTer }}>Choose a submission to review the answers.</div> : <>
+                <h2 style={{ margin: '0 0 6px', fontSize: 21 }}>{selected.client_company}</h2>
+                <div style={{ color: C.textSec, fontSize: 13 }}>{selected.contact_name} · {selected.contact_email} · {selected.contact_phone}</div>
+                <div style={{ color: C.textTer, fontSize: 11, marginTop: 5 }}>Submitted {new Date(selected.created_at).toLocaleString()} · {selected.status}</div>
+                {downloadError && <div role="alert" style={{ color: '#ff9b9b', marginTop: 12 }}>{downloadError}</div>}
+                {(Array.isArray(selected.answers?.sections) ? selected.answers.sections : []).map(section => <section key={section.id || section.title} style={s.section}>
+                  <h3 style={{ margin: '0 0 8px', color: C.mint, fontSize: 14 }}>{section.title}</h3>
+                  {(Array.isArray(section.answers) ? section.answers : []).map(answer => <div key={answer.id || answer.label} style={s.answer}>
+                    <div style={s.label}>{answer.label}</div><div style={s.value}>{renderValue(answer, selected.id)}</div>
+                  </div>)}
+                </section>)}
+              </>}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 /* ─── Form card ─── */
 const FormCard = ({ form, onEdit, onShare, onViewResponses, onDelete, onToggleStatus }) => {
   const respCount = (form.responses || []).length;
@@ -701,6 +898,10 @@ const ActivityEntry = ({ item }) => (
 /* ─── Main Forms Page ─── */
 const CommsPage = ({ onNavigate }) => {
   const [forms, setForms] = React.useState([]);
+  const [discoverySubmissions, setDiscoverySubmissions] = React.useState(CF_RUNTIME.discovery.submissions || []);
+  const [discoveryCount, setDiscoveryCount] = React.useState(CF_RUNTIME.discovery.count || 0);
+  const [discoveryError, setDiscoveryError] = React.useState(CF_RUNTIME.discovery.error || '');
+  const [discoveryLoading, setDiscoveryLoading] = React.useState(true);
   const [loading, setLoading] = React.useState(true);
   const [loadError, setLoadError] = React.useState('');
   const [session, setSession] = React.useState(null);
@@ -713,6 +914,8 @@ const CommsPage = ({ onNavigate }) => {
   const [building, setBuilding] = React.useState(null);    // null | 'new' | form object (edit)
   const [sharing, setSharing] = React.useState(null);      // form to share
   const [viewing, setViewing] = React.useState(null);      // form whose responses to view
+  const [discoveryInboxOpen, setDiscoveryInboxOpen] = React.useState(false);
+  const [discoverySelected, setDiscoverySelected] = React.useState(null);
   const [activity, setActivity] = React.useState([]);
   const [search, setSearch] = React.useState('');
   const [filter, setFilter] = React.useState('all');
@@ -726,6 +929,21 @@ const CommsPage = ({ onNavigate }) => {
       setLoadError(error.message || 'Could not load client forms and responses.');
     } finally {
       setLoading(false);
+    }
+    try {
+      const inbox = await cfLoadDiscoveryInbox();
+      setDiscoverySubmissions(inbox.submissions);
+      setDiscoveryCount(inbox.count);
+      setDiscoveryError('');
+      CF_RUNTIME.discovery = inbox;
+    } catch (error) {
+      const message = error.message || 'Could not load the discovery inbox.';
+      setDiscoverySubmissions([]);
+      setDiscoveryCount(0);
+      setDiscoveryError(message);
+      CF_RUNTIME.discovery = { submissions: [], count: 0, error: message };
+    } finally {
+      setDiscoveryLoading(false);
     }
   };
 
@@ -769,7 +987,24 @@ const CommsPage = ({ onNavigate }) => {
           text: `${who} “${detail.formTitle || 'a form'}”.`,
         }, ...items.filter(item => item.id !== detail.responseId)].slice(0, 20));
       }
-      if (detail.type === 'response' || detail.type === 'refresh') loadData();
+      if (detail.type === 'discovery-response') {
+        const who = [detail.clientName, detail.clientCompany].filter(Boolean).join(' from ');
+        setActivity(items => [{
+          id: detail.submissionId,
+          icon: '🧭', ts: new Date().toISOString(),
+          text: `${who || 'A client'} submitted the Sembule Media discovery form.`,
+        }, ...items.filter(item => item.id !== detail.submissionId)].slice(0, 20));
+      }
+      if (detail.type === 'refresh') {
+        if (Array.isArray(detail.forms)) setForms(detail.forms);
+        if (detail.discovery) {
+          setDiscoverySubmissions(detail.discovery.submissions || []);
+          setDiscoveryCount(detail.discovery.count || 0);
+          setDiscoveryError(detail.discovery.error || '');
+        }
+        setLoadError('');
+      }
+      if (detail.type === 'response') loadData();
     };
     window.addEventListener('nextos:forms-changed', onFormsChanged);
     return () => {
@@ -854,6 +1089,20 @@ const CommsPage = ({ onNavigate }) => {
     setViewing(form);
   };
 
+  const handleViewDiscovery = async () => {
+    setDiscoveryInboxOpen(true);
+    setDiscoverySelected(null);
+    const first = discoverySubmissions[0];
+    if (!first) return;
+    try { setDiscoverySelected(await cfLoadDiscoverySubmission(first.id)); }
+    catch (error) { setDiscoveryError(error.message || 'Could not open the discovery submission.'); }
+  };
+
+  const handleSelectDiscovery = async (id) => {
+    try { setDiscoverySelected(await cfLoadDiscoverySubmission(id)); }
+    catch (error) { setDiscoveryError(error.message || 'Could not open the discovery submission.'); }
+  };
+
   /* When sharing, first set form to active if it's a draft */
   const handleShare = async (form) => {
     if (form.status === 'draft') {
@@ -872,8 +1121,11 @@ const CommsPage = ({ onNavigate }) => {
     .filter(f => filter === 'all' || f.status === filter)
     .filter(f => !search || f.title.toLowerCase().includes(search.toLowerCase()));
 
-  const totalResponses = forms.reduce((s, f) => s + (f.responses || []).length, 0);
-  const activeForms = forms.filter(f => f.status === 'active').length;
+  const discoveryMatches = (filter === 'all' || filter === 'active') &&
+    (!search || 'Sembule Media Project Discovery'.toLowerCase().includes(search.toLowerCase()));
+
+  const totalResponses = forms.reduce((s, f) => s + (f.responses || []).length, 0) + discoveryCount;
+  const activeForms = forms.filter(f => f.status === 'active').length + (discoveryError ? 0 : 1);
   const newResponses = forms.reduce((s, f) => s + (f.responses || []).filter(r => !r.seen).length, 0);
 
   const s = {
@@ -976,7 +1228,7 @@ const CommsPage = ({ onNavigate }) => {
       {/* KPI row */}
       <div style={s.kpiRow}>
         <div style={s.kpiCard}>
-          <div style={s.kpiVal}>{forms.length}</div>
+          <div style={s.kpiVal}>{forms.length + 1}</div>
           <div style={s.kpiLbl}>Total Forms</div>
         </div>
         <div style={{ ...s.kpiCard, borderColor: activeForms > 0 ? 'rgba(0,252,143,0.2)' : C.border }}>
@@ -1014,24 +1266,33 @@ const CommsPage = ({ onNavigate }) => {
           <div style={s.grid}>
             {loading ? (
               <div style={s.empty}>Loading forms and responses…</div>
-            ) : filtered.length === 0 ? (
+            ) : filtered.length === 0 && !discoveryMatches ? (
               <div style={s.empty}>
                 <div style={{ fontSize: 36, marginBottom: 12 }}>📋</div>
-                {forms.length === 0
+                {forms.length === 0 && !discoveryMatches
                   ? <>No forms yet. Click <strong>+ New Form</strong> to create your first client form.</>
                   : 'No forms match your filter.'}
               </div>
-            ) : filtered.map(form => (
-              <FormCard
-                key={form.id}
-                form={form}
-                onEdit={f => setBuilding(f)}
-                onShare={handleShare}
-                onViewResponses={handleViewResponses}
-                onDelete={handleDelete}
-                onToggleStatus={handleToggleStatus}
-              />
-            ))}
+            ) : <>
+              {discoveryMatches && <DiscoveryFormCard
+                count={discoveryCount}
+                ready={!discoveryLoading && !discoveryError}
+                error={discoveryError}
+                onShare={() => setSharing({ id: 'sembule-discovery', title: 'Sembule Media — Project Discovery', isDiscovery: true })}
+                onView={handleViewDiscovery}
+              />}
+              {filtered.map(form => (
+                <FormCard
+                  key={form.id}
+                  form={form}
+                  onEdit={f => setBuilding(f)}
+                  onShare={handleShare}
+                  onViewResponses={handleViewResponses}
+                  onDelete={handleDelete}
+                  onToggleStatus={handleToggleStatus}
+                />
+              ))}
+            </>}
           </div>
         </div>
 
@@ -1071,6 +1332,15 @@ const CommsPage = ({ onNavigate }) => {
       )}
       {sharing && <ShareModal form={sharing} onClose={() => setSharing(null)} />}
       {viewing && <ResponsesModal form={viewing} onClose={() => setViewing(null)} />}
+      {discoveryInboxOpen && <DiscoveryInboxModal
+        submissions={discoverySubmissions}
+        count={discoveryCount}
+        selected={discoverySelected}
+        error={discoveryError}
+        onSelect={handleSelectDiscovery}
+        onDownload={cfDownloadDiscoveryFile}
+        onClose={() => setDiscoveryInboxOpen(false)}
+      />}
     </div>
   );
 };

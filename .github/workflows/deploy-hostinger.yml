@@ -8,6 +8,7 @@ on:
       - 'web/**'
       - 'NEXT OS.html'
       - 'client-form.html'
+      - 'discovery/discovery.html'
       - 'os-data.jsx'
       - 'os-notify.jsx'
       - 'os-comms.jsx'
@@ -27,6 +28,8 @@ jobs:
           mkdir -p deploy-site
           cp -a web/. deploy-site/
           cp -- 'NEXT OS.html' client-form.html os-data.jsx os-notify.jsx os-comms.jsx os-childcare.jsx school-onboarding.html deploy-site/
+          mkdir -p deploy-site/discovery
+          cp -- discovery/discovery.html deploy-site/discovery/discovery.html
 
       - name: Upload web/ to Hostinger via FTPS
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5

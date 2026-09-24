@@ -1,5 +1,7 @@
--- NEXT Discovery | Run once in the SQL Editor of a NEW, SEPARATE Supabase project.
--- No existing application tables or policies are changed.
+-- NEXT Discovery standalone setup only.
+-- For NEXT OS, run ../os-forms-setup.sql instead. It installs these
+-- discovery submission and private-upload resources into the shared NEXT OS
+-- Supabase project alongside the Communications client forms.
 -- Public users can INSERT only. Only explicitly approved administrators can read.
 BEGIN;
 CREATE TABLE public.discovery_submissions (
