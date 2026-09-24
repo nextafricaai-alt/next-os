@@ -8,11 +8,17 @@
 const cfUid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
 
 /* Supabase helpers */
-const getSb = () => window.OS_DATA?.getSupabaseClient ? window.OS_DATA.getSupabaseClient() : null;
+const getSb = () => new Promise((resolve) => {
+  const check = () => {
+    const sb = window.OS_DATA?.getSupabaseClient ? window.OS_DATA.getSupabaseClient() : null;
+    if (sb) resolve(sb);
+    else setTimeout(check, 100);
+  };
+  check();
+});
 
 async function cfLoadForms() {
-  const sb = getSb();
-  if (!sb) return [];
+  const sb = await getSb();
   const [{ data: forms }, { data: responses }] = await Promise.all([
     sb.from('os_forms').select('*').order('created_at', { ascending: false }),
     sb.from('os_form_responses').select('*').order('submitted_at', { ascending: false })
@@ -32,8 +38,7 @@ async function cfLoadForms() {
 }
 
 async function cfSaveForm(form) {
-  const sb = getSb();
-  if (!sb) return;
+  const sb = await getSb();
   const { id, title, description, fields, status } = form;
   if (id.startsWith('draft-')) {
     // new
@@ -45,13 +50,13 @@ async function cfSaveForm(form) {
 }
 
 async function cfDeleteForm(id) {
-  const sb = getSb();
-  if (sb) await sb.from('os_forms').delete().eq('id', id);
+  const sb = await getSb();
+  await sb.from('os_forms').delete().eq('id', id);
 }
 
 async function cfMarkSeen(responseId) {
-  const sb = getSb();
-  if (sb) await sb.from('os_form_responses').update({ seen: true }).eq('id', responseId);
+  const sb = await getSb();
+  await sb.from('os_form_responses').update({ seen: true }).eq('id', responseId);
 }
 
 /* ─── field type configs ─── */
@@ -579,27 +584,33 @@ const CommsPage = ({ onNavigate }) => {
 
   React.useEffect(() => {
     loadData();
-    const sb = getSb();
-    if (!sb) return;
+    let sub;
+    (async () => {
+      const sb = await getSb();
 
-    // Realtime subscriptions
-    const sub = sb.channel('os_forms_channel')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'os_forms' }, () => {
-        loadData();
-      })
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'os_form_responses' }, (payload) => {
-        setActivity(a => [{
-          icon: '📥', ts: new Date().toISOString(),
-          text: `New form response received!`,
-        }, ...a].slice(0, 20));
-        if (window.NEXT_OS?.success) {
-          window.NEXT_OS.success('Form Submission', `A new client response arrived.`, { actionUrl: 'os://comms' });
-        }
-        loadData();
-      })
-      .subscribe();
+      // Realtime subscriptions
+      sub = sb.channel('os_forms_channel')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'os_forms' }, () => {
+          loadData();
+        })
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'os_form_responses' }, (payload) => {
+          setActivity(a => [{
+            icon: '📥', ts: new Date().toISOString(),
+            text: `New form response received!`,
+          }, ...a].slice(0, 20));
+          if (window.NEXT_OS?.success) {
+            window.NEXT_OS.success('Form Submission', `A new client response arrived.`, { actionUrl: 'os://comms' });
+          }
+          loadData();
+        })
+        .subscribe();
+    })();
 
-    return () => { sb.removeChannel(sub); };
+    return () => { 
+      if (sub) {
+        getSb().then(sb => sb.removeChannel(sub));
+      }
+    };
   }, []);
 
   const handleSave = async (draft) => {
