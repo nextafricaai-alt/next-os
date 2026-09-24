@@ -8447,17 +8447,9 @@ const applyTweaks = (t) => {
 /* -- Main App Shell -- */
 const NEXT_AUTH_KEY = 'nextos.session.v1';
 const NEXT_AUTH_DAYS = 7;
-const NEXT_AUTH_ON = false; // master switch: set true to require email sign-in. Live override: ?gate=on / ?gate=off
+const NEXT_AUTH_ON = false; // Legacy React gate is disabled; /auth-gate.js enforces sign-in before the page is revealed.
 function nextGateOn() {
-  try {
-    const u = new URLSearchParams(location.search).get('gate');
-    if (u === 'on') localStorage.setItem('nextos.gate', 'on');
-    if (u === 'off') localStorage.setItem('nextos.gate', 'off');
-    const flag = localStorage.getItem('nextos.gate');
-    if (flag === 'on') return true;
-    if (flag === 'off') return false;
-  } catch (e) {}
-  return NEXT_AUTH_ON;
+  return false; // Sign-in is enforced by /auth-gate.js before the OS is revealed.
 }
 const NEXT_KNOWN = { 'hudson.tim.uk@gmail.com': 'Hudson', 'nextafrica.ai@gmail.com': 'Hudson' };
 function nextAuthValid() {
@@ -8483,8 +8475,8 @@ function nextGreet(email) {
   return { name: lp.charAt(0).toUpperCase() + lp.slice(1), back: false };
 }
 if (typeof window !== 'undefined') {
-  window.NEXT_OS_SIGNOUT = () => { try { localStorage.removeItem(NEXT_AUTH_KEY); } catch (e) {} location.reload(); };
-  window.NEXT_OS_USER = () => { try { return (JSON.parse(localStorage.getItem(NEXT_AUTH_KEY) || 'null') || {}).email || ''; } catch (e) { return ''; } };
+  window.NEXT_OS_SIGNOUT = () => window.NEXT_OS_AUTH ? window.NEXT_OS_AUTH.signOut() : location.reload();
+  window.NEXT_OS_USER = () => window.NEXT_OS_AUTH ? window.NEXT_OS_AUTH.getEmail() : '';
 }
 
 const WelcomeSplash = ({ email, onDone }) => {
