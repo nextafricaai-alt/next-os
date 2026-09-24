@@ -1,126 +1,126 @@
 /* NEXT OS whole-app sign-in gate.
- * Passwords are sent directly to Supabase Auth and are never saved by this app.
- * Client form pages intentionally do not load this file.
+ * Uses the same Supabase client/session as the OS modules so a global sign-in
+ * also authenticates Communications. Client form pages do not load this file.
  */
 (function () {
   'use strict';
 
   const AUTH_KEY = 'nextos.session.v1';
   const SESSION_MS = 7 * 24 * 60 * 60 * 1000;
-  const SUPABASE_URL = 'https://llxhvqkkgftqwefmrofn.supabase.co';
-  const SUPABASE_KEY = 'sb_publishable_wrzbFpPrkhoN4w2KXdUAdw_gnqEQVs9';
   const WORKER_URL = 'https://nextos-sentinel.nextafricaai.workers.dev';
   const ALLOWED_EMAILS = new Set([
     'hudson.tim.uk@gmail.com',
     'patrickemma143@gmail.com',
   ]);
+  let activeEmail = '';
 
-  // Hide the OS until the saved Supabase session has been verified remotely.
   document.documentElement.style.visibility = 'hidden';
 
-  function readSession() {
+  function readGateSession() {
     try { return JSON.parse(localStorage.getItem(AUTH_KEY) || 'null'); }
     catch (e) { return null; }
   }
 
-  function saveSession(data, email, deadline) {
-    const session = {
-      email: String(email || '').trim().toLowerCase(),
-      access_token: data.access_token,
-      refresh_token: data.refresh_token,
-      expires_at: data.expires_at ? Number(data.expires_at) * 1000 : Date.now() + (Number(data.expires_in) || 3600) * 1000,
-      session_deadline: deadline || Date.now() + SESSION_MS,
-    };
-    localStorage.setItem(AUTH_KEY, JSON.stringify(session));
-    return session;
-  }
-
-  function clearSession() {
+  function clearGateSession() {
     try { localStorage.removeItem(AUTH_KEY); } catch (e) {}
   }
 
-  async function readJson(response) {
-    const data = await response.json().catch(() => ({}));
-    return { response, data };
+  function saveGateSession(email, deadline) {
+    const state = {
+      email: String(email || '').trim().toLowerCase(),
+      session_deadline: deadline || Date.now() + SESSION_MS,
+    };
+    localStorage.setItem(AUTH_KEY, JSON.stringify(state));
+    return state;
   }
 
-  function authHeaders(token) {
-    const headers = { apikey: SUPABASE_KEY, 'Content-Type': 'application/json' };
-    if (token) headers.Authorization = 'Bearer ' + token;
-    return headers;
-  }
+  function wait(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
 
-  async function signIn(email, password) {
-    const result = await readJson(await fetch(SUPABASE_URL + '/auth/v1/token?grant_type=password', {
-      method: 'POST', headers: authHeaders(),
-      body: JSON.stringify({ email: email, password: password }),
-    }));
-    if (!result.response.ok || !result.data.access_token || !result.data.user) {
-      throw new Error(result.data.msg || result.data.message || result.data.error_description || 'Email or password is incorrect.');
+  async function getSupabaseClient() {
+    const startedAt = Date.now();
+    while (Date.now() - startedAt < 20000) {
+      const sb = window.OS_DATA?.getSupabaseClient ? window.OS_DATA.getSupabaseClient() : null;
+      if (sb) return sb;
+      await wait(100);
     }
-    const verifiedEmail = String(result.data.user.email || '').trim().toLowerCase();
-    if (!ALLOWED_EMAILS.has(verifiedEmail) || verifiedEmail !== email) {
-      try { await fetch(SUPABASE_URL + '/auth/v1/logout', { method: 'POST', headers: authHeaders(result.data.access_token) }); } catch (e) {}
+    throw new Error('Supabase did not initialize. Check your connection and reload NEXT OS.');
+  }
+
+  async function verifyAllowedUser(user) {
+    const email = String(user?.email || '').trim().toLowerCase();
+    if (!ALLOWED_EMAILS.has(email)) {
+      try {
+        const sb = await getSupabaseClient();
+        await sb.auth.signOut();
+      } catch (e) {}
+      clearGateSession();
+      activeEmail = '';
       throw new Error('This account is not authorized to open NEXT OS.');
     }
-    saveSession(result.data, verifiedEmail);
-    return verifiedEmail;
+    return email;
   }
 
   async function restoreSession() {
-    const session = readSession();
-    if (!session || !ALLOWED_EMAILS.has(String(session.email || '').toLowerCase()) || !session.refresh_token || !session.access_token || !session.session_deadline || Number(session.session_deadline) <= Date.now()) {
-      clearSession();
+    const sb = await getSupabaseClient();
+    const stored = readGateSession();
+    let { data, error } = await sb.auth.getSession();
+    if (error) throw error;
+    let session = data.session;
+
+    // Migrate sessions saved by the first password-gate version into the
+    // Supabase client's normal session storage, which Communications shares.
+    if (!session && stored?.access_token && stored?.refresh_token) {
+      const migrated = await sb.auth.setSession({
+        access_token: stored.access_token,
+        refresh_token: stored.refresh_token,
+      });
+      if (migrated.error) {
+        clearGateSession();
+        return { status: 'signed-out' };
+      }
+      session = migrated.data.session;
+    }
+
+    if (!session) {
+      clearGateSession();
+      activeEmail = '';
       return { status: 'signed-out' };
     }
 
-    let response;
-    try {
-      response = await fetch(SUPABASE_URL + '/auth/v1/user', { headers: authHeaders(session.access_token) });
-    } catch (e) {
-      return { status: 'offline' };
-    }
-
-    if (response.ok) {
-      const user = await response.json().catch(() => ({}));
-      const email = String(user.email || '').trim().toLowerCase();
-      if (ALLOWED_EMAILS.has(email) && email === String(session.email).toLowerCase()) return { status: 'ok', email: email };
-      clearSession();
+    const deadline = Number(stored?.session_deadline || stored?.exp || 0);
+    if (deadline && deadline <= Date.now()) {
+      await sb.auth.signOut();
+      clearGateSession();
+      activeEmail = '';
       return { status: 'signed-out' };
     }
-    if (response.status !== 401 && response.status !== 403) return { status: 'offline' };
 
-    try {
-      const result = await readJson(await fetch(SUPABASE_URL + '/auth/v1/token?grant_type=refresh_token', {
-        method: 'POST', headers: authHeaders(), body: JSON.stringify({ refresh_token: session.refresh_token }),
-      }));
-      if (!result.response.ok || !result.data.access_token || !result.data.user) {
-        clearSession();
-        return { status: 'signed-out' };
-      }
-      const email = String(result.data.user.email || '').trim().toLowerCase();
-      if (!ALLOWED_EMAILS.has(email) || email !== String(session.email).toLowerCase()) {
-        clearSession();
-        return { status: 'signed-out' };
-      }
-      saveSession(result.data, email, Number(session.session_deadline));
-      return { status: 'ok', email: email };
-    } catch (e) {
-      return { status: 'offline' };
+    const { data: userData, error: userError } = await sb.auth.getUser();
+    if (userError || !userData.user) {
+      await sb.auth.signOut();
+      clearGateSession();
+      activeEmail = '';
+      return { status: 'signed-out' };
     }
+
+    const email = await verifyAllowedUser(userData.user);
+    saveGateSession(email, deadline || Date.now() + SESSION_MS);
+    activeEmail = email;
+    return { status: 'ok', email: email };
   }
 
   async function signOut() {
-    const session = readSession();
-    if (session && session.access_token) {
-      try { await fetch(SUPABASE_URL + '/auth/v1/logout?scope=local', { method: 'POST', headers: authHeaders(session.access_token) }); } catch (e) {}
-    }
-    clearSession();
+    try {
+      const sb = await getSupabaseClient();
+      await sb.auth.signOut();
+    } catch (e) {}
+    clearGateSession();
+    activeEmail = '';
     location.reload();
   }
 
   window.NEXT_OS_AUTH = {
-    getEmail: function () { return (readSession() || {}).email || ''; },
+    getEmail: function () { return activeEmail; },
     signOut: signOut,
   };
   window.NEXT_OS_USER = window.NEXT_OS_AUTH.getEmail;
@@ -183,7 +183,7 @@
     function setError(message) { error.textContent = message || ''; }
     function setBusy(value) {
       busy = value;
-      overlay.querySelectorAll('button').forEach((button) => { button.disabled = value; });
+      overlay.querySelectorAll('button').forEach(button => { button.disabled = value; });
       $('nx-login-submit').textContent = value && !setup.hidden ? 'Please wait…' : (value ? 'Signing in…' : 'Sign in');
       $('nx-send-code').textContent = value ? 'Please wait…' : 'Send email verification code';
       $('nx-verify-code').textContent = value ? 'Verifying…' : 'Verify and set password';
@@ -193,6 +193,15 @@
       if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new Error('Enter a valid email address.');
       if (!ALLOWED_EMAILS.has(email)) throw new Error('This email is not authorized to open NEXT OS.');
       return email;
+    }
+    function acceptSignedIn(email) {
+      activeEmail = email;
+      saveGateSession(email);
+      $('nx-login-password').value = '';
+      $('nx-setup-password').value = '';
+      $('nx-setup-code').value = '';
+      overlay.remove();
+      window.dispatchEvent(new CustomEvent('nextos:authenticated', { detail: { email: email } }));
     }
     function showSetup() {
       loginForm.hidden = true;
@@ -221,10 +230,11 @@
       setError(''); setBusy(true);
       try {
         const email = permittedEmail($('nx-login-email').value);
-        await signIn(email, $('nx-login-password').value);
-        $('nx-login-password').value = '';
-        overlay.remove();
-        window.dispatchEvent(new CustomEvent('nextos:authenticated', { detail: { email: email } }));
+        const sb = await getSupabaseClient();
+        const { data, error: signInError } = await sb.auth.signInWithPassword({ email: email, password: $('nx-login-password').value });
+        if (signInError) throw signInError;
+        const verifiedEmail = await verifyAllowedUser(data.user);
+        acceptSignedIn(verifiedEmail);
       } catch (e) {
         setError(e.message || 'Could not sign in. Check your connection and try again.');
       } finally { setBusy(false); }
@@ -238,12 +248,12 @@
         setupEmail = permittedEmail($('nx-setup-email').value);
         if ($('nx-setup-password').value.length < 8) throw new Error('Choose a password with at least 8 characters.');
         setError(''); setBusy(true);
-        const response = await fetch(WORKER_URL + '/auth/send-otp', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: setupEmail, redirectTo: location.origin + location.pathname }),
+        const sb = await getSupabaseClient();
+        const { error: otpError } = await sb.auth.signInWithOtp({
+          email: setupEmail,
+          options: { shouldCreateUser: true },
         });
-        const data = await response.json().catch(() => ({}));
-        if (!response.ok || data.error || !data.ok) throw new Error(data.error || 'Could not send a verification email. Try again.');
+        if (otpError) throw otpError;
         $('nx-code-step').hidden = false;
         $('nx-setup-code').focus();
         setError('A verification code was sent to ' + setupEmail + '.');
@@ -260,27 +270,13 @@
         if (password.length < 8) throw new Error('Choose a password with at least 8 characters.');
         if (code.length < 6) throw new Error('Enter the verification code from your email.');
         setError(''); setBusy(true);
-        const verifyResponse = await fetch(WORKER_URL + '/auth/verify-otp', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: email, code: code }),
-        });
-        const verified = await verifyResponse.json().catch(() => ({}));
-        const verifiedEmail = String(verified.email || '').trim().toLowerCase();
-        if (!verifyResponse.ok || verified.error || !verified.ok || !verified.access_token || verifiedEmail !== email || !ALLOWED_EMAILS.has(verifiedEmail)) {
-          throw new Error(verified.error || 'That verification code is invalid or expired.');
-        }
-
-        const updateResult = await readJson(await fetch(SUPABASE_URL + '/auth/v1/user', {
-          method: 'PUT', headers: authHeaders(verified.access_token),
-          body: JSON.stringify({ password: password }),
-        }));
-        if (!updateResult.response.ok) throw new Error(updateResult.data.msg || updateResult.data.message || 'Could not update this account password.');
-
-        await signIn(email, password);
-        $('nx-setup-password').value = '';
-        $('nx-setup-code').value = '';
-        overlay.remove();
-        window.dispatchEvent(new CustomEvent('nextos:authenticated', { detail: { email: email } }));
+        const sb = await getSupabaseClient();
+        const { data, error: verifyError } = await sb.auth.verifyOtp({ email: email, token: code, type: 'email' });
+        if (verifyError) throw verifyError;
+        const verifiedEmail = await verifyAllowedUser(data.user);
+        const { error: updateError } = await sb.auth.updateUser({ password: password });
+        if (updateError) throw updateError;
+        acceptSignedIn(verifiedEmail);
       } catch (e) {
         setError(e.message || 'Could not finish password setup. Try again.');
       } finally { setBusy(false); }
@@ -289,13 +285,14 @@
     $('nx-login-email').focus();
     restoreSession().then(function (result) {
       if (result.status === 'ok') {
+        activeEmail = result.email;
         overlay.remove();
         window.dispatchEvent(new CustomEvent('nextos:authenticated', { detail: { email: result.email } }));
       } else if (result.status === 'offline') {
-        setError('Could not verify your saved sign-in. Check your internet connection, then try again.');
+        setError('Could not verify your saved sign-in. Check your internet connection, then reload.');
       }
     }).catch(function () {
-      setError('Could not verify your saved sign-in. Check your internet connection, then try again.');
+      setError('Could not verify your saved sign-in. Check your internet connection, then reload.');
     });
   }
 

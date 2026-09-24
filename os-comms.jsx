@@ -25,7 +25,7 @@ async function cfLoadForms() {
   ]);
 
   if (formsResult.error) throw new Error(`Could not load client forms: ${formsResult.error.message}`);
-  if (responsesResult.error) throw new Error(`Could not load client responses. Sign in with an authorized NEXT OS account: ${responsesResult.error.message}`);
+  if (responsesResult.error) throw new Error(`Could not load client responses. Check the signed-in account's form access: ${responsesResult.error.message}`);
 
   const forms = formsResult.data || [];
   const responses = responsesResult.data || [];
@@ -119,7 +119,9 @@ const CF_RUNTIME = window.__NEXT_OS_FORMS_RUNTIME || (window.__NEXT_OS_FORMS_RUN
 });
 
 function cfIsAdmin(session) {
-  return session?.user?.app_metadata?.role === 'nextos_admin';
+  const email = String(session?.user?.email || '').trim().toLowerCase();
+  return session?.user?.app_metadata?.role === 'nextos_admin' ||
+    email === 'hudson.tim.uk@gmail.com' || email === 'patrickemma143@gmail.com';
 }
 
 function cfClientName(form, response) {
@@ -896,7 +898,7 @@ const ActivityEntry = ({ item }) => (
 );
 
 /* Public client-facing form links; submissions remain private to authorized admins. */
-const PublicClientFormsPanel = ({ onAdminAccess }) => {
+const PublicClientFormsPanel = () => {
   const [forms, setForms] = React.useState([]);
   const [loading, setLoading] = React.useState(true);
   const [loadError, setLoadError] = React.useState('');
@@ -936,7 +938,7 @@ const PublicClientFormsPanel = ({ onAdminAccess }) => {
           <div style={heading}>Forms for clients</div>
           <div style={subheading}>Open a form and share its link. Clients can fill it out without signing in.</div>
         </div>
-        <button style={secondaryButton} onClick={onAdminAccess}>Review submissions</button>
+        <div style={subheading}>View submitted client responses in Communications.</div>
       </div>
 
       <div style={{ display: 'grid', gap: 12 }}>
@@ -964,7 +966,7 @@ const PublicClientFormsPanel = ({ onAdminAccess }) => {
       </div>
 
       <div style={{ ...card, marginTop: 16, fontSize: 12, color: C.textSec, lineHeight: 1.6 }}>
-        Client responses and uploaded files stay private. Verify an authorized admin account only when you need to review submissions.
+        Client responses and uploaded files are available to authorized NEXT OS accounts.
       </div>
       {sharing && <ShareModal form={sharing} onClose={() => setSharing(null)} />}
     </div>
@@ -982,13 +984,6 @@ const CommsPage = ({ onNavigate, embedded = false }) => {
   const [loadError, setLoadError] = React.useState('');
   const [session, setSession] = React.useState(null);
   const [authLoading, setAuthLoading] = React.useState(true);
-  const [authError, setAuthError] = React.useState('');
-  const [email, setEmail] = React.useState(() => window.NEXT_OS_USER?.() || '');
-  const [authCode, setAuthCode] = React.useState('');
-  const [authCodeSent, setAuthCodeSent] = React.useState(false);
-  const [authNotice, setAuthNotice] = React.useState('');
-  const [adminAccessRequested, setAdminAccessRequested] = React.useState(false);
-  const [authBusy, setAuthBusy] = React.useState(false);
   const [liveStatus, setLiveStatus] = React.useState(CF_RUNTIME.status);
   const [building, setBuilding] = React.useState(null);    // null | 'new' | form object (edit)
   const [sharing, setSharing] = React.useState(null);      // form to share
@@ -1041,7 +1036,6 @@ const CommsPage = ({ onNavigate, embedded = false }) => {
       const { data: authState } = sb.auth.onAuthStateChange((_event, nextSession) => {
         if (!active) return;
         setSession(nextSession);
-        setAuthError('');
         setTimeout(() => {
           if (cfIsAdmin(nextSession)) cfStartRealtime(sb).catch(error => setLoadError(error.message));
           else cfStopRealtime(sb);
@@ -1050,7 +1044,7 @@ const CommsPage = ({ onNavigate, embedded = false }) => {
       authSubscription = authState.subscription;
     })().catch(error => {
       if (!active) return;
-      setAuthError(error.message || 'Could not connect to Supabase authentication.');
+      setLoadError(error.message || 'Could not connect to Supabase authentication.');
       setAuthLoading(false);
       setLoading(false);
     });
@@ -1097,85 +1091,6 @@ const CommsPage = ({ onNavigate, embedded = false }) => {
     if (session) loadData();
     else setLoading(false);
   }, [session]);
-
-  const handleSignIn = async (event) => {
-    event.preventDefault();
-    setAuthBusy(true);
-    setAuthError('');
-    setAuthNotice('');
-    try {
-      const sb = await getSb();
-      if (!authCodeSent) {
-        const { error } = await sb.auth.signInWithOtp({
-          email: email.trim().toLowerCase(),
-          options: { shouldCreateUser: false },
-        });
-        if (error) throw error;
-        setAuthCodeSent(true);
-        setAuthNotice('A secure sign-in code was sent to your email. Enter it here to open the forms inbox.');
-        return;
-      }
-      const { data, error } = await sb.auth.verifyOtp({
-        email: email.trim().toLowerCase(),
-        token: authCode.trim(),
-        type: 'email',
-      });
-      if (error) throw error;
-      setSession(data.session);
-      setAuthCode('');
-      if (cfIsAdmin(data.session)) cfStartRealtime(sb).catch(error => setLoadError(error.message));
-      else setAuthError('This account can sign in, but it does not have NEXT OS Communications admin access. Ask an administrator to set app_metadata.role to nextos_admin.');
-    } catch (error) {
-      setAuthError(error.message || (authCodeSent ? 'Sign-in failed. Check the code and try again.' : 'Could not send a sign-in code.'));
-    } finally {
-      setAuthBusy(false);
-    }
-  };
-
-  const handleResendCode = async () => {
-    setAuthBusy(true);
-    setAuthError('');
-    setAuthNotice('');
-    try {
-      const sb = await getSb();
-      const { error } = await sb.auth.signInWithOtp({
-        email: email.trim().toLowerCase(),
-        options: { shouldCreateUser: false },
-      });
-      if (error) throw error;
-      setAuthNotice('A new secure sign-in code was sent to your email.');
-    } catch (error) {
-      setAuthError(error.message || 'Could not resend the sign-in code.');
-    } finally {
-      setAuthBusy(false);
-    }
-  };
-
-  const handleSignOut = async () => {
-    try {
-      const sb = await getSb();
-      const { error } = await sb.auth.signOut();
-      if (error) throw error;
-      setSession(null);
-    } catch (error) {
-      setLoadError(error.message || 'Could not sign out.');
-    }
-  };
-
-  const handleRequestAdminAccess = async () => {
-    if (session && !cfIsAdmin(session)) {
-      try {
-        const sb = await getSb();
-        const { error } = await sb.auth.signOut();
-        if (error) throw error;
-        setSession(null);
-      } catch (error) {
-        setLoadError(error.message || 'Could not switch to an authorized admin account.');
-        return;
-      }
-    }
-    setAdminAccessRequested(true);
-  };
 
   const handleSave = async (draft) => {
     try {
@@ -1309,40 +1224,24 @@ const CommsPage = ({ onNavigate, embedded = false }) => {
 
   if (authLoading) return <div style={s.page}><div style={s.empty}>Connecting to secure Communications…</div></div>;
 
-  if (embedded && !cfIsAdmin(session) && !adminAccessRequested) {
-    return <PublicClientFormsPanel onAdminAccess={handleRequestAdminAccess} />;
-  }
-
   if (!session) return (
     <div style={s.page}>
-      <form style={s.loginCard} onSubmit={handleSignIn}>
-        <div style={s.heading}>{embedded ? 'Open client forms' : 'Communications sign in'}</div>
-        <div style={{ ...s.subheading, marginBottom: 22 }}>Use your authorized NEXT OS email. We’ll verify it with a one-time code before showing client submissions.</div>
-        {authError && <div role="alert" style={s.error}>{authError}</div>}
-        {authNotice && <div role="status" style={{ ...s.subheading, marginBottom: 16 }}>{authNotice}</div>}
-        <label style={{ fontSize: 12, color: C.textSec }}>Email</label>
-        <input style={s.loginInput} type="email" autoComplete="email" required value={email} onChange={event => { setEmail(event.target.value); setAuthCodeSent(false); setAuthCode(''); setAuthNotice(''); setAuthError(''); }} />
-        {authCodeSent && <>
-          <label style={{ fontSize: 12, color: C.textSec }}>Email sign-in code</label>
-          <input style={s.loginInput} type="text" inputMode="numeric" autoComplete="one-time-code" required value={authCode} onChange={event => setAuthCode(event.target.value.replace(/\s/g, ''))} />
-        </>}
-        <button style={{ ...s.newBtn, width: '100%', justifyContent: 'center' }} type="submit" disabled={authBusy}>
-          {authBusy ? (authCodeSent ? 'Verifying…' : 'Sending code…') : (authCodeSent ? 'Verify code' : 'Send sign-in code')}
-        </button>
-        {authCodeSent && <button style={{ ...s.filterBtn(false), marginTop: 10 }} type="button" disabled={authBusy} onClick={handleResendCode}>Resend code</button>}
-        {embedded && <button style={{ ...s.filterBtn(false), marginTop: 10 }} type="button" onClick={() => setAdminAccessRequested(false)}>Back to client forms</button>}
-      </form>
+      <div style={s.loginCard}>
+        <div style={s.heading}>NEXT OS session required</div>
+        <div style={{ ...s.subheading, marginTop: 12 }}>Communications uses your existing NEXT OS sign-in. Reload NEXT OS to restore your session.</div>
+      </div>
     </div>
   );
+
+  if (embedded && !cfIsAdmin(session)) return <PublicClientFormsPanel />;
 
   if (!cfIsAdmin(session)) return (
     <div style={s.page}>
       <div style={s.loginCard}>
         <div style={s.heading}>Admin access required</div>
         <div role="alert" style={{ ...s.subheading, marginTop: 12, marginBottom: 20 }}>
-          This account is signed in but cannot view client responses. An administrator must set this user’s trusted Supabase app metadata role to <code>nextos_admin</code>.
+          This signed-in account is not authorized to review client responses.
         </div>
-        <button style={s.filterBtn(false)} onClick={handleSignOut}>Sign out</button>
       </div>
     </div>
   );
@@ -1356,7 +1255,6 @@ const CommsPage = ({ onNavigate, embedded = false }) => {
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
           <button style={s.newBtn} onClick={() => setBuilding('new')}>+ New Form</button>
-          <button style={s.filterBtn(false)} onClick={handleSignOut}>Sign out</button>
         </div>
       </div>
 

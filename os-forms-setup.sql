@@ -1,8 +1,8 @@
 -- NEXT OS client forms, Sembule discovery submissions, and responses.
 -- Safe to re-run; never reset the shared supabase_realtime publication.
--- Before using Communications, set app_metadata.role = 'nextos_admin' for
--- each trusted NEXT OS operator in Supabase Auth. Never use user_metadata
--- for authorization; users can edit their own user_metadata.
+-- Communications reuses NEXT OS sign-in. The two OS-approved email addresses
+-- below can review submissions; trusted nextos_admin app_metadata remains a
+-- supported alternative. Never authorize with user_metadata, which users can edit.
 
 CREATE TABLE IF NOT EXISTS public.os_forms (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -36,8 +36,14 @@ CREATE POLICY "Public can read forms"
 DROP POLICY IF EXISTS "Admins can manage forms" ON public.os_forms;
 CREATE POLICY "Admins can manage forms"
   ON public.os_forms FOR ALL TO authenticated
-  USING ((SELECT auth.jwt() -> 'app_metadata' ->> 'role') = 'nextos_admin')
-  WITH CHECK ((SELECT auth.jwt() -> 'app_metadata' ->> 'role') = 'nextos_admin');
+  USING (
+    (SELECT auth.jwt() -> 'app_metadata' ->> 'role') = 'nextos_admin'
+    OR lower((SELECT auth.jwt() ->> 'email')) IN ('hudson.tim.uk@gmail.com', 'patrickemma143@gmail.com')
+  )
+  WITH CHECK (
+    (SELECT auth.jwt() -> 'app_metadata' ->> 'role') = 'nextos_admin'
+    OR lower((SELECT auth.jwt() ->> 'email')) IN ('hudson.tim.uk@gmail.com', 'patrickemma143@gmail.com')
+  );
 
 DROP POLICY IF EXISTS "Public can insert responses" ON public.os_form_responses;
 CREATE POLICY "Public can insert responses"
@@ -52,8 +58,14 @@ CREATE POLICY "Public can insert responses"
 DROP POLICY IF EXISTS "Admins can manage responses" ON public.os_form_responses;
 CREATE POLICY "Admins can manage responses"
   ON public.os_form_responses FOR ALL TO authenticated
-  USING ((SELECT auth.jwt() -> 'app_metadata' ->> 'role') = 'nextos_admin')
-  WITH CHECK ((SELECT auth.jwt() -> 'app_metadata' ->> 'role') = 'nextos_admin');
+  USING (
+    (SELECT auth.jwt() -> 'app_metadata' ->> 'role') = 'nextos_admin'
+    OR lower((SELECT auth.jwt() ->> 'email')) IN ('hudson.tim.uk@gmail.com', 'patrickemma143@gmail.com')
+  )
+  WITH CHECK (
+    (SELECT auth.jwt() -> 'app_metadata' ->> 'role') = 'nextos_admin'
+    OR lower((SELECT auth.jwt() ->> 'email')) IN ('hudson.tim.uk@gmail.com', 'patrickemma143@gmail.com')
+  );
 
 -- Tony's Sembule Media discovery form uses its richer native UI and answer
 -- schema, while storing its submissions in the same NEXT OS Supabase project.
@@ -84,7 +96,10 @@ CREATE POLICY discovery_public_insert
 DROP POLICY IF EXISTS discovery_nextos_admin_read ON public.discovery_submissions;
 CREATE POLICY discovery_nextos_admin_read
   ON public.discovery_submissions FOR SELECT TO authenticated
-  USING ((SELECT auth.jwt() -> 'app_metadata' ->> 'role') = 'nextos_admin');
+  USING (
+    (SELECT auth.jwt() -> 'app_metadata' ->> 'role') = 'nextos_admin'
+    OR lower((SELECT auth.jwt() ->> 'email')) IN ('hudson.tim.uk@gmail.com', 'patrickemma143@gmail.com')
+  );
 
 -- Private file uploads are available to the client form and authorized NEXT OS admins.
 INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
@@ -110,7 +125,10 @@ DROP POLICY IF EXISTS discovery_nextos_admin_download ON storage.objects;
 CREATE POLICY discovery_nextos_admin_download ON storage.objects FOR SELECT TO authenticated
   USING (
     bucket_id = 'discovery-uploads'
-    AND (SELECT auth.jwt() -> 'app_metadata' ->> 'role') = 'nextos_admin'
+    AND (
+      (SELECT auth.jwt() -> 'app_metadata' ->> 'role') = 'nextos_admin'
+      OR lower((SELECT auth.jwt() ->> 'email')) IN ('hudson.tim.uk@gmail.com', 'patrickemma143@gmail.com')
+    )
   );
 
 -- Add only these tables to the existing publication; don't drop other subscribers.
