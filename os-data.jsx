@@ -337,6 +337,7 @@
     refreshFleet:    loadData,
     parseCsv:        parseCsv,
     importCsv:       importCsv,
+    getSupabaseClient: () => _supabaseClient,
   };
   
   // Start async data hydration immediately

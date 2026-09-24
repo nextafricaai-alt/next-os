@@ -7,51 +7,14 @@
 /* ─── tiny helpers ─── */
 const cfUid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
 
-/* Supabase helpers */
-const getSb = () => window.OS_DATA?.getSupabaseClient ? window.OS_DATA.getSupabaseClient() : null;
+const CF_STORAGE_KEY = 'next_os_client_forms_v1';
 
-async function cfLoadForms() {
-  const sb = getSb();
-  if (!sb) return [];
-  const [{ data: forms }, { data: responses }] = await Promise.all([
-    sb.from('os_forms').select('*').order('created_at', { ascending: false }),
-    sb.from('os_form_responses').select('*').order('submitted_at', { ascending: false })
-  ]);
-  
-  if (!forms) return [];
-  
-  return forms.map(f => ({
-    ...f,
-    responses: (responses || []).filter(r => r.form_id === f.id).map(r => ({
-      id: r.id,
-      answers: r.answers,
-      submittedAt: r.submitted_at,
-      seen: r.seen
-    }))
-  }));
+function cfLoadForms() {
+  try { return JSON.parse(localStorage.getItem(CF_STORAGE_KEY) || '[]'); }
+  catch { return []; }
 }
-
-async function cfSaveForm(form) {
-  const sb = getSb();
-  if (!sb) return;
-  const { id, title, description, fields, status } = form;
-  if (id.startsWith('draft-')) {
-    // new
-    await sb.from('os_forms').insert({ title, description, fields, status });
-  } else {
-    // update
-    await sb.from('os_forms').update({ title, description, fields, status }).eq('id', id);
-  }
-}
-
-async function cfDeleteForm(id) {
-  const sb = getSb();
-  if (sb) await sb.from('os_forms').delete().eq('id', id);
-}
-
-async function cfMarkSeen(responseId) {
-  const sb = getSb();
-  if (sb) await sb.from('os_form_responses').update({ seen: true }).eq('id', responseId);
+function cfSaveForms(forms) {
+  localStorage.setItem(CF_STORAGE_KEY, JSON.stringify(forms));
 }
 
 /* ─── field type configs ─── */
@@ -199,7 +162,7 @@ const FieldEditor = ({ field, index, total, onChange, onRemove, onMove }) => {
 /* ─── Form Builder modal ─── */
 const FormBuilder = ({ form, onSave, onCancel }) => {
   const [draft, setDraft] = React.useState(() => form || {
-    id: 'draft-' + cfUid(), title: '', description: '', fields: [], status: 'draft',
+    id: cfUid(), title: '', description: '', fields: [], status: 'draft',
     created: new Date().toISOString(), responses: [],
   });
 
@@ -334,9 +297,14 @@ const FormBuilder = ({ form, onSave, onCancel }) => {
 /* ─── Share link panel ─── */
 const ShareModal = ({ form, onClose }) => {
   const [copied, setCopied] = React.useState(false);
-  // Build a shareable URL — client-form.html with form ID in query string
+  // Build a shareable URL — client-form.html with form data encoded in the hash
   const baseUrl = window.location.origin + window.location.pathname.replace(/[^/]*$/, '') + 'client-form.html';
-  const shareUrl = `${baseUrl}?id=${form.id}`;
+  const encoded = encodeURIComponent(btoa(unescape(encodeURIComponent(JSON.stringify({
+    id: form.id, title: form.title, description: form.description,
+    fields: form.fields,
+    callbackKey: CF_STORAGE_KEY,
+  })))));
+  const shareUrl = `${baseUrl}#form=${encoded}`;
 
   const copy = () => {
     navigator.clipboard.writeText(shareUrl).then(() => {
@@ -562,8 +530,7 @@ const ActivityEntry = ({ item }) => (
 
 /* ─── Main Forms Page ─── */
 const CommsPage = ({ onNavigate }) => {
-  const [forms, setForms] = React.useState([]);
-  const [loading, setLoading] = React.useState(true);
+  const [forms, setForms] = React.useState(cfLoadForms);
   const [building, setBuilding] = React.useState(null);    // null | 'new' | form object (edit)
   const [sharing, setSharing] = React.useState(null);      // form to share
   const [viewing, setViewing] = React.useState(null);      // form whose responses to view
@@ -571,67 +538,77 @@ const CommsPage = ({ onNavigate }) => {
   const [search, setSearch] = React.useState('');
   const [filter, setFilter] = React.useState('all');
 
-  const loadData = async () => {
-    const data = await cfLoadForms();
-    setForms(data);
-    setLoading(false);
-  };
-
+  /* Persist + listen for new responses via localStorage events */
   React.useEffect(() => {
-    loadData();
-    const sb = getSb();
-    if (!sb) return;
-
-    // Realtime subscriptions
-    const sub = sb.channel('os_forms_channel')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'os_forms' }, () => {
-        loadData();
-      })
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'os_form_responses' }, (payload) => {
-        setActivity(a => [{
-          icon: '📥', ts: new Date().toISOString(),
-          text: `New form response received!`,
-        }, ...a].slice(0, 20));
-        if (window.NEXT_OS?.success) {
-          window.NEXT_OS.success('Form Submission', `A new client response arrived.`, { actionUrl: 'os://comms' });
-        }
-        loadData();
-      })
-      .subscribe();
-
-    return () => { sb.removeChannel(sub); };
+    const handler = (e) => {
+      if (e.key === CF_STORAGE_KEY) {
+        const updated = cfLoadForms();
+        setForms(updated);
+      }
+    };
+    window.addEventListener('storage', handler);
+    return () => window.removeEventListener('storage', handler);
   }, []);
 
-  const handleSave = async (draft) => {
-    await cfSaveForm(draft);
-    if (draft.id.startsWith('draft-')) {
+  /* Poll every 5 seconds when tab is active (handles same-browser submissions) */
+  React.useEffect(() => {
+    const id = setInterval(() => {
+      const fresh = cfLoadForms();
+      setForms(prev => {
+        const prevTotal = prev.reduce((s, f) => s + (f.responses || []).length, 0);
+        const freshTotal = fresh.reduce((s, f) => s + (f.responses || []).length, 0);
+        if (freshTotal > prevTotal) {
+          const diff = freshTotal - prevTotal;
+          setActivity(a => [{
+            icon: '📥', ts: new Date().toISOString(),
+            text: `${diff} new form response(s) received`,
+          }, ...a].slice(0, 20));
+          if (window.NEXT_OS?.success) {
+            window.NEXT_OS.success('Form Submission', `${diff} new client response(s) arrived.`, { actionUrl: 'os://comms' });
+          }
+          return fresh;
+        }
+        return prev;
+      });
+    }, 4000);
+    return () => clearInterval(id);
+  }, []);
+
+  const persist = (updated) => { setForms(updated); cfSaveForms(updated); };
+
+  const handleSave = (draft) => {
+    const exists = forms.find(f => f.id === draft.id);
+    let updated;
+    if (exists) {
+      updated = forms.map(f => f.id === draft.id ? { ...draft } : f);
+    } else {
+      updated = [...forms, { ...draft, status: 'draft', responses: [] }];
       setActivity(a => [{ icon: '🆕', ts: new Date().toISOString(), text: `Form created: "${draft.title}"` }, ...a].slice(0, 20));
     }
-    await loadData();
+    persist(updated);
     setBuilding(null);
   };
 
-  const handleDelete = async (id) => {
+  const handleDelete = (id) => {
     if (!confirm('Delete this form and all its responses?')) return;
-    await cfDeleteForm(id);
-    await loadData();
+    persist(forms.filter(f => f.id !== id));
   };
 
-  const handleToggleStatus = async (form) => {
+  const handleToggleStatus = (form) => {
     const next = form.status === 'active' ? 'closed' : 'active';
-    await cfSaveForm({ ...form, status: next });
+    persist(forms.map(f => f.id === form.id ? { ...f, status: next } : f));
     setActivity(a => [{ icon: next === 'active' ? '▶' : '🔒', ts: new Date().toISOString(), text: `"${form.title}" ${next === 'active' ? 'activated' : 'closed'}` }, ...a].slice(0, 20));
-    await loadData();
   };
 
-  const handleViewResponses = async (form) => {
-    // Mark all responses as seen in the DB
-    const unread = (form.responses || []).filter(r => !r.seen);
-    if (unread.length > 0) {
-      await Promise.all(unread.map(r => cfMarkSeen(r.id)));
-      await loadData();
-    }
-    setViewing(form);
+  const handleViewResponses = (form) => {
+    // Mark all responses as seen
+    const updated = forms.map(f =>
+      f.id === form.id
+        ? { ...f, responses: (f.responses || []).map(r => ({ ...r, seen: true })) }
+        : f
+    );
+    persist(updated);
+    setViewing(updated.find(f => f.id === form.id));
   };
 
   /* When sharing, first set form to active if it's a draft */

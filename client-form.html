@@ -3,9 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>NEXT — Client Form</title>
+  <title>NEXT � Client Form</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800&family=Inter:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     html { font-family: 'Inter', sans-serif; background: #060012; color: #fff; min-height: 100vh; }
@@ -121,183 +122,152 @@
 
   <div class="card" id="app">
     <div style="padding:48px;text-align:center;color:rgba(255,255,255,0.4);font-size:14px;">
-      Loading form…
+      Loading form�
     </div>
   </div>
 
   <div class="powered">Powered by <a href="https://nextafrica.ai" target="_blank">NEXT Africa</a></div>
 
   <script>
-    // ── Parse form definition from the URL hash ──────────────────────────────
-    const CF_STORAGE_KEY = 'next_os_client_forms_v1';
+    const SUPABASE_URL = 'https://llxhvqkkgftqwefmrofn.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_wrzbFpPrkhoN4w2KXdUAdw_gnqEQVs9';
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    function getFormDef() {
-      const hash = window.location.hash;
-      const match = hash.match(/[#&]form=([^&]*)/);
-      if (!match) return null;
-      try {
-        const json = decodeURIComponent(escape(atob(decodeURIComponent(match[1]))));
-        return JSON.parse(json);
-      } catch (e) {
-        return null;
-      }
-    }
-
-    const form = getFormDef();
+    let form = null;
     const app = document.getElementById('app');
+    const urlParams = new URLSearchParams(window.location.search);
+    const formId = urlParams.get('id');
 
-    if (!form || !form.fields || form.fields.length === 0) {
-      app.innerHTML = `
-        <div class="error-state">
-          <div style="font-size:36px;margin-bottom:16px">⚠️</div>
-          <div>This form link is invalid or has expired.</div>
-          <div style="margin-top:8px;font-size:12px;font-family:'DM Mono',monospace;color:rgba(255,255,255,0.2)">
-            Please contact the person who sent you this link.
-          </div>
-        </div>`;
-    } else {
-      document.title = form.title + ' — NEXT';
-      renderForm(form);
+    async function init() {
+      if (!formId) {
+        showError("Invalid link. Missing form ID.");
+        return;
+      }
+
+      const { data, error } = await supabase.from('os_forms').select('*').eq('id', formId).single();
+      
+      if (error || !data) {
+        showError("Form not found or has been removed.");
+        return;
+      }
+      
+      if (data.status === 'closed') {
+        showError("This form is currently closed and not accepting responses.");
+        return;
+      }
+
+      form = data;
+      renderForm();
     }
 
-    // ── Render the form ───────────────────────────────────────────────────────
-    function renderForm(def) {
-      const headerHtml = `
-        <div class="card-header">
-          <div class="form-title">${esc(def.title)}</div>
-          ${def.description ? `<div class="form-desc">${esc(def.description)}</div>` : ''}
-        </div>`;
+    function showError(msg) {
+      app.innerHTML = '<div class="error-state"><div style="font-size:40px;margin-bottom:16px;">??</div>' + msg + '</div>';
+    }
 
-      const fieldsHtml = def.fields.map(f => renderField(f)).join('');
+    function renderForm() {
+      let html = '<div class="card-header">';
+      html += '<div class="form-title">' + escapeHTML(form.title) + '</div>';
+      if (form.description) {
+        html += '<div class="form-desc">' + escapeHTML(form.description).replace(/\n/g, '<br>') + '</div>';
+      }
+      html += '</div>';
 
-      app.innerHTML = headerHtml + `
-        <div class="card-body">
-          <form id="client-form" novalidate>
-            ${fieldsHtml}
-            <button class="submit-btn" type="submit">Submit Response</button>
-          </form>
-        </div>`;
+      html += '<div class="card-body"><form id="main-form">';
 
-      document.getElementById('client-form').addEventListener('submit', e => {
+      form.fields.forEach(f => {
+        const reqStr = f.required ? 'required' : '';
+        const reqClass = f.required ? 'required' : '';
+        html += '<div class="field-group">';
+        html += '<label class="field-label ' + reqClass + '" for="' + f.id + '">' + escapeHTML(f.label) + '</label>';
+
+        if (f.type === 'textarea') {
+          html += '<textarea id="' + f.id + '" name="' + f.id + '" class="field-textarea" placeholder="' + escapeHTML(f.placeholder || '') + '" ' + reqStr + '></textarea>';
+        }
+        else if (f.type === 'select') {
+          html += '<select id="' + f.id + '" name="' + f.id + '" class="field-select" ' + reqStr + '>';
+          html += '<option value="" disabled selected>' + escapeHTML(f.placeholder || 'Select an option') + '</option>';
+          (f.options || []).forEach(o => {
+            if (o.trim()) html += '<option value="' + escapeHTML(o) + '">' + escapeHTML(o) + '</option>';
+          });
+          html += '</select>';
+        }
+        else if (f.type === 'radio') {
+          html += '<div class="radio-group">';
+          (f.options || []).forEach((o, i) => {
+            if (o.trim()) {
+              const rId = f.id + '-' + i;
+              html += '<div class="radio-option" onclick="document.getElementById(\'' + rId + '\').click()">';
+              html += '<input type="radio" id="' + rId + '" name="' + f.id + '" value="' + escapeHTML(o) + '" ' + reqStr + '>';
+              html += '<label for="' + rId + '">' + escapeHTML(o) + '</label>';
+              html += '</div>';
+            }
+          });
+          html += '</div>';
+        }
+        else {
+          let inputType = f.type === 'number' || f.type === 'email' || f.type === 'tel' || f.type === 'date' ? f.type : 'text';
+          html += '<input type="' + inputType + '" id="' + f.id + '" name="' + f.id + '" class="field-input" placeholder="' + escapeHTML(f.placeholder || '') + '" ' + reqStr + '>';
+        }
+        html += '<div class="error-msg" id="err-' + f.id + '"></div>';
+        html += '</div>';
+      });
+
+      html += '<button type="submit" class="submit-btn" id="submit-btn">Submit Response</button>';
+      html += '</form></div>';
+      
+      app.innerHTML = html;
+
+      document.getElementById('main-form').addEventListener('submit', async (e) => {
         e.preventDefault();
-        submitForm(def);
+        
+        const btn = document.getElementById('submit-btn');
+        btn.disabled = true;
+        btn.innerText = 'Submitting...';
+
+        // Clear old errors
+        form.fields.forEach(f => {
+          document.getElementById('err-' + f.id).innerText = '';
+        });
+
+        const formData = new FormData(e.target);
+        const answers = {};
+        
+        for (const f of form.fields) {
+          answers[f.id] = formData.get(f.id) || '';
+        }
+
+        const { error } = await supabase.from('os_form_responses').insert({
+          form_id: form.id,
+          answers: answers
+        });
+
+        if (error) {
+          btn.disabled = false;
+          btn.innerText = 'Submit Response';
+          showError("There was an error saving your response: " + error.message);
+          return;
+        }
+
+        showSuccess();
       });
-    }
-
-    function renderField(f) {
-      const labelHtml = `<label class="field-label ${f.required ? 'required' : ''}" for="field-${f.id}">${esc(f.label)}</label>`;
-      let inputHtml = '';
-
-      switch (f.type) {
-        case 'textarea':
-          inputHtml = `<textarea id="field-${f.id}" class="field-textarea" placeholder="${esc(f.placeholder || '')}" data-field-id="${f.id}"${f.required ? ' required' : ''}></textarea>`;
-          break;
-        case 'select':
-          const opts = (f.options || []).filter(Boolean).map(o => `<option value="${esc(o)}">${esc(o)}</option>`).join('');
-          inputHtml = `<select id="field-${f.id}" class="field-select" data-field-id="${f.id}"${f.required ? ' required' : ''}><option value="">Choose…</option>${opts}</select>`;
-          break;
-        case 'radio':
-          const radios = (f.options || []).filter(Boolean).map((o, i) => `
-            <div class="radio-option">
-              <input type="radio" id="field-${f.id}-${i}" name="field-${f.id}" value="${esc(o)}" data-field-id="${f.id}">
-              <label for="field-${f.id}-${i}">${esc(o)}</label>
-            </div>`).join('');
-          inputHtml = `<div class="radio-group">${radios}</div>`;
-          break;
-        case 'date':
-          inputHtml = `<input id="field-${f.id}" type="date" class="field-input" data-field-id="${f.id}"${f.required ? ' required' : ''} style="color-scheme:dark">`;
-          break;
-        case 'number':
-          inputHtml = `<input id="field-${f.id}" type="number" class="field-input" placeholder="${esc(f.placeholder || '')}" data-field-id="${f.id}"${f.required ? ' required' : ''}>`;
-          break;
-        case 'email':
-          inputHtml = `<input id="field-${f.id}" type="email" class="field-input" placeholder="${esc(f.placeholder || 'you@example.com')}" data-field-id="${f.id}"${f.required ? ' required' : ''}>`;
-          break;
-        case 'phone':
-          inputHtml = `<input id="field-${f.id}" type="tel" class="field-input" placeholder="${esc(f.placeholder || '+256 ...')}" data-field-id="${f.id}"${f.required ? ' required' : ''}>`;
-          break;
-        default:
-          inputHtml = `<input id="field-${f.id}" type="text" class="field-input" placeholder="${esc(f.placeholder || '')}" data-field-id="${f.id}"${f.required ? ' required' : ''}>`;
-      }
-
-      return `<div class="field-group">${labelHtml}${inputHtml}<div class="error-msg" id="err-${f.id}"></div></div>`;
-    }
-
-    // ── Collect + validate + save ─────────────────────────────────────────────
-    function submitForm(def) {
-      let valid = true;
-      const answers = {};
-
-      def.fields.forEach(f => {
-        let val = '';
-        if (f.type === 'radio') {
-          const checked = document.querySelector(`input[name="field-${f.id}"]:checked`);
-          val = checked ? checked.value : '';
-        } else {
-          const el = document.querySelector(`[data-field-id="${f.id}"]`);
-          val = el ? el.value.trim() : '';
-        }
-        answers[f.id] = val;
-
-        const errEl = document.getElementById('err-' + f.id);
-        if (f.required && !val) {
-          if (errEl) errEl.textContent = 'This field is required.';
-          valid = false;
-        } else {
-          if (errEl) errEl.textContent = '';
-        }
-      });
-
-      if (!valid) return;
-
-      // Save response back into the OS localStorage store
-      const response = {
-        id: Math.random().toString(36).slice(2),
-        submittedAt: new Date().toISOString(),
-        answers,
-        seen: false,
-      };
-
-      try {
-        const raw = localStorage.getItem(CF_STORAGE_KEY);
-        const forms = raw ? JSON.parse(raw) : [];
-        const idx = forms.findIndex(f => f.id === def.id);
-        if (idx >= 0) {
-          forms[idx].responses = [...(forms[idx].responses || []), response];
-          localStorage.setItem(CF_STORAGE_KEY, JSON.stringify(forms));
-          // Fire a storage event so other tabs update
-          window.dispatchEvent(new StorageEvent('storage', {
-            key: CF_STORAGE_KEY,
-            newValue: JSON.stringify(forms),
-            storageArea: localStorage,
-          }));
-        }
-      } catch (e) {
-        console.error('Could not save response:', e);
-      }
-
-      showSuccess();
     }
 
     function showSuccess() {
-      app.innerHTML = `
-        <div class="success-state">
-          <div class="success-icon">✓</div>
-          <div class="success-title">Response Submitted!</div>
-          <div class="success-sub">
-            Thank you. Your response has been sent successfully.<br>
-            The NEXT team will be in touch with you shortly.
-          </div>
-        </div>`;
+      app.innerHTML = '<div class="success-state">' +
+        '<div class="success-icon">?</div>' +
+        '<div class="success-title">Received!</div>' +
+        '<div class="success-sub">Your response has been securely sent. You may now close this window.</div>' +
+      '</div>';
     }
 
-    function esc(str) {
-      return String(str || '')
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
+    function escapeHTML(str) {
+      if (!str) return '';
+      return String(str).replace(/[&<>'"]/g, tag => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
+      }[tag]));
     }
+
+    init();
   </script>
 </body>
 </html>
