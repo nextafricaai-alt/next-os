@@ -3,7 +3,15 @@ name: Deploy site to Hostinger (FTPS)
 on:
   push:
     branches: [main]
-    paths: ['web/**']
+    paths:
+      - 'web/**'
+      - 'NEXT OS.html'
+      - 'client-form.html'
+      - 'os-data.jsx'
+      - 'os-notify.jsx'
+      - 'os-comms.jsx'
+      - 'os-childcare.jsx'
+      - 'school-onboarding.html'
   workflow_dispatch:
 
 jobs:
@@ -13,6 +21,12 @@ jobs:
       - name: Check out the repo
         uses: actions/checkout@v4
 
+      - name: Assemble site files
+        run: |
+          mkdir -p deploy-site
+          cp -a web/. deploy-site/
+          cp -- 'NEXT OS.html' client-form.html os-data.jsx os-notify.jsx os-comms.jsx os-childcare.jsx school-onboarding.html deploy-site/
+
       - name: Upload web/ to Hostinger via FTPS
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
@@ -21,7 +35,7 @@ jobs:
           password: ${{ secrets.FTP_PASSWORD }}
           protocol: ftps
           port: 21
-          local-dir: ./web/
+          local-dir: ./deploy-site/
           server-dir: ${{ secrets.FTP_DIR }}
           dangerous-clean-slate: false
           exclude: |
