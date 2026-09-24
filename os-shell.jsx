@@ -21,6 +21,7 @@ const OSIcon = ({ name, size = 20 }) => {
     logout: <><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></>,
     // Childcare OS icon — stylised child figure with a heart
     childcare: <><circle cx="12" cy="5" r="2.5"/><path d="M12 9c-3 0-5 2-5 4v2h10v-2c0-2-2-4-5-4z"/><path d="M9 15v5"/><path d="M15 15v5"/><path d="M9 20h6"/><path d="M7 11c-1.5.5-2 1.5-2 2.5" strokeOpacity="0.5"/><path d="M17 11c1.5.5 2 1.5 2 2.5" strokeOpacity="0.5"/></>,
+    forms: <><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></>,
   };
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -277,6 +278,7 @@ const PAGE_TITLES = {
   sentinel: 'NEXT Sentinel',
   onboarding: 'Onboarding',
   settings: 'Settings',
+  childcare: 'Charis Childcare OS',
 };
 
 /* -- Apply Tweaks to CSS Vars -- */
@@ -346,9 +348,11 @@ const AppShell = () => {
       case 'training':
         return <PlaceholderPage title="Training Programs" description="Manage AI capacity building programs, certifications, and workshop schedules across client organisations." icon="" />;
       case 'comms':
-        return <PlaceholderPage title="Communications Hub" description="Reporting, client communications, and digital strategy coordination centre." icon="" />;
+        return window.CommsPage ? React.createElement(window.CommsPage, { onNavigate: setActiveTab }) : <PlaceholderPage title="Communications" description="Loading Communications..." icon="📋" />;
       case 'settings':
         return <PlaceholderPage title="Settings" description="System configuration, user management, and platform preferences." icon="Settings" />;
+      case 'childcare':
+        return window.ChildcareOSPage ? React.createElement(window.ChildcareOSPage, { onNavigate: setActiveTab }) : <PlaceholderPage title="Childcare OS" description="Loading Charis Childcare OS..." icon="👶" />;
       default:
         return <DashboardPage onNavigate={setActiveTab} />;
     }
@@ -366,6 +370,8 @@ const AppShell = () => {
         onToggle={() => setTweak('sidebarCollapsed', !sidebarCollapsed)}
       />
       <Topbar pageTitle={PAGE_TITLES[activeTab] || 'Dashboard'} sidebarWidth={sidebarWidth} />
+      {window.NotificationCenter && React.createElement(window.NotificationCenter)}
+      {window.NotificationPanel && React.createElement(window.NotificationPanel)}
       <main style={{
         marginLeft: sidebarWidth, paddingTop: 64,
         transition: 'margin-left 0.25s ease',

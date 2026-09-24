@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NEXT — Client Form</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800&family=Inter:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { font-family: 'Inter', sans-serif; background: #060012; color: #fff; min-height: 100vh; }
+    body { min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 40px 16px 60px; }
+
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 3px; }
+
+    .brand {
+      display: flex; align-items: center; gap: 10; margin-bottom: 40px;
+      font-family: 'Big Shoulders Display', sans-serif; font-size: 22px; font-weight: 800;
+      color: #00FC8F; letter-spacing: 0.06em;
+    }
+    .brand span { color: rgba(255,255,255,0.5); font-size: 14px; font-family: 'Inter', sans-serif; font-weight: 400; margin-left: 8px; }
+
+    .card {
+      background: #1A0042; border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 16px; width: 100%; max-width: 560px;
+      box-shadow: 0 24px 80px rgba(0,0,0,0.5);
+    }
+    .card-header {
+      padding: 32px 32px 24px;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+    .form-title {
+      font-family: 'Big Shoulders Display', sans-serif;
+      font-size: 26px; font-weight: 800; color: #fff; line-height: 1.2; margin-bottom: 10px;
+    }
+    .form-desc {
+      font-size: 14px; color: rgba(255,255,255,0.55); line-height: 1.6;
+    }
+    .card-body { padding: 28px 32px; }
+
+    .field-group { margin-bottom: 22px; }
+    .field-label {
+      display: block; font-size: 12px; font-weight: 600;
+      color: rgba(255,255,255,0.5); text-transform: uppercase;
+      letter-spacing: 0.07em; margin-bottom: 8px;
+    }
+    .field-label.required::after {
+      content: ' *'; color: #FF4757;
+    }
+    .field-input, .field-select, .field-textarea {
+      width: 100%; background: #220055;
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 10px; padding: 12px 16px;
+      color: #fff; font-family: 'Inter', sans-serif; font-size: 14px;
+      outline: none; transition: border-color 0.15s;
+    }
+    .field-input:focus, .field-select:focus, .field-textarea:focus {
+      border-color: rgba(0,252,143,0.4);
+      box-shadow: 0 0 0 3px rgba(0,252,143,0.08);
+    }
+    .field-input::placeholder, .field-textarea::placeholder { color: rgba(255,255,255,0.25); }
+    .field-textarea { min-height: 100px; resize: vertical; }
+    .field-select { appearance: none; cursor: pointer; background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'><path fill='rgba(255,255,255,0.4)' d='M0 0h12L6 8z'/></svg>"); background-repeat: no-repeat; background-position: right 14px center; padding-right: 36px; }
+    .field-select option { background: #1A0042; }
+
+    .radio-group { display: flex; flex-direction: column; gap: 10px; }
+    .radio-option {
+      display: flex; align-items: center; gap: 12;
+      background: #220055; border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 10px; padding: 12px 16px; cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .radio-option:hover { border-color: rgba(0,252,143,0.3); background: rgba(0,252,143,0.04); }
+    .radio-option input { accent-color: #00FC8F; width: 16px; height: 16px; cursor: pointer; }
+    .radio-option label { font-size: 14px; color: rgba(255,255,255,0.85); cursor: pointer; }
+
+    .submit-btn {
+      width: 100%; background: #00FC8F; color: #060012;
+      font-family: 'Inter', sans-serif; font-weight: 700;
+      font-size: 15px; border: none; border-radius: 12px;
+      padding: 15px; cursor: pointer; margin-top: 8px;
+      transition: background 0.15s, transform 0.1s;
+    }
+    .submit-btn:hover { background: #00CC70; }
+    .submit-btn:active { transform: scale(0.99); }
+    .submit-btn:disabled { background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.3); cursor: not-allowed; }
+
+    .error-msg { font-size: 12px; color: #FF4757; margin-top: 5px; }
+
+    .success-state {
+      text-align: center; padding: 48px 32px;
+    }
+    .success-icon {
+      width: 72px; height: 72px; border-radius: 50%;
+      background: rgba(0,252,143,0.12); border: 2px solid rgba(0,252,143,0.3);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 32px; margin: 0 auto 24px;
+    }
+    .success-title {
+      font-family: 'Big Shoulders Display', sans-serif;
+      font-size: 26px; font-weight: 800; margin-bottom: 12px;
+    }
+    .success-sub { font-size: 14px; color: rgba(255,255,255,0.55); line-height: 1.6; }
+
+    .error-state {
+      text-align: center; padding: 60px 32px; color: rgba(255,255,255,0.5); font-size: 15px;
+    }
+
+    .powered {
+      margin-top: 32px; font-size: 12px; color: rgba(255,255,255,0.2);
+      font-family: 'DM Mono', monospace; text-align: center;
+    }
+    .powered a { color: rgba(0,252,143,0.5); text-decoration: none; }
+  </style>
+</head>
+<body>
+
+  <div class="brand">NEXT <span>Client Form</span></div>
+
+  <div class="card" id="app">
+    <div style="padding:48px;text-align:center;color:rgba(255,255,255,0.4);font-size:14px;">
+      Loading form…
+    </div>
+  </div>
+
+  <div class="powered">Powered by <a href="https://nextafrica.ai" target="_blank">NEXT Africa</a></div>
+
+  <script>
+    // ── Parse form definition from the URL hash ──────────────────────────────
+    const CF_STORAGE_KEY = 'next_os_client_forms_v1';
+
+    function getFormDef() {
+      const hash = window.location.hash;
+      const match = hash.match(/[#&]form=([^&]*)/);
+      if (!match) return null;
+      try {
+        const json = decodeURIComponent(escape(atob(decodeURIComponent(match[1]))));
+        return JSON.parse(json);
+      } catch (e) {
+        return null;
+      }
+    }
+
+    const form = getFormDef();
+    const app = document.getElementById('app');
+
+    if (!form || !form.fields || form.fields.length === 0) {
+      app.innerHTML = `
+        <div class="error-state">
+          <div style="font-size:36px;margin-bottom:16px">⚠️</div>
+          <div>This form link is invalid or has expired.</div>
+          <div style="margin-top:8px;font-size:12px;font-family:'DM Mono',monospace;color:rgba(255,255,255,0.2)">
+            Please contact the person who sent you this link.
+          </div>
+        </div>`;
+    } else {
+      document.title = form.title + ' — NEXT';
+      renderForm(form);
+    }
+
+    // ── Render the form ───────────────────────────────────────────────────────
+    function renderForm(def) {
+      const headerHtml = `
+        <div class="card-header">
+          <div class="form-title">${esc(def.title)}</div>
+          ${def.description ? `<div class="form-desc">${esc(def.description)}</div>` : ''}
+        </div>`;
+
+      const fieldsHtml = def.fields.map(f => renderField(f)).join('');
+
+      app.innerHTML = headerHtml + `
+        <div class="card-body">
+          <form id="client-form" novalidate>
+            ${fieldsHtml}
+            <button class="submit-btn" type="submit">Submit Response</button>
+          </form>
+        </div>`;
+
+      document.getElementById('client-form').addEventListener('submit', e => {
+        e.preventDefault();
+        submitForm(def);
+      });
+    }
+
+    function renderField(f) {
+      const labelHtml = `<label class="field-label ${f.required ? 'required' : ''}" for="field-${f.id}">${esc(f.label)}</label>`;
+      let inputHtml = '';
+
+      switch (f.type) {
+        case 'textarea':
+          inputHtml = `<textarea id="field-${f.id}" class="field-textarea" placeholder="${esc(f.placeholder || '')}" data-field-id="${f.id}"${f.required ? ' required' : ''}></textarea>`;
+          break;
+        case 'select':
+          const opts = (f.options || []).filter(Boolean).map(o => `<option value="${esc(o)}">${esc(o)}</option>`).join('');
+          inputHtml = `<select id="field-${f.id}" class="field-select" data-field-id="${f.id}"${f.required ? ' required' : ''}><option value="">Choose…</option>${opts}</select>`;
+          break;
+        case 'radio':
+          const radios = (f.options || []).filter(Boolean).map((o, i) => `
+            <div class="radio-option">
+              <input type="radio" id="field-${f.id}-${i}" name="field-${f.id}" value="${esc(o)}" data-field-id="${f.id}">
+              <label for="field-${f.id}-${i}">${esc(o)}</label>
+            </div>`).join('');
+          inputHtml = `<div class="radio-group">${radios}</div>`;
+          break;
+        case 'date':
+          inputHtml = `<input id="field-${f.id}" type="date" class="field-input" data-field-id="${f.id}"${f.required ? ' required' : ''} style="color-scheme:dark">`;
+          break;
+        case 'number':
+          inputHtml = `<input id="field-${f.id}" type="number" class="field-input" placeholder="${esc(f.placeholder || '')}" data-field-id="${f.id}"${f.required ? ' required' : ''}>`;
+          break;
+        case 'email':
+          inputHtml = `<input id="field-${f.id}" type="email" class="field-input" placeholder="${esc(f.placeholder || 'you@example.com')}" data-field-id="${f.id}"${f.required ? ' required' : ''}>`;
+          break;
+        case 'phone':
+          inputHtml = `<input id="field-${f.id}" type="tel" class="field-input" placeholder="${esc(f.placeholder || '+256 ...')}" data-field-id="${f.id}"${f.required ? ' required' : ''}>`;
+          break;
+        default:
+          inputHtml = `<input id="field-${f.id}" type="text" class="field-input" placeholder="${esc(f.placeholder || '')}" data-field-id="${f.id}"${f.required ? ' required' : ''}>`;
+      }
+
+      return `<div class="field-group">${labelHtml}${inputHtml}<div class="error-msg" id="err-${f.id}"></div></div>`;
+    }
+
+    // ── Collect + validate + save ─────────────────────────────────────────────
+    function submitForm(def) {
+      let valid = true;
+      const answers = {};
+
+      def.fields.forEach(f => {
+        let val = '';
+        if (f.type === 'radio') {
+          const checked = document.querySelector(`input[name="field-${f.id}"]:checked`);
+          val = checked ? checked.value : '';
+        } else {
+          const el = document.querySelector(`[data-field-id="${f.id}"]`);
+          val = el ? el.value.trim() : '';
+        }
+        answers[f.id] = val;
+
+        const errEl = document.getElementById('err-' + f.id);
+        if (f.required && !val) {
+          if (errEl) errEl.textContent = 'This field is required.';
+          valid = false;
+        } else {
+          if (errEl) errEl.textContent = '';
+        }
+      });
+
+      if (!valid) return;
+
+      // Save response back into the OS localStorage store
+      const response = {
+        id: Math.random().toString(36).slice(2),
+        submittedAt: new Date().toISOString(),
+        answers,
+        seen: false,
+      };
+
+      try {
+        const raw = localStorage.getItem(CF_STORAGE_KEY);
+        const forms = raw ? JSON.parse(raw) : [];
+        const idx = forms.findIndex(f => f.id === def.id);
+        if (idx >= 0) {
+          forms[idx].responses = [...(forms[idx].responses || []), response];
+          localStorage.setItem(CF_STORAGE_KEY, JSON.stringify(forms));
+          // Fire a storage event so other tabs update
+          window.dispatchEvent(new StorageEvent('storage', {
+            key: CF_STORAGE_KEY,
+            newValue: JSON.stringify(forms),
+            storageArea: localStorage,
+          }));
+        }
+      } catch (e) {
+        console.error('Could not save response:', e);
+      }
+
+      showSuccess();
+    }
+
+    function showSuccess() {
+      app.innerHTML = `
+        <div class="success-state">
+          <div class="success-icon">✓</div>
+          <div class="success-title">Response Submitted!</div>
+          <div class="success-sub">
+            Thank you. Your response has been sent successfully.<br>
+            The NEXT team will be in touch with you shortly.
+          </div>
+        </div>`;
+    }
+
+    function esc(str) {
+      return String(str || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+  </script>
+</body>
+</html>

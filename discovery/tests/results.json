@@ -1,0 +1,29 @@
+{
+  "date": "2026-09-24T12:45:18.735Z",
+  "mode": "Local browser tests with mocked backend responses; live Supabase not connected",
+  "passed": [
+    "Brand asset loads and Tony welcome renders",
+    "Correct NEXT WhatsApp number",
+    "Essential answers block continuation with specific errors",
+    "Answers persist after reload",
+    "Production sections appear only for selected services",
+    "Repeatable rows add, save and remove",
+    "Disallowed file type rejected",
+    "Oversized upload rejected",
+    "Missing file prompts reattachment without duplicate entry",
+    "Keyboard-accessible priority ordering saves",
+    "All 20 questionnaire sections render without errors",
+    "No horizontal overflow across every section at 390px",
+    "Save-later dialog exposes same-device resume link and backup",
+    "Preview cannot claim receipt without backend configuration",
+    "Upload completes but failed insert never shows thank-you",
+    "Retry reuses uploaded files and confirms only after successful insert",
+    "Confirmation includes WhatsApp group and no review deadline",
+    "Printable answer copy generated",
+    "No browser JavaScript errors",
+    "Authenticated but unapproved viewer account rejected",
+    "Viewer renders submissions by section and escapes untrusted text",
+    "Private file downloads through authenticated request",
+    "Sign-out clears viewer data and in-memory credentials"
+  ]
+}
