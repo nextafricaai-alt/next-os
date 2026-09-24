@@ -1,7 +1,7 @@
--- NEXT OS: Generic Client Forms Schema
--- Run this in your Supabase SQL Editor
+-- NEXT OS client forms and responses.
+-- Safe to re-run; never reset the shared supabase_realtime publication.
 
-CREATE TABLE public.os_forms (
+CREATE TABLE IF NOT EXISTS public.os_forms (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
   created_at timestamptz DEFAULT now(),
   title text NOT NULL,
@@ -10,7 +10,7 @@ CREATE TABLE public.os_forms (
   status text DEFAULT 'active'
 );
 
-CREATE TABLE public.os_form_responses (
+CREATE TABLE IF NOT EXISTS public.os_form_responses (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
   form_id uuid REFERENCES public.os_forms(id) ON DELETE CASCADE,
   submitted_at timestamptz DEFAULT now(),
@@ -18,25 +18,56 @@ CREATE TABLE public.os_form_responses (
   seen boolean DEFAULT false
 );
 
--- Enable RLS
 ALTER TABLE public.os_forms ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.os_form_responses ENABLE ROW LEVEL SECURITY;
 
--- Forms can be read by anyone (so client-form.html can load them)
-CREATE POLICY "Public can read forms" ON public.os_forms FOR SELECT USING (true);
+GRANT SELECT ON public.os_forms TO anon, authenticated;
+GRANT INSERT, UPDATE, DELETE ON public.os_forms TO authenticated;
+GRANT INSERT ON public.os_form_responses TO anon, authenticated;
+GRANT SELECT, UPDATE, DELETE ON public.os_form_responses TO authenticated;
 
--- Forms can be managed by authenticated admins
-CREATE POLICY "Admins can manage forms" ON public.os_forms FOR ALL USING (auth.role() = 'authenticated');
+DROP POLICY IF EXISTS "Public can read forms" ON public.os_forms;
+CREATE POLICY "Public can read forms"
+  ON public.os_forms FOR SELECT TO anon, authenticated USING (true);
 
--- Responses can be inserted by anyone (so clients can submit)
-CREATE POLICY "Public can insert responses" ON public.os_form_responses FOR INSERT WITH CHECK (true);
+DROP POLICY IF EXISTS "Admins can manage forms" ON public.os_forms;
+CREATE POLICY "Admins can manage forms"
+  ON public.os_forms FOR ALL TO authenticated
+  USING (true) WITH CHECK (true);
 
--- Responses can only be read/updated by authenticated admins
-CREATE POLICY "Admins can manage responses" ON public.os_form_responses FOR ALL USING (auth.role() = 'authenticated');
+DROP POLICY IF EXISTS "Public can insert responses" ON public.os_form_responses;
+CREATE POLICY "Public can insert responses"
+  ON public.os_form_responses FOR INSERT TO anon, authenticated
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM public.os_forms f
+      WHERE f.id = os_form_responses.form_id AND f.status = 'active'
+    )
+  );
 
--- Enable Realtime for form responses so NEXT OS gets notified immediately
-BEGIN;
-  DROP PUBLICATION IF EXISTS supabase_realtime;
-  CREATE PUBLICATION supabase_realtime;
-COMMIT;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.os_form_responses;
+DROP POLICY IF EXISTS "Admins can manage responses" ON public.os_form_responses;
+CREATE POLICY "Admins can manage responses"
+  ON public.os_form_responses FOR ALL TO authenticated
+  USING (true) WITH CHECK (true);
+
+-- Add only these tables to the existing publication; don't drop other subscribers.
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_publication WHERE pubname = 'supabase_realtime') THEN
+    EXECUTE 'CREATE PUBLICATION supabase_realtime';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables
+    WHERE pubname = 'supabase_realtime' AND schemaname = 'public' AND tablename = 'os_forms'
+  ) THEN
+    EXECUTE 'ALTER PUBLICATION supabase_realtime ADD TABLE public.os_forms';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables
+    WHERE pubname = 'supabase_realtime' AND schemaname = 'public' AND tablename = 'os_form_responses'
+  ) THEN
+    EXECUTE 'ALTER PUBLICATION supabase_realtime ADD TABLE public.os_form_responses';
+  END IF;
+END $$;

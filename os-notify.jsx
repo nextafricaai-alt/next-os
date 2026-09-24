@@ -75,6 +75,7 @@
       concernType: input.concernType || null,
       actionUrl:   input.actionUrl || null,
       actionLabel: input.actionLabel || null,
+      dedupeKey:   input.dedupeKey ? String(input.dedupeKey) : null,
       at:          new Date().toISOString(),
       read:        false,
     };
@@ -82,9 +83,9 @@
     const history = loadHistory();
     // De-dup: if same title + source within last 5 minutes, skip
     const fiveMinAgo = Date.now() - 5 * 60 * 1000;
-    const dup = history.find(h =>
-      h.title === n.title && h.source === n.source && new Date(h.at).getTime() > fiveMinAgo
-    );
+    const dup = n.dedupeKey
+      ? history.find(h => h.dedupeKey === n.dedupeKey)
+      : history.find(h => !h.dedupeKey && h.title === n.title && h.source === n.source && new Date(h.at).getTime() > fiveMinAgo);
     if (dup) return dup.id;
     history.unshift(n);
     saveHistory(history);

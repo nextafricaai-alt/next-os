@@ -1,33 +1,37 @@
-/* os-clientforms.jsx — NEXT OS Client Forms Panel
-   Lets you build a form, share a link with a client,
-   and see all responses land directly in this panel.
-   Storage: localStorage (same device / same browser) + optional Supabase for cross-device.
-*/
+/* NEXT OS Communications: authenticated form management and client responses. */
 
 /* ─── tiny helpers ─── */
 const cfUid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
 
 /* Supabase helpers */
-const getSb = () => new Promise((resolve) => {
+const getSb = () => new Promise((resolve, reject) => {
+  const startedAt = Date.now();
   const check = () => {
     const sb = window.OS_DATA?.getSupabaseClient ? window.OS_DATA.getSupabaseClient() : null;
-    if (sb) resolve(sb);
-    else setTimeout(check, 100);
+    if (sb) return resolve(sb);
+    if (Date.now() - startedAt >= 15000) {
+      return reject(new Error('Supabase did not initialize. Check the network connection and reload NEXT OS.'));
+    }
+    setTimeout(check, 100);
   };
   check();
 });
 
 async function cfLoadForms() {
   const sb = await getSb();
-  const [{ data: forms }, { data: responses }] = await Promise.all([
+  const [formsResult, responsesResult] = await Promise.all([
     sb.from('os_forms').select('*').order('created_at', { ascending: false }),
     sb.from('os_form_responses').select('*').order('submitted_at', { ascending: false })
   ]);
-  
-  if (!forms) return [];
-  
+
+  if (formsResult.error) throw new Error(`Could not load client forms: ${formsResult.error.message}`);
+  if (responsesResult.error) throw new Error(`Could not load client responses. Sign in with an authorized NEXT OS account: ${responsesResult.error.message}`);
+
+  const forms = formsResult.data || [];
+  const responses = responsesResult.data || [];
   return forms.map(f => ({
     ...f,
+    created: f.created_at,
     responses: (responses || []).filter(r => r.form_id === f.id).map(r => ({
       id: r.id,
       answers: r.answers,
@@ -40,24 +44,143 @@ async function cfLoadForms() {
 async function cfSaveForm(form) {
   const sb = await getSb();
   const { id, title, description, fields, status } = form;
+  let result;
   if (id.startsWith('draft-')) {
-    // new
-    await sb.from('os_forms').insert({ title, description, fields, status });
+    result = await sb.from('os_forms').insert({ title, description, fields, status });
   } else {
-    // update
-    await sb.from('os_forms').update({ title, description, fields, status }).eq('id', id);
+    result = await sb.from('os_forms').update({ title, description, fields, status }).eq('id', id);
   }
+  if (result.error) throw new Error(`Could not save the form: ${result.error.message}`);
 }
 
 async function cfDeleteForm(id) {
   const sb = await getSb();
-  await sb.from('os_forms').delete().eq('id', id);
+  const { error } = await sb.from('os_forms').delete().eq('id', id);
+  if (error) throw new Error(`Could not delete the form: ${error.message}`);
 }
 
 async function cfMarkSeen(responseId) {
   const sb = await getSb();
-  await sb.from('os_form_responses').update({ seen: true }).eq('id', responseId);
+  const { error } = await sb.from('os_form_responses').update({ seen: true }).eq('id', responseId);
+  if (error) throw new Error(`Could not mark the response as read: ${error.message}`);
 }
+
+const CF_RUNTIME = window.__NEXT_OS_FORMS_RUNTIME || (window.__NEXT_OS_FORMS_RUNTIME = {
+  channel: null,
+  pollTimer: null,
+  starting: false,
+  baselineReady: false,
+  baselineIds: new Set(),
+  notifiedIds: new Set(),
+  status: 'CLOSED',
+  authSubscription: null,
+});
+
+function cfClientName(form, response) {
+  const fields = form?.fields || [];
+  const nameField = fields.find(field => /\bname\b/i.test(field.label || ''));
+  const value = nameField && response?.answers?.[nameField.id];
+  return typeof value === 'string' ? value.trim().slice(0, 80) : '';
+}
+
+function cfDispatchChange(detail) {
+  window.dispatchEvent(new CustomEvent('nextos:forms-changed', { detail: detail || {} }));
+}
+
+function cfAnnounceResponse(response, form) {
+  if (!response?.id || CF_RUNTIME.notifiedIds.has(response.id)) return;
+  CF_RUNTIME.notifiedIds.add(response.id);
+  const name = cfClientName(form, response);
+  const formTitle = form?.title || 'Client form';
+  const message = `${name || 'A client'} submitted “${formTitle}”.`;
+  cfDispatchChange({ type: 'response', responseId: response.id, formTitle, clientName: name });
+  if (window.NEXT_OS?.notify) {
+    window.NEXT_OS.notify({
+      severity: 'success',
+      title: 'New client form response',
+      body: message,
+      source: 'Communications',
+      actionUrl: 'os://comms',
+      actionLabel: 'View response',
+      dedupeKey: `client-form-response:${response.id}`,
+    });
+  }
+}
+
+async function cfRefreshRuntime() {
+  const forms = await cfLoadForms();
+  if (CF_RUNTIME.baselineReady) {
+    forms.forEach(form => (form.responses || []).forEach(response => {
+      if (!CF_RUNTIME.baselineIds.has(response.id)) cfAnnounceResponse(response, form);
+    }));
+  }
+  forms.forEach(form => (form.responses || []).forEach(response => CF_RUNTIME.baselineIds.add(response.id)));
+  CF_RUNTIME.baselineReady = true;
+  cfDispatchChange({ type: 'refresh' });
+  return forms;
+}
+
+function cfStopRealtime(sb) {
+  if (CF_RUNTIME.pollTimer) clearInterval(CF_RUNTIME.pollTimer);
+  CF_RUNTIME.pollTimer = null;
+  if (CF_RUNTIME.channel && sb) sb.removeChannel(CF_RUNTIME.channel);
+  CF_RUNTIME.channel = null;
+  CF_RUNTIME.starting = false;
+  CF_RUNTIME.baselineReady = false;
+  CF_RUNTIME.baselineIds.clear();
+  CF_RUNTIME.notifiedIds.clear();
+  CF_RUNTIME.status = 'CLOSED';
+}
+
+async function cfStartRealtime(sb) {
+  if (CF_RUNTIME.channel || CF_RUNTIME.starting) return;
+  CF_RUNTIME.starting = true;
+  try {
+    await cfRefreshRuntime();
+    CF_RUNTIME.pollTimer = setInterval(() => {
+      cfRefreshRuntime().catch(error => console.warn('[NEXT OS] Communications refresh failed:', error));
+    }, 15000);
+    CF_RUNTIME.channel = sb.channel('os_forms_channel')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'os_forms' }, () => {
+        cfRefreshRuntime().catch(error => console.warn('[NEXT OS] Form refresh failed:', error));
+      })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'os_form_responses' }, async payload => {
+        try {
+          const forms = await cfRefreshRuntime();
+          const form = forms.find(item => item.id === payload.new?.form_id);
+          const response = (form?.responses || []).find(item => item.id === payload.new?.id) || payload.new;
+          cfAnnounceResponse(response, form);
+        } catch (error) {
+          console.warn('[NEXT OS] Could not refresh after a client response:', error);
+        }
+      })
+      .subscribe(status => {
+        CF_RUNTIME.status = status;
+        cfDispatchChange({ type: 'connection', status });
+      });
+  } catch (error) {
+    CF_RUNTIME.starting = false;
+    throw error;
+  }
+  CF_RUNTIME.starting = false;
+}
+
+// Keep response notifications active while the app is open, even off the
+// Communications route. Client submissions remain public; admin reads do not.
+getSb().then(async sb => {
+  const { data, error } = await sb.auth.getSession();
+  if (error) throw error;
+  if (data.session) cfStartRealtime(sb);
+  if (!CF_RUNTIME.authSubscription) {
+    const { data: authState } = sb.auth.onAuthStateChange((_event, session) => {
+      setTimeout(() => {
+        if (session) cfStartRealtime(sb).catch(error => console.warn('[NEXT OS] Communications realtime unavailable:', error));
+        else cfStopRealtime(sb);
+      }, 0);
+    });
+    CF_RUNTIME.authSubscription = authState.subscription;
+  }
+}).catch(error => console.warn('[NEXT OS] Communications background listener unavailable:', error));
 
 /* ─── field type configs ─── */
 const FIELD_TYPES = [
@@ -396,7 +519,7 @@ const ShareModal = ({ form, onClose }) => {
           {copied ? '✓ Copied to clipboard!' : '⎘ Copy shareable link'}
         </button>
         <div style={s.note}>
-          The link contains the full form — no server required. Responses are stored locally and appear in real-time.
+          The client can open this link without signing in. Their response is saved to the shared database and appears in Communications.
         </div>
       </div>
     </div>
@@ -569,6 +692,14 @@ const ActivityEntry = ({ item }) => (
 const CommsPage = ({ onNavigate }) => {
   const [forms, setForms] = React.useState([]);
   const [loading, setLoading] = React.useState(true);
+  const [loadError, setLoadError] = React.useState('');
+  const [session, setSession] = React.useState(null);
+  const [authLoading, setAuthLoading] = React.useState(true);
+  const [authError, setAuthError] = React.useState('');
+  const [email, setEmail] = React.useState('');
+  const [password, setPassword] = React.useState('');
+  const [authBusy, setAuthBusy] = React.useState(false);
+  const [liveStatus, setLiveStatus] = React.useState(CF_RUNTIME.status);
   const [building, setBuilding] = React.useState(null);    // null | 'new' | form object (edit)
   const [sharing, setSharing] = React.useState(null);      // form to share
   const [viewing, setViewing] = React.useState(null);      // form whose responses to view
@@ -577,80 +708,150 @@ const CommsPage = ({ onNavigate }) => {
   const [filter, setFilter] = React.useState('all');
 
   const loadData = async () => {
-    const data = await cfLoadForms();
-    setForms(data);
-    setLoading(false);
+    try {
+      const data = await cfLoadForms();
+      setForms(data);
+      setLoadError('');
+    } catch (error) {
+      setLoadError(error.message || 'Could not load client forms and responses.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   React.useEffect(() => {
-    loadData();
-    let sub;
+    let active = true;
+    let authSubscription;
     (async () => {
       const sb = await getSb();
+      const { data, error } = await sb.auth.getSession();
+      if (error) throw error;
+      if (!active) return;
+      setSession(data.session);
+      setAuthLoading(false);
+      if (data.session) cfStartRealtime(sb).catch(error => setLoadError(error.message));
 
-      // Realtime subscriptions
-      sub = sb.channel('os_forms_channel')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'os_forms' }, () => {
-          loadData();
-        })
-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'os_form_responses' }, (payload) => {
-          setActivity(a => [{
-            icon: '📥', ts: new Date().toISOString(),
-            text: `New form response received!`,
-          }, ...a].slice(0, 20));
-          if (window.NEXT_OS?.success) {
-            window.NEXT_OS.success('Form Submission', `A new client response arrived.`, { actionUrl: 'os://comms' });
-          }
-          loadData();
-        })
-        .subscribe();
-    })();
+      const { data: authState } = sb.auth.onAuthStateChange((_event, nextSession) => {
+        if (!active) return;
+        setSession(nextSession);
+        setAuthError('');
+        setTimeout(() => {
+          if (nextSession) cfStartRealtime(sb).catch(error => setLoadError(error.message));
+          else cfStopRealtime(sb);
+        }, 0);
+      });
+      authSubscription = authState.subscription;
+    })().catch(error => {
+      if (!active) return;
+      setAuthError(error.message || 'Could not connect to Supabase authentication.');
+      setAuthLoading(false);
+      setLoading(false);
+    });
 
-    return () => { 
-      if (sub) {
-        getSb().then(sb => sb.removeChannel(sub));
+    const onFormsChanged = event => {
+      const detail = event.detail || {};
+      if (detail.type === 'connection') setLiveStatus(detail.status);
+      if (detail.type === 'response') {
+        const who = detail.clientName ? `${detail.clientName} submitted` : 'A client submitted';
+        setActivity(items => [{
+          id: detail.responseId,
+          icon: '📥', ts: new Date().toISOString(),
+          text: `${who} “${detail.formTitle || 'a form'}”.`,
+        }, ...items.filter(item => item.id !== detail.responseId)].slice(0, 20));
       }
+      if (detail.type === 'response' || detail.type === 'refresh') loadData();
+    };
+    window.addEventListener('nextos:forms-changed', onFormsChanged);
+    return () => {
+      active = false;
+      window.removeEventListener('nextos:forms-changed', onFormsChanged);
+      if (authSubscription) authSubscription.unsubscribe();
     };
   }, []);
 
-  const handleSave = async (draft) => {
-    await cfSaveForm(draft);
-    if (draft.id.startsWith('draft-')) {
-      setActivity(a => [{ icon: '🆕', ts: new Date().toISOString(), text: `Form created: "${draft.title}"` }, ...a].slice(0, 20));
+  React.useEffect(() => {
+    if (session) loadData();
+    else setLoading(false);
+  }, [session]);
+
+  const handleSignIn = async (event) => {
+    event.preventDefault();
+    setAuthBusy(true);
+    setAuthError('');
+    try {
+      const sb = await getSb();
+      const { data, error } = await sb.auth.signInWithPassword({ email: email.trim(), password });
+      if (error) throw error;
+      setSession(data.session);
+      setPassword('');
+      cfStartRealtime(sb).catch(error => setLoadError(error.message));
+    } catch (error) {
+      setAuthError(error.message || 'Sign-in failed. Check your email and password.');
+    } finally {
+      setAuthBusy(false);
     }
-    await loadData();
-    setBuilding(null);
+  };
+
+  const handleSignOut = async () => {
+    try {
+      const sb = await getSb();
+      const { error } = await sb.auth.signOut();
+      if (error) throw error;
+      setSession(null);
+    } catch (error) {
+      setLoadError(error.message || 'Could not sign out.');
+    }
+  };
+
+  const handleSave = async (draft) => {
+    try {
+      await cfSaveForm(draft);
+      if (draft.id.startsWith('draft-')) {
+        setActivity(a => [{ icon: '🆕', ts: new Date().toISOString(), text: `Form created: "${draft.title}"` }, ...a].slice(0, 20));
+      }
+      await loadData();
+      setBuilding(null);
+    } catch (error) {
+      setLoadError(error.message || 'Could not save the form.');
+    }
   };
 
   const handleDelete = async (id) => {
     if (!confirm('Delete this form and all its responses?')) return;
-    await cfDeleteForm(id);
-    await loadData();
+    try { await cfDeleteForm(id); await loadData(); }
+    catch (error) { setLoadError(error.message || 'Could not delete the form.'); }
   };
 
   const handleToggleStatus = async (form) => {
     const next = form.status === 'active' ? 'closed' : 'active';
-    await cfSaveForm({ ...form, status: next });
-    setActivity(a => [{ icon: next === 'active' ? '▶' : '🔒', ts: new Date().toISOString(), text: `"${form.title}" ${next === 'active' ? 'activated' : 'closed'}` }, ...a].slice(0, 20));
-    await loadData();
+    try {
+      await cfSaveForm({ ...form, status: next });
+      setActivity(a => [{ icon: next === 'active' ? '▶' : '🔒', ts: new Date().toISOString(), text: `"${form.title}" ${next === 'active' ? 'activated' : 'closed'}` }, ...a].slice(0, 20));
+      await loadData();
+    } catch (error) { setLoadError(error.message || 'Could not update the form status.'); }
   };
 
   const handleViewResponses = async (form) => {
     // Mark all responses as seen in the DB
     const unread = (form.responses || []).filter(r => !r.seen);
     if (unread.length > 0) {
-      await Promise.all(unread.map(r => cfMarkSeen(r.id)));
-      await loadData();
+      try {
+        await Promise.all(unread.map(r => cfMarkSeen(r.id)));
+        await loadData();
+      } catch (error) { setLoadError(error.message || 'Could not update response status.'); }
     }
     setViewing(form);
   };
 
   /* When sharing, first set form to active if it's a draft */
-  const handleShare = (form) => {
+  const handleShare = async (form) => {
     if (form.status === 'draft') {
-      const updated = forms.map(f => f.id === form.id ? { ...f, status: 'active' } : f);
-      persist(updated);
-      setSharing(updated.find(f => f.id === form.id));
+      try {
+        await cfSaveForm({ ...form, status: 'active' });
+        const updated = { ...form, status: 'active' };
+        await loadData();
+        setSharing(updated);
+      } catch (error) { setLoadError(error.message || 'Could not activate the form.'); }
     } else {
       setSharing(form);
     }
@@ -704,6 +905,9 @@ const CommsPage = ({ onNavigate }) => {
     },
     layout: { display: 'grid', gridTemplateColumns: '1fr 300px', gap: 24 },
     sidebar: {},
+    error: { padding: '12px 14px', marginBottom: 16, color: '#ff9b9b', background: 'rgba(255,71,87,0.1)', border: '1px solid rgba(255,71,87,0.25)', borderRadius: 9, fontSize: 13 },
+    loginCard: { width: '100%', maxWidth: 440, margin: '8vh auto', padding: 28, background: C.elevated, border: `1px solid ${C.border}`, borderRadius: 14 },
+    loginInput: { width: '100%', padding: '12px 14px', marginTop: 7, marginBottom: 16, color: C.textPrim, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 14 },
     sidebarCard: {
       background: C.elevated, border: `1px solid ${C.border}`,
       borderRadius: 12, padding: '20px',
@@ -712,17 +916,39 @@ const CommsPage = ({ onNavigate }) => {
     sidebarTitle: { fontSize: 12, fontWeight: 600, color: C.mint, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 14 },
   };
 
+  if (authLoading) return <div style={s.page}><div style={s.empty}>Connecting to secure Communications…</div></div>;
+
+  if (!session) return (
+    <div style={s.page}>
+      <form style={s.loginCard} onSubmit={handleSignIn}>
+        <div style={s.heading}>Communications sign in</div>
+        <div style={{ ...s.subheading, marginBottom: 22 }}>Sign in with your authorized NEXT OS account to manage forms and view client responses. Shared client forms remain public.</div>
+        {authError && <div role="alert" style={s.error}>{authError}</div>}
+        <label style={{ fontSize: 12, color: C.textSec }}>Email</label>
+        <input style={s.loginInput} type="email" autoComplete="username" required value={email} onChange={event => setEmail(event.target.value)} />
+        <label style={{ fontSize: 12, color: C.textSec }}>Password</label>
+        <input style={s.loginInput} type="password" autoComplete="current-password" required value={password} onChange={event => setPassword(event.target.value)} />
+        <button style={{ ...s.newBtn, width: '100%', justifyContent: 'center' }} type="submit" disabled={authBusy}>
+          {authBusy ? 'Signing in…' : 'Sign in'}
+        </button>
+      </form>
+    </div>
+  );
+
   return (
     <div style={s.page}>
       <div style={s.pageHeader}>
         <div>
           <div style={s.heading}>Communications</div>
-          <div style={s.subheading}>Client Forms: Build forms, share links, and receive responses here.</div>
+          <div style={s.subheading}>Client Forms: submissions appear here with an in-app notification.</div>
         </div>
-        <button style={s.newBtn} onClick={() => setBuilding('new')}>
-          + New Form
-        </button>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button style={s.newBtn} onClick={() => setBuilding('new')}>+ New Form</button>
+          <button style={s.filterBtn(false)} onClick={handleSignOut}>Sign out</button>
+        </div>
       </div>
+
+      {loadError && <div role="alert" style={s.error}>{loadError} <button style={s.filterBtn(false)} onClick={loadData}>Retry</button></div>}
 
       {/* KPI row */}
       <div style={s.kpiRow}>
@@ -763,7 +989,9 @@ const CommsPage = ({ onNavigate }) => {
 
           {/* Forms */}
           <div style={s.grid}>
-            {filtered.length === 0 ? (
+            {loading ? (
+              <div style={s.empty}>Loading forms and responses…</div>
+            ) : filtered.length === 0 ? (
               <div style={s.empty}>
                 <div style={{ fontSize: 36, marginBottom: 12 }}>📋</div>
                 {forms.length === 0
@@ -788,6 +1016,9 @@ const CommsPage = ({ onNavigate }) => {
         <div style={s.sidebar}>
           <div style={s.sidebarCard}>
             <div style={s.sidebarTitle}>📡 Live Activity</div>
+            <div style={{ fontSize: 11, color: C.textTer, marginBottom: 12 }}>
+              {liveStatus === 'SUBSCRIBED' ? 'Live updates connected' : 'Live connection unavailable; checking every 15 seconds'}
+            </div>
             {activity.length === 0 ? (
               <div style={{ fontSize: 12, color: C.textTer, textAlign: 'center', padding: '20px 0' }}>
                 No activity yet. Responses appear here in real-time.
