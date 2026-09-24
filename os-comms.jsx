@@ -896,7 +896,7 @@ const ActivityEntry = ({ item }) => (
 );
 
 /* ─── Main Forms Page ─── */
-const CommsPage = ({ onNavigate }) => {
+const CommsPage = ({ onNavigate, embedded = false }) => {
   const [forms, setForms] = React.useState([]);
   const [discoverySubmissions, setDiscoverySubmissions] = React.useState(CF_RUNTIME.discovery.submissions || []);
   const [discoveryCount, setDiscoveryCount] = React.useState(CF_RUNTIME.discovery.count || 0);
@@ -907,8 +907,10 @@ const CommsPage = ({ onNavigate }) => {
   const [session, setSession] = React.useState(null);
   const [authLoading, setAuthLoading] = React.useState(true);
   const [authError, setAuthError] = React.useState('');
-  const [email, setEmail] = React.useState('');
-  const [password, setPassword] = React.useState('');
+  const [email, setEmail] = React.useState(() => window.NEXT_OS_USER?.() || '');
+  const [authCode, setAuthCode] = React.useState('');
+  const [authCodeSent, setAuthCodeSent] = React.useState(false);
+  const [authNotice, setAuthNotice] = React.useState('');
   const [authBusy, setAuthBusy] = React.useState(false);
   const [liveStatus, setLiveStatus] = React.useState(CF_RUNTIME.status);
   const [building, setBuilding] = React.useState(null);    // null | 'new' | form object (edit)
@@ -1023,16 +1025,50 @@ const CommsPage = ({ onNavigate }) => {
     event.preventDefault();
     setAuthBusy(true);
     setAuthError('');
+    setAuthNotice('');
     try {
       const sb = await getSb();
-      const { data, error } = await sb.auth.signInWithPassword({ email: email.trim(), password });
+      if (!authCodeSent) {
+        const { error } = await sb.auth.signInWithOtp({
+          email: email.trim().toLowerCase(),
+          options: { shouldCreateUser: false },
+        });
+        if (error) throw error;
+        setAuthCodeSent(true);
+        setAuthNotice('A secure sign-in code was sent to your email. Enter it here to open the forms inbox.');
+        return;
+      }
+      const { data, error } = await sb.auth.verifyOtp({
+        email: email.trim().toLowerCase(),
+        token: authCode.trim(),
+        type: 'email',
+      });
       if (error) throw error;
       setSession(data.session);
-      setPassword('');
+      setAuthCode('');
       if (cfIsAdmin(data.session)) cfStartRealtime(sb).catch(error => setLoadError(error.message));
       else setAuthError('This account can sign in, but it does not have NEXT OS Communications admin access. Ask an administrator to set app_metadata.role to nextos_admin.');
     } catch (error) {
-      setAuthError(error.message || 'Sign-in failed. Check your email and password.');
+      setAuthError(error.message || (authCodeSent ? 'Sign-in failed. Check the code and try again.' : 'Could not send a sign-in code.'));
+    } finally {
+      setAuthBusy(false);
+    }
+  };
+
+  const handleResendCode = async () => {
+    setAuthBusy(true);
+    setAuthError('');
+    setAuthNotice('');
+    try {
+      const sb = await getSb();
+      const { error } = await sb.auth.signInWithOtp({
+        email: email.trim().toLowerCase(),
+        options: { shouldCreateUser: false },
+      });
+      if (error) throw error;
+      setAuthNotice('A new secure sign-in code was sent to your email.');
+    } catch (error) {
+      setAuthError(error.message || 'Could not resend the sign-in code.');
     } finally {
       setAuthBusy(false);
     }
@@ -1184,16 +1220,20 @@ const CommsPage = ({ onNavigate }) => {
   if (!session) return (
     <div style={s.page}>
       <form style={s.loginCard} onSubmit={handleSignIn}>
-        <div style={s.heading}>Communications sign in</div>
-        <div style={{ ...s.subheading, marginBottom: 22 }}>Sign in with your authorized NEXT OS account to manage forms and view client responses. Shared client forms remain public.</div>
+        <div style={s.heading}>{embedded ? 'Open client forms' : 'Communications sign in'}</div>
+        <div style={{ ...s.subheading, marginBottom: 22 }}>Use your authorized NEXT OS email. We’ll verify it with a one-time code before showing client submissions.</div>
         {authError && <div role="alert" style={s.error}>{authError}</div>}
+        {authNotice && <div role="status" style={{ ...s.subheading, marginBottom: 16 }}>{authNotice}</div>}
         <label style={{ fontSize: 12, color: C.textSec }}>Email</label>
-        <input style={s.loginInput} type="email" autoComplete="username" required value={email} onChange={event => setEmail(event.target.value)} />
-        <label style={{ fontSize: 12, color: C.textSec }}>Password</label>
-        <input style={s.loginInput} type="password" autoComplete="current-password" required value={password} onChange={event => setPassword(event.target.value)} />
+        <input style={s.loginInput} type="email" autoComplete="email" required value={email} onChange={event => { setEmail(event.target.value); setAuthCodeSent(false); setAuthCode(''); setAuthNotice(''); setAuthError(''); }} />
+        {authCodeSent && <>
+          <label style={{ fontSize: 12, color: C.textSec }}>Email sign-in code</label>
+          <input style={s.loginInput} type="text" inputMode="numeric" autoComplete="one-time-code" required value={authCode} onChange={event => setAuthCode(event.target.value.replace(/\s/g, ''))} />
+        </>}
         <button style={{ ...s.newBtn, width: '100%', justifyContent: 'center' }} type="submit" disabled={authBusy}>
-          {authBusy ? 'Signing in…' : 'Sign in'}
+          {authBusy ? (authCodeSent ? 'Verifying…' : 'Sending code…') : (authCodeSent ? 'Verify code' : 'Send sign-in code')}
         </button>
+        {authCodeSent && <button style={{ ...s.filterBtn(false), marginTop: 10 }} type="button" disabled={authBusy} onClick={handleResendCode}>Resend code</button>}
       </form>
     </div>
   );
@@ -1214,8 +1254,8 @@ const CommsPage = ({ onNavigate }) => {
     <div style={s.page}>
       <div style={s.pageHeader}>
         <div>
-          <div style={s.heading}>Communications</div>
-          <div style={s.subheading}>Client Forms: submissions appear here with an in-app notification.</div>
+          <div style={s.heading}>{embedded ? 'Forms for clients' : 'Communications'}</div>
+          <div style={s.subheading}>{embedded ? 'Share forms and review client submissions. New responses trigger an in-app notification.' : 'Client Forms: submissions appear here with an in-app notification.'}</div>
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
           <button style={s.newBtn} onClick={() => setBuilding('new')}>+ New Form</button>

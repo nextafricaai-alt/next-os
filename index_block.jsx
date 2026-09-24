@@ -5772,11 +5772,15 @@ window.OnboardingPage = function OnboardingPage(props) {
         </div>
         <div style={{ display: 'flex', gap: 6, marginBottom: 18, flexWrap: 'wrap' }}>
           {tabBtn('compose', 'Compose')}
+          {tabBtn('forms', 'Forms for clients')}
           {tabBtn('contacts', 'Contacts (' + contacts.length + ')')}
           {tabBtn('templates', 'Templates (' + templates.length + ')')}
           {tabBtn('log', 'Sent log (' + log.length + ')')}
         </div>
         {tab === 'compose' && <Compose contacts={contacts} templates={templates} onSent={loadLog} />}
+        {tab === 'forms' && (window.CommsPage
+          ? <div style={{ marginTop: 8 }}>{React.createElement(window.CommsPage, { embedded: true })}</div>
+          : <div style={{ padding: 20, color: 'var(--text-secondary)' }}>Loading client forms…</div>)}
         {tab === 'contacts' && <Contacts contacts={contacts} reload={loadContacts} />}
         {tab === 'templates' && <Templates templates={templates} reload={loadTemplates} onUse={() => setTab('compose')} />}
         {tab === 'log' && <SentLog log={log} />}
@@ -8765,4 +8769,3 @@ Object.assign(window, { AppShell, Sidebar, Topbar, OSIcon, PlaceholderPage });
         <AuthGate><AppShell /></AuthGate>
       </ErrorBoundary>
     );
-  
