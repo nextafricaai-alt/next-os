@@ -1,5 +1,8 @@
 -- NEXT OS client forms and responses.
 -- Safe to re-run; never reset the shared supabase_realtime publication.
+-- Before using Communications, set app_metadata.role = 'nextos_admin' for
+-- each trusted NEXT OS operator in Supabase Auth. Never use user_metadata
+-- for authorization; users can edit their own user_metadata.
 
 CREATE TABLE IF NOT EXISTS public.os_forms (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -33,7 +36,8 @@ CREATE POLICY "Public can read forms"
 DROP POLICY IF EXISTS "Admins can manage forms" ON public.os_forms;
 CREATE POLICY "Admins can manage forms"
   ON public.os_forms FOR ALL TO authenticated
-  USING (true) WITH CHECK (true);
+  USING ((SELECT auth.jwt() -> 'app_metadata' ->> 'role') = 'nextos_admin')
+  WITH CHECK ((SELECT auth.jwt() -> 'app_metadata' ->> 'role') = 'nextos_admin');
 
 DROP POLICY IF EXISTS "Public can insert responses" ON public.os_form_responses;
 CREATE POLICY "Public can insert responses"
@@ -48,7 +52,8 @@ CREATE POLICY "Public can insert responses"
 DROP POLICY IF EXISTS "Admins can manage responses" ON public.os_form_responses;
 CREATE POLICY "Admins can manage responses"
   ON public.os_form_responses FOR ALL TO authenticated
-  USING (true) WITH CHECK (true);
+  USING ((SELECT auth.jwt() -> 'app_metadata' ->> 'role') = 'nextos_admin')
+  WITH CHECK ((SELECT auth.jwt() -> 'app_metadata' ->> 'role') = 'nextos_admin');
 
 -- Add only these tables to the existing publication; don't drop other subscribers.
 DO $$

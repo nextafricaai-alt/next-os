@@ -76,6 +76,10 @@ const CF_RUNTIME = window.__NEXT_OS_FORMS_RUNTIME || (window.__NEXT_OS_FORMS_RUN
   authSubscription: null,
 });
 
+function cfIsAdmin(session) {
+  return session?.user?.app_metadata?.role === 'nextos_admin';
+}
+
 function cfClientName(form, response) {
   const fields = form?.fields || [];
   const nameField = fields.find(field => /\bname\b/i.test(field.label || ''));
@@ -136,6 +140,12 @@ async function cfStartRealtime(sb) {
   if (CF_RUNTIME.channel || CF_RUNTIME.starting) return;
   CF_RUNTIME.starting = true;
   try {
+    const { data: authData, error: authError } = await sb.auth.getSession();
+    if (authError) throw authError;
+    if (!cfIsAdmin(authData.session)) {
+      CF_RUNTIME.starting = false;
+      return;
+    }
     await cfRefreshRuntime();
     CF_RUNTIME.pollTimer = setInterval(() => {
       cfRefreshRuntime().catch(error => console.warn('[NEXT OS] Communications refresh failed:', error));
@@ -170,11 +180,11 @@ async function cfStartRealtime(sb) {
 getSb().then(async sb => {
   const { data, error } = await sb.auth.getSession();
   if (error) throw error;
-  if (data.session) cfStartRealtime(sb);
+  if (cfIsAdmin(data.session)) cfStartRealtime(sb);
   if (!CF_RUNTIME.authSubscription) {
     const { data: authState } = sb.auth.onAuthStateChange((_event, session) => {
       setTimeout(() => {
-        if (session) cfStartRealtime(sb).catch(error => console.warn('[NEXT OS] Communications realtime unavailable:', error));
+        if (cfIsAdmin(session)) cfStartRealtime(sb).catch(error => console.warn('[NEXT OS] Communications realtime unavailable:', error));
         else cfStopRealtime(sb);
       }, 0);
     });
@@ -729,14 +739,14 @@ const CommsPage = ({ onNavigate }) => {
       if (!active) return;
       setSession(data.session);
       setAuthLoading(false);
-      if (data.session) cfStartRealtime(sb).catch(error => setLoadError(error.message));
+      if (cfIsAdmin(data.session)) cfStartRealtime(sb).catch(error => setLoadError(error.message));
 
       const { data: authState } = sb.auth.onAuthStateChange((_event, nextSession) => {
         if (!active) return;
         setSession(nextSession);
         setAuthError('');
         setTimeout(() => {
-          if (nextSession) cfStartRealtime(sb).catch(error => setLoadError(error.message));
+          if (cfIsAdmin(nextSession)) cfStartRealtime(sb).catch(error => setLoadError(error.message));
           else cfStopRealtime(sb);
         }, 0);
       });
@@ -784,7 +794,8 @@ const CommsPage = ({ onNavigate }) => {
       if (error) throw error;
       setSession(data.session);
       setPassword('');
-      cfStartRealtime(sb).catch(error => setLoadError(error.message));
+      if (cfIsAdmin(data.session)) cfStartRealtime(sb).catch(error => setLoadError(error.message));
+      else setAuthError('This account can sign in, but it does not have NEXT OS Communications admin access. Ask an administrator to set app_metadata.role to nextos_admin.');
     } catch (error) {
       setAuthError(error.message || 'Sign-in failed. Check your email and password.');
     } finally {
@@ -932,6 +943,18 @@ const CommsPage = ({ onNavigate }) => {
           {authBusy ? 'Signing in…' : 'Sign in'}
         </button>
       </form>
+    </div>
+  );
+
+  if (!cfIsAdmin(session)) return (
+    <div style={s.page}>
+      <div style={s.loginCard}>
+        <div style={s.heading}>Admin access required</div>
+        <div role="alert" style={{ ...s.subheading, marginTop: 12, marginBottom: 20 }}>
+          This account is signed in but cannot view client responses. An administrator must set this user’s trusted Supabase app metadata role to <code>nextos_admin</code>.
+        </div>
+        <button style={s.filterBtn(false)} onClick={handleSignOut}>Sign out</button>
+      </div>
     </div>
   );
 
