@@ -260,28 +260,7 @@ export default {
     // ─── Route: GET /fleet — live tenant fleet for the OS + Nia chat ──────
     if (request.method === 'GET' && url.pathname === '/fleet') {
       try {
-        const tenants = await loadTenants(env);
-
-        tenants.push({
-          id: 'charis-childcare',
-          name: 'Charis Childcare',
-          vertical: 'childcare',
-          country: 'Uganda',
-          currency: 'UGX',
-          health: 'advisory',
-          lastSignalAt: 'just now',
-          prototypeUrl: '',
-          kpis: { revenue: 5000000, expenses: 1200000 },
-          verticalKpis: {
-            enrolled: 24, presentToday: 21, attendanceRate: 0.875,
-            invoicesOverdue: 1, unreadMessages: 5, milestonesLogged: 7,
-          },
-          latest: { 
-            severity: 'warn', 
-            title: '1 invoice overdue 30+ days', 
-            summary: 'Nakamya family is 30+ days overdue.' 
-          }
-        });
+        const tenants = normalizeFleetTenants(await loadTenants(env));
 
         return new Response(JSON.stringify({
           tenants,
@@ -697,8 +676,8 @@ function jsonError(message, status, cors) {
    which calls runSupervise() with a brief kind.
 ────────────────────────────────────────────────────────────────────── */
 
-// Server-side tenant state. Mirrors os-data.jsx DEFAULT_TENANTS for
-// Nia's autonomous mode. When we wire Supabase, this becomes a DB read.
+// Server-side tenant state used by autonomous supervision. Fleet-only
+// placeholder cards are added separately by FLEET_DIRECTORY_DEFAULTS.
 const TENANTS_SEED = [
   {
     id: 'peak-primary', name: 'Peak Primary School', vertical: 'school',
@@ -716,6 +695,59 @@ const TENANTS_SEED = [
               summary: 'UGX 1.08M outstanding combined.' },
   },
 ];
+
+const FLEET_DIRECTORY_DEFAULTS = TENANTS_SEED.concat([
+  {
+    id: 'charis-childcare', name: 'Pikadon', vertical: 'childcare',
+    country: 'Uganda', currency: 'UGX', health: 'unknown',
+    lastSignalAt: 'awaiting first signal', kpis: { revenue: 0, expenses: 0 },
+    verticalKpis: {}, latest: null,
+  },
+  {
+    id: 'kabs-lily-junior-school-and-kindercare-centre',
+    name: 'Kabs Lily Junior School and Kindercare Centre', vertical: 'school',
+    country: 'Uganda', currency: 'UGX', health: 'unknown',
+    lastSignalAt: 'awaiting directory sync', kpis: { revenue: 0, expenses: 0 },
+    verticalKpis: {}, latest: null,
+  },
+]);
+
+const PIKADON_TENANT_IDS = new Set(['charis-childcare', 'pikadon', 'pikadon-os']);
+const KABS_LILY_TENANT_ID = 'kabs-lily-junior-school-and-kindercare-centre';
+
+function fleetTenantKey(tenant) {
+  const id = String(tenant && tenant.id || '').trim().toLowerCase();
+  const compactName = String(tenant && tenant.name || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+  if (PIKADON_TENANT_IDS.has(id) || compactName.startsWith('charischildcare') || compactName === 'pikadon' || compactName.startsWith('pikadonos')) return 'pikadon';
+  if (id === KABS_LILY_TENANT_ID || compactName.startsWith('kabslily')) return 'kabs-lily';
+  return id || compactName;
+}
+
+function fleetTenantPreference(tenant, key) {
+  const id = String(tenant && tenant.id || '').toLowerCase();
+  if (key === 'pikadon') return id === 'charis-childcare' ? 0 : id === 'pikadon' ? 1 : 2;
+  if (key === 'kabs-lily') return id === KABS_LILY_TENANT_ID ? 0 : 1;
+  return 0;
+}
+
+function normalizeFleetTenants(rows) {
+  const candidates = Array.isArray(rows) ? rows.slice() : [];
+  const keys = new Set(candidates.map(fleetTenantKey));
+  FLEET_DIRECTORY_DEFAULTS.forEach(tenant => {
+    if (!keys.has(fleetTenantKey(tenant))) candidates.push(tenant);
+  });
+  const unique = new Map();
+  candidates.forEach(tenant => {
+    const key = fleetTenantKey(tenant);
+    const current = unique.get(key);
+    if (!current || fleetTenantPreference(tenant, key) < fleetTenantPreference(current, key)) unique.set(key, tenant);
+  });
+  return Array.from(unique, ([key, tenant]) => {
+    if (key === 'pikadon') return Object.assign({}, tenant, { name: 'Pikadon' });
+    if (key === 'kabs-lily') return Object.assign({}, tenant, { name: 'Kabs Lily Junior School and Kindercare Centre' });
+    return tenant;
+  });
+}
 
 function serverEvaluate(tenant) {
   const concerns = [];

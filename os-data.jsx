@@ -34,8 +34,48 @@
 
   const DEFAULT_TENANTS = [
     { id: 'peak-primary', name: 'Peak Primary School', vertical: 'school', country: 'Uganda', currency: 'UGX', health: 'advisory', lastSignalAt: '38s ago', prototypeUrl: 'prototypes/schools/peak-primary/index.html', kpis: { revenue: 412500000, expenses: 384200000 }, verticalKpis: { students: 286, teachers: 38, streams: 14, feesCollectedTerm: 412500000, feesCollectionRate: 0.71, feesOutstanding: 168800000, accountsOverdue30d: 3, overdueAmount: 1080000, attendanceWeek: 0.88, atRiskStudents: 12, topPerformers: 24, enrollmentInquiries: 4, lastSync: '38s ago' }, latest: { severity: 'warn', title: '3 fee accounts overdue 30+ days', summary: 'UGX 1.08M outstanding' } },
-    { id: 'charis-childcare', name: 'Charis Childcare OS', vertical: 'childcare', country: 'Uganda', currency: 'UGX', health: 'advisory', lastSignalAt: '12s ago', prototypeUrl: '../index.html', kpis: { revenue: 2100000, expenses: 840000 }, verticalKpis: { enrolled: 24, presentToday: 21, absentToday: 3, attendanceRate: 0.875, caretakers: 3, activeParents: 20, invoicesDue: 3, invoicesOverdue30d: 1, overdueAmount: 300000, totalInvoiced: 2100000, collectionRate: 0.857, unreadParentMessages: 5, unansweredMessages24h: 2, milestonesThisWeek: 7, activitiesScheduledToday: 4, lastSync: '12s ago' }, latest: { severity: 'warn', title: '3 invoices due', summary: 'UGX 300K overdue (Nakamya family 30+ days).' } },
+    { id: 'charis-childcare', name: 'Pikadon', vertical: 'childcare', country: 'Uganda', currency: 'UGX', health: 'unknown', lastSignalAt: 'awaiting first signal', kpis: { revenue: 0, expenses: 0 }, verticalKpis: {}, latest: null },
+    { id: 'kabs-lily-junior-school-and-kindercare-centre', name: 'Kabs Lily Junior School and Kindercare Centre', vertical: 'school', country: 'Uganda', currency: 'UGX', health: 'unknown', lastSignalAt: 'awaiting directory sync', kpis: { revenue: 0, expenses: 0 }, verticalKpis: {}, latest: null },
   ];
+
+  const KABS_LILY_ID = 'kabs-lily-junior-school-and-kindercare-centre';
+  const PIKADON_IDS = new Set(['charis-childcare', 'pikadon', 'pikadon-os']);
+
+  function tenantDirectoryKey(tenant) {
+    const id = String(tenant && tenant.id || '').trim().toLowerCase();
+    const compactName = String(tenant && tenant.name || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+    if (PIKADON_IDS.has(id) || compactName.startsWith('charischildcare') || compactName === 'pikadon' || compactName.startsWith('pikadonos')) return 'pikadon';
+    if (id === KABS_LILY_ID || compactName.startsWith('kabslily')) return 'kabs-lily';
+    return id || compactName;
+  }
+
+  function tenantPreference(tenant, key) {
+    const id = String(tenant && tenant.id || '').toLowerCase();
+    if (key === 'pikadon') return id === 'charis-childcare' ? 0 : id === 'pikadon' ? 1 : 2;
+    if (key === 'kabs-lily') return id === KABS_LILY_ID ? 0 : 1;
+    return 0;
+  }
+
+  function mergeFleetTenants(rows) {
+    const candidates = (Array.isArray(rows) ? rows : []).map(tenant => Object.assign({}, tenant, tenant.meta || {}));
+    const keys = new Set(candidates.map(tenantDirectoryKey));
+    DEFAULT_TENANTS.forEach(tenant => {
+      if (!keys.has(tenantDirectoryKey(tenant))) candidates.push(tenant);
+    });
+
+    const unique = new Map();
+    candidates.forEach(tenant => {
+      const key = tenantDirectoryKey(tenant);
+      const current = unique.get(key);
+      if (!current || tenantPreference(tenant, key) < tenantPreference(current, key)) unique.set(key, tenant);
+    });
+
+    return Array.from(unique, ([key, tenant]) => {
+      if (key === 'pikadon') return Object.assign({}, tenant, { name: 'Pikadon' });
+      if (key === 'kabs-lily') return Object.assign({}, tenant, { name: 'Kabs Lily Junior School and Kindercare Centre' });
+      return tenant;
+    });
+  }
 
   // ─── STATE (In-Memory Caches) ────────────────────────────────────────────
   let _tenantsCache = [];
@@ -98,10 +138,9 @@
     // Fetch Tenants
     const { data: tenantsData, error: tenantsError } = await _supabaseClient.from('tenants').select('*');
     if (!tenantsError && tenantsData) {
-      _tenantsCache = tenantsData.map(t => Object.assign({}, t, t.meta || {}));
-      if (_tenantsCache.length === 0) _tenantsCache = DEFAULT_TENANTS.slice();
+      _tenantsCache = mergeFleetTenants(tenantsData);
     } else {
-      _tenantsCache = DEFAULT_TENANTS.slice();
+      _tenantsCache = mergeFleetTenants(DEFAULT_TENANTS);
     }
     
     // Fetch Projects (stored in os_records)
@@ -128,9 +167,11 @@
   // ─── CRUD OPS ────────────────────────────────────────────────────────────
   
   // Tenants
-  function getTenants() { return _tenantsCache.length ? _tenantsCache : DEFAULT_TENANTS; }
+  function getTenants() { return _tenantsCache.length ? _tenantsCache : mergeFleetTenants(DEFAULT_TENANTS); }
   
   function addTenant(input) {
+    const inputKey = tenantDirectoryKey(input);
+    if (_tenantsCache.some(tenant => tenantDirectoryKey(tenant) === inputKey)) return _tenantsCache;
     const id = input.id || makeSlug(input.name, 'tenant');
     const tenant = {
       id: id,
@@ -148,7 +189,7 @@
     
     // Optimistic update
     const flatTenant = Object.assign({}, tenant, tenant.meta);
-    _tenantsCache.push(flatTenant);
+    _tenantsCache = mergeFleetTenants(_tenantsCache.concat(flatTenant));
     dispatchUpdate();
     
     // Remote

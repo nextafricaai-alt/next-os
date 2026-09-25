@@ -80,6 +80,130 @@ async function cfDownloadDiscoveryFile(submissionId, file) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
+function cfPrintEscape(value) {
+  return String(value ?? '').replace(/[&<>"']/g, char => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+  })[char]);
+}
+
+function cfPrintAnswerValue(answer) {
+  const value = answer?.value;
+  if (answer?.type === 'file') {
+    const files = Array.isArray(value) ? value : [];
+    return files.length
+      ? files.map(file => `${file.name || 'Attachment'}${file.size ? ` (${Math.max(1, Math.round(Number(file.size) / 1024))} KB)` : ''}`).join('\n')
+      : 'No file attached';
+  }
+  if (value === null || value === undefined || value === '') return 'Not provided';
+  if (typeof value === 'boolean') return value ? 'Yes' : 'No';
+  if (Array.isArray(value)) {
+    return value.map(item => item && typeof item === 'object'
+      ? Object.entries(item).map(([key, cell]) => `${key}: ${String(cell ?? '')}`).join('\n')
+      : String(item ?? '')).join('\n');
+  }
+  if (typeof value === 'object') return JSON.stringify(value, null, 2);
+  return String(value);
+}
+
+function cfOpenResponsePdf({ title, company, contact, submittedAt, status, reference, sections, clientLogo }, printWindow = null) {
+  printWindow = printWindow || window.open('', '_blank');
+  if (!printWindow) throw new Error('Allow pop-ups for NEXT OS to export this response as a PDF.');
+
+  const brandLogo = new URL('/uploads/NEXT Favicon Transperent Logo@3x.png', window.location.origin).href;
+  const sectionMarkup = (sections || []).map(section => `
+    <section class="answer-section">
+      <h2>${cfPrintEscape(section.title || 'Answers')}</h2>
+      ${(section.answers || []).map(answer => `
+        <div class="answer-row">
+          <div class="answer-label">${cfPrintEscape(answer.label || 'Answer')}</div>
+          <div class="answer-value">${cfPrintEscape(cfPrintAnswerValue(answer))}</div>
+        </div>`).join('')}
+    </section>`).join('');
+  const logoMarkup = clientLogo
+    ? `<img class="client-logo" src="${cfPrintEscape(clientLogo)}" alt="${cfPrintEscape(company || 'Client')} logo">`
+    : '';
+  const safeTitle = String(title || 'Client response').replace(/[\\/:*?"<>|]+/g, '-').slice(0, 100);
+  const submitted = submittedAt ? new Date(submittedAt).toLocaleString() : 'Date not available';
+
+  printWindow.document.open();
+  printWindow.document.write(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>NEXT - ${cfPrintEscape(safeTitle)} - ${cfPrintEscape(company || 'Client response')}</title>
+  <style>
+    @page{size:A4;margin:16mm 15mm}*{box-sizing:border-box}body{margin:0;color:#18251f;font:13px/1.55 Arial,Helvetica,sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact}.topbar{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:0 0 18px;border-bottom:3px solid #00a96a}.brand{display:flex;align-items:center;gap:12px}.brand img{width:46px;height:46px;object-fit:contain}.brand-name{font-size:22px;font-weight:800;letter-spacing:.04em;color:#16003b}.brand-caption{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#66726c}.client-logo{max-width:145px;max-height:58px;object-fit:contain}.title{margin:24px 0 4px;color:#16003b;font-size:24px;line-height:1.2}.subtitle{margin:0;color:#59655e;font-size:14px}.meta{display:grid;grid-template-columns:1fr 1fr;gap:8px 20px;margin:20px 0 24px;padding:14px 16px;background:#f1faf5;border:1px solid #d4e7dc;border-radius:8px}.meta-item{overflow-wrap:anywhere}.meta-label{display:block;margin-bottom:2px;color:#68756d;font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase}.answer-section{margin:22px 0 0;break-inside:auto}.answer-section h2{margin:0;padding:9px 12px;background:#16003b;color:#fff;font-size:14px;break-after:avoid}.answer-row{padding:10px 12px;border-bottom:1px solid #dfe8e2;break-inside:avoid}.answer-label{margin-bottom:4px;color:#59685f;font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase}.answer-value{white-space:pre-wrap;overflow-wrap:anywhere;color:#15221a}.footer{margin-top:28px;padding-top:10px;border-top:1px solid #dfe8e2;color:#68756d;font-size:9px;display:flex;justify-content:space-between;gap:12px}.empty{padding:24px;color:#68756d;text-align:center}@media print{.answer-section h2{break-after:avoid}.answer-row{break-inside:avoid}}
+  </style></head><body>
+  <header class="topbar"><div class="brand"><img src="${cfPrintEscape(brandLogo)}" alt="NEXT logo"><div><div class="brand-name">NEXT</div><div class="brand-caption">Digital Operating System</div></div></div>${logoMarkup}</header>
+  <main><h1 class="title">${cfPrintEscape(title || 'Client response')}</h1><p class="subtitle">${cfPrintEscape(company || 'Client submission')}</p>
+  <div class="meta"><div class="meta-item"><span class="meta-label">Contact</span>${cfPrintEscape(contact || 'Not provided')}</div><div class="meta-item"><span class="meta-label">Submitted</span>${cfPrintEscape(submitted)}</div><div class="meta-item"><span class="meta-label">Status</span>${cfPrintEscape(status || 'Received')}</div><div class="meta-item"><span class="meta-label">Reference</span>${cfPrintEscape(reference || 'Not available')}</div></div>
+  ${sectionMarkup || '<div class="empty">No answers were included in this response.</div>'}</main>
+  <footer class="footer"><span>NEXT Africa · Client response</span><span>${cfPrintEscape(reference || '')}</span></footer>
+  <script>window.addEventListener('load',function(){window.focus();window.print();},{once:true});</script></body></html>`);
+  printWindow.document.close();
+}
+
+function cfExportFormResponse(form, response) {
+  const sections = [{
+    title: 'Client answers',
+    answers: (form.fields || []).map(field => ({ label: field.label, type: field.type, value: response.answers?.[field.id] })),
+  }];
+  cfOpenResponsePdf({
+    title: form.title || 'Client form response',
+    company: cfClientName(form, response) || 'Client submission',
+    submittedAt: response.submittedAt,
+    status: response.seen ? 'Reviewed' : 'New response',
+    reference: response.id,
+    sections,
+  });
+}
+
+async function cfDiscoveryClientLogo(submission) {
+  const answers = (submission.answers?.sections || []).flatMap(section => section.answers || []);
+  const logoAnswer = answers.find(answer => answer.type === 'file' && /logo/i.test(answer.label || ''));
+  const file = (Array.isArray(logoAnswer?.value) ? logoAnswer.value : []).find(item =>
+    typeof item?.path === 'string' && item.path.startsWith(`${submission.id}/`) &&
+    /^[-a-f0-9]{36}\/[-a-f0-9]{36}\.(png|jpe?g|webp|gif)$/i.test(item.path));
+  if (!file) return '';
+
+  try {
+    const sb = await getSb();
+    const { data, error } = await sb.storage.from('discovery-uploads').download(file.path);
+    if (error || !data) return '';
+    return await new Promise(resolve => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : '');
+      reader.onerror = () => resolve('');
+      reader.readAsDataURL(data);
+    });
+  } catch (error) {
+    return '';
+  }
+}
+
+async function cfExportDiscoverySubmission(submission) {
+  // Open the print tab before awaiting storage so browsers do not block the popup.
+  const printWindow = window.open('', '_blank');
+  if (!printWindow) throw new Error('Allow pop-ups for NEXT OS to export this response as a PDF.');
+  printWindow.document.write('<!doctype html><title>Preparing client response…</title><p style="font:16px Arial;padding:24px">Preparing the branded response PDF…</p>');
+  try {
+    const clientLogo = await cfDiscoveryClientLogo(submission);
+    const sections = (Array.isArray(submission.answers?.sections) ? submission.answers.sections : []).map(section => ({
+      title: section.title,
+      answers: Array.isArray(section.answers) ? section.answers : [],
+    }));
+    cfOpenResponsePdf({
+      title: 'Project discovery response',
+      company: submission.client_company,
+      contact: [submission.contact_name, submission.contact_email, submission.contact_phone].filter(Boolean).join(' · '),
+      submittedAt: submission.created_at,
+      status: submission.status,
+      reference: submission.id,
+      sections,
+      clientLogo,
+    }, printWindow);
+  } catch (error) {
+    printWindow.close();
+    throw error;
+  }
+}
+
 async function cfSaveForm(form) {
   const sb = await getSb();
   const { id, title, description, fields, status } = form;
@@ -625,6 +749,7 @@ const ShareModal = ({ form, onClose }) => {
 
 /* ─── Response viewer modal ─── */
 const ResponsesModal = ({ form, onClose }) => {
+  const [exportError, setExportError] = React.useState('');
   const s = {
     overlay: {
       position: 'fixed', inset: 0, zIndex: 1001,
@@ -652,6 +777,7 @@ const ResponsesModal = ({ form, onClose }) => {
     qLabel: { fontSize: 11, fontWeight: 600, color: C.textTer, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 },
     aValue: { fontSize: 14, color: C.textPrim, lineHeight: 1.5 },
     timestamp: { fontSize: 11, fontFamily: 'var(--font-mono)', color: C.textTer, marginBottom: 14 },
+    exportButton: { background: 'rgba(0,252,143,0.1)', border: '1px solid rgba(0,252,143,0.3)', color: C.mint, borderRadius: 7, padding: '6px 10px', cursor: 'pointer', fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap' },
   };
 
   const responses = form.responses || [];
@@ -671,6 +797,7 @@ const ResponsesModal = ({ form, onClose }) => {
           <button style={{ background: 'none', border: 'none', color: C.textTer, fontSize: 20, cursor: 'pointer' }} onClick={onClose}>✕</button>
         </div>
         <div style={s.body}>
+          {exportError && <div role="alert" style={{ color: '#ff9b9b', marginBottom: 14 }}>{exportError}</div>}
           {responses.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '40px 0', color: C.textTer, fontSize: 14 }}>
               <div style={{ fontSize: 32, marginBottom: 12 }}>📭</div>
@@ -678,11 +805,21 @@ const ResponsesModal = ({ form, onClose }) => {
             </div>
           ) : [...responses].reverse().map((resp, i) => (
             <div key={resp.id || i} style={s.responseCard}>
-              <div style={s.timestamp}>Submitted {new Date(resp.submittedAt).toLocaleString()}</div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+                <div style={s.timestamp}>Submitted {new Date(resp.submittedAt).toLocaleString()}</div>
+                <button style={s.exportButton} onClick={() => {
+                  setExportError('');
+                  try { cfExportFormResponse(form, resp); } catch (error) { setExportError(error.message || 'Could not export this response.'); }
+                }}>Export PDF</button>
+              </div>
               {form.fields.map(field => (
                 <div key={field.id} style={s.answerRow}>
                   <div style={s.qLabel}>{field.label}</div>
-                  <div style={s.aValue}>{resp.answers?.[field.id] || <em style={{ color: C.textTer }}>—</em>}</div>
+                  <div style={s.aValue}>
+                    {resp.answers?.[field.id] === undefined || resp.answers?.[field.id] === null || resp.answers?.[field.id] === ''
+                      ? <em style={{ color: C.textTer }}>—</em>
+                      : cfPrintAnswerValue({ type: field.type, value: resp.answers[field.id] })}
+                  </div>
                 </div>
               ))}
             </div>
@@ -730,6 +867,8 @@ const DiscoveryFormCard = ({ count, ready, error, onShare, onView }) => {
 
 const DiscoveryInboxModal = ({ submissions, count, selected, error, onSelect, onDownload, onClose }) => {
   const [downloadError, setDownloadError] = React.useState('');
+  const [exportError, setExportError] = React.useState('');
+  const [exporting, setExporting] = React.useState(false);
   const s = {
     overlay: { position: 'fixed', inset: 0, zIndex: 1002, background: 'rgba(6,0,18,0.85)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '24px 16px', overflowY: 'auto' },
     modal: { background: C.elevated, border: `1px solid ${C.borderDef}`, borderRadius: 16, maxWidth: 1120, width: '100%', minHeight: 360, boxShadow: '0 24px 80px rgba(0,0,0,0.6)', overflow: 'hidden' },
@@ -742,6 +881,7 @@ const DiscoveryInboxModal = ({ submissions, count, selected, error, onSelect, on
     answer: { padding: '10px 0', borderBottom: `1px solid ${C.border}` },
     label: { fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em', color: C.textTer, marginBottom: 4 },
     value: { whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', fontSize: 13, color: C.textPrim, lineHeight: 1.55 },
+    exportButton: { background: 'rgba(0,252,143,0.1)', border: '1px solid rgba(0,252,143,0.3)', color: C.mint, borderRadius: 7, padding: '7px 11px', cursor: exporting ? 'wait' : 'pointer', fontSize: 12, fontWeight: 600, opacity: exporting ? 0.65 : 1 },
   };
   const renderValue = (answer, submissionId) => {
     const value = answer?.value;
@@ -789,6 +929,13 @@ const DiscoveryInboxModal = ({ submissions, count, selected, error, onSelect, on
                 <h2 style={{ margin: '0 0 6px', fontSize: 21 }}>{selected.client_company}</h2>
                 <div style={{ color: C.textSec, fontSize: 13 }}>{selected.contact_name} · {selected.contact_email} · {selected.contact_phone}</div>
                 <div style={{ color: C.textTer, fontSize: 11, marginTop: 5 }}>Submitted {new Date(selected.created_at).toLocaleString()} · {selected.status}</div>
+                <button style={{ ...s.exportButton, marginTop: 14 }} disabled={exporting} onClick={async () => {
+                  setExportError('');
+                  setExporting(true);
+                  try { await cfExportDiscoverySubmission(selected); } catch (err) { setExportError(err.message || 'Could not export this submission.'); }
+                  finally { setExporting(false); }
+                }}>{exporting ? 'Preparing PDF…' : 'Export PDF'}</button>
+                {exportError && <div role="alert" style={{ color: '#ff9b9b', marginTop: 10 }}>{exportError}</div>}
                 {downloadError && <div role="alert" style={{ color: '#ff9b9b', marginTop: 12 }}>{downloadError}</div>}
                 {(Array.isArray(selected.answers?.sections) ? selected.answers.sections : []).map(section => <section key={section.id || section.title} style={s.section}>
                   <h3 style={{ margin: '0 0 8px', color: C.mint, fontSize: 14 }}>{section.title}</h3>

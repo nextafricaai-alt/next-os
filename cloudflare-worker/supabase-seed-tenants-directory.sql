@@ -1,8 +1,8 @@
 -- Rescue KABSLILY (and the rest of the fleet) from the Fleet Dashboard.
 --
 -- Root cause: the `tenants` directory table is empty in production, so
--- os-data.jsx / NEXT OS.html always fall back to their two hardcoded demo
--- rows (peak-primary, charis-childcare) and KABSLILY never appears, even
+-- os-data.jsx / NEXT OS.html fall back to local directory entries and KABSLILY
+-- has no persistent Fleet row, even
 -- though its students/fees/teachers rows have been live in Supabase for
 -- days. This seeds real directory rows (computed from the real child
 -- tables, not fabricated numbers) and makes sure anon reads aren't
@@ -15,19 +15,34 @@
 --    metadata (name, vertical, aggregate KPIs) — the sensitive per-student
 --    data stays gated on students/fees/teachers/attendance.
 ALTER TABLE IF EXISTS tenants ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS tenant_isolation ON tenants;
-DROP POLICY IF EXISTS "Public read" ON tenants;
-DROP POLICY IF EXISTS "Public access" ON tenants;
-CREATE POLICY "Public read" ON tenants FOR SELECT USING (true);
-CREATE POLICY "Public write" ON tenants FOR INSERT WITH CHECK (true);
-CREATE POLICY "Public update" ON tenants FOR UPDATE USING (true) WITH CHECK (true);
-CREATE POLICY "Public delete" ON tenants FOR DELETE USING (true);
+DROP POLICY IF EXISTS tenant_isolation ON public.tenants;
+DROP POLICY IF EXISTS "Public read" ON public.tenants;
+DROP POLICY IF EXISTS "Public access" ON public.tenants;
+DROP POLICY IF EXISTS "Public write" ON public.tenants;
+DROP POLICY IF EXISTS "Public update" ON public.tenants;
+DROP POLICY IF EXISTS "Public delete" ON public.tenants;
+DROP POLICY IF EXISTS "Fleet operators manage directory" ON public.tenants;
+CREATE POLICY "Public read" ON public.tenants
+  FOR SELECT TO anon, authenticated USING (true);
+CREATE POLICY "Fleet operators manage directory" ON public.tenants
+  FOR ALL TO authenticated
+  USING (
+    (SELECT auth.jwt() -> 'app_metadata' ->> 'role') = 'nextos_admin'
+    OR lower((SELECT auth.jwt() ->> 'email')) IN ('hudson.tim.uk@gmail.com', 'patrickemma143@gmail.com')
+  )
+  WITH CHECK (
+    (SELECT auth.jwt() -> 'app_metadata' ->> 'role') = 'nextos_admin'
+    OR lower((SELECT auth.jwt() ->> 'email')) IN ('hudson.tim.uk@gmail.com', 'patrickemma143@gmail.com')
+  );
+GRANT SELECT ON public.tenants TO anon, authenticated;
+GRANT INSERT, UPDATE, DELETE ON public.tenants TO authenticated;
+REVOKE INSERT, UPDATE, DELETE ON public.tenants FROM anon;
 
 -- 2. Seed / refresh the three known tenants. KPIs for kabs-lily and
 --    peak-primary are computed live from their real students/fees/teachers
---    rows so they don't drift from reality. charis-childcare has no
---    Supabase-backed child tables yet, so it keeps its existing
---    placeholder numbers (unchanged from the current os-data.jsx demo seed).
+--    rows so they don't drift from reality. The old charis-childcare ID is
+--    retained as Pikadon's stable directory ID; its unrelated demo KPIs are
+--    cleared until Pikadon has real signals.
 
 INSERT INTO tenants (id, name, vertical, country, subdomain, tier, status, meta)
 VALUES (
@@ -80,18 +95,19 @@ ON CONFLICT (id) DO UPDATE SET
 INSERT INTO tenants (id, name, vertical, country, subdomain, tier, status, meta)
 VALUES (
   'charis-childcare',
-  'Charis Childcare OS',
+  'Pikadon',
   'childcare', 'Uganda', NULL, 'catalyst', 'active',
   jsonb_build_object(
     'currency', 'UGX',
-    'health', 'advisory',
-    'prototypeUrl', '../index.html',
-    'kpis', jsonb_build_object('revenue', 2100000, 'expenses', 840000),
-    'verticalKpis', jsonb_build_object(
-      'enrolled', 24, 'presentToday', 21, 'absentToday', 3, 'attendanceRate', 0.875,
-      'caretakers', 3, 'activeParents', 20, 'invoicesDue', 3, 'invoicesOverdue30d', 1,
-      'overdueAmount', 300000, 'totalInvoiced', 2100000, 'collectionRate', 0.857
-    )
+    'health', 'unknown',
+    'lastSignalAt', 'awaiting first signal',
+    'prototypeUrl', NULL,
+    'kpis', jsonb_build_object('revenue', 0, 'expenses', 0),
+    'verticalKpis', '{}'::jsonb,
+    'latest', NULL
   )
 )
-ON CONFLICT (id) DO UPDATE SET updated_at = now();
+ON CONFLICT (id) DO UPDATE SET
+  name = EXCLUDED.name,
+  meta = tenants.meta || EXCLUDED.meta,
+  updated_at = now();

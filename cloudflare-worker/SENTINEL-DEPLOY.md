@@ -80,13 +80,10 @@ records without you reviewing them first.
 ### 1. Rescue KABSLILY (and the rest of the fleet directory)
 
 Open the Supabase SQL editor for this project and run, in order:
-- `cloudflare-worker/supabase-seed-tenants-directory.sql` — this is the fix
-  for the actual bug: the `tenants` directory table is empty in production,
-  so the Fleet Dashboard only ever shows its two hardcoded fallback rows and
-  KABSLILY never appears, even though its 148 students/12 teachers/fees rows
-  have been live in Supabase for days. This seeds real directory rows
-  (KPIs computed from the live child tables, not fabricated) and opens
-  anon SELECT on the directory table.
+- `cloudflare-worker/supabase-seed-tenants-directory.sql` — adds or refreshes
+  Kabs Lily's durable Fleet row and computes its KPIs from live school tables.
+  The directory remains readable publicly, while insert/update/delete require
+  an approved signed-in NEXT OS operator.
 - `cloudflare-worker/supabase-sync-errors-webhook.sql` — creates the
   `sync_errors` table used by step 3 below.
 
