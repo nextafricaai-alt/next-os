@@ -304,6 +304,10 @@
         enrollmentInquiries: 4, lastSync: '38s ago',
       },
       latest: { severity: 'warn', title: '3 fee accounts overdue 30+ days', summary: 'UGX 1.08M outstanding · WhatsApp gentle reminder draft is queued for your approval.' } },
+    { id: 'sembule-media',         name: 'Sembule Media',           vertical: 'company',     country: 'Uganda', currency: 'UGX',
+      health: 'unknown', lastSignalAt: 'awaiting first signal',
+      prototypeUrl: 'sembule/index.html',
+      kpis: { revenue: 0, expenses: 0 }, latest: null },
     { id: 'st-marys-demo',         name: "St. Mary's Demo School", vertical: 'school',       country: 'Uganda', currency: 'UGX',
       health: 'advisory', lastSignalAt: '2m ago',
       kpis: { revenue: 1584000000, expenses: 1880000000 },
@@ -508,7 +512,14 @@
       if (_live && _live.length) {
         var defaultTenants = _orig();
         var cc = defaultTenants.find(t => t.id === 'charis-childcare');
-        return (cc && !_live.find(t => t.id === 'charis-childcare')) ? _live.concat(cc) : _live;
+        var sembule = defaultTenants.find(t => t.id === 'sembule-media');
+        var merged = _live.map(t => t.id === 'sembule-media' && sembule
+          ? Object.assign({}, sembule, t, { prototypeUrl: sembule.prototypeUrl })
+          : t);
+        [cc, sembule].filter(Boolean).forEach(t => {
+          if (!merged.find(existing => existing.id === t.id)) merged.push(t);
+        });
+        return merged;
       }
       return _orig(); 
     };
