@@ -704,6 +704,12 @@ const FLEET_DIRECTORY_DEFAULTS = TENANTS_SEED.concat([
     verticalKpis: {}, latest: null,
   },
   {
+    id: 'sembule-media', name: 'Sembule Media', vertical: 'company',
+    country: 'Uganda', currency: 'UGX', health: 'unknown',
+    lastSignalAt: 'awaiting first signal', kpis: { revenue: 0, expenses: 0 },
+    verticalKpis: {}, latest: null, prototypeUrl: 'sembule/index.html',
+  },
+  {
     id: 'kabs-lily-junior-school-and-kindercare-centre',
     name: 'Kabs Lily Junior School and Kindercare Centre', vertical: 'school',
     country: 'Uganda', currency: 'UGX', health: 'unknown',

@@ -282,7 +282,7 @@
 
   // ─── TENANT FLEET (seed) ─────────────────────────────────────────────────
   const DEFAULT_TENANTS = [
-    { id: 'charis-childcare', name: 'Charis Childcare', vertical: 'childcare', country: 'Uganda', currency: 'UGX',
+    { id: 'charis-childcare', name: 'Pikadon', vertical: 'childcare', country: 'Uganda', currency: 'UGX',
       health: 'advisory', lastSignalAt: '10m ago',
       prototypeUrl: '',
       kpis: { revenue: 5000000, expenses: 1200000 },
@@ -495,10 +495,27 @@
 (function(){
   var NIA = (window.NEXT_OS_SENTINEL_ENDPOINT) || 'https://nextos-sentinel.nextafricaai.workers.dev';
   var _live = null, _patched = false;
+  function isPikadon(tenant){
+    var id = String(tenant && tenant.id || '').trim().toLowerCase();
+    var name = String(tenant && tenant.name || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+    return ['charis-childcare','pikadon','pikadon-os'].includes(id) || name.startsWith('charischildcare') || name === 'pikadon' || name.startsWith('pikadonos');
+  }
+  function normalizeFleetTenants(rows){
+    var unique = new Map();
+    (Array.isArray(rows) ? rows : []).forEach(function(row){
+      if (!row || typeof row !== 'object') return;
+      var tenant = isPikadon(row) ? Object.assign({}, row, { id: 'charis-childcare', name: 'Pikadon', vertical: 'childcare' }) : row;
+      var id = String(tenant.id || '').trim().toLowerCase();
+      var name = String(tenant.name || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+      var key = isPikadon(tenant) ? 'pikadon' : (id || name);
+      if (key && !unique.has(key)) unique.set(key, tenant);
+    });
+    return Array.from(unique.values());
+  }
   function doFetch(){
     return fetch(NIA + '/fleet').then(function(r){ return r.ok ? r.json() : null; }).then(function(d){
       if (d && Array.isArray(d.tenants) && d.tenants.length){
-        _live = d.tenants;
+        _live = normalizeFleetTenants(d.tenants);
         try { window.dispatchEvent(new CustomEvent('osdata:fleet', { detail: { count: _live.length, source: d.source } })); } catch(e){}
       }
       return _live;
@@ -509,19 +526,21 @@
     _patched = true;
     var _orig = window.OS_DATA.getTenants;
     window.OS_DATA.getTenants = function(){ 
+      var defaultTenants = _orig();
+      var pikadon = defaultTenants.find(t => t.id === 'charis-childcare');
+      var sembule = defaultTenants.find(t => t.id === 'sembule-media');
       if (_live && _live.length) {
-        var defaultTenants = _orig();
-        var cc = defaultTenants.find(t => t.id === 'charis-childcare');
-        var sembule = defaultTenants.find(t => t.id === 'sembule-media');
-        var merged = _live.map(t => t.id === 'sembule-media' && sembule
+        var merged = normalizeFleetTenants(_live).map(t => t.id === 'sembule-media' && sembule
           ? Object.assign({}, sembule, t, { prototypeUrl: sembule.prototypeUrl })
           : t);
-        [cc, sembule].filter(Boolean).forEach(t => {
-          if (!merged.find(existing => existing.id === t.id)) merged.push(t);
-        });
-        return merged;
+        if (pikadon && !merged.some(t => isPikadon(t))) merged.push(pikadon);
+        if (sembule && !merged.some(t => t.id === 'sembule-media')) {
+          var pikadonIndex = merged.findIndex(t => isPikadon(t));
+          merged.splice(pikadonIndex >= 0 ? pikadonIndex + 1 : Math.min(1, merged.length), 0, sembule);
+        }
+        return normalizeFleetTenants(merged);
       }
-      return _orig(); 
+      return normalizeFleetTenants(defaultTenants); 
     };
     window.OS_DATA.fleetSource = function(){ return _live ? 'live' : 'seed'; };
     window.OS_DATA.refreshFleet = doFetch;
@@ -3610,6 +3629,7 @@ Object.assign(window, { SentinelPanel, SentinelPage, OnboardingPage });
 */
 
 const VERTICAL_LABELS = {
+  childcare: 'Pikadon',
   school: 'Schools',
   hospital: 'Hospitals',
   home: 'Homes',
@@ -7678,8 +7698,6 @@ const PlaceholderPage = ({ title, description, icon }) => {
    Supervised by Nia. Data mirrors os-data.jsx charis-childcare tenant.
 */
 
-console.log("os-childcare.jsx is executing!");
-alert("os-childcare.jsx is executing!");
 
 (function () {
 

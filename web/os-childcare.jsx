@@ -544,7 +544,7 @@ Your task: Provide a brief, professional, and actionable 2-sentence assessment. 
             flexShrink: 0
           }}>🛡️</div>
           <div>
-            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--mint)' }}>Nia is watching Childcare OS</div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--mint)' }}>Nia is watching Pikadon OS</div>
             <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>
               2 parent messages unanswered · Nakamya invoice 30+ days overdue · 3 children absent today
             </div>
