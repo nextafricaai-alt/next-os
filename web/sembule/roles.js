@@ -18,6 +18,7 @@ export const ROUTES = Object.freeze([
   { id: 'invoices', label: 'Invoices & payments', group: 'Business', icon: 'wallet', money: true, note: 'Keep billing and payment records together.' },
   { id: 'expenses', label: 'Expenses', group: 'Business', icon: 'receipt', money: true, note: 'Account for the cost of each production.' },
   { id: 'reports', label: 'Reports', group: 'Business', icon: 'grid', money: true, note: 'Money in, what sells, and who still owes.' },
+  { id: 'website', label: 'Website editor', group: 'Manage', icon: 'screen', owner: true, note: 'Update the public Sembule Media website.' },
   { id: 'settings', label: 'Settings', group: 'Manage', icon: 'settings', owner: true, note: 'Company details and the way you work.' }
 ]);
 export function allowedRoute(route, role) {

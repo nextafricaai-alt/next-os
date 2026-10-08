@@ -1,8 +1,13 @@
 // Static app assets only. Auth, API calls and user records never enter this cache.
 const CACHE_PREFIX = 'sembule-shell-';
-const CACHE = CACHE_PREFIX + '0.8.0';
+const CACHE = CACHE_PREFIX + '0.8.1';
 const FILES = [
   "./app.js",
+  "./website-content.js",
+  "./website-renderer.js",
+  "./website-preview.css",
+  "./website.css",
+  "./website-bridge.js",
   "./assets/brand/icon-192.png",
   "./assets/brand/icon-512.png",
   "./assets/brand/logo.png",
@@ -32,6 +37,7 @@ const FILES = [
   "./modules/delivery.js",
   "./modules/home.js",
   "./modules/settings.js",
+  "./modules/website.js",
   "./modules/reports.js",
   "./refs.js",
   "./modules/dashboard.js",

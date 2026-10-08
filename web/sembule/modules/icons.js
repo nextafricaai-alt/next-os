@@ -9,6 +9,7 @@ const paths = {
   file: '<path d="M14 2H5v20h14V7zm0 0v6h5M8 12h8m-8 4h6"/>',
   wallet: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 8V4l14-2v3m4 7h-6v5h6m-3-2.5h.01"/>',
   receipt: '<path d="M5 3 8 5l4-2 4 2 3-2v18l-3-2-4 2-4-2-3 2zM8 9h8m-8 4h8"/>',
+  screen: '<rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8m-4-4v4M7 9h4m-4 4h10"/><circle cx="17" cy="9" r="1"/>',
   settings: '<path d="m9 3-1 3-3 1 1 4-2 2 2 3 3-1 3 3 3-2 3 1 2-4-2-2 1-3-4-1-1-3z"/><circle cx="12" cy="11" r="3"/>',
   arrow: '<path d="M5 12h14m-6-6 6 6-6 6"/>',
   logout: '<path d="M9 3H4v18h5m5-14 5 5-5 5m-6-5h11"/>',

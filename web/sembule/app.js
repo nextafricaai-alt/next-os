@@ -21,6 +21,7 @@ import { mountDelivery } from './modules/delivery.js';
 import { mountDashboard } from './modules/home.js';
 import { mountSettings } from './modules/settings.js';
 import { mountReports } from './modules/reports.js';
+import { mountWebsite } from './modules/website.js';
 import { loadCompany } from './refs.js';
 const root = document.getElementById('app');
 let identity = null, auth = null, db = null, revision = 0, signingIn = false;
@@ -37,7 +38,7 @@ async function render(message = '') {
   const route = resolveRoute(requested, identity.role);
   if (!route) { identity = null; render('Your workspace access could not be verified.'); return; }
   if (requested !== route.id) { history.replaceState(null, '', '#dashboard'); notify('That area is not available for this account.'); }
-  const moduleMount = { leads: mountLeads, clients: mountClients, holds: mountHolds, quotes: mountQuotes, invoices: mountInvoices, expenses: mountExpenses, jobs: mountJobs, crew: mountCrew, calendar: mountCalendar, equipment: mountEquipment, delivery: mountDelivery, dashboard: mountDashboard, settings: mountSettings, reports: mountReports }[route.id];
+  const moduleMount = { leads: mountLeads, clients: mountClients, holds: mountHolds, quotes: mountQuotes, invoices: mountInvoices, expenses: mountExpenses, jobs: mountJobs, crew: mountCrew, calendar: mountCalendar, equipment: mountEquipment, delivery: mountDelivery, dashboard: mountDashboard, settings: mountSettings, reports: mountReports, website: mountWebsite }[route.id];
   const content = route.id === 'dashboard' && identity.preview ? dashboardView(identity) : moduleMount ? '<div class="module-loading">Loading…</div>' : placeholderView(route);
   root.innerHTML = shellView(identity, route, content);
   document.title = `${route.label} | ${CONFIG.name}`;
