@@ -1,6 +1,6 @@
 // Static app assets only. Auth, API calls and user records never enter this cache.
 const CACHE_PREFIX = 'sembule-shell-';
-const CACHE = CACHE_PREFIX + '0.8.1';
+const CACHE = CACHE_PREFIX + '0.8.2';
 const FILES = [
   "./app.js",
   "./website-content.js",
@@ -54,7 +54,7 @@ const FILES = [
 const ALLOWED = new Set(FILES.map(path => new URL(path, self.registration.scope).href));
 ALLOWED.add(self.registration.scope);
 self.addEventListener('install', event => {
-  event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(FILES)));
+  event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(FILES)).then(() => self.skipWaiting()));
 });
 self.addEventListener('activate', event => {
   event.waitUntil(caches.keys().then(keys => Promise.all(keys

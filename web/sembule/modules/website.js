@@ -280,6 +280,10 @@ export async function mountWebsite(context) {
   previewTimer = null;
   if (bridgeListener) window.removeEventListener('message', bridgeListener);
   bridgeConnected = false;
+  if (identity.role !== 'owner') {
+    host.innerHTML = '<section class="error-panel"><strong>Owner access required</strong><p>Website changes can only be managed by an owner account.</p></section>';
+    return;
+  }
   activePage = 'home';
   previewMode = 'draft';
   previewSize = 'desktop';
