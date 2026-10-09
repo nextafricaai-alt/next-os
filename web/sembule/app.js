@@ -24,6 +24,7 @@ import { mountReports } from './modules/reports.js';
 import { mountWebsite } from './modules/website.js';
 import { loadCompany } from './refs.js';
 const root = document.getElementById('app');
+const LAST_ROUTE_KEY = 'sembule-last-workspace-route';
 let identity = null, auth = null, db = null, revision = 0, signingIn = false;
 const configured = connectionState() === 'configured';
 const previewAllowed = canPreview(location.hostname);
@@ -31,13 +32,29 @@ const toast = document.getElementById('toast');
 let toastTimer;
 function notify(message) { toast.textContent = message; toast.hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => { toast.hidden = true; }, 7000); }
 function connectionBanner() { const banner = document.getElementById('connection-banner'); if (banner) banner.hidden = navigator.onLine; }
+function requestedRoute() {
+  const fromUrl = location.hash.slice(1);
+  if (fromUrl) return fromUrl;
+  try {
+    const saved = sessionStorage.getItem(LAST_ROUTE_KEY);
+    if (saved) {
+      history.replaceState(null, '', `${location.pathname}${location.search}#${saved}`);
+      return saved;
+    }
+  } catch { /* Keep the dashboard as the fallback when storage is unavailable. */ }
+  return 'dashboard';
+}
+function rememberRoute(routeId) {
+  try { sessionStorage.setItem(LAST_ROUTE_KEY, routeId); } catch { /* Route remains available in the URL. */ }
+}
 async function render(message = '') {
   document.body.classList.remove('menu-open');
   if (!identity) { root.innerHTML = loginView({ configured, preview: previewAllowed, message }); document.title = 'Sign in | Sembule Media'; return; }
-  const requested = location.hash.slice(1) || 'dashboard';
+  const requested = requestedRoute();
   const route = resolveRoute(requested, identity.role);
   if (!route) { identity = null; render('Your workspace access could not be verified.'); return; }
   if (requested !== route.id) { history.replaceState(null, '', '#dashboard'); notify('That area is not available for this account.'); }
+  rememberRoute(route.id);
   const moduleMount = { leads: mountLeads, clients: mountClients, holds: mountHolds, quotes: mountQuotes, invoices: mountInvoices, expenses: mountExpenses, jobs: mountJobs, crew: mountCrew, calendar: mountCalendar, equipment: mountEquipment, delivery: mountDelivery, dashboard: mountDashboard, settings: mountSettings, reports: mountReports, website: mountWebsite }[route.id];
   const content = route.id === 'dashboard' && identity.preview ? dashboardView(identity) : moduleMount ? '<div class="module-loading">Loading…</div>' : placeholderView(route);
   root.innerHTML = shellView(identity, route, content);
@@ -69,6 +86,7 @@ async function verifyAccess() {
 }
 async function leave() {
   const wasPreview = identity?.preview;
+  try { sessionStorage.removeItem(LAST_ROUTE_KEY); } catch { /* Ignore unavailable browser storage. */ }
   ++revision; identity = null; history.replaceState(null, '', location.pathname); render();
   if (!wasPreview && auth) {
     try { await auth.signOut(); } catch { notify('Signed out on this device. Reconnect before signing in again.'); }
