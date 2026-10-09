@@ -210,7 +210,7 @@ function editorMarkup() {
         <details class="website-setup"><summary>Connect the public site once</summary><p>Run the website content SQL in the Sembule Supabase project, deploy this Sembule OS update, then add the bridge script to the five public HTML pages. Full steps are in website-integration.md.</p><code>&lt;script type="module" src="${e(WEBSITE_BRIDGE_URL)}"&gt;&lt;/script&gt;</code></details>
       </aside>
     </div>
-    <dialog class="website-publish-confirm" data-publish-confirm aria-labelledby="website-confirm-title" aria-describedby="website-confirm-copy"><div><p class="eyebrow">MAKE IT PUBLIC</p><h3 id="website-confirm-title">Publish these website changes?</h3><p id="website-confirm-copy">The published copy can be read by anyone who visits the Hostinger website after its one-time bridge setup.</p><div><button class="button secondary" type="button" data-cancel-publish>Keep editing</button><button class="button primary" type="button" data-confirm-publish>Publish changes</button></div></div></dialog>
+    <dialog class="website-publish-confirm" data-publish-confirm aria-labelledby="website-confirm-title" aria-describedby="website-confirm-copy"><div><p class="eyebrow">MAKE IT PUBLIC</p><h3 id="website-confirm-title">Publish these website changes?</h3><p id="website-confirm-copy">The published copy can be read by anyone who visits the Hostinger website after its one-time bridge setup.</p><p class="website-publish-error" data-publish-error role="alert" hidden></p><div><button class="button secondary" type="button" data-cancel-publish>Keep editing</button><button class="button primary" type="button" data-confirm-publish>Publish changes</button></div></div></dialog>
   </section>`;
 }
 function setFields() {
@@ -362,8 +362,10 @@ export async function mountWebsite(context) {
     }
     if (button.hasAttribute('data-confirm-publish')) {
       const confirm = host.querySelector('[data-confirm-publish]');
+      const errorMessage = host.querySelector('[data-publish-error]');
       confirm.disabled = true;
       confirm.textContent = 'Publishing…';
+      if (errorMessage) { errorMessage.hidden = true; errorMessage.textContent = ''; }
       try {
         await persist(client, identity, true);
         host.querySelector('[data-publish-confirm]').close();
@@ -373,7 +375,11 @@ export async function mountWebsite(context) {
         previewDocument();
         notify('Website changes published. They will appear on the Hostinger site after its one-time bridge setup.');
       } catch (error) {
-        notify('Changes could not be published: ' + error.message);
+        if (errorMessage) {
+          errorMessage.textContent = 'Could not publish: ' + (error.message || 'Please check your connection and try again.');
+          errorMessage.hidden = false;
+        } else notify('Changes could not be published: ' + error.message);
+      } finally {
         confirm.disabled = false;
         confirm.textContent = 'Publish changes';
       }

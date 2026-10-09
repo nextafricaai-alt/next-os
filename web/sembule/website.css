@@ -72,6 +72,7 @@
 .website-publish-confirm p:not(.eyebrow){font-size:11px;line-height:1.7;color:var(--muted)}
 .website-publish-confirm>div>div{display:flex;justify-content:flex-end;gap:8px;margin-top:15px}
 .website-publish-confirm .button{min-height:40px;padding:9px 13px;font-size:10px}
+.website-publish-error{margin:10px 0 0!important;color:#a12727!important;font-size:11px;line-height:1.5!important}
 @media(max-width:1100px){.website-layout{grid-template-columns:1fr}.website-preview-panel{position:static}.website-editor-panel{max-height:none}.website-frame-shell{height:620px}}
 @media(max-width:700px){
  .website-editor-intro{align-items:flex-start;flex-direction:column}

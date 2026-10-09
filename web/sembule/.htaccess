@@ -1,0 +1,6 @@
+# Revalidate application assets after deployments; the service worker manages offline caching.
+<IfModule mod_headers.c>
+  <FilesMatch "\.(js|mjs|css|json)$">
+    Header set Cache-Control "no-cache, must-revalidate"
+  </FilesMatch>
+</IfModule>
