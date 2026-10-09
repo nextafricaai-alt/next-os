@@ -1,10 +1,13 @@
 import { WEBSITE_DEFAULTS, WEBSITE_URL } from '../website-content.js';
+import { CONFIG } from '../config.js';
 import { renderWebsitePreview } from '../website-renderer.js';
 import { escapeHTML, withTimeout } from '../utils.js';
 
 const e = escapeHTML;
 const PAGE_NAMES = { home: 'Home page', services: 'Services', portfolio: 'Selected work', about: 'About', contact: 'Contact' };
-const WEBSITE_BRIDGE_URL = new URL('../website-bridge.js', import.meta.url).href;
+const bridgeScriptUrl = new URL('../website-bridge.js', import.meta.url);
+bridgeScriptUrl.searchParams.set('v', CONFIG.version);
+const WEBSITE_BRIDGE_URL = bridgeScriptUrl.href;
 const clone = value => JSON.parse(JSON.stringify(value));
 let activePage = 'home';
 let content = null;
@@ -16,6 +19,8 @@ let previewMode = 'draft';
 let previewSize = 'desktop';
 let hostNode = null;
 let bridgeConnected = false;
+let bridgeCheckComplete = false;
+let bridgeCheckTimer = null;
 let bridgeListener = null;
 let previewTimer = null;
 
@@ -151,8 +156,11 @@ function saveState() {
   if (publish) publish.disabled = isDirty() || !savedContent;
   const live = hostNode.querySelector('[data-live-state]');
   if (live) {
-    live.textContent = bridgeConnected ? 'Live site connected' : 'One-time site setup needed';
+    live.textContent = bridgeConnected ? 'Public site connected'
+      : bridgeCheckComplete ? 'Bridge not detected on the public site'
+        : 'Checking public site connection…';
     live.classList.toggle('is-connected', bridgeConnected);
+    live.classList.toggle('is-disconnected', !bridgeConnected && bridgeCheckComplete);
   }
   const lastSaved = hostNode.querySelector('[data-last-saved]');
   if (lastSaved) lastSaved.textContent = savedAt ? 'Draft saved ' + new Date(savedAt).toLocaleString() : 'No draft saved yet';
@@ -191,9 +199,10 @@ function editorMarkup() {
     </div>
     <div class="website-editor-status">
       <span class="website-status-dot"></span>
-      <div><strong data-live-state>One-time site setup needed</strong><small data-last-published>No editor changes published yet</small></div>
+      <div><strong data-live-state aria-live="polite">Checking public site connection…</strong><small data-last-published>No editor changes published yet</small></div>
       <a href="${WEBSITE_URL}" target="_blank" rel="noreferrer">Hostinger site ↗</a>
     </div>
+    <iframe class="website-bridge-probe" data-bridge-probe title="Checking the public website connection" aria-hidden="true" tabindex="-1" sandbox="allow-scripts allow-same-origin"></iframe>
     <div class="website-toolbar">
       <nav class="website-tabs" aria-label="Website page sections">${pageLinks}</nav>
       <div class="website-actions"><span class="website-save-state" data-save-state>Loading website…</span><button class="button secondary" type="button" data-save-draft disabled>Save draft</button><button class="button primary" type="button" data-publish disabled>Publish</button></div>
@@ -280,6 +289,9 @@ export async function mountWebsite(context) {
   previewTimer = null;
   if (bridgeListener) window.removeEventListener('message', bridgeListener);
   bridgeConnected = false;
+  bridgeCheckComplete = false;
+  clearTimeout(bridgeCheckTimer);
+  bridgeCheckTimer = null;
   if (identity.role !== 'owner') {
     host.innerHTML = '<section class="error-panel"><strong>Owner access required</strong><p>Website changes can only be managed by an owner account.</p></section>';
     return;
@@ -290,8 +302,14 @@ export async function mountWebsite(context) {
   hostNode = host;
   host.innerHTML = '<div class="module-loading">Loading website content…</div>';
   bridgeListener = event => {
-    if (event.origin === new URL(WEBSITE_URL).origin && event.data?.type === 'SEMBULE_SITE_BRIDGE_READY') {
+    const probeWindow = hostNode?.querySelector('[data-bridge-probe]')?.contentWindow;
+    const previewWindow = hostNode?.querySelector('[data-website-preview]')?.contentWindow;
+    if (event.origin === new URL(WEBSITE_URL).origin
+      && (event.source === probeWindow || event.source === previewWindow)
+      && event.data?.type === 'SEMBULE_SITE_BRIDGE_READY') {
       bridgeConnected = true;
+      bridgeCheckComplete = true;
+      clearTimeout(bridgeCheckTimer);
       saveState();
     }
   };
@@ -301,6 +319,13 @@ export async function mountWebsite(context) {
     host.innerHTML = editorMarkup();
     setFields();
     saveState();
+    bridgeCheckTimer = setTimeout(() => {
+      if (bridgeConnected || hostNode !== host) return;
+      bridgeCheckComplete = true;
+      saveState();
+    }, 10000);
+    const probe = host.querySelector('[data-bridge-probe]');
+    if (probe) probe.src = new URL(`index.html?bridge-check=${Date.now()}`, WEBSITE_URL).href;
   } catch (error) {
     host.innerHTML = `<section class="error-panel"><strong>The website editor could not load.</strong><p>${e(error.message)}</p><p>Confirm that the website-content SQL migration has been run in the Sembule Supabase project and that this account has the owner role.</p><a href="${WEBSITE_URL}" target="_blank" rel="noreferrer">Open the Hostinger site ↗</a></section>`;
     return;
@@ -371,9 +396,17 @@ export async function mountWebsite(context) {
         host.querySelector('[data-publish-confirm]').close();
         previewMode = 'live';
         host.querySelectorAll('[data-mode]').forEach(item => item.classList.toggle('is-active', item.dataset.mode === 'live'));
-        host.querySelector('[data-preview-note]').textContent = 'Published copy · the live site reads this after the bridge is installed.';
+        host.querySelector('[data-preview-note]').textContent = bridgeConnected
+          ? 'Published copy · refresh the public site to see these changes.'
+          : bridgeCheckComplete
+            ? 'Published copy · the public-site bridge is not detected yet.'
+            : 'Published copy · checking the public-site connection.';
         previewDocument();
-        notify('Website changes published. They will appear on the Hostinger site after its one-time bridge setup.');
+        notify(bridgeConnected
+          ? 'Website changes published. Refresh the Hostinger site to see them.'
+          : bridgeCheckComplete
+            ? 'Website changes published, but the public-site bridge is not detected. Check the setup details below.'
+            : 'Website changes published. The public-site connection check is still running.');
       } catch (error) {
         if (errorMessage) {
           errorMessage.textContent = 'Could not publish: ' + (error.message || 'Please check your connection and try again.');

@@ -1,5 +1,10 @@
 # Revalidate application assets after deployments; the service worker manages offline caching.
 <IfModule mod_headers.c>
+  <Files "website-bridge.js">
+    Header always set Access-Control-Allow-Origin "*"
+    Header always set Cross-Origin-Resource-Policy "cross-origin"
+    Header always set Cache-Control "no-cache, must-revalidate"
+  </Files>
   <FilesMatch "\.(js|mjs|css|json)$">
     Header set Cache-Control "no-cache, must-revalidate"
   </FilesMatch>

@@ -12,6 +12,8 @@
 .website-editor-status small{font-size:9px;color:var(--muted)}
 .website-editor-status>a{font-size:10px;color:var(--green);white-space:nowrap}
 .website-editor-status:has(.is-connected) .website-status-dot{background:var(--green)}
+.website-editor-status .is-disconnected{color:#9b4b1c}
+.website-bridge-probe{position:fixed;inset-inline-start:-10000px;inset-block-start:0;width:1px;height:1px;border:0;opacity:0;pointer-events:none}
 .website-toolbar{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap;border-bottom:1px solid var(--line);margin-bottom:15px}
 .website-tabs{display:flex;gap:3px;overflow-x:auto;max-width:100%}
 .website-tab{border:0;border-bottom:2px solid transparent;background:transparent;color:var(--muted);padding:11px 13px;font-size:10px;white-space:nowrap;min-height:42px}
