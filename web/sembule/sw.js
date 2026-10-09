@@ -1,6 +1,7 @@
 // Static app assets only. Auth, API calls and user records never enter this cache.
 const CACHE_PREFIX = 'sembule-shell-';
-const CACHE = CACHE_PREFIX + '0.8.4';
+const CACHE_VERSION = '0.8.5';
+const CACHE = CACHE_PREFIX + CACHE_VERSION;
 const FILES = [
   "./app.js",
   "./website-content.js",
@@ -53,6 +54,15 @@ const FILES = [
 ];
 const ALLOWED = new Set(FILES.map(path => new URL(path, self.registration.scope).href));
 ALLOWED.add(self.registration.scope);
+function freshAssetRequest(request) {
+  const url = new URL(request.url);
+  const scopePath = new URL(self.registration.scope).pathname;
+  if (url.origin === self.location.origin && url.pathname.startsWith(scopePath) && url.pathname.endsWith('.js')) {
+    url.searchParams.set('v', CACHE_VERSION);
+    return new Request(url.href, request);
+  }
+  return request;
+}
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(FILES)).then(() => self.skipWaiting()));
 });
@@ -67,7 +77,7 @@ self.addEventListener('fetch', event => {
   event.respondWith((async () => {
     const key = request.url === self.registration.scope ? new URL('./index.html', self.registration.scope).href : request.url;
     try {
-      const response = await fetch(request, { cache: 'no-cache' });
+      const response = await fetch(freshAssetRequest(request), { cache: 'no-cache' });
       if (response.ok && response.type === 'basic') {
         const cache = await caches.open(CACHE);
         await cache.put(key, response.clone());
