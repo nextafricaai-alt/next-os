@@ -77,7 +77,7 @@ function editor(ctx) {
 
   <section class="quote-lines"><div class="section-heading"><h2>What is being billed</h2></div>
    ${lines.length ? `<div class="table-wrap"><table class="data-table"><thead><tr><th>Item</th><th>Qty</th><th>Unit price</th><th>Total</th><th></th></tr></thead><tbody>${lines.map(l => `<tr data-line="${l.id}"><td>${e(l.description)}</td><td>${Number(l.quantity)}</td><td>${money(l.unit_price, cur)}</td><td class="num">${money(l.line_total, cur)}</td><td class="row-actions">${inv.status === 'draft' && !l.job_charge_id ? '<button type="button" class="text-button danger-text" data-del-line>Remove</button>' : ''}</td></tr>`).join('')}</tbody></table></div>` : empty('No items on this invoice.')}
-   ${inv.status === 'draft' ? `<form id="line-form" class="record-form line-form"><div class="form-title span-2"><p class="eyebrow">ADD AN ITEM</p></div>${field('description', 'Description', '', { required: true })}${field('quantity', 'Quantity', 1, { type: 'number', extra: 'min="0.001" step="any"' })}${field('unit_price', 'Unit price', '', { type: 'number', required: true, extra: 'min="0" step="any"' })}<div class="form-actions span-2"><button class="button primary" type="submit">Add item</button></div></form>` : '<p class="muted small-note">Issued invoices are locked. Extra work goes on the job as a change and is billed from there.</p>'}
+   ${inv.status === 'draft' ? `<form id="line-form" class="record-form line-form"><div class="form-title span-2"><p class="eyebrow">ADD AN ITEM</p></div>${field('description', 'Description', '', { required: true })}${field('quantity', 'Quantity', 1, { type: 'number', extra: 'min="0.001" step="any"' })}${field('unit_price', 'Unit price', '', { type: 'number', required: true, extra: 'min="0" step="any"' })}<div class="form-actions span-2"><button class="button primary" type="submit">Add item</button></div></form>` : '<p class="muted small-note">Issued invoices are locked. Extra work goes on the project as a change and is billed from there.</p>'}
   </section>
 
 `;
@@ -156,7 +156,7 @@ function bind(context) {
       if (inv.status === 'draft') await saveRow(client, 'invoices', { status: 'issued' }, inv.id);
       const job = ctx.jobs.find(j => j.id === inv.job_id);
       if (job && ['Enquiry', 'Quoted'].includes(job.stage)) await saveRow(client, 'jobs', { stage: 'Confirmed', booking_evidence_type: 'deposit', booking_confirmed_at: new Date().toISOString() }, job.id);
-      notify(`Payment recorded. Receipt ${saved.receipt_number}${job && ['Enquiry', 'Quoted'].includes(job.stage) ? '. The job is now confirmed.' : '.'}`);
+      notify(`Payment recorded. Receipt ${saved.receipt_number}${job && ['Enquiry', 'Quoted'].includes(job.stage) ? '. The project is now confirmed.' : '.'}`);
     });
   });
   host.querySelectorAll('[data-pay]').forEach(row => {

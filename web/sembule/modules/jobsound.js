@@ -1,4 +1,4 @@
-// Sound-business extras for a job: gear reservation with clash warnings, and the event spec sheet.
+// Sound-business extras for a project: gear reservation with clash warnings, and the event spec sheet.
 import { saveRow, deleteRow } from '../data.js';
 import { canDeleteOperations } from '../roles.js';
 import { e, field, selectField, textArea } from './records.js';
@@ -9,9 +9,9 @@ const localDT = iso => iso ? new Date(new Date(iso).getTime() + 3 * 3600e3).toIS
 const fromLocal = v => v ? new Date(v + ':00+03:00').toISOString() : null;
 const overlap = (a1, a2, b1, b2) => new Date(a1) < new Date(b2) && new Date(a2) > new Date(b1);
 
-// Who else holds this item during this job? Returns a short reason or ''.
+// Who else holds this item during this project? Returns a short reason or ''.
 function busyWith(ctx, equipmentId) {
-  const j = ctx.job, jobName = id => ctx.jobs.find(x => x.id === id)?.reference || 'another job';
+  const j = ctx.job, jobName = id => ctx.jobs.find(x => x.id === id)?.reference || 'another project';
   const r = (ctx.gear.all || []).find(o => o.equipment_id === equipmentId && o.job_id !== j.id && overlap(o.starts_at, o.ends_at, j.starts_at, j.ends_at));
   if (r) return `booked on ${jobName(r.job_id)}`;
   const c = (ctx.gear.out || []).find(o => o.equipment_id === equipmentId && !o.returned_at && o.job_id !== j.id && new Date(o.due_back_at) > new Date(j.starts_at));
@@ -25,12 +25,12 @@ export function gearTab(ctx) {
   const taken = new Set(mine.map(r => r.equipment_id));
   const free = ctx.gear.items.filter(i => i.active && !taken.has(i.id));
   const clashCount = mine.filter(r => busyWith(ctx, r.equipment_id)).length;
-  return `<div class="module-toolbar"><div><strong>${mine.length} item${mine.length === 1 ? '' : 's'} reserved</strong><span>${clashCount ? `${clashCount} clash${clashCount === 1 ? '' : 'es'} with other jobs. Sort these out before the day.` : 'No clashes with other jobs'}</span></div></div>
-   ${mine.length ? `<div class="table-wrap"><table class="data-table"><thead><tr><th>Item</th><th>Status</th><th></th></tr></thead><tbody>${mine.map(r => { const b = busyWith(ctx, r.equipment_id); return `<tr data-ge="${r.id}"><td><strong>${e(item(r.equipment_id).name || 'Item')}</strong><small>${e(item(r.equipment_id).category || '')}</small></td><td>${b ? `<em class="overdue">Clash: ${e(b)}</em>` : '<em class="status">Free for this job</em>'}</td><td class="row-actions">${canDeleteOperations(ctx.identity.role) ? '<button type="button" class="text-button" data-gedel>Remove</button>' : ''}</td></tr>`; }).join('')}</tbody></table></div>` : '<p class="muted small-note calm">No gear reserved yet. Reserve it here so nobody double-books it.</p>'}
+  return `<div class="module-toolbar"><div><strong>${mine.length} item${mine.length === 1 ? '' : 's'} reserved</strong><span>${clashCount ? `${clashCount} clash${clashCount === 1 ? '' : 'es'} with other projects. Sort these out before the day.` : 'No clashes with other projects'}</span></div></div>
+   ${mine.length ? `<div class="table-wrap"><table class="data-table"><thead><tr><th>Item</th><th>Status</th><th></th></tr></thead><tbody>${mine.map(r => { const b = busyWith(ctx, r.equipment_id); return `<tr data-ge="${r.id}"><td><strong>${e(item(r.equipment_id).name || 'Item')}</strong><small>${e(item(r.equipment_id).category || '')}</small></td><td>${b ? `<em class="overdue">Clash: ${e(b)}</em>` : '<em class="status">Free for this project</em>'}</td><td class="row-actions">${canDeleteOperations(ctx.identity.role) ? '<button type="button" class="text-button" data-gedel>Remove</button>' : ''}</td></tr>`; }).join('')}</tbody></table></div>` : '<p class="muted small-note calm">No gear reserved yet. Reserve it here so nobody double-books it.</p>'}
    <form id="gear-form" class="record-form line-form"><div class="form-title span-2"><div><p class="eyebrow">RESERVE GEAR</p><h2>For ${readable(ctx.job.starts_at)} ${hm(ctx.job.starts_at)} to ${hm(ctx.job.ends_at)}</h2></div></div>
     ${selectField('kit_id', 'Whole kit (optional)', '', [['', 'No kit, pick items below']].concat(ctx.gear.kits.filter(k => k.active).map(k => [k.id, k.name])))}
     <div class="span-2"><div class="skill-grid">${free.map(i => { const b = busyWith(ctx, i.id); return `<label class="skill"><input type="checkbox" name="gitem" value="${i.id}"><span>${e(i.name)}${b ? ` <small class="override">${e(b)}</small>` : ''}</span></label>`; }).join('') || '<p class="muted small-note">Add items in Equipment first.</p>'}</div></div>
-    <label class="check-label span-2"><input type="checkbox" name="force"> Reserve even if it clashes with another job</label>
+    <label class="check-label span-2"><input type="checkbox" name="force"> Reserve even if it clashes with another project</label>
     <div class="form-actions span-2"><button class="button primary" type="submit">Reserve</button></div></form>`;
 }
 
@@ -43,7 +43,7 @@ export function bindGear(ctx, host, client, notify, run) {
     ids = ids.filter(id => !have.has(id));
     if (!ids.length) { notify('Choose items or a kit.'); return; }
     const blocked = force ? [] : ids.filter(id => busyWith(ctx, id)); ids = ids.filter(id => !blocked.includes(id));
-    if (!ids.length) { notify('All of those are busy on another job. Tick "Reserve even if it clashes" to override.'); return; }
+    if (!ids.length) { notify('All of those are busy on another project. Tick "Reserve even if it clashes" to override.'); return; }
     run(async () => { for (const id of ids) await saveRow(client, 'job_equipment', { job_id: ctx.job.id, equipment_id: id, starts_at: ctx.job.starts_at, ends_at: ctx.job.ends_at }, null); },
       `${ids.length} reserved.${blocked.length ? ` ${blocked.length} skipped (busy).` : ''}`);
   });

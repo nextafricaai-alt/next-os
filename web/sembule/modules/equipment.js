@@ -18,9 +18,9 @@ function outTab(ctx) {
   const jobs = ctx.jobs.filter(j => !['Delivered and paid'].includes(j.stage) && new Date(j.ends_at) > new Date(Date.now() - 7 * 864e5));
   const outIds = new Set(open.map(c => c.equipment_id));
   return `<div class="module-toolbar"><div><strong>${open.length} item${open.length === 1 ? '' : 's'} out</strong><span>${late ? `${late} overdue for return` : 'Nothing overdue'}</span></div></div>
-   ${open.length ? `<div class="table-wrap"><table class="data-table"><thead><tr><th>Item</th><th>With</th><th>Job</th><th>Due back</th><th></th></tr></thead><tbody>${open.map(c => { const lateRow = new Date(c.due_back_at) < new Date(); return `<tr data-co="${c.id}"><td><strong>${e(item(c.equipment_id).name || '')}</strong><small>Out: ${e(c.condition_out)}${c.accessories_out ? ' · ' + e(c.accessories_out) : ''}</small></td><td>${e(c.custodian_name)}</td><td><button class="text-button" data-job="${c.job_id}">${e(job(c.job_id).reference || '')}</button></td><td>${readable(c.due_back_at)} ${hm(c.due_back_at)}${lateRow ? '<small class="override">Overdue</small>' : ''}</td><td class="row-actions"><button class="text-button" data-return>Check in</button></td></tr>`; }).join('')}</tbody></table></div>` : empty('All equipment is in the store.')}
-   <form id="out-form" class="record-form line-form"><div class="form-title span-2"><div><p class="eyebrow">CHECK OUT</p><h2>Send gear to a job</h2></div></div>
-    ${selectField('job_id', 'Job', '', [['', 'Choose a job']].concat(jobs.map(j => [j.id, `${j.reference} · ${j.title}`])))}${selectField('kit_id', 'Whole kit (optional)', '', [['', 'No kit, pick items below']].concat(ctx.kits.filter(k => k.active).map(k => [k.id, k.name])))}
+   ${open.length ? `<div class="table-wrap"><table class="data-table"><thead><tr><th>Item</th><th>With</th><th>Project</th><th>Due back</th><th></th></tr></thead><tbody>${open.map(c => { const lateRow = new Date(c.due_back_at) < new Date(); return `<tr data-co="${c.id}"><td><strong>${e(item(c.equipment_id).name || '')}</strong><small>Out: ${e(c.condition_out)}${c.accessories_out ? ' · ' + e(c.accessories_out) : ''}</small></td><td>${e(c.custodian_name)}</td><td><button class="text-button" data-job="${c.job_id}">${e(job(c.job_id).reference || '')}</button></td><td>${readable(c.due_back_at)} ${hm(c.due_back_at)}${lateRow ? '<small class="override">Overdue</small>' : ''}</td><td class="row-actions"><button class="text-button" data-return>Check in</button></td></tr>`; }).join('')}</tbody></table></div>` : empty('All equipment is in the store.')}
+   <form id="out-form" class="record-form line-form"><div class="form-title span-2"><div><p class="eyebrow">CHECK OUT</p><h2>Send gear to a project</h2></div></div>
+    ${selectField('job_id', 'Project', '', [['', 'Choose a project']].concat(jobs.map(j => [j.id, `${j.reference} · ${j.title}`])))}${selectField('kit_id', 'Whole kit (optional)', '', [['', 'No kit, pick items below']].concat(ctx.kits.filter(k => k.active).map(k => [k.id, k.name])))}
     ${selectField('custodian', 'Responsible person', '', [['', 'Choose who carries it']].concat(ctx.crew.filter(c => c.active).map(c => [c.id, c.name])).concat([['__other', 'Someone else (type name)']]))}${field('custodian_name', 'Name (if someone else)', '')}
     ${field('due_back_at', 'Due back', localDT(new Date(Date.now() + 2 * 864e5).toISOString()), { type: 'datetime-local', required: true })}${selectField('condition_out', 'Condition going out', 'Good', COND.map(c => [c, c]))}
     <div class="span-2"><p class="eyebrow skills-head">ITEMS</p><div class="skill-grid">${ctx.items.filter(i => i.active).map(i => `<label class="skill"><input type="checkbox" name="item" value="${i.id}" ${outIds.has(i.id) ? 'disabled' : ''}><span>${e(i.name)}${outIds.has(i.id) ? ' (out)' : ''}</span></label>`).join('') || '<p class="muted small-note">Register items in the Items tab first.</p>'}</div></div>
@@ -30,7 +30,7 @@ function outTab(ctx) {
 function itemsTab(ctx) {
   const cur = ctx.items.find(i => i.id === selected);
   const byCat = CATS.map(c => [c, ctx.items.filter(i => i.category === c && i.active).length]).filter(x => x[1]);
-  return `<div class="module-toolbar"><div><strong>${ctx.items.filter(i => i.active).length} items registered</strong><span>${byCat.map(([c, n]) => `${e(c.split(' (')[0])}: ${n}`).join(' · ') || 'Add each item the first time it goes to a job'}</span></div><button class="button primary" data-new>Add item</button></div>
+  return `<div class="module-toolbar"><div><strong>${ctx.items.filter(i => i.active).length} items registered</strong><span>${byCat.map(([c, n]) => `${e(c.split(' (')[0])}: ${n}`).join(' · ') || 'Add each item the first time it goes to a project'}</span></div><button class="button primary" data-new>Add item</button></div>
    <div class="records-layout"><section class="record-list">${ctx.items.length ? ctx.items.map(i => `<button class="record-card${i.id === selected ? ' active' : ''}" data-row="${i.id}"><span><strong>${e(i.name)}</strong><small>${e(i.category)}${i.serial_number ? ' · SN ' + e(i.serial_number) : ''}</small></span><span><em class="${['Damaged', 'Needs repair', 'Missing parts'].includes(i.condition) ? 'overdue' : 'status'}">${e(i.condition)}</em></span></button>`).join('') : empty('No items yet.')}</section>
    <section class="record-editor">${selected === 'new' || cur ? `<form id="item-form" class="record-form" data-id="${cur?.id || ''}"><div class="form-title span-2"><div><p class="eyebrow">${cur ? 'EQUIPMENT' : 'NEW ITEM'}</p><h2>${cur ? e(cur.name) : 'Register an item'}</h2></div></div>
      ${field('name', 'Name (e.g. Sony FX6 #1)', cur?.name, { required: true })}${selectField('category', 'Category', cur?.category || CATS[0], CATS.map(c => [c, c]))}
@@ -39,7 +39,7 @@ function itemsTab(ctx) {
      ${field('supplier_name', 'Supplier (if hired)', cur?.supplier_name)}${field('photo_url', 'Photo link (optional)', cur?.photo_url)}
      ${textArea('accessories', 'Accessories that belong with it', cur?.accessories)}
      <label class="check-label"><input type="checkbox" name="active" ${cur?.active === false ? '' : 'checked'}> In use (untick if sold or lost)</label>
-     <div class="form-actions span-2"><button class="button primary" type="submit">Save</button><button class="button secondary" type="button" data-cancel>Cancel</button></div></form>` : '<div class="select-prompt"><h2>Build the register as you go</h2><p>No need to count everything today. Add each item the first time it is prepared for a job.</p></div>'}</section></div>`;
+     <div class="form-actions span-2"><button class="button primary" type="submit">Save</button><button class="button secondary" type="button" data-cancel>Cancel</button></div></form>` : '<div class="select-prompt"><h2>Build the register as you go</h2><p>No need to count everything today. Add each item the first time it is prepared for a project.</p></div>'}</section></div>`;
 }
 function kitsTab(ctx) {
   const inKit = k => ctx.kitItems.filter(x => x.kit_id === k).map(x => x.equipment_id);
@@ -84,7 +84,7 @@ function bind(context) {
   const of = host.querySelector('#out-form');
   of?.addEventListener('submit', ev => {
     ev.preventDefault(); const fd = new FormData(of);
-    const job = ctx.jobs.find(j => j.id === fd.get('job_id')); if (!job) { notify('Choose the job.'); return; }
+    const job = ctx.jobs.find(j => j.id === fd.get('job_id')); if (!job) { notify('Choose the project.'); return; }
     const who = fd.get('custodian'), crew = ctx.crew.find(c => c.id === who);
     const name = crew ? crew.name : txt(fd.get('custodian_name')); if (!name) { notify('Every item needs a responsible person.'); return; }
     const out = new Set(ctx.checkouts.filter(c => !c.returned_at).map(c => c.equipment_id));

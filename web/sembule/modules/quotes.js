@@ -1,6 +1,7 @@
 // Quotes: price list, quote builder, quote settings, branded print view.
 // Money module: the Quotes route is visible to owner and director only (roles.js),
 // and the database enforces the same rule (RLS + guard_quote_line trigger).
+import { inferServices } from './jobbrief.js';
 import { listRows, saveRow, deleteRow } from '../data.js';
 import { withTimeout } from '../utils.js';
 import { CONFIG } from '../config.js';
@@ -8,14 +9,14 @@ import { e, value, dateValue, readableDate, empty, field, selectField, textArea,
 import { insertWithRef, printDocument, payDetails, askForm , shareLink, whatsappTo } from '../refs.js';
 import { openInvoice } from './invoices.js';
 
-// Accept a quote: create the job and a draft invoice in one step, copying every line.
+// Accept a quote: create the project and a draft invoice in one step, copying every line.
 async function acceptAndBook(client, q, ctx) {
   if (!ctx.lines.length) throw new Error('Add at least one item before accepting the quote.');
   const lead = ctx.leads.find(l => l.id === q.lead_id);
   const c = ctx.clients.find(x => x.id === q.client_id) || {};
   const lineDays = Math.max(1, Math.ceil(Math.max(...ctx.lines.map(l => Number(l.days) || 1))));
   const first0 = lead?.event_date || addDays(today(), 7);
-  const pick = await askForm({ title: 'Book this job', intro: 'Choose the event dates. This creates the job and a draft invoice.', submit: 'Book job', fields: [
+  const pick = await askForm({ title: 'Book this project', intro: 'Choose the event dates. This creates the project and a draft invoice.', submit: 'Book project', fields: [
     { name: 'start', label: 'First day', type: 'date', value: first0, required: true },
     { name: 'end', label: 'Last day', type: 'date', value: addDays(first0, lineDays - 1), required: true },
     { name: 'charge', label: 'Charge each item for every day booked', type: 'checkbox', value: false, hint: 'Tick this if the quote priced one day but the event runs over several days.' }] });
@@ -24,7 +25,7 @@ async function acceptAndBook(client, q, ctx) {
   const date = pick.start, days = Math.round((new Date(pick.end) - new Date(pick.start)) / 864e5) + 1;
   const starts = new Date(`${date}T08:00:00+03:00`), ends = new Date(`${addDays(date, days - 1)}T18:00:00+03:00`);
   const first = ctx.lines[0];
-  const job = await insertWithRef(client, 'jobs', 'reference', 'SM', { client_id: q.client_id, lead_id: q.lead_id, title: `${c.organisation || c.name || 'Client'} · ${first.description}`, service_type: first.description, stage: 'Quoted', starts_at: starts.toISOString(), ends_at: ends.toISOString(), venue: lead?.venue || null, audience_size: lead?.audience_size ?? null, operational_brief: lead?.operational_brief || null });
+  const job = await insertWithRef(client, 'jobs', 'reference', 'SM', { client_id: q.client_id, lead_id: q.lead_id, title: `${c.organisation || c.name || 'Client'} · ${first.description}`, service_type: first.description, services: inferServices(ctx.lines.map(l => l.description).join(' ')), stage: 'Quoted', starts_at: starts.toISOString(), ends_at: ends.toISOString(), venue: lead?.venue || null, audience_size: lead?.audience_size ?? null, operational_brief: lead?.operational_brief || null });
   await saveRow(client, 'quotes', { status: 'accepted', job_id: job.id }, q.id);
   const pre = addDays(date, -7) > today() ? addDays(date, -7) : today();
   const inv = await insertWithRef(client, 'invoices', 'reference', 'SMI', { job_id: job.id, client_id: q.client_id, quote_id: q.id, currency: q.currency, usd_to_ugx: q.usd_to_ugx, fx_as_of: q.fx_as_of, status: 'draft', booking_percent: q.booking_percent, preproduction_percent: q.preproduction_percent, completion_percent: q.completion_percent, booking_due_on: today(), preproduction_due_on: pre, completion_due_on: addDays(addDays(date, days - 1), 14) });
