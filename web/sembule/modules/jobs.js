@@ -7,6 +7,7 @@ import { canViewMoney } from '../roles.js';
 import { e, value, dateValue, empty, field, selectField, textArea, setBusy } from './records.js';
 import { gearTab, bindGear, specTab, bindSpec } from './jobsound.js';
 import { servicePicker, readServices, serviceType, briefTab, bindBrief } from './jobbrief.js';
+import { loadMoney, moneyTab, bindMoney } from './jobmoney.js';
 import { money, num, txt, readable, insertWithRef, whatsappTo, askForm , shareLink } from '../refs.js';
 
 const STAGES = CONFIG.stages;
@@ -41,30 +42,31 @@ function listView(ctx) {
     .sort((a, b) => new Date(a.starts_at) - new Date(b.starts_at));
   const counts = s => ctx.jobs.filter(j => j.stage === s).length;
   const late = ctx.jobs.filter(isLate).length;
-  return `<div class="module-toolbar"><div><strong>${ctx.jobs.filter(active).length} active project${ctx.jobs.filter(active).length === 1 ? '' : 's'}</strong><span>${late ? `${late} delivery${late === 1 ? '' : 'ies'} late` : 'No late deliveries'}</span></div><button class="button primary" data-new>New project</button></div>
+  return `<div class="module-toolbar"><div><strong>${ctx.jobs.filter(active).length} active project${ctx.jobs.filter(active).length === 1 ? '' : 's'}</strong><span>${late ? `${late} delivery${late === 1 ? '' : 'ies'} late` : 'No late deliveries'}</span></div><button class="button primary" data-new>+ Book a Job</button></div>
    <div class="chip-row">${[['active', 'Active'], ...STAGES.map(s => [s, `${s} (${counts(s)})`]), ['all', 'All']].map(([k, l]) => `<button class="chip${stageFilter === k ? ' on' : ''}" data-stage="${e(k)}">${e(l)}</button>`).join('')}</div>
-   <div class="records-layout"><section class="record-list">${shown.length ? shown.map(j => `<button class="record-card${j.id === selected ? ' active' : ''}" data-row="${j.id}"><span><strong>${e(j.title)}</strong><small>${e(j.reference)} · ${readable(j.starts_at)}${j.venue ? ' · ' + e(j.venue) : ''}</small></span><span><em class="status">${e(j.stage)}</em>${isLate(j) ? '<em class="overdue">Delivery late</em>' : ''}</span></button>`).join('') : empty('No projects here. Accept a quote to book one, or use New project.')}</section>
-   <section class="record-editor">${selected === 'new' ? newJob(ctx) : ctx.job ? detail(ctx) : '<div class="select-prompt"><h2>Select a project</h2><p>Plan the crew, check readiness, log client changes and track delivery.</p></div>'}</section></div>`;
+   <div class="records-layout"><section class="record-list">${shown.length ? shown.map(j => `<button class="record-card${j.id === selected ? ' active' : ''}" data-row="${j.id}"><span><strong>${e(j.title)}</strong><small>${e(j.reference)} · ${readable(j.starts_at)}${j.venue ? ' · ' + e(j.venue) : ''}</small></span><span><em class="status">${e(j.stage)}</em>${isLate(j) ? '<em class="overdue">Delivery late</em>' : ''}</span></button>`).join('') : empty('No projects here. Accept a quote to book one, or press + Book a Job.')}</section>
+   <section class="record-editor">${selected === 'new' ? newJob(ctx) : ctx.job ? detail(ctx) : '<div class="select-prompt"><h2>No Job Selected</h2><p>Select a job from the list, or book a new one.</p></div>'}</section></div>`;
 }
 function newJob(ctx) {
   const clientOpts = [['', 'Choose a client']].concat(ctx.clients.map(c => [c.id, c.organisation ? `${c.name} (${c.organisation})` : c.name]));
-  return `<form id="newjob-form" class="record-form"><div class="form-title span-2"><div><p class="eyebrow">NEW PROJECT</p><h2>Start a project</h2></div></div>
+  return `<form id="newjob-form" class="record-form"><div class="form-title span-2"><div><p class="eyebrow">NEW JOB</p><h2>Book a Job</h2></div></div>
    ${selectField('client_id', 'Client', '', clientOpts)}${field('title', 'Project title', '', { required: true })}
    ${field('venue', 'Venue', '')}${servicePicker([])}
    ${field('starts_at', 'Starts', '', { type: 'datetime-local', required: true })}${field('ends_at', 'Ends', '', { type: 'datetime-local', required: true })}
-   <div class="form-actions span-2"><button class="button primary" type="submit">Create job</button><button class="button secondary" type="button" data-cancel>Cancel</button></div></form>`;
+   <div class="form-actions span-2"><button class="button primary" type="submit">Book job</button><button class="button secondary" type="button" data-cancel>Cancel</button></div></form>`;
 }
 
 // ---------- detail ----------
 function detail(ctx) {
   const j = ctx.job;
   const c = ctx.clients.find(x => x.id === j.client_id) || {};
-  const tabs = [['overview', 'Overview'], ['crew', `Team (${ctx.crewRows.length})`], ['gear', `Gear (${ctx.gear.all.filter(g => g.job_id === ctx.job.id).length})`], ['brief', j.brief_status === 'submitted' ? 'Client brief ✓' : 'Client brief'], ['spec', 'Event spec'], ['checklist', 'Checklist'], ['changes', `Changes (${ctx.changes.length})`], ['revisions', `Revisions (${ctx.revisions.length})`]];
+  const tabs = [['overview', 'Overview'], ...(canViewMoney(ctx.identity.role) ? [['money', 'Money']] : []), ['crew', `Team (${ctx.crewRows.length})`], ['gear', `Kit (${ctx.gear.all.filter(g => g.job_id === ctx.job.id).length})`], ['brief', j.brief_status === 'submitted' ? 'Client brief ✓' : 'Client brief'], ['spec', 'Pre-Event'], ['checklist', 'Checklist'], ['changes', `Changes (${ctx.changes.length})`], ['revisions', `Revisions (${ctx.revisions.length})`]];
   const done = ctx.checks.filter(x => x.completed_at).length;
-  return `<div class="job-head"><div><p class="eyebrow">${e(j.reference)} · ${e(c.organisation || c.name || '')}</p><h2>${e(j.title)}</h2><p class="muted">${readable(j.starts_at)} ${time(j.starts_at)} to ${readable(j.ends_at)} ${time(j.ends_at)}${j.venue ? ' · ' + e(j.venue) : ''}</p></div>
+  return `<div class="job-head"><div><p class="eyebrow"><span class="ref-chip">${e(j.reference)}</span> <em class="status">${e(j.stage)}</em> · ${e(c.organisation || c.name || '')}</p><h2>${e(j.title)}</h2><p class="muted">${readable(j.starts_at)} ${time(j.starts_at)} to ${readable(j.ends_at)} ${time(j.ends_at)}${j.venue ? ' · ' + e(j.venue) : ''}</p></div>
+    <div class="job-actions"><button type="button" class="button secondary" data-jtab="overview">Edit</button><button type="button" class="button secondary" data-dup>Duplicate</button>${ctx.identity.role === 'owner' ? '<button type="button" class="button danger" data-delete-top>Delete</button>' : ''}</div>
     <div class="stage-track">${STAGES.map((s, i) => `<span class="${STAGES.indexOf(j.stage) >= i ? 'on' : ''}" title="${e(s)}"></span>`).join('')}<small>${e(j.stage)}</small></div></div>
    <div class="tab-row">${tabs.map(([k, l]) => `<button class="tab${tab === k ? ' active' : ''}" data-jtab="${k}">${e(l)}</button>`).join('')}</div>
-   ${tab === 'crew' ? crewTab(ctx) : tab === 'gear' ? gearTab(ctx) : tab === 'brief' ? briefTab(ctx) : tab === 'spec' ? specTab(ctx) : tab === 'checklist' ? checklistTab(ctx, done) : tab === 'changes' ? changesTab(ctx) : tab === 'revisions' ? revisionsTab(ctx) : overviewTab(ctx)}`;
+   ${tab === 'crew' ? crewTab(ctx) : tab === 'gear' ? gearTab(ctx) : tab === 'money' && ctx.money ? moneyTab(ctx) : tab === 'brief' ? briefTab(ctx) : tab === 'spec' ? specTab(ctx) : tab === 'checklist' ? checklistTab(ctx, done) : tab === 'changes' ? changesTab(ctx) : tab === 'revisions' ? revisionsTab(ctx) : overviewTab(ctx)}`;
 }
 function overviewTab(ctx) {
   const j = ctx.job, owner = ctx.identity.role === 'owner';
@@ -142,12 +144,13 @@ async function draw(context) {
   try {
     const [jobs, clients, crew] = await Promise.all([listRows(client, 'jobs', 'starts_at', true), listRows(client, 'clients', 'name', true), listRows(client, 'crew', 'name', true)]);
     const job = jobs.find(j => j.id === selected) || null;
-    let extra = { crewRows: [], checks: [], changes: [], revisions: [], pay: [], charges: [], allCrewRows: [], gear: { all: [], items: [], kits: [], kitItems: [], out: [] } };
+    let extra = { crewRows: [], checks: [], changes: [], revisions: [], pay: [], charges: [], allCrewRows: [], gear: { all: [], items: [], kits: [], kitItems: [], out: [] }, money: null };
     if (job) {
       const m = canViewMoney(identity.role);
       const [crewRows, checks, changes, revisions, pay, charges, all] = await Promise.all([rows(client, 'job_crew', job.id), rows(client, 'job_checklists', job.id), rows(client, 'job_changes', job.id, 'occurred_at'), rows(client, 'job_revisions', job.id, 'round_number'), m ? rows(client, 'crew_pay', job.id) : [], m ? rows(client, 'job_charges', job.id) : [], listRows(client, 'job_crew', 'starts_at', true)]);
       const [gAll, gItems, gKits, gKitItems, gOut] = await Promise.all([listRows(client, 'job_equipment', 'starts_at', true), listRows(client, 'equipment', 'name', true), listRows(client, 'kits', 'name', true), listRows(client, 'kit_items', 'kit_id', true), listRows(client, 'checkouts', 'checked_out_at', false)]);
-      extra = { crewRows, checks, changes, revisions, pay, charges, allCrewRows: all, gear: { all: gAll, items: gItems, kits: gKits, kitItems: gKitItems, out: gOut } };
+      const money_ = m && tab === 'money' ? await loadMoney(client, job.id) : null;
+      extra = { money: money_, crewRows, checks, changes, revisions, pay, charges, allCrewRows: all, gear: { all: gAll, items: gItems, kits: gKits, kitItems: gKitItems, out: gOut } };
     }
     context.ctx = { ...context, jobs, clients, crew, job, ...extra };
     host.innerHTML = listView(context.ctx);
@@ -164,7 +167,7 @@ function bind(context) {
   host.querySelectorAll('[data-stage]').forEach(b => b.addEventListener('click', () => { stageFilter = b.dataset.stage; draw(context); }));
   host.querySelectorAll('[data-row]').forEach(b => b.addEventListener('click', () => { selected = b.dataset.row; tab = 'overview'; draw(context); }));
   host.querySelectorAll('[data-cancel]').forEach(b => b.addEventListener('click', () => { selected = null; draw(context); }));
-  bindGear(ctx, host, client, notify, run); bindSpec(ctx, host, client, notify, run); bindBrief(ctx, host, client, notify, run);
+  bindGear(ctx, host, client, notify, run); bindSpec(ctx, host, client, notify, run); bindBrief(ctx, host, client, notify, run); bindMoney(ctx, host, client, notify, run);
   host.querySelectorAll('[data-jtab]').forEach(b => b.addEventListener('click', () => { tab = b.dataset.jtab; draw(context); }));
 
   const nf = host.querySelector('#newjob-form');
@@ -184,6 +187,8 @@ function bind(context) {
     if (consent && !job.publication_consent) { v.consent_recorded_at = new Date().toISOString(); v.consent_recorded_by = identity.id; v.consent_withdrawn_at = null; }
     if (!consent && job.publication_consent) v.consent_withdrawn_at = new Date().toISOString();
     setBusy(jf, true); run(() => saveRow(client, 'jobs', v, job.id), 'Project saved.'); });
+  host.querySelector('[data-dup]')?.addEventListener('click', () => run(async () => { const n = await insertWithRef(client, 'jobs', 'reference', 'SM', { client_id: job.client_id, title: job.title + ' (copy)', service_type: job.service_type, services: job.services || [], venue: job.venue, starts_at: job.starts_at, ends_at: job.ends_at, stage: 'Quoted' }); selected = n.id; tab = 'overview'; }, 'Job duplicated. Change the date and title.'));
+  host.querySelector('[data-delete-top]')?.addEventListener('click', () => { if (confirm('Delete this project? Only do this for a project created by mistake.')) run(async () => { await deleteRow(client, 'jobs', job.id); selected = null; }, 'Job deleted.'); });
   jf?.querySelector('[data-delete]')?.addEventListener('click', () => { if (confirm('Delete this project? Only do this for a project created by mistake.')) run(async () => { await deleteRow(client, 'jobs', job.id); selected = null; }, 'Job deleted.'); });
 
   // crew
