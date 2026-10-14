@@ -2,6 +2,7 @@
 import { saveRow, deleteRow } from '../data.js';
 import { withTimeout } from '../utils.js';
 import { e, field, selectField } from './records.js';
+import { openInvoice } from './invoices.js';
 import { money, num, txt, today, readable, insertWithRef } from '../refs.js';
 
 const METHOD = [['mtn_momo', 'MTN MoMo'], ['airtel_money', 'Airtel Money'], ['bank', 'Bank'], ['cash', 'Cash']];
@@ -35,7 +36,7 @@ export function moneyTab(ctx) {
    `<div class="money-big"><div><small>RECEIVED</small><strong>${money(received)}</strong><span>of ${money(invoiced)} invoiced</span></div><div class="r"><small>STILL DUE FROM CLIENT</small><strong class="${due > 0 ? 'warn' : 'good'}">${money(due)}</strong></div></div>
     <div class="rbar"><i style="width:${pct}%"></i></div><p class="muted small-note">${pct}% collected</p>
     ${live.length ? `<div class="table-wrap flat"><table class="data-table"><thead><tr><th>Invoice</th><th>Status</th><th class="num">Paid</th><th class="num">Total</th></tr></thead><tbody>${live.map(i => `<tr><td><a href="#invoices" data-openinv="${i.id}">${e(i.reference)}</a></td><td>${e(i.status)}</td><td class="num">${money(Number(bal(i.id).received || 0) + Number(bal(i.id).wht_withheld || 0))}</td><td class="num">${money(bal(i.id).invoice_total)}</td></tr>`).join('')}</tbody></table></div>`
-      : '<p class="muted small-note">No invoice yet. Accept a quote in Quotes and the invoice is made for you.</p>'}
+      : `<p class="muted small-note">No invoice yet. If this job came from a quote, accept the quote and the invoice is made for you. Otherwise make one here.</p><div><button type="button" class="button primary" data-newinv>+ Create invoice</button></div>`}
     ${payable.length ? `<form id="pay-form" class="record-form line-form"><div class="form-title span-2"><p class="eyebrow">RECORD A PAYMENT RECEIVED</p></div>
       ${payable.length > 1 ? selectField('invoice_id', 'Invoice', payable[0].id, payable.map(i => [i.id, `${i.reference} · due ${money(bal(i.id).balance_due)}`])) : `<input type="hidden" name="invoice_id" value="${payable[0].id}">`}
       ${field('amount', 'Amount received (UGX)', '', { type: 'number', required: true, extra: 'min="0" step="1"' })}${selectField('method', 'How was it paid?', 'mtn_momo', METHOD)}
@@ -45,10 +46,10 @@ export function moneyTab(ctx) {
 
   const s2 = sec(2, '📤', 'Money out', 'Team pay and costs charged to this project',
    `<div class="money-big"><div><small>TOTAL COST SO FAR</small><strong>${money(cost)}</strong><span>${money(crewPaid)} of team pay already paid</span></div></div>
-    <h3 class="money-h">Team pay</h3>${ctx.pay.length ? `<div class="table-wrap flat"><table class="data-table"><thead><tr><th>Person</th><th class="num">Agreed</th><th class="num">Paid</th></tr></thead><tbody>${ctx.pay.map(p => `<tr><td>${e(who(p.job_crew_id))}</td><td class="num">${money(p.agreed_amount, p.currency)}</td><td class="num">${Number(p.paid_amount) >= Number(p.agreed_amount) ? '✓ ' : ''}${money(p.paid_amount, p.currency)}</td></tr>`).join('')}</tbody></table></div><p class="muted small-note">Set pay and mark people paid on the Team tab.</p>` : '<p class="muted small-note">No team pay agreed yet. Add people and their pay on the Team tab.</p>'}
+    <h3 class="money-h">Team pay</h3>${ctx.pay.length ? `<div class="table-wrap flat"><table class="data-table"><thead><tr><th>Person</th><th class="num">Agreed</th><th class="num">Paid</th></tr></thead><tbody>${ctx.pay.map(p => `<tr><td>${e(who(p.job_crew_id))}</td><td class="num">${money(p.agreed_amount, p.currency)}</td><td class="num">${Number(p.paid_amount) >= Number(p.agreed_amount) ? '✓ ' : ''}${money(p.paid_amount, p.currency)}</td></tr>`).join('')}</tbody></table></div><p class="muted small-note">Agree pay on the Team tab. Pay people from Pay the team.</p>` : '<p class="muted small-note">No team pay agreed yet. Add people and their pay on the Team tab.</p>'}
     <h3 class="money-h">Other costs (fuel, generator hire, transport, meals)</h3>${m.expenses.length ? `<div class="table-wrap flat"><table class="data-table"><thead><tr><th>Cost</th><th>Date</th><th class="num">Amount</th><th></th></tr></thead><tbody>${m.expenses.map(x => `<tr data-exp="${x.id}"><td><strong>${e(x.description)}</strong><small>${e(x.category)}${x.supplier ? ' · ' + e(x.supplier) : ''}</small></td><td>${readable(x.incurred_on)}</td><td class="num">${money(x.amount, x.currency)}</td><td class="row-actions"><button type="button" class="text-button danger-text" data-expdel>Remove</button></td></tr>`).join('')}</tbody></table></div>` : '<p class="muted small-note">Nothing added yet.</p>'}
     <form id="exp-form" class="record-form line-form"><div class="form-title span-2"><p class="eyebrow">ADD A COST</p></div>
-      ${selectField('category', 'Type', 'Transport', [['Transport', 'Transport / fuel'], ['Equipment hire', 'Equipment hire'], ['Crew meals', 'Meals'], ['Generator', 'Generator'], ['Accommodation', 'Accommodation'], ['Other', 'Other']])}${field('description', 'What was it for?', '', { required: true })}
+      ${selectField('category', 'Type', 'transport', [['transport', 'Transport and fuel'], ['equipment_hire', 'Equipment hire'], ['generator', 'Generator and power'], ['internet', 'Internet and data'], ['meals', 'Meals and refreshments'], ['accommodation', 'Accommodation'], ['consumables', 'Consumables (cards, batteries, tape)'], ['other', 'Other']])}${field('supplier', 'Paid to', '')}${field('description', 'What was it for?', '', { required: true })}
       ${field('amount', 'Amount (UGX)', '', { type: 'number', required: true, extra: 'min="0" step="1"' })}${field('incurred_on', 'Date', today(), { type: 'date', required: true })}
       <div class="form-actions span-2"><button class="button primary" type="submit">Add cost</button></div></form>`);
 
@@ -77,8 +78,13 @@ export function bindMoney(ctx, host, client, notify, run) {
       notify(`Payment recorded. Receipt ${saved.receipt_number}.`);
     });
   });
+  host.querySelector('[data-newinv]')?.addEventListener('click', () => run(async () => {
+    const inv = await insertWithRef(client, 'invoices', 'reference', 'SMI', { job_id: j.id, client_id: j.client_id, currency: 'UGX', status: 'draft' });
+    openInvoice(inv.id); location.hash = '#invoices';
+  }, 'Draft invoice created. Add the items, then issue it.'));
+  host.querySelectorAll('[data-openinv]').forEach(a => a.addEventListener('click', ev => { ev.preventDefault(); openInvoice(a.dataset.openinv); location.hash = '#invoices'; }));
   const ef = host.querySelector('#exp-form');
   ef?.addEventListener('submit', ev => { ev.preventDefault(); const fd = new FormData(ef); const amount = num(fd.get('amount')) || 0; if (amount <= 0) { notify('Enter the amount.'); return; }
-    run(() => saveRow(client, 'expenses', { job_id: j.id, category: fd.get('category'), description: String(fd.get('description')).trim(), amount, currency: 'UGX', incurred_on: fd.get('incurred_on') }), 'Cost added.'); });
+    run(() => saveRow(client, 'expenses', { job_id: j.id, category: fd.get('category'), description: String(fd.get('description')).trim(), supplier: txt(fd.get('supplier')), amount, currency: 'UGX', incurred_on: fd.get('incurred_on') }), 'Cost added.'); });
   host.querySelectorAll('[data-exp] [data-expdel]').forEach(b => b.addEventListener('click', () => { if (confirm('Remove this cost?')) run(() => deleteRow(client, 'expenses', b.closest('[data-exp]').dataset.exp), 'Cost removed.'); }));
 }

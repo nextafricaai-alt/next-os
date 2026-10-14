@@ -3,7 +3,7 @@ import { listRows, saveRow, deleteRow } from '../data.js';
 import { e, value, dateValue, empty, field, selectField, textArea, setBusy } from './records.js';
 import { money, num, txt, today, readable } from '../refs.js';
 
-const CATEGORIES = [['crew','Crew and freelancers'],['equipment_hire','Equipment hire'],['transport','Transport and fuel'],['generator','Generator and power'],['internet','Internet and data'],['meals','Meals and refreshments'],['accommodation','Accommodation'],['repairs','Repairs and maintenance'],['consumables','Consumables (cards, batteries, tape)'],['other','Other']];
+const CATEGORIES = [['crew','Outside freelancers (not on a project Team tab)'],['equipment_hire','Equipment hire'],['transport','Transport and fuel'],['generator','Generator and power'],['internet','Internet and data'],['meals','Meals and refreshments'],['accommodation','Accommodation'],['repairs','Repairs and maintenance'],['consumables','Consumables (cards, batteries, tape)'],['other','Other']];
 let selected = null, month = today().slice(0, 7);
 
 function editor(x, ctx) {
