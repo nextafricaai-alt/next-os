@@ -1,6 +1,6 @@
 // Static app assets only. Auth, API calls and user records never enter this cache.
 const CACHE_PREFIX = 'sembule-shell-';
-const CACHE_VERSION = '1.1.0';
+const CACHE_VERSION = '1.2.0';
 const CACHE = CACHE_PREFIX + CACHE_VERSION;
 const FILES = [
   "./app.js",
