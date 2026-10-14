@@ -1,5 +1,5 @@
 // Projects: pick what kind of project it is, send the client brief, read the answers.
-import { SERVICES, serviceLabel, briefSteps, answered } from './briefdef.js';
+import { SERVICES, serviceLabel, briefSteps, answered } from '../briefdef.js';
 import { e } from './records.js';
 import { saveRow } from '../data.js';
 import { CONFIG } from '../config.js';
