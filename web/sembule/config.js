@@ -2,7 +2,7 @@
 export const CONFIG = Object.freeze({
   name: 'Sembule Media', legalName: 'Sembule Media Ltd',
   website: 'sembulemedia.com', phone: '+256 774 345634',
-  timezone: 'Africa/Kampala', version: '1.4.0',
+  timezone: 'Africa/Kampala', version: '1.5.0',
   supabaseUrl: 'https://stpawtberphnvhcxjmkj.supabase.co',
   publishableKey: 'sb_publishable_RvlRBmtSxrtAXDsUKn91QQ_XwWZOpt_',
   // [CONFIRM: account invitations before enabling real role testing.]

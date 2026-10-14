@@ -281,3 +281,10 @@ dialog,.ask-card{border-radius:28px}
 .money-big strong.warn{color:var(--gold)}.money-big strong.good{color:#4fd18b}.money-h{font-size:13px;margin:6px 0 0}
 .money-big.profit strong{font-size:32px;color:#4fd18b}.money-big.profit.loss strong{color:#FF8B7A}
 .table-wrap.flat{box-shadow:none}.data-table .num{text-align:right;white-space:nowrap}.data-table tr.voided{opacity:.45;text-decoration:line-through}
+
+/* v1.5 dashboard order + quick actions */
+.quick-actions{display:flex;flex-wrap:wrap;gap:10px;margin:14px 0 18px}
+.quick-actions .qa{display:inline-flex;align-items:center;gap:8px;padding:10px 16px;border-radius:99px;border:1px solid rgba(191,144,0,.45);background:rgba(191,144,0,.08);color:inherit;text-decoration:none;font-weight:600;font-size:13px}
+.quick-actions .qa:first-child{background:linear-gradient(135deg,#BF9000,#e3b52a);color:#111;border-color:transparent}
+.quick-actions .qa:hover{border-color:var(--gold)}.dash-h{margin:22px 0 10px}
+.button.small{padding:6px 14px;font-size:12px}
