@@ -6,6 +6,7 @@ import { CONFIG } from '../config.js';
 import { canViewMoney } from '../roles.js';
 import { e, value, dateValue, empty, field, selectField, textArea, setBusy } from './records.js';
 import { gearTab, bindGear, specTab, bindSpec } from './jobsound.js';
+import { servicePicker, readServices, serviceType, briefTab, bindBrief } from './jobbrief.js';
 import { money, num, txt, readable, insertWithRef, whatsappTo, askForm , shareLink } from '../refs.js';
 
 const STAGES = CONFIG.stages;
@@ -40,16 +41,16 @@ function listView(ctx) {
     .sort((a, b) => new Date(a.starts_at) - new Date(b.starts_at));
   const counts = s => ctx.jobs.filter(j => j.stage === s).length;
   const late = ctx.jobs.filter(isLate).length;
-  return `<div class="module-toolbar"><div><strong>${ctx.jobs.filter(active).length} active job${ctx.jobs.filter(active).length === 1 ? '' : 's'}</strong><span>${late ? `${late} delivery${late === 1 ? '' : 'ies'} late` : 'No late deliveries'}</span></div><button class="button primary" data-new>New job</button></div>
+  return `<div class="module-toolbar"><div><strong>${ctx.jobs.filter(active).length} active project${ctx.jobs.filter(active).length === 1 ? '' : 's'}</strong><span>${late ? `${late} delivery${late === 1 ? '' : 'ies'} late` : 'No late deliveries'}</span></div><button class="button primary" data-new>New project</button></div>
    <div class="chip-row">${[['active', 'Active'], ...STAGES.map(s => [s, `${s} (${counts(s)})`]), ['all', 'All']].map(([k, l]) => `<button class="chip${stageFilter === k ? ' on' : ''}" data-stage="${e(k)}">${e(l)}</button>`).join('')}</div>
-   <div class="records-layout"><section class="record-list">${shown.length ? shown.map(j => `<button class="record-card${j.id === selected ? ' active' : ''}" data-row="${j.id}"><span><strong>${e(j.title)}</strong><small>${e(j.reference)} · ${readable(j.starts_at)}${j.venue ? ' · ' + e(j.venue) : ''}</small></span><span><em class="status">${e(j.stage)}</em>${isLate(j) ? '<em class="overdue">Delivery late</em>' : ''}</span></button>`).join('') : empty('No jobs here. Accept a quote to book one, or use New job.')}</section>
-   <section class="record-editor">${selected === 'new' ? newJob(ctx) : ctx.job ? detail(ctx) : '<div class="select-prompt"><h2>Select a job</h2><p>Plan the crew, check readiness, log client changes and track delivery.</p></div>'}</section></div>`;
+   <div class="records-layout"><section class="record-list">${shown.length ? shown.map(j => `<button class="record-card${j.id === selected ? ' active' : ''}" data-row="${j.id}"><span><strong>${e(j.title)}</strong><small>${e(j.reference)} · ${readable(j.starts_at)}${j.venue ? ' · ' + e(j.venue) : ''}</small></span><span><em class="status">${e(j.stage)}</em>${isLate(j) ? '<em class="overdue">Delivery late</em>' : ''}</span></button>`).join('') : empty('No projects here. Accept a quote to book one, or use New project.')}</section>
+   <section class="record-editor">${selected === 'new' ? newJob(ctx) : ctx.job ? detail(ctx) : '<div class="select-prompt"><h2>Select a project</h2><p>Plan the crew, check readiness, log client changes and track delivery.</p></div>'}</section></div>`;
 }
 function newJob(ctx) {
   const clientOpts = [['', 'Choose a client']].concat(ctx.clients.map(c => [c.id, c.organisation ? `${c.name} (${c.organisation})` : c.name]));
-  return `<form id="newjob-form" class="record-form"><div class="form-title span-2"><div><p class="eyebrow">NEW JOB</p><h2>Book a production</h2></div></div>
-   ${selectField('client_id', 'Client', '', clientOpts)}${field('title', 'Job title', '', { required: true })}
-   ${field('service_type', 'Main service', '', { required: true })}${field('venue', 'Venue', '')}
+  return `<form id="newjob-form" class="record-form"><div class="form-title span-2"><div><p class="eyebrow">NEW PROJECT</p><h2>Start a project</h2></div></div>
+   ${selectField('client_id', 'Client', '', clientOpts)}${field('title', 'Project title', '', { required: true })}
+   ${field('venue', 'Venue', '')}${servicePicker([])}
    ${field('starts_at', 'Starts', '', { type: 'datetime-local', required: true })}${field('ends_at', 'Ends', '', { type: 'datetime-local', required: true })}
    <div class="form-actions span-2"><button class="button primary" type="submit">Create job</button><button class="button secondary" type="button" data-cancel>Cancel</button></div></form>`;
 }
@@ -58,18 +59,18 @@ function newJob(ctx) {
 function detail(ctx) {
   const j = ctx.job;
   const c = ctx.clients.find(x => x.id === j.client_id) || {};
-  const tabs = [['overview', 'Overview'], ['crew', `Crew (${ctx.crewRows.length})`], ['gear', `Gear (${ctx.gear.all.filter(g => g.job_id === ctx.job.id).length})`], ['spec', 'Event spec'], ['checklist', 'Checklist'], ['changes', `Changes (${ctx.changes.length})`], ['revisions', `Revisions (${ctx.revisions.length})`]];
+  const tabs = [['overview', 'Overview'], ['crew', `Team (${ctx.crewRows.length})`], ['gear', `Gear (${ctx.gear.all.filter(g => g.job_id === ctx.job.id).length})`], ['brief', j.brief_status === 'submitted' ? 'Client brief ✓' : 'Client brief'], ['spec', 'Event spec'], ['checklist', 'Checklist'], ['changes', `Changes (${ctx.changes.length})`], ['revisions', `Revisions (${ctx.revisions.length})`]];
   const done = ctx.checks.filter(x => x.completed_at).length;
   return `<div class="job-head"><div><p class="eyebrow">${e(j.reference)} · ${e(c.organisation || c.name || '')}</p><h2>${e(j.title)}</h2><p class="muted">${readable(j.starts_at)} ${time(j.starts_at)} to ${readable(j.ends_at)} ${time(j.ends_at)}${j.venue ? ' · ' + e(j.venue) : ''}</p></div>
     <div class="stage-track">${STAGES.map((s, i) => `<span class="${STAGES.indexOf(j.stage) >= i ? 'on' : ''}" title="${e(s)}"></span>`).join('')}<small>${e(j.stage)}</small></div></div>
    <div class="tab-row">${tabs.map(([k, l]) => `<button class="tab${tab === k ? ' active' : ''}" data-jtab="${k}">${e(l)}</button>`).join('')}</div>
-   ${tab === 'crew' ? crewTab(ctx) : tab === 'gear' ? gearTab(ctx) : tab === 'spec' ? specTab(ctx) : tab === 'checklist' ? checklistTab(ctx, done) : tab === 'changes' ? changesTab(ctx) : tab === 'revisions' ? revisionsTab(ctx) : overviewTab(ctx)}`;
+   ${tab === 'crew' ? crewTab(ctx) : tab === 'gear' ? gearTab(ctx) : tab === 'brief' ? briefTab(ctx) : tab === 'spec' ? specTab(ctx) : tab === 'checklist' ? checklistTab(ctx, done) : tab === 'changes' ? changesTab(ctx) : tab === 'revisions' ? revisionsTab(ctx) : overviewTab(ctx)}`;
 }
 function overviewTab(ctx) {
   const j = ctx.job, owner = ctx.identity.role === 'owner';
   return `<form id="job-form" class="record-form">
    ${selectField('stage', 'Stage', j.stage, STAGES.map(s => [s, s]))}${selectField('booking_evidence_type', 'Booking confirmed by', j.booking_evidence_type || '', EVIDENCE)}
-   ${field('title', 'Job title', j.title, { required: true })}${field('service_type', 'Main service', j.service_type, { required: true })}
+   ${field('title', 'Project title', j.title, { required: true })}${servicePicker(j.services || [])}
    ${field('starts_at', 'Starts', localDT(j.starts_at), { type: 'datetime-local', required: true })}${field('ends_at', 'Ends', localDT(j.ends_at), { type: 'datetime-local', required: true })}
    ${field('venue', 'Venue', j.venue)}${field('audience_size', 'Audience size', j.audience_size, { type: 'number', extra: 'min="0"' })}
    ${field('venue_contact_name', 'Venue / client contact on the day', j.venue_contact_name)}${field('venue_contact_phone', 'Contact phone', j.venue_contact_phone)}
@@ -80,9 +81,9 @@ function overviewTab(ctx) {
    ${field('included_revisions', 'Revision rounds included', j.included_revisions, { type: 'number', extra: 'min="0"' })}
    <label class="check-label"><input type="checkbox" name="delivered" ${j.delivered_at ? 'checked' : ''}> Delivered to client${j.delivered_at ? ` <small>${readable(j.delivered_at)}</small>` : ''}</label>
    <div class="span-2 subhead"><p class="eyebrow">PERMISSION TO PUBLISH</p></div>
-   <label class="check-label span-2"><input type="checkbox" name="publication_consent" ${j.publication_consent ? 'checked' : ''}> The client agrees we may use photos and videos from this job in our portfolio and social media</label>
+   <label class="check-label span-2"><input type="checkbox" name="publication_consent" ${j.publication_consent ? 'checked' : ''}> The client agrees we may use photos and videos from this project in our portfolio and social media</label>
    ${field('consent_restrictions', 'Any limits (e.g. no faces of children, no logo)', j.consent_restrictions)}
-   <div class="form-actions span-2"><button class="button primary" type="submit">Save job</button><button class="button secondary" type="button" data-cancel>Close</button>${owner ? '<button class="button danger" type="button" data-delete>Delete</button>' : ''}</div></form>`;
+   <div class="form-actions span-2"><button class="button primary" type="submit">Save project</button><button class="button secondary" type="button" data-cancel>Close</button>${owner ? '<button class="button danger" type="button" data-delete>Delete</button>' : ''}</div></form>`;
 }
 function crewTab(ctx) {
   const money_ = canViewMoney(ctx.identity.role), j = ctx.job;
@@ -91,20 +92,20 @@ function crewTab(ctx) {
   const clash = r => ctx.allCrewRows.some(o => o.crew_id === r.crew_id && o.id !== r.id && o.job_id !== r.job_id && new Date(o.starts_at) < new Date(r.ends_at) && new Date(o.ends_at) > new Date(r.starts_at));
   const crewOpts = [['', 'Choose a person']].concat(ctx.crew.filter(c => c.active).map(c => [c.id, c.name]));
   return `${ctx.crewRows.length ? `<div class="table-wrap"><table class="data-table"><thead><tr><th>Person</th><th>Role</th><th>Call time</th><th>Status</th>${money_ ? '<th>Agreed pay</th>' : ''}<th></th></tr></thead><tbody>
-   ${ctx.crewRows.map(r => { const p = pay(r.id), c = who(r.crew_id); return `<tr data-jc="${r.id}"><td><strong>${e(c.name || '')}</strong><small>${e(c.phone || '')}</small>${clash(r) ? '<small class="override">Also booked on another job at this time</small>' : ''}</td><td>${e(r.role)}${r.instructions ? `<small>${e(r.instructions)}</small>` : ''}</td><td>${r.call_time ? readable(r.call_time) + ' ' + time(r.call_time) : '-'}</td>
+   ${ctx.crewRows.map(r => { const p = pay(r.id), c = who(r.crew_id); return `<tr data-jc="${r.id}"><td><strong>${e(c.name || '')}</strong><small>${e(c.phone || '')}</small>${clash(r) ? '<small class="override">Also booked on another project at this time</small>' : ''}</td><td>${e(r.role)}${r.instructions ? `<small>${e(r.instructions)}</small>` : ''}</td><td>${r.call_time ? readable(r.call_time) + ' ' + time(r.call_time) : '-'}</td>
     <td><select class="mini-select" data-avail>${[['pending', 'Waiting'], ['confirmed', 'Confirmed'], ['declined', 'Declined']].map(([k, l]) => `<option value="${k}"${r.availability === k ? ' selected' : ''}>${l}</option>`).join('')}</select></td>
     ${money_ ? `<td><input class="mini wide" type="number" min="0" data-pay value="${value(p?.agreed_amount)}" placeholder="UGX">${p && Number(p.paid_amount) ? `<small>Paid ${money(p.paid_amount)}</small>` : ''}</td>` : ''}
-    <td class="row-actions"><button type="button" class="text-button" data-sheet>Call sheet</button><button type="button" class="text-button" data-calllink>Send link</button>${money_ ? '<button type="button" class="text-button" data-save-pay>Save pay</button><button type="button" class="text-button" data-paid>Mark paid</button>' : ''}<button type="button" class="text-button danger-text" data-remove>Remove</button></td></tr>`; }).join('')}</tbody></table></div>` : empty('No crew on this job yet.')}
+    <td class="row-actions"><button type="button" class="text-button" data-sheet>Call sheet</button><button type="button" class="text-button" data-calllink>Send link</button>${money_ ? '<button type="button" class="text-button" data-save-pay>Save pay</button><button type="button" class="text-button" data-paid>Mark paid</button>' : ''}<button type="button" class="text-button danger-text" data-remove>Remove</button></td></tr>`; }).join('')}</tbody></table></div>` : empty('No crew on this project yet.')}
    <form id="crew-form" class="record-form line-form"><div class="form-title span-2"><p class="eyebrow">ADD CREW</p>${ctx.crew.length ? '' : '<a class="text-button" href="#crew">Add people to the crew directory first</a>'}</div>
     ${selectField('crew_id', 'Person', '', crewOpts)}${selectField('role', 'Role', ROLES[0], ROLES.map(r => [r, r]))}
     ${field('call_time', 'Call time', localDT(new Date(new Date(j.starts_at).getTime() - 2 * 3600e3).toISOString()), { type: 'datetime-local' })}${money_ ? field('agreed', 'Agreed pay (UGX)', '', { type: 'number', extra: 'min="0"' }) : ''}
     ${field('instructions', 'Instructions for this person', '')}
-    <div class="form-actions span-2"><button class="button primary" type="submit">Add to job</button></div></form>`;
+    <div class="form-actions span-2"><button class="button primary" type="submit">Add to project</button></div></form>`;
 }
 function checklistTab(ctx, done) {
   const cats = [...new Set(ctx.checks.map(c => c.category))];
   const missing = Object.keys(TEMPLATES).filter(k => !cats.includes(k));
-  return `<div class="module-toolbar"><div><strong>${done} of ${ctx.checks.length} done</strong><span>${ctx.checks.length ? 'Tick each item as it is checked on site' : 'Add the checklists this job needs'}</span></div><div>${missing.map(k => `<button class="button secondary" data-template="${k}">+ ${e(CAT_LABEL[k])}</button>`).join('')}</div></div>
+  return `<div class="module-toolbar"><div><strong>${done} of ${ctx.checks.length} done</strong><span>${ctx.checks.length ? 'Tick each item as it is checked on site' : 'Add the checklists this project needs'}</span></div><div>${missing.map(k => `<button class="button secondary" data-template="${k}">+ ${e(CAT_LABEL[k])}</button>`).join('')}</div></div>
    ${cats.map(cat => `<div class="check-group"><h3>${e(CAT_LABEL[cat] || cat)}</h3>${ctx.checks.filter(c => c.category === cat).map(c => `<label class="check-item${c.completed_at ? ' done' : ''}"><input type="checkbox" data-check="${c.id}" ${c.completed_at ? 'checked' : ''}><span>${e(c.label)}${c.completed_at ? `<small>Done ${readable(c.completed_at)} ${time(c.completed_at)}</small>` : ''}</span></label>`).join('')}</div>`).join('')}`;
 }
 function changesTab(ctx) {
@@ -163,32 +164,33 @@ function bind(context) {
   host.querySelectorAll('[data-stage]').forEach(b => b.addEventListener('click', () => { stageFilter = b.dataset.stage; draw(context); }));
   host.querySelectorAll('[data-row]').forEach(b => b.addEventListener('click', () => { selected = b.dataset.row; tab = 'overview'; draw(context); }));
   host.querySelectorAll('[data-cancel]').forEach(b => b.addEventListener('click', () => { selected = null; draw(context); }));
-  bindGear(ctx, host, client, notify, run); bindSpec(ctx, host, client, notify, run);
+  bindGear(ctx, host, client, notify, run); bindSpec(ctx, host, client, notify, run); bindBrief(ctx, host, client, notify, run);
   host.querySelectorAll('[data-jtab]').forEach(b => b.addEventListener('click', () => { tab = b.dataset.jtab; draw(context); }));
 
   const nf = host.querySelector('#newjob-form');
   nf?.addEventListener('submit', ev => { ev.preventDefault(); const fd = new FormData(nf);
     if (!fd.get('client_id')) { notify('Choose a client.'); return; }
-    run(async () => { const j = await insertWithRef(client, 'jobs', 'reference', 'SM', { client_id: fd.get('client_id'), title: fd.get('title').trim(), service_type: fd.get('service_type').trim(), venue: txt(fd.get('venue')), starts_at: fromLocal(fd.get('starts_at')), ends_at: fromLocal(fd.get('ends_at')), stage: 'Quoted' }); selected = j.id; }, 'Job created.'); });
+    const svc = readServices(nf); if (!svc.length) { notify('Tick at least one kind of project.'); return; }
+    run(async () => { const j = await insertWithRef(client, 'jobs', 'reference', 'SM', { client_id: fd.get('client_id'), title: fd.get('title').trim(), service_type: serviceType(svc), services: svc, venue: txt(fd.get('venue')), starts_at: fromLocal(fd.get('starts_at')), ends_at: fromLocal(fd.get('ends_at')), stage: 'Quoted' }); selected = j.id; tab = 'brief'; }, 'Project created. Send the client brief when you are ready.'); });
 
   const job = ctx.job; if (!job) return;
   const jf = host.querySelector('#job-form');
   jf?.addEventListener('submit', ev => { ev.preventDefault(); const fd = new FormData(jf);
-    const v = { stage: fd.get('stage'), booking_evidence_type: fd.get('booking_evidence_type') || null, title: fd.get('title').trim(), service_type: fd.get('service_type').trim(), starts_at: fromLocal(fd.get('starts_at')), ends_at: fromLocal(fd.get('ends_at')), venue: txt(fd.get('venue')), audience_size: num(fd.get('audience_size')), venue_contact_name: txt(fd.get('venue_contact_name')), venue_contact_phone: txt(fd.get('venue_contact_phone')), operational_brief: txt(fd.get('operational_brief')), call_sheet_brief: txt(fd.get('call_sheet_brief')), delivery_due_at: fromLocal(fd.get('delivery_due_at')), delivery_link: txt(fd.get('delivery_link')), included_revisions: num(fd.get('included_revisions')) ?? 2, consent_restrictions: txt(fd.get('consent_restrictions')) };
+    const v = { stage: fd.get('stage'), booking_evidence_type: fd.get('booking_evidence_type') || null, title: fd.get('title').trim(), service_type: readServices(jf).length ? serviceType(readServices(jf)) : job.service_type, services: readServices(jf), starts_at: fromLocal(fd.get('starts_at')), ends_at: fromLocal(fd.get('ends_at')), venue: txt(fd.get('venue')), audience_size: num(fd.get('audience_size')), venue_contact_name: txt(fd.get('venue_contact_name')), venue_contact_phone: txt(fd.get('venue_contact_phone')), operational_brief: txt(fd.get('operational_brief')), call_sheet_brief: txt(fd.get('call_sheet_brief')), delivery_due_at: fromLocal(fd.get('delivery_due_at')), delivery_link: txt(fd.get('delivery_link')), included_revisions: num(fd.get('included_revisions')) ?? 2, consent_restrictions: txt(fd.get('consent_restrictions')) };
     if (STAGES.indexOf(v.stage) >= STAGES.indexOf('Confirmed') && !v.booking_evidence_type) { notify('Choose what confirmed the booking (payment, purchase order or approval) before moving past Quoted.'); return; }
     if (v.stage === 'Confirmed' && !job.booking_confirmed_at) v.booking_confirmed_at = new Date().toISOString();
     const delivered = fd.get('delivered') === 'on'; if (delivered && !job.delivered_at) v.delivered_at = new Date().toISOString(); if (!delivered) v.delivered_at = null;
     const consent = fd.get('publication_consent') === 'on'; v.publication_consent = consent;
     if (consent && !job.publication_consent) { v.consent_recorded_at = new Date().toISOString(); v.consent_recorded_by = identity.id; v.consent_withdrawn_at = null; }
     if (!consent && job.publication_consent) v.consent_withdrawn_at = new Date().toISOString();
-    setBusy(jf, true); run(() => saveRow(client, 'jobs', v, job.id), 'Job saved.'); });
-  jf?.querySelector('[data-delete]')?.addEventListener('click', () => { if (confirm('Delete this job? Only do this for a job created by mistake.')) run(async () => { await deleteRow(client, 'jobs', job.id); selected = null; }, 'Job deleted.'); });
+    setBusy(jf, true); run(() => saveRow(client, 'jobs', v, job.id), 'Project saved.'); });
+  jf?.querySelector('[data-delete]')?.addEventListener('click', () => { if (confirm('Delete this project? Only do this for a project created by mistake.')) run(async () => { await deleteRow(client, 'jobs', job.id); selected = null; }, 'Job deleted.'); });
 
   // crew
   const cf = host.querySelector('#crew-form');
   cf?.addEventListener('submit', ev => { ev.preventDefault(); const fd = new FormData(cf); if (!fd.get('crew_id')) { notify('Choose a person.'); return; }
     run(async () => { const r = await saveRow(client, 'job_crew', { job_id: job.id, crew_id: fd.get('crew_id'), role: fd.get('role'), call_time: fromLocal(fd.get('call_time')), instructions: txt(fd.get('instructions')), starts_at: job.starts_at, ends_at: job.ends_at }, null);
-      const amt = num(fd.get('agreed')); if (amt != null) await saveRow(client, 'crew_pay', { job_crew_id: r.id, job_id: job.id, agreed_amount: amt }, null); }, 'Added to the job.'); });
+      const amt = num(fd.get('agreed')); if (amt != null) await saveRow(client, 'crew_pay', { job_crew_id: r.id, job_id: job.id, agreed_amount: amt }, null); }, 'Added to the project.'); });
   host.querySelectorAll('[data-jc]').forEach(row => {
     const r = ctx.crewRows.find(x => x.id === row.dataset.jc), p = ctx.pay.find(x => x.job_crew_id === r.id);
     row.querySelector('[data-avail]')?.addEventListener('change', ev => run(() => saveRow(client, 'job_crew', { availability: ev.target.value }, r.id), 'Status updated.'));
@@ -196,7 +198,7 @@ function bind(context) {
     row.querySelector('[data-calllink]')?.addEventListener('click', () => { const cr = ctx.crew.find(x => x.id === r.crew_id) || {}; whatsappTo(cr.phone, `Hello ${cr.name || ''}, your call details for ${job.title} are here. Please open and tap Yes to confirm: ${shareLink('call', r.share_token)}`); });
     row.querySelector('[data-save-pay]')?.addEventListener('click', () => { const amt = num(row.querySelector('[data-pay]').value); if (amt == null) { notify('Enter the agreed pay.'); return; } run(() => saveRow(client, 'crew_pay', p ? { agreed_amount: amt } : { job_crew_id: r.id, job_id: job.id, agreed_amount: amt }, p?.id || null), 'Pay saved.'); });
     row.querySelector('[data-paid]')?.addEventListener('click', async () => { if (!p) { notify('Save the agreed pay first.'); return; } const a = await askForm({ title: 'Mark crew as paid', submit: 'Mark paid', fields: [{ name: 'ref', label: 'Payment reference', value: 'MoMo', hint: 'MoMo transaction ID, cash, bank, etc.' }] }); if (!a) return; const ref = a.ref; run(() => saveRow(client, 'crew_pay', { paid_amount: p.agreed_amount, paid_at: new Date().toISOString(), payment_reference: ref }, p.id), 'Marked as paid.'); });
-    row.querySelector('[data-remove]')?.addEventListener('click', () => { if (confirm('Remove this person from the job?')) run(async () => { if (p) await deleteRow(client, 'crew_pay', p.id); await deleteRow(client, 'job_crew', r.id); }, 'Removed.'); });
+    row.querySelector('[data-remove]')?.addEventListener('click', () => { if (confirm('Remove this person from the project?')) run(async () => { if (p) await deleteRow(client, 'crew_pay', p.id); await deleteRow(client, 'job_crew', r.id); }, 'Removed.'); });
   });
 
   // checklist
@@ -215,7 +217,7 @@ function bind(context) {
       let invId = drafts?.[0]?.id;
       if (!invId) invId = (await insertWithRef(client, 'invoices', 'reference', 'SMI', { job_id: job.id, client_id: job.client_id, currency: 'UGX', status: 'draft', booking_percent: 0, preproduction_percent: 0, completion_percent: 100, commercial_notes: 'Extra work invoice' })).id;
       const { error: e2 } = await withTimeout(client.rpc('bill_job_change', { p_change_id: ch.id, p_invoice_id: invId, p_amount: amt, p_approval_note: note })); if (e2) throw new Error(e2.message);
-    }, 'Added to a draft invoice for this job. Issue it from Invoices.');
+    }, 'Added to a draft invoice for this project. Issue it from Invoices.');
   }));
 
   // revisions

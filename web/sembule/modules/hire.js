@@ -28,18 +28,18 @@ export async function mountHire(context) {
     const job = id => jobs.find(j => j.id === id) || {}, cli = id => clients.find(c => c.id === id) || {};
     const held = deps.filter(d => !d.returned_at), heldTotal = held.reduce((s, d) => s + Number(d.amount), 0);
     host.innerHTML = `<div class="module-toolbar"><div><strong>${held.length} deposit${held.length === 1 ? '' : 's'} held · ${money(heldTotal)}</strong><span>Money you are holding for clients. It is theirs until the gear comes back.</span></div><button class="button primary" data-new>+ New hire deposit</button></div>
-     ${deps.length ? `<div class="table-wrap"><table class="data-table"><thead><tr><th>Job / client</th><th>Equipment</th><th>Deposit</th><th>Status</th><th></th></tr></thead><tbody>${deps.map(d => `<tr><td><strong>${e(job(d.job_id).reference || '')}</strong><small>${e(cli(d.client_id).organisation || cli(d.client_id).name || '')}</small></td><td>${e(d.items)}</td><td class="num">${money(d.amount)}<small>${readable(d.received_at)}</small></td>
+     ${deps.length ? `<div class="table-wrap"><table class="data-table"><thead><tr><th>Project / client</th><th>Equipment</th><th>Deposit</th><th>Status</th><th></th></tr></thead><tbody>${deps.map(d => `<tr><td><strong>${e(job(d.job_id).reference || '')}</strong><small>${e(cli(d.client_id).organisation || cli(d.client_id).name || '')}</small></td><td>${e(d.items)}</td><td class="num">${money(d.amount)}<small>${readable(d.received_at)}</small></td>
        <td>${d.returned_at ? `<em class="status">Returned ${readable(d.returned_at)}</em>${Number(d.deducted) ? `<small>Kept ${money(d.deducted)}: ${e(d.deduction_reason)}</small>` : ''}` : '<em class="overdue">Held</em>'}</td>
        <td class="row-actions"><button class="text-button" data-doc="${d.id}">Hire agreement</button>${d.returned_at ? '' : `<button class="text-button" data-ret="${d.id}">Return deposit</button>`}</td></tr>`).join('')}</tbody></table></div>` : empty('No hire deposits yet. Use this when a client hires equipment without a crew.')}`;
     host.querySelector('[data-new]').onclick = async () => {
       const a = await askForm({ title: 'New hire deposit', submit: 'Save deposit', fields: [
-        { name: 'job_id', label: 'Job', type: 'select', value: '', options: [['', 'Choose a job'], ...jobs.filter(j => !j.archived_at).slice(0, 80).map(j => [j.id, `${j.reference} · ${j.title}`])] },
+        { name: 'job_id', label: 'Project', type: 'select', value: '', options: [['', 'Choose a project'], ...jobs.filter(j => !j.archived_at).slice(0, 80).map(j => [j.id, `${j.reference} · ${j.title}`])] },
         { name: 'items', label: 'Equipment hired', type: 'textarea', required: true, hint: 'For example: 2 × 65" screens with stands, 1 PA system' },
         { name: 'amount', label: 'Deposit received (UGX)', type: 'number', min: 0, required: true },
         { name: 'method', label: 'Paid by', type: 'select', value: 'cash', options: METHODS },
         { name: 'reference', label: 'Reference', hint: 'MoMo ID, bank slip, etc. (optional)' }] });
       if (!a) return;
-      if (!a.job_id || !a.items) { notify('Choose the job and list the equipment.'); return; }
+      if (!a.job_id || !a.items) { notify('Choose the project and list the equipment.'); return; }
       try { await saveRow(client, 'hire_deposits', { job_id: a.job_id, client_id: job(a.job_id).client_id, items: a.items, amount: num(a.amount), method: a.method, reference: a.reference || null }, null); notify('Deposit saved.'); await draw(); } catch (err) { notify(err.message); }
     };
     host.querySelectorAll('[data-doc]').forEach(b => b.onclick = () => { const d = deps.find(x => x.id === b.dataset.doc); agreement(d, job(d.job_id), cli(d.client_id), notify); });
