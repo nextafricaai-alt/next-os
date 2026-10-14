@@ -109,6 +109,7 @@ root.addEventListener('click', async event => {
     input.type = visible ? 'text' : 'password'; target.textContent = visible ? 'Hide password' : 'Show password';
     target.setAttribute('aria-pressed',String(visible)); return;
   }
+  if (target.closest && target.closest('[data-more]')) { document.body.classList.add('menu-open'); document.getElementById('close-menu')?.focus(); }
   if (target.id === 'open-menu') { document.body.classList.add('menu-open'); target.setAttribute('aria-expanded','true'); document.getElementById('close-menu').focus(); }
   if (target.id === 'close-menu' || target.id === 'menu-backdrop') { closeMenu(); document.getElementById('open-menu')?.focus(); }
   if (target.hasAttribute('data-install')) await installApp(notify);
