@@ -1,6 +1,6 @@
 // Static app assets only. Auth, API calls and user records never enter this cache.
 const CACHE_PREFIX = 'sembule-shell-';
-const CACHE_VERSION = '0.8.6';
+const CACHE_VERSION = '1.1.0';
 const CACHE = CACHE_PREFIX + CACHE_VERSION;
 const FILES = [
   "./app.js",
@@ -50,6 +50,12 @@ const FILES = [
   "./roles.js",
   "./styles.css",
   "./records.css",
+  "./modules/reminders.js",
+  "./modules/hire.js",
+  "./modules/feedback.js",
+  "./modules/jobsound.js",
+  "./theme.css",
+  "./assets/brand/logo-white.png",
   "./utils.js"
 ];
 const ALLOWED = new Set(FILES.map(path => new URL(path, self.registration.scope).href));

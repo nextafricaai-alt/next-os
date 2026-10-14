@@ -1,0 +1,21 @@
+@font-face{font-family:Axiforma;src:url('./assets/fonts/Axiforma-Regular.ttf') format('truetype');font-weight:400;font-display:swap}
+@font-face{font-family:Axiforma;src:url('./assets/fonts/Axiforma-SemiBold.ttf') format('truetype');font-weight:600;font-display:swap}
+@font-face{font-family:Axiforma;src:url('./assets/fonts/Axiforma-Bold.ttf') format('truetype');font-weight:700;font-display:swap}
+/* Sembule public pages: premium dark (loaded after public-pages.css) */
+:root{color-scheme:dark}
+body{background:#060706 radial-gradient(700px 480px at 10% -100px,rgba(4,89,42,.5),transparent 65%) no-repeat;color:#ECE7DA}
+.pp-head{background:linear-gradient(120deg,#04592A,#053D1E 70%,#04150C);border-bottom:1px solid rgba(212,166,42,.3)}
+.pp-head span{color:#D4A62A}
+.pp-card{background:linear-gradient(160deg,rgba(255,255,255,.07),rgba(255,255,255,.02)),#0E110F;border:1px solid rgba(255,255,255,.09);color:#ECE7DA}
+@media(min-width:720px){.pp-card{box-shadow:0 30px 60px -30px #000}}
+.pp-eyebrow{color:#D4A62A}h1,h2,h3{color:#F6F2E6}.pp-sub,p{color:rgba(236,231,218,.78)}
+.pp-total{background:linear-gradient(135deg,#0B6B36,#04592A 60%,#053D1E);border:1px solid rgba(212,166,42,.35)}.pp-total.paid{background:linear-gradient(135deg,#0F8A47,#0B6B36)}.pp-total small{color:#E3B73A}
+.pp-step{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08)}.pp-step b{color:#E3B73A}.pp-step small{color:rgba(236,231,218,.6)}
+.pp-pay{border-color:rgba(255,255,255,.12);background:rgba(255,255,255,.04)}.pp-pay p{color:#F6F2E6}
+.pp-note{background:rgba(212,166,42,.12);color:#ECE7DA}.pp-note b{color:#F0C75A}
+.pp-table th{color:rgba(212,166,42,.85);border-bottom-color:rgba(255,255,255,.1)}.pp-table td{border-bottom-color:rgba(255,255,255,.08);color:#ECE7DA}.pp-table td small{color:rgba(236,231,218,.55)}
+.pp-btn{background:linear-gradient(180deg,#E3B73A,#CFA02A 55%,#B88A12);color:#140E00;font-weight:700;border-radius:12px;box-shadow:0 12px 26px -12px rgba(212,166,42,.7),inset 0 1px 0 rgba(255,255,255,.4)}
+.pp-btn.ghost{background:rgba(255,255,255,.06);color:#ECE7DA;border:1px solid rgba(255,255,255,.16);box-shadow:none}
+.pp-foot{color:rgba(236,231,218,.55)}.pp-foot b{color:#D4A62A}
+a{color:#E3B73A}
+@media print{:root{color-scheme:light}body{background:#fff!important;color:#111!important}.pp-card{background:#fff!important;border:0!important;color:#111!important}h1,h2,h3,.pp-sub,p,.pp-table td,.pp-pay p{color:#111!important}.pp-total{background:#04592A!important}.pp-step{background:#f2f6f3!important}.pp-foot,.pp-foot b{color:#444!important}}

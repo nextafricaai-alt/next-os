@@ -16,7 +16,7 @@ export async function loadCompany(client) {
 export const money = (n, cur = 'UGX') => `${cur} ${Number(n || 0).toLocaleString('en-GB', { minimumFractionDigits: cur === 'USD' ? 2 : 0, maximumFractionDigits: cur === 'USD' ? 2 : 0 })}`;
 export const num = v => (v === '' || v == null) ? null : Number(v);
 export const txt = v => (v == null ? '' : String(v).trim()) || null;
-export const today = () => new Date().toISOString().slice(0, 10);
+export const today = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Kampala' }).format(new Date());
 export const addDays = (iso, d) => { const x = new Date(iso); x.setDate(x.getDate() + d); return x.toISOString().slice(0, 10); };
 export const readable = d => d ? new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium', timeZone: 'Africa/Kampala' }).format(new Date(d)) : '';
 
@@ -114,3 +114,29 @@ export function documentHTML({ asset, title, heading, reference, metaLines, part
      if(navigator.canShare&&navigator.canShare({files:[f]})){await navigator.share({files:[f],title:FILE})}else{const a=document.createElement('a');a.href=URL.createObjectURL(f);a.download=FILE;a.click();alert('Sharing works from a phone. The PDF has been downloaded instead, attach it in WhatsApp or email.')}}catch(x){if(x&&x.name!=='AbortError')alert('Could not share. Use Download PDF instead.')}busy(b)};
   <\/script></body></html>`;
 }
+
+// Phone-friendly form popup. Replaces browser prompt(), which is unreliable in installed apps and has no date picker.
+// fields: [{name,label,type,value,options,required,hint}] -> resolves to {name:value} or null if cancelled.
+export function askForm({ title, intro = '', fields, submit = 'Save' }) {
+  return new Promise(resolve => {
+    const box = document.createElement('div'); box.className = 'ask-backdrop';
+    const input = f => f.type === 'select' ? `<select name="${f.name}">${f.options.map(([v, t]) => `<option value="${e(v)}"${v === f.value ? ' selected' : ''}>${e(t)}</option>`).join('')}</select>`
+      : f.type === 'checkbox' ? `<input name="${f.name}" type="checkbox"${f.value ? ' checked' : ''}>`
+      : f.type === 'textarea' ? `<textarea name="${f.name}" rows="3">${e(f.value ?? '')}</textarea>`
+      : `<input name="${f.name}" type="${f.type || 'text'}" value="${e(f.value ?? '')}"${f.required ? ' required' : ''}${f.min != null ? ` min="${f.min}"` : ''}>`;
+    box.innerHTML = `<form class="ask-card"><h2>${e(title)}</h2>${intro ? `<p class="muted">${intro}</p>` : ''}${fields.map(f => `<label class="${f.type === 'checkbox' ? 'ask-check' : ''}">${f.type === 'checkbox' ? input(f) + ' ' + e(f.label) : e(f.label) + input(f)}${f.hint ? `<small>${e(f.hint)}</small>` : ''}</label>`).join('')}<p class="ask-error" hidden></p><div class="ask-actions"><button type="button" class="button secondary" data-x>Cancel</button><button class="button primary">${e(submit)}</button></div></form>`;
+    document.body.appendChild(box);
+    const form = box.querySelector('form'), done = v => { box.remove(); resolve(v); };
+    form.error = msg => { const p = form.querySelector('.ask-error'); p.textContent = msg; p.hidden = !msg; };
+    box.querySelector('[data-x]').onclick = () => done(null);
+    box.addEventListener('click', ev => { if (ev.target === box) done(null); });
+    form.onsubmit = ev => { ev.preventDefault(); const out = {}; fields.forEach(f => { const el = form.elements[f.name]; out[f.name] = f.type === 'checkbox' ? el.checked : el.value.trim(); }); done(out); };
+    form.querySelector('input,select,textarea')?.focus();
+  });
+}
+// Kampala wall-clock value for <input type="datetime-local"> from a stored timestamp.
+export const kampalaInput = iso => iso ? new Date(new Date(iso).getTime() + 3 * 3600e3).toISOString().slice(0, 16) : '';
+export const fromKampala = v => v ? new Date(v + ':00+03:00').toISOString() : null;
+
+// Private page links for clients (portal.html) and crew (call.html). Built from where the app is hosted.
+export function shareLink(kind, token) { return new URL(`./${kind === 'call' ? 'call' : 'portal'}.html?t=${token}`, location.href).href; }
