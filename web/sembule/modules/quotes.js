@@ -5,7 +5,7 @@ import { listRows, saveRow, deleteRow } from '../data.js';
 import { withTimeout } from '../utils.js';
 import { CONFIG } from '../config.js';
 import { e, value, dateValue, readableDate, empty, field, selectField, textArea, setBusy } from './records.js';
-import { insertWithRef, printDocument, payDetails } from '../refs.js';
+import { insertWithRef, printDocument, payDetails, askForm , shareLink, whatsappTo } from '../refs.js';
 import { openInvoice } from './invoices.js';
 
 // Accept a quote: create the job and a draft invoice in one step, copying every line.
@@ -13,11 +13,15 @@ async function acceptAndBook(client, q, ctx) {
   if (!ctx.lines.length) throw new Error('Add at least one item before accepting the quote.');
   const lead = ctx.leads.find(l => l.id === q.lead_id);
   const c = ctx.clients.find(x => x.id === q.client_id) || {};
-  const suggested = lead?.event_date || addDays(today(), 7);
-  const date = prompt('Event date (YYYY-MM-DD). This books the job and creates the invoice.', suggested);
-  if (!date) return null;
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error('Use the date format YYYY-MM-DD, for example 2026-10-24.');
-  const days = Math.max(1, Math.ceil(Math.max(...ctx.lines.map(l => Number(l.days) || 1))));
+  const lineDays = Math.max(1, Math.ceil(Math.max(...ctx.lines.map(l => Number(l.days) || 1))));
+  const first0 = lead?.event_date || addDays(today(), 7);
+  const pick = await askForm({ title: 'Book this job', intro: 'Choose the event dates. This creates the job and a draft invoice.', submit: 'Book job', fields: [
+    { name: 'start', label: 'First day', type: 'date', value: first0, required: true },
+    { name: 'end', label: 'Last day', type: 'date', value: addDays(first0, lineDays - 1), required: true },
+    { name: 'charge', label: 'Charge each item for every day booked', type: 'checkbox', value: false, hint: 'Tick this if the quote priced one day but the event runs over several days.' }] });
+  if (!pick) return null;
+  if (pick.end < pick.start) throw new Error('The last day cannot be before the first day.');
+  const date = pick.start, days = Math.round((new Date(pick.end) - new Date(pick.start)) / 864e5) + 1;
   const starts = new Date(`${date}T08:00:00+03:00`), ends = new Date(`${addDays(date, days - 1)}T18:00:00+03:00`);
   const first = ctx.lines[0];
   const job = await insertWithRef(client, 'jobs', 'reference', 'SM', { client_id: q.client_id, lead_id: q.lead_id, title: `${c.organisation || c.name || 'Client'} · ${first.description}`, service_type: first.description, stage: 'Quoted', starts_at: starts.toISOString(), ends_at: ends.toISOString(), venue: lead?.venue || null, audience_size: lead?.audience_size ?? null, operational_brief: lead?.operational_brief || null });
@@ -25,7 +29,7 @@ async function acceptAndBook(client, q, ctx) {
   const pre = addDays(date, -7) > today() ? addDays(date, -7) : today();
   const inv = await insertWithRef(client, 'invoices', 'reference', 'SMI', { job_id: job.id, client_id: q.client_id, quote_id: q.id, currency: q.currency, usd_to_ugx: q.usd_to_ugx, fx_as_of: q.fx_as_of, status: 'draft', booking_percent: q.booking_percent, preproduction_percent: q.preproduction_percent, completion_percent: q.completion_percent, booking_due_on: today(), preproduction_due_on: pre, completion_due_on: addDays(addDays(date, days - 1), 14) });
   for (const l of ctx.lines) {
-    const d = Number(l.days) || 1;
+    const d = pick.charge ? Math.max(Number(l.days) || 1, days) : (Number(l.days) || 1);
     await saveRow(client, 'invoice_lines', { invoice_id: inv.id, job_id: job.id, source_quote_line_id: l.id, description: d > 1 ? `${l.description} (${d} days)` : l.description, quantity: Number(l.quantity) * d, unit_price: Number(l.unit_price) }, null);
   }
   if (lead && ['new', 'contacted', 'qualified', 'needs_clarification'].includes(lead.status)) await saveRow(client, 'leads', { status: 'quoted' }, lead.id);
@@ -39,7 +43,7 @@ const money = (n, cur = 'UGX') => `${cur} ${Number(n || 0).toLocaleString('en-GB
 const num = v => (v === '' || v == null) ? null : Number(v);
 const txt = v => (v == null ? '' : String(v).trim()) || null;
 const addDays = (iso, d) => { const x = new Date(iso); x.setDate(x.getDate() + d); return x.toISOString().slice(0, 10); };
-const today = () => new Date().toISOString().slice(0, 10);
+const today = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Kampala' }).format(new Date());
 
 async function financeSettings(client) {
   const { data, error } = await withTimeout(client.from('finance_settings').select('*').eq('id', true).maybeSingle());
@@ -70,7 +74,7 @@ function quoteEditor(q, ctx) {
   const leadOpts = [['', 'No linked enquiry']].concat(leads.map(l => [l.id, `${l.contact_name} · ${l.service_requested || ''}`]));
   const issued = q?.issued_on || today();
   return `<form id="quote-form" class="record-form" data-id="${q?.id || ''}">
-   <div class="form-title span-2"><div><p class="eyebrow">${q ? e(q.reference) : 'NEW QUOTE'}</p><h2>${q ? 'Quote details' : 'Start a quote'}</h2></div>${q ? `<div class="quote-actions"><button type="button" class="button secondary" data-print>Print / PDF</button><button type="button" class="button secondary" data-whatsapp>WhatsApp</button>${q.job_id ? '<button type="button" class="button secondary" data-open-invoice>Open invoice</button>' : ['void', 'declined'].includes(q.status) ? '' : '<button type="button" class="button primary" data-accept>Accept &amp; book</button>'}</div>` : ''}</div>
+   <div class="form-title span-2"><div><p class="eyebrow">${q ? e(q.reference) : 'NEW QUOTE'}</p><h2>${q ? 'Quote details' : 'Start a quote'}</h2></div>${q ? `<div class="quote-actions"><button type="button" class="button secondary" data-print>Print / PDF</button><button type="button" class="button secondary" data-whatsapp>WhatsApp</button><button type="button" class="button secondary" data-link>Send client link</button>${q.job_id ? '<button type="button" class="button secondary" data-open-invoice>Open invoice</button>' : ['void', 'declined'].includes(q.status) ? '' : '<button type="button" class="button primary" data-accept>Accept &amp; book</button>'}</div>` : ''}</div>
    ${q ? '<details class="span-2 more"><summary>Client, dates and terms</summary><div class="form-grid">' : ''}
    ${selectField('client_id', 'Client', q?.client_id || '', clientOpts)}<div class="new-client span-2" hidden><p class="eyebrow">NEW CLIENT</p><div class="form-grid">${field('nc_name', 'Contact name', '')}${field('nc_org', 'Organisation (optional)', '')}${field('nc_phone', 'Phone / WhatsApp', '')}${field('nc_email', 'Email', '', { type: 'email' })}</div></div>${selectField('lead_id', 'Linked enquiry', q?.lead_id || '', leadOpts)}
    ${selectField('currency', 'Currency', q?.currency || 'UGX', [['UGX','UGX'],['USD','USD']])}<div class="usd-only">${field('usd_to_ugx', 'USD rate (UGX per 1 USD)', q?.usd_to_ugx ?? fs.usd_to_ugx ?? '', { type: 'number', extra: 'min="1" step="0.01"' })}</div>
@@ -223,6 +227,9 @@ function bind(context) {
   form?.querySelector('[data-delete]')?.addEventListener('click', () => { if (!confirm('Delete this quote and its items permanently?')) return; run(async () => { for (const l of ctx.lines) await deleteRow(client, 'quote_lines', l.id); await deleteRow(client, 'quotes', q.id); selected = null; }, 'Quote deleted.'); });
   form?.querySelector('[data-print]')?.addEventListener('click', () => printQuote(q, ctx));
   form?.querySelector('[data-whatsapp]')?.addEventListener('click', () => whatsapp(q, ctx));
+  form?.querySelector('[data-link]')?.addEventListener('click', () => { if (!['sent', 'accepted'].includes(q.status)) { notify('Set the quote status to Sent first. Clients cannot see drafts.'); return; }
+    const c = ctx.clients.find(x => x.id === q.client_id) || {};
+    whatsappTo(c.phone, `Hello ${c.name || ''}, here is your quotation ${q.reference} from ${CONFIG.name}: ${shareLink('portal', q.portal_token)}`); });
   form?.querySelector('[data-accept]')?.addEventListener('click', async () => {
     try { const r = await acceptAndBook(client, q, ctx); if (!r) return; notify(`Booked as job ${r.job.reference}. Draft invoice ${r.inv.reference} is ready.`); openInvoice(r.inv.id); location.hash = '#invoices'; }
     catch (err) { notify(err.message); await draw(context); }
@@ -250,14 +257,14 @@ function bind(context) {
     run(() => saveRow(client, 'quote_lines', line, null), 'Item added.');
   });
   host.querySelectorAll('[data-line]').forEach(row => {
-    row.querySelector('[data-save-line]')?.addEventListener('click', () => {
+    row.querySelector('[data-save-line]')?.addEventListener('click', async () => {
       const get = f => row.querySelector(`[data-f="${f}"]`); const l = ctx.lines.find(x => x.id === row.dataset.line);
       const v = { quantity: num(get('quantity').value), days: num(get('days').value) };
       if (get('manual_unit_price')) {
         const m = num(get('manual_unit_price').value);
         if (m !== (l.manual_unit_price == null ? null : Number(l.manual_unit_price))) {
           v.manual_unit_price = m;
-          v.override_reason = m == null ? null : (prompt('Reason for the negotiated price:', l.override_reason || 'Agreed with client by phone') || '');
+          v.override_reason = m == null ? null : ((await askForm({ title: 'Price changed', submit: 'Save price', fields: [{ name: 'r', label: 'Reason for the negotiated price', value: l.override_reason || 'Agreed with client by phone', required: true }] }))?.r || '');
           if (m != null && !v.override_reason.trim()) { notify('A reason is needed for a changed price.'); return; }
         }
       }

@@ -4,7 +4,7 @@ import { listRows, saveRow, deleteRow } from '../data.js';
 import { withTimeout } from '../utils.js';
 import { CONFIG } from '../config.js';
 import { e, value, dateValue, empty, field, selectField, textArea, setBusy } from './records.js';
-import { money, num, txt, today, readable, insertWithRef, financeSettings, payDetails, whatsappTo, printDocument } from '../refs.js';
+import { money, num, txt, today, readable, insertWithRef, financeSettings, payDetails, whatsappTo, printDocument, askForm , shareLink } from '../refs.js';
 
 const STATUS = [['draft','Draft'],['issued','Issued'],['void','Void']];
 const METHODS = [['mtn_momo','MTN Mobile Money'],['airtel_money','Airtel Money'],['bank','Bank transfer'],['cash','Cash']];
@@ -52,7 +52,7 @@ function editor(ctx) {
   const job = ctx.jobs.find(j => j.id === inv.job_id);
   return `<form id="inv-form" class="record-form" data-id="${inv.id}">
    <div class="form-title span-2"><div><p class="eyebrow">${e(inv.reference)}${job ? ' · JOB ' + e(job.reference) : ''}</p><h2>${money(b.invoice_total, cur)}</h2></div>
-    <div class="quote-actions"><button type="button" class="button secondary" data-print>Print / PDF</button><button type="button" class="button secondary" data-remind>WhatsApp reminder</button></div></div>
+    <div class="quote-actions"><button type="button" class="button secondary" data-print>Print / PDF</button><button type="button" class="button secondary" data-remind>WhatsApp reminder</button><button type="button" class="button secondary" data-link>Send client link</button></div></div>
    <div class="schedule span-2">
     <div><small>Received</small><strong>${money(b.received, cur)}</strong></div>
     <div><small>Tax withheld (WHT)</small><strong>${money(b.wht_withheld, cur)}</strong></div>
@@ -134,6 +134,8 @@ function bind(context) {
     run(() => saveRow(client, 'invoices', { status: fd.get('status'), issued_on: fd.get('issued_on') || today(), booking_due_on: fd.get('booking_due_on') || null, preproduction_due_on: fd.get('preproduction_due_on') || null, completion_due_on: fd.get('completion_due_on') || null, expected_wht: num(fd.get('expected_wht')) || 0, commercial_notes: txt(fd.get('commercial_notes')) }, inv.id), 'Invoice saved.'); });
   f?.querySelector('[data-delete]')?.addEventListener('click', () => { if (confirm('Delete this invoice permanently?')) run(async () => { for (const l of ctx.lines) await deleteRow(client, 'invoice_lines', l.id); await deleteRow(client, 'invoices', inv.id); selected = null; }, 'Invoice deleted.'); });
   f?.querySelector('[data-print]')?.addEventListener('click', () => printInvoice(ctx));
+  f?.querySelector('[data-link]')?.addEventListener('click', () => { if (inv.status !== 'issued') { notify('Issue the invoice first (record the first payment, or set its status to Issued). Clients cannot see drafts.'); return; }
+    whatsappTo(c.phone, `Hello ${c.name || ''}, here is your invoice ${inv.reference} from ${CONFIG.name}, with how to pay and your payment history: ${shareLink('portal', inv.portal_token)}`); });
   f?.querySelector('[data-remind]')?.addEventListener('click', () => { const n = nextStep(inv, bal(ctx, inv.id)); if (!n) { notify('Nothing is due on this invoice.'); return; }
     whatsappTo(c.phone, `Hello ${c.name || ''}, a gentle reminder from ${CONFIG.name}: the ${n.label.toLowerCase()} of ${money(n.amount, inv.currency)} on invoice ${inv.reference}${n.due ? ` is due ${readable(n.due)}` : ' is now due'}. Please use ${inv.reference} as the payment reference. Thank you.`); });
 
@@ -160,7 +162,7 @@ function bind(context) {
   host.querySelectorAll('[data-pay]').forEach(row => {
     const p = ctx.payments.find(x => x.id === row.dataset.pay);
     row.querySelector('[data-receipt]')?.addEventListener('click', () => printReceipt(ctx, p));
-    row.querySelector('[data-void]')?.addEventListener('click', () => { const reason = prompt('Why is this payment being voided? (for example, bounced or entered twice)'); if (reason && reason.trim()) run(() => saveRow(client, 'payments', { voided_at: new Date().toISOString(), void_reason: reason.trim() }, p.id), 'Payment voided.'); });
+    row.querySelector('[data-void]')?.addEventListener('click', async () => { const a = await askForm({ title: 'Void this payment', submit: 'Void payment', fields: [{ name: 'reason', label: 'Reason', required: true, hint: 'For example: bounced, or entered twice.' }] }); const reason = a?.reason; if (reason) run(() => saveRow(client, 'payments', { voided_at: new Date().toISOString(), void_reason: reason.trim() }, p.id), 'Payment voided.'); });
   });
 }
 let pending = null;

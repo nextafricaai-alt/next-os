@@ -1,7 +1,7 @@
 // Equipment: register items and kits progressively, check gear out to a named person, check it back in.
 import { listRows, saveRow, deleteRow } from '../data.js';
 import { e, value, empty, field, selectField, textArea, setBusy } from './records.js';
-import { txt, readable } from '../refs.js';
+import { txt, readable, askForm } from '../refs.js';
 import { openJob } from './jobs.js';
 
 const CATS = ['Cameras', 'Lenses', 'Livestream (switchers, encoders, PCs)', 'Internet (5G routers, SIMs)', 'Sound and microphones', 'Lighting and stands', 'Power (UPS, extensions, generator)', '65-inch TVs and display', 'Storage (drives, cards)', 'Cases and transport', 'Other'];
@@ -95,10 +95,10 @@ function bind(context) {
     run(async () => { for (const id of ids) await saveRow(client, 'checkouts', { job_id: job.id, equipment_id: id, custodian_crew_id: crew?.id || null, custodian_name: name, due_back_at: fromLocal(fd.get('due_back_at')), condition_out: fd.get('condition_out'), accessories_out: txt(fd.get('accessories_out')) }, null); },
       `${ids.length} item${ids.length === 1 ? '' : 's'} checked out to ${name}.${busy.length ? ` ${busy.length} skipped (already out).` : ''}`);
   });
-  host.querySelectorAll('[data-co] [data-return]').forEach(b => b.addEventListener('click', () => {
+  host.querySelectorAll('[data-co] [data-return]').forEach(b => b.addEventListener('click', async () => {
     const co = ctx.checkouts.find(c => c.id === b.closest('[data-co]').dataset.co);
-    const cond = prompt(`Condition coming back? (${COND.join(', ')})`, 'Good'); if (!cond) return;
-    const notes = prompt('Any notes? (missing cable, damage, etc.)', '') ?? '';
+    const a = await askForm({ title: 'Check in equipment', submit: 'Check in', fields: [{ name: 'cond', label: 'Condition coming back', type: 'select', value: 'Good', options: COND.map(c => [c, c]) }, { name: 'notes', label: 'Notes', type: 'textarea', hint: 'Missing cable, damage, etc.' }] }); if (!a) return;
+    const cond = a.cond, notes = a.notes;
     run(async () => { await saveRow(client, 'checkouts', { returned_at: new Date().toISOString(), condition_in: cond, return_notes: notes || null, returned_to: identity.id }, co.id);
       if (cond !== 'Good') await saveRow(client, 'equipment', { condition: COND.includes(cond) ? cond : 'Needs repair' }, co.equipment_id); }, cond === 'Good' ? 'Checked in.' : 'Checked in. The item is flagged for attention.');
   }));
