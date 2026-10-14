@@ -261,3 +261,13 @@ dialog,.ask-card{border-radius:28px}
   .toast{bottom:104px}
 }
 @media(max-width:1100px) and (min-width:761px){.workspace-main{margin-left:240px}.topbar{margin-left:24px;margin-right:24px}}
+
+/* v1.3 project types and client brief (in the app) */
+.svc-pick>b{display:block;font-size:13px;margin-bottom:4px}.svc-pick>small{display:block;color:var(--muted);font-size:12px;margin-bottom:12px}
+.svc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px}
+.svc{position:relative;cursor:pointer}.svc input{position:absolute;opacity:0;inset:0;width:100%;height:100%;margin:0;cursor:pointer;z-index:2}
+.svc span{display:block;padding:14px 16px;border-radius:18px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.045);transition:.15s}
+.svc strong{display:block;font-size:14px}.svc small{display:block;color:var(--muted);font-size:11px;margin-top:3px}
+.svc input:checked+span{background:linear-gradient(150deg,#F2CB52,#D4A62A 55%,#A87C0A);border-color:rgba(255,255,255,.35);box-shadow:0 14px 26px -12px rgba(212,166,42,.8)}
+.svc input:checked+span strong,.svc input:checked+span small{color:#140E00}.svc input:focus-visible+span{outline:2px solid var(--gold);outline-offset:2px}
+.bf-a{padding:10px 0;border-top:1px solid var(--line)}.bf-a:first-of-type{border-top:0}.bf-a small{display:block;color:var(--muted);font-size:11px;letter-spacing:.3px;margin-bottom:3px}.bf-a>div{font-size:14px}
