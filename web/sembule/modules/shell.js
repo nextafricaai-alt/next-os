@@ -14,5 +14,7 @@ export function shellView(identity, route, content) {
       ${identity.preview ? `<div class="preview-banner"><span>Local preview <span class="banner-detail">• ${ROLES[identity.role]} • No live data</span></span><button id="exit-preview">Change role / exit</button></div>` : ''}
       <div id="connection-banner" class="connection-banner" role="status" hidden>You are offline. Reconnect to sign in and continue.</div>
       <main id="main-content" tabindex="-1"><div class="page-heading"><div><p class="eyebrow">${escapeHTML(dateLabel())}</p><h1>${escapeHTML(route.label)}</h1></div><span class="workspace-badge"><span></span>${identity.preview ? 'Preview workspace' : 'Sembule workspace'}</span></div><div id="route-content">${content}</div><footer class="workspace-footer"><span>Sembule Media</span><span>Plan with clarity. Create with confidence.</span></footer></main>
-    </div></div>`;
+    </div>
+    <nav class="tabbar" aria-label="Quick navigation">${['dashboard','jobs','calendar','invoices'].map(id => routes.find(item => item.id === id)).filter(Boolean).slice(0,4).map(item => `<a href="#${item.id}" ${route.id === item.id ? 'aria-current="page"' : ''}>${icon(item.icon)}<span>${item.id === 'invoices' ? 'Money' : item.label === 'Overview' ? 'Home' : item.label}</span></a>`).join('')}<button type="button" data-more aria-label="More">${icon('menu')}<span>More</span></button></nav>
+</div>`;
 }
