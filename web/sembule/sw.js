@@ -1,17 +1,12 @@
 // Static app assets only. Auth, API calls and user records never enter this cache.
 const CACHE_PREFIX = 'sembule-shell-';
-const CACHE_VERSION = '1.3.0';
-const CACHE = CACHE_PREFIX + CACHE_VERSION;
+const CACHE = CACHE_PREFIX + '1.4.0';
 const FILES = [
   "./app.js",
-  "./website-content.js",
-  "./website-renderer.js",
-  "./website-preview.css",
-  "./website.css",
-  "./website-bridge.js",
   "./assets/brand/icon-192.png",
   "./assets/brand/icon-512.png",
   "./assets/brand/logo.png",
+  "./assets/brand/logo-white.png",
   "./assets/brand/mark.png",
   "./assets/brand/mark-gold.png",
   "./assets/brand/logo-white.png",
@@ -25,6 +20,16 @@ const FILES = [
   "./manifest.json",
   "./data.js",
   "./modules/records.js",
+  "./modules/jobsound.js",
+  "./modules/jobbrief.js",
+  "./modules/jobmoney.js",
+  "./theme.css",
+  "./brief.html",
+  "./brief.js",
+  "./brief.css",
+  "./briefdef.js",
+  "./assets/brand/orb.svg",
+  "./public-pages-dark.css",
   "./modules/leads.js",
   "./modules/clients.js",
   "./modules/holds.js",
@@ -38,8 +43,10 @@ const FILES = [
   "./modules/delivery.js",
   "./modules/home.js",
   "./modules/settings.js",
-  "./modules/website.js",
   "./modules/reports.js",
+  "./modules/reminders.js",
+  "./modules/hire.js",
+  "./modules/feedback.js",
   "./refs.js",
   "./modules/dashboard.js",
   "./modules/icons.js",
@@ -50,33 +57,12 @@ const FILES = [
   "./roles.js",
   "./styles.css",
   "./records.css",
-  "./modules/reminders.js",
-  "./modules/hire.js",
-  "./modules/feedback.js",
-  "./modules/jobsound.js",
-  "./theme.css",
-  "./brief.html",
-  "./brief.js",
-  "./brief.css",
-  "./briefdef.js",
-  "./modules/jobbrief.js",
-  "./assets/brand/orb.svg",
-  "./assets/brand/logo-white.png",
   "./utils.js"
 ];
 const ALLOWED = new Set(FILES.map(path => new URL(path, self.registration.scope).href));
 ALLOWED.add(self.registration.scope);
-function freshAssetRequest(request) {
-  const url = new URL(request.url);
-  const scopePath = new URL(self.registration.scope).pathname;
-  if (url.origin === self.location.origin && url.pathname.startsWith(scopePath) && url.pathname.endsWith('.js')) {
-    url.searchParams.set('v', CACHE_VERSION);
-    return new Request(url.href, request);
-  }
-  return request;
-}
 self.addEventListener('install', event => {
-  event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(FILES)).then(() => self.skipWaiting()));
+  event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(FILES)));
 });
 self.addEventListener('activate', event => {
   event.waitUntil(caches.keys().then(keys => Promise.all(keys
@@ -89,7 +75,7 @@ self.addEventListener('fetch', event => {
   event.respondWith((async () => {
     const key = request.url === self.registration.scope ? new URL('./index.html', self.registration.scope).href : request.url;
     try {
-      const response = await fetch(freshAssetRequest(request), { cache: 'no-cache' });
+      const response = await fetch(request, { cache: 'no-cache' });
       if (response.ok && response.type === 'basic') {
         const cache = await caches.open(CACHE);
         await cache.put(key, response.clone());

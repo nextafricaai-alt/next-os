@@ -271,3 +271,13 @@ dialog,.ask-card{border-radius:28px}
 .svc input:checked+span{background:linear-gradient(150deg,#F2CB52,#D4A62A 55%,#A87C0A);border-color:rgba(255,255,255,.35);box-shadow:0 14px 26px -12px rgba(212,166,42,.8)}
 .svc input:checked+span strong,.svc input:checked+span small{color:#140E00}.svc input:focus-visible+span{outline:2px solid var(--gold);outline-offset:2px}
 .bf-a{padding:10px 0;border-top:1px solid var(--line)}.bf-a:first-of-type{border-top:0}.bf-a small{display:block;color:var(--muted);font-size:11px;letter-spacing:.3px;margin-bottom:3px}.bf-a>div{font-size:14px}
+
+/* v1.4 Projects: header, Money tab */
+.ref-chip{display:inline-block;padding:2px 9px;border-radius:99px;border:1px solid var(--gold);color:var(--gold);font-size:11px;letter-spacing:.6px}
+.job-head{flex-wrap:wrap;gap:12px}.job-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.money-tab{display:flex;flex-direction:column;gap:16px}.money-sec .money-body{padding:4px 16px 16px;display:flex;flex-direction:column;gap:12px}
+.money-big{display:flex;gap:28px;flex-wrap:wrap;align-items:flex-end}.money-big small{display:block;font-size:10px;letter-spacing:1px;color:var(--muted,#9aa)}
+.money-big strong{display:block;font-size:26px}.money-big span{font-size:12px;opacity:.75}.money-big .r{margin-left:auto;text-align:right}
+.money-big strong.warn{color:var(--gold)}.money-big strong.good{color:#4fd18b}.money-h{font-size:13px;margin:6px 0 0}
+.money-big.profit strong{font-size:32px;color:#4fd18b}.money-big.profit.loss strong{color:#FF8B7A}
+.table-wrap.flat{box-shadow:none}.data-table .num{text-align:right;white-space:nowrap}.data-table tr.voided{opacity:.45;text-decoration:line-through}
