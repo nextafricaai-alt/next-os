@@ -3,7 +3,7 @@ import { escapeHTML } from '../utils.js';
 export const e = escapeHTML;
 export const value = input => input == null ? '' : escapeHTML(input);
 export const dateValue = input => input ? String(input).slice(0, 10) : '';
-export const dateTimeValue = input => input ? new Date(input).toISOString().slice(0, 16) : '';
+export const dateTimeValue = input => input ? new Date(new Date(input).getTime() + 3 * 3600e3).toISOString().slice(0, 16) : '';
 export function readableDate(input, time = false) {
   if (!input) return 'Not set';
   return new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium', ...(time ? { timeStyle: 'short' } : {}), timeZone: 'Africa/Kampala' }).format(new Date(input));

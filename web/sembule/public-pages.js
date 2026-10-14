@@ -1,0 +1,83 @@
+// Public, link-only pages: client portal (quote / invoice / how to pay) and crew call page.
+// Reads exactly one record by its private token via a secure database function. No sign-in, no other data reachable.
+import { getClient } from './db.js';
+
+const e = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const money = (n, cur = 'UGX') => `${cur} ${Number(n || 0).toLocaleString('en-GB', { minimumFractionDigits: cur === 'USD' ? 2 : 0, maximumFractionDigits: cur === 'USD' ? 2 : 0 })}`;
+const date = d => d ? new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium', timeZone: 'Africa/Kampala' }).format(new Date(d)) : '';
+const dt = d => d ? new Intl.DateTimeFormat('en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Africa/Kampala' }).format(new Date(d)) : '';
+const root = document.getElementById('page');
+const token = new URLSearchParams(location.search).get('t') || '';
+const METHOD = { mtn_momo: 'MTN MoMo', airtel_money: 'Airtel Money', bank: 'Bank', cash: 'Cash' };
+
+const head = (co, label) => `<header class="pp-head"><img src="./assets/brand/logo-white.png" alt="${e(co?.name || 'Sembule Media')}"><span>${e(label)}</span></header>`;
+const foot = co => `<footer class="pp-foot">${[co?.name, co?.phone, co?.email, co?.website].filter(Boolean).map(e).join(' · ')}${co?.tin ? `<br>TIN ${e(co.tin)}` : ''}<br><b>THE GIANTS OF MULTIMEDIA</b></footer>`;
+const invalid = msg => root.innerHTML = `<div class="pp-card"><h1>This link is not available</h1><p>${e(msg)}</p></div>`;
+
+function invoicePage(d) {
+  const b = d.balance || {}, cur = d.currency, paid = Number(b.received || 0) + Number(b.wht_withheld || 0), total = Number(b.invoice_total || 0), due = Math.max(0, total - paid);
+  const steps = [[Number(b.booking_amount), d.dues[0]], [Number(b.preproduction_amount), d.dues[1]], [Number(b.completion_amount), d.dues[2]]];
+  let cum = 0; const sched = steps.map(([amt, s]) => { cum += amt; const done = paid + .5 >= cum; return `<div class="pp-step ${done ? 'done' : ''}"><span>${e(s.label)} (${Number(s.percent)}%)</span><b>${money(amt, cur)}</b><small>${done ? 'Paid' : s.due ? 'Due ' + date(s.due) : 'Due'}</small></div>`; }).join('');
+  const pay = d.pay || {};
+  const payBlocks = [['Bank', pay.bank], ['MTN MoMo', pay.momo], ['Airtel Money', pay.airtel]].filter(x => x[1]).map(([t, v]) => `<div class="pp-pay"><h3>${t}</h3><p>${e(v).replace(/\n/g, '<br>')}</p></div>`).join('');
+  root.innerHTML = `${head(d.company, 'INVOICE')}<div class="pp-card">
+    <p class="pp-eyebrow">${e(d.reference)} · ${e(d.client)}</p><h1>${e(d.job)}</h1>
+    <p class="pp-sub">${date(d.starts_at)}${d.ends_at && date(d.ends_at) !== date(d.starts_at) ? ' to ' + date(d.ends_at) : ''}${d.venue ? ' · ' + e(d.venue) : ''}</p>
+    <div class="pp-total ${due <= 0.5 ? 'paid' : ''}"><small>${due <= 0.5 ? 'FULLY PAID. THANK YOU' : 'BALANCE DUE'}</small><strong>${due <= 0.5 ? money(total, cur) : money(due, cur)}</strong>${due > 0.5 ? `<span>of ${money(total, cur)} · paid ${money(paid, cur)}</span>` : ''}</div>
+    <div class="pp-sched">${sched}</div>
+    ${due > 0.5 ? `<h2>How to pay</h2>${payBlocks || '<p>Please contact us for payment details.</p>'}<p class="pp-note">Use <b>${e(d.reference)}</b> as the payment reference, then send us the confirmation so we can issue your receipt.</p>` : ''}
+    <h2>Items</h2><table class="pp-table"><tbody>${d.lines.map(l => `<tr><td>${e(l.description)}</td><td class="r">${money(l.line_total, cur)}</td></tr>`).join('')}<tr class="t"><td>Total</td><td class="r">${money(total, cur)}</td></tr></tbody></table>
+    ${d.payments.length ? `<h2>Payments received</h2><table class="pp-table"><tbody>${d.payments.map(p => `<tr><td>${e(p.receipt)}<small>${date(p.paid_at)} · ${e(METHOD[p.method] || p.method)}</small></td><td class="r">${money(p.amount, cur)}</td></tr>`).join('')}</tbody></table>` : ''}
+    ${d.files_link ? `<a class="pp-btn" href="${e(d.files_link)}" target="_blank" rel="noopener">Download your files</a>` : ''}
+    <button class="pp-btn ghost" onclick="window.print()">Save / print this page</button>
+  </div>${foot(d.company)}`;
+}
+
+function quotePage(d) {
+  const cur = d.currency, total = d.lines.reduce((s, l) => s + Number(l.line_total), 0);
+  root.innerHTML = `${head(d.company, 'QUOTATION')}<div class="pp-card">
+    <p class="pp-eyebrow">${e(d.reference)} · ${e(d.client)}</p><h1>Your quotation</h1>
+    <p class="pp-sub">Issued ${date(d.issued_on)}${d.valid_until ? ' · valid until ' + date(d.valid_until) : ''}${d.status === 'accepted' ? ' · accepted' : ''}</p>
+    <table class="pp-table"><thead><tr><th>Item</th><th class="r">Qty × days</th><th class="r">Amount</th></tr></thead><tbody>${d.lines.map(l => `<tr><td>${e(l.description)}</td><td class="r">${Number(l.quantity)} × ${Number(l.days)}</td><td class="r">${money(l.line_total, cur)}</td></tr>`).join('')}<tr class="t"><td colspan="2">Total</td><td class="r">${money(total, cur)}</td></tr></tbody></table>
+    ${d.inclusions ? `<h2>Included</h2><p>${e(d.inclusions).replace(/\n/g, '<br>')}</p>` : ''}${d.exclusions ? `<h2>Not included</h2><p>${e(d.exclusions).replace(/\n/g, '<br>')}</p>` : ''}
+    <a class="pp-btn" href="https://wa.me/${String(d.company?.phone || '').replace(/\D/g, '')}?text=${encodeURIComponent('Hello, I would like to accept quotation ' + d.reference)}">Accept this quote on WhatsApp</a>
+    <button class="pp-btn ghost" onclick="window.print()">Save / print this page</button>
+  </div>${foot(d.company)}`;
+}
+
+function crewPage(d, client) {
+  const cats = { livestream: 'Livestream', sound: 'Sound', backup: 'Backup', delivery: 'Delivery', display: 'Screens' };
+  root.innerHTML = `${head({ name: d.company }, 'CALL SHEET')}<div class="pp-card">
+    <p class="pp-eyebrow">${e(d.reference)}</p><h1>${e(d.title)}</h1><p class="pp-sub">Hello ${e(d.name)}. You are booked as <b>${e(d.role)}</b>.</p>
+    <div class="pp-total"><small>YOUR CALL TIME</small><strong>${dt(d.call_time || d.starts_at)}</strong><span>Event: ${dt(d.starts_at)} to ${dt(d.ends_at)}</span></div>
+    <table class="pp-table"><tbody>
+      <tr><td>Venue</td><td class="r">${e(d.venue || 'To be confirmed')}</td></tr>
+      ${d.venue_contact_name || d.venue_contact_phone ? `<tr><td>On-site contact</td><td class="r">${e(d.venue_contact_name || '')} ${d.venue_contact_phone ? `<a href="tel:${e(d.venue_contact_phone)}">${e(d.venue_contact_phone)}</a>` : ''}</td></tr>` : ''}
+    </tbody></table>
+    ${d.instructions ? `<h2>Your instructions</h2><p>${e(d.instructions).replace(/\n/g, '<br>')}</p>` : ''}${d.brief ? `<h2>Brief</h2><p>${e(d.brief).replace(/\n/g, '<br>')}</p>` : ''}
+    <h2>Team</h2><p>${d.team.map(t => `<b>${e(t.name)}</b> (${e(t.role)})`).join(' · ')}</p>
+    ${d.checklist.length ? `<h2>Checklist</h2>${d.checklist.map(k => `<p class="pp-check ${k.done ? 'done' : ''}">${k.done ? '✓' : '○'} ${e(cats[k.category] || k.category)}: ${e(k.label)}</p>`).join('')}` : ''}
+    <div id="resp">${d.availability === 'pending' ? `<h2>Can you make it?</h2><div class="pp-two"><button class="pp-btn" data-a="confirmed">Yes, I will be there</button><button class="pp-btn ghost" data-a="declined">I can't make it</button></div>` : `<p class="pp-note">Your answer: <b>${d.availability === 'confirmed' ? 'Confirmed' : 'Declined'}</b>. Thank you.</p>`}</div>
+  </div>${foot({ name: d.company })}`;
+  root.querySelectorAll('[data-a]').forEach(b => b.addEventListener('click', async () => {
+    b.disabled = true;
+    const { error } = await client.rpc('crew_respond', { p_token: token, p_answer: b.dataset.a });
+    document.getElementById('resp').innerHTML = error ? '<p class="pp-note">Could not send. Please call the office.</p>' : '<p class="pp-note">Thank you. Your answer was sent.</p>';
+  }));
+}
+
+(async () => {
+  if (!/^[0-9a-f-]{36}$/i.test(token)) return invalid('Please use the link we sent you.');
+  try {
+    const client = await getClient();
+    if (document.body.dataset.kind === 'crew') {
+      const { data, error } = await client.rpc('crew_call_page', { p_token: token });
+      if (error || !data) return invalid('Please ask the office to send you a new link.');
+      crewPage(data, client);
+    } else {
+      const { data, error } = await client.rpc('client_portal', { p_token: token });
+      if (error || !data) return invalid('This document is not available or the link has changed. Please contact us.');
+      data.kind === 'quote' ? quotePage(data) : invoicePage(data);
+    }
+  } catch { invalid('We could not load this page. Please check your connection and try again.'); }
+})();

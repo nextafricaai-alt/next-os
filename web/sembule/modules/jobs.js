@@ -5,7 +5,8 @@ import { withTimeout } from '../utils.js';
 import { CONFIG } from '../config.js';
 import { canViewMoney } from '../roles.js';
 import { e, value, dateValue, empty, field, selectField, textArea, setBusy } from './records.js';
-import { money, num, txt, readable, insertWithRef, whatsappTo } from '../refs.js';
+import { gearTab, bindGear, specTab, bindSpec } from './jobsound.js';
+import { money, num, txt, readable, insertWithRef, whatsappTo, askForm , shareLink } from '../refs.js';
 
 const STAGES = CONFIG.stages;
 const EVIDENCE = [['', 'Choose what confirmed it'], ['deposit', 'Booking payment received'], ['purchase_order', 'Purchase order received'], ['signed_approval', 'Signed approval'], ['written_approval', 'Written approval (email / WhatsApp)']];
@@ -57,12 +58,12 @@ function newJob(ctx) {
 function detail(ctx) {
   const j = ctx.job;
   const c = ctx.clients.find(x => x.id === j.client_id) || {};
-  const tabs = [['overview', 'Overview'], ['crew', `Crew (${ctx.crewRows.length})`], ['checklist', 'Checklist'], ['changes', `Changes (${ctx.changes.length})`], ['revisions', `Revisions (${ctx.revisions.length})`]];
+  const tabs = [['overview', 'Overview'], ['crew', `Crew (${ctx.crewRows.length})`], ['gear', `Gear (${ctx.gear.all.filter(g => g.job_id === ctx.job.id).length})`], ['spec', 'Event spec'], ['checklist', 'Checklist'], ['changes', `Changes (${ctx.changes.length})`], ['revisions', `Revisions (${ctx.revisions.length})`]];
   const done = ctx.checks.filter(x => x.completed_at).length;
   return `<div class="job-head"><div><p class="eyebrow">${e(j.reference)} · ${e(c.organisation || c.name || '')}</p><h2>${e(j.title)}</h2><p class="muted">${readable(j.starts_at)} ${time(j.starts_at)} to ${readable(j.ends_at)} ${time(j.ends_at)}${j.venue ? ' · ' + e(j.venue) : ''}</p></div>
     <div class="stage-track">${STAGES.map((s, i) => `<span class="${STAGES.indexOf(j.stage) >= i ? 'on' : ''}" title="${e(s)}"></span>`).join('')}<small>${e(j.stage)}</small></div></div>
    <div class="tab-row">${tabs.map(([k, l]) => `<button class="tab${tab === k ? ' active' : ''}" data-jtab="${k}">${e(l)}</button>`).join('')}</div>
-   ${tab === 'crew' ? crewTab(ctx) : tab === 'checklist' ? checklistTab(ctx, done) : tab === 'changes' ? changesTab(ctx) : tab === 'revisions' ? revisionsTab(ctx) : overviewTab(ctx)}`;
+   ${tab === 'crew' ? crewTab(ctx) : tab === 'gear' ? gearTab(ctx) : tab === 'spec' ? specTab(ctx) : tab === 'checklist' ? checklistTab(ctx, done) : tab === 'changes' ? changesTab(ctx) : tab === 'revisions' ? revisionsTab(ctx) : overviewTab(ctx)}`;
 }
 function overviewTab(ctx) {
   const j = ctx.job, owner = ctx.identity.role === 'owner';
@@ -93,7 +94,7 @@ function crewTab(ctx) {
    ${ctx.crewRows.map(r => { const p = pay(r.id), c = who(r.crew_id); return `<tr data-jc="${r.id}"><td><strong>${e(c.name || '')}</strong><small>${e(c.phone || '')}</small>${clash(r) ? '<small class="override">Also booked on another job at this time</small>' : ''}</td><td>${e(r.role)}${r.instructions ? `<small>${e(r.instructions)}</small>` : ''}</td><td>${r.call_time ? readable(r.call_time) + ' ' + time(r.call_time) : '-'}</td>
     <td><select class="mini-select" data-avail>${[['pending', 'Waiting'], ['confirmed', 'Confirmed'], ['declined', 'Declined']].map(([k, l]) => `<option value="${k}"${r.availability === k ? ' selected' : ''}>${l}</option>`).join('')}</select></td>
     ${money_ ? `<td><input class="mini wide" type="number" min="0" data-pay value="${value(p?.agreed_amount)}" placeholder="UGX">${p && Number(p.paid_amount) ? `<small>Paid ${money(p.paid_amount)}</small>` : ''}</td>` : ''}
-    <td class="row-actions"><button type="button" class="text-button" data-sheet>Call sheet</button>${money_ ? '<button type="button" class="text-button" data-save-pay>Save pay</button><button type="button" class="text-button" data-paid>Mark paid</button>' : ''}<button type="button" class="text-button danger-text" data-remove>Remove</button></td></tr>`; }).join('')}</tbody></table></div>` : empty('No crew on this job yet.')}
+    <td class="row-actions"><button type="button" class="text-button" data-sheet>Call sheet</button><button type="button" class="text-button" data-calllink>Send link</button>${money_ ? '<button type="button" class="text-button" data-save-pay>Save pay</button><button type="button" class="text-button" data-paid>Mark paid</button>' : ''}<button type="button" class="text-button danger-text" data-remove>Remove</button></td></tr>`; }).join('')}</tbody></table></div>` : empty('No crew on this job yet.')}
    <form id="crew-form" class="record-form line-form"><div class="form-title span-2"><p class="eyebrow">ADD CREW</p>${ctx.crew.length ? '' : '<a class="text-button" href="#crew">Add people to the crew directory first</a>'}</div>
     ${selectField('crew_id', 'Person', '', crewOpts)}${selectField('role', 'Role', ROLES[0], ROLES.map(r => [r, r]))}
     ${field('call_time', 'Call time', localDT(new Date(new Date(j.starts_at).getTime() - 2 * 3600e3).toISOString()), { type: 'datetime-local' })}${money_ ? field('agreed', 'Agreed pay (UGX)', '', { type: 'number', extra: 'min="0"' }) : ''}
@@ -140,11 +141,12 @@ async function draw(context) {
   try {
     const [jobs, clients, crew] = await Promise.all([listRows(client, 'jobs', 'starts_at', true), listRows(client, 'clients', 'name', true), listRows(client, 'crew', 'name', true)]);
     const job = jobs.find(j => j.id === selected) || null;
-    let extra = { crewRows: [], checks: [], changes: [], revisions: [], pay: [], charges: [], allCrewRows: [] };
+    let extra = { crewRows: [], checks: [], changes: [], revisions: [], pay: [], charges: [], allCrewRows: [], gear: { all: [], items: [], kits: [], kitItems: [], out: [] } };
     if (job) {
       const m = canViewMoney(identity.role);
       const [crewRows, checks, changes, revisions, pay, charges, all] = await Promise.all([rows(client, 'job_crew', job.id), rows(client, 'job_checklists', job.id), rows(client, 'job_changes', job.id, 'occurred_at'), rows(client, 'job_revisions', job.id, 'round_number'), m ? rows(client, 'crew_pay', job.id) : [], m ? rows(client, 'job_charges', job.id) : [], listRows(client, 'job_crew', 'starts_at', true)]);
-      extra = { crewRows, checks, changes, revisions, pay, charges, allCrewRows: all };
+      const [gAll, gItems, gKits, gKitItems, gOut] = await Promise.all([listRows(client, 'job_equipment', 'starts_at', true), listRows(client, 'equipment', 'name', true), listRows(client, 'kits', 'name', true), listRows(client, 'kit_items', 'kit_id', true), listRows(client, 'checkouts', 'checked_out_at', false)]);
+      extra = { crewRows, checks, changes, revisions, pay, charges, allCrewRows: all, gear: { all: gAll, items: gItems, kits: gKits, kitItems: gKitItems, out: gOut } };
     }
     context.ctx = { ...context, jobs, clients, crew, job, ...extra };
     host.innerHTML = listView(context.ctx);
@@ -161,6 +163,7 @@ function bind(context) {
   host.querySelectorAll('[data-stage]').forEach(b => b.addEventListener('click', () => { stageFilter = b.dataset.stage; draw(context); }));
   host.querySelectorAll('[data-row]').forEach(b => b.addEventListener('click', () => { selected = b.dataset.row; tab = 'overview'; draw(context); }));
   host.querySelectorAll('[data-cancel]').forEach(b => b.addEventListener('click', () => { selected = null; draw(context); }));
+  bindGear(ctx, host, client, notify, run); bindSpec(ctx, host, client, notify, run);
   host.querySelectorAll('[data-jtab]').forEach(b => b.addEventListener('click', () => { tab = b.dataset.jtab; draw(context); }));
 
   const nf = host.querySelector('#newjob-form');
@@ -190,8 +193,9 @@ function bind(context) {
     const r = ctx.crewRows.find(x => x.id === row.dataset.jc), p = ctx.pay.find(x => x.job_crew_id === r.id);
     row.querySelector('[data-avail]')?.addEventListener('change', ev => run(() => saveRow(client, 'job_crew', { availability: ev.target.value }, r.id), 'Status updated.'));
     row.querySelector('[data-sheet]')?.addEventListener('click', () => callSheet(ctx, r));
+    row.querySelector('[data-calllink]')?.addEventListener('click', () => { const cr = ctx.crew.find(x => x.id === r.crew_id) || {}; whatsappTo(cr.phone, `Hello ${cr.name || ''}, your call details for ${job.title} are here. Please open and tap Yes to confirm: ${shareLink('call', r.share_token)}`); });
     row.querySelector('[data-save-pay]')?.addEventListener('click', () => { const amt = num(row.querySelector('[data-pay]').value); if (amt == null) { notify('Enter the agreed pay.'); return; } run(() => saveRow(client, 'crew_pay', p ? { agreed_amount: amt } : { job_crew_id: r.id, job_id: job.id, agreed_amount: amt }, p?.id || null), 'Pay saved.'); });
-    row.querySelector('[data-paid]')?.addEventListener('click', () => { if (!p) { notify('Save the agreed pay first.'); return; } const ref = prompt('Payment reference (MoMo ID, cash, etc.)', 'MoMo'); if (ref === null) return; run(() => saveRow(client, 'crew_pay', { paid_amount: p.agreed_amount, paid_at: new Date().toISOString(), payment_reference: ref }, p.id), 'Marked as paid.'); });
+    row.querySelector('[data-paid]')?.addEventListener('click', async () => { if (!p) { notify('Save the agreed pay first.'); return; } const a = await askForm({ title: 'Mark crew as paid', submit: 'Mark paid', fields: [{ name: 'ref', label: 'Payment reference', value: 'MoMo', hint: 'MoMo transaction ID, cash, bank, etc.' }] }); if (!a) return; const ref = a.ref; run(() => saveRow(client, 'crew_pay', { paid_amount: p.agreed_amount, paid_at: new Date().toISOString(), payment_reference: ref }, p.id), 'Marked as paid.'); });
     row.querySelector('[data-remove]')?.addEventListener('click', () => { if (confirm('Remove this person from the job?')) run(async () => { if (p) await deleteRow(client, 'crew_pay', p.id); await deleteRow(client, 'job_crew', r.id); }, 'Removed.'); });
   });
 
@@ -202,10 +206,10 @@ function bind(context) {
   // changes
   const chf = host.querySelector('#change-form');
   chf?.addEventListener('submit', ev => { ev.preventDefault(); const fd = new FormData(chf); run(() => saveRow(client, 'job_changes', { job_id: job.id, description: fd.get('description').trim(), requested_by: txt(fd.get('requested_by')) }, null), 'Change logged.'); });
-  host.querySelectorAll('[data-change] [data-bill]').forEach(b => b.addEventListener('click', () => {
+  host.querySelectorAll('[data-change] [data-bill]').forEach(b => b.addEventListener('click', async () => {
     const ch = ctx.changes.find(x => x.id === b.closest('[data-change]').dataset.change);
-    const amt = num(prompt(`Price for "${ch.description}" (UGX)`)); if (amt == null) return;
-    const note = prompt('Approval note (who agreed and how)', 'Agreed with client on the day'); if (!note) return;
+    const a = await askForm({ title: 'Bill this change', intro: e(ch.description), submit: 'Add to invoice', fields: [{ name: 'amt', label: 'Price (UGX)', type: 'number', min: 0, required: true }, { name: 'note', label: 'Approval note', value: 'Agreed with client on the day', required: true, hint: 'Who agreed and how.' }] }); if (!a) return;
+    const amt = num(a.amt), note = a.note; if (amt == null || !note) return;
     run(async () => {
       const { data: drafts, error } = await withTimeout(client.from('invoices').select('id').eq('job_id', job.id).eq('status', 'draft').limit(1)); if (error) throw new Error(error.message);
       let invId = drafts?.[0]?.id;

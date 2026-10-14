@@ -125,3 +125,21 @@ select.mini-select{height:38px;font-size:12px;padding:0 30px 0 10px;background-p
 .rbar { height: .65rem; background: rgba(4, 89, 42, .1); border-radius: 99px; overflow: hidden; }
 .rbar i { display: block; height: 100%; background: linear-gradient(90deg, #04592A, #BF9000); border-radius: 99px; }
 @media (max-width: 600px) { .rrow { grid-template-columns: 1fr auto; } .rrow .rbar { grid-column: 1 / -1; order: 3; } }
+
+/* Popup form (replaces browser prompts) */
+.ask-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,.55); display: grid; place-items: center; z-index: 1000; padding: 16px; }
+.ask-card { background: var(--surface, #fff); color: inherit; border-radius: 14px; padding: 20px; width: min(440px, 100%); display: grid; gap: 12px; max-height: 90vh; overflow: auto; box-shadow: 0 20px 60px rgba(0,0,0,.3); }
+.ask-card h2 { margin: 0; font-size: 1.15rem; }
+.ask-card label { display: grid; gap: 4px; font-weight: 600; font-size: .85rem; }
+.ask-card input, .ask-card select, .ask-card textarea { font-weight: 400; font-size: 1rem; padding: 10px; border: 1px solid rgba(0,0,0,.2); border-radius: 8px; }
+.ask-card .ask-check { display: flex; align-items: center; gap: 8px; font-weight: 400; }
+.ask-card small { font-weight: 400; opacity: .7; }
+.ask-error { color: #b42318; margin: 0; }
+.ask-actions { display: flex; justify-content: flex-end; gap: 8px; }
+
+/* Reminders, reviews */
+.remind-list { display: grid; gap: 8px; padding: 14px 16px; }
+.remind { display: flex; justify-content: space-between; align-items: center; gap: 12px; border: 1px solid rgba(0,0,0,.1); border-left: 4px solid #04592A; border-radius: 10px; padding: 12px 14px; }
+.remind.red { border-left-color: #b42318; } .remind.amber { border-left-color: #BF9000; }
+.remind strong { display: block; font-size: .92rem; } .remind small { display: block; opacity: .7; margin-top: 2px; }
+@media (max-width: 600px) { .remind { flex-direction: column; align-items: stretch; } .remind .button { width: 100%; } }
