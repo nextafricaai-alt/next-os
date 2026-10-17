@@ -27084,10 +27084,17 @@ window.PEAK_CAMPUS = function () {
     const [enrolledCount, setEnrolledCount] = useState(0);
     const [enrolling, setEnrolling] = useState(false);
     const [enrolStats, setEnrolStats] = useState('');
+    // Audit C6: face recognition is off unless the Worker's FACE_RECOGNITION switch
+    // is on (after written parental consent). The Worker answers { faceOff: true }.
+    const [faceOff, setFaceOff] = useState(false);
     useEffect(() => {
       loadFaceApi().then(ok => {
         setFaReady(ok);
         fetch(WK + '/os-data?kind=face_enroll&tenant=' + encodeURIComponent(tenant())).then(r => r.json()).then(d => {
+          if (d && d.faceOff) {
+            setFaceOff(true);
+            return;
+          }
           const enr = (d && d.records || []).map(x => x.payload).filter(p => p && p.descriptor);
           setEnrolledCount(enr.length);
           if (ok && enr.length && window.faceapi) {
@@ -27236,6 +27243,10 @@ window.PEAK_CAMPUS = function () {
       if (found.length) window.peakToast && window.peakToast((stu && stu.name) + ' located', 'success', 'Seen on ' + found.length + ' camera' + (found.length === 1 ? '' : 's') + '.');else window.peakToast && window.peakToast('Not seen right now', 'info', 'No camera currently sees ' + (stu && stu.name || 'them') + '.');
     };
     const runEnrollment = async () => {
+      if (faceOff) {
+        window.peakToast && window.peakToast('Face recognition is switched off', 'info', 'It needs written parental consent for every child before it can be turned on.');
+        return;
+      }
       if (!roster || roster.length === 0) {
         window.peakToast && window.peakToast('No students loaded.', 'error');
         return;
@@ -27510,7 +27521,7 @@ window.PEAK_CAMPUS = function () {
         marginTop: 8,
         fontFamily: T.mono
       }
-    }, faReady === null ? 'Loading face engine…' : faReady ? 'Face engine ready · ' + enrolledCount + ' learner' + (enrolledCount === 1 ? '' : 's') + ' enrolled' + (enrolledCount === 0 ? ' — enrol faces at the gate so Nia can name them' : '') : 'Face engine unavailable on this device.'), /*#__PURE__*/React.createElement("div", {
+    }, faceOff ? 'Face recognition is switched off — it needs written parental consent for every child first. Safety alerts (fights, falls, headcount) still work.' : faReady === null ? 'Loading face engine…' : faReady ? 'Face engine ready · ' + enrolledCount + ' learner' + (enrolledCount === 1 ? '' : 's') + ' enrolled' + (enrolledCount === 0 ? ' — enrol faces at the gate so Nia can name them' : '') : 'Face engine unavailable on this device.'), /*#__PURE__*/React.createElement("div", {
       style: {
         display: 'flex',
         gap: 6,
@@ -27583,12 +27594,12 @@ window.PEAK_CAMPUS = function () {
       }
     }, /*#__PURE__*/React.createElement("button", {
       onClick: runEnrollment,
-      disabled: enrolling,
+      disabled: enrolling || faceOff,
       style: {
         ...btn(true),
-        opacity: enrolling ? 0.6 : 1
+        opacity: enrolling || faceOff ? 0.6 : 1
       }
-    }, enrolling ? 'Enrolling...' : 'Run Enrollment Sync'), enrolStats && /*#__PURE__*/React.createElement("span", {
+    }, faceOff ? 'Switched off' : enrolling ? 'Enrolling...' : 'Run Enrollment Sync'), enrolStats && /*#__PURE__*/React.createElement("span", {
       style: {
         fontSize: 12,
         color: T.ink2,

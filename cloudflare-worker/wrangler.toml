@@ -55,6 +55,9 @@ binding = "AI"
 [vars]
 AUTH_MODE = "warn"
 PLATFORM_ADMINS = "hudson.tim.uk@gmail.com,patrickemma143@gmail.com"
+# Children's face recognition (audit C6). Leave "off" until every enrolled
+# child's parent has given written consent; then "on" (head-only access).
+FACE_RECOGNITION = "off"
 
 # Merged in from sentinel-wrangler.toml (17 Oct 2026) so ONE config carries
 # everything this Worker needs. Deploy with: npx wrangler deploy --config wrangler.toml

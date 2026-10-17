@@ -238,8 +238,8 @@ const AUTH_RULES = {
   '/push/debug':         { roles: R_HEAD,    tenant: 'optional' },
   '/exam/scan-mark':     { roles: R_STAFF,   tenant: 'optional' },
   '/exam/care-plan':     { roles: R_STAFF,   tenant: 'optional' },
-  '/camera/analyze':     { roles: R_STAFF,   tenant: 'optional' },
-  '/camera/frame':       { roles: R_STAFF,   tenant: 'optional' },
+  '/camera/analyze':     { roles: R_HEAD,    tenant: 'optional' },
+  '/camera/frame':       { roles: R_HEAD,    tenant: 'optional' },
   '/syllabus/generate':  { roles: R_STAFF,   tenant: 'optional' },
   '/translate':          { roles: R_ANY,     tenant: 'optional' },
   '/stt':                { roles: R_ANY,     tenant: 'optional' },
@@ -311,8 +311,38 @@ function isOperator(email, env) {
   return !!email && list.indexOf(email) >= 0;
 }
 
+// ─── Children's face data (audit C6) ─────────────────────────────────────
+// Face templates are biometric data about minors. They are only stored or
+// served when env.FACE_RECOGNITION = "on" (set it only once every enrolled
+// child's parent has given written consent), and then ONLY to that school's
+// head/admin or a platform operator. Enforced always, not subject to
+// AUTH_MODE = "warn".
+const FACE_KINDS = ['face_enroll'];
+async function faceGate(request, env, url, cors) {
+  if (url.pathname !== '/os-data' && url.pathname !== '/os-data/save') return null;
+  let kind = url.searchParams.get('kind') || '';
+  if (!kind && request.method === 'POST') {
+    try { const b = await request.clone().json(); kind = String((b && b.kind) || ''); } catch (e) {}
+  }
+  if (FACE_KINDS.indexOf(kind) < 0) return null;
+  const J = (o, st) => new Response(JSON.stringify(o), { status: st, headers: { ...cors, 'Content-Type': 'application/json' } });
+  if (String(env.FACE_RECOGNITION || 'off').toLowerCase() !== 'on') {
+    return J({ error: 'Face recognition is switched off. It needs written parental consent for every enrolled child before it can be turned on.', faceOff: true, records: [] }, 403);
+  }
+  const token = (request.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '').trim();
+  const caller = token ? await lookupCaller(token, env).catch(() => null) : null;
+  if (!caller) return J({ error: 'Not signed in.' }, 401);
+  if (isOperator(caller.email, env)) return null;
+  const tenant = await requestedTenant(request, url);
+  const m = caller.memberships.find(x => x.tenant === tenant);
+  if (!m || R_HEAD.indexOf(m.role) < 0) return J({ error: 'Only the head teacher can access face data.' }, 403);
+  return null;
+}
+
 // Returns null to continue, or a Response to stop the request.
 async function authGate(request, env, url, cors) {
+  const face = await faceGate(request, env, url, cors);
+  if (face) return face;
   const rule = AUTH_RULES[url.pathname];
   if (!rule) return null;
   const enforce = String(env.AUTH_MODE || 'warn').toLowerCase() === 'enforce';

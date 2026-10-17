@@ -12011,10 +12011,14 @@ window.PEAK_CAMPUS = (function () {
     const [enrolledCount, setEnrolledCount] = useState(0);
     const [enrolling, setEnrolling] = useState(false);
     const [enrolStats, setEnrolStats] = useState('');
+    // Audit C6: face recognition is off unless the Worker's FACE_RECOGNITION switch
+    // is on (after written parental consent). The Worker answers { faceOff: true }.
+    const [faceOff, setFaceOff] = useState(false);
     useEffect(() => {
       loadFaceApi().then(ok => {
         setFaReady(ok);
         fetch(WK + '/os-data?kind=face_enroll&tenant=' + encodeURIComponent(tenant())).then(r => r.json()).then(d => {
+          if (d && d.faceOff) { setFaceOff(true); return; }
           const enr = ((d && d.records) || []).map(x => x.payload).filter(p => p && p.descriptor);
           setEnrolledCount(enr.length);
           if (ok && enr.length && window.faceapi) { try { const labeled = enr.map(e => new window.faceapi.LabeledFaceDescriptors(String(e.studentId), [new Float32Array(e.descriptor)])); setMatcher(new window.faceapi.FaceMatcher(labeled, 0.5)); } catch (e) {} }
@@ -12057,6 +12061,7 @@ window.PEAK_CAMPUS = (function () {
     };
     
     const runEnrollment = async () => {
+       if (faceOff) { window.peakToast && window.peakToast('Face recognition is switched off', 'info', 'It needs written parental consent for every child before it can be turned on.'); return; }
        if (!roster || roster.length === 0) { window.peakToast && window.peakToast('No students loaded.', 'error'); return; }
        setEnrolling(true); setEnrolStats('');
        let success = 0, failed = 0, skipped = 0;
@@ -12137,7 +12142,7 @@ window.PEAK_CAMPUS = (function () {
           <div style={{ fontSize: 11, color: T.ink3, fontFamily: T.mono, letterSpacing: '0.08em', fontWeight: 600, marginBottom: 8 }}>SMART CAMPUS · HEAD TEACHER ONLY</div>
           <div style={{ fontSize: 24, fontWeight: 700, letterSpacing: '-0.02em' }}>Campus cameras · Nia’s eyes</div>
           <div style={{ fontSize: 13, color: T.ink3, marginTop: 4 }}>Connect cameras and Nia watches for safety — fights, falls, escapes — counts who’s on campus, and flags it for you to confirm. She never names a child on her own; you confirm identity.</div>
-          <div style={{ fontSize: 12, color: T.ink3, marginTop: 8, fontFamily: T.mono }}>{faReady === null ? 'Loading face engine…' : faReady ? ('Face engine ready · ' + enrolledCount + ' learner' + (enrolledCount === 1 ? '' : 's') + ' enrolled' + (enrolledCount === 0 ? ' — enrol faces at the gate so Nia can name them' : '')) : 'Face engine unavailable on this device.'}</div>
+          <div style={{ fontSize: 12, color: T.ink3, marginTop: 8, fontFamily: T.mono }}>{faceOff ? 'Face recognition is switched off — it needs written parental consent for every child first. Safety alerts (fights, falls, headcount) still work.' : faReady === null ? 'Loading face engine…' : faReady ? ('Face engine ready · ' + enrolledCount + ' learner' + (enrolledCount === 1 ? '' : 's') + ' enrolled' + (enrolledCount === 0 ? ' — enrol faces at the gate so Nia can name them' : '')) : 'Face engine unavailable on this device.'}</div>
           <div style={{ display: 'flex', gap: 6, marginTop: 14 }}>
             {[['live', 'Live'], ['cameras', 'Cameras'], ['incidents', 'Incidents' + (openIncidents.length ? ' (' + openIncidents.length + ')' : '')], ['webcam', 'Webcam Test']].map(t => (
               <button key={t[0]} onClick={() => setTab(t[0])} style={{ background: 'transparent', border: 'none', borderBottom: '2px solid ' + (tab === t[0] ? T.red : 'transparent'), color: tab === t[0] ? T.ink : T.ink3, padding: '8px 4px', marginRight: 12, fontSize: 13.5, fontWeight: tab === t[0] ? 700 : 500, cursor: 'pointer' }}>{t[1]}</button>
@@ -12156,7 +12161,7 @@ window.PEAK_CAMPUS = (function () {
                    <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Enrol Learner Faces</div>
                    <div style={{ fontSize: 12, color: T.ink3, marginBottom: 12 }}>Sync the latest uploaded profile photos and compute their 128-dimensional facial signatures for the recognition engine.</div>
                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                     <button onClick={runEnrollment} disabled={enrolling} style={{ ...btn(true), opacity: enrolling ? 0.6 : 1 }}>{enrolling ? 'Enrolling...' : 'Run Enrollment Sync'}</button>
+                     <button onClick={runEnrollment} disabled={enrolling || faceOff} style={{ ...btn(true), opacity: (enrolling || faceOff) ? 0.6 : 1 }}>{faceOff ? 'Switched off' : enrolling ? 'Enrolling...' : 'Run Enrollment Sync'}</button>
                      {enrolStats && <span style={{ fontSize: 12, color: T.ink2, fontFamily: T.mono }}>{enrolStats}</span>}
                    </div>
                  </div>
