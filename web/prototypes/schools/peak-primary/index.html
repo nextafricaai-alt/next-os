@@ -292,6 +292,30 @@
   <!-- Session guard — must run BEFORE React so unauthenticated users get bounced -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script src="/prototypes/schools/peak-primary/session-guard.js?v=5"></script>
+  <script>
+  /* Error reporter (audit D8). The app has ~190 places that swallow errors
+     silently, so failures were invisible to everyone. Anything that escapes
+     to the page — and anything code passes to window.nxReport(err, where) —
+     is logged to sync_errors (insert-only; only NEXT OS operators can read
+     it). Deduplicated and capped so a loop can't flood the table. */
+  (function () {
+    var seen = {}, sent = 0, MAX = 25;
+    function report(msg, where, stack) {
+      try {
+        msg = String(msg || 'unknown error').slice(0, 500);
+        var key = (where || '') + '|' + msg;
+        if (seen[key] || sent >= MAX) return; seen[key] = 1; sent++;
+        var S = window.NextSession, sb = S && S.sb, p = (S && S.profile) || {};
+        if (!sb) return;
+        sb.from('sync_errors').insert({ tenant_id: p.tenantId || null, source: 'browser:' + (where || 'page'), operation: 'error', message: msg,
+          detail: { url: location.pathname, role: p.role || null, stack: String(stack || '').slice(0, 1500), ua: navigator.userAgent.slice(0, 160) } }).then(function () {}, function () {});
+      } catch (e) {}
+    }
+    window.nxReport = function (err, where) { report(err && (err.message || err), where, err && err.stack); };
+    window.addEventListener('error', function (e) { if (e && e.message) report(e.message, 'uncaught', e.error && e.error.stack); });
+    window.addEventListener('unhandledrejection', function (e) { var r = e && e.reason; report(r && (r.message || r), 'promise', r && r.stack); });
+  })();
+  </script>
 
   <!-- face-api.js is large (~6.8MB) — load ASYNC so it never blocks React from mounting.
        The facial-recognition feature checks window.faceapi before using it. -->
@@ -934,16 +958,14 @@
   const LATE_CHECKIN_CUTOFF = { hour: 7, minute: 15 };
   const LATE_CHECKIN_PENALTY = 2000; // UGX
 
-  // ─── Geofenced check-in ──────────────────────────────────────────────
-  // The school's real gate, from the Google Maps pin the head teacher
-  // shared: https://maps.app.goo.gl/u63eEbWKk6h3979x6 (0°19'41.9"N
-  // 32°28'17.9"E). Teachers must be physically within this radius to
-  // check in — keyed by tenant so this doesn't silently apply the wrong
-  // school's gate if another tenant ever shares this codebase.
+  // ─── Geofenced check-in (audit D3) ──────────────────────────────────
+  // The DATABASE decides now: teacher_checkins has a trigger that uses the
+  // server clock, checks the GPS fix against the school gate in staff_rules,
+  // and writes the late penalty or the on-time merit itself
+  // (supabase/migrations/20261017_d3_staff_rules_server_side.sql).
+  // This browser side only collects the GPS fix and gives early, friendly
+  // feedback using the same rules.
   const CHECKIN_GEOFENCE_RADIUS_M = 300;
-  const SCHOOL_GATE_LOCATIONS = {
-    'kabs-lily-junior-school-and-kindercare-centre': { lat: 0.3283056, lng: 32.4716944 },
-  };
 
   // Haversine great-circle distance in meters.
   function distanceMeters(lat1, lng1, lat2, lng2) {
@@ -963,34 +985,36 @@
     });
   }
 
-  // Resolves { ok, distance, accuracy } or throws with a message safe to
-  // show directly in a toast. No gate configured for this tenant → allow
-  // (fails open rather than locking out every teacher over a missing
-  // config value the school never set).
+  async function loadStaffRules(tenantId) {
+    try {
+      const sb = window.NextSession && window.NextSession.sb;
+      if (!sb) return null;
+      const { data } = await sb.from('staff_rules').select('late_after, late_penalty_ugx, gate_lat, gate_lng, gate_radius_m, max_gps_accuracy_m').eq('tenant_id', tenantId).maybeSingle();
+      return data || null;
+    } catch (e) { return null; }
+  }
+
+  // Resolves { lat, lng, accuracy, distance } (lat null when no GPS and no
+  // gate is set) or throws a message safe to show in a toast.
   async function verifyAtSchoolGate(tenantId) {
-    const gate = SCHOOL_GATE_LOCATIONS[tenantId];
-    if (!gate) return { ok: true, distance: null, accuracy: null };
-
-    const proceed = window.confirm("Please ensure your device Location (GPS) is turned ON before checking in. Continue?");
-    if (!proceed) throw new Error("Check-in cancelled. Please turn on Location when ready.");
-
-    let pos;
+    const rules = await loadStaffRules(tenantId);
+    const gate = rules && rules.gate_lat != null ? { lat: rules.gate_lat, lng: rules.gate_lng } : null;
+    let pos = null;
     try {
       pos = await getCurrentPositionAsync({ enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
     } catch (e) {
-      throw new Error('Could not get your location (' + (e.message || 'permission denied') + '). Please turn ON Location Services in your device settings.');
+      if (gate) throw new Error('Could not get your location (' + (e.message || 'permission denied') + '). Turn ON Location in your phone settings and try again.');
+      return { lat: null, lng: null, accuracy: null, distance: null };
     }
-    const distance = distanceMeters(pos.coords.latitude, pos.coords.longitude, gate.lat, gate.lng);
     const accuracy = pos.coords.accuracy;
-
-    if (accuracy > 300) {
-      throw new Error("Your GPS signal is too weak (accuracy: " + Math.round(accuracy) + "m). Make sure Location is fully enabled and step outside for a better signal.");
-    }
-
-    if (distance > CHECKIN_GEOFENCE_RADIUS_M) {
-      throw new Error("You appear to be " + Math.round(distance) + "m from the school gate (must be within " + CHECKIN_GEOFENCE_RADIUS_M + "m). If you are at school, your GPS is still updating. Wait 5 seconds and try again.");
-    }
-    return { ok: true, distance, accuracy };
+    const out = { lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy, distance: null };
+    if (!gate) return out;
+    const maxAcc = (rules && rules.max_gps_accuracy_m) || 300;
+    const radius = (rules && rules.gate_radius_m) || CHECKIN_GEOFENCE_RADIUS_M;
+    if (accuracy > maxAcc) throw new Error('Your GPS signal is too weak (accuracy: ' + Math.round(accuracy) + 'm). Step outside for a better signal and try again.');
+    out.distance = distanceMeters(out.lat, out.lng, gate.lat, gate.lng);
+    if (out.distance > radius) throw new Error('You appear to be ' + Math.round(out.distance) + 'm from the school gate (must be within ' + radius + 'm). If you are at school, wait a few seconds for GPS to settle and try again.');
+    return out;
   }
 
   function monthStart(d) {
@@ -1006,39 +1030,22 @@
     return mon.toISOString().slice(0, 10);
   }
 
-  // Applies the standing 2,000 UGX late-arrival penalty when checkedInAt is
-  // after 07:15 (compared in the browser's local time — teachers check in
-  // from Uganda, so this matches school-day wall-clock time in practice).
-  // Idempotent per teacher/day via the DB's unique index, so a retried
-  // request or a second check-in the same day can't double-penalize.
-  async function applyLateCheckInPenalty(teacherId, tenantId, checkedInAt) {
-    if (!teacherId || teacherId === 9999) return { applied: false };
-    const sb = window.NextSession?.sb;
-    if (!sb) return { applied: false };
-    const dt = new Date(checkedInAt || Date.now());
-    const isLate = dt.getHours() > LATE_CHECKIN_CUTOFF.hour ||
-      (dt.getHours() === LATE_CHECKIN_CUTOFF.hour && dt.getMinutes() > LATE_CHECKIN_CUTOFF.minute);
-    if (!isLate) return { applied: false };
+  // Late penalty and on-time merit are written by the database when the
+  // check-in is saved (audit D3). This only READS what it decided, so the
+  // teacher sees the truth: the penalty row whose reference is this check-in.
+  async function penaltyFor(checkinId) {
     try {
-      const { error } = await sb.from('payroll_deductions').insert({
-        tenant_id: tenantId || 'kabs-lily-junior-school-and-kindercare-centre',
-        teacher_id: teacherId,
-        month: monthStart(dt),
-        amount: LATE_CHECKIN_PENALTY,
-        reason: 'late_checkin',
-        notes: 'Checked in at ' + dt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + ', after the 07:15 cutoff.',
-      });
-      // A unique-index conflict just means today's penalty was already
-      // recorded (e.g. a retried check-in) — not a real error.
-      if (error && error.code !== '23505') { console.warn('late check-in penalty warning:', error); return { applied: false }; }
-      return { applied: true, amount: LATE_CHECKIN_PENALTY };
-    } catch (e) {
-      console.warn('late check-in penalty failed:', e);
-      return { applied: false };
-    }
+      const sb = window.NextSession && window.NextSession.sb;
+      const { data } = await sb.from('payroll_deductions').select('amount').eq('reason', 'late_checkin').eq('reference_id', String(checkinId)).limit(1);
+      return data && data[0] ? { applied: true, amount: Number(data[0].amount) || 0 } : { applied: false };
+    } catch (e) { return { applied: false }; }
   }
 
+  // Merit points for check-in, roll call and lesson plans are added by
+  // database triggers (audit D3). Teachers can no longer award points to
+  // themselves; only the head can, by hand, through award_teacher_merit.
   async function awardMeritPoints(teacherId, points, reason) {
+    return { data: null, error: null, server: true };
     const sb = window.NextSession?.sb;
     if (!sb || teacherId === 9999) return { error: 'No session' };
     try {
@@ -1054,7 +1061,7 @@
   }
 
   // ─── Write helpers ──────────────────────────────────────────────────
-  async function writeCheckIn(teacherId, tenantId, method) {
+  async function writeCheckIn(teacherId, tenantId, method, geo) {
     const sb = window.NextSession?.sb;
     const nowIso = new Date().toISOString();
     const mockCheckin = {
@@ -1081,10 +1088,11 @@
 
     try {
       const payload = {
-        tenant_id: tenantId || 'kabs-lily-junior-school-and-kindercare-centre',
-        method: method || 'manual',
+        tenant_id: tenantId,
+        method: (geo && geo.lat != null) ? 'geo' : (method || 'manual'),
         teacher_id: teacherId
       };
+      if (geo && geo.lat != null) { payload.lat = geo.lat; payload.lng = geo.lng; payload.accuracy_m = geo.accuracy; }
 
       const { data, error } = await sb
         .from('teacher_checkins')
@@ -1103,27 +1111,7 @@
       }
 
       const checkin = data;
-      const penalty = await applyLateCheckInPenalty(teacherId, tenantId, checkin.checked_in_at);
-
-      // teacher_checkins has no unique constraint stopping more than one
-      // row per teacher per day (the UI normally hides "Check In" once
-      // today's checkin exists, but that's not a guarantee against a
-      // race or a direct write) — so this checks the merits log itself
-      // before awarding, same defensive pattern as the roll call award.
-      if ((!penalty || !penalty.applied) && teacherId && teacherId !== 9999) {
-        const dayStart = new Date(); dayStart.setHours(0, 0, 0, 0);
-        const { data: already } = await sb
-          .from('teacher_merits_log')
-          .select('id')
-          .eq('teacher_id', teacherId)
-          .eq('reason', 'On-time check-in')
-          .gte('created_at', dayStart.toISOString())
-          .limit(1);
-        if (!already || already.length === 0) {
-          await awardMeritPoints(teacherId, 5, 'On-time check-in');
-        }
-      }
-
+      const penalty = await penaltyFor(checkin.id);
       return { data: checkin, error: null, penalty };
     } catch (e) {
       return { data: null, error: { message: e && e.message ? e.message : String(e) }, penalty: null };
@@ -1650,13 +1638,13 @@
       if (busy) return;
       setBusy(true);
       try {
-        await verifyAtSchoolGate(profile.tenantId);
+        var geo = await verifyAtSchoolGate(profile.tenantId);
       } catch (e) {
         setBusy(false);
         tinyToast(e.message, 'error');
         return;
       }
-      const { data, error, penalty } = await writeCheckIn(teacher.id, profile.tenantId, 'manual');
+      const { data, error, penalty } = await writeCheckIn(teacher.id, profile.tenantId, 'manual', geo);
       if (error) {
         setBusy(false);
         tinyToast('Check-in failed: ' + error.message, 'error');
@@ -1668,7 +1656,7 @@
         setDismissed(true);
         if (onCheckedIn) onCheckedIn(data, penalty);
         if (penalty && penalty.applied) {
-          tinyToast('Checked in after 07:15 — UGX ' + penalty.amount.toLocaleString() + ' late penalty applied.', 'warn');
+          tinyToast('Checked in late — UGX ' + penalty.amount.toLocaleString() + ' late penalty recorded.', 'warn');
         } else {
           tinyToast('Checked in. Head teacher notified.', 'success');
         }
@@ -1772,17 +1760,17 @@
       if (busy) return;
       setBusy(true);
       try {
-        await verifyAtSchoolGate(profile.tenantId);
+        var geo = await verifyAtSchoolGate(profile.tenantId);
       } catch (e) {
         setBusy(false);
         tinyToast(e.message, 'error');
         return;
       }
-      const { data, error, penalty } = await writeCheckIn(teacher.id, profile.tenantId, 'manual');
+      const { data, error, penalty } = await writeCheckIn(teacher.id, profile.tenantId, 'manual', geo);
       setBusy(false);
       if (error) { tinyToast('Check-in failed: ' + error.message, 'error'); return; }
       if (penalty && penalty.applied) {
-        tinyToast('Checked in after 07:15 — UGX ' + penalty.amount.toLocaleString() + ' late penalty applied.', 'warn');
+        tinyToast('Checked in late — UGX ' + penalty.amount.toLocaleString() + ' late penalty recorded.', 'warn');
       } else {
         tinyToast('Checked in. Head teacher notified.', 'success');
       }
