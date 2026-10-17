@@ -2,246 +2,43 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>Driver App — Kabs Lily Transport Tracker</title>
-  <meta name="description" content="Kabs Lily Kindercare — Live Shuttle GPS Tracker for School Transport Management">
-
-  <!-- Google Fonts -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#0B0F17">
+  <title>Driver App</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-
-  <!-- React & Babel Standalone -->
-  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-
-  <!-- Leaflet CSS & JS for Live Interactive Navigation Map -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-
-    html, body {
-      width: 100%;
-      height: 100%;
-      height: 100dvh;
-      background-color: #07090F;
-      color: #F8FAFC;
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      -webkit-tap-highlight-color: transparent;
-      overflow: hidden;
-    }
-
-    #root {
-      width: 100%;
-      height: 100%;
-      display: flex;
-      flex-direction: column;
-    }
-
-    /* ─── Leaflet dark popup styling ─── */
-    .leaflet-popup-content-wrapper {
-      background: #0F172A !important;
-      color: #F8FAFC !important;
-      border: 1px solid rgba(255,255,255,0.15);
-      border-radius: 12px !important;
-      box-shadow: 0 10px 25px rgba(0,0,0,0.5) !important;
-    }
-    .leaflet-popup-tip { background: #0F172A !important; }
-    .leaflet-control-zoom a {
-      background: #1E293B !important;
-      color: #94A3B8 !important;
-      border-color: #334155 !important;
-    }
-    .leaflet-control-zoom a:hover { background: #334155 !important; color: #F8FAFC !important; }
-
-    /* ─── Animations ─── */
-    @keyframes pulse {
-      0%, 100% { opacity: 1; transform: scale(1); box-shadow: 0 0 0 0 rgba(16,185,129,0.4); }
-      50% { opacity: 0.7; transform: scale(1.3); box-shadow: 0 0 0 6px rgba(16,185,129,0); }
-    }
-    @keyframes blink {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.3; }
-    }
-    @keyframes slideUp {
-      from { transform: translateY(100%); opacity: 0; }
-      to { transform: translateY(0); opacity: 1; }
-    }
-
-    /* ─── MOBILE (default, < 768px) ─── */
-    .driver-app-shell {
-      width: 100%;
-      height: 100%;
-      display: flex;
-      flex-direction: column;
-      background: #0F172A;
-      position: relative;
-      overflow: hidden;
-    }
-
-    /* Mobile drawer overlay */
-    .desktop-sidebar-side {
-      display: none;
-    }
-    .desktop-main-split {
-      display: flex;
-      flex-direction: column;
-      flex: 1;
-      min-height: 0;
-      overflow: hidden;
-    }
-    .desktop-map-side {
-      flex: 1;
-      position: relative;
-      display: flex;
-      flex-direction: column;
-      min-height: 0;
-    }
-
-    /* ─── TABLET (768px – 1023px) ─── */
-    @media (min-width: 768px) {
-      body { padding: 10px; background: #07090F; }
-      #root { height: calc(100dvh - 20px); }
-
-      .driver-app-shell {
-        border-radius: 16px !important;
-        border: 1px solid rgba(255,255,255,0.1) !important;
-        box-shadow: 0 30px 80px rgba(0,0,0,0.8) !important;
-        overflow: hidden !important;
-      }
-
-      .desktop-main-split {
-        flex-direction: row !important;
-      }
-
-      .desktop-map-side {
-        flex: 1 !important;
-        height: 100% !important;
-      }
-
-      /* Show sidebar on tablet+ */
-      .desktop-sidebar-side {
-        display: flex !important;
-        flex-direction: column;
-        width: 360px;
-        min-width: 300px;
-        max-width: 380px;
-        background: #0A0D16;
-        border-left: 1px solid rgba(255,255,255,0.08);
-        height: 100%;
-        overflow-y: auto;
-        overflow-x: hidden;
-        flex-shrink: 0;
-      }
-
-      /* Hide mobile drawer on tablet+ */
-      .mobile-drawer-overlay {
-        display: none !important;
-      }
-    }
-
-    /* ─── DESKTOP (1024px+) ─── */
-    @media (min-width: 1024px) {
-      body { padding: 14px; }
-      #root { height: calc(100dvh - 28px); }
-
-      .desktop-sidebar-side {
-        width: 420px !important;
-        max-width: 440px !important;
-      }
-    }
-
-    /* ─── LARGE DESKTOP (1440px+) ─── */
-    @media (min-width: 1440px) {
-      body { padding: 16px; }
-      #root { height: calc(100dvh - 32px); }
-
-      .desktop-sidebar-side {
-        width: 460px !important;
-        max-width: 480px !important;
-      }
-    }
-
-    /* Scrollbar styling */
-    ::-webkit-scrollbar { width: 6px; }
-    ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
-    ::-webkit-scrollbar-thumb:hover { background: #475569; }
+    html, body { height: 100%; background: #0B0F17; color: #F9FAFB; font-family: Inter, system-ui, sans-serif; -webkit-tap-highlight-color: transparent; overflow: hidden; }
+    button:disabled { opacity: .55; cursor: default !important; }
+    button:focus-visible, a:focus-visible, select:focus-visible { outline: 3px solid #00FC8F; outline-offset: 2px; }
+    #nx-toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 9999; max-width: calc(100% - 32px); padding: 12px 16px; border-radius: 12px; font: 600 13.5px Inter, sans-serif; background: #1F2937; color: #fff; box-shadow: 0 10px 30px rgba(0,0,0,.5); display: none; }
+    .leaflet-container { background: #0B0F17; }
   </style>
+  <!-- Pinned versions (audit B1/C8) -->
+  <script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js"></script>
+  <!-- Staff sign-in check (audit C2): no driver app without a verified driver/head account. -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="/prototypes/schools/peak-primary/session-guard.js?v=5"></script>
 </head>
 <body>
   <div id="root"></div>
-
-  <!-- Load Telemetry & Driver View JS (relative paths for mobile/GitHub Pages compatibility) -->
-  <script src="./transport-telemetry.js"></script>
-  <script type="text/babel" src="./driver-view.jsx?v=9"></script>
-
+  <div id="nx-toast" role="status" aria-live="polite"></div>
+  <script>
+    window.peakToast = function (msg, kind) {
+      var el = document.getElementById('nx-toast');
+      el.textContent = msg;
+      el.style.background = kind === 'error' ? '#7F1D1D' : kind === 'success' ? '#065F46' : '#1F2937';
+      el.style.display = 'block';
+      clearTimeout(window.__nxToastT);
+      window.__nxToastT = setTimeout(function () { el.style.display = 'none'; }, 4000);
+    };
+  </script>
+  <script type="text/babel" src="/prototypes/schools/peak-primary/driver-app.jsx?v=1"></script>
   <script type="text/babel">
-    const { useEffect, useState } = React;
-
-    // Global error boundary to prevent white-screen crashes on mobile
-    class ErrorBoundary extends React.Component {
-      constructor(props) { super(props); this.state = { hasError: false, error: null }; }
-      static getDerivedStateFromError(error) { return { hasError: true, error }; }
-      componentDidCatch(e, info) { console.error('Driver app crash:', e, info); }
-      render() {
-        if (this.state.hasError) {
-          return React.createElement('div', { style: { display:'flex', alignItems:'center', justifyContent:'center', height:'100%', flexDirection:'column', gap:'16px', color:'#F8FAFC', padding:'24px', textAlign:'center', background:'#0F172A' } },
-            React.createElement('div', { style: { fontSize:'48px' } }, '🚐'),
-            React.createElement('div', { style: { fontSize:'18px', fontWeight:'700', color:'#EF4444' } }, 'App Error'),
-            React.createElement('div', { style: { fontSize:'13px', color:'#94A3B8', maxWidth:'280px' } }, 'The driver app encountered an issue. Please reload the page.'),
-            React.createElement('button', { onClick:() => location.reload(), style: { marginTop:'8px', padding:'12px 24px', background:'#3B82F6', color:'#fff', border:'none', borderRadius:'8px', fontSize:'14px', fontWeight:'700', cursor:'pointer' } }, '🔄 Reload App')
-          );
-        }
-        return this.props.children;
-      }
-    }
-
-    function App() {
-      const [telemetryState, setTelemetryState] = useState(null);
-
-      useEffect(() => {
-        // Start live GPS telemetry broadcasting on mount
-        if (window.TRANSPORT_TELEMETRY) {
-          if (typeof window.TRANSPORT_TELEMETRY.startBroadcasting === 'function') {
-            const profile = (window.PEAK_ROLE && window.PEAK_ROLE.getProfile && window.PEAK_ROLE.getProfile()) || {};
-            window.TRANSPORT_TELEMETRY.startBroadcasting('van-01', {
-              driverName: profile.fullName || 'Shuttle Driver',
-              plate: profile.vanPlate || '',
-              route: profile.route || ''
-            });
-          }
-
-          if (typeof window.TRANSPORT_TELEMETRY.subscribe === 'function') {
-            const unsub = window.TRANSPORT_TELEMETRY.subscribe('van-01', (data) => {
-              setTelemetryState(data);
-            });
-            return () => { if (typeof unsub === 'function') unsub(); };
-          }
-        }
-      }, []);
-
-      const DriverView = window.DriverView;
-
-      return DriverView ? (
-        <DriverView vanId="van-01" />
-      ) : (
-        <div style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          height: '100%', flexDirection: 'column', gap: '16px', color: '#94A3B8'
-        }}>
-          <div style={{ fontSize: '32px' }}>🚐</div>
-          <div style={{ fontSize: '16px', fontWeight: '600' }}>Loading Driver Interface...</div>
-          <div style={{ fontSize: '12px', opacity: 0.6 }}>Initializing GPS & Route Manifest</div>
-        </div>
-      );
-    }
-
-    ReactDOM.createRoot(document.getElementById('root')).render(
-      React.createElement(ErrorBoundary, null, React.createElement(App))
-    );
+    ReactDOM.createRoot(document.getElementById('root')).render(<window.DriverRoot />);
   </script>
 </body>
 </html>

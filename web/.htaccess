@@ -4,6 +4,7 @@ RewriteRule ^school/([A-Za-z0-9_-]+)/login/?$ prototypes/schools/peak-primary/lo
 RewriteRule ^school/([A-Za-z0-9_-]+)/enroll/?$ prototypes/schools/peak-primary/student-enrollment-form.html?s=$1 [L,QSA]
 RewriteRule ^school/([A-Za-z0-9_-]+)/join-staff/?$ prototypes/schools/peak-primary/staff-hr-form.html?s=$1 [L,QSA]
 RewriteRule ^school/([A-Za-z0-9_-]+)/parent/?$ prototypes/schools/peak-primary/parent-dashboard.html?s=$1 [L,QSA]
+RewriteRule ^school/([A-Za-z0-9_-]+)/driver/?$ prototypes/schools/peak-primary/driver-dashboard.html?s=$1 [L,QSA]
 RewriteRule ^school/([A-Za-z0-9_-]+)/?$ prototypes/schools/peak-primary/index.built.html?s=$1 [L,QSA]
 
 # Service worker must always be fresh.
