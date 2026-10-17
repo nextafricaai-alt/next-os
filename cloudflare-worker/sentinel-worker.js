@@ -49,7 +49,7 @@ function corsHeaders(origin) {
   return {
     'Access-Control-Allow-Origin': allowed,
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Parent-Token',
     'Access-Control-Max-Age': '86400',
   };
 }
@@ -185,11 +185,13 @@ function openAIResponseToAnthropic(data) {
    /brand, /icon, /icon.png, /px.js, /collect, /health, /telemetry,
    /registrations/submit (public enrolment form), /billing/webhook (signed),
    /push/vapid-public, /auth/send-otp, /auth/verify-otp.
-   Still open, handled by later audit items: /parent/* and /fees/lookup,
-   /fees/checkout, /fees/verify (C8 parents), /transport/* (C9 drivers),
+   Parents (C8): /parent/* use the signed parent pass from /parent/otp/verify
+   (see parent-auth); /fees/lookup returns names only; /fees/checkout and
+   /fees/verify stay public for the pay page. Still open: /transport/* (C9),
    /provision-school (C4), and NEXT OS platform routes (AI, CMS, SEO, fleet).
 --------------------------------------------------------------------------- */
 const AUTH_CTX = new WeakMap(); // request -> { email, tenant, role, operator }
+const PARENT_TOKEN_ROUTES = ['/messages/list', '/messages/send', '/push/subscribe'];
 const AUTH_CACHE = new Map();   // token -> { until, user, memberships }
 const AUTH_CACHE_MS = 60 * 1000;
 
@@ -232,6 +234,7 @@ const AUTH_RULES = {
   '/exam-results/save':  { roles: R_STAFF,   tenant: 'required' },
   '/events/save':        { roles: R_STAFF,   tenant: 'required' },
   '/messages/send':      { roles: R_STAFF,   tenant: 'optional' },
+  '/parent/notify':      { roles: R_STAFF,   tenant: 'required' },
   '/students/photo-upload': { roles: R_STAFF, tenant: 'optional' },
   '/push/subscribe':     { roles: R_ANY,     tenant: 'optional' },
   '/push/test':          { roles: R_ANY,     tenant: 'optional' },
@@ -343,6 +346,14 @@ async function faceGate(request, env, url, cors) {
 async function authGate(request, env, url, cors) {
   const face = await faceGate(request, env, url, cors);
   if (face) return face;
+  // Parents (C8) carry X-Parent-Token instead of a staff sign-in, and only on
+  // the routes they use. A bad or expired parent pass is always refused.
+  if (PARENT_TOKEN_ROUTES.indexOf(url.pathname) >= 0 && request.headers.get('X-Parent-Token')) {
+    const p = await readParentToken(request, env);
+    if (!p) return new Response(JSON.stringify({ error: 'Please sign in again.', parentSignIn: true }), { status: 401, headers: { ...cors, 'Content-Type': 'application/json' } });
+    AUTH_CTX.set(request, { email: '', tenant: p.tenant, role: 'parent', operator: false, parent: p });
+    return null;
+  }
   const rule = AUTH_RULES[url.pathname];
   if (!rule) return null;
   const enforce = String(env.AUTH_MODE || 'warn').toLowerCase() === 'enforce';
@@ -383,6 +394,168 @@ async function authGate(request, env, url, cors) {
 function callerTenant(request) {
   const c = AUTH_CTX.get(request);
   return (c && !c.operator && c.tenant) ? c.tenant : '';
+}
+
+/* --- Parent sign-in by phone (audit C8) -----------------------------------
+   Parents have no email login. They sign in with the phone number the school
+   has on file as a pupil's guardian_phone:
+     POST /parent/otp/send    { tenant, phone }        → SMS a 6-digit code
+     POST /parent/otp/verify  { tenant, phone, code }  → { token, children }
+     GET  /parent/children    (X-Parent-Token)         → children for that phone
+   The token is a signed 30-day pass (HMAC-SHA256) carrying the school, the
+   phone and the pupil ids. Every parent route checks it, and child data is
+   re-checked against the database so a phone removed from a pupil's record
+   loses access straight away.
+   Secret: env.PARENT_SESSION_SECRET (wrangler secret put). If not set, a key
+   derived from the service key is used so it still works out of the box.
+--------------------------------------------------------------------------- */
+const PARENT_TOKEN_DAYS = 30;
+const OTP_TTL_S = 600;          // code valid for 10 minutes
+const OTP_MAX_TRIES = 5;        // wrong guesses per code
+const OTP_SENDS_PER_PHONE = 3;  // per 15 minutes
+const OTP_SENDS_PER_IP = 10;    // per 15 minutes
+
+// Uganda-first phone normaliser → digits with country code, e.g. 256772123456.
+function normPhone(p) {
+  let d = String(p || '').replace(/[^0-9]/g, '');
+  if (!d) return '';
+  if (d.startsWith('00')) d = d.slice(2);
+  if (d.length === 10 && d.startsWith('0')) d = '256' + d.slice(1);
+  else if (d.length === 9 && d.startsWith('7')) d = '256' + d;
+  return d.length >= 11 && d.length <= 15 ? d : '';
+}
+// A guardian_phone cell can hold two numbers ("0772... / 0701...").
+function phonesIn(cell) {
+  return String(cell || '').split(/[\/,;|]| or /i).map(normPhone).filter(Boolean);
+}
+function b64u(bytes) {
+  let s = ''; const a = new Uint8Array(bytes); for (let i = 0; i < a.length; i++) s += String.fromCharCode(a[i]);
+  return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+function b64uDecode(str) {
+  str = String(str || '').replace(/-/g, '+').replace(/_/g, '/'); while (str.length % 4) str += '=';
+  const bin = atob(str); const out = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i); return out;
+}
+async function parentKey(env) {
+  const raw = env.PARENT_SESSION_SECRET || ('nx-parent-v1:' + (env.SUPABASE_KEY || ''));
+  return crypto.subtle.importKey('raw', new TextEncoder().encode(raw), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign', 'verify']);
+}
+async function sha256hex(s) {
+  const h = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s));
+  return [...new Uint8Array(h)].map(b => b.toString(16).padStart(2, '0')).join('');
+}
+async function issueParentToken(env, tenant, phone, studentIds) {
+  const body = b64u(new TextEncoder().encode(JSON.stringify({ t: tenant, p: phone, s: studentIds, exp: Math.floor(Date.now() / 1000) + PARENT_TOKEN_DAYS * 86400 })));
+  const sig = b64u(await crypto.subtle.sign('HMAC', await parentKey(env), new TextEncoder().encode(body)));
+  return body + '.' + sig;
+}
+// Returns { tenant, phone, studentIds } or null.
+async function readParentToken(request, env) {
+  const tok = (request.headers.get('X-Parent-Token') || '').trim();
+  const parts = tok.split('.');
+  if (parts.length !== 2) return null;
+  try {
+    const ok = await crypto.subtle.verify('HMAC', await parentKey(env), b64uDecode(parts[1]), new TextEncoder().encode(parts[0]));
+    if (!ok) return null;
+    const p = JSON.parse(new TextDecoder().decode(b64uDecode(parts[0])));
+    if (!p || !p.t || !p.p || !Array.isArray(p.s) || !(p.exp > Date.now() / 1000)) return null;
+    return { tenant: String(p.t), phone: String(p.p), studentIds: p.s.map(Number) };
+  } catch (e) { return null; }
+}
+async function childrenForPhone(env, tenant, phone) {
+  if (!phone) return [];
+  const rows = (await sbFetch(env, '/students?tenant_id=eq.' + encodeURIComponent(tenant) + '&guardian_phone=not.is.null&select=id,name,stream,guardian_phone&order=name.asc&limit=5000')) || [];
+  return rows.filter(r => phonesIn(r.guardian_phone).indexOf(phone) >= 0).map(r => ({ id: Number(r.id), name: r.name, stream: r.stream || '' }));
+}
+async function kvBump(env, key, ttl) {
+  if (!env.BRIEFS_KV) return 0;
+  let n = 0; try { n = Number(await env.BRIEFS_KV.get(key)) || 0; } catch (e) {}
+  try { await env.BRIEFS_KV.put(key, String(n + 1), { expirationTtl: ttl }); } catch (e) {}
+  return n + 1;
+}
+async function sendParentSms(env, phone, text) {
+  if (env.AT_USERNAME && env.AT_KEY) {
+    const form = new URLSearchParams();
+    form.set('username', env.AT_USERNAME); form.set('to', '+' + phone); form.set('message', text);
+    if (env.AT_SENDER) form.set('from', env.AT_SENDER);
+    const r = await fetch('https://api.africastalking.com/version1/messaging', { method: 'POST', headers: { apiKey: env.AT_KEY, 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' }, body: form.toString() });
+    const d = await r.json().catch(() => ({}));
+    const rec = (d && d.SMSMessageData && d.SMSMessageData.Recipients) || [];
+    return { ok: r.ok && rec.some(x => /Success/i.test(x.status || '')), via: 'sms', detail: (d && d.SMSMessageData && d.SMSMessageData.Message) || ('HTTP ' + r.status) };
+  }
+  if (env.WHATSAPP_TOKEN && env.WHATSAPP_PHONE_ID) {
+    // Note: WhatsApp only delivers free text inside a 24h customer window; for
+    // reliable codes create an "authentication" template and switch to it.
+    const r = await fetch('https://graph.facebook.com/v20.0/' + env.WHATSAPP_PHONE_ID + '/messages', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + env.WHATSAPP_TOKEN }, body: JSON.stringify({ messaging_product: 'whatsapp', to: phone, type: 'text', text: { body: text } }) });
+    return { ok: r.ok, via: 'whatsapp', detail: 'HTTP ' + r.status };
+  }
+  return { ok: false, via: 'none', detail: 'no SMS or WhatsApp sender configured' };
+}
+
+async function handleParentOtpSend(request, env, cors) {
+  const J = (o, st) => new Response(JSON.stringify(o), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
+  let b; try { b = await request.json(); } catch (e) { return J({ error: 'bad body' }, 400); }
+  const tenant = String(b.tenant || '').trim();
+  const phone = normPhone(b.phone);
+  if (!tenant) return J({ error: 'School missing from the link.' }, 400);
+  if (!phone) return J({ error: 'Enter a valid phone number, e.g. 0772 123 456.' }, 400);
+  if (!(env.AT_USERNAME && env.AT_KEY) && !(env.WHATSAPP_TOKEN && env.WHATSAPP_PHONE_ID)) {
+    return J({ error: 'Phone sign-in is not switched on for this school yet. Please contact the school office.' }, 503);
+  }
+  const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
+  if (await kvBump(env, 'potp-ip:' + ip, 900) > OTP_SENDS_PER_IP) return J({ error: 'Too many requests. Try again in 15 minutes.' }, 429);
+  if (await kvBump(env, 'potp-ph:' + tenant + ':' + phone, 900) > OTP_SENDS_PER_PHONE) return J({ error: 'Too many codes sent to this number. Try again in 15 minutes.' }, 429);
+  // Same answer whether or not the number is registered, so the form can't be
+  // used to find out which numbers belong to which school.
+  const generic = { ok: true, message: 'If this number is registered with the school, a 6-digit code is on its way.' };
+  const kids = await childrenForPhone(env, tenant, phone);
+  if (!kids.length) { console.log('[parent-otp] no pupils for phone ending ' + phone.slice(-3) + ' at ' + tenant); return J(generic); }
+  const code = String(crypto.getRandomValues(new Uint32Array(1))[0] % 1000000).padStart(6, '0');
+  if (env.BRIEFS_KV) await env.BRIEFS_KV.put('potp:' + tenant + ':' + phone, JSON.stringify({ h: await sha256hex(code + ':' + phone), tries: 0 }), { expirationTtl: OTP_TTL_S });
+  let schoolName = 'your school';
+  try { const t = await sbFetch(env, '/tenants?id=eq.' + encodeURIComponent(tenant) + '&select=name'); if (t && t[0] && t[0].name) schoolName = t[0].name; } catch (e) {}
+  const sent = await sendParentSms(env, phone, code + ' is your ' + schoolName + ' parent code. It expires in 10 minutes. Do not share it with anyone.');
+  if (!sent.ok) { console.log('[parent-otp] send failed via ' + sent.via + ': ' + sent.detail); return J({ error: 'Could not send the code right now. Please try again.' }, 502); }
+  return J(generic);
+}
+
+async function handleParentOtpVerify(request, env, cors) {
+  const J = (o, st) => new Response(JSON.stringify(o), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
+  let b; try { b = await request.json(); } catch (e) { return J({ error: 'bad body' }, 400); }
+  const tenant = String(b.tenant || '').trim();
+  const phone = normPhone(b.phone);
+  const code = String(b.code || '').replace(/[^0-9]/g, '');
+  if (!tenant || !phone || code.length !== 6) return J({ error: 'Enter the 6-digit code from the SMS.' }, 400);
+  if (!env.BRIEFS_KV) return J({ error: 'Sign-in storage is not configured.' }, 503);
+  const key = 'potp:' + tenant + ':' + phone;
+  let rec = null; try { rec = JSON.parse((await env.BRIEFS_KV.get(key)) || 'null'); } catch (e) {}
+  if (!rec) return J({ error: 'That code has expired. Ask for a new one.' }, 400);
+  if (rec.tries >= OTP_MAX_TRIES) { await env.BRIEFS_KV.delete(key); return J({ error: 'Too many wrong codes. Ask for a new one.' }, 429); }
+  if (rec.h !== await sha256hex(code + ':' + phone)) {
+    rec.tries++; await env.BRIEFS_KV.put(key, JSON.stringify(rec), { expirationTtl: OTP_TTL_S });
+    return J({ error: 'Wrong code. ' + (OTP_MAX_TRIES - rec.tries) + ' tries left.' }, 400);
+  }
+  await env.BRIEFS_KV.delete(key);
+  const kids = await childrenForPhone(env, tenant, phone);
+  if (!kids.length) return J({ error: 'No pupils are linked to this number any more. Please contact the school office.' }, 403);
+  const token = await issueParentToken(env, tenant, phone, kids.map(k => k.id));
+  return J({ ok: true, token, tenant, children: kids, expiresInDays: PARENT_TOKEN_DAYS });
+}
+
+async function handleParentChildren(request, env, cors) {
+  const J = (o, st) => new Response(JSON.stringify(o), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
+  const p = await readParentToken(request, env);
+  if (!p) return J({ error: 'Please sign in again.' }, 401);
+  const kids = await childrenForPhone(env, p.tenant, p.phone);
+  return J({ tenant: p.tenant, children: kids });
+}
+
+// Is this pupil still linked to the signed-in parent's phone? (fresh DB check)
+async function parentOwnsStudent(env, p, studentId) {
+  const sid = Number(studentId);
+  if (!p || !(p.studentIds.indexOf(sid) >= 0)) return false;
+  const rows = await sbFetch(env, '/students?id=eq.' + sid + '&tenant_id=eq.' + encodeURIComponent(p.tenant) + '&select=guardian_phone&limit=1');
+  return !!(rows && rows[0] && phonesIn(rows[0].guardian_phone).indexOf(p.phone) >= 0);
 }
 
 /* --- HTTP handler -------------------------------------------------------- */
@@ -495,7 +668,7 @@ export default {
     }
 
     // GET-allowed routes (read-only endpoints live below this gate)
-    const GET_OK = ['/check-project', '/seo-audit', '/px.js', '/analytics', '/gsc', '/ga4', '/fetch-page', '/site-pages', '/cms/collections', '/cms/items', '/students', '/exams', '/exam-results', '/fees-balances', '/attendance-summary', '/staff-status', '/attendance-watch', '/attendance/today', '/lessons-remind', '/watch/deploy-check', '/student-health', '/billing/verify', '/billing/subscriptions', '/fees/lookup', '/fees/verify', '/health', '/events', '/finance', '/assets', '/school-config', '/os-data', '/teachers', '/hosting-report', '/watch/status', '/push/vapid-public', '/push/debug', '/parent/child-data', '/messages/list', '/registrations/list', '/transport/live'];
+    const GET_OK = ['/check-project', '/seo-audit', '/px.js', '/analytics', '/gsc', '/ga4', '/fetch-page', '/site-pages', '/cms/collections', '/cms/items', '/students', '/exams', '/exam-results', '/fees-balances', '/attendance-summary', '/staff-status', '/attendance-watch', '/attendance/today', '/lessons-remind', '/watch/deploy-check', '/student-health', '/billing/verify', '/billing/subscriptions', '/fees/lookup', '/fees/verify', '/health', '/events', '/finance', '/assets', '/school-config', '/os-data', '/teachers', '/hosting-report', '/watch/status', '/push/vapid-public', '/push/debug', '/parent/child-data', '/parent/children', '/messages/list', '/registrations/list', '/transport/live'];
     if (request.method !== 'POST' && !GET_OK.includes(url.pathname)) {
       return new Response('Method not allowed', { status: 405, headers: cors });
     }
@@ -667,11 +840,15 @@ export default {
     if (url.pathname === '/exam/scan-mark')     return handleExamScanMark(request, env, cors);
     if (url.pathname === '/exam/care-plan')     return handleExamCarePlan(request, env, cors);
     if (url.pathname === '/attendance/today')   return handleAttendanceToday(url.searchParams.get('tenant') || '', env, cors);
-    if (url.pathname === '/fees/lookup')        return handleFeesLookup(url.searchParams.get('tenant') || '', url.searchParams.get('q') || '', env, cors);
-    if (url.pathname === '/parent/search-child') return handleParentSearchChild(request, env, cors);
-    if (url.pathname === '/parent/child-data')   return handleParentChildData(url, env, cors);
+    if (url.pathname === '/fees/lookup')        return handleFeesLookup(request, url.searchParams.get('tenant') || '', url.searchParams.get('q') || '', env, cors);
+    if (url.pathname === '/parent/otp/send')     return handleParentOtpSend(request, env, cors);
+    if (url.pathname === '/parent/otp/verify')   return handleParentOtpVerify(request, env, cors);
+    if (url.pathname === '/parent/children')     return handleParentChildren(request, env, cors);
+    // Old name search that exposed guardian phone numbers to anyone (C8): gone.
+    if (url.pathname === '/parent/search-child') return new Response(JSON.stringify({ error: 'Parents now sign in with their phone number. Please reload the page.', parentSignIn: true }), { status: 410, headers: { ...cors, 'Content-Type': 'application/json' } });
+    if (url.pathname === '/parent/child-data')   return handleParentChildData(request, url, env, cors);
     if (url.pathname === '/parent/notify')       return handleParentNotify(request, env, cors);
-    if (url.pathname === '/messages/list')       return handleMessagesList(url, env, cors);
+    if (url.pathname === '/messages/list')       return handleMessagesList(request, url, env, cors);
     if (url.pathname === '/messages/send')       return handleMessagesSend(request, env, cors);
     if (url.pathname === '/registrations/submit')  return handleRegistrationSubmit(request, env, cors);
     if (url.pathname === '/registrations/list')    return handleRegistrationList(url, env, cors);
@@ -2096,31 +2273,28 @@ async function handleAttendanceToday(tenant, env, cors) {
 // service_role key server-side and explicitly filter by tenant_id (and
 // here, student_id) in the query WE construct — the client never gets a
 // key capable of an unscoped query.
-async function handleParentSearchChild(request, env, cors) {
-  const J = (oo, st) => new Response(JSON.stringify(oo), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
-  let b; try { b = await request.json(); } catch (e) { return J({ error: 'bad body' }, 400); }
-  const tenant = String(b.tenant || '').trim();
-  const q = String(b.query || '').trim();
-  if (!tenant) return J({ error: 'tenant required' }, 400);
-  if (q.length < 2) return J({ matches: [] });
-  if (!env.SUPABASE_URL || !env.SUPABASE_KEY) return J({ error: 'not configured' }, 500);
-  try {
-    const isPhoneish = /^[0-9+][0-9+\s-]{5,}$/.test(q);
-    const base = '/students?tenant_id=eq.' + encodeURIComponent(tenant) + '&select=id,name,stream,guardian_name,guardian_phone&limit=8';
-    const path = isPhoneish
-      ? base + '&guardian_phone=eq.' + encodeURIComponent(q.replace(/[^0-9+]/g, ''))
-      : base + '&name=ilike.' + encodeURIComponent('*' + q.replace(/[%*]/g, '') + '*');
-    const matches = await sbFetch(env, path);
-    return J({ tenant, matches: matches || [] });
-  } catch (e) { return J({ error: String((e && e.message) || e) }, 200); }
+// Who may read one pupil's records: the parent whose phone is on that pupil
+// (parent pass), or signed-in staff / an operator of that school. (C8)
+async function childAccess(request, env, tenant, studentId) {
+  const p = await readParentToken(request, env);
+  if (p) return (p.tenant === tenant && await parentOwnsStudent(env, p, studentId)) ? { ok: true, who: 'parent' } : { ok: false, status: 403, why: 'This pupil is not linked to your phone number.' };
+  const token = (request.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '').trim();
+  if (!token) return { ok: false, status: 401, why: 'Please sign in.', parentSignIn: true };
+  const c = await lookupCaller(token, env).catch(() => null);
+  if (!c) return { ok: false, status: 401, why: 'Please sign in again.', parentSignIn: true };
+  if (isOperator(c.email, env)) return { ok: true, who: 'operator' };
+  const m = c.memberships.find(x => x.tenant === tenant);
+  return (m && R_STAFF.indexOf(m.role) >= 0) ? { ok: true, who: 'staff' } : { ok: false, status: 403, why: 'You do not belong to this school.' };
 }
 
-async function handleParentChildData(url, env, cors) {
+async function handleParentChildData(request, url, env, cors) {
   const J = (oo, st) => new Response(JSON.stringify(oo), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
   const tenant = url.searchParams.get('tenant') || '';
   const studentId = url.searchParams.get('student_id') || '';
   if (!tenant || !studentId) return J({ error: 'tenant and student_id required' }, 400);
   if (!env.SUPABASE_URL || !env.SUPABASE_KEY) return J({ error: 'not configured' }, 500);
+  const acc = await childAccess(request, env, tenant, studentId);
+  if (!acc.ok) return J({ error: acc.why, parentSignIn: !!acc.parentSignIn }, acc.status);
   const tEnc = encodeURIComponent(tenant), sEnc = encodeURIComponent(studentId);
   const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
   try {
@@ -2136,7 +2310,7 @@ async function handleParentChildData(url, env, cors) {
     // photo. Degrade to null/empty instead.
     let profile = null;
     try {
-      const rows = await sbFetch(env, '/students?id=eq.' + sEnc + '&select=name,stream,photo_url,meta&limit=1');
+      const rows = await sbFetch(env, '/students?id=eq.' + sEnc + '&tenant_id=eq.' + tEnc + '&select=name,stream,photo_url,meta&limit=1');
       profile = (rows && rows[0]) || null;
     } catch (e) { /* photo_url column not migrated yet — fine, just no photo */ }
     return J({ fees: fees || [], rollCalls: rollCalls || [], notes: notes || [], profile });
@@ -2146,10 +2320,15 @@ async function handleParentChildData(url, env, cors) {
 // ─── Communications Hub: parent ↔ teacher/head, threaded per student ──────
 // See supabase-communications-hub.sql. Server-mediated like the other
 // /parent/* routes above, for the same reason (no anon-key table access).
-async function handleMessagesList(url, env, cors) {
+async function handleMessagesList(request, url, env, cors) {
   const J = (oo, st) => new Response(JSON.stringify(oo), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
-  const tenant = url.searchParams.get('tenant') || '';
+  let tenant = url.searchParams.get('tenant') || '';
   const studentId = url.searchParams.get('student_id') || '';
+  const ctx = AUTH_CTX.get(request);
+  if (ctx && ctx.role === 'parent') {
+    tenant = ctx.tenant;
+    if (!(await parentOwnsStudent(env, ctx.parent, studentId))) return J({ error: 'This pupil is not linked to your phone number.' }, 403);
+  }
   if (!tenant || !studentId) return J({ error: 'tenant and student_id required' }, 400);
   if (!env.SUPABASE_URL || !env.SUPABASE_KEY) return J({ error: 'not configured' }, 500);
   try {
@@ -2165,9 +2344,17 @@ async function handleMessagesList(url, env, cors) {
 async function handleMessagesSend(request, env, cors) {
   const J = (oo, st) => new Response(JSON.stringify(oo), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
   let b; try { b = await request.json(); } catch (e) { return J({ error: 'bad body' }, 400); }
-  const tenant = String(b.tenant || '').trim();
+  let tenant = String(b.tenant || '').trim();
   const studentId = b.studentId || b.student_id;
-  const senderRole = String(b.senderRole || b.sender_role || '').trim();
+  let senderRole = String(b.senderRole || b.sender_role || '').trim();
+  const mctx = AUTH_CTX.get(request);
+  if (mctx && mctx.role === 'parent') {
+    // A signed-in parent always speaks as the parent of their own child.
+    tenant = mctx.tenant; senderRole = 'parent';
+    if (!(await parentOwnsStudent(env, mctx.parent, studentId))) return J({ error: 'This pupil is not linked to your phone number.' }, 403);
+  } else if (senderRole === 'parent') {
+    return J({ error: 'Parents must sign in with their phone number to send messages.', parentSignIn: true }, 401);
+  }
   const senderName = String(b.senderName || b.sender_name || '').trim();
   const teacherId = b.teacherId || b.teacher_id || null;
   const body = String(b.body || '').trim();
@@ -2527,21 +2714,27 @@ async function handleStudentPhotoUpload(request, env, cors) {
   } catch (e) { return J({ error: String((e && e.message) || e) }, 200); }
 }
 
-async function handleFeesLookup(tenant, q, env, cors) {
+// Pay page (C8): finds a pupil by their FULL name so a parent can pay.
+// Returns only id, name and class — no balances, no guardian details.
+// Balances are shown to signed-in parents on the parent page instead.
+async function handleFeesLookup(request, tenant, q, env, cors) {
   const J = (oo, st) => new Response(JSON.stringify(oo), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
   if (!tenant) return J({ error: 'tenant required' }, 400);
-  q = String(q || '').trim();
-  if (q.length < 2) return J({ matches: [] });
+  q = String(q || '').replace(/[%*,()]/g, ' ').replace(/\s+/g, ' ').trim();
+  if (q.length < 5 || q.indexOf(' ') < 0) return J({ tenant, matches: [], hint: 'Type the pupil\u2019s full name as the school has it (first and last name).' });
   if (!env.SUPABASE_URL || !env.SUPABASE_KEY) return J({ error: 'not configured' }, 500);
+  const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
+  if (await kvBump(env, 'flook:' + ip, 900) > 30) return J({ error: 'Too many searches. Try again in 15 minutes.' }, 429);
   try {
-    const enc = encodeURIComponent('*' + q.replace(/[%*]/g, '') + '*');
-    const studs = await sbFetch(env, '/students?tenant_id=eq.' + encodeURIComponent(tenant) + '&name=ilike.' + enc + '&select=id,name,stream,guardian_name,guardian_phone&limit=25');
-    const ids = (studs || []).map(s => s.id);
-    const bal = {};
-    if (ids.length) { const rows = await sbFetch(env, '/fees?tenant_id=eq.' + encodeURIComponent(tenant) + '&student_id=in.(' + ids.join(',') + ')&select=student_id,amount&limit=20000'); (rows || []).forEach(r => { bal[r.student_id] = (bal[r.student_id] || 0) + Number(r.amount || 0); }); }
-    const matches = (studs || []).map(s => ({ id: s.id, name: s.name, stream: s.stream || '', guardian: s.guardian_name || '', balance: Math.max(0, Number(bal[s.id] || 0)) }));
+    const studs = (await sbFetch(env, '/students?tenant_id=eq.' + encodeURIComponent(tenant) + '&name=ilike.' + encodeURIComponent(q) + '&select=id,name,stream&limit=5')) || [];
+    // Also accept the two names in the other order ("Kato John" / "John Kato").
+    let more = [];
+    const parts = q.split(' ');
+    if (parts.length === 2) more = (await sbFetch(env, '/students?tenant_id=eq.' + encodeURIComponent(tenant) + '&name=ilike.' + encodeURIComponent(parts[1] + ' ' + parts[0]) + '&select=id,name,stream&limit=5')) || [];
+    const seen = {}; const matches = [];
+    for (const x of studs.concat(more)) if (!seen[x.id]) { seen[x.id] = 1; matches.push({ id: x.id, name: x.name, stream: x.stream || '' }); }
     return J({ tenant, matches });
-  } catch (e) { return J({ error: String((e && e.message) || e) }, 200); }
+  } catch (e) { return J({ error: 'Could not search right now.' }, 200); }
 }
 
 async function handleFeesCheckout(request, env, cors) {
@@ -2555,7 +2748,9 @@ async function handleFeesCheckout(request, env, cors) {
   if (!tenant || !studentId || !(amount > 0)) return J({ error: 'tenant, studentId and a positive amount are required' }, 400);
   if (!env.FLW_SECRET_KEY) return J({ error: 'Online payment is not switched on yet. Add the school’s Flutterwave key to take real payments.' }, 200);
   let sname = '';
-  try { const sr = await sbFetch(env, '/students?id=eq.' + encodeURIComponent(studentId) + '&select=name&limit=1'); sname = (sr && sr[0] && sr[0].name) || ''; } catch (e) {}
+  try { const sr = await sbFetch(env, '/students?id=eq.' + encodeURIComponent(studentId) + '&tenant_id=eq.' + encodeURIComponent(tenant) + '&select=name&limit=1'); sname = (sr && sr[0] && sr[0].name) || ''; } catch (e) {}
+  if (!sname) return J({ error: 'Pupil not found at this school.' }, 404);
+  if (!/^[0-9]+$/.test(studentId)) return J({ error: 'bad pupil id' }, 400);
   const tx_ref = 'FEE-' + tenant + '-' + studentId + '-' + Date.now();
   const redirect = String(b.redirect || ('https://nextos.nextafrica.ai/pay.html?s=' + encodeURIComponent(tenant) + '&done=1'));
   try {
@@ -4041,14 +4236,22 @@ async function deliverPush(env, tenant, emails, role, payload) {
 async function handlePushSubscribe(request, env, cors) {
   const J = (oo, st) => new Response(JSON.stringify(oo), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
   let b; try { b = await request.json(); } catch (e) { return J({ error: 'bad body' }, 400); }
-  const tenant = String(b.tenant || 'next').trim();
-  const email = String(b.email || '').trim().toLowerCase();
-  const role = String(b.role || '').trim();
+  let tenant = String(b.tenant || 'next').trim();
+  let email = String(b.email || '').trim().toLowerCase();
+  let role = String(b.role || '').trim();
   const sub = b.subscription;
   // Parents have no email/login — they're identified by which child(ren)
   // they found via GuardianLookup, so a parent subscription is targeted by
   // student_id instead of email (see deliverPushByStudent below).
-  const studentIds = Array.isArray(b.student_ids) ? b.student_ids.map(Number).filter(n => !isNaN(n)) : [];
+  let studentIds = Array.isArray(b.student_ids) ? b.student_ids.map(Number).filter(n => !isNaN(n)) : [];
+  const pctx = AUTH_CTX.get(request);
+  if (pctx && pctx.role === 'parent') {
+    // Parent pass (C8): only that parent's own children, in their own school.
+    tenant = pctx.tenant; role = 'parent'; email = '';
+    studentIds = studentIds.length ? studentIds.filter(id => pctx.parent.studentIds.indexOf(id) >= 0) : pctx.parent.studentIds.slice();
+  } else if (role === 'parent' || studentIds.length) {
+    return J({ error: 'Parents must sign in with their phone number to turn on alerts.', parentSignIn: true }, 401);
+  }
   if (!sub || !sub.endpoint || !sub.keys || !sub.keys.p256dh || !sub.keys.auth) return J({ error: 'valid subscription required' }, 400);
   try {
     const existing = await sbFetch(env, '/os_records?tenant=eq.' + encodeURIComponent(tenant) + '&kind=eq.push_sub&select=id,payload&limit=1000');

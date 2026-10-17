@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Parent Portal — Kabs Lily Kindercare Center & Primary School</title>
+  <title>Parent Portal</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>👨‍👩‍👧</text></svg>">
   
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -11,9 +11,9 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   
   <!-- React & Babel Standalone CDN -->
-  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js"></script>
 
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -36,12 +36,8 @@
   <div id="root"></div>
 
   <!-- Supabase CDN & Dependencies -->
-  <!-- Deliberately NOT loading session-guard.js here: it's built for staff
-       (head/teacher/bursar) sessions and redirects anyone with no existing
-       session or cached profile to the staff login page — which would
-       bounce every real parent away before they ever saw this portal.
-       parent-view.jsx's own GuardianLookup screen is this page's actual
-       identification step. -->
+  <!-- No session-guard.js here: that is the STAFF sign-in. Parents sign in
+       with their phone number inside parent-view.jsx (audit C8). -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script>
     window.getOSActiveTenant = window.getOSActiveTenant || function () {

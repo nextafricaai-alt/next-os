@@ -1,24 +1,16 @@
-import React from 'react';
 /**
- * Parent Portal Component — School OS
- * Kabs Lily Kindercare Center & Junior School
+ * Parent Portal — School OS
  *
- * Real Supabase data (students/fees/student_roll_call/student_notes),
- * scoped to whichever child(ren) the parent identifies. There's no parent
- * login/auth system yet (no `parents` table, no guardian-to-auth-user
- * linkage — see login.html, which only offers Head Teacher/Teacher/Bursar/
- * Driver roles), so this gates on a lightweight lookup instead: search by
- * child name or guardian phone against this tenant's real `students` table.
- * guardian_phone is currently empty for most students (not collected during
- * import), so name search is the practical path today — phone lookup will
- * start working automatically once that field gets populated.
- *
- * This is app-level isolation (the query only ever returns rows matching
- * what was searched, same permissive-RLS + client-filtering pattern used
- * everywhere else in this app), not cryptographic per-user Postgres RLS —
- * a true "only this auth'd parent can ever see this row" guarantee needs a
- * real parent auth flow (magic-link/OTP tied to guardian_phone + a users
- * row), which doesn't exist yet.
+ * Parents sign in with the phone number the school has on file as a pupil's
+ * guardian phone (audit C8):
+ *   1. parent types their number → the Worker texts a 6-digit code
+ *      (POST /parent/otp/send) — only if that number is on a pupil's record
+ *   2. parent types the code → the Worker returns a signed 30-day pass and
+ *      the list of THEIR children (POST /parent/otp/verify)
+ *   3. every call after that sends the pass in the X-Parent-Token header;
+ *      the Worker only returns data for pupils linked to that phone.
+ * Nobody can look a child up by name any more, and guardian phone numbers
+ * are never sent to the browser.
  */
 (function() {
   const { useState, useEffect, useMemo } = React;
@@ -44,13 +36,36 @@ import React from 'react';
 
   const WK = 'https://nextos-sentinel.nextafricaai.workers.dev';
 
-  function getSb() {
-    return (window.NextSession && window.NextSession.sb) ||
-           (window.SCHOOL_STORE && window.SCHOOL_STORE.getSupabase && window.SCHOOL_STORE.getSupabase()) ||
-           (window.supabase && window.supabase.createClient && window.supabase.createClient('https://llxhvqkkgftqwefmrofn.supabase.co', 'sb_publishable_wrzbFpPrkhoN4w2KXdUAdw_gnqEQVs9'));
-  }
   function getTenant() {
     return (typeof window.getOSActiveTenant === 'function') ? window.getOSActiveTenant() : 'kabs-lily-junior-school-and-kindercare-centre';
+  }
+
+  // ─── Parent pass (kept on this phone for 30 days) ─────────────────────
+  function sessionKey() { return 'nextos.parent.' + getTenant(); }
+  function loadSession() {
+    try {
+      const s = JSON.parse(localStorage.getItem(sessionKey()) || 'null');
+      if (s && s.token && Array.isArray(s.children) && s.tenant === getTenant() && (!s.until || s.until > Date.now())) return s;
+    } catch (e) {}
+    return null;
+  }
+  function saveSession(s) { try { localStorage.setItem(sessionKey(), JSON.stringify(s)); } catch (e) {} }
+  function clearSession() { try { localStorage.removeItem(sessionKey()); } catch (e) {} }
+  function signOutParent() { clearSession(); window.dispatchEvent(new Event('nx-parent-signout')); }
+  // fetch() to the Worker with the parent pass attached. A rejected pass
+  // (expired, or the number was removed from the pupil) signs the parent out.
+  async function pfetch(path, init) {
+    init = Object.assign({}, init || {});
+    const h = Object.assign({}, init.headers || {});
+    const s = loadSession();
+    if (s) h['X-Parent-Token'] = s.token;
+    init.headers = h;
+    const res = await fetch(WK + path, init);
+    if (res.status === 401) {
+      const d = await res.clone().json().catch(() => ({}));
+      if (d && (d.parentSignIn || /sign in/i.test(d.error || ''))) signOutParent();
+    }
+    return res;
   }
 
   // ─── Push notifications: absence / note alerts ──────────────────────────
@@ -78,7 +93,7 @@ import React from 'react';
     let sub = await readyReg.pushManager.getSubscription();
     if (!sub) sub = await readyReg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: vapidKey() });
     const j = sub.toJSON();
-    const res = await fetch(WK + '/push/subscribe', {
+    const res = await pfetch('/push/subscribe', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ tenant: getTenant(), role: 'parent', student_ids: studentIds, subscription: { endpoint: j.endpoint, keys: j.keys } }),
     });
@@ -90,17 +105,11 @@ import React from 'react';
   // Loads everything the dashboard needs for one child: fee ledger,
   // this week's roll call, and teacher notes.
   //
-  // Goes through the worker's /parent/child-data (service-role, scoped
-  // server-side to this exact tenant+student) rather than querying
-  // Supabase directly with the anon key — the anon key currently has no
-  // real per-user isolation (see the note at the top of this file and
-  // cloudflare-worker/supabase-parent-rls-remediation-plan.sql), so a
-  // direct client query here would be able to read ANY tenant's fees/
-  // health notes, not just this family's. The worker enforces the scoping
-  // instead, the same pattern already used for /fees/checkout etc.
+  // Goes through the Worker's /parent/child-data, which checks the parent
+  // pass and that this pupil is linked to the parent's phone.
   async function loadChildData(studentId, tenantId) {
     try {
-      const res = await fetch(WK + '/parent/child-data?tenant=' + encodeURIComponent(tenantId) + '&student_id=' + encodeURIComponent(studentId));
+      const res = await pfetch('/parent/child-data?tenant=' + encodeURIComponent(tenantId) + '&student_id=' + encodeURIComponent(studentId));
       const out = await res.json();
       if (out.error) return { fees: [], rollCalls: [], notes: [], profile: null };
       return { fees: out.fees || [], rollCalls: out.rollCalls || [], notes: out.notes || [], profile: out.profile || null };
@@ -119,77 +128,87 @@ import React from 'react';
     return { totalTuition: charged, paidTuition: paid, balance: Math.max(0, charged - paid) };
   }
 
-  // ─── Guardian lookup gate ──────────────────────────────────────────────
-  function GuardianLookup({ onFound }) {
-    const [query, setQuery] = useState('');
-    const [searching, setSearching] = useState(false);
-    const [results, setResults] = useState(null);
+  // ─── Phone sign-in (audit C8) ──────────────────────────────────────────
+  function PhoneSignIn({ onSignedIn }) {
+    const [step, setStep] = useState('phone'); // 'phone' | 'code'
+    const [phone, setPhone] = useState('');
+    const [code, setCode] = useState('');
+    const [busy, setBusy] = useState(false);
     const [error, setError] = useState('');
+    const [info, setInfo] = useState('');
+    const schoolName = (window.SCHOOL_BRAND && window.SCHOOL_BRAND.name) || 'your school';
 
-    const search = async () => {
-      const q = query.trim();
-      if (!q) return;
-      setSearching(true); setError(''); setResults(null);
-      const tenantId = getTenant();
-      try {
-        // Server-mediated (see loadChildData above for why): the worker
-        // does this lookup with the service-role key, scoped to this one
-        // tenant, instead of the anon key running an open query.
-        const res = await fetch(WK + '/parent/search-child', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ tenant: tenantId, query: q }),
-        });
-        const out = await res.json();
-        if (out.error) { setError('Search failed: ' + out.error); setSearching(false); return; }
-        const data = out.matches || [];
-        if (!data.length) { setError('No student found matching "' + q + '". Check the spelling, or ask the school office for your child\'s exact name on file.'); setSearching(false); return; }
-        setResults(data);
-      } catch (e) {
-        setError('Search failed: ' + String((e && e.message) || e));
-      }
-      setSearching(false);
+    const post = async (path, body) => {
+      const res = await fetch(WK + path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      const d = await res.json().catch(() => ({}));
+      return { ok: res.ok && !d.error, d };
     };
+    const sendCode = async () => {
+      const digits = phone.replace(/[^0-9]/g, '');
+      if (digits.length < 9) { setError('Enter the phone number the school has for you, e.g. 0772 123 456.'); return; }
+      setBusy(true); setError(''); setInfo('');
+      try {
+        const r = await post('/parent/otp/send', { tenant: getTenant(), phone });
+        if (!r.ok) setError(r.d.error || 'Could not send the code. Try again.');
+        else { setInfo(r.d.message || 'Code sent.'); setStep('code'); setCode(''); }
+      } catch (e) { setError('Could not reach the school. Check your internet connection.'); }
+      setBusy(false);
+    };
+    const verify = async () => {
+      if (code.replace(/[^0-9]/g, '').length !== 6) { setError('Enter the 6-digit code from the SMS.'); return; }
+      setBusy(true); setError('');
+      try {
+        const r = await post('/parent/otp/verify', { tenant: getTenant(), phone, code });
+        if (!r.ok || !r.d.token) setError(r.d.error || 'That code did not work.');
+        else {
+          const s = { token: r.d.token, tenant: getTenant(), children: r.d.children || [], until: Date.now() + (r.d.expiresInDays || 30) * 86400000 };
+          saveSession(s);
+          onSignedIn(s.children);
+        }
+      } catch (e) { setError('Could not reach the school. Check your internet connection.'); }
+      setBusy(false);
+    };
+
+    const inputStyle = { width: '100%', marginTop: 8, background: '#0F172A', color: '#FFF', border: `1px solid ${T.colors.border}`, padding: 12, borderRadius: 8, fontSize: 16, outline: 'none', boxSizing: 'border-box' };
+    const btn = (on) => ({ width: '100%', marginTop: 12, padding: 12, background: on ? T.colors.primary : T.colors.surfaceHover, color: on ? '#0A1029' : T.colors.textMuted, border: 'none', borderRadius: 10, fontWeight: 800, fontSize: 14, cursor: on ? 'pointer' : 'default' });
 
     return (
       <div style={{
         minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
-        backgroundColor: T.colors.background, color: T.colors.text, fontFamily: T.fonts.sans, padding: 20,
+        backgroundColor: T.colors.background, color: T.colors.text, fontFamily: T.fonts.sans, padding: 16,
       }}>
-        <div style={{ width: '100%', maxWidth: 460, background: T.colors.surface, border: `1px solid ${T.colors.border}`, borderRadius: T.radii.xl, padding: 28 }}>
+        <div style={{ width: '100%', maxWidth: 420, background: T.colors.surface, border: `1px solid ${T.colors.border}`, borderRadius: T.radii.xl, padding: 24 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 18 }}>
-            <div style={{ width: 42, height: 42, borderRadius: 12, background: 'linear-gradient(135deg, #00FC8F 0%, #3B82F6 100%)', color: '#0A1029', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: 18 }}>KL</div>
+            <div style={{ width: 42, height: 42, borderRadius: 12, background: 'linear-gradient(135deg, #00FC8F 0%, #3B82F6 100%)', color: '#0A1029', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: 18 }}>👪</div>
             <div>
-              <h1 style={{ fontSize: 17, fontWeight: 800, margin: 0 }}>Parent Portal</h1>
-              <p style={{ fontSize: 12, color: T.colors.textMuted, margin: 0 }}>Find your child to continue</p>
+              <h1 style={{ fontSize: 17, fontWeight: 800, margin: 0 }}>Parent sign-in</h1>
+              <p style={{ fontSize: 12, color: T.colors.textMuted, margin: 0 }}>{schoolName}</p>
             </div>
           </div>
-          <label style={{ fontSize: 12, color: T.colors.textMuted }}>Child's full name, or your registered phone number</label>
-          <input
-            autoFocus value={query} onChange={e => setQuery(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && search()}
-            placeholder="e.g. Arinaitwe Elijah, or 07XXXXXXXX"
-            style={{ width: '100%', marginTop: 8, background: '#0F172A', color: '#FFF', border: `1px solid ${T.colors.border}`, padding: 12, borderRadius: 8, fontSize: 14, outline: 'none', boxSizing: 'border-box' }}
-          />
-          <button onClick={search} disabled={searching || !query.trim()} style={{
-            width: '100%', marginTop: 12, padding: 12, background: searching ? T.colors.surfaceHover : T.colors.primary,
-            color: searching ? T.colors.textMuted : '#0A1029', border: 'none', borderRadius: 10, fontWeight: 800, fontSize: 14,
-            cursor: searching ? 'default' : 'pointer',
-          }}>{searching ? 'Searching…' : 'Find my child'}</button>
-          {error && <div style={{ marginTop: 12, fontSize: 12.5, color: T.colors.danger }}>{error}</div>}
-          {results && (
-            <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <div style={{ fontSize: 11, color: T.colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.5 }}>Is this your child?</div>
-              {results.map(s => (
-                <button key={s.id} onClick={() => onFound([s])} style={{
-                  textAlign: 'left', padding: '10px 14px', background: T.colors.surfaceHover, border: `1px solid ${T.colors.border}`,
-                  borderRadius: 9, color: T.colors.text, cursor: 'pointer', fontSize: 13.5,
-                }}>
-                  <div style={{ fontWeight: 700 }}>{s.name}</div>
-                  <div style={{ fontSize: 11.5, color: T.colors.textMuted, marginTop: 2 }}>{s.stream || '—'}{s.guardian_name ? ' · Guardian on file: ' + s.guardian_name : ''}</div>
-                </button>
-              ))}
+          {step === 'phone' ? (
+            <div>
+              <label htmlFor="nx-parent-phone" style={{ fontSize: 12.5, color: T.colors.textMuted }}>Your phone number (the one the school has for you)</label>
+              <input id="nx-parent-phone" type="tel" inputMode="tel" autoComplete="tel" autoFocus value={phone}
+                onChange={e => setPhone(e.target.value)} onKeyDown={e => e.key === 'Enter' && sendCode()}
+                placeholder="07XX XXX XXX" style={inputStyle} />
+              <button onClick={sendCode} disabled={busy} style={btn(!busy)}>{busy ? 'Sending…' : 'Send me a code'}</button>
+              <p style={{ fontSize: 11.5, color: T.colors.textMuted, marginTop: 12, lineHeight: 1.5 }}>We will text you a 6-digit code. If no code arrives, your number may not be on your child's record yet — please ask the school office to add it.</p>
+            </div>
+          ) : (
+            <div>
+              {info && <div style={{ fontSize: 12.5, color: T.colors.success, marginBottom: 10 }}>{info}</div>}
+              <label htmlFor="nx-parent-code" style={{ fontSize: 12.5, color: T.colors.textMuted }}>6-digit code sent to {phone}</label>
+              <input id="nx-parent-code" type="text" inputMode="numeric" autoComplete="one-time-code" maxLength={6} autoFocus value={code}
+                onChange={e => setCode(e.target.value.replace(/[^0-9]/g, ''))} onKeyDown={e => e.key === 'Enter' && verify()}
+                placeholder="123456" style={{ ...inputStyle, letterSpacing: 6, fontSize: 20, textAlign: 'center' }} />
+              <button onClick={verify} disabled={busy} style={btn(!busy)}>{busy ? 'Checking…' : 'Sign in'}</button>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 12 }}>
+                <button onClick={() => { setStep('phone'); setError(''); setInfo(''); }} style={{ background: 'none', border: 'none', color: '#60A5FA', fontSize: 12.5, cursor: 'pointer', padding: 0 }}>Change number</button>
+                <button onClick={sendCode} disabled={busy} style={{ background: 'none', border: 'none', color: '#60A5FA', fontSize: 12.5, cursor: 'pointer', padding: 0 }}>Send a new code</button>
+              </div>
             </div>
           )}
+          {error && <div role="alert" style={{ marginTop: 12, fontSize: 12.5, color: T.colors.danger }}>{error}</div>}
         </div>
       </div>
     );
@@ -204,27 +223,18 @@ import React from 'react';
     const [parentName, setParentName] = useState('');
 
     const load = () => {
-      fetch(WK + '/messages/list?tenant=' + encodeURIComponent(getTenant()) + '&student_id=' + encodeURIComponent(studentId))
+      pfetch('/messages/list?tenant=' + encodeURIComponent(getTenant()) + '&student_id=' + encodeURIComponent(studentId))
         .then(r => r.json()).then(out => { setMessages(out.messages || []); setLoading(false); })
         .catch(() => setLoading(false));
     };
 
     useEffect(() => { setLoading(true); load(); }, [studentId]);
 
+    // Parents have no database sign-in (the database is closed to the public
+    // since audit C5), so the thread refreshes through the Worker every 15 s.
     useEffect(() => {
-      const sb = getSb();
-      if (!sb) return;
-      // Unique per mount — avoids a crash if two mounts briefly overlap
-      // (Supabase throws adding .on() to an already-subscribed channel).
-      const ch = sb.channel('parent-messages-' + studentId + '-' + Math.random().toString(36).slice(2))
-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: 'student_id=eq.' + studentId }, () => load())
-        .subscribe();
-      // Fallback poll: postgres_changes only fires once a table's been added
-      // to Supabase's realtime publication (see
-      // cloudflare-worker/supabase-enable-realtime.sql) — this keeps the
-      // thread reasonably live even before/if that's been run.
       const poll = setInterval(load, 15000);
-      return () => { try { sb.removeChannel(ch); } catch (e) {} clearInterval(poll); };
+      return () => clearInterval(poll);
     }, [studentId]);
 
     const send = async () => {
@@ -234,7 +244,7 @@ import React from 'react';
       if (!name) { window.peakToast && window.peakToast('Enter your name first so the teacher knows who\'s writing.', 'error'); return; }
       setSending(true);
       try {
-        const res = await fetch(WK + '/messages/send', {
+        const res = await pfetch('/messages/send', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ tenant: getTenant(), studentId, senderRole: 'parent', senderName: name, body }),
         });
@@ -294,7 +304,7 @@ import React from 'react';
   }
 
   const ParentView = () => {
-    const [children, setChildren] = useState(null); // null = not identified yet
+    const [children, setChildren] = useState(() => { const s = loadSession(); return s ? s.children : null; }); // null = not signed in
     const [selectedChildIndex, setSelectedChildIndex] = useState(0);
     const [activeTab, setActiveTab] = useState('overview');
     const [childData, setChildData] = useState({ fees: [], rollCalls: [], notes: [], profile: null, loading: true });
@@ -311,6 +321,24 @@ import React from 'react';
       if (!pushSupported()) return;
       navigator.serviceWorker.getRegistration().then(reg => reg && reg.pushManager.getSubscription()).then(sub => setAlertsOn(!!sub)).catch(() => {});
     }, [children && children.length]);
+
+    // Signed out (button, or the Worker rejected the pass) → back to sign-in.
+    useEffect(() => {
+      const off = () => { setChildren(null); setSelectedChildIndex(0); };
+      window.addEventListener('nx-parent-signout', off);
+      return () => window.removeEventListener('nx-parent-signout', off);
+    }, []);
+    // On open, refresh the list of children from the school (a pupil added to
+    // or removed from this phone number shows up without signing in again).
+    useEffect(() => {
+      if (!loadSession()) return;
+      pfetch('/parent/children').then(r => r.json()).then(d => {
+        if (d && Array.isArray(d.children) && d.children.length) {
+          const s = loadSession(); if (s) saveSession({ ...s, children: d.children });
+          setChildren(d.children); setSelectedChildIndex(0);
+        }
+      }).catch(() => {});
+    }, []);
 
     const handleEnableAlerts = async () => {
       if (alertsBusy || !children) return;
@@ -332,7 +360,7 @@ import React from 'react';
       name: rawChild.name,
       class: rawChild.stream || '—',
       admissionNo: 'ID-' + rawChild.id,
-      teacher: rawChild.guardian_name || '—',
+      teacher: '—',
       totalTuition: fees.totalTuition,
       paidTuition: fees.paidTuition,
       balance: fees.balance,
@@ -346,32 +374,12 @@ import React from 'react';
       return () => { alive = false; };
     }, [rawChild && rawChild.id]);
 
-    // Real-time: refresh this child's data the moment a roll call, fee, or
-    // note comes in for them — the same live-sync pattern used elsewhere
-    // in this app (school-data-store.js's postgres_changes subscriptions).
+    // Refresh this child's data every 20 s through the Worker (parents have
+    // no direct database access since audit C5).
     useEffect(() => {
-      const sb = getSb();
-      if (!sb || !rawChild) return;
-      // Unique per mount — same crash-avoidance reasoning as above.
-      const ch = sb.channel('parent-watch-' + rawChild.id + '-' + Math.random().toString(36).slice(2))
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'student_roll_call', filter: 'student_id=eq.' + rawChild.id }, () => {
-          loadChildData(rawChild.id, getTenant()).then(setChildData);
-          window.peakToast && window.peakToast(child ? child.name + "'s attendance was just updated" : 'Attendance updated', 'info');
-        })
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'student_notes', filter: 'student_id=eq.' + rawChild.id }, () => {
-          loadChildData(rawChild.id, getTenant()).then(setChildData);
-          window.peakToast && window.peakToast('A teacher just logged a new note', 'info');
-        })
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'fees', filter: 'student_id=eq.' + rawChild.id }, () => {
-          loadChildData(rawChild.id, getTenant()).then(setChildData);
-        })
-        .subscribe();
-      // Fallback poll — see the note on the messages subscription above;
-      // same underlying dependency on the realtime publication being
-      // enabled. Silent (no toast) so it doesn't imply something changed
-      // every 20s when nothing did.
-      const poll = setInterval(() => { loadChildData(rawChild.id, getTenant()).then(setChildData); }, 20000);
-      return () => { try { sb.removeChannel(ch); } catch (e) {} clearInterval(poll); };
+      if (!rawChild) return;
+      const poll = setInterval(() => { loadChildData(rawChild.id, getTenant()).then(d => setChildData({ ...d, loading: false })); }, 20000);
+      return () => clearInterval(poll);
     }, [rawChild && rawChild.id]);
 
     const todayIso = new Date().toISOString().slice(0, 10);
@@ -402,7 +410,7 @@ import React from 'react';
     };
 
     if (!children) {
-      return <GuardianLookup onFound={setChildren} />;
+      return <PhoneSignIn onSignedIn={(kids) => { setSelectedChildIndex(0); setChildren(kids); }} />;
     }
 
     return (
@@ -439,7 +447,7 @@ import React from 'react';
               <h1 style={{ fontSize: '18px', fontWeight: '800', margin: 0 }}>PARENT PORTAL</h1>
               <p style={{ fontSize: '12px', color: T.colors.textMuted, margin: 0 }}>
                 Viewing: <b>{child.name}</b>
-                <button onClick={() => setChildren(null)} style={{ marginLeft: 10, background: 'none', border: 'none', color: '#60A5FA', fontSize: 11.5, cursor: 'pointer', textDecoration: 'underline' }}>Not you? Search again</button>
+                <button onClick={signOutParent} style={{ marginLeft: 10, background: 'none', border: 'none', color: '#60A5FA', fontSize: 11.5, cursor: 'pointer', textDecoration: 'underline' }}>Sign out</button>
               </p>
             </div>
           </div>

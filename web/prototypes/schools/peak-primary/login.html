@@ -143,6 +143,17 @@
       <div id="error" class="error" style="display:none;"></div>
     </form>
 
+    <a id="nx-parent-link" href="/prototypes/schools/peak-primary/parent-dashboard.html" style="display:block;margin-top:16px;padding:12px;border-radius:11px;border:1px solid rgba(255,255,255,0.12);color:#d7dcf0;text-align:center;font-weight:600;font-size:13.5px;text-decoration:none;">👪 Parent? Sign in with your phone number</a>
+    <script>
+      (function () {
+        try {
+          var q = new URLSearchParams(location.search);
+          var t = q.get('s') || q.get('t') || (location.pathname.match(/\/(?:s|school)\/([A-Za-z0-9_-]+)/) || [])[1];
+          if (t) document.getElementById('nx-parent-link').href = '/school/' + encodeURIComponent(t) + '/parent';
+        } catch (e) {}
+      })();
+    </script>
+
     <button type="button" id="nx-install" style="display:none;width:100%;margin-top:16px;padding:13px;border-radius:11px;border:1.5px solid var(--accent);background:rgba(0,252,143,0.06);color:var(--accent);font-weight:700;font-family:inherit;font-size:14px;cursor:pointer;">⤓ Install this school’s app</button>
     <button type="button" id="nx-share" style="width:100%;margin-top:10px;padding:12px;border-radius:11px;border:1px solid rgba(255,255,255,0.12);background:transparent;color:#aab2d5;font-weight:600;font-family:inherit;font-size:13.5px;cursor:pointer;">🔗 Share this school&#39;s link</button>
     <div id="nx-ios-hint" style="display:none;margin-top:14px;font-size:12.5px;line-height:1.55;color:#9aa3c0;text-align:center;">To add to your home screen: tap <b>Share</b> &#x2191; then <b>“Add to Home Screen”</b>.</div>

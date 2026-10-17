@@ -94,7 +94,9 @@
     state.busy=true; state.err=''; render();
     fetch(WK+'/fees/lookup?tenant='+encodeURIComponent(slug)+'&q='+encodeURIComponent(state.q.trim())).then(function(r){return r.json();}).then(function(d){
       state.busy=false; state.matches=(d&&d.matches)||[];
-      if(!state.matches.length) state.err='No learner found by that name. Check the spelling, or ask the school office.';
+      if(d&&d.error) state.err=d.error;
+      else if(d&&d.hint) state.err=d.hint;
+      else if(!state.matches.length) state.err='No pupil found with that exact name. Type the first and last name as the school has them, or ask the school office.';
       render();
     }).catch(function(){ state.busy=false; state.err='Could not search right now. Try again.'; render(); });
   }
@@ -113,21 +115,22 @@
   function render(){
     var h='';
     if(state.step==='find'){
-      h+='<div class="card"><h1>Pay school fees</h1><p class="sub">Find your child, then pay by Mobile Money or card. The school’s records update automatically.</p>';
+      h+='<div class="card"><h1>Pay school fees</h1><p class="sub">Type your child’s full name, then pay by Mobile Money or card. The school’s records update automatically.</p>';
       h+='<label>Child’s full name</label>';
       h+='<input id="q" placeholder="e.g. Mirembe Nakato" value="'+esc(state.q)+'" />';
       h+='<button class="primary" id="findBtn"'+(state.busy?' disabled':'')+'>'+(state.busy?'<span class="spin"></span> Searching…':'Find my child')+'</button>';
       h+='<div class="err">'+esc(state.err)+'</div>';
       if(state.matches.length){ h+='<div style="margin-top:6px">'; state.matches.forEach(function(m,i){
         h+='<div class="match" data-i="'+i+'"><div class="av">'+esc((m.name||'?').split(" ").map(function(w){return w[0];}).slice(0,2).join(""))+'</div>'
-          +'<div><div class="mname">'+esc(m.name)+'</div><div class="mmeta">'+esc(m.stream||'—')+(m.guardian?(' · '+esc(m.guardian)):'')+'</div></div>'
-          +'<div class="bal '+(m.balance>0?'due':'clear')+'">'+(m.balance>0?fmt(m.balance):'Paid up')+'</div></div>';
+          +'<div><div class="mname">'+esc(m.name)+'</div><div class="mmeta">'+esc(m.stream||'—')+'</div></div></div>';
       }); h+='</div>'; }
+      // Balances are private: they show only after a parent signs in (audit C8).
+      h+='<p class="sub" style="margin-top:14px">Want to see the balance first? <a href="/school/'+encodeURIComponent(slug)+'/parent" style="color:var(--accent)">Sign in with your phone</a>.</p>';
       h+='</div>';
     } else if(state.step==='amount'){
       var c=state.child;
-      h+='<div class="card"><h1>'+esc(c.name)+'</h1><p class="sub">'+esc(c.stream||'')+(c.balance>0?(' · balance '+fmt(c.balance)):' · fully paid')+'</p>';
-      h+='<label>Amount to pay (UGX)</label><input id="amt" inputmode="numeric" placeholder="'+(c.balance>0?c.balance:'50000')+'" value="'+esc(state.amount)+'" />';
+      h+='<div class="card"><h1>'+esc(c.name)+'</h1><p class="sub">'+esc(c.stream||'')+'</p>';
+      h+='<label>Amount to pay (UGX)</label><input id="amt" inputmode="numeric" placeholder="e.g. 50000" value="'+esc(state.amount)+'" />';
       h+='<label>Your phone (for the receipt)</label><input id="ph" inputmode="tel" placeholder="07xx xxx xxx" value="'+esc(state.phone)+'" />';
       h+='<label>Email (optional)</label><input id="em" placeholder="you@email.com" value="'+esc(state.email)+'" />';
       h+='<button class="primary" id="payBtn"'+(state.busy?' disabled':'')+'>'+(state.busy?'<span class="spin"></span> Opening payment…':'Pay '+ (Number(state.amount)>0?fmt(state.amount):'now'))+'</button>';
