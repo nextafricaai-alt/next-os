@@ -6066,7 +6066,7 @@ const PD_Students = (function () {
   }
 
   function StudentRow({ s, selected, onClick, idx }) {
-    const tone = s.fees === 'paid' ? 'good' : s.fees === 'partial' ? 'warn' : 'bad';
+    const tone = s.fees === 'paid' ? 'good' : s.fees === 'partial' ? 'warn' : s.fees === 'none' ? 'neutral' : 'bad';
     const attTone = (s.attendanceWk == null) ? T.ink3 : (s.attendanceWk >= 90 ? T.good : s.attendanceWk >= 70 ? T.warn : T.red);
     return (
       <div onClick={() => onClick(s)} style={{
@@ -6095,7 +6095,7 @@ const PD_Students = (function () {
           <span style={{ fontSize: 11, color: attTone, fontFamily: T.mono, fontWeight: 600, width: 32 }}>{s.attendanceWk == null ? '\u2014' : s.attendanceWk + '%'}</span>
         </div>
         <div>
-          <Pill tone={tone}>{s.fees === 'paid' ? 'Paid' : D.fmtUGXshort(s.balance) + ' due'}</Pill>
+          <Pill tone={tone}>{s.fees === 'none' ? 'No fees yet' : s.fees === 'paid' ? 'Paid' : D.fmtUGXshort(s.balance) + ' due'}</Pill>
         </div>
         <div style={{ fontSize: 11, color: T.ink3, fontFamily: T.mono, textAlign: 'right' }}>{s.lastSeen}</div>
         <div style={{ fontSize: 11, color: T.ink3, fontFamily: T.mono, textAlign: 'right' }}>{s.id < 10 ? 'PK-00' + s.id : 'PK-0' + s.id}</div>
@@ -6128,7 +6128,7 @@ const PD_Students = (function () {
           {/* status pills */}
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
             <Pill tone={s.attendanceWk == null ? 'neutral' : (s.attendanceWk >= 90 ? 'good' : s.attendanceWk >= 70 ? 'warn' : 'bad')}>{s.attendanceWk == null ? 'no attendance yet' : s.attendanceWk + '% wk'}</Pill>
-            <Pill tone={s.fees === 'paid' ? 'good' : s.fees === 'partial' ? 'warn' : 'bad'}>{s.fees === 'paid' ? 'Fees paid' : D.fmtUGXshort(s.balance) + ' due'}</Pill>
+            <Pill tone={s.fees === 'paid' ? 'good' : s.fees === 'partial' ? 'warn' : s.fees === 'none' ? 'neutral' : 'bad'}>{s.fees === 'none' ? 'No fees yet' : s.fees === 'paid' ? 'Fees paid' : D.fmtUGXshort(s.balance) + ' due'}</Pill>
             {s.flag === 'top'  && <Pill tone="brand">★ top-5 in class</Pill>}
             {s.flag === 'risk' && <Pill tone="bad">● risk this term</Pill>}
           </div>
@@ -9365,6 +9365,7 @@ const T = window.V4.T;
       const newBal = Math.max(0, balance - amt);
       try {
         const rec = await window.NextReceipts.issue({
+          studentId: Number(studentId),
           studentName: student ? student.name : null,
           guardianName: student ? student.guardian : null,
           guardianPhone: phone,
@@ -9788,6 +9789,7 @@ window.PEAK_EXAMS = (function () {
   function teacherComment(rec, exam) {
     const fn = firstName(rec.student.name);
     if (exam.level === 'alevel') { const p = rec.alevelPoints || 0; if (p >= 15) return fn + ' has performed excellently this term — a strong, university-bound result. Keep it up.'; if (p >= 10) return fn + ' has done well. With more consistency the top grades are within reach.'; if (p >= 6) return 'A fair performance. ' + fn + ' should deepen revision in the weaker principal subjects.'; return fn + ' needs significant improvement and close guidance next term.'; }
+    if (exam.level === 'olevel') { const a = rec.average || 0; if (rec.result === 'Result 2') return fn + ' did not sit every subject. Please complete all assessments so a full result can be given.'; if (a >= 80) return 'An exceptional term. ' + fn + ' shows deep, creative mastery across subjects. Keep it up.'; if (a >= 70) return 'An outstanding performance. ' + fn + ' applies what is learnt well. Well done.'; if (a >= 60) return 'A satisfactory term. ' + fn + ' should push to apply skills in new situations.'; if (a >= 50) return fn + ' has a basic understanding. More practice beyond simple tasks is needed.'; return fn + ' needs close support to build the basic competences next term.'; }
     const d = rec.division;
     if (d === 'I') return 'An excellent term. ' + fn + ' shows strong understanding across subjects. Keep up the great work.';
     if (d === 'II') return 'A good performance. With steady effort ' + fn + ' can reach the very top next term. Well done.';
@@ -9796,6 +9798,7 @@ window.PEAK_EXAMS = (function () {
     return fn + ' requires serious improvement and close support. Let us work together next term.';
   }
   function headRemark(rec, exam) {
+    if (exam.level === 'olevel') { const a = rec.average || 0; if (rec.result === 'Result 1' && a >= 70) return 'A commendable result. Keep it up.'; if (rec.result === 'Result 1') return 'Satisfactory. More effort expected next term.'; return 'Improvement needed. Parental support is requested.'; }
     if (exam.level === 'alevel') { const p = rec.alevelPoints || 0; if (p >= 12) return 'A commendable result. Well done.'; if (p >= 6) return 'Satisfactory — more effort expected.'; return 'Improvement needed. Parental support requested.'; }
     const d = rec.division;
     if (d === 'I' || d === 'II') return 'A commendable result. Keep it up.';
@@ -9805,12 +9808,26 @@ window.PEAK_EXAMS = (function () {
 
   const LEVELS = {
     primary: { label: 'Primary (PLE)', subjects: ['English', 'Mathematics', 'Science', 'Social Studies'], coreCount: 4, aggCount: 4 },
-    olevel:  { label: 'O-Level (UCE)', subjects: ['English', 'Mathematics', 'Physics', 'Chemistry', 'Biology', 'Geography', 'History', 'CRE'], coreCount: 8, aggCount: 8 },
+    olevel:  { label: 'O-Level (UCE, competence-based)', subjects: ['English', 'Mathematics', 'Physics', 'Chemistry', 'Biology', 'Geography', 'History', 'CRE'], coreCount: 8, aggCount: 8 },
     alevel:  { label: 'A-Level (UACE)', subjects: ['Subject 1', 'Subject 2', 'Subject 3'], coreCount: 3, aggCount: 3 },
   };
   const SCHEME = [[80,'D1',1],[70,'D2',2],[65,'C3',3],[60,'C4',4],[55,'C5',5],[50,'C6',6],[45,'P7',7],[40,'P8',8],[0,'F9',9]];
   const ALEVEL = [[80,'A',6],[70,'B',5],[60,'C',4],[50,'D',3],[40,'E',2],[35,'O',1],[0,'F',0]];
-  function gradeMark(mark, level, passThreshold) { 
+  // O-Level (audit D5): since 2024 UNEB grades lower secondary (competence-
+  // based curriculum) per subject A–E — A exceptional, B outstanding,
+  // C satisfactory, D basic, E elementary — with an overall Result 1/2/3
+  // instead of aggregates and divisions. UNEB does not publish fixed mark
+  // cut-offs, so these are the school's defaults; an exam can override them
+  // with config.cbc_cutoffs = { A: 80, B: 70, C: 60, D: 50 }.
+  const CBC_DEFAULT = { A: 80, B: 70, C: 60, D: 50 };
+  const CBC_LABEL = { A: 'Exceptional', B: 'Outstanding', C: 'Satisfactory', D: 'Basic', E: 'Elementary' };
+  function cbcGrade(mark, cut) {
+    const c = Object.assign({}, CBC_DEFAULT, cut || {});
+    const g = mark >= c.A ? 'A' : mark >= c.B ? 'B' : mark >= c.C ? 'C' : mark >= c.D ? 'D' : 'E';
+    return { grade: g, points: { A: 5, B: 4, C: 3, D: 2, E: 1 }[g], descriptor: CBC_LABEL[g] };
+  }
+  function gradeMark(mark, level, passThreshold, cut) { 
+    if (level === 'olevel') return cbcGrade(mark, cut);
     if (passThreshold != null && mark < passThreshold) return { grade: level === 'alevel' ? 'F' : 'F9', points: level === 'alevel' ? 0 : 9 };
     const tbl = level === 'alevel' ? ALEVEL : SCHEME; 
     for (const row of tbl) { if (mark >= row[0]) return { grade: row[1], points: row[2] }; } 
@@ -9828,8 +9845,18 @@ window.PEAK_EXAMS = (function () {
       const m = Number(marks[sub]); 
       if (marks[sub] === '' || marks[sub] == null || isNaN(m)) return; 
       const scaledM = m * (100 / maxMarks);
-      per[sub] = Object.assign({ mark: m }, gradeMark(scaledM, level, passThreshold)); 
+      per[sub] = Object.assign({ mark: m }, gradeMark(scaledM, level, passThreshold, exam.config && exam.config.cbc_cutoffs)); 
     });
+    if (level === 'olevel') {
+      // Result 1: every subject sat and at least one D or better.
+      // Result 2: some subjects not sat (cannot qualify).
+      // Result 3: sat everything but only E grades.
+      const sat = subs.filter(sub => per[sub]);
+      const scaled = sat.map(sub => per[sub].mark * (100 / maxMarks));
+      const average = scaled.length ? Math.round(scaled.reduce((a, b) => a + b, 0) / scaled.length * 10) / 10 : 0;
+      const result = sat.length < subs.length ? 'Result 2' : (sat.some(sub => per[sub].grade !== 'E') ? 'Result 1' : 'Result 3');
+      return { per, average, result, aggregate: null, division: null, alevelPoints: null };
+    }
     if (level === 'alevel') {
       const total = subs.reduce((a, sub) => a + (per[sub] ? per[sub].points : 0), 0);
       return { per, alevelPoints: total, aggregate: null, division: null };
@@ -9843,7 +9870,7 @@ window.PEAK_EXAMS = (function () {
   function gradeAll(students, marksMap, exam, balances) {
     const level = exam.level || 'primary';
     const recs = students.map(s => { const m = marksMap[s.id] || {}; if (!Object.keys(m).filter(k => m[k] !== '' && m[k] != null).length) return null; return Object.assign({ student: s, balance: (balances && balances[s.id]) || 0 }, computeStudent(m, exam)); }).filter(Boolean);
-    const better = (a, b) => level === 'alevel' ? (b.alevelPoints - a.alevelPoints) : (a.aggregate - b.aggregate);
+    const better = (a, b) => level === 'alevel' ? (b.alevelPoints - a.alevelPoints) : level === 'olevel' ? (((a.result === 'Result 2') - (b.result === 'Result 2')) || (b.average - a.average)) : (a.aggregate - b.aggregate);
     const grade = st => { const m = (st || '').match(/^[A-Za-z]+\d+/); return m ? m[0] : (st || '?'); };
     const byStream = {}, byGrade = {};
     recs.forEach(r => { (byStream[r.student.stream] = byStream[r.student.stream] || []).push(r); (byGrade[grade(r.student.stream)] = byGrade[grade(r.student.stream)] || []).push(r); });
@@ -9872,6 +9899,7 @@ window.PEAK_EXAMS = (function () {
     (exam.subjects || []).forEach(sub => { const p = rec.per[sub]; doc.text(String(sub), 14, y); doc.text(p ? String(p.mark) : '\u2014', 120, y); doc.text(p ? p.grade : '\u2014', 150, y); y += 7; });
     y += 2; doc.line(14, y, W - 14, y); y += 9; doc.setFontSize(12); doc.setFont(undefined, 'bold');
     if (exam.level === 'alevel') doc.text('Total points: ' + rec.alevelPoints, 14, y);
+    else if (exam.level === 'olevel') doc.text('Average: ' + rec.average + '%          ' + (rec.result || ''), 14, y);
     else doc.text('Aggregate: ' + rec.aggregate + '          Division: ' + (rec.division || '\u2014'), 14, y);
     doc.setFont(undefined, 'normal');
     y += 14; doc.setFontSize(10); doc.setFont(undefined, 'bold'); doc.text("Class Teacher's comment:", 14, y); doc.setFont(undefined, 'normal'); y += 6;
@@ -10038,7 +10066,7 @@ window.PEAK_EXAMS = (function () {
               <div style={{ border: '1px solid ' + T.border, borderRadius: 10, overflow: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5 }}>
                   <thead><tr style={{ background: T.surface }}>
-                    {['Pos', 'Student', 'Stream', exam.level === 'alevel' ? 'Points' : 'Aggregate', exam.level === 'alevel' ? '' : 'Division', 'Stream rank', 'Class rank', 'Report'].map((h, i) => <th key={i} style={{ textAlign: 'left', padding: '9px 10px', color: T.ink3, fontFamily: T.mono, fontSize: 10.5 }}>{h}</th>)}
+                    {['Pos', 'Student', 'Stream', exam.level === 'alevel' ? 'Points' : exam.level === 'olevel' ? 'Average' : 'Aggregate', exam.level === 'alevel' ? '' : exam.level === 'olevel' ? 'Result' : 'Division', 'Stream rank', 'Class rank', 'Report'].map((h, i) => <th key={i} style={{ textAlign: 'left', padding: '9px 10px', color: T.ink3, fontFamily: T.mono, fontSize: 10.5 }}>{h}</th>)}
                   </tr></thead>
                   <tbody>
                     {recs.map((r, i) => (
@@ -10046,8 +10074,8 @@ window.PEAK_EXAMS = (function () {
                         <td style={{ padding: '8px 10px', color: T.ink3 }}>{i + 1}</td>
                         <td style={{ padding: '8px 10px', color: T.ink, fontWeight: 600 }}>{r.student.name}</td>
                         <td style={{ padding: '8px 10px', color: T.ink2 }}>{r.student.stream}</td>
-                        <td style={{ padding: '8px 10px', color: T.ink }}>{exam.level === 'alevel' ? r.alevelPoints : r.aggregate}</td>
-                        <td style={{ padding: '8px 10px', color: T.ink }}>{exam.level === 'alevel' ? '' : ('Div ' + (r.division || '—'))}</td>
+                        <td style={{ padding: '8px 10px', color: T.ink }}>{exam.level === 'alevel' ? r.alevelPoints : exam.level === 'olevel' ? r.average + '%' : r.aggregate}</td>
+                        <td style={{ padding: '8px 10px', color: T.ink }}>{exam.level === 'alevel' ? '' : exam.level === 'olevel' ? r.result : ('Div ' + (r.division || '—'))}</td>
                         <td style={{ padding: '8px 10px', color: T.ink2 }}>{r.streamRank}</td>
                         <td style={{ padding: '8px 10px', color: T.ink2 }}>{r.classRank}</td>
                         <td style={{ padding: '6px 10px' }}>
@@ -13746,7 +13774,7 @@ window.PEAK_STAFF = (function () {
         const id = s.id != null ? s.id : 'new-' + Date.now();
         D.students = D.students || [];
         D.students.unshift({
-          id, lastSeen: 'just added', flag: null, attendanceWk: 100,
+          id, lastSeen: 'just added', flag: null, attendanceWk: null,
           balance: s.fees === 'paid' ? 0 : s.balance || 0,
           ...s,
         });
@@ -13767,8 +13795,8 @@ window.PEAK_STAFF = (function () {
         const student = D.students.find(s => s.id === p.studentId);
         if (!student) return;
         student.balance = Math.max(0, (student.balance || 0) - (p.amount || 0));
-        if (student.balance === 0) student.fees = 'paid';
-        else if (student.balance < 200000) student.fees = 'partial';
+        student.paidAmount = (student.paidAmount || 0) + (p.amount || 0);
+        student.fees = student.balance === 0 ? 'paid' : 'partial';
         D.kpis.feesCollectedToday = (D.kpis.feesCollectedToday || 0) + (p.amount || 0);
         D.kpis.feesCollectedTerm = (D.kpis.feesCollectedTerm || 0) + (p.amount || 0);
         notify();
@@ -13812,12 +13840,17 @@ window.PEAK_STAFF = (function () {
       applyRemotePayment(rec) {
         if (!rec) return;
         const amt = Number(rec.amount) || 0;
+        // Audit D6: match the pupil by id. By name only when the receipt has
+        // no id AND exactly one pupil has that name (two "Nakato Mary"s used
+        // to mean the wrong child's balance changed).
         const nm = (rec.student_name || '').toLowerCase();
-        const sObj = D.students.find(x => (x.name || '').toLowerCase() === nm);
+        let sObj = rec.student_id != null ? D.students.find(x => String(x.id) === String(rec.student_id)) : null;
+        if (!sObj && rec.student_id == null && nm) { const same = D.students.filter(x => (x.name || '').toLowerCase() === nm); if (same.length === 1) sObj = same[0]; }
         if (sObj) {
           if (rec.balance_after != null) sObj.balance = Number(rec.balance_after) || 0;
           else sObj.balance = Math.max(0, (sObj.balance || 0) - amt);
-          sObj.fees = sObj.balance <= 0 ? 'paid' : (sObj.balance < 200000 ? 'partial' : 'overdue');
+          sObj.paidAmount = (sObj.paidAmount || 0) + amt;
+          sObj.fees = sObj.balance <= 0 ? 'paid' : 'partial';
           sObj.lastSeen = sObj.lastSeen;
         }
         D.kpis.feesCollectedTerm = (D.kpis.feesCollectedTerm || 0) + amt;
@@ -13872,13 +13905,18 @@ window.PEAK_STAFF = (function () {
                    (window.supabase && window.supabase.createClient && window.supabase.createClient('https://llxhvqkkgftqwefmrofn.supabase.co', 'sb_publishable_wrzbFpPrkhoN4w2KXdUAdw_gnqEQVs9'));
           if (sb && typeof sb.from === 'function') {
             sb.from('students').select('*').eq('tenant_id', tenantId).then(function(res) {
+              // Only a quick first paint: the Worker's list below carries the
+              // real balances and attendance, so never overwrite it (whichever
+              // answered last used to win, wiping the real fee figures).
+              if (D.studentsFromWorker) return;
               if (res && res.data && res.data.length > 0) {
                 D.students = res.data.map(function(s) {
-                  var isBoarding = s.is_boarding === true || (s.stream || '').toLowerCase().includes('boarding');
-                  var termFee = s.term_fee || (isBoarding ? 500000 : 250000);
-                  var realBalance = s.balance != null ? Number(s.balance) : (isBoarding ? 250000 : 100000);
-                  var paidAmt = Math.max(0, termFee - realBalance);
-                  var feeStatus = realBalance <= 0 ? 'paid' : (paidAmt > 0 ? 'partial' : 'overdue');
+                  // Audit D1: no invented fees. Real balances arrive from
+                  // /fees-balances just below; until then show "no fees yet".
+                  var termFee = null;
+                  var realBalance = 0;
+                  var paidAmt = 0;
+                  var feeStatus = 'none';
                   var className = s.stream || s.class || '';
                   return {
                     id: s.id,
@@ -13891,10 +13929,10 @@ window.PEAK_STAFF = (function () {
                     paidAmount: paidAmt,
                     termFee: termFee,
                     fees: feeStatus,
-                    attendanceWk: s.attendance_wk != null ? s.attendance_wk : 95,
+                    attendanceWk: s.attendance_wk != null ? s.attendance_wk : null,
                     lastSeen: '—',
                     photoUrl: s.photo_url || null,
-                    flag: realBalance > 0 ? 'risk' : null
+                    flag: null
                   };
                 });
                 if (!D.kpis) D.kpis = {};
@@ -13929,12 +13967,15 @@ window.PEAK_STAFF = (function () {
               var bal = (fb && fb.balances) || {};
               var asum = (att && att.summary) || {};
               D.students = d.students.map(function (s) {
-                var isBoarding = s.is_boarding === true || (s.stream || '').toLowerCase().includes('boarding');
-                var termFee = isBoarding ? 500000 : 250000;
-                var hasBalEntry = bal.hasOwnProperty(s.id);
-                var realBalance = hasBalEntry ? Number(bal[s.id]) : (isBoarding ? 250000 : 100000);
-                var paidAmt = Math.max(0, termFee - realBalance);
-                var feeStatus = realBalance <= 0 ? 'paid' : (paidAmt > 0 ? 'partial' : 'overdue');
+                // Audit D1: figures come only from the fees ledger. A pupil
+                // with no fee records shows "no fees yet" — not an invented
+                // UGX 100,000 / 250,000 debt as before.
+                var charged = (fb && fb.charged) || {}, paidMap = (fb && fb.paid) || {};
+                var hasBalEntry = Object.prototype.hasOwnProperty.call(bal, s.id);
+                var realBalance = hasBalEntry ? Math.max(0, Number(bal[s.id])) : 0;
+                var termFee = charged[s.id] != null ? Number(charged[s.id]) : null;
+                var paidAmt = paidMap[s.id] != null ? Number(paidMap[s.id]) : 0;
+                var feeStatus = !hasBalEntry ? 'none' : realBalance <= 0 ? 'paid' : (paidAmt > 0 ? 'partial' : 'overdue');
                 var a = asum[s.id];
                 var pct = (a && a.days > 0) ? a.pct : null;
                 var className = s.stream || s.class || '';
@@ -13958,6 +13999,7 @@ window.PEAK_STAFF = (function () {
               D.kpis.students = d.students.length;
               D.kpis.feesOutstandingStudents = D.students.filter(function(s) { return s.balance > 0; }).length;
               D.studentsLive = true;
+              D.studentsFromWorker = true;
               notify();
             }
           }).catch(function () {});

@@ -1795,7 +1795,35 @@ async function handleActionsGet(request, env, cors) {
 // SUPABASE_KEY must be the service_role key (bypasses RLS).
 // Falls back to TENANTS_SEED if either secret is missing.
 
+// Supabase returns at most 1000 rows per request (API "max rows"), so a
+// query asking for more (limit=20000 etc.) used to come back silently cut
+// at 1000 — fee balances and attendance for bigger schools were wrong
+// (audit D1). Queries with limit > 1000 are now fetched page by page.
+const SB_PAGE = 1000;
 async function sbFetch(env, path) {
+  const lm = path.match(/[?&]limit=(\d+)/);
+  const want = lm ? Number(lm[1]) : 0;
+  if (want > SB_PAGE && !/[?&]offset=/.test(path)) {
+    let base = path.replace(/([?&])limit=\d+&?/, '$1').replace(/[?&]$/, '');
+    if (!/[?&]order=/.test(base)) base += (base.indexOf('?') >= 0 ? '&' : '?') + 'order=id.asc';
+    const out = [];
+    try {
+      for (let off = 0; off < want; off += SB_PAGE) {
+        const n = Math.min(SB_PAGE, want - off);
+        const page = await sbFetchOne(env, base + (base.indexOf('?') >= 0 ? '&' : '?') + 'limit=' + n + '&offset=' + off);
+        if (!Array.isArray(page)) return page;
+        out.push(...page);
+        if (page.length < n) break;
+      }
+      return out;
+    } catch (e) {
+      if (/order=id\.asc/.test(base) && !/[?&]order=/.test(path)) return sbFetchOne(env, path); // table has no id column
+      throw e;
+    }
+  }
+  return sbFetchOne(env, path);
+}
+async function sbFetchOne(env, path) {
   const url = env.SUPABASE_URL + '/rest/v1' + path;
   const res = await fetch(url, {
     headers: {
@@ -3079,6 +3107,22 @@ async function handleFeesCheckout(request, env, cors) {
 }
 
 // Fulfil a parent fee payment: insert the payment (so balances drop), write a receipt (so the live OS updates), notify the school.
+// Number of rows matching a PostgREST filter, without downloading them.
+async function sbCount(env, path) {
+  const r = await fetch(env.SUPABASE_URL + '/rest/v1' + path, { headers: { ...sbHeaders(env), Prefer: 'count=exact', Range: '0-0' } });
+  const cr = r.headers.get('content-range') || '';
+  const n = Number(cr.split('/')[1]);
+  return isFinite(n) ? n : 0;
+}
+
+// Fulfil a parent fee payment: insert the payment (so balances drop), write a receipt (so the live OS updates), notify the school.
+// Runs from BOTH the Flutterwave webhook and the parent's return to pay.html,
+// often within the same second. Audit D4: both used to pass the "receipt
+// already written?" check and credit the pupil twice. Now the receipt is
+// written FIRST and acts as the claim (unique per tenant + tx_ref, see
+// supabase/migrations/20261017_d4_unique_payment_ref.sql); only the call
+// that wins the claim records the payment. A KV lock narrows the window
+// further where the unique index is not yet in place.
 async function feePayFulfil(env, txId) {
   if (!env.FLW_SECRET_KEY || !txId) return { ok: false, why: 'no key/tx' };
   let v; try { const r = await fetch('https://api.flutterwave.com/v3/transactions/' + encodeURIComponent(txId) + '/verify', { headers: { 'Authorization': 'Bearer ' + env.FLW_SECRET_KEY } }); v = await r.json(); } catch (e) { return { ok: false, why: String(e) }; }
@@ -3088,30 +3132,52 @@ async function feePayFulfil(env, txId) {
   const m = tx_ref.match(/^FEE-(.+)-(\d+)-(\d+)$/);
   if (!m) return { ok: false, why: 'not a fee tx' };
   const tenant = m[1]; const studentId = m[2];
+  if (String(d.currency || 'UGX').toUpperCase() !== 'UGX') return { ok: false, why: 'paid in ' + d.currency + ' — record it by hand' };
   const amount = Math.round(Number(d.amount || 0));
   if (!(amount > 0)) return { ok: false, why: 'no amount' };
-  // Idempotency: receipt already written for this tx_ref?
-  try { const ex = await sbFetch(env, '/receipts?tenant_id=eq.' + encodeURIComponent(tenant) + '&reference=eq.' + encodeURIComponent(tx_ref) + '&select=id,receipt_no,balance_after&limit=1'); if (ex && ex[0]) return { ok: true, already: true, tenant, receipt_no: ex[0].receipt_no, balance_after: ex[0].balance_after }; } catch (e) {}
-  // Student + tenant meta
+  const T = encodeURIComponent(tenant);
+  const already = async () => {
+    try { const ex = await sbFetch(env, '/receipts?tenant_id=eq.' + T + '&reference=eq.' + encodeURIComponent(tx_ref) + '&select=id,receipt_no,balance_after&limit=1'); if (ex && ex[0]) return { ok: true, already: true, tenant, receipt_no: ex[0].receipt_no, balance_after: ex[0].balance_after }; } catch (e) {}
+    return null;
+  };
+  const done = await already(); if (done) return done;
+  const lockKey = 'feepay:' + tx_ref;
+  if (env.BRIEFS_KV) {
+    try { if (await env.BRIEFS_KV.get(lockKey)) { await new Promise(r => setTimeout(r, 1500)); return (await already()) || { ok: true, processing: true, tenant }; } await env.BRIEFS_KV.put(lockKey, String(Date.now()), { expirationTtl: 900 }); } catch (e) {}
+  }
+  // Student (must belong to this school) + tenant meta
   let sname = '', guardian = '', gphone = '';
-  try { const sr = await sbFetch(env, '/students?id=eq.' + encodeURIComponent(studentId) + '&select=name,guardian_name,guardian_phone&limit=1'); if (sr && sr[0]) { sname = sr[0].name || ''; guardian = sr[0].guardian_name || ''; gphone = sr[0].guardian_phone || ''; } } catch (e) {}
+  try { const sr = await sbFetch(env, '/students?id=eq.' + encodeURIComponent(studentId) + '&tenant_id=eq.' + T + '&select=name,guardian_name,guardian_phone&limit=1'); if (sr && sr[0]) { sname = sr[0].name || ''; guardian = sr[0].guardian_name || ''; gphone = sr[0].guardian_phone || ''; } } catch (e) {}
+  if (!sname) return { ok: false, why: 'pupil not found at this school' };
   let tname = tenant, currency = 'UGX';
-  try { const tr = await sbFetch(env, '/tenants?id=eq.' + encodeURIComponent(tenant) + '&select=name,currency'); if (tr && tr[0]) { tname = tr[0].name || tenant; currency = tr[0].currency || 'UGX'; } } catch (e) {}
-  // 1) record the payment (negative fees row) so balances recompute
-  try { await sbWrite(env, '/fees', { tenant_id: tenant, student_id: Number(studentId), term: null, kind: 'payment', amount: -Math.abs(amount), channel: 'online', notes: 'Parent portal' }, 'POST', 'return=minimal'); } catch (e) {}
-  // 2) balance after
-  let balAfter = null;
-  try { const fr = await sbFetch(env, '/fees?tenant_id=eq.' + encodeURIComponent(tenant) + '&student_id=eq.' + encodeURIComponent(studentId) + '&select=amount&limit=20000'); balAfter = Math.max(0, (fr || []).reduce((a, x) => a + Number(x.amount || 0), 0)); } catch (e) {}
-  // 3) receipt (fires the OS realtime listener -> live balance update + toast)
-  let receiptNo = '';
+  try { const tr = await sbFetch(env, '/tenants?id=eq.' + T + '&select=name,currency'); if (tr && tr[0]) { tname = tr[0].name || tenant; currency = tr[0].currency || 'UGX'; } } catch (e) {}
+  // 1) the receipt = the claim
+  const prefix = (String(tname).match(/[A-Za-z0-9]/g) || ['N']).slice(0, 2).join('').toUpperCase();
+  let receiptNo = '', receiptId = null;
   try {
-    const existing = (await sbFetch(env, '/receipts?tenant_id=eq.' + encodeURIComponent(tenant) + '&select=id')) || [];
-    const prefix = (String(tname).match(/[A-Za-z0-9]/g) || ['N']).slice(0, 2).join('').toUpperCase();
-    receiptNo = prefix + '-' + new Date().getFullYear() + '-' + String(existing.length + 1).padStart(5, '0');
-    await sbWrite(env, '/receipts', { tenant_id: tenant, receipt_no: receiptNo, student_name: sname || null, guardian_name: guardian || null, guardian_phone: (gphone || '').replace(/[^0-9]/g, '') || null, amount: amount, currency: currency, kind: 'fees', method: 'online', reference: tx_ref, balance_after: balAfter, term: null, issued_by: 'Parent portal' }, 'POST', 'return=minimal');
-  } catch (e) {}
+    receiptNo = prefix + '-' + new Date().getFullYear() + '-' + String((await sbCount(env, '/receipts?tenant_id=eq.' + T + '&select=id')) + 1).padStart(5, '0');
+    const r = await fetch(env.SUPABASE_URL + '/rest/v1/receipts', { method: 'POST', headers: sbHeaders(env, 'return=representation'), body: JSON.stringify({ tenant_id: tenant, receipt_no: receiptNo, student_id: Number(studentId), student_name: sname || null, guardian_name: guardian || null, guardian_phone: (gphone || '').replace(/[^0-9]/g, '') || null, amount: amount, currency: currency, kind: 'fees', method: 'online', reference: tx_ref, balance_after: null, term: null, issued_by: 'Parent portal' }) });
+    if (r.status === 409) return (await already()) || { ok: true, already: true, tenant };
+    if (!r.ok) throw new Error('receipt ' + r.status + ' ' + (await r.text()).slice(0, 160));
+    const rows = await r.json(); receiptId = rows && rows[0] && rows[0].id;
+  } catch (e) {
+    if (env.BRIEFS_KV) { try { await env.BRIEFS_KV.delete(lockKey); } catch (x) {} }
+    return { ok: false, why: String((e && e.message) || e) };
+  }
+  // 2) record the payment (negative fees row) so balances recompute
+  try { await sbWrite(env, '/fees', { tenant_id: tenant, student_id: Number(studentId), term: null, kind: 'payment', amount: -Math.abs(amount), channel: 'online', reference: tx_ref, notes: 'Parent portal' }, 'POST', 'return=minimal'); }
+  catch (e) {
+    // Undo the claim so the next webhook retry can record it properly.
+    if (receiptId) { try { await fetch(env.SUPABASE_URL + '/rest/v1/receipts?id=eq.' + receiptId, { method: 'DELETE', headers: sbHeaders(env, 'return=minimal') }); } catch (x) {} }
+    if (env.BRIEFS_KV) { try { await env.BRIEFS_KV.delete(lockKey); } catch (x) {} }
+    return { ok: false, why: 'payment not recorded: ' + String((e && e.message) || e) };
+  }
+  // 3) balance after → onto the receipt
+  let balAfter = null;
+  try { const fr = await sbFetch(env, '/fees?tenant_id=eq.' + T + '&student_id=eq.' + encodeURIComponent(studentId) + '&select=amount,kind&limit=20000'); balAfter = Math.max(0, (fr || []).reduce((a, x) => { let n = Number(x.amount || 0); if (x.kind === 'payment' && n > 0) n = -n; return a + n; }, 0)); } catch (e) {}
+  if (receiptId && balAfter != null) { try { await fetch(env.SUPABASE_URL + '/rest/v1/receipts?id=eq.' + receiptId, { method: 'PATCH', headers: sbHeaders(env, 'return=minimal'), body: JSON.stringify({ balance_after: balAfter }) }); } catch (e) {} }
   // 4) mark pending record paid + notify the school
-  try { const pr = await sbFetch(env, '/os_records?tenant=eq.' + encodeURIComponent(tenant) + "&kind=eq.fee_payment&select=id,payload&order=created_at.desc&limit=50"); const hit = (pr || []).find(x => x.payload && x.payload.tx_ref === tx_ref); if (hit) await fetch(env.SUPABASE_URL + '/rest/v1/os_records?id=eq.' + hit.id, { method: 'PATCH', headers: sbHeaders(env, 'return=minimal'), body: JSON.stringify({ payload: Object.assign({}, hit.payload, { status: 'paid', paidAt: new Date().toISOString(), receipt_no: receiptNo, balance_after: balAfter }) }) }); } catch (e) {}
+  try { const pr = await sbFetch(env, '/os_records?tenant=eq.' + T + "&kind=eq.fee_payment&select=id,payload&order=created_at.desc&limit=50"); const hit = (pr || []).find(x => x.payload && x.payload.tx_ref === tx_ref); if (hit) await fetch(env.SUPABASE_URL + '/rest/v1/os_records?id=eq.' + hit.id, { method: 'PATCH', headers: sbHeaders(env, 'return=minimal'), body: JSON.stringify({ payload: Object.assign({}, hit.payload, { status: 'paid', paidAt: new Date().toISOString(), receipt_no: receiptNo, balance_after: balAfter }) }) }); } catch (e) {}
   try { await deliverPush(env, tenant, [], 'head', { title: 'Fees paid online', body: (sname || 'A learner') + ' — ' + currency + ' ' + amount.toLocaleString() + (balAfter != null ? (' · balance now ' + currency + ' ' + Number(balAfter).toLocaleString()) : '') + '.', url: '/', tag: 'feepay-' + tx_ref }); } catch (e) {}
   return { ok: true, tenant, studentId, amount, receipt_no: receiptNo, balance_after: balAfter, student_name: sname };
 }
@@ -3587,14 +3653,18 @@ async function handleFeesBalances(tenant, env, cors) {
   if (!tenant) return J({ error: 'tenant required' }, 400);
   if (!env.SUPABASE_URL || !env.SUPABASE_KEY) return J({ error: 'Supabase not configured.' }, 500);
   try {
-    const rows = await sbFetch(env, '/fees?tenant_id=eq.' + encodeURIComponent(tenant) + '&select=student_id,kind,amount&limit=20000');
-    const bal = {};
+    const rows = await sbFetch(env, '/fees?tenant_id=eq.' + encodeURIComponent(tenant) + '&select=student_id,kind,amount&limit=100000');
+    const bal = {}, charged = {}, paid = {};
     (rows || []).forEach(r => {
       let amt = Number(r.amount || 0);
       if (r.kind === 'payment' && amt > 0) amt = -amt;
       bal[r.student_id] = (bal[r.student_id] || 0) + amt;
+      if (amt >= 0) charged[r.student_id] = (charged[r.student_id] || 0) + amt;
+      else paid[r.student_id] = (paid[r.student_id] || 0) - amt;
     });
-    return J({ tenant, balances: bal });
+    // balances: what is owed now (negative = in credit); charged / paid: totals
+    // so screens show real figures instead of an assumed term fee (audit D1).
+    return J({ tenant, balances: bal, charged, paid });
   } catch (e) { return J({ error: String((e && e.message) || e), tenant }, 200); }
 }
 
