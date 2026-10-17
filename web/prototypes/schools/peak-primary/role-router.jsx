@@ -14,32 +14,22 @@
 */
 (function () {
   // ─── Read profile from session (set by login.html / session-guard.js) ─
+  // The profile comes ONLY from session-guard.js, which confirms it with the
+  // server on every load (audit item C2). No localStorage fallback and no
+  // demo user: with no confirmed profile the role is 'none' and nothing shows.
+  const NO_PROFILE = { email: '', fullName: '', role: 'none', tenantId: '' };
   function getProfile() {
     if (window.NextSession && window.NextSession.profile) {
       return window.NextSession.profile;
     }
-    // Fallback for opening the prototype directly without login (dev)
-    try {
-      const cached = JSON.parse(localStorage.getItem('nextos.profile') || 'null');
-      if (cached) return cached;
-    } catch (e) {}
-    // No session yet — derive the tenant from the URL (/school/<slug>) so a
-    // first-time visit to another school's page doesn't silently show
-    // Peak Primary's data under someone else's login screen.
-    const urlTenant = (typeof window.getOSActiveTenant === 'function') ? window.getOSActiveTenant() : '';
-    return {
-      email: 'demo@peakprimary.test',
-      fullName: 'Demo User',
-      role: 'head',
-      tenantId: urlTenant || 'peak-primary',
-    };
+    return NO_PROFILE;
   }
 
   function getRole() {
     const p = getProfile();
-    const r = (p && p.role) ? String(p.role).toLowerCase() : 'head';
+    const r = (p && p.role) ? String(p.role).toLowerCase() : 'none';
     if (r === 'admin' || r === 'head' || r === 'bursar' || r === 'teacher' || r === 'driver') return r;
-    return 'head';
+    return 'none'; // unknown roles get nothing, never 'head'
   }
 
   // ─── Which nav items each role can see ────────────────────────────────
@@ -52,12 +42,14 @@
     bursar:  new Set(['dash', 'fees', 'rep', 'exam', 'finance', 'trans', 'teach', 'stud', 'learn']),
     teacher: new Set(),
     driver:  new Set(['driver', 'trans']),
+    none:    new Set(),
   };
 
   function canSeeNavKey(key) {
     const role = getRole();
     const wl = ROLE_NAV_WHITELIST[role];
     if (wl === null) return true;
+    if (!wl) return false;
     return wl.has(key);
   }
 
@@ -65,6 +57,7 @@
     const role = getRole();
     const wl = ROLE_NAV_WHITELIST[role];
     if (wl === null) return items;
+    if (!wl) return [];
     return items.filter(n => wl.has(n.k));
   }
 

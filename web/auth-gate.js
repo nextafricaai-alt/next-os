@@ -14,6 +14,34 @@
   ]);
   let activeEmail = '';
 
+  // ─── Send the sign-in token to the NEXT Worker (audit C3) ───────────
+  // The Worker checks this token on school-data routes. One wrapper here
+  // instead of editing every fetch() call in the app.
+  (function () {
+    var WORKER_ORIGIN = 'https://nextos-sentinel.nextafricaai.workers.dev';
+    if (window.__NX_FETCH_WRAPPED) return;
+    window.__NX_FETCH_WRAPPED = true;
+    var nativeFetch = window.fetch.bind(window);
+    window.fetch = async function (input, init) {
+      try {
+        var url = typeof input === 'string' ? input : (input && input.url) || String(input || '');
+        if (url.indexOf(WORKER_ORIGIN) === 0) {
+          var client = (window.OS_DATA && window.OS_DATA.getSupabaseClient ? window.OS_DATA.getSupabaseClient() : null);
+          var s = client ? await client.auth.getSession() : null;
+          var tok = s && s.data && s.data.session && s.data.session.access_token;
+          if (tok) {
+            init = Object.assign({}, init || {});
+            var h = new Headers(init.headers || (typeof input !== 'string' && input && input.headers) || {});
+            if (!h.has('Authorization')) h.set('Authorization', 'Bearer ' + tok);
+            init.headers = h;
+          }
+        }
+      } catch (e) {}
+      return nativeFetch(input, init);
+    };
+  })();
+
+
   document.documentElement.style.visibility = 'hidden';
 
   function readGateSession() {

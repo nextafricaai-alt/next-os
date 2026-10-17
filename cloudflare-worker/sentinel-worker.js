@@ -168,6 +168,193 @@ function openAIResponseToAnthropic(data) {
   };
 }
 
+/* --- Auth gate (audit item C3) -------------------------------------------
+   Every school-data route below needs a signed-in Supabase user who belongs
+   to the school named in the request, with a role allowed for that route.
+   Platform operators (env.PLATFORM_ADMINS, comma-separated emails) may act
+   on any school, including the NEXT OS 'next' tenant.
+
+   Roll-out switch — env.AUTH_MODE (a [vars] entry in wrangler.toml):
+     "warn"    (default) log what WOULD be blocked, let the request through
+     "enforce" block it with 401/403
+   Deploy the app first (it now sends the token), run in "warn", read the
+   logs (`wrangler tail` or the Workers dashboard → Logs; search
+   "[auth-gate]"), then switch to "enforce".
+
+   Routes NOT listed here are unchanged by this gate. Public on purpose:
+   /brand, /icon, /icon.png, /px.js, /collect, /health, /telemetry,
+   /registrations/submit (public enrolment form), /billing/webhook (signed),
+   /push/vapid-public, /auth/send-otp, /auth/verify-otp.
+   Still open, handled by later audit items: /parent/* and /fees/lookup,
+   /fees/checkout, /fees/verify (C8 parents), /transport/* (C9 drivers),
+   /provision-school (C4), and NEXT OS platform routes (AI, CMS, SEO, fleet).
+--------------------------------------------------------------------------- */
+const AUTH_CTX = new WeakMap(); // request -> { email, tenant, role, operator }
+const AUTH_CACHE = new Map();   // token -> { until, user, memberships }
+const AUTH_CACHE_MS = 60 * 1000;
+
+const R_ANY     = ['head', 'admin', 'bursar', 'teacher', 'driver'];
+const R_STAFF   = ['head', 'admin', 'bursar', 'teacher'];
+const R_FINANCE = ['head', 'admin', 'bursar'];
+const R_HEAD    = ['head', 'admin'];
+
+// path -> { roles, tenant: 'required' | 'optional' | 'auth', dflt }
+//   required: the request must name a school (query or body)
+//   optional: a named school is checked; if none, any membership is enough
+//   auth:     the request names no school; the handler scopes to the caller's
+const AUTH_RULES = {
+  // reads
+  '/students':           { roles: R_STAFF,   tenant: 'required' },
+  '/exams':              { roles: R_STAFF,   tenant: 'required' },
+  '/exam-results':       { roles: R_STAFF,   tenant: 'required' },
+  '/attendance-summary': { roles: R_STAFF,   tenant: 'required' },
+  '/attendance/today':   { roles: R_STAFF,   tenant: 'required' },
+  '/staff-status':       { roles: R_STAFF,   tenant: 'required' },
+  '/attendance-watch':   { roles: R_STAFF,   tenant: 'required' },
+  '/lessons-remind':     { roles: R_STAFF,   tenant: 'required' },
+  '/student-health':     { roles: R_STAFF,   tenant: 'required' },
+  '/events':             { roles: R_ANY,     tenant: 'required' },
+  '/school-config':      { roles: R_ANY,     tenant: 'required' },
+  '/teachers':           { roles: R_STAFF,   tenant: 'required' },
+  '/assets':             { roles: R_FINANCE, tenant: 'required' },
+  '/messages/list':      { roles: R_STAFF,   tenant: 'optional' },
+  '/os-data':            { roles: R_ANY,     tenant: 'required', dflt: 'next' },
+  '/fees-balances':      { roles: R_FINANCE, tenant: 'required' },
+  '/finance':            { roles: R_FINANCE, tenant: 'required' },
+  '/payroll-deductions': { roles: R_FINANCE, tenant: 'required' },
+  '/registrations/list': { roles: R_FINANCE, tenant: 'optional' },
+  '/billing/subscriptions': { roles: R_HEAD, tenant: 'required' },
+  '/billing/verify':     { roles: R_HEAD,    tenant: 'optional' },
+  // writes
+  '/os-data/save':       { roles: R_ANY,     tenant: 'required', dflt: 'next' },
+  '/os-data/delete':     { roles: R_ANY,     tenant: 'auth' },
+  '/exams/save':         { roles: R_STAFF,   tenant: 'required' },
+  '/exam-results/save':  { roles: R_STAFF,   tenant: 'required' },
+  '/events/save':        { roles: R_STAFF,   tenant: 'required' },
+  '/messages/send':      { roles: R_STAFF,   tenant: 'optional' },
+  '/students/photo-upload': { roles: R_STAFF, tenant: 'optional' },
+  '/push/subscribe':     { roles: R_ANY,     tenant: 'optional' },
+  '/push/test':          { roles: R_ANY,     tenant: 'optional' },
+  '/push/debug':         { roles: R_HEAD,    tenant: 'optional' },
+  '/exam/scan-mark':     { roles: R_STAFF,   tenant: 'optional' },
+  '/exam/care-plan':     { roles: R_STAFF,   tenant: 'optional' },
+  '/camera/analyze':     { roles: R_STAFF,   tenant: 'optional' },
+  '/camera/frame':       { roles: R_STAFF,   tenant: 'optional' },
+  '/syllabus/generate':  { roles: R_STAFF,   tenant: 'optional' },
+  '/translate':          { roles: R_ANY,     tenant: 'optional' },
+  '/stt':                { roles: R_ANY,     tenant: 'optional' },
+  '/finance/save':       { roles: R_FINANCE, tenant: 'required' },
+  '/finance/update':     { roles: R_FINANCE, tenant: 'required' },
+  '/assets/save':        { roles: R_FINANCE, tenant: 'required' },
+  '/fees/import':        { roles: R_FINANCE, tenant: 'required' },
+  '/finance/delete':     { roles: R_HEAD,    tenant: 'required' },
+  '/school/end-term':    { roles: R_HEAD,    tenant: 'required' },
+  '/school-config/save': { roles: R_HEAD,    tenant: 'required' },
+  '/brand/save':         { roles: R_HEAD,    tenant: 'required' },
+  '/students/import':    { roles: R_HEAD,    tenant: 'required' },
+  '/registrations/approve': { roles: R_HEAD, tenant: 'optional' },
+  '/registrations/reject':  { roles: R_HEAD, tenant: 'optional' },
+  '/billing/checkout':   { roles: R_HEAD,    tenant: 'optional' },
+  // messages that cost money / speak in the school's name
+  '/whatsapp':           { roles: R_HEAD,    tenant: 'optional' },
+  '/whatsapp/bulk':      { roles: R_HEAD,    tenant: 'optional' },
+  '/sms/send':           { roles: R_HEAD,    tenant: 'optional' },
+  '/email/send':         { roles: R_HEAD,    tenant: 'optional' },
+};
+
+function pickTenant(o) {
+  if (!o || typeof o !== 'object') return '';
+  const direct = o.tenant_id || o.tenant || o.tenantId || o.slug || o.s;
+  if (direct) return String(direct).trim();
+  for (const k of ['config', 'txn', 'asset', 'event', 'exam', 'record']) {
+    const n = o[k];
+    if (n && typeof n === 'object' && n.tenant_id) return String(n.tenant_id).trim();
+  }
+  return '';
+}
+
+async function requestedTenant(request, url) {
+  const q = url.searchParams;
+  const fromQuery = q.get('tenant') || q.get('tenant_id') || q.get('s') || '';
+  if (fromQuery) return String(fromQuery).trim();
+  if (request.method === 'POST' && /json/i.test(request.headers.get('Content-Type') || '')) {
+    try { return pickTenant(await request.clone().json()); } catch (e) { return ''; }
+  }
+  return '';
+}
+
+async function lookupCaller(token, env) {
+  const hit = AUTH_CACHE.get(token);
+  if (hit && hit.until > Date.now()) return hit;
+  const ur = await fetch(env.SUPABASE_URL + '/auth/v1/user', { headers: { 'apikey': env.SUPABASE_KEY, 'Authorization': 'Bearer ' + token } });
+  if (!ur.ok) return null;
+  const user = await ur.json();
+  if (!user || !user.id) return null;
+  const email = String(user.email || '').toLowerCase();
+  const rows = (await sbFetch(env, '/users?auth_id=eq.' + encodeURIComponent(user.id) + '&select=tenant_id,role')) || [];
+  const memberships = rows
+    .filter(r => r && r.tenant_id && R_ANY.indexOf(String(r.role || '').toLowerCase()) >= 0)
+    .map(r => ({ tenant: r.tenant_id, role: String(r.role).toLowerCase() }));
+  if (email) {
+    // Same fallback as verifyHead: the school's registered head email.
+    const t = (await sbFetch(env, '/tenants?head_email=ilike.' + encodeURIComponent(email) + '&select=id')) || [];
+    for (const x of t) if (x && x.id && !memberships.some(m => m.tenant === x.id)) memberships.push({ tenant: x.id, role: 'head' });
+  }
+  const entry = { until: Date.now() + AUTH_CACHE_MS, email, memberships };
+  if (AUTH_CACHE.size > 500) AUTH_CACHE.clear();
+  AUTH_CACHE.set(token, entry);
+  return entry;
+}
+
+function isOperator(email, env) {
+  const list = String(env.PLATFORM_ADMINS || '').toLowerCase().split(',').map(s => s.trim()).filter(Boolean);
+  return !!email && list.indexOf(email) >= 0;
+}
+
+// Returns null to continue, or a Response to stop the request.
+async function authGate(request, env, url, cors) {
+  const rule = AUTH_RULES[url.pathname];
+  if (!rule) return null;
+  const enforce = String(env.AUTH_MODE || 'warn').toLowerCase() === 'enforce';
+  const deny = (status, why, extra) => {
+    console.log('[auth-gate] ' + (enforce ? 'BLOCKED' : 'WOULD BLOCK') + ' ' + request.method + ' ' + url.pathname + ' — ' + why + (extra ? ' ' + JSON.stringify(extra) : ''));
+    if (!enforce) return null;
+    return new Response(JSON.stringify({ error: why }), { status, headers: { ...cors, 'Content-Type': 'application/json' } });
+  };
+
+  const token = (request.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '').trim();
+  if (!token) return deny(401, 'Not signed in.');
+  let caller = null;
+  try { caller = await lookupCaller(token, env); } catch (e) { return deny(503, 'Could not verify sign-in.', { err: String(e && e.message || e) }); }
+  if (!caller) return deny(401, 'Sign-in expired. Please sign in again.');
+
+  let tenant = rule.tenant === 'auth' ? '' : await requestedTenant(request, url);
+  if (!tenant && rule.dflt) tenant = rule.dflt;
+
+  if (isOperator(caller.email, env)) {
+    AUTH_CTX.set(request, { email: caller.email, tenant: tenant || null, role: 'operator', operator: true });
+    return null;
+  }
+  if (rule.tenant === 'required' && !tenant) return deny(400, 'School (tenant) is required.', { email: caller.email });
+
+  let m = null;
+  if (tenant) m = caller.memberships.find(x => x.tenant === tenant);
+  else m = caller.memberships.length === 1 ? caller.memberships[0] : null;
+  if (!m) return deny(403, 'You do not belong to this school.', { email: caller.email, tenant });
+  if (rule.roles.indexOf(m.role) < 0) return deny(403, 'Your role cannot do this.', { email: caller.email, tenant: m.tenant, role: m.role });
+
+  AUTH_CTX.set(request, { email: caller.email, tenant: m.tenant, role: m.role, operator: false });
+  return null;
+}
+
+// Handlers that update/delete by record id call this to stay inside the
+// caller's school. Returns '' when there is no verified non-operator caller
+// (warn mode with no token, or a platform operator) so behaviour is unchanged.
+function callerTenant(request) {
+  const c = AUTH_CTX.get(request);
+  return (c && !c.operator && c.tenant) ? c.tenant : '';
+}
+
 /* --- HTTP handler -------------------------------------------------------- */
 
 export default {
@@ -183,6 +370,10 @@ export default {
     if (request.method === 'OPTIONS') {
       return new Response(null, { status: 204, headers: cors });
     }
+    // Auth gate for school-data routes (audit C3). Returns a Response only
+    // when AUTH_MODE = "enforce" and the caller is not allowed.
+    const gated = await authGate(request, env, url, cors);
+    if (gated) return gated;
     // ─── Route: POST /telemetry — receive frontend crashes ────────────
     if (request.method === 'POST' && url.pathname === '/telemetry') {
       return handleTelemetryPost(request, env, cors);
@@ -2651,7 +2842,8 @@ async function handleOsDataDelete(request, env, cors) {
   if (!ids.length) return J({ error: 'id or ids required' }, 400);
   let deleted = 0;
   for (const id of ids) {
-    try { const r = await fetch(env.SUPABASE_URL + '/rest/v1/os_records?id=eq.' + encodeURIComponent(id), { method: 'DELETE', headers: sbHeaders(env, 'return=minimal') }); if (r.ok) deleted++; } catch (e) {}
+    const scope = callerTenant(request); // C3: stay inside the caller's school
+    try { const r = await fetch(env.SUPABASE_URL + '/rest/v1/os_records?id=eq.' + encodeURIComponent(id) + (scope ? '&tenant=eq.' + encodeURIComponent(scope) : ''), { method: 'DELETE', headers: sbHeaders(env, 'return=minimal') }); if (r.ok) deleted++; } catch (e) {}
   }
   return J({ ok: true, deleted: deleted });
 }
@@ -2664,7 +2856,8 @@ async function handleOsDataSave(request, env, cors) {
   if (!kind) return J({ error: 'kind required' }, 400);
   try {
     if (id) {
-      const r = await fetch(env.SUPABASE_URL + '/rest/v1/os_records?id=eq.' + encodeURIComponent(id), { method: 'PATCH', headers: sbHeaders(env, 'return=representation'), body: JSON.stringify({ payload: rec }) });
+      const scope = callerTenant(request); // C3: stay inside the caller's school
+      const r = await fetch(env.SUPABASE_URL + '/rest/v1/os_records?id=eq.' + encodeURIComponent(id) + (scope ? '&tenant=eq.' + encodeURIComponent(scope) : ''), { method: 'PATCH', headers: sbHeaders(env, 'return=representation'), body: JSON.stringify({ payload: rec }) });
       const d = await r.json(); return J({ ok: true, record: (d && d[0]) || { payload: rec } });
     }
     const r = await fetch(env.SUPABASE_URL + '/rest/v1/os_records', { method: 'POST', headers: sbHeaders(env, 'return=representation'), body: JSON.stringify({ tenant, kind, payload: rec }) });
@@ -2921,7 +3114,7 @@ async function handleEndTerm(request, env, cors) {
 
     if (b.promotions && b.promotions.length > 0) {
       for (const p of b.promotions) {
-        await fetch(env.SUPABASE_URL + '/rest/v1/students?id=eq.' + p.id, { method: 'PATCH', headers: sbHeaders(env), body: JSON.stringify({ stream: p.newClass, status: p.status || 'active' }) });
+        await fetch(env.SUPABASE_URL + '/rest/v1/students?id=eq.' + encodeURIComponent(p.id) + '&tenant_id=eq.' + encodeURIComponent(tenant), { method: 'PATCH', headers: sbHeaders(env), body: JSON.stringify({ stream: p.newClass, status: p.status || 'active' }) });
       }
     }
     return J({ ok: true });
@@ -2946,7 +3139,7 @@ async function handleExamSave(request, env, cors) {
   const row = { tenant_id: tenant, name: String(e.name).slice(0, 120), term: e.term || null, year: e.year || null, level: e.level || 'primary', subjects: e.subjects || [], core: e.core || [], config: e.config || {} };
   try {
     if (e.id) {
-      const r = await fetch(env.SUPABASE_URL + '/rest/v1/exams?id=eq.' + encodeURIComponent(e.id), { method: 'PATCH', headers: sbHeaders(env, 'return=representation'), body: JSON.stringify(row) });
+      const r = await fetch(env.SUPABASE_URL + '/rest/v1/exams?id=eq.' + encodeURIComponent(e.id) + '&tenant_id=eq.' + encodeURIComponent(tenant), { method: 'PATCH', headers: sbHeaders(env, 'return=representation'), body: JSON.stringify(row) });
       const d = await r.json(); return J({ ok: true, exam: (d && d[0]) || row });
     } else {
       const r = await fetch(env.SUPABASE_URL + '/rest/v1/exams', { method: 'POST', headers: sbHeaders(env, 'return=representation'), body: JSON.stringify(row) });

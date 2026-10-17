@@ -279,8 +279,10 @@
     // Fail-safe escape timer: ensure loading screen never gets stuck
     setTimeout(function() {
       var ld = document.getElementById('nx-loading-text');
-      if (ld && window.ReactDOM && window.App) {
+      // Only after session-guard has confirmed the account with the server (audit C2).
+      if (ld && window.ReactDOM && window.App && window.NextSession && window.NextSession.verified && !window.__NX_MOUNTED) {
         try {
+          window.__NX_MOUNTED = true;
           ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(App));
         } catch (e) { console.error('Fallback mount error:', e); }
       }
@@ -289,7 +291,7 @@
 
   <!-- Session guard — must run BEFORE React so unauthenticated users get bounced -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-  <script src="/prototypes/schools/peak-primary/session-guard.js?v=4"></script>
+  <script src="/prototypes/schools/peak-primary/session-guard.js?v=5"></script>
 
   <!-- face-api.js is large (~6.8MB) — load ASYNC so it never blocks React from mounting.
        The facial-recognition feature checks window.faceapi before using it. -->
@@ -549,32 +551,22 @@
 */
 (function () {
   // ─── Read profile from session (set by login.html / session-guard.js) ─
+  // The profile comes ONLY from session-guard.js, which confirms it with the
+  // server on every load (audit item C2). No localStorage fallback and no
+  // demo user: with no confirmed profile the role is 'none' and nothing shows.
+  const NO_PROFILE = { email: '', fullName: '', role: 'none', tenantId: '' };
   function getProfile() {
     if (window.NextSession && window.NextSession.profile) {
       return window.NextSession.profile;
     }
-    // Fallback for opening the prototype directly without login (dev)
-    try {
-      const cached = JSON.parse(localStorage.getItem('nextos.profile') || 'null');
-      if (cached) return cached;
-    } catch (e) {}
-    // No session yet — derive the tenant from the URL (/school/<slug>) so a
-    // first-time visit to another school's page doesn't silently show
-    // Peak Primary's data under someone else's login screen.
-    const urlTenant = (typeof window.getOSActiveTenant === 'function') ? window.getOSActiveTenant() : '';
-    return {
-      email: 'demo@peakprimary.test',
-      fullName: 'Demo User',
-      role: 'head',
-      tenantId: urlTenant || 'peak-primary',
-    };
+    return NO_PROFILE;
   }
 
   function getRole() {
     const p = getProfile();
-    const r = (p && p.role) ? String(p.role).toLowerCase() : 'head';
+    const r = (p && p.role) ? String(p.role).toLowerCase() : 'none';
     if (r === 'admin' || r === 'head' || r === 'bursar' || r === 'teacher' || r === 'driver') return r;
-    return 'head';
+    return 'none'; // unknown roles get nothing, never 'head'
   }
 
   // ─── Which nav items each role can see ────────────────────────────────
@@ -587,12 +579,14 @@
     bursar:  new Set(['dash', 'fees', 'rep', 'exam', 'finance', 'trans', 'teach', 'stud', 'learn']),
     teacher: new Set(),
     driver:  new Set(['driver', 'trans']),
+    none:    new Set(),
   };
 
   function canSeeNavKey(key) {
     const role = getRole();
     const wl = ROLE_NAV_WHITELIST[role];
     if (wl === null) return true;
+    if (!wl) return false;
     return wl.has(key);
   }
 
@@ -600,6 +594,7 @@
     const role = getRole();
     const wl = ROLE_NAV_WHITELIST[role];
     if (wl === null) return items;
+    if (!wl) return [];
     return items.filter(n => wl.has(n.k));
   }
 
@@ -15184,7 +15179,17 @@ window.PEAK_STAFF = (function () {
     // Role gate. Teachers get their own shell; parents get the dedicated phone
     // app; Head / Admin / Bursar get the full dashboard, now fully responsive
     // (collapsing sidebar drawer + reflowing grids) down to phone width.
-    const role = (window.PEAK_ROLE && window.PEAK_ROLE.getRole()) || 'head';
+    const role = (window.PEAK_ROLE && window.PEAK_ROLE.getRole()) || 'none';
+
+    // No confirmed account (audit item C2): show nothing from the school.
+    // session-guard.js is already sending the user to sign in.
+    if (role === 'none') {
+      return (
+        <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0a0a12', color: 'rgba(255,255,255,0.7)', fontFamily: 'Inter, system-ui, sans-serif', fontSize: 14 }}>
+          Checking your sign-in…
+        </div>
+      );
+    }
 
     if (role === 'teacher' && typeof window.TeacherShell === 'function') {
       const TeacherShell = window.TeacherShell;
@@ -15265,11 +15270,19 @@ window.PEAK_STAFF = (function () {
     }
   }
 
-  ReactDOM.createRoot(document.getElementById('root')).render(
-    <GlobalErrorBoundary>
-      <App />
-    </GlobalErrorBoundary>
-  );
+  // Mount only once session-guard.js has confirmed who this is with the server
+  // (audit C2). Until then the guard's cover is showing; if the check fails the
+  // guard redirects to sign-in and the app never mounts.
+  function mountApp() {
+    if (window.__NX_MOUNTED) return;
+    window.__NX_MOUNTED = true;
+    ReactDOM.createRoot(document.getElementById('root')).render(
+      <GlobalErrorBoundary>
+        <App />
+      </GlobalErrorBoundary>
+    );
+  }
+  if (window.NextSession && window.NextSession.ready) window.NextSession.ready.then(mountApp);
 })();
 
   </script>

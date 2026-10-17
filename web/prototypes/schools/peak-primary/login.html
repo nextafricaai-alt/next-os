@@ -126,24 +126,16 @@
     </div>
 
     <h1>Welcome back</h1>
-    <p class="sub">Sign in to your school dashboard or select your role.</p>
-
-    <!-- Quick Role Selector -->
-    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 20px;">
-      <button type="button" onclick="fillRole('head')" style="margin-top:0; padding: 8px 10px; font-size: 11px; font-weight: 700; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); color: #fff; border-radius: 6px;">👑 Head Teacher</button>
-      <button type="button" onclick="fillRole('teacher')" style="margin-top:0; padding: 8px 10px; font-size: 11px; font-weight: 700; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); color: #fff; border-radius: 6px;">👩‍🏫 Teacher</button>
-      <button type="button" onclick="fillRole('bursar')" style="margin-top:0; padding: 8px 10px; font-size: 11px; font-weight: 700; background: rgba(255,180,0,0.15); border: 1px solid rgba(255,180,0,0.4); color: #FFB400; border-radius: 6px;">💰 Bursar</button>
-      <button type="button" onclick="fillRole('driver')" style="margin-top:0; padding: 8px 10px; font-size: 11px; font-weight: 700; background: rgba(59,130,246,0.2); border: 1px solid #3B82F6; color: #60A5FA; border-radius: 6px;">🚌 Driver / Shuttle</button>
-    </div>
+    <p class="sub">Sign in to your school dashboard.</p>
 
     <form id="login-form" autocomplete="on">
-      <label for="email">EMAIL / PHONE</label>
-      <input id="email" type="text" required autocomplete="username"
-             placeholder="head@kabs-lily.ac.ug" />
+      <label for="email">EMAIL</label>
+      <input id="email" type="email" required autocomplete="username"
+             placeholder="you@yourschool.ac.ug" />
 
       <label for="password">PASSWORD</label>
       <input id="password" type="password" required autocomplete="current-password"
-             placeholder="••••••••" value="password" />
+             placeholder="••••••••" />
 
       <button id="submit" type="submit">Sign in</button>
       <div class="hint">Forgot password? Contact your school administrator.</div>
@@ -199,15 +191,70 @@
     const SUPABASE_ANON_KEY = 'sb_publishable_wrzbFpPrkhoN4w2KXdUAdw_gnqEQVs9';
     const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    // If already signed in for THIS school, skip to dashboard.
-    // If signed into a DIFFERENT school than this link, sign out so they can sign into this one.
+    const VALID_ROLES = ['head', 'admin', 'bursar', 'teacher', 'driver'];
+
+    // Which school this login page belongs to (from /school/<slug>/login or ?s=).
+    function pageSchool() {
+      var q = new URLSearchParams(location.search);
+      return q.get('t') || q.get('s') || (location.pathname.match(/\/(?:s|school)\/([A-Za-z0-9_-]+)/) || [])[1] || '';
+    }
+
+    // Build the profile ONLY from what the server says about the signed-in
+    // account. Never from what was typed, never from defaults. Returns null
+    // if the account is not linked to a school with a valid role.
+    async function resolveProfile(user) {
+      if (!user || !user.id) return null;
+      const authEmail = (user.email || '').toLowerCase();
+
+      // 1. Normal path: the users row created when the account was provisioned.
+      const { data: rows } = await sb
+        .from('users')
+        .select('tenant_id, role, full_name')
+        .eq('auth_id', user.id)
+        .limit(1);
+      const row = rows && rows[0];
+      if (row && row.tenant_id && VALID_ROLES.includes(String(row.role || '').toLowerCase())) {
+        return { email: authEmail, fullName: row.full_name || authEmail, role: String(row.role).toLowerCase(), tenantId: row.tenant_id };
+      }
+
+      // 2. Fallback the Worker already trusts (verifyHead): this signed-in
+      //    email is the school's registered head. Uses the AUTHENTICATED email.
+      if (authEmail) {
+        const { data: t } = await sb
+          .from('tenants')
+          .select('id')
+          .ilike('head_email', authEmail)
+          .limit(1);
+        if (t && t[0] && t[0].id) {
+          return { email: authEmail, fullName: 'Head Teacher', role: 'head', tenantId: t[0].id };
+        }
+      }
+      return null;
+    }
+
+    function goToApp(profile) {
+      localStorage.setItem('nextos.profile', JSON.stringify(profile));
+      try { localStorage.setItem('nextos.lastTenant', profile.tenantId); } catch (e) {}
+      if (profile.role === 'driver') {
+        window.location.href = '/prototypes/schools/peak-primary/driver-dashboard.html';
+      } else {
+        try { sessionStorage.setItem('nextos.welcome', '1'); } catch (e) {}
+        window.location.href = '/school/' + encodeURIComponent(profile.tenantId);
+      }
+    }
+
+    // Already signed in? Re-check the account with the server before skipping the form.
     (async () => {
-      const { data: { session } } = await sb.auth.getSession();
-      if (!session) return; // no session -> show the login form (the normal client flow)
-      var want = new URLSearchParams(location.search).get('t') || new URLSearchParams(location.search).get('s') || (location.pathname.match(/\/(?:s|school)\/([A-Za-z0-9_-]+)/)||[])[1];
-      var prof = null; try { prof = JSON.parse(localStorage.getItem('nextos.profile')||'null'); } catch(e){}
-      if (!want || (prof && prof.tenantId === want)) { try { sessionStorage.setItem('nextos.welcome', '1'); } catch (e) {} window.location.href = '/school/' + encodeURIComponent((prof && prof.tenantId) || want || ''); return; }
-      try { await sb.auth.signOut(); localStorage.removeItem('nextos.profile'); } catch(e){}
+      try {
+        const { data: { session } } = await sb.auth.getSession();
+        if (!session) { localStorage.removeItem('nextos.profile'); return; }
+        const profile = await resolveProfile(session.user);
+        const want = pageSchool();
+        if (profile && (!want || profile.tenantId === want)) { goToApp(profile); return; }
+        // Signed in to a different school, or account not linked: sign out and show the form.
+        await sb.auth.signOut();
+        localStorage.removeItem('nextos.profile');
+      } catch (e) { localStorage.removeItem('nextos.profile'); }
     })();
 
     // ─── Form handler ────────────────────────────────────────────────
@@ -224,73 +271,33 @@
       errEl.style.display = 'none';
     }
 
-    window.fillRole = function(role) {
-      const emailEl = document.getElementById('email');
-      const passEl = document.getElementById('password');
-      if (role === 'head') { emailEl.value = 'head@kabs-lily.ac.ug'; passEl.value = 'password'; }
-      if (role === 'teacher') { emailEl.value = 'teacher@kabs-lily.ac.ug'; passEl.value = 'password'; }
-      if (role === 'bursar') {
-        emailEl.value = 'bursar@kabs-lily.ac.ug'; passEl.value = 'password';
-        // Pre-fill profile so bursar can land directly even if Supabase auth fails
-        try {
-          var bp = { email: 'bursar@kabs-lily.ac.ug', fullName: 'Nalukenge Jane (Bursar / Administrator)', role: 'bursar', tenantId: 'kabs-lily-junior-school-and-kindercare-centre' };
-          localStorage.setItem('nextos.profile', JSON.stringify(bp));
-        } catch(e) {}
-      }
-      if (role === 'driver') { emailEl.value = 'driver.bbosa@kabs-lily.ac.ug'; passEl.value = 'password'; }
-    };
-
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       clearError();
       btn.disabled = true; btn.textContent = 'Signing in...';
+      // Never carry a profile over from a previous user on this device.
+      localStorage.removeItem('nextos.profile');
 
-      const email    = document.getElementById('email').value.trim();
+      const email    = document.getElementById('email').value.trim().toLowerCase();
       const password = document.getElementById('password').value;
 
       try {
-        // 1. Sign in with Supabase Auth
-        const { data: authData, error: authErr } = await sb.auth.signInWithPassword({
-          email, password,
-        });
-        if (authErr && !email.includes('test') && !email.includes('kabs-lily')) throw authErr;
-
-        let role = 'head';
-        let fullName = 'Head Teacher';
-        let tenantId = 'kabs-lily-junior-school-and-kindercare-centre';
-
-        if (authData && authData.user) {
-          const { data: userRow } = await sb
-            .from('users')
-            .select('tenant_id, role, full_name')
-            .eq('auth_id', authData.user.id)
-            .single();
-          if (userRow) {
-            role = userRow.role;
-            fullName = userRow.full_name;
-            tenantId = userRow.tenant_id;
-          }
-        } else {
-          // Demo fallback by email pattern
-          if (email.includes('teacher')) role = 'teacher';
-          if (email.includes('bursar') || email.includes('jane') || email.includes('nalukenge')) {
-            role = 'bursar';
-            fullName = 'Nalukenge Jane (Bursar / Administrator)';
-          }
-          if (email.includes('driver')) { role = 'driver'; fullName = 'Shuttle Driver'; }
-          if (email.includes('head') && !email.includes('bursar')) role = 'head';
+        // 1. Sign in. Any error stops here — no exceptions for any email.
+        const { data: authData, error: authErr } = await sb.auth.signInWithPassword({ email, password });
+        if (authErr || !authData || !authData.user || !authData.session) {
+          throw new Error('Wrong email or password.');
         }
 
-        const profile = { email, fullName, role, tenantId };
-        localStorage.setItem('nextos.profile', JSON.stringify(profile));
-
-        if (role === 'driver') {
-          window.location.href = '/prototypes/schools/peak-primary/driver-dashboard.html';
-        } else {
-          window.location.href = '/school/' + encodeURIComponent(tenantId);
+        // 2. Who is this account, according to the server?
+        const profile = await resolveProfile(authData.user);
+        if (!profile) {
+          await sb.auth.signOut();
+          throw new Error('Your account is not linked to a school yet. Ask your head teacher to add you.');
         }
+
+        goToApp(profile);
       } catch (err) {
-        showError(err.message || 'Sign-in failed. Check your email and password.');
+        showError((err && err.message) || 'Sign-in failed. Check your email and password.');
         btn.disabled = false; btn.textContent = 'Sign in';
       }
     });

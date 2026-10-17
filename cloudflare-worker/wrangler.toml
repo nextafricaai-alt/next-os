@@ -44,3 +44,12 @@ compatibility_flags = ["nodejs_compat"]
 
 [ai]
 binding = "AI"
+
+# Auth gate for school-data routes (audit C3) — see the comment above
+# authGate() in sentinel-worker.js. Start with "warn": nothing is blocked,
+# would-be blocks are logged as "[auth-gate] WOULD BLOCK ...". Once the logs
+# are clean for a few school days, change to "enforce" and redeploy.
+# PLATFORM_ADMINS = NEXT OS operators allowed to act on any school.
+[vars]
+AUTH_MODE = "warn"
+PLATFORM_ADMINS = "hudson.tim.uk@gmail.com,patrickemma143@gmail.com"
