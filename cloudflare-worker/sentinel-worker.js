@@ -3527,6 +3527,41 @@ async function verifyMember(request, env, tenant) {
   } catch (e) { return { ok: false, why: String((e && e.message) || e) }; }
 }
 
+
+// ─── Platform-admin check (audit C4) ─────────────────────────────────────
+// Creating schools, provisioning businesses and resetting ANY account's
+// password are platform-operator actions. They need a signed-in NEXT OS
+// operator (env.PLATFORM_ADMINS). There is no default PIN any more.
+// While AUTH_MODE is "warn", the old PIN still works as a fallback, but only
+// if env.GATE_PIN is set as a secret, and wrong guesses are rate-limited
+// (5 per 15 minutes per IP). In "enforce" mode the PIN is ignored.
+async function adminGate(request, env, pin) {
+  const token = (request.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '').trim();
+  if (token) {
+    try {
+      const caller = await lookupCaller(token, env);
+      if (caller && isOperator(caller.email, env)) return { ok: true, email: caller.email, via: 'operator' };
+    } catch (e) {}
+  }
+  const enforce = String(env.AUTH_MODE || 'warn').toLowerCase() === 'enforce';
+  if (enforce || !env.GATE_PIN || !pin) {
+    console.log('[auth-gate] BLOCKED admin action ' + new URL(request.url).pathname + ' — no operator sign-in');
+    return { ok: false, status: 401, error: 'Sign in to NEXT OS as a platform operator to do this.' };
+  }
+  const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
+  const key = 'pinfail:' + ip;
+  let fails = 0;
+  try { fails = Number((env.BRIEFS_KV && await env.BRIEFS_KV.get(key)) || 0); } catch (e) {}
+  if (fails >= 5) return { ok: false, status: 429, error: 'Too many wrong PIN attempts. Try again in 15 minutes.' };
+  if (String(pin) !== String(env.GATE_PIN)) {
+    try { if (env.BRIEFS_KV) await env.BRIEFS_KV.put(key, String(fails + 1), { expirationTtl: 900 }); } catch (e) {}
+    console.log('[auth-gate] wrong admin PIN from ' + ip + ' (' + (fails + 1) + '/5)');
+    return { ok: false, status: 401, error: 'Invalid admin PIN' };
+  }
+  console.log('[auth-gate] admin action via PIN fallback (sign in as operator instead) ' + new URL(request.url).pathname);
+  return { ok: true, email: '', via: 'pin' };
+}
+
 async function handleAdminResetLogin(request, env, cors) {
   const J = (o, st) => new Response(JSON.stringify(o), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
   if (!env.SUPABASE_URL || !env.SUPABASE_KEY) return J({ ok: false, error: 'Supabase not configured.' }, 500);
@@ -3534,7 +3569,8 @@ async function handleAdminResetLogin(request, env, cors) {
   const pin = String(b.pin || '').trim();
   const email = String(b.email || '').trim().toLowerCase();
   const tenant = String(b.tenant_id || b.tenant || '').trim();
-  if (pin !== (env.GATE_PIN || '1379')) return J({ ok: false, error: 'Invalid admin PIN' }, 401);
+  const gate = await adminGate(request, env, pin);
+  if (!gate.ok) return J({ ok: false, error: gate.error }, gate.status);
   if (!email) return J({ ok: false, error: 'email required' }, 400);
   try {
     let authId = null;
@@ -3664,20 +3700,30 @@ async function handleProvisionSchool(request, env, cors) {
   let body;
   try { body = await request.json(); } catch (e) { return reply({ ok: false, error: 'Invalid JSON body' }, 400); }
   const { pin, name, slug, primaryColor, logoUrl, motto, adminEmail, adminName, tier, level, type } = body || {};
-  const ADMIN_PIN = env.GATE_PIN || '1379';
-  if (pin !== ADMIN_PIN) return reply({ ok: false, error: 'Invalid admin PIN' }, 401);
+  const gate = await adminGate(request, env, pin);
+  if (!gate.ok) return reply({ ok: false, error: gate.error }, gate.status);
   if (!name || !adminEmail) return reply({ ok: false, error: 'name and adminEmail are required' }, 400);
   if (!env.SUPABASE_URL || !env.SUPABASE_KEY) return reply({ ok: false, error: 'Supabase not configured on the worker' }, 503);
 
   const id = String(slug || name).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  if (!id) return reply({ ok: false, error: 'Could not make a school ID from that name' }, 400);
   try {
-    // 1. Upsert the tenant (idempotent on id)
-    await sbWrite(env, '/tenants?on_conflict=id', {
+    // 0. Never overwrite an existing school (audit C4). Re-provisioning an
+    //    existing slug used to replace its head_email, which verifyHead and
+    //    the login page trust, so it handed the school to whoever asked.
+    //    Change an existing school's head in Supabase directly instead.
+    const existing = await sbFetch(env, '/tenants?id=eq.' + encodeURIComponent(id) + '&select=id,name');
+    if (existing && existing.length) {
+      return reply({ ok: false, error: 'A school with the ID "' + id + '" already exists (' + (existing[0].name || id) + '). Choose a different name or slug.' }, 409);
+    }
+
+    // 1. Create the tenant (new id only; the check above rules out overwrites)
+    await sbWrite(env, '/tenants', {
       id, name, vertical: 'school', country: 'Uganda', currency: 'UGX',
       subdomain: id, tier: tier || 'catalyst', status: 'active',
       primary_color: primaryColor || null, logo_url: logoUrl || null, motto: motto || null,
       head_email: adminEmail, provisioned_at: new Date().toISOString(),
-    }, 'POST', 'resolution=merge-duplicates,return=minimal');
+    }, 'POST', 'return=minimal');
 
     // 1b. Seed the school structure (level) so the OS shows the right classes from first login
     const lvl = (['nursery','nursery-primary','primary','secondary','tertiary'].indexOf(String(level || type || '')) >= 0) ? String(level || type) : detectLevel(name);
@@ -3738,8 +3784,8 @@ async function handleProvisionBusiness(request, env, cors) {
   let body;
   try { body = await request.json(); } catch (e) { return reply({ ok: false, error: 'Invalid JSON body' }, 400); }
   const { pin, config } = body || {};
-  const ADMIN_PIN = env.GATE_PIN || '1379';
-  if (pin !== ADMIN_PIN) return reply({ ok: false, error: 'Invalid admin PIN' }, 401);
+  const gate = await adminGate(request, env, pin);
+  if (!gate.ok) return reply({ ok: false, error: gate.error }, gate.status);
   if (!config || !config.businessName || !config.businessType) {
     return reply({ ok: false, error: 'config.businessName and config.businessType are required' }, 400);
   }

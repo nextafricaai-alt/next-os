@@ -53,7 +53,7 @@
       <div class="field"><label>Tier</label><select id="tier"><option value="catalyst">Catalyst</option><option value="builder">Builder</option><option value="architect">Architect</option></select></div>
       <div class="field"><label>Head teacher email *</label><input id="adminEmail" type="email" placeholder="head@brightfuture.ac.ug"/><div class="hint">Their login is created with a temporary password.</div></div>
       <div class="field"><label>Head teacher name</label><input id="adminName" placeholder="Mrs. Asiimwe"/></div>
-      <div class="field"><label>Admin PIN *</label><input id="pin" type="password" placeholder="Your NEXT admin PIN"/></div>
+      <div class="field"><label>Admin PIN <span style="opacity:.6">(only if you are not signed in to NEXT OS)</span></label><input id="pin" type="password" placeholder="Leave empty when signed in"/></div>
       <button class="btn" id="go">Create school →</button>
       <div class="msg" id="msg"></div>
     </div>
@@ -71,6 +71,7 @@
   </div>
 </div>
 <script>
+async function nxOperatorToken(){try{var p=(window.parent!==window&&window.parent.OS_DATA&&window.parent.OS_DATA.getSupabaseClient)?window.parent.OS_DATA.getSupabaseClient():null;if(p){var s=await p.auth.getSession();var t=s&&s.data&&s.data.session&&s.data.session.access_token;if(t)return t;}}catch(e){}try{var j=JSON.parse(localStorage.getItem('sb-llxhvqkkgftqwefmrofn-auth-token')||'null');var t2=j&&j.access_token;if(t2&&(!j.expires_at||j.expires_at*1000>Date.now()))return t2;}catch(e){}return '';}
 const FN='https://nextos-sentinel.nextafricaai.workers.dev';
 const $=id=>document.getElementById(id);
 const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -92,12 +93,15 @@ $('go').addEventListener('click', async ()=>{
   };
   if(!payload.name){ msg('Enter the school name.','err'); return; }
   if(!payload.adminEmail){ msg('Enter the head teacher email.','err'); return; }
-  if(!payload.pin){ msg('Enter your admin PIN.','err'); return; }
+  // Audit C4: provisioning is authorised by your NEXT OS operator sign-in.
+  const opTok = await nxOperatorToken();
+  if(!opTok && !payload.pin){ msg('Sign in to NEXT OS first (or enter the admin PIN).','err'); return; }
   const btn=$('go'); btn.disabled=true; btn.textContent='Creating…'; msg('Nia is provisioning the school…','');
   try{
-    const r=await fetch(FN+'/provision-school',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    const hdrs={'Content-Type':'application/json'}; if(opTok) hdrs.Authorization='Bearer '+opTok;
+    const r=await fetch(FN+'/provision-school',{method:'POST',headers:hdrs,body:JSON.stringify(payload)});
     const d=await r.json();
-    if(r.status===401){ msg('Wrong admin PIN.','err'); }
+    if(r.status===401||r.status===429||r.status===409){ msg(d.error||'Not allowed.','err'); }
     else if(!r.ok || !d.ok){ msg(d.error||'Could not create the school.','err'); }
     else { showResult(d); saveFleet(d, payload.primaryColor); msg('Done — '+d.name+' is live.','ok'); }
   }catch(e){ msg('Network error: '+e,'err'); }

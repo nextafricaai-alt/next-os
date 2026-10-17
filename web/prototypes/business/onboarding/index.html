@@ -437,7 +437,7 @@ function submitOnboarding() {
       '<div class="config-box" id="cfgBox"></div>' +
       '<div class="provision-box">' +
         '<div class="provision-row">' +
-          '<input type="password" id="provisionPin" placeholder="Operator PIN" autocomplete="off" style="max-width:160px;">' +
+          '<input type="password" id="provisionPin" placeholder="PIN (only if not signed in)" autocomplete="off" style="max-width:200px;">' +
           '<button class="btn btn-primary" id="provisionBtn" onclick="startProvisioning()">🚀 Start Provisioning</button>' +
         '</div>' +
         '<div class="provision-status" id="provisionStatus"></div>' +
@@ -465,21 +465,27 @@ function copyConfigJson() {
   }
 }
 
+async function nxOperatorToken(){try{var p=(window.parent!==window&&window.parent.OS_DATA&&window.parent.OS_DATA.getSupabaseClient)?window.parent.OS_DATA.getSupabaseClient():null;if(p){var s=await p.auth.getSession();var t=s&&s.data&&s.data.session&&s.data.session.access_token;if(t)return t;}}catch(e){}try{var j=JSON.parse(localStorage.getItem('sb-llxhvqkkgftqwefmrofn-auth-token')||'null');var t2=j&&j.access_token;if(t2&&(!j.expires_at||j.expires_at*1000>Date.now()))return t2;}catch(e){}return '';}
+
 function startProvisioning() {
   var pinEl = document.getElementById('provisionPin');
   var btn = document.getElementById('provisionBtn');
   var statusEl = document.getElementById('provisionStatus');
   var pin = pinEl ? pinEl.value.trim() : '';
-  if (!pin) { statusEl.textContent = 'Enter the operator PIN first.'; statusEl.className = 'provision-status err'; return; }
   if (!_lastConfig) { statusEl.textContent = 'No config to send — this shouldn\'t happen, try Start Over.'; statusEl.className = 'provision-status err'; return; }
 
   btn.disabled = true; btn.textContent = 'Starting…';
   statusEl.textContent = ''; statusEl.className = 'provision-status';
 
-  fetch(SENTINEL_WORKER_URL + '/provision-business', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ pin: pin, config: _lastConfig }),
+  // Audit C4: authorised by your NEXT OS operator sign-in; the PIN is only a temporary fallback.
+  nxOperatorToken().then(function (opTok) {
+    if (!opTok && !pin) { btn.disabled = false; btn.textContent = '🚀 Start Provisioning'; statusEl.textContent = 'Sign in to NEXT OS first (or enter the operator PIN).'; statusEl.className = 'provision-status err'; return Promise.reject('no-auth'); }
+    var hdrs = { 'Content-Type': 'application/json' }; if (opTok) hdrs.Authorization = 'Bearer ' + opTok;
+    return fetch(SENTINEL_WORKER_URL + '/provision-business', {
+      method: 'POST',
+      headers: hdrs,
+      body: JSON.stringify({ pin: pin, config: _lastConfig }),
+    });
   })
     .then(function (r) { return r.json().then(function (body) { return { ok: r.ok, body: body }; }); })
     .then(function (res) {
@@ -494,6 +500,7 @@ function startProvisioning() {
       }
     })
     .catch(function (e) {
+      if (e === 'no-auth') return;
       btn.disabled = false; btn.textContent = '🚀 Start Provisioning';
       statusEl.className = 'provision-status err';
       statusEl.textContent = '✗ Could not reach the provisioning worker: ' + e.message;

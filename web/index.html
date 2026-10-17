@@ -6532,7 +6532,8 @@ window.OnboardingPage = function OnboardingPage(props) {
     const delLogin = (i) => setF(o => Object.assign({}, o, { logins: (o.logins || []).filter((_, j) => j !== i) }));
     const resetLogin = async (i) => {
       const L = (f.logins || [])[i]; if (!L || !L.email) { alert('Add an email for this login first.'); return; }
-      const pin = window.prompt('Admin PIN to reset the login for ' + L.email + ':'); if (!pin) return;
+      // Audit C4: authorised by your NEXT OS operator sign-in (auth-gate.js adds the token).
+      if (!window.confirm('Reset the password for ' + L.email + '? Their old password will stop working.')) return; const pin = '';
       try {
         const baseU = (window.NEXT_OS_SENTINEL_ENDPOINT) || 'https://nextos-sentinel.nextafricaai.workers.dev';
         const rr = await fetch(baseU + '/admin/reset-login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pin: pin, email: L.email, tenant_id: f.tenantId }) });
