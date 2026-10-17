@@ -729,8 +729,8 @@
     if (!teacher) {
       teacher = {
         id: 9999,
-        full_name: name || (email ? email.split('@')[0] : 'Ayuto Esther'),
-        email: email || 'ayuto.esther@kabslily.ug',
+        full_name: name || (email ? email.split('@')[0] : 'Teacher'),
+        email: email || '',
         subjects: ['Science', 'Mathematics'],
         status: 'active',
         merit_points: 0
@@ -5073,91 +5073,11 @@
     const dt = new Date(iso);
     return dt.getHours() > 7 || dt.getHours() === 7 && dt.getMinutes() > 15;
   };
-  const KABS_STAFF_ROSTER = [{
-    id: 't1',
-    full_name: 'Tr. Harriet (Ule Harriet)',
-    phone: '0701647582',
-    classAssigned: 'Primary One (P.1)',
-    subjects: ['Luganda', 'LIT 1'],
-    salary: 300000
-  }, {
-    id: 't2',
-    full_name: 'Tr. Christine (Ikubu Christine)',
-    phone: '0771791911',
-    classAssigned: 'Primary Two (P.2)',
-    subjects: ['English', 'LIT 2'],
-    salary: 380000
-  }, {
-    id: 't3',
-    full_name: 'Tr. Jane (Nalukenge Jane)',
-    phone: '0750845160',
-    classAssigned: 'Primary Three (P.3)',
-    subjects: ['Religious Education', 'Math'],
-    salary: 350000
-  }, {
-    id: 't4',
-    full_name: 'Tr. Elijah (Elijja Weiswa)',
-    phone: '—',
-    classAssigned: 'Primary Four (P.4)',
-    subjects: ['Math'],
-    salary: 300000
-  }, {
-    id: 't5',
-    full_name: 'Tr. Esther (Ayuto Esther)',
-    phone: '0778787509',
-    classAssigned: 'Primary Five (P.5)',
-    subjects: ['SST', 'Science'],
-    salary: 330000
-  }, {
-    id: 't6',
-    full_name: 'Tr. Ronnie (Ssemakula Ronnie)',
-    phone: '0754972846 / 0788241295',
-    classAssigned: 'Primary Six (P.6)',
-    subjects: ['Science', 'Math'],
-    salary: 350000
-  }, {
-    id: 't7',
-    full_name: 'Tr. Paul (Paul Ongaria)',
-    phone: '0780742619',
-    classAssigned: 'Primary Seven (P.7)',
-    subjects: ['English', 'Religious Education'],
-    salary: 330000
-  }, {
-    id: 't8',
-    full_name: 'Tr. Sam (Bunya Samuel)',
-    phone: '0772555001',
-    classAssigned: 'Primary Seven (P.7)',
-    subjects: ['SST', 'Religious Education'],
-    salary: 350000
-  }, {
-    id: 't9',
-    full_name: 'Tr. Joyce (Joyce Kabali)',
-    phone: '0782204110 / 0705185361',
-    classAssigned: 'Primary Three & Four (P.3 & P.4)',
-    subjects: ['English', 'LIT 2'],
-    salary: 320000
-  }, {
-    id: 't10',
-    full_name: 'Tr. Jus',
-    phone: '0770001122',
-    classAssigned: 'Baby Class',
-    subjects: ['Learning Area 1 & 4'],
-    salary: 280000
-  }, {
-    id: 't11',
-    full_name: 'Tr. Jemie (Jemima)',
-    phone: '0700002233',
-    classAssigned: 'Middle Class',
-    subjects: ['Learning Area 1 & 4'],
-    salary: 280000
-  }, {
-    id: 't12',
-    full_name: 'Tr. Mayira',
-    phone: '0750003344',
-    classAssigned: 'Top Class',
-    subjects: ['Learning Area 2 & 5'],
-    salary: 290000
-  }];
+
+  // Audit C7: this used to hold Kabs Lily teachers' real names, phone numbers and
+  // salaries, shipped to every visitor of every school. Staff now come only from
+  // the database; with none, the screen shows its empty state.
+  const KABS_STAFF_ROSTER = [];
   async function loadStaffData(tenantId) {
     const sb = window.NextSession?.sb;
     const today = isoDate();
@@ -33263,7 +33183,8 @@ window.PEAK_STAFF = function () {
     };
     const tipText = SCHOOL_TIPS && SCHOOL_TIPS[routeKey] || 'Manage ' + navItem.label.toLowerCase() + ' across your school.';
     const studs = window.PEAK && window.PEAK.students || [];
-    const boarders = studs.filter(s => s.is_boarding === true || (s.stream || '').toLowerCase().includes('boarding') || ['ssekidde saifuh', 'nabbumba fann', 'ikanga obadia', 'mpindi ruth', 'mpinda danabell', 'asiimwe brendah', 'kabite tranella', 'nakamoga queen', 'mulindwa josh', 'waswa joe', 'sekiremba jonah', 'ssekabira oscar', 'ikanga joyce', 'nakimbugwe ketra', 'nakato annet favour', 'nakalema patricia', 'mulindwa jash', 'kitiibwa shantel', 'alinaitwe elijah', 'mulungi patricia', 'mulindwa joel', 'palumba ednar'].includes((s.name || '').toLowerCase()));
+    const boarders = studs.filter(s => s.is_boarding === true || s.meta && s.meta.boarding === true || (s.stream || '').toLowerCase().includes('boarding')); // audit C7/D1: no hardcoded pupil names
+
     return /*#__PURE__*/React.createElement("div", {
       style: {
         minHeight: '100%',
@@ -33336,13 +33257,13 @@ window.PEAK_STAFF = function () {
         color: T.ink,
         marginTop: 4
       }
-    }, boarders.length || 22), /*#__PURE__*/React.createElement("div", {
+    }, boarders.length), /*#__PURE__*/React.createElement("div", {
       style: {
         fontSize: 12,
-        color: T.good,
+        color: T.ink3,
         marginTop: 4
       }
-    }, "All dormitories assigned")), /*#__PURE__*/React.createElement("div", {
+    }, boarders.length ? 'Pupils marked as boarders' : 'No pupils marked as boarders yet')), /*#__PURE__*/React.createElement("div", {
       style: {
         background: T.surface,
         border: '1px solid ' + T.border,
@@ -33359,16 +33280,16 @@ window.PEAK_STAFF = function () {
       style: {
         fontSize: 32,
         fontWeight: 700,
-        color: T.good,
+        color: T.ink3,
         marginTop: 4
       }
-    }, "100%"), /*#__PURE__*/React.createElement("div", {
+    }, "\u2014"), /*#__PURE__*/React.createElement("div", {
       style: {
         fontSize: 12,
         color: T.ink3,
         marginTop: 4
       }
-    }, "Checked in by Matron")), /*#__PURE__*/React.createElement("div", {
+    }, "Night roll-call not recorded yet")), /*#__PURE__*/React.createElement("div", {
       style: {
         background: T.surface,
         border: '1px solid ' + T.border,
@@ -33388,13 +33309,13 @@ window.PEAK_STAFF = function () {
         color: T.warn,
         marginTop: 4
       }
-    }, "UGX ", (boarders.reduce((a, s) => a + (s.balance || 0), 0) || 7200000).toLocaleString()), /*#__PURE__*/React.createElement("div", {
+    }, "UGX ", boarders.reduce((a, s) => a + (s.balance || 0), 0).toLocaleString()), /*#__PURE__*/React.createElement("div", {
       style: {
         fontSize: 12,
         color: T.ink3,
         marginTop: 4
       }
-    }, "500,000 UGX term fee"))), /*#__PURE__*/React.createElement("div", {
+    }, "Outstanding across boarders"))), /*#__PURE__*/React.createElement("div", {
       style: {
         background: T.surface,
         border: '1px solid ' + T.border,

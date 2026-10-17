@@ -1,0 +1,23 @@
+kabs_lily_all_students.csv
+kabs_lily_boarding_students.csv
+kabs_lily_fees.csv
+kabs_lily_fees_clean.csv
+kabs_lily_teachers.csv
+teacher-logins-kabs-lily-junior-school-and-kindercare-centre (1) (1).csv
+supabase-MASTER-CLEAN-KABS-LILY.sql
+supabase-clean-deduplicate-kabs-lily.sql
+supabase-import-fees-kabs-lily.sql
+supabase-import-teachers-kabs-lily.sql
+supabase-kabs-lily-seed.sql
+supabase-seed-12-teachers-pdf.sql
+supabase-seed-kabs-lily-fees-ledger.sql
+supabase-seed-kabs-lily-fees-table.sql
+cloudflare-worker/supabase-kabslily-authoritative-reimport.sql
+cloudflare-worker/supabase-kabslily-class-assignments.sql
+sentinel/data/sentinel.db
+sentinel/data/sentinel.db-wal
+sentinel/data/test-preflight.db
+WhatsApp Image 2026-07-22 at 13.22.44.jpeg
+WhatsApp Image 2026-07-22 at 13.22.47.jpeg
+WhatsApp Image 2026-07-22 at 13.22.48.jpeg
+WhatsApp Image 2026-07-22 at 13.22.50.jpeg

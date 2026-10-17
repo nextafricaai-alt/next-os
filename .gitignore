@@ -45,3 +45,24 @@ scratch/
 .dev.vars*
 !.dev.vars.example
 !.env.example
+
+# ─── Personal data — never commit (audit C7) ─────────────────────────
+# Real pupil/staff/fee exports, login lists and seed SQL built from them.
+# Keep them in C:\Users\PC\Desktop\patrick\next-os-PRIVATE-DATA (outside the repo).
+kabs_lily_*.csv
+*kabs*lily*.csv
+teacher-logins-*.csv
+*.NEW-PASSWORDS.csv
+*students*.csv
+*fees*.csv
+*teachers*.csv
+supabase-*kabs*lily*.sql
+*kabslily*.sql
+supabase-seed-12-teachers-pdf.sql
+WhatsApp Image *.jpeg
+WhatsApp Image *.jpg
+sentinel/data/*.db
+sentinel/data/*.db-wal
+sentinel/data/*.db-shm
+sentinel/data/.fuse_hidden*
+private-data/

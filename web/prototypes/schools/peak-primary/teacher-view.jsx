@@ -90,8 +90,8 @@
     if (!teacher) {
       teacher = {
         id: 9999,
-        full_name: name || (email ? email.split('@')[0] : 'Ayuto Esther'),
-        email: email || 'ayuto.esther@kabslily.ug',
+        full_name: name || (email ? email.split('@')[0] : 'Teacher'),
+        email: email || '',
         subjects: ['Science', 'Mathematics'],
         status: 'active',
         merit_points: 0

@@ -59,20 +59,10 @@
     return dt.getHours() > 7 || (dt.getHours() === 7 && dt.getMinutes() > 15);
   };
 
-  const KABS_STAFF_ROSTER = [
-    { id: 't1', full_name: 'Tr. Harriet (Ule Harriet)', phone: '0701647582', classAssigned: 'Primary One (P.1)', subjects: ['Luganda', 'LIT 1'], salary: 300000 },
-    { id: 't2', full_name: 'Tr. Christine (Ikubu Christine)', phone: '0771791911', classAssigned: 'Primary Two (P.2)', subjects: ['English', 'LIT 2'], salary: 380000 },
-    { id: 't3', full_name: 'Tr. Jane (Nalukenge Jane)', phone: '0750845160', classAssigned: 'Primary Three (P.3)', subjects: ['Religious Education', 'Math'], salary: 350000 },
-    { id: 't4', full_name: 'Tr. Elijah (Elijja Weiswa)', phone: '—', classAssigned: 'Primary Four (P.4)', subjects: ['Math'], salary: 300000 },
-    { id: 't5', full_name: 'Tr. Esther (Ayuto Esther)', phone: '0778787509', classAssigned: 'Primary Five (P.5)', subjects: ['SST', 'Science'], salary: 330000 },
-    { id: 't6', full_name: 'Tr. Ronnie (Ssemakula Ronnie)', phone: '0754972846 / 0788241295', classAssigned: 'Primary Six (P.6)', subjects: ['Science', 'Math'], salary: 350000 },
-    { id: 't7', full_name: 'Tr. Paul (Paul Ongaria)', phone: '0780742619', classAssigned: 'Primary Seven (P.7)', subjects: ['English', 'Religious Education'], salary: 330000 },
-    { id: 't8', full_name: 'Tr. Sam (Bunya Samuel)', phone: '0772555001', classAssigned: 'Primary Seven (P.7)', subjects: ['SST', 'Religious Education'], salary: 350000 },
-    { id: 't9', full_name: 'Tr. Joyce (Joyce Kabali)', phone: '0782204110 / 0705185361', classAssigned: 'Primary Three & Four (P.3 & P.4)', subjects: ['English', 'LIT 2'], salary: 320000 },
-    { id: 't10', full_name: 'Tr. Jus', phone: '0770001122', classAssigned: 'Baby Class', subjects: ['Learning Area 1 & 4'], salary: 280000 },
-    { id: 't11', full_name: 'Tr. Jemie (Jemima)', phone: '0700002233', classAssigned: 'Middle Class', subjects: ['Learning Area 1 & 4'], salary: 280000 },
-    { id: 't12', full_name: 'Tr. Mayira', phone: '0750003344', classAssigned: 'Top Class', subjects: ['Learning Area 2 & 5'], salary: 290000 },
-  ];
+  // Audit C7: this used to hold Kabs Lily teachers' real names, phone numbers and
+  // salaries, shipped to every visitor of every school. Staff now come only from
+  // the database; with none, the screen shows its empty state.
+  const KABS_STAFF_ROSTER = [];
 
   async function loadStaffData(tenantId) {
     const sb = window.NextSession?.sb;
