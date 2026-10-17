@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - '.github/workflows/deploy-hostinger.yml'
+      - 'tools/smoke-test.mjs'
       - 'web/**'
       - 'NEXT OS.html'
       - 'client-form.html'
@@ -22,6 +23,26 @@ jobs:
     steps:
       - name: Check out the repo
         uses: actions/checkout@v4
+
+      # ── School app checks (audit Phase 1) ──────────────────────────────
+      # Build index.built.html + compiled/ from index.html here, so the live
+      # site can never run an out-of-date build, then open every screen in a
+      # real browser. If anything throws, the deploy stops here.
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Build the school app
+        run: node web/prototypes/schools/peak-primary/build-precompiled.cjs
+
+      - name: Install the test browser
+        run: |
+          npm i --no-save --no-package-lock --omit=dev --ignore-scripts playwright@1.48.2
+          npx playwright install --with-deps chromium
+
+      - name: Smoke test (every screen, head / teacher / driver / parent)
+        run: node tools/smoke-test.mjs
 
       - name: Assemble site files
         run: |

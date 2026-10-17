@@ -1,4 +1,5 @@
-import React from 'react';
+// React and ReactDOM are page globals (UMD). No import lines: these files are
+// loaded as plain classic scripts (precompiled by build-precompiled.cjs).
 (function () {
   const T = {
     bg: '#0a1029', surface: '#141e3c', surface2: '#1a2548',

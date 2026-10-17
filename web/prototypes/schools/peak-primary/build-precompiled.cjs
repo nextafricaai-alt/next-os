@@ -35,15 +35,47 @@ const Babel = require('../../../vendor/babel.min.js');
 const fs = require('fs');
 const path = require('path');
 
+const crypto = require('crypto');
+
 const SRC = path.join(__dirname, 'index.html');
 const OUT = path.join(__dirname, 'index.built.html');
+// External <script type="text/babel" src="..."> files are compiled too
+// (audit B1). Before, they were relabelled text/javascript and shipped as
+// raw JSX, so the browser threw "Unexpected token '<'" / "Cannot use import
+// statement" and those screens never loaded. Compiled copies go here:
+const COMPILED_DIR = path.join(__dirname, 'compiled');
+const URL_PREFIX = '/prototypes/schools/peak-primary/';
+
+// Babel's JSX transform for one source; import lines for the React globals
+// are dropped (classic scripts have React/ReactDOM on window).
+function compileJsx(code, label) {
+  const cleaned = code.replace(/^\s*import\s+\w+\s+from\s+['"]react(-dom(\/client)?)?['"];?\s*$/mg, '');
+  if (/^\s*(import|export)\s/m.test(cleaned)) throw new Error(label + ' still has an import/export line; classic scripts cannot use them.');
+  return Babel.transform(cleaned, { presets: ['react'], compact: false, filename: label }).code;
+}
+
+// <script type="text/babel" src="X" ...></script> → compiled/X.js?v=hash
+function compileExternal(attrs) {
+  const srcM = attrs.match(/\ssrc="([^"]+)"/);
+  const url = srcM[1].split('?')[0];
+  if (url.indexOf(URL_PREFIX) !== 0) return { drop: 'not a local file: ' + url };
+  const file = path.join(__dirname, url.slice(URL_PREFIX.length));
+  if (!fs.existsSync(file)) return { drop: 'file not found: ' + url };
+  const js = compileJsx(fs.readFileSync(file, 'utf8'), path.basename(file));
+  const name = path.basename(file).replace(/\.jsx?$/, '') + '.js';
+  fs.mkdirSync(COMPILED_DIR, { recursive: true });
+  fs.writeFileSync(path.join(COMPILED_DIR, name), js);
+  const hash = crypto.createHash('sha1').update(js).digest('hex').slice(0, 10);
+  const newAttrs = attrs.replace(srcM[0], ' src="' + URL_PREFIX + 'compiled/' + name + '?v=' + hash + '"');
+  return { tag: '<script type="text/javascript"' + newAttrs + '></script>', name };
+}
 
 function build() {
   const html = fs.readFileSync(SRC, 'utf8');
   const re = /<script type="text\/babel"([^>]*)>([\s\S]*?)<\/script>/g;
   let out = '';
   let lastIndex = 0;
-  let m, count = 0, errors = 0;
+  let m, count = 0, errors = 0; const externals = [];
   const t0 = Date.now();
 
   while ((m = re.exec(html))) {
@@ -51,6 +83,20 @@ function build() {
     out += html.slice(lastIndex, m.index);
     const attrs = m[1];
     const src = m[2];
+    if (/\ssrc="/.test(attrs)) {
+      try {
+        const r = compileExternal(attrs);
+        if (r.drop) { console.warn('Dropped external script (' + r.drop + ')'); out += '<!-- removed by build: ' + r.drop.replace(/--/g, '') + ' -->'; }
+        else { out += r.tag; externals.push(r.name); }
+      } catch (e) {
+        errors++;
+        console.error('External script FAILED to compile:', e.message);
+        process.exitCode = 1;
+        out += '<script type="text/babel"' + attrs + '>' + src + '</script>';
+      }
+      lastIndex = re.lastIndex;
+      continue;
+    }
     let transformed;
     try {
       transformed = Babel.transform(src, { presets: ['react'], compact: false }).code;
@@ -72,6 +118,7 @@ function build() {
 
   const ms = Date.now() - t0;
   console.log('Precompiled ' + count + ' script block(s) in ' + ms + 'ms, ' + errors + ' error(s).');
+  if (externals.length) console.log('Compiled ' + externals.length + ' external file(s) into compiled/: ' + externals.join(', '));
   console.log((html.length / 1024).toFixed(0) + 'KB source -> ' + (out.length / 1024).toFixed(0) + 'KB built -> ' + path.relative(process.cwd(), OUT));
   if (errors > 0) {
     console.error('Build had errors — do not deploy index.built.html until these are fixed.');

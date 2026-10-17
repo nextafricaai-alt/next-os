@@ -1,5 +1,5 @@
-import React from 'react';
-import ReactDOM from 'react-dom/client';
+// React and ReactDOM are page globals (UMD). No import lines: these files are
+// loaded as plain classic scripts (precompiled by build-precompiled.cjs).
 (function (global) {
   const { useState, useEffect } = React;
 

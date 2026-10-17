@@ -493,15 +493,11 @@
   })();
   </script>
 
-  <!-- Nia Memory Engine — must load before React components -->
-  <script src="../../../../nia-memory.js"></script>
 
   <!-- School Brand Engine & Extracted Timetable -->
   <script src="/prototypes/schools/peak-primary/school-brand.js"></script>
-  <script src="/prototypes/schools/peak-primary/kabs-lily-timetable-data.js"></script>
 
   <!-- Transport Telemetry & Boarding Engines -->
-  <script src="/prototypes/schools/peak-primary/transport-telemetry.js"></script>
   <script src="/prototypes/schools/peak-primary/school-boarding-engine.js"></script>
 
   <!-- Leaflet Map Library for Live Transport Tracking -->
@@ -522,7 +518,6 @@
   <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js" crossorigin="anonymous" async></script>
 
   <!-- School Document, Boarding & Brand Admin Components + Nia Design Studio -->
-  <script type="text/babel" src="../../../../nia-design-studio.jsx" onerror="console.warn('Optional component failed to load: nia-design-studio.jsx')"></script>
   <script type="text/babel" src="/prototypes/schools/peak-primary/school-document-header.jsx" onerror="console.warn('Optional component failed to load: school-document-header.jsx')"></script>
   <script type="text/babel" src="/prototypes/schools/peak-primary/school-report-card.jsx" onerror="console.warn('Optional component failed to load: school-report-card.jsx')"></script>
   <script type="text/babel" src="/prototypes/schools/peak-primary/school-fee-statement.jsx" onerror="console.warn('Optional component failed to load: school-fee-statement.jsx')"></script>
@@ -8414,7 +8409,7 @@ window.PEAK_SCREENS = (function () {
         layers.current = window.L.layerGroup().addTo(map.current);
         if (onPick) map.current.on('click', e => onPick([+e.latlng.lat.toFixed(6), +e.latlng.lng.toFixed(6)]));
         setTimeout(() => map.current && map.current.invalidateSize(), 200);
-        return () => { try { map.current.remove(); } catch (e) {} map.current = null; };
+        return () => { try { map.current.stop(); map.current.off(); map.current.remove(); } catch (e) {} map.current = null; };
       }, []);
       React.useEffect(() => {
         if (!map.current) return;
@@ -8438,9 +8433,10 @@ window.PEAK_SCREENS = (function () {
       React.useEffect(() => {
         if (!map.current) return;
         const pts = ptsRef.current;
-        if (pick) map.current.setView(pick, Math.max(map.current.getZoom(), 16));
-        else if (pts.length > 1) map.current.fitBounds(pts, { padding: [30, 30], maxZoom: 16 });
-        else if (pts.length === 1) map.current.setView(pts[0], 15);
+        // No animation: a dialog can close (and remove the map) mid-zoom.
+        if (pick) map.current.setView(pick, Math.max(map.current.getZoom(), 16), { animate: false });
+        else if (pts.length > 1) map.current.fitBounds(pts, { padding: [30, 30], maxZoom: 16, animate: false });
+        else if (pts.length === 1) map.current.setView(pts[0], 15, { animate: false });
       }, [fitKey, pick && pick.join()]);
       return (
         <div style={{ position: 'relative', height, borderRadius: 12, overflow: 'hidden', border: '1px solid ' + T.border }}>
@@ -8976,7 +8972,12 @@ window.PEAK_SCREENS = (function () {
 
   </script>
   <script type="text/babel" data-src="src/peak-forms.jsx">
-import React, { useState, useEffect, useRef, useMemo, useCallback, useContext, useReducer } from 'react';
+// Classic script (audit B1): this block used ES import/export, so the browser
+// refused to run it and every form (enrol student, add teacher, record
+// payment, receipts, imports, assignments) was missing. Same code, now
+// exposed as window.PEAK_FORMS like the other blocks.
+window.PEAK_FORMS = (function () {
+const { useState, useEffect, useRef, useMemo, useCallback, useContext, useReducer } = React;
 
 const T = window.V4.T;
   const D = window.PEAK || window.PEAK_FALLBACK;
@@ -9087,14 +9088,39 @@ const T = window.V4.T;
     const [balance, setBalance] = useState('0');
     const [errors, setErrors] = useState({});
 
-    const submit = () => {
+    const [saving, setSaving] = useState(false);
+    const submit = async () => {
+      if (saving) return;
       const errs = {};
       if (!name.trim()) errs.name = 'Name is required';
       if (!guardian.trim()) errs.guardian = 'Guardian name is required';
       if (!phone.trim()) errs.phone = 'Phone is required';
       if (Object.keys(errs).length) { setErrors(errs); return; }
       const bal = feesStatus === 'paid' ? 0 : Number(balance.replace(/[^0-9]/g, '')) || 0;
+      // Save to the database first (audit B1/D7): this form used to change
+      // only this browser's memory, so a "new" pupil vanished on refresh.
+      const sess = window.NextSession || {};
+      const sb = sess.sb; const tenantId = sess.profile && sess.profile.tenantId;
+      if (!sb || !tenantId) { window.peakToast('Not signed in — pupil was NOT saved', 'error'); return; }
+      setSaving(true);
+      const dobDate = dob ? new Date(dob) : null;
+      const row = {
+        tenant_id: tenantId, name: name.trim(), stream, guardian_name: guardian.trim(), guardian_phone: phone.trim(),
+        status: 'active', date_of_birth: dobDate && !isNaN(dobDate) ? dobDate.toISOString().slice(0, 10) : null,
+        is_boarding: residenceType === 'boarding',
+        meta: { boarding: residenceType === 'boarding', combination: combination || null, uses_van: !!usesVan },
+      };
+      let res = await sb.from('students').insert(row).select('id').single();
+      if (res.error && /is_boarding/.test(res.error.message || '')) { delete row.is_boarding; res = await sb.from('students').insert(row).select('id').single(); }
+      if (res.error) { setSaving(false); window.peakToast('Pupil could NOT be saved', 'error', res.error.message); return; }
+      const newId = res.data && res.data.id;
+      if (bal > 0 && newId) {
+        const fe = await sb.from('fees').insert({ tenant_id: tenantId, student_id: newId, kind: 'charge', amount: bal, notes: 'Opening balance at enrolment' });
+        if (fe.error) window.peakToast('Pupil saved, but the opening balance was not', 'error', fe.error.message);
+      }
+      setSaving(false);
       store.addStudent({
+        id: newId,
         name: name.trim(),
         stream,
         residenceType,
@@ -9105,7 +9131,7 @@ const T = window.V4.T;
         balance: bal,
         dob: dob || null,
       });
-      window.peakToast(name.trim() + ' added to ' + stream + ' (' + (residenceType === 'boarding' ? 'Boarder 🌙' : 'Day ☀️') + ')', 'success', 'Guardian ' + guardian + ' will receive a welcome WhatsApp.');
+      window.peakToast(name.trim() + ' enrolled in ' + stream + ' (' + (residenceType === 'boarding' ? 'Boarder 🌙' : 'Day ☀️') + ')', 'success', 'Saved to the school records.');
       window.peakModal.close();
       // Uses the school van → open Transport with this pupil ready for a pickup pin (C9).
       if (usesVan && residenceType !== 'boarding' && window.peakNav) {
@@ -9119,7 +9145,7 @@ const T = window.V4.T;
         <ModalHeader
           eyebrow="Add new student · Term 2"
           title="Enrol a new student"
-          subtitle="Guardian gets an automatic welcome WhatsApp + parent-portal login."
+          subtitle="Saved to the school records. The guardian's phone number is what they use to sign in to the parent portal."
         />
         <div style={{ padding: '12px 26px', background: 'rgba(0,252,143,0.1)', borderBottom: '1px solid rgba(0,252,143,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
           <span style={{ fontSize: '12.5px', color: '#00FC8F', fontWeight: '600' }}>📄 Send parent full 3-page Kabs Lily Enrollment Form?</span>
@@ -9180,11 +9206,11 @@ const T = window.V4.T;
           fontSize: 12, color: T.ink3,
         }}>
           <span style={{ width: 22, height: 22, borderRadius: 6, background: T.redSft, color: T.redInk, display: 'grid', placeItems: 'center', fontFamily: T.mono, fontSize: 11, fontWeight: 700 }}>AI</span>
-          <span>NEXT will auto-create a parent portal login and queue a welcome WhatsApp in English + Luganda.</span>
+          <span>The parent signs in to the parent portal with this phone number — no separate account needed.</span>
         </div>
         <ModalFooter>
           <SecondaryButton onClick={() => window.peakModal.close()}>Cancel</SecondaryButton>
-          <PrimaryButton onClick={submit}>Enrol student →</PrimaryButton>
+          <PrimaryButton onClick={submit}>{saving ? 'Saving…' : 'Enrol student →'}</PrimaryButton>
         </ModalFooter>
       </div>
     );
@@ -9203,21 +9229,32 @@ const T = window.V4.T;
       setStreams(cur => cur.includes(id) ? cur.filter(x => x !== id) : [...cur, id]);
     };
 
-    const submit = () => {
+    const [saving, setSaving] = useState(false);
+    const submit = async () => {
+      if (saving) return;
       const errs = {};
       if (!name.trim()) errs.name = 'Name is required';
       if (!role.trim()) errs.role = 'Role is required';
       if (!phone.trim()) errs.phone = 'Phone is required';
       if (Object.keys(errs).length) { setErrors(errs); return; }
       const subj = subjects.split(',').map(s => s.trim()).filter(Boolean);
+      // Save to the database first (audit B1): this used to change only local memory.
+      const sess = window.NextSession || {};
+      const sb = sess.sb; const tenantId = sess.profile && sess.profile.tenantId;
+      if (!sb || !tenantId) { window.peakToast('Not signed in — teacher was NOT saved', 'error'); return; }
+      setSaving(true);
+      const res = await sb.from('teachers').insert({ tenant_id: tenantId, full_name: name.trim(), phone: phone.trim(), subjects: subj.length ? subj : ['General'], status: 'active' }).select('id').single();
+      setSaving(false);
+      if (res.error) { window.peakToast('Teacher could NOT be saved', 'error', res.error.message); return; }
       store.addTeacher({
+        id: res.data && res.data.id,
         name: name.trim(),
         role: role.trim(),
         subjects: subj.length ? subj : ['General'],
         streams,
         phone: phone.trim(),
       });
-      window.peakToast(name.trim() + ' added to staff', 'success', 'Teacher dashboard login will be sent to ' + phone);
+      window.peakToast(name.trim() + ' added to staff', 'success', 'To give them a sign-in, create their account with this name and their email.');
       window.peakModal.close();
     };
 
@@ -9226,7 +9263,7 @@ const T = window.V4.T;
         <ModalHeader
           eyebrow="Add new teacher · staff"
           title="Add a teacher"
-          subtitle="Teacher will get login access to the classroom dashboard."
+          subtitle="Saved to the staff list. Their sign-in account is created separately."
         />
         <div style={{ padding: '12px 26px', background: 'rgba(59,130,246,0.1)', borderBottom: '1px solid rgba(59,130,246,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
           <span style={{ fontSize: '12.5px', color: '#3B82F6', fontWeight: '600' }}>💼 Send 2-page Digital HR & Payroll Form to staff/teacher?</span>
@@ -9737,7 +9774,8 @@ const T = window.V4.T;
     );
   }
 
-export { AddStudent, AddTeacher, RecordPayment, Confirm, ReceiptResult, Receipts, ImportStudents, FeesImport, NewAssignment };
+return { AddStudent, AddTeacher, RecordPayment, Confirm, ReceiptResult, Receipts, ImportStudents, FeesImport, NewAssignment };
+})();
 </script>
   <script type="text/babel">
 /* PEAK_EXAMS — exam marks entry, Ugandan grading, ranks, reports, fee-gate */
@@ -13705,7 +13743,8 @@ window.PEAK_STAFF = (function () {
       subscribe(fn) { listeners.add(fn); return () => listeners.delete(fn); },
       // mutations
       addStudent(s) {
-        const id = (D.students[D.students.length - 1].id || 0) + 1;
+        const id = s.id != null ? s.id : 'new-' + Date.now();
+        D.students = D.students || [];
         D.students.unshift({
           id, lastSeen: 'just added', flag: null, attendanceWk: 100,
           balance: s.fees === 'paid' ? 0 : s.balance || 0,
@@ -13716,8 +13755,9 @@ window.PEAK_STAFF = (function () {
         return id;
       },
       addTeacher(t) {
-        const id = 't' + (D.teachers.length + 1);
-        D.teachers.unshift({ id, joined: '2026', ...t });
+        D.teachers = D.teachers || [];
+        const id = t.id != null ? t.id : 't' + (D.teachers.length + 1);
+        D.teachers.unshift({ joined: String(new Date().getFullYear()), ...t, id });
         D.kpis.teachers = (D.kpis.teachers || 0) + 1;
         notify();
         return id;
@@ -15089,16 +15129,18 @@ window.PEAK_STAFF = (function () {
     useEffect(() => {
       const sb = window.NextSession?.sb;
       if (!sb) return;
-      const tenant = (window.PEAK_ROLE && window.PEAK_ROLE.getProfile && window.PEAK_ROLE.getProfile().tenantId) || 'peak-primary';
-      
-      const sub = sb.channel('admin_notifications')
+      const tenant = window.PEAK_ROLE && window.PEAK_ROLE.getProfile && window.PEAK_ROLE.getProfile().tenantId;
+      if (!tenant) return;
+      // Unique name per mount (audit B4): reusing 'admin_notifications' made
+      // supabase hand back the already-subscribed channel and throw.
+      const sub = sb.channel('admin-notifications-' + tenant + '-' + Math.random().toString(36).slice(2))
         .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'teacher_logs', filter: 'tenant_id=eq.' + tenant }, payload => {
           const row = payload.new;
-          window.peakToast && window.peakToast('New Teacher Suggestion', 'info', 'From ' + (row.teacher_name || 'Teacher') + ': ' + row.message.substring(0, 40) + '...');
+          window.peakToast && window.peakToast('New Teacher Suggestion', 'info', 'From ' + (row.teacher_name || 'Teacher') + ': ' + String(row.message || '').substring(0, 40) + '...');
         })
         .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'student_health_records', filter: 'tenant_id=eq.' + tenant }, payload => {
           const row = payload.new;
-          window.peakToast && window.peakToast('New Health Note Logged', 'warn', 'Category: ' + row.category + ' - ' + row.description.substring(0, 40) + '...');
+          window.peakToast && window.peakToast('New Health Note Logged', 'warn', 'Category: ' + (row.category || 'general') + ' - ' + String(row.description || '').substring(0, 40) + '...');
         })
         .subscribe();
       
