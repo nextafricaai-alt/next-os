@@ -3,6 +3,8 @@ main = "sentinel-worker.js"
 account_id = "b5aecdced030bf84d0a1fb6dcec80e09"
 compatibility_date = "2026-07-30"
 compatibility_flags = ["nodejs_compat"]
+# Do not delete dashboard-set vars/secrets on deploy (from sentinel-wrangler.toml).
+keep_vars = true
 
 # This file exists specifically so `wrangler deploy` run from inside
 # cloudflare-worker/ deploys THIS script as a Workers script — without it,
@@ -53,3 +55,19 @@ binding = "AI"
 [vars]
 AUTH_MODE = "warn"
 PLATFORM_ADMINS = "hudson.tim.uk@gmail.com,patrickemma143@gmail.com"
+
+# Merged in from sentinel-wrangler.toml (17 Oct 2026) so ONE config carries
+# everything this Worker needs. Deploy with: npx wrangler deploy --config wrangler.toml
+[triggers]
+# Times are UTC. Uganda is UTC+3, so subtract 3 hours from the local time.
+crons = [
+  "30 3 * * *",        # Morning brief: 6:30 AM EAT (Mon-Sun)
+  "0 6,9,12 * * 1-5",  # Pulse checks: 9am, noon, 3pm EAT, Mon-Fri
+  "*/5 5-12 * * 1-5",  # School-hours watcher: lesson reminders + no-show check, Mon-Fri
+  "*/30 * * * *",      # System health heartbeat: every 30 min, 24/7
+  "0 15 * * 5",        # Weekly wrap: Friday 6pm EAT
+]
+
+[[kv_namespaces]]
+binding = "BRIEFS_KV"
+id = "268488c90a1c4aabaf8e37b1d8922b73"
