@@ -47,16 +47,35 @@ const iEmail = header.findIndex(h => h === 'email' || h.includes('email'));
 const iName = header.findIndex(h => h === 'name' || h.includes('name'));
 if (iEmail < 0) { console.error('No "Email" column found in ' + csvPath); process.exit(1); }
 
-const H = { apikey: KEY, Authorization: 'Bearer ' + KEY, 'Content-Type': 'application/json' };
+// Legacy service_role keys are JWTs (eyJ...) and go in both headers. The newer
+// sb_secret_... keys must go in the apikey header only.
+const H = { apikey: KEY, 'Content-Type': 'application/json' };
+if (KEY.startsWith('eyJ')) H.Authorization = 'Bearer ' + KEY;
+if (KEY.startsWith('sb_publishable_') || /"role"\s*:\s*"anon"/.test(Buffer.from((KEY.split('.')[1] || ''), 'base64').toString())) {
+  console.error('That is the PUBLIC (anon/publishable) key. Use the secret one: Supabase → Project Settings → API Keys → secret / service_role.');
+  process.exit(1);
+}
+// Check the key can actually use the admin API before doing anything.
+{
+  const t = await fetch(URL_ + '/auth/v1/admin/users?page=1&per_page=1', { headers: H });
+  if (!t.ok) {
+    console.error('Supabase refused the key (HTTP ' + t.status + '): ' + (await t.text()).slice(0, 200));
+    console.error('Use the secret / service_role key from Supabase → Project Settings → API Keys.');
+    process.exit(1);
+  }
+  const j = await t.json();
+  console.log('Key OK. Auth users in project: ' + (j.total != null ? j.total : '(count not given)'));
+}
 async function authIdFor(email) {
   // 1) our users table (fast, exact)
   const r = await fetch(URL_ + '/rest/v1/users?select=auth_id&email=ilike.' + encodeURIComponent(email), { headers: H });
-  const d = r.ok ? await r.json() : [];
+  if (!r.ok) throw new Error('users lookup failed HTTP ' + r.status + ': ' + (await r.text()).slice(0, 120));
+  const d = await r.json();
   if (d && d[0] && d[0].auth_id) return d[0].auth_id;
   // 2) page through auth users and match exactly
   for (let page = 1; page <= 50; page++) {
     const a = await fetch(URL_ + '/auth/v1/admin/users?page=' + page + '&per_page=200', { headers: H });
-    if (!a.ok) break;
+    if (!a.ok) throw new Error('auth user list failed HTTP ' + a.status + ': ' + (await a.text()).slice(0, 120));
     const j = await a.json(); const list = (j && j.users) || [];
     const hit = list.find(u => String(u.email || '').toLowerCase() === email);
     if (hit) return hit.id;
