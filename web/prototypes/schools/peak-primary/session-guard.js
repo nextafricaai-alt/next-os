@@ -23,6 +23,12 @@
      ready      → Promise resolving to the verified profile
      signOut()  → signs out and returns to this school's sign-in page
      refresh()  → re-checks the account with the server
+     offline    → true while the app runs from this phone's last verified
+                  sign-in because there is no connection (Phase 2). No school
+                  data is available offline; every request still needs the
+                  server, which checks the real sign-in. Back online, the
+                  account is verified again and a bad session is sent to
+                  the sign-in page.
 */
 (function () {
   var SUPABASE_URL = 'https://llxhvqkkgftqwefmrofn.supabase.co';
@@ -168,18 +174,74 @@
     },
   };
 
+  // ─── Offline mode (Phase 2) ─────────────────────────────────────────
+  var offlineBar = null;
+  function showOfflineBar(on) {
+    try {
+      if (on && !offlineBar) {
+        offlineBar = document.createElement('div');
+        offlineBar.id = 'nx-offline-bar';
+        offlineBar.setAttribute('role', 'status');
+        offlineBar.style.cssText = 'position:fixed;left:0;right:0;bottom:0;z-index:2147483646;padding:8px 14px;background:#7c2d12;color:#fff;font:600 12.5px Inter,system-ui,sans-serif;text-align:center;';
+        offlineBar.textContent = 'You are offline. Roll calls and notes are saved on this phone and will sync when you are back online.';
+        document.body.appendChild(offlineBar);
+      } else if (!on && offlineBar) { offlineBar.remove(); offlineBar = null; }
+    } catch (e) {}
+  }
+  function isNetworkError(err) {
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) return true;
+    var m = String((err && (err.message || err)) || '');
+    return /fetch|network|load failed|timed? ?out/i.test(m) && !(err && (err.status === 401 || err.status === 403));
+  }
+  function enterOffline(session) {
+    // Only with a sign-in this phone verified before, for this school.
+    if (!cached || !session) return false;
+    var slug = appSlug();
+    if (slug && cached.tenantId !== slug) return false;
+    window.NextSession.profile = cached;
+    window.NextSession.verified = true;
+    window.NextSession.offline = true;
+    hideCover();
+    showOfflineBar(true);
+    resolveReady(cached);
+    var recheck = function () {
+      window.removeEventListener('online', recheck);
+      sb.auth.getUser().then(function (u) {
+        if (u && u.data && u.data.user && !u.error) {
+          window.NextSession.offline = false; showOfflineBar(false);
+          window.NextSession.refresh().then(function (p) { if (!p || !sameProfile(cached, p)) window.location.reload(); });
+        } else if (u && u.error && (u.error.status === 401 || u.error.status === 403)) {
+          try { sb.auth.signOut(); } catch (e) {} goLogin(cached && cached.tenantId);
+        } else { window.addEventListener('online', recheck); }
+      }, function () { window.addEventListener('online', recheck); });
+    };
+    window.addEventListener('online', recheck);
+    return true;
+  }
+
   // ─── Verify on every load ───────────────────────────────────────────
   (async function verify() {
     var timedOut = false;
     var timer = setTimeout(function () {
       timedOut = true;
-      showCover('Still checking your sign-in. Your connection may be slow.', true);
+      if (window.NextSession.verified) return;
+      sb.auth.getSession().then(function (s3) {
+        var sess = s3 && s3.data && s3.data.session;
+        if (!(navigator.onLine === false && enterOffline(sess))) showCover('Still checking your sign-in. Your connection may be slow.', true);
+      }, function () { showCover('Still checking your sign-in. Your connection may be slow.', true); });
     }, VERIFY_TIMEOUT_MS);
 
     try {
       var s = await sb.auth.getSession();
       var session = s && s.data && s.data.session;
-      if (!session) { clearTimeout(timer); goLogin(cached && cached.tenantId); return; }
+      if (!session) {
+        clearTimeout(timer);
+        // Offline with an expired token: the refresh needs the network, so
+        // fall back to the stored sign-in for offline mode only.
+        var stored = null; try { stored = localStorage.getItem('sb-llxhvqkkgftqwefmrofn-auth-token'); } catch (e) {}
+        if (navigator.onLine === false && stored && enterOffline({ stored: true })) return;
+        goLogin(cached && cached.tenantId); return;
+      }
 
       // getUser() validates the token with the server (getSession only reads local storage).
       var u = await sb.auth.getUser();
@@ -190,7 +252,7 @@
         if (status === 401 || status === 403 || (u.data && !u.data.user && !u.error)) {
           try { await sb.auth.signOut(); } catch (e) {}
           goLogin(cached && cached.tenantId);
-        } else {
+        } else if (!(isNetworkError(u.error) && enterOffline(session))) {
           showCover('Could not reach the server to confirm your sign-in.', true);
         }
         return;
@@ -236,7 +298,8 @@
     } catch (e) {
       clearTimeout(timer);
       console.error('[session-guard] verification failed:', e);
-      showCover('Could not confirm your sign-in. Check your connection and try again.', true);
+      var sess = null; try { var s2 = await sb.auth.getSession(); sess = s2 && s2.data && s2.data.session; } catch (x) {}
+      if (!(isNetworkError(e) && enterOffline(sess))) showCover('Could not confirm your sign-in. Check your connection and try again.', true);
     }
   })();
 })();

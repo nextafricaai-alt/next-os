@@ -1,0 +1,6 @@
+{
+  "name": "nextos-sentinel",
+  "private": true,
+  "type": "module",
+  "description": "NEXT OS Worker. Deploy: npx wrangler deploy --config wrangler.toml   Test: node tests/run.mjs"
+}

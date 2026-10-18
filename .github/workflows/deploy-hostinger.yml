@@ -6,6 +6,7 @@ on:
     paths:
       - '.github/workflows/deploy-hostinger.yml'
       - 'tools/smoke-test.mjs'
+      - 'web/prototypes/schools/peak-primary/app/**'
       - 'web/**'
       - 'NEXT OS.html'
       - 'client-form.html'
@@ -33,13 +34,13 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Build the school app
-        run: node web/prototypes/schools/peak-primary/build-precompiled.cjs
-
-      - name: Install the test browser
+      - name: Install build + test tools
         run: |
-          npm i --no-save --no-package-lock --omit=dev --ignore-scripts playwright@1.48.2
+          npm i --no-save --no-package-lock --omit=dev --ignore-scripts playwright@1.48.2 terser@5.51.2
           npx playwright install --with-deps chromium
+
+      - name: Build the school app (compile + minify)
+        run: node web/prototypes/schools/peak-primary/build-precompiled.cjs
 
       - name: Smoke test (every screen, head / teacher / driver / parent)
         run: node tools/smoke-test.mjs

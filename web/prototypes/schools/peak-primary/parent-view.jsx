@@ -123,6 +123,7 @@
     feeRows.forEach(f => {
       const amt = Number(f.amount || 0);
       if (f.kind === 'charge') charged += amt;
+      else if (f.kind === 'discount') charged -= Math.abs(amt); // bursary / discount (audit P4)
       else if (f.kind === 'payment') paid += Math.abs(amt);
     });
     return { totalTuition: charged, paidTuition: paid, balance: Math.max(0, charged - paid) };

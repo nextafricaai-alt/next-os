@@ -1,0 +1,9 @@
+OFF  anonymous read faces        403 Face recognition is switched off. It needs written parental consent for every enrolled child before it can be turned on.
+OFF  head reads faces            403 Face recognition is switched off. It needs written parental consent for every enrolled child before it can be turned on.
+OFF  head saves face             403 Face recognition is switched off. It needs written parental consent for every enrolled child before it can be turned on.
+OFF  head reads cameras (other)  200 records=1  [DB read]
+ON   anonymous read faces        401 Not signed in.
+ON   teacher reads faces         403 Only the head teacher can access face data.
+ON   head reads faces            200 records=1  [DB read]
+ON   operator reads faces        200 records=1  [DB read]
+ON   teacher saves face          403 Only the head teacher can access face data.

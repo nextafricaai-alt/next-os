@@ -36,6 +36,23 @@ const fs = require('fs');
 const path = require('path');
 
 const crypto = require('crypto');
+// Optional minifier (Phase 2). GitHub installs terser before building; on a
+// machine without it the build still works, just without minifying.
+let terser = null;
+try { terser = require('terser'); } catch (e) {
+  try { terser = require(require('path').join(process.cwd(), 'node_modules', 'terser')); } catch (e2) { terser = null; }
+}
+let bytesIn = 0, bytesOut = 0;
+function minify(js, label) {
+  bytesIn += js.length;
+  if (!terser || !terser.minify_sync) { bytesOut += js.length; return js; }
+  // toplevel:false keeps every top-level name — the app's files share
+  // globals with each other, so only names inside functions are shortened.
+  const r = terser.minify_sync(js, { ecma: 2018, compress: { passes: 1 }, mangle: { toplevel: false }, format: { comments: false } });
+  if (!r || typeof r.code !== 'string') throw new Error('minify failed: ' + label);
+  bytesOut += r.code.length;
+  return r.code;
+}
 
 const SRC = path.join(__dirname, 'index.html');
 const OUT = path.join(__dirname, 'index.built.html');
@@ -61,7 +78,7 @@ function compileExternal(attrs) {
   if (url.indexOf(URL_PREFIX) !== 0) return { drop: 'not a local file: ' + url };
   const file = path.join(__dirname, url.slice(URL_PREFIX.length));
   if (!fs.existsSync(file)) return { drop: 'file not found: ' + url };
-  const js = compileJsx(fs.readFileSync(file, 'utf8'), path.basename(file));
+  const js = minify(compileJsx(fs.readFileSync(file, 'utf8'), path.basename(file)), path.basename(file));
   const name = path.basename(file).replace(/\.jsx?$/, '') + '.js';
   fs.mkdirSync(COMPILED_DIR, { recursive: true });
   fs.writeFileSync(path.join(COMPILED_DIR, name), js);
@@ -119,6 +136,7 @@ function build() {
   const ms = Date.now() - t0;
   console.log('Precompiled ' + count + ' script block(s) in ' + ms + 'ms, ' + errors + ' error(s).');
   if (externals.length) console.log('Compiled ' + externals.length + ' external file(s) into compiled/: ' + externals.join(', '));
+  console.log(terser ? ('Minified app code: ' + (bytesIn / 1024).toFixed(0) + 'KB -> ' + (bytesOut / 1024).toFixed(0) + 'KB') : 'Not minified (terser not installed — fine for local builds).');
   console.log((html.length / 1024).toFixed(0) + 'KB source -> ' + (out.length / 1024).toFixed(0) + 'KB built -> ' + path.relative(process.cwd(), OUT));
   if (errors > 0) {
     console.error('Build had errors — do not deploy index.built.html until these are fixed.');

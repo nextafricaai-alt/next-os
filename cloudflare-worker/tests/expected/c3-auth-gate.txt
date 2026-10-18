@@ -1,0 +1,36 @@
+
+=== AUTH_MODE=warn
+200  no token → students list                 
+200  forged token                             
+200  other school head reads KL pupils        
+200  KL teacher reads KL pupils               
+200  KL teacher deletes finance               DELETE /school_finance?id=eq.5&tenant_id=eq.kabs-lily-junior-school-and-kindercare-centre
+200  KL head deletes finance                  DELETE /school_finance?id=eq.5&tenant_id=eq.kabs-lily-junior-school-and-kindercare-centre
+200  KL bursar records expense                POST /school_finance
+200  anonymous WhatsApp blast                 
+200  other school rebrands KL                 PATCH /tenants?id=eq.kabs-lily-junior-school-and-kindercare-centre
+200  KL teacher edits own exam                PATCH /exams?id=eq.9&tenant_id=eq.kabs-lily-junior-school-and-kindercare-centre
+200  operator reads NEXT os-data              
+200  school head reads NEXT os-data           
+200  teacher deletes os record (scoped)       DELETE /os_records?id=eq.abc&tenant=eq.kabs-lily-junior-school-and-kindercare-centre
+200  public brand (not gated)                 
+
+=== AUTH_MODE=enforce
+401  no token → students list                 
+401  forged token                             
+403  other school head reads KL pupils        
+200  KL teacher reads KL pupils               
+403  KL teacher deletes finance               
+200  KL head deletes finance                  DELETE /school_finance?id=eq.5&tenant_id=eq.kabs-lily-junior-school-and-kindercare-centre
+200  KL bursar records expense                POST /school_finance
+401  anonymous WhatsApp blast                 
+403  other school rebrands KL                 
+200  KL teacher edits own exam                PATCH /exams?id=eq.9&tenant_id=eq.kabs-lily-junior-school-and-kindercare-centre
+200  operator reads NEXT os-data              
+403  school head reads NEXT os-data           
+200  teacher deletes os record (scoped)       DELETE /os_records?id=eq.abc&tenant=eq.kabs-lily-junior-school-and-kindercare-centre
+200  public brand (not gated)                 
+
+log sample: [auth-gate] WOULD BLOCK GET /students — Not signed in.
+[auth-gate] WOULD BLOCK GET /students — Sign-in expired. Please sign in again.
+[auth-gate] WOULD BLOCK GET /students — You do not belong to this school. {"email":"head@peak.ug","tenant":"kabs-lily-junior-school-and-kindercare-centre"}

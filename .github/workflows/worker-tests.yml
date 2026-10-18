@@ -1,0 +1,26 @@
+name: Worker tests
+
+# Runs the NEXT Worker's tests (sign-in gate, admin gate, face data, parent
+# sign-in, transport, one-time fee payment) on every change to the Worker.
+# The Worker itself is still deployed by hand:
+#   cd cloudflare-worker && npx wrangler deploy --config wrangler.toml
+on:
+  push:
+    paths:
+      - 'cloudflare-worker/**'
+      - '.github/workflows/worker-tests.yml'
+  pull_request:
+    paths:
+      - 'cloudflare-worker/**'
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Run Worker tests
+        run: node cloudflare-worker/tests/run.mjs

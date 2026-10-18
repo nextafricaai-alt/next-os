@@ -1,0 +1,2 @@
+3 at once, unique index, no KV          payments recorded=1 receipts=1 balance_after=300000 student_id=11
+3 at once, unique index + KV            payments recorded=1 receipts=1 balance_after=300000 student_id=11

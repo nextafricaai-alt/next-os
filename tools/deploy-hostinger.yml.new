@@ -1,0 +1,70 @@
+name: Deploy site to Hostinger (FTPS)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/deploy-hostinger.yml'
+      - 'tools/smoke-test.mjs'
+      - 'web/prototypes/schools/peak-primary/app/**'
+      - 'web/**'
+      - 'NEXT OS.html'
+      - 'client-form.html'
+      - 'discovery/discovery.html'
+      - 'os-data.jsx'
+      - 'os-notify.jsx'
+      - 'os-comms.jsx'
+      - 'os-childcare.jsx'
+      - 'school-onboarding.html'
+  workflow_dispatch:
+
+jobs:
+  ftps-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v4
+
+      # ── School app checks (audit Phase 1) ──────────────────────────────
+      # Build index.built.html + compiled/ from index.html here, so the live
+      # site can never run an out-of-date build, then open every screen in a
+      # real browser. If anything throws, the deploy stops here.
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install build + test tools
+        run: |
+          npm i --no-save --no-package-lock --omit=dev --ignore-scripts playwright@1.48.2 terser@5.51.2
+          npx playwright install --with-deps chromium
+
+      - name: Build the school app (compile + minify)
+        run: node web/prototypes/schools/peak-primary/build-precompiled.cjs
+
+      - name: Smoke test (every screen, head / teacher / driver / parent)
+        run: node tools/smoke-test.mjs
+
+      - name: Assemble site files
+        run: |
+          mkdir -p deploy-site
+          cp -a web/. deploy-site/
+          cp -- 'NEXT OS.html' client-form.html os-data.jsx os-notify.jsx os-comms.jsx os-childcare.jsx school-onboarding.html deploy-site/
+          mkdir -p deploy-site/discovery
+          cp -- discovery/discovery.html deploy-site/discovery/discovery.html
+
+      - name: Upload web/ to Hostinger via FTPS
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server:   ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          protocol: ftps
+          port: 21
+          local-dir: ./deploy-site/
+          server-dir: ${{ secrets.FTP_DIR }}
+          dangerous-clean-slate: false
+          exclude: |
+            **/.git*
+            **/.git*/**
+            **/node_modules/**

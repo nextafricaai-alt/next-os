@@ -1,0 +1,22 @@
+live: signed out                            401 Not signed in.
+live: head of another school                403 You do not belong to this school.
+live: head                                  200  kids=Kato@pin/0772123456,Mary@stop/0701 key=gkey
+live: driver 1 (own van only)               200  kids=Kato vans=["van-01"]
+ping: driver 1 as van 2                     403 This van is not assigned to you.
+ping: teacher                               403 Your role cannot do this.
+ping: driver 1 own van                      200  pos=[["van-01",2.4]]
+trip start pickup                           200  trip=100
+mark: driver 1 marks van-2 child            403 This child is not on your van.
+mark: driver 1 own child on board           200 
+mark: bad status                            400 id and a valid status required
+trip end (18.5 km, 12 L/100, diesel)        200  litres=2.22 cost=UGX 14874 notified=1 kid=arrived
+add child: driver                           403 Your role cannot do this.
+add child: pupil of other school            404 Pupil not found at this school.
+add child: head moves Mary to van 1 w/ pin  200  moved=true
+van save (new)                              200  id=van-03 email=d3@kl.ug
+van delete with children                    409 Move or remove the children on this van first.
+settings save                               200  [0.36,6650,6850]
+settings save: driver                       403 Your role cannot do this.
+trips: driver 2 (sees none of van 1)        200  n=0
+trips: head                                 200  [["van-01",18.5,14874]]
+parent pushes attempted: on_board+arrived logic ran (no VAPID in test)

@@ -1,0 +1,26 @@
+send: no channel configured                   503 Phone sign-in is not switched on for this school yet. Please contact the school office.
+send: bad phone                               400 Enter a valid phone number, e.g. 0772 123 456.
+send: unknown number (same reply, no SMS)     200 If this number is registered with the school, a 6-digit code is on its way.  sms=0
+send: registered number                       200 If this number is registered with the school, a 6-digit code is on its way.  sms=1 to +256772123456
+  SMS text: CODE is your Kabs Lily parent code. It expires in 10 minutes. Do not share it with anyone.
+verify: wrong code                            400 Wrong code. 4 tries left.
+verify: right code                            200   children=[11,12]
+verify: code reused                           400 That code has expired. Ask for a new one.
+children with pass                            200   [11,12]
+children forged pass                          401 Please sign in again.
+child-data: no pass                           401 Please sign in.
+child-data: own child                         200 
+child-data: other child same school           403 This pupil is not linked to your phone number.
+child-data: other school same phone           403 This pupil is not linked to your phone number.
+child-data: teacher sign-in                   200 
+search-child (old)                            410 Parents now sign in with their phone number. Please reload the page.
+messages/list parent own                      200 
+messages/list parent other                    403 This pupil is not linked to your phone number.
+messages/send parent own                      200 [object Object]  saved={"t":"kl","r":"parent"}
+messages/send anon pretending parent          401 Parents must sign in with their phone number to send messages.
+push/subscribe parent                         200   saved=[11] tenant=kl
+push/subscribe anon parent                    401 Parents must sign in with their phone number to turn on alerts.
+fees/lookup partial name                      200  matches=0
+fees/lookup full name (reversed)              200  [{"id":11,"name":"Kato John","stream":"P3"}]
+fees/checkout other-school id                 404 Pupil not found at this school.
+send: 4th code in 15 min                      429 Too many codes sent to this number. Try again in 15 minutes.

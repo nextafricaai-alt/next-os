@@ -1,0 +1,17 @@
+old default PIN 1379, no GATE_PIN set       401 Sign in to NEXT OS as a platform operator to do this.
+operator, new school                        200 ok  [POST /tenants, POST /school_config, CREATE-AUTH-USER, POST /users]
+operator, EXISTING school (takeover try)    409 A school with the ID "kabs-lily" already exists (Kabs Lily). Choose a different name or slug.
+school head token, provision                401 Sign in to NEXT OS as a platform operator to do this.
+reset-login, old PIN 1379                   401 Sign in to NEXT OS as a platform operator to do this.
+reset-login, school head token              401 Sign in to NEXT OS as a platform operator to do this.
+reset-login, operator                       200 ok  [RESET-PASSWORD]
+warn + GATE_PIN set, correct PIN            200 ok  [POST /tenants, POST /school_config, CREATE-AUTH-USER, POST /users]
+wrong PIN attempt 1                         401 Invalid admin PIN
+wrong PIN attempt 2                         401 Invalid admin PIN
+wrong PIN attempt 3                         401 Invalid admin PIN
+wrong PIN attempt 4                         401 Invalid admin PIN
+wrong PIN attempt 5                         401 Invalid admin PIN
+wrong PIN attempt 6                         429 Too many wrong PIN attempts. Try again in 15 minutes.
+correct PIN after lockout (same IP)         429 Too many wrong PIN attempts. Try again in 15 minutes.
+enforce mode, correct PIN only              401 Sign in to NEXT OS as a platform operator to do this.
+provision-business, PIN 1379                401 Sign in to NEXT OS as a platform operator to do this.
