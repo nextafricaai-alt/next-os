@@ -54,7 +54,16 @@
   // frozen snapshot taken when this script first evaluates could capture the
   // stale fallback and never update — call this fresh wherever streams are
   // needed (both the header row and the data cells) so both always agree.
-  function getTimetableStreams() { var c = (window.SCHOOL_CONFIG && window.SCHOOL_CONFIG.classes) || []; return (c && c.length) ? c : ['P1V','P1P','P2V','P2P','P3V','P3P','P4V','P4P','P5V','P5P','P6V','P6P','P7V','P7P']; }
+  // Columns = the school's own classes: School Setup's class list, else every
+  // stream that has a timetable slot or a pupil. (No hard-coded stream names.)
+  var __ttWeekStreams = [];
+  function getTimetableStreams() {
+    var c = (window.SCHOOL_CONFIG && window.SCHOOL_CONFIG.classes) || [];
+    if (c && c.length) return c;
+    var seen = {}, out = [];
+    __ttWeekStreams.concat(((window.PEAK && window.PEAK.students) || []).map(function (x) { return x.stream; })).forEach(function (st) { st = String(st || '').trim(); if (st && !seen[st]) { seen[st] = 1; out.push(st); } });
+    return out.sort(function (a, b) { return a.localeCompare(b, undefined, { numeric: true }); });
+  }
 
   async function loadTimetable(tenantId, dowOverride) {
     const sb = window.NextSession?.sb;
@@ -70,10 +79,21 @@
       .eq('day_of_week', dow)
       .order('period', { ascending: true });
 
-    const { data: teachers } = await sb
+    const tRes = await sb
       .from('teachers')
-      .select('id, full_name')
-      .eq('tenant_id', tenantId);
+      .select('*')
+      .eq('tenant_id', tenantId)
+      .order('full_name', { ascending: true });
+    const teachers = (tRes.data || []).filter(t => t.status !== 'left');
+
+    // Whole week, for the allocation check and clash detection.
+    const { data: week } = await sb
+      .from('timetable_slots')
+      .select('id, day_of_week, period, stream, subject, teacher_id')
+      .eq('tenant_id', tenantId)
+      .order('id', { ascending: true })
+      .range(0, 4999);
+    __ttWeekStreams = Array.from(new Set((week || []).map(x => x.stream)));
 
     // Today's check-ins (latest per teacher)
     const { data: checkins } = await sb
@@ -91,7 +111,8 @@
 
     return {
       slots: slots || [],
-      teachers: teachers || [],
+      week: week || [],
+      teachers: teachers,
       checkins: checkins || [],
       rollCalls: rollCalls || [],
     };
@@ -149,6 +170,84 @@
 
   const DOW_LABELS = [null, 'Mon', 'Tue', 'Wed', 'Thu', 'Fri']; // index 1..5
 
+  // ─── Allocation check: is every lesson covered, fairly, without clashes? ──
+  function AllocationCheck({ data, onPickDay }) {
+    const [open, setOpen] = useState(false);
+    const week = data.week || [];
+    const teachers = data.teachers || [];
+    const a = useMemo(() => {
+      const byId = {}; teachers.forEach(t => { byId[t.id] = t; });
+      const load = {}; teachers.forEach(t => { load[t.id] = { t, n: 0, classes: new Set(), subjects: new Set() }; });
+      const orphan = []; const clashKey = {};
+      week.forEach(s => {
+        if (!s.teacher_id) return;
+        if (!byId[s.teacher_id]) { orphan.push(s); return; }
+        const L = load[s.teacher_id]; L.n++; L.classes.add(s.stream); if (s.subject) L.subjects.add(s.subject);
+        const k = s.teacher_id + '|' + s.day_of_week + '|' + s.period;
+        (clashKey[k] = clashKey[k] || []).push(s);
+      });
+      const clashes = Object.keys(clashKey).filter(k => clashKey[k].length > 1).map(k => clashKey[k]);
+      const rows = Object.values(load).sort((x, y) => y.n - x.n);
+      const assigned = week.filter(s => s.teacher_id && byId[s.teacher_id]).length;
+      const loads = rows.filter(r => r.n > 0).map(r => r.n);
+      const avg = loads.length ? loads.reduce((p, q) => p + q, 0) / loads.length : 0;
+      return { rows, clashes, orphan, assigned, unassigned: week.length - assigned, idle: rows.filter(r => r.n === 0), avg };
+    }, [week, teachers]);
+    if (data.loading && !week.length) return null;
+    const ok = !a.clashes.length && !a.orphan.length && !a.unassigned && !a.idle.length && week.length > 0;
+    const pill = (n, label, bad) => <span style={{ fontSize: 12, padding: '4px 10px', borderRadius: 999, border: '1px solid ' + (bad && n ? 'rgba(255,71,87,0.5)' : T.borderStr), color: bad && n ? '#FF4757' : T.ink2 }}><b>{n}</b> {label}</span>;
+    return (
+      <div style={{ border: '1px solid ' + (ok ? 'rgba(0,252,143,0.35)' : T.borderStr), borderRadius: 12, padding: '14px 16px', marginBottom: 20, background: T.surface || 'transparent' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <div style={{ fontWeight: 700, fontSize: 14, marginRight: 6 }}>{week.length === 0 ? 'No timetable yet' : ok ? '✓ Every lesson has a teacher, no clashes' : 'Allocation check'}</div>
+          {pill(week.length, 'lessons a week')}
+          {pill(a.unassigned, 'without a teacher', true)}
+          {pill(a.clashes.length, 'clashes', true)}
+          {pill(a.idle.length, 'teachers with no lessons', true)}
+          {a.orphan.length > 0 && pill(a.orphan.length, 'lessons with a removed teacher', true)}
+          <div style={{ flex: 1 }} />
+          {week.length > 0 && <button onClick={() => setOpen(!open)} style={{ background: 'transparent', border: '1px solid ' + T.borderStr, color: T.ink2, borderRadius: 8, padding: '6px 12px', fontSize: 12, cursor: 'pointer', fontFamily: T.font }}>{open ? 'Hide details' : 'Show details'}</button>}
+        </div>
+        {open && (
+          <div style={{ marginTop: 14, fontSize: 12.5 }}>
+            {a.clashes.length > 0 && (
+              <div style={{ marginBottom: 14 }}>
+                <div style={{ fontWeight: 700, color: '#FF4757', marginBottom: 6 }}>Clashes — one teacher, two classes, same period</div>
+                {a.clashes.map((c, i) => (
+                  <div key={i} style={{ padding: '4px 0', color: T.ink2 }}>
+                    <b>{(a.rows.find(r => r.t.id === c[0].teacher_id) || { t: {} }).t.full_name}</b> · <button onClick={() => onPickDay(c[0].day_of_week)} style={{ background: 'none', border: 'none', color: T.green, cursor: 'pointer', padding: 0, fontSize: 12.5 }}>{DOW_LABELS[c[0].day_of_week]}</button> period {c[0].period}: {c.map(x => x.stream + ' (' + x.subject + ')').join(' and ')}
+                  </div>
+                ))}
+              </div>
+            )}
+            {a.unassigned > 0 && (
+              <div style={{ marginBottom: 14 }}>
+                <div style={{ fontWeight: 700, marginBottom: 6 }}>Lessons without a teacher, by day</div>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  {[1, 2, 3, 4, 5].map(d => { const n = week.filter(s => s.day_of_week === d && !(s.teacher_id && a.rows.some(r => r.t.id === s.teacher_id))).length; return n ? <button key={d} onClick={() => onPickDay(d)} style={{ background: 'transparent', border: '1px solid ' + T.borderStr, color: T.ink2, borderRadius: 8, padding: '4px 10px', fontSize: 12, cursor: 'pointer' }}>{DOW_LABELS[d]}: {n}</button> : null; })}
+                </div>
+              </div>
+            )}
+            <div style={{ fontWeight: 700, marginBottom: 6 }}>Lessons per teacher this week{a.avg ? ' (average ' + Math.round(a.avg) + ')' : ''}</div>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 460 }}>
+                <thead><tr style={{ color: T.ink3, fontSize: 10.5, fontFamily: T.mono, textAlign: 'left' }}><th style={{ padding: '6px 8px' }}>TEACHER</th><th style={{ padding: '6px 8px' }}>LESSONS</th><th style={{ padding: '6px 8px' }}>CLASSES</th><th style={{ padding: '6px 8px' }}>SUBJECTS</th></tr></thead>
+                <tbody>{a.rows.map(r => (
+                  <tr key={r.t.id} style={{ borderTop: '1px solid ' + T.border }}>
+                    <td style={{ padding: '6px 8px', fontWeight: 600 }}>{r.t.full_name}</td>
+                    <td style={{ padding: '6px 8px', color: r.n === 0 ? '#FF4757' : (a.avg && r.n > a.avg * 1.5 ? '#FFB400' : T.ink) }}>{r.n}{a.avg && r.n > a.avg * 1.5 ? ' · heavy' : r.n === 0 ? ' · none' : ''}</td>
+                    <td style={{ padding: '6px 8px', color: T.ink2 }}>{Array.from(r.classes).sort().join(', ') || '—'}</td>
+                    <td style={{ padding: '6px 8px', color: T.ink2 }}>{Array.from(r.subjects).sort().join(', ') || '—'}</td>
+                  </tr>
+                ))}</tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   function HeadTimetablePanel() {
     const profile = window.PEAK_ROLE ? window.PEAK_ROLE.getProfile() : { tenantId: 'peak-primary' };
     const [data, setData] = useState({ loading: true });
@@ -181,6 +280,17 @@
       if (!sb) return;
       setSaving(true);
       try {
+        // One teacher can't be in two classes in the same period.
+        if (editSlot.teacher_id) {
+          let q = sb.from('timetable_slots').select('id, stream').eq('tenant_id', profile.tenantId).eq('day_of_week', selDow).eq('period', editSlot.period).eq('teacher_id', editSlot.teacher_id);
+          if (editSlot.id) q = q.neq('id', editSlot.id);
+          const { data: clash } = await q;
+          if (clash && clash.length) {
+            const nm = (ctx.teacherById && ctx.teacherById[editSlot.teacher_id]) || 'This teacher';
+            window.peakToast && window.peakToast('Timetable clash', 'error', nm + ' already teaches ' + clash.map(c => c.stream).join(', ') + ' in period ' + editSlot.period + ' on ' + DOW_LABELS[selDow] + '. Free that slot first.');
+            setSaving(false); return;
+          }
+        }
         if (editSlot.id) {
           // Editing an existing slot — update subject + teacher.
           const { error } = await sb
@@ -314,6 +424,8 @@
             );
           })}
         </div>
+
+        <AllocationCheck data={data} onPickDay={setSelDow} />
 
         {/* Legend + stats */}
         <div style={{
