@@ -138,9 +138,30 @@
              placeholder="••••••••" />
 
       <button id="submit" type="submit">Sign in</button>
-      <div class="hint">Forgot password? Contact your school administrator.</div>
+      <div class="hint"><a href="#" id="nx-forgot" style="color:inherit">Forgot password?</a> We’ll email you a reset link, or ask your head teacher for a new temporary password.</div>
 
       <div id="error" class="error" style="display:none;"></div>
+    </form>
+
+    <!-- Forgot password (audit P1) -->
+    <form id="forgot-form" style="display:none" autocomplete="on">
+      <p class="sub" style="margin-top:0">Enter your sign-in email. If it has an account, we’ll send a link to choose a new password.</p>
+      <label for="forgot-email">EMAIL</label>
+      <input id="forgot-email" type="email" required autocomplete="username" placeholder="you@yourschool.ac.ug" />
+      <button id="forgot-submit" type="submit">Send reset link</button>
+      <div class="hint"><a href="#" id="nx-forgot-back" style="color:inherit">← Back to sign in</a></div>
+      <div id="forgot-msg" class="error" style="display:none;"></div>
+    </form>
+
+    <!-- New password after the email link (audit P1) -->
+    <form id="recover-form" style="display:none" autocomplete="off">
+      <p class="sub" style="margin-top:0">Choose a new password — at least 8 characters.</p>
+      <label for="recover-pw1">NEW PASSWORD</label>
+      <input id="recover-pw1" type="password" required autocomplete="new-password" />
+      <label for="recover-pw2">TYPE IT AGAIN</label>
+      <input id="recover-pw2" type="password" required autocomplete="new-password" />
+      <button id="recover-submit" type="submit">Save and sign in</button>
+      <div id="recover-msg" class="error" style="display:none;"></div>
     </form>
 
     <a id="nx-parent-link" href="/prototypes/schools/peak-primary/parent-dashboard.html" style="display:block;margin-top:16px;padding:12px;border-radius:11px;border:1px solid rgba(255,255,255,0.12);color:#d7dcf0;text-align:center;font-weight:600;font-size:13.5px;text-decoration:none;">👪 Parent? Sign in with your phone number</a>
@@ -220,10 +241,11 @@
       // 1. Normal path: the users row created when the account was provisioned.
       const { data: rows } = await sb
         .from('users')
-        .select('tenant_id, role, full_name')
+        .select('*')
         .eq('auth_id', user.id)
         .limit(1);
       const row = rows && rows[0];
+      if (row && row.active === false) return { inactive: true }; // switched off by the head teacher (P1)
       if (row && row.tenant_id && VALID_ROLES.includes(String(row.role || '').toLowerCase())) {
         return { email: authEmail, fullName: row.full_name || authEmail, role: String(row.role).toLowerCase(), tenantId: row.tenant_id };
       }
@@ -245,6 +267,7 @@
 
     function goToApp(profile) {
       localStorage.setItem('nextos.profile', JSON.stringify(profile));
+      try { localStorage.setItem('nextos.lastActive', String(Date.now())); } catch (e) {}  // fresh sign-in restarts the idle clock
       try { localStorage.setItem('nextos.lastTenant', profile.tenantId); } catch (e) {}
       if (profile.role === 'driver') {
         window.location.href = '/prototypes/schools/peak-primary/driver-dashboard.html';
@@ -254,14 +277,18 @@
       }
     }
 
+    // Arrived from a password-reset email: show "choose a new password", not the app.
+    const RECOVERY = /type=recovery/.test(location.hash) || /type=recovery/.test(location.search);
+
     // Already signed in? Re-check the account with the server before skipping the form.
     (async () => {
+      if (RECOVERY) return;
       try {
         const { data: { session } } = await sb.auth.getSession();
         if (!session) { localStorage.removeItem('nextos.profile'); return; }
         const profile = await resolveProfile(session.user);
         const want = pageSchool();
-        if (profile && (!want || profile.tenantId === want)) { goToApp(profile); return; }
+        if (profile && !profile.inactive && (!want || profile.tenantId === want)) { goToApp(profile); return; }
         // Signed in to a different school, or account not linked: sign out and show the form.
         await sb.auth.signOut();
         localStorage.removeItem('nextos.profile');
@@ -295,12 +322,17 @@
       try {
         // 1. Sign in. Any error stops here — no exceptions for any email.
         const { data: authData, error: authErr } = await sb.auth.signInWithPassword({ email, password });
+        if (authErr && /banned/i.test(authErr.message || '')) throw new Error('Your login has been switched off. Ask your head teacher if this is a mistake.');
         if (authErr || !authData || !authData.user || !authData.session) {
           throw new Error('Wrong email or password.');
         }
 
         // 2. Who is this account, according to the server?
         const profile = await resolveProfile(authData.user);
+        if (profile && profile.inactive) {
+          await sb.auth.signOut();
+          throw new Error('Your login has been switched off. Ask your head teacher if this is a mistake.');
+        }
         if (!profile) {
           await sb.auth.signOut();
           throw new Error('Your account is not linked to a school yet. Ask your head teacher to add you.');
@@ -312,6 +344,47 @@
         btn.disabled = false; btn.textContent = 'Sign in';
       }
     });
+
+    // ─── Forgot password / reset link (audit P1) ─────────────────────
+    (function () {
+      const loginF = document.getElementById('login-form'), forgotF = document.getElementById('forgot-form'), recoverF = document.getElementById('recover-form');
+      const show = (f) => { [loginF, forgotF, recoverF].forEach(x => { x.style.display = x === f ? 'block' : 'none'; }); };
+      const msg = (id, t, good) => { const el = document.getElementById(id); el.textContent = t; el.style.display = t ? 'block' : 'none'; el.style.color = good ? '#7ee2b8' : ''; el.style.background = good ? 'rgba(0,252,143,0.08)' : ''; el.style.borderColor = good ? 'rgba(0,252,143,0.35)' : ''; };
+      try { const note = sessionStorage.getItem('nextos.loginNote'); if (note) { sessionStorage.removeItem('nextos.loginNote'); showError(note); } } catch (e) {}
+      document.getElementById('nx-forgot').addEventListener('click', (e) => { e.preventDefault(); document.getElementById('forgot-email').value = document.getElementById('email').value; show(forgotF); });
+      document.getElementById('nx-forgot-back').addEventListener('click', (e) => { e.preventDefault(); show(loginF); });
+      forgotF.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const b = document.getElementById('forgot-submit'); b.disabled = true; b.textContent = 'Sending…';
+        const email = document.getElementById('forgot-email').value.trim().toLowerCase();
+        const school = pageSchool();
+        const back = location.origin + (school ? '/school/' + encodeURIComponent(school) + '/login' : location.pathname);
+        try { await sb.auth.resetPasswordForEmail(email, { redirectTo: back }); } catch (x) {}
+        // Same answer whether or not the email exists (don't reveal who has an account).
+        msg('forgot-msg', 'If ' + email + ' has an account, a reset link is on its way. Check spam too. No email? Ask your head teacher for a temporary password.', true);
+        b.disabled = false; b.textContent = 'Send reset link';
+      });
+      if (RECOVERY) {
+        show(recoverF);
+        recoverF.addEventListener('submit', async (e) => {
+          e.preventDefault();
+          const a = document.getElementById('recover-pw1').value, c = document.getElementById('recover-pw2').value;
+          if (a.length < 8) return msg('recover-msg', 'Use at least 8 characters.');
+          if (a !== c) return msg('recover-msg', 'The two passwords are different.');
+          const b = document.getElementById('recover-submit'); b.disabled = true; b.textContent = 'Saving…'; msg('recover-msg', '');
+          // supabase-js has already turned the link into a session (detectSessionInUrl).
+          let { data: { session } } = await sb.auth.getSession();
+          if (!session) { await new Promise(r => setTimeout(r, 1200)); session = (await sb.auth.getSession()).data.session; }
+          if (!session) { b.disabled = false; b.textContent = 'Save and sign in'; return msg('recover-msg', 'This reset link has expired or was already used. Ask for a new one.'); }
+          const r = await sb.auth.updateUser({ password: a, data: { must_change_password: false } });
+          if (r.error) { b.disabled = false; b.textContent = 'Save and sign in'; return msg('recover-msg', r.error.message || 'Could not save. Try again.'); }
+          history.replaceState(null, '', location.pathname + location.search);
+          const profile = await resolveProfile(session.user);
+          if (profile && !profile.inactive) goToApp(profile);
+          else { await sb.auth.signOut(); show(loginF); showError(profile && profile.inactive ? 'Your login has been switched off. Ask your head teacher.' : 'Password saved, but your account is not linked to a school yet.'); }
+        });
+      }
+    })();
   </script>
   <script>
   (function(){

@@ -1,0 +1,25 @@
+no token: list                                401 Sign in again.
+teacher: list                                 403 Only the head teacher can manage staff logins.
+head: list other school                       403 Only the head teacher can manage staff logins.
+head: create bursar                           200 ok temp=OK
+  users row / must change                     {"role":"bursar","active":true,"must":true}
+head: same email again                        409 This email already has a login at this school.
+head: email used by another school            409 This email is already used by another school on NEXT OS. Use a different email.
+head: bad role                                400 Choose a role: admin, bursar, teacher or driver.
+admin: create admin                           403 Only the head teacher can add an admin.
+admin: create teacher (+ teachers row)        200 ok temp=OK
+  teachers rows                               2
+head: reset bursar password                   200 ok temp=OK
+admin: reset head password                    403 This is the school’s registered head teacher account.
+head: switch self off                         403 You can’t change your own account here.
+admin: switch head off                        403 This is the school’s registered head teacher account.
+admin: switch another admin off               403 Only the head teacher can change another admin.
+head: keep admin as admin (set-role)          200 ok
+head: switch teacher off                      200 ok
+  teacher banned / inactive / teachers.status {"banned":true,"active":false,"status":"left"}
+switched-off teacher tries to list            403 Only the head teacher can manage staff logins.
+head: switch teacher back on                  200 ok
+  teacher banned / active                     {"banned":false,"active":true}
+head: other school user id                    404 Account not found at this school.
+head: make teacher bursar                     200 ok
+head: list                                    head@kl.ug:head(me) admin@kl.ug:admin admin2@kl.ug:admin teach@kl.ug:bursar bursar@kl.ug:bursar(must-change) t2@kl.ug:teacher(must-change)

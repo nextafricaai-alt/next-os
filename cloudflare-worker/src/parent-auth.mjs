@@ -83,7 +83,9 @@ async function sendParentSms(env, phone, text) {
     const form = new URLSearchParams();
     form.set('username', env.AT_USERNAME); form.set('to', '+' + phone); form.set('message', text);
     if (env.AT_SENDER) form.set('from', env.AT_SENDER);
-    const r = await fetch('https://api.africastalking.com/version1/messaging', { method: 'POST', headers: { apiKey: env.AT_KEY, 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' }, body: form.toString() });
+    // 'sandbox' = Africa's Talking test app (messages show in their simulator only).
+    const atUrl = String(env.AT_USERNAME).trim() === 'sandbox' ? 'https://api.sandbox.africastalking.com/version1/messaging' : 'https://api.africastalking.com/version1/messaging';
+    const r = await fetch(atUrl, { method: 'POST', headers: { apiKey: env.AT_KEY, 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' }, body: form.toString() });
     const d = await r.json().catch(() => ({}));
     const rec = (d && d.SMSMessageData && d.SMSMessageData.Recipients) || [];
     return { ok: r.ok && rec.some(x => /Success/i.test(x.status || '')), via: 'sms', detail: (d && d.SMSMessageData && d.SMSMessageData.Message) || ('HTTP ' + r.status) };

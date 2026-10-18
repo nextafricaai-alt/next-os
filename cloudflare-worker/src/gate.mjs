@@ -61,6 +61,12 @@ const AUTH_RULES = {
   '/registrations/list': { roles: R_FINANCE, tenant: 'optional' },
   '/billing/subscriptions': { roles: R_HEAD, tenant: 'required' },
   '/billing/verify':     { roles: R_HEAD,    tenant: 'optional' },
+  // staff logins (P1) — the handlers also check the caller is an active head/admin
+  '/staff/accounts':       { roles: R_HEAD, tenant: 'required' },
+  '/staff/create':         { roles: R_HEAD, tenant: 'required' },
+  '/staff/reset-password': { roles: R_HEAD, tenant: 'required' },
+  '/staff/set-active':     { roles: R_HEAD, tenant: 'required' },
+  '/staff/set-role':       { roles: R_HEAD, tenant: 'required' },
   // writes
   '/os-data/save':       { roles: R_ANY,     tenant: 'required', dflt: 'next' },
   '/os-data/delete':     { roles: R_ANY,     tenant: 'auth' },
@@ -142,9 +148,9 @@ async function lookupCaller(token, env) {
   const user = await ur.json();
   if (!user || !user.id) return null;
   const email = String(user.email || '').toLowerCase();
-  const rows = (await sbFetch(env, '/users?auth_id=eq.' + encodeURIComponent(user.id) + '&select=tenant_id,role')) || [];
+  const rows = (await sbFetch(env, '/users?auth_id=eq.' + encodeURIComponent(user.id) + '&select=*')) || [];
   const memberships = rows
-    .filter(r => r && r.tenant_id && R_ANY.indexOf(String(r.role || '').toLowerCase()) >= 0)
+    .filter(r => r && r.tenant_id && r.active !== false && R_ANY.indexOf(String(r.role || '').toLowerCase()) >= 0)  // switched-off logins (P1) count as no one
     .map(r => ({ tenant: r.tenant_id, role: String(r.role).toLowerCase() }));
   if (email) {
     // Same fallback as verifyHead: the school's registered head email.

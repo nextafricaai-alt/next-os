@@ -1423,7 +1423,7 @@
     glyph: '⚙'
   }, {
     k: 'controls',
-    label: 'Rules & Audit',
+    label: 'Staff & Audit',
     glyph: '⌕'
   }, {
     k: 'rep',
@@ -1456,7 +1456,7 @@
     trans: "Transport - buses, routes, drivers and live status; notify parents of ETAs.",
     learn: "Learning - lesson coverage, syllabus progress and academic resources.",
     rep: "Reports - compiled summaries you can export and share with the board.",
-    controls: "Rules & audit - who changed fees, marks and attendance and when, plus the staff check-in rules (late cut-off, penalty, school gate)."
+    controls: "Staff & audit - add, reset and switch off staff logins; who changed fees, marks and attendance and when, plus the staff check-in rules (late cut-off, penalty, school gate)."
   };
   function AccountPanel() {
     const prof = window.PEAK_ROLE && window.PEAK_ROLE.getProfile && window.PEAK_ROLE.getProfile() || {};

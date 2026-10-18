@@ -2,6 +2,7 @@ import { AUTH_CTX, R_STAFF, authGate, callerTenant, isOperator, lookupCaller } f
 import { handleParentChildren, handleParentOtpSend, handleParentOtpVerify, kvBump, parentOwnsStudent, readParentToken } from './src/parent-auth.mjs';
 import { deliverPush, deliverPushByStudent, handleParentNotify, handlePushDebug, handlePushNotify, handlePushSubscribe, handlePushTest } from './src/push.mjs';
 import { sbCount, sbFetch, sbHeaders, sbWrite } from './src/supabase.mjs';
+import { staffAccounts, staffCreate, staffResetPassword, staffSetActive, staffSetRole } from './src/accounts.mjs';
 import { enc, handleTransportLive, handleTransportMark, handleTransportMarkArrived, handleTransportPing, handleTransportSetStop, handleTransportSettingsSave, handleTransportStudentRemove, handleTransportStudentSave, handleTransportTripEnd, handleTransportTripStart, handleTransportTrips, handleTransportVanDelete, handleTransportVanSave } from './src/transport.mjs';
 /**
  * NEXT OS Sentinel — Free-tier Agent Worker
@@ -327,6 +328,12 @@ export default {
     if (url.pathname === '/provision-business') {
       return handleProvisionBusiness(request, env, cors);
     }
+    // Staff logins for every role (audit P1) — head/admin only, see src/accounts.mjs
+    if (url.pathname === '/staff/accounts')       return staffAccounts(request, env, cors);
+    if (url.pathname === '/staff/create')         return staffCreate(request, env, cors);
+    if (url.pathname === '/staff/reset-password') return staffResetPassword(request, env, cors);
+    if (url.pathname === '/staff/set-active')     return staffSetActive(request, env, cors);
+    if (url.pathname === '/staff/set-role')       return staffSetRole(request, env, cors);
     if (url.pathname === '/provision-teacher') {
       return handleProvisionTeacher(request, env, cors);
     }
@@ -3256,8 +3263,8 @@ async function verifyHead(request, env, tenant) {
     const u = await ur.json();
     const email = (u && u.email) || '';
     // role check via users table
-    const rows = await sbFetch(env, '/users?auth_id=eq.' + encodeURIComponent(u.id) + '&tenant_id=eq.' + encodeURIComponent(tenant) + '&select=role');
-    if (rows && rows.length && /^(head|admin)$/i.test(rows[0].role || '')) return { ok: true, email };
+    const rows = await sbFetch(env, '/users?auth_id=eq.' + encodeURIComponent(u.id) + '&tenant_id=eq.' + encodeURIComponent(tenant) + '&select=*');
+    if (rows && rows.length && rows[0].active !== false && /^(head|admin)$/i.test(rows[0].role || '')) return { ok: true, email };
     // fallback: this email is the tenant's registered head
     const t = await sbFetch(env, '/tenants?id=eq.' + encodeURIComponent(tenant) + '&select=head_email');
     if (t && t.length && t[0].head_email && email && t[0].head_email.toLowerCase() === email.toLowerCase()) return { ok: true, email };
@@ -3317,7 +3324,7 @@ async function handleAdminResetLogin(request, env, cors) {
     if (!authId) { const ur = await fetch(env.SUPABASE_URL + '/auth/v1/admin/users?email=' + encodeURIComponent(email), { headers: { 'apikey': env.SUPABASE_KEY, 'Authorization': 'Bearer ' + env.SUPABASE_KEY } }); const uj = await ur.json().catch(() => ({})); const u = (uj && uj.users && uj.users[0]) || (Array.isArray(uj) && uj[0]); if (u && u.id) authId = u.id; }
     if (!authId) return J({ ok: false, error: 'No login found for ' + email + '. (They may never have had one.)' }, 200);
     const newPw = 'Next-' + Math.random().toString(36).slice(2, 8) + '-' + Math.floor(Math.random() * 90 + 10);
-    const r = await fetch(env.SUPABASE_URL + '/auth/v1/admin/users/' + authId, { method: 'PUT', headers: { 'apikey': env.SUPABASE_KEY, 'Authorization': 'Bearer ' + env.SUPABASE_KEY, 'Content-Type': 'application/json' }, body: JSON.stringify({ password: newPw }) });
+    const r = await fetch(env.SUPABASE_URL + '/auth/v1/admin/users/' + authId, { method: 'PUT', headers: { 'apikey': env.SUPABASE_KEY, 'Authorization': 'Bearer ' + env.SUPABASE_KEY, 'Content-Type': 'application/json' }, body: JSON.stringify({ password: newPw, user_metadata: { must_change_password: true } }) });
     if (!r.ok) { const d = await r.json().catch(() => ({})); return J({ ok: false, error: (d && (d.msg || d.error_description || d.error)) || ('reset failed ' + r.status) }, 200); }
     return J({ ok: true, email, tempPassword: newPw });
   } catch (e) { return J({ ok: false, error: String((e && e.message) || e) }, 200); }
@@ -3342,7 +3349,7 @@ async function handleResetTeacherPassword(request, env, cors) {
     }
     if (!authId) return J({ ok: false, error: 'No login found for ' + email + '.' }, 200);
     const newPw = 'Teach-' + Math.random().toString(36).slice(2, 8) + '-' + Math.floor(Math.random() * 90 + 10);
-    const r = await fetch(env.SUPABASE_URL + '/auth/v1/admin/users/' + authId, { method: 'PUT', headers: { 'apikey': env.SUPABASE_KEY, 'Authorization': 'Bearer ' + env.SUPABASE_KEY, 'Content-Type': 'application/json' }, body: JSON.stringify({ password: newPw }) });
+    const r = await fetch(env.SUPABASE_URL + '/auth/v1/admin/users/' + authId, { method: 'PUT', headers: { 'apikey': env.SUPABASE_KEY, 'Authorization': 'Bearer ' + env.SUPABASE_KEY, 'Content-Type': 'application/json' }, body: JSON.stringify({ password: newPw, user_metadata: { must_change_password: true } }) });
     if (!r.ok) { const d = await r.json().catch(() => ({})); return J({ ok: false, error: (d && (d.msg || d.error_description || d.error)) || ('reset failed ' + r.status) }, 200); }
     return J({ ok: true, email, tempPassword: newPw });
   } catch (e) { return J({ ok: false, error: String((e && e.message) || e) }, 200); }
@@ -3368,7 +3375,7 @@ async function handleProvisionTeachersBulk(request, env, cors) {
     const tempPassword = 'Teach-' + Math.random().toString(36).slice(2, 8) + '-' + Math.floor(Math.random() * 90 + 10);
     let authId = null, note = '';
     try {
-      const au = await fetch(env.SUPABASE_URL + '/auth/v1/admin/users', { method: 'POST', headers: { 'apikey': env.SUPABASE_KEY, 'Authorization': 'Bearer ' + env.SUPABASE_KEY, 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password: tempPassword, email_confirm: true, user_metadata: { full_name: fullName, tenant_id: tenant, role: 'teacher' } }) });
+      const au = await fetch(env.SUPABASE_URL + '/auth/v1/admin/users', { method: 'POST', headers: { 'apikey': env.SUPABASE_KEY, 'Authorization': 'Bearer ' + env.SUPABASE_KEY, 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password: tempPassword, email_confirm: true, user_metadata: { full_name: fullName, tenant_id: tenant, role: 'teacher', must_change_password: true } }) });
       const auj = await au.json().catch(() => ({}));
       if (au.ok && auj && auj.id) authId = auj.id; else note = (auj && (auj.msg || auj.error_description || auj.error)) || ('auth ' + au.status);
     } catch (e) { note = String((e && e.message) || e); }
@@ -3412,7 +3419,7 @@ async function handleProvisionTeacher(request, env, cors) {
       tempPassword = 'Teach-' + Math.random().toString(36).slice(2, 8) + '-' + Math.floor(Math.random() * 90 + 10);
       const au = await fetch(env.SUPABASE_URL + '/auth/v1/admin/users', {
         method: 'POST', headers: { 'apikey': env.SUPABASE_KEY, 'Authorization': 'Bearer ' + env.SUPABASE_KEY, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password: tempPassword, email_confirm: true, user_metadata: { full_name: fullName, tenant_id: tenant, role: 'teacher' } }),
+        body: JSON.stringify({ email, password: tempPassword, email_confirm: true, user_metadata: { full_name: fullName, tenant_id: tenant, role: 'teacher', must_change_password: true } }),
       });
       const auj = await au.json().catch(() => ({}));
       if (au.ok && auj && auj.id) { authId = auj.id; }

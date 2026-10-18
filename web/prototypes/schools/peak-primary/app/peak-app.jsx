@@ -722,7 +722,7 @@
     { k: 'events', label: 'Events',        glyph: '◷' },
     { k: 'comm',  label: 'Communications', glyph: '◊' },
     { k: 'setup', label: 'School Setup',   glyph: '⚙' },
-    { k: 'controls', label: 'Rules & Audit', glyph: '⌕' },
+    { k: 'controls', label: 'Staff & Audit', glyph: '⌕' },
     { k: 'rep',   label: 'Reports',        glyph: '⊜' },
     { k: 'marking', label: 'AI Marking',   glyph: '✓' },
     { k: 'exam',  label: 'Exams & Reports', glyph: '⊑' },
@@ -743,7 +743,7 @@
     trans: "Transport - buses, routes, drivers and live status; notify parents of ETAs.",
     learn: "Learning - lesson coverage, syllabus progress and academic resources.",
     rep: "Reports - compiled summaries you can export and share with the board.",
-    controls: "Rules & audit - who changed fees, marks and attendance and when, plus the staff check-in rules (late cut-off, penalty, school gate).",
+    controls: "Staff & audit - add, reset and switch off staff logins; who changed fees, marks and attendance and when, plus the staff check-in rules (late cut-off, penalty, school gate).",
   };
 
   function AccountPanel() {

@@ -121,10 +121,11 @@
   async function resolveProfile(user) {
     if (!user || !user.id) return null;
     var authEmail = String(user.email || '').toLowerCase();
-    var res = await sb.from('users').select('tenant_id, role, full_name').eq('auth_id', user.id).limit(1);
+    var res = await sb.from('users').select('*').eq('auth_id', user.id).limit(1);
     if (res.error) throw res.error; // network/server problem: do not decide "no access" on an error
     var row = res.data && res.data[0];
     var role = row && String(row.role || '').toLowerCase();
+    if (row && row.active === false) return null; // switched off by the head teacher (P1)
     if (row && row.tenant_id && VALID_ROLES.indexOf(role) >= 0) {
       return { email: authEmail, fullName: row.full_name || authEmail, role: role, tenantId: row.tenant_id };
     }
@@ -219,6 +220,60 @@
     return true;
   }
 
+  // ─── Idle sign-out (audit P1) ───────────────────────────────────────
+  // A school office computer is shared. After IDLE_MS with no tap, key or
+  // scroll on this device, the next load (or the running page) signs out.
+  var IDLE_MS = 12 * 3600 * 1000;
+  var IDLE_KEY = 'nextos.lastActive';
+  function lastActive() { try { return Number(localStorage.getItem(IDLE_KEY)) || 0; } catch (e) { return 0; } }
+  function touch() { try { localStorage.setItem(IDLE_KEY, String(Date.now())); } catch (e) {} }
+  function idleExpired() { var t = lastActive(); return t > 0 && (Date.now() - t) > IDLE_MS; }
+  function startIdleWatch(tenantHint) {
+    touch();
+    var last = 0;
+    var bump = function () { var n = Date.now(); if (n - last > 60000) { last = n; touch(); } };
+    ['pointerdown', 'keydown', 'scroll', 'touchstart'].forEach(function (ev) { window.addEventListener(ev, bump, { passive: true }); });
+    setInterval(function () {
+      if (idleExpired()) {
+        try { sessionStorage.setItem('nextos.loginNote', 'You were signed out after ' + Math.round(IDLE_MS / 3600000) + ' hours without use.'); } catch (e) {}
+        sb.auth.signOut().finally(function () { goLogin(tenantHint); });
+      }
+    }, 5 * 60000);
+  }
+
+  // ─── "Choose your own password" after a temporary one (audit P1) ────
+  function showSetPassword(profile) {
+    try {
+      var o = document.createElement('div');
+      o.id = 'nx-set-password';
+      o.style.cssText = 'position:fixed;inset:0;z-index:2147483645;background:rgba(6,8,16,.92);display:flex;align-items:center;justify-content:center;padding:16px;font:14px/1.5 Inter,system-ui,sans-serif;color:#fff;';
+      o.innerHTML = '<form style="width:100%;max-width:380px;background:#12172a;border:1px solid rgba(255,255,255,.12);border-radius:16px;padding:22px">'
+        + '<div style="font-size:18px;font-weight:700;margin-bottom:6px">Choose your own password</div>'
+        + '<div style="font-size:13px;color:#aab2d5;margin-bottom:16px">You signed in with a temporary password. Pick one only you know — at least 8 characters.</div>'
+        + '<input id="nx-np1" type="password" autocomplete="new-password" placeholder="New password" style="width:100%;box-sizing:border-box;margin-bottom:10px;padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#0b0f1d;color:#fff;font-size:15px">'
+        + '<input id="nx-np2" type="password" autocomplete="new-password" placeholder="Type it again" style="width:100%;box-sizing:border-box;margin-bottom:10px;padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#0b0f1d;color:#fff;font-size:15px">'
+        + '<div id="nx-np-err" style="color:#ff8a8a;font-size:12.5px;min-height:18px;margin-bottom:8px"></div>'
+        + '<button id="nx-np-go" type="submit" style="width:100%;padding:12px;border-radius:10px;border:0;background:#00fc8f;color:#062b18;font-weight:700;font-size:15px;cursor:pointer">Save password</button>'
+        + '<button id="nx-np-out" type="button" style="width:100%;margin-top:8px;padding:10px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:transparent;color:#aab2d5;cursor:pointer">Sign out</button>'
+        + '</form>';
+      document.body.appendChild(o);
+      var err = o.querySelector('#nx-np-err'), go = o.querySelector('#nx-np-go');
+      o.querySelector('#nx-np-out').onclick = function () { window.NextSession.signOut(); };
+      o.querySelector('form').onsubmit = async function (e) {
+        e.preventDefault();
+        var a = o.querySelector('#nx-np1').value, b = o.querySelector('#nx-np2').value;
+        if (a.length < 8) { err.textContent = 'Use at least 8 characters.'; return; }
+        if (a !== b) { err.textContent = 'The two passwords are different.'; return; }
+        if (/^(password|12345678|qwerty)/i.test(a)) { err.textContent = 'Choose something harder to guess.'; return; }
+        go.disabled = true; go.textContent = 'Saving…'; err.textContent = '';
+        var r = await sb.auth.updateUser({ password: a, data: { must_change_password: false } });
+        if (r.error) { go.disabled = false; go.textContent = 'Save password'; err.textContent = r.error.message || 'Could not save. Try again.'; return; }
+        o.remove();
+        try { window.peakToast && window.peakToast('Password saved', 'success', 'Use it next time you sign in.'); } catch (x) {}
+      };
+    } catch (e) {}
+  }
+
   // ─── Verify on every load ───────────────────────────────────────────
   (async function verify() {
     var timedOut = false;
@@ -287,10 +342,22 @@
       // (Skipped if storage is blocked, otherwise we would reload forever.)
       if (stored && !sameProfile(cached, profile)) { window.location.reload(); return; }
 
+      // Idle too long on this device (shared office computers) → sign in again (P1).
+      if (idleExpired()) {
+        try { await sb.auth.signOut(); } catch (e) {}
+        try { sessionStorage.setItem('nextos.loginNote', 'You were signed out after ' + Math.round(IDLE_MS / 3600000) + ' hours without use.'); } catch (e) {}
+        goLogin(profile.tenantId); return;
+      }
+      startIdleWatch(profile.tenantId);
+
       window.NextSession.profile = profile;
       window.NextSession.verified = true;
       hideCover();
       resolveReady(profile);
+
+      // First sign-in with a temporary password → choose your own (P1).
+      var meta = (u.data.user && u.data.user.user_metadata) || {};
+      if (meta.must_change_password) showSetPassword(profile);
 
       sb.auth.onAuthStateChange(function (event) {
         if (event === 'SIGNED_OUT') goLogin(profile.tenantId);
