@@ -1,1 +1,1004 @@
-!function(){const{useState:e,useEffect:t,useMemo:a,useCallback:n}=React,o={bg:"#0a1029",surface:"#141e3c",surface2:"#1a2548",surface3:"#212d56",border:"rgba(255,255,255,0.06)",borderStr:"rgba(255,255,255,0.10)",ink:"#f5f6fa",ink2:"rgba(245,246,250,0.85)",ink3:"rgba(245,246,250,0.55)",ink4:"rgba(245,246,250,0.40)",red:"#FF4757",green:"#00FC8F",gold:"#FFB400",blue:"#3B82F6",font:"'Inter', -apple-system, system-ui, sans-serif",mono:"'JetBrains Mono', ui-monospace, monospace",serif:"'Instrument Serif', serif"},r=e=>e?new Date(e).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}):"—",i=[];async function l(e){const t=window.NextSession?.sb,a=(new Date).toISOString().slice(0,10);if(!t)return{teachers:i,checkins:i.map((e=>({id:"c-"+e.id,teacher_id:e.id,checked_in_at:a+"T07:45:00Z",method:"qr"}))),rollCalls:[],healthRecs:[]};const{data:n}=await t.from("teachers").select("id, full_name, email, subjects, status, salary:monthly_salary, phone").eq("tenant_id",e).order("full_name",{ascending:!0}),{data:o}=await t.from("teacher_checkins").select("id, teacher_id, checked_in_at, checked_out_at, method").eq("tenant_id",e).gte("checked_in_at",a+"T00:00:00").order("checked_in_at",{ascending:!1}),{data:r}=await t.from("student_roll_call").select("id, teacher_id, stream, status").eq("tenant_id",e).eq("roll_date",a),{data:l}=await t.from("syllabus_coverage").select("id, teacher_id, stream, subject, topic, planned_week, completed_week, status").eq("tenant_id",e),{data:c}=await t.from("payroll_deductions").select("teacher_id, reference_id").eq("tenant_id",e).eq("reason","syllabus_incomplete"),s=new Date(Date.now()-6048e5).toISOString(),{data:d}=await t.from("student_health_records").select("id, recorded_by_teacher_id, recorded_at, follow_up_needed, resolved_at").eq("tenant_id",e).gte("recorded_at",s);return{teachers:n&&n.length>0?n:i,checkins:o||[],rollCalls:r||[],healthRecs:d||[],syllabus:l||[],pastSyllabusDeductions:c||[]}}function c({tenantId:a,enriched:n,stats:r}){const[i,l]=e(null),[c,s]=e(null);t((()=>{if(window.NIA_MEMORY)try{const e=window.NIA_MEMORY.getPatterns(a);l(e);const t=window.NIA_MEMORY.getInsight(a,"staff absence pattern");s(t)}catch(e){}}),[a,n.length]);const d=n.filter((e=>"absent"===e.status)),g=i&&i.insights?i.insights.slice(0,2):[],p=i&&(i.observations||0)>=3;return React.createElement("div",{style:{background:"linear-gradient(135deg, rgba(0,252,143,0.05) 0%, rgba(14,22,52,0.95) 100%)",border:"1px solid rgba(0,252,143,0.18)",borderRadius:14,padding:22,marginBottom:24,position:"relative",overflow:"hidden"}},React.createElement("div",{style:{position:"absolute",top:-20,right:-20,width:120,height:120,borderRadius:"50%",background:"rgba(0,252,143,0.07)",filter:"blur(30px)",pointerEvents:"none"}}),React.createElement("div",{style:{display:"flex",alignItems:"center",gap:12,marginBottom:16}},React.createElement("div",{style:{width:38,height:38,borderRadius:10,background:"rgba(0,252,143,0.15)",color:o.green,display:"grid",placeItems:"center",fontFamily:o.serif,fontSize:20,fontWeight:700,border:"1px solid rgba(0,252,143,0.3)",boxShadow:"0 0 16px rgba(0,252,143,0.15)"}},"N"),React.createElement("div",{style:{flex:1}},React.createElement("div",{style:{fontSize:9.5,fontFamily:o.mono,letterSpacing:1.5,color:o.green,fontWeight:700}},"NIA · ",p?"PATTERN INTELLIGENCE":"MONITORING MODE"),React.createElement("div",{style:{fontSize:15,fontWeight:600,color:o.ink,marginTop:2}},0===r.absent?"Full house — all staff accounted for":r.absent+" teacher"+(1===r.absent?"":"s")+" not yet checked in")),p&&React.createElement("span",{style:{fontSize:9.5,fontFamily:o.mono,letterSpacing:1,color:o.green,background:"rgba(0,252,143,0.1)",border:"1px solid rgba(0,252,143,0.2)",padding:"4px 10px",borderRadius:999}},"◆ MEMORY ACTIVE")),React.createElement("div",{style:{display:"flex",flexDirection:"column",gap:8}},d.slice(0,3).map((e=>React.createElement("div",{key:e.id,style:{display:"flex",alignItems:"center",gap:12,padding:"10px 14px",background:"rgba(255,180,0,0.07)",border:"1px solid rgba(255,180,0,0.18)",borderRadius:10}},React.createElement("span",{style:{width:28,height:28,borderRadius:8,background:o.gold,color:o.bg,display:"grid",placeItems:"center",fontSize:13,fontWeight:700,flexShrink:0}},"◦"),React.createElement("div",{style:{flex:1}},React.createElement("div",{style:{fontSize:13,fontWeight:600,color:o.ink}},e.full_name," — not checked in"),React.createElement("div",{style:{fontSize:11.5,color:o.ink3,marginTop:2}},0===e.streamsRolled.length?"No roll call taken yet today.":e.streamsRolled.join(", ")+" roll call done."))))),g.map(((e,t)=>React.createElement("div",{key:t,style:{display:"flex",alignItems:"flex-start",gap:12,padding:"10px 14px",background:"rgba(59,130,246,0.07)",border:"1px solid rgba(59,130,246,0.15)",borderRadius:10}},React.createElement("span",{style:{width:28,height:28,borderRadius:8,background:o.blue,color:o.bg,display:"grid",placeItems:"center",fontSize:11,fontWeight:700,flexShrink:0}},"◆"),React.createElement("div",null,React.createElement("div",{style:{fontSize:10,fontFamily:o.mono,letterSpacing:1,color:o.blue,marginBottom:3}},"NIA PATTERN"),React.createElement("div",{style:{fontSize:12.5,color:o.ink2,lineHeight:1.5}},e))))),0===d.length&&0===g.length&&React.createElement("div",{style:{display:"flex",alignItems:"center",gap:12,padding:"10px 14px",background:"rgba(0,252,143,0.06)",border:"1px solid rgba(0,252,143,0.14)",borderRadius:10}},React.createElement("span",{style:{color:o.green,fontSize:18}},"✓"),React.createElement("div",{style:{fontSize:12.5,color:o.ink3,lineHeight:1.5}},p?"All clear. No unusual patterns today based on "+i.observations+" past observations.":"Nia is watching. Patterns build after a few days of check-in data."))))}function s({status:e}){const t={in:{bg:"rgba(0,252,143,0.14)",fg:o.green,dot:o.green,label:"ON CAMPUS"},out:{bg:"rgba(255,180,0,0.14)",fg:o.gold,dot:o.gold,label:"LEFT FOR THE DAY"},absent:{bg:"rgba(255,255,255,0.06)",fg:o.ink3,dot:o.ink3,label:"NOT CHECKED IN"}}[e];return React.createElement("span",{style:{display:"inline-flex",alignItems:"center",gap:6,background:t.bg,color:t.fg,padding:"4px 10px",borderRadius:999,fontSize:10.5,fontFamily:o.mono,fontWeight:700,letterSpacing:.6}},React.createElement("span",{style:{width:7,height:7,borderRadius:999,background:t.dot,boxShadow:"in"===e?"0 0 8px "+o.green:"none"}}),t.label)}function d({overdue:t,teachersById:a,tenantId:n,onApplied:r}){const[i,l]=e(null);if(!t||0===t.length)return null;return React.createElement("div",{style:{background:"rgba(255,180,0,0.06)",border:"1px solid rgba(255,180,0,0.25)",borderRadius:14,padding:20,marginBottom:24}},React.createElement("div",{style:{fontSize:13,fontWeight:700,color:o.gold,marginBottom:4}},"⚠ Syllabus falling behind"),React.createElement("div",{style:{fontSize:11.5,color:o.ink3,marginBottom:14}},"These teachers have topics they've clearly moved past without marking complete. Review before applying — this deducts real pay."),React.createElement("div",{style:{display:"flex",flexDirection:"column",gap:8}},t.map(((e,t)=>{const c=a[e.teacherId];return React.createElement("div",{key:t,style:{display:"flex",alignItems:"center",gap:12,padding:"10px 12px",background:o.surface2,borderRadius:9}},React.createElement("div",{style:{flex:1,minWidth:0}},React.createElement("div",{style:{fontSize:13,fontWeight:600,color:o.ink}},c&&c.full_name||"Teacher #"+e.teacherId),React.createElement("div",{style:{fontSize:11.5,color:o.ink3,marginTop:2}},e.topic.stream," · ",e.topic.subject,' — "',e.topic.topic,'" (planned week ',e.topic.planned_week,")")),React.createElement("button",{onClick:()=>(async e=>{const t=window.NextSession?.sb;if(!t)return;l(e.topic.id);const a=new Date;a.setDate(1);const{error:o}=await t.from("payroll_deductions").insert({tenant_id:n,teacher_id:e.teacherId,month:a.toISOString().slice(0,10),amount:2e3,reason:"syllabus_incomplete",reference_id:String(e.topic.id),notes:`"${e.topic.topic}" (planned week ${e.topic.planned_week}) still not covered — applied by head teacher.`});l(null),o?window.peakToast&&window.peakToast("Could not apply deduction: "+o.message,"error"):(window.peakToast&&window.peakToast("Deduction applied.","success"),r&&r())})(e),disabled:i===e.topic.id,style:{background:"rgba(255,71,87,0.12)",color:o.red,border:"1px solid rgba(255,71,87,0.3)",padding:"7px 12px",borderRadius:8,fontSize:11.5,fontWeight:700,fontFamily:o.font,cursor:i===e.topic.id?"wait":"pointer",whiteSpace:"nowrap"}},i===e.topic.id?"Applying…":"Apply UGX 2,000 deduction"))}))))}window.HeadStaffPanel=function({onNav:i}){const g=window.PEAK_ROLE?window.PEAK_ROLE.getProfile():{tenantId:"peak-primary"},[p,m]=e({loading:!0}),u=n((async()=>{m((e=>({...e,loading:!0})));const e=await l(g.tenantId);m(Object.assign({},e,{loading:!1}))}),[g.tenantId]);t((()=>{u();const e=setInterval(u,3e4);return()=>clearInterval(e)}),[u]),t((()=>{const e=window.NextSession?.sb;if(!e)return;const t=g.tenantId||"kabs-lily-junior-school-and-kindercare-centre",a=e.channel("head-staff-rt-"+t+"-"+Math.random().toString(36).slice(2)).on("postgres_changes",{event:"*",schema:"public",table:"student_roll_call",filter:`tenant_id=eq.${t}`},(()=>{u()})).on("postgres_changes",{event:"*",schema:"public",table:"teacher_checkins",filter:`tenant_id=eq.${t}`},(()=>{u()})).on("postgres_changes",{event:"INSERT",schema:"public",table:"student_notes",filter:`tenant_id=eq.${t}`},(()=>{u()})).subscribe();return()=>{try{e.removeChannel(a)}catch(e){}}}),[g.tenantId]);const f=a((()=>{if(!p.teachers)return[];const e={};(p.checkins||[]).forEach((t=>{e[t.teacher_id]||(e[t.teacher_id]=t)}));const t={};(p.rollCalls||[]).forEach((e=>{t[e.teacher_id]||(t[e.teacher_id]=new Set),t[e.teacher_id].add(e.stream)}));const a={};return(p.healthRecs||[]).forEach((e=>{e.recorded_by_teacher_id&&(a[e.recorded_by_teacher_id]=(a[e.recorded_by_teacher_id]||0)+1)})),p.teachers.map((n=>{const o=e[n.id],r=o?o.checked_out_at?"out":"in":"absent";return{...n,status:r,checkin:o,streamsRolled:t[n.id]?Array.from(t[n.id]):[],healthCount:a[n.id]||0}}))}),[p]),h=a((()=>({total:f.length,inNow:f.filter((e=>"in"===e.status)).length,left:f.filter((e=>"out"===e.status)).length,absent:f.filter((e=>"absent"===e.status)).length})),[f]),b=a((()=>function(e,t){const a={};(e||[]).forEach((e=>{(a[e.teacher_id]=a[e.teacher_id]||[]).push(e)}));const n=new Set((t||[]).map((e=>String(e.reference_id)))),o=[];return Object.keys(a).forEach((e=>{const t=a[e],r=t.filter((e=>"done"===e.status&&null!=e.completed_week)).reduce(((e,t)=>Math.max(e,t.completed_week)),0);r&&t.forEach((t=>{"done"!==t.status&&null!=t.planned_week&&r-t.planned_week>=2&&!n.has(String(t.id))&&o.push({teacherId:Number(e),topic:t})}))})),o}(p.syllabus,p.pastSyllabusDeductions)),[p.syllabus,p.pastSyllabusDeductions]),y=a((()=>{const e={};return(p.teachers||[]).forEach((t=>{e[t.id]=t})),e}),[p.teachers]),R=window.SchoolBadgeStrip;return React.createElement("div",{style:{minHeight:"100vh",background:o.bg,color:o.ink,fontFamily:o.font,padding:"32px 36px 60px"}},R&&React.createElement(R,{pageName:"STAFF & CAMPUS"}),React.createElement("div",{style:{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:24,gap:12,flexWrap:"wrap"}},React.createElement("div",null,React.createElement("div",{style:{fontSize:10.5,fontFamily:o.mono,letterSpacing:1.5,color:o.ink3}},"STAFF TODAY · ",(new Date).toLocaleDateString([],{weekday:"long",month:"short",day:"numeric"})),React.createElement("h1",{style:{fontSize:32,fontWeight:400,margin:"6px 0 0",fontFamily:o.serif,letterSpacing:"-0.01em"}},"Who's on campus right now")),React.createElement("div",{style:{display:"flex",gap:10}},React.createElement("button",{onClick:()=>window.open(window.peakSchoolLink?window.peakSchoolLink("join-staff"):"/prototypes/schools/peak-primary/staff-hr-form.html","_blank"),style:{background:"rgba(59,130,246,0.12)",color:o.blue,border:"1px solid rgba(59,130,246,0.3)",padding:"8px 16px",borderRadius:8,fontSize:12,cursor:"pointer",fontFamily:o.font,fontWeight:600}},"Share Staff HR Form 🔗"),React.createElement("button",{onClick:u,disabled:p.loading,style:{background:"transparent",color:o.ink2,border:"1px solid "+o.borderStr,padding:"8px 16px",borderRadius:8,fontSize:12,cursor:p.loading?"wait":"pointer",fontFamily:o.font}},p.loading?"Refreshing…":"↻ Refresh"))),React.createElement(c,{tenantId:g.tenantId,enriched:f,stats:h}),React.createElement(d,{overdue:b,teachersById:y,tenantId:g.tenantId,onApplied:u}),React.createElement("div",{style:{display:"grid",gridTemplateColumns:"repeat(auto-fit, minmax(160px, 1fr))",gap:14,marginBottom:24}},[{label:"TOTAL TEACHERS",value:h.total,color:o.ink},{label:"ON CAMPUS NOW",value:h.inNow,color:o.green,glow:!0},{label:"LEFT FOR DAY",value:h.left,color:o.gold},{label:"NOT CHECKED IN",value:h.absent,color:o.red}].map(((e,t)=>React.createElement("div",{key:t,style:{background:o.surface,border:"1px solid "+o.border,borderRadius:12,padding:18,position:"relative"}},React.createElement("div",{style:{fontSize:10,fontFamily:o.mono,letterSpacing:1.5,color:o.ink3,marginBottom:6}},e.label),React.createElement("div",{style:{fontSize:34,fontWeight:700,color:e.color,fontFamily:o.serif,textShadow:e.glow?"0 0 24px rgba(0,252,143,0.4)":"none"}},e.value))))),React.createElement("div",{style:{background:o.surface,border:"1px solid "+o.border,borderRadius:14,overflow:"hidden"}},React.createElement("div",{style:{padding:"14px 22px",borderBottom:"1px solid "+o.border,display:"flex",alignItems:"center",gap:10,fontSize:11,fontFamily:o.mono,color:o.ink3,letterSpacing:1.2}},"STAFF DIRECTORY · ",f.length," TEACHER",1===f.length?"":"S",React.createElement("span",{style:{marginLeft:"auto",fontSize:10,color:o.ink4,display:"flex",alignItems:"center",gap:6}},React.createElement("span",{style:{width:6,height:6,borderRadius:999,background:o.green,animation:"pulse 2s infinite"}}),"LIVE · UPDATES EVERY 30s")),p.loading&&0===f.length?React.createElement("div",{style:{padding:48,textAlign:"center",color:o.ink3,fontFamily:o.mono,fontSize:11}},"LOADING STAFF…"):0===f.length?React.createElement("div",{style:{padding:48,textAlign:"center",color:o.ink4,fontStyle:"italic"}},"No teachers found for your tenant."):f.map((e=>React.createElement("div",{key:e.id,style:{padding:"16px 22px",borderBottom:"1px solid "+o.border,display:"flex",alignItems:"center",gap:16,flexWrap:"wrap",background:"in"===e.status?"rgba(0,252,143,0.025)":"transparent"}},React.createElement("div",{style:{width:42,height:42,borderRadius:999,background:"in"===e.status?o.green:"out"===e.status?o.gold:o.surface3,color:"in"===e.status||"out"===e.status?o.bg:o.ink3,display:"grid",placeItems:"center",fontSize:13,fontWeight:700,flexShrink:0,boxShadow:"in"===e.status?"0 0 16px rgba(0,252,143,0.4)":"none"}},e.full_name.split(" ").map((e=>e[0])).join("").slice(0,2)),React.createElement("div",{style:{flex:1,minWidth:220}},React.createElement("div",{style:{display:"flex",alignItems:"center",gap:10,marginBottom:4}},React.createElement("span",{style:{fontSize:15,fontWeight:600,color:o.ink}},e.full_name),e.salary&&React.createElement("span",{style:{fontSize:11,fontWeight:700,padding:"2px 8px",borderRadius:999,backgroundColor:"rgba(0,252,143,0.12)",color:o.green,border:"1px solid rgba(0,252,143,0.25)",fontFamily:o.mono}},"UGX ",Number(e.salary).toLocaleString(),"/mo"),e.classAssigned&&React.createElement("span",{style:{fontSize:11,fontWeight:600,padding:"2px 8px",borderRadius:999,backgroundColor:"rgba(59,130,246,0.12)",color:o.blue,fontFamily:o.mono}},e.classAssigned)),React.createElement("div",{style:{display:"flex",alignItems:"center",gap:10,fontSize:11,color:o.ink3,fontFamily:o.mono,flexWrap:"wrap"}},React.createElement(s,{status:e.status}),e.phone&&"—"!==e.phone&&React.createElement("span",{style:{color:o.gold}},"📞 ",e.phone),e.subjects&&e.subjects.length>0&&React.createElement("span",{style:{letterSpacing:.4}},e.subjects.join(" · ")))),React.createElement("div",{style:{display:"flex",gap:18,fontSize:11,color:o.ink3,fontFamily:o.mono}},e.checkin&&React.createElement("div",null,React.createElement("div",{style:{color:o.ink4,fontSize:9.5,letterSpacing:.8}},"CHECK IN"),React.createElement("div",{style:{color:"in"===e.status?o.green:o.ink2,fontWeight:700,display:"flex",alignItems:"center",gap:6}},r(e.checkin.checked_in_at),(e=>{if(!e)return!1;const t=new Date(e);return t.getHours()>7||7===t.getHours()&&t.getMinutes()>15})(e.checkin.checked_in_at)&&React.createElement("span",{title:"After the 07:15 cutoff — UGX 2,000 late penalty applied",style:{fontSize:9.5,fontWeight:700,padding:"1px 6px",borderRadius:999,backgroundColor:"rgba(255,180,0,0.15)",color:o.gold,border:"1px solid rgba(255,180,0,0.3)"}},"LATE"))),e.checkin&&e.checkin.checked_out_at&&React.createElement("div",null,React.createElement("div",{style:{color:o.ink4,fontSize:9.5,letterSpacing:.8}},"CHECK OUT"),React.createElement("div",{style:{color:o.gold,fontWeight:700}},r(e.checkin.checked_out_at))),e.checkin&&React.createElement("div",null,React.createElement("div",{style:{color:o.ink4,fontSize:9.5,letterSpacing:.8}},"in"===e.status?"SO FAR":"TIME"),React.createElement("div",{style:{color:o.ink2,fontWeight:700}},((e,t)=>{if(!e)return"";const a=(t?new Date(t):new Date)-new Date(e);if(a<=0)return"";const n=Math.floor(a/6e4),o=Math.floor(n/60),r=n%60;return o>0?`${o}h ${r}m`:`${r}m`})(e.checkin.checked_in_at,e.checkin.checked_out_at)||"—")),React.createElement("div",null,React.createElement("div",{style:{color:o.ink4,fontSize:9.5,letterSpacing:.8}},"ROLL CALLS"),React.createElement("div",{style:{color:e.streamsRolled.length>0?o.green:o.ink3,fontWeight:700}},e.streamsRolled.length>0?e.streamsRolled.join(", "):"—")),React.createElement("div",null,React.createElement("div",{style:{color:o.ink4,fontSize:9.5,letterSpacing:.8}},"HEALTH (7d)"),React.createElement("div",{style:{color:e.healthCount>0?o.blue:o.ink3,fontWeight:700}},e.healthCount>0?e.healthCount+" notes":"—"))))))),React.createElement("style",null,"\n          @keyframes pulse {\n            0%, 100% { opacity: 1; }\n            50% { opacity: 0.4; }\n          }\n        "))}}();
+// Source module of the NEXT School OS app (Phase 2 split from index.html).
+// Loaded as a classic <script>; compiled to compiled/head-staff-panel.js by build-precompiled.cjs.
+/* head-staff-panel.jsx
+   Sarah's view of her staff today.
+
+   Pulls live from Supabase:
+     - teachers (everyone on payroll)
+     - teacher_checkins (today's check-ins + check-outs)
+     - student_roll_call (which classes had roll taken today)
+     - student_health_records (recent health notes)
+
+   Status pills:
+     ● GREEN  — checked in, still on campus
+     ● AMBER  — checked in then out (left for the day)
+     ● GRAY   — hasn't checked in today
+
+   Exposed as window.HeadStaffPanel. Loaded inline in index.html.
+*/
+(function () {
+  const {
+    useState,
+    useEffect,
+    useMemo,
+    useCallback
+  } = React;
+  const T = {
+    bg: '#0a1029',
+    surface: '#141e3c',
+    surface2: '#1a2548',
+    surface3: '#212d56',
+    border: 'rgba(255,255,255,0.06)',
+    borderStr: 'rgba(255,255,255,0.10)',
+    ink: '#f5f6fa',
+    ink2: 'rgba(245,246,250,0.85)',
+    ink3: 'rgba(245,246,250,0.55)',
+    ink4: 'rgba(245,246,250,0.40)',
+    red: '#FF4757',
+    green: '#00FC8F',
+    gold: '#FFB400',
+    blue: '#3B82F6',
+    font: "'Inter', -apple-system, system-ui, sans-serif",
+    mono: "'JetBrains Mono', ui-monospace, monospace",
+    serif: "'Instrument Serif', serif"
+  };
+  const isoDate = () => new Date().toISOString().slice(0, 10);
+  const fmtTime = iso => iso ? new Date(iso).toLocaleTimeString([], {
+    hour: '2-digit',
+    minute: '2-digit'
+  }) : '—';
+  const fmtDuration = (a, b) => {
+    if (!a) return '';
+    const end = b ? new Date(b) : new Date();
+    const ms = end - new Date(a);
+    if (ms <= 0) return '';
+    const mins = Math.floor(ms / 60000);
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    return h > 0 ? `${h}h ${m}m` : `${m}m`;
+  };
+  // Late = after the school's own cut-off in Kampala time (Staff & Audit →
+  // Check-in rules), the same rule the database uses for the penalty (D3).
+  let LATE_AFTER = '07:15';
+  const isLateCheckin = iso => {
+    if (!iso) return false;
+    try {
+      const hm = new Date(iso).toLocaleTimeString('en-GB', {
+        timeZone: 'Africa/Kampala',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+      });
+      return hm > LATE_AFTER;
+    } catch (e) {
+      return false;
+    }
+  };
+
+  // Audit C7: this used to hold Kabs Lily teachers' real names, phone numbers and
+  // salaries, shipped to every visitor of every school. Staff now come only from
+  // the database; with none, the screen shows its empty state.
+  const KABS_STAFF_ROSTER = [];
+  async function loadStaffData(tenantId) {
+    const sb = window.NextSession?.sb;
+    const today = isoDate();
+    if (!sb) {
+      return {
+        teachers: KABS_STAFF_ROSTER,
+        checkins: KABS_STAFF_ROSTER.map(t => ({
+          id: 'c-' + t.id,
+          teacher_id: t.id,
+          checked_in_at: today + 'T07:45:00Z',
+          method: 'qr'
+        })),
+        rollCalls: [],
+        healthRecs: []
+      };
+    }
+
+    // select('*'): a column this school's table lacks (monthly_salary, status…)
+    // used to make the whole staff list come back empty.
+    const tRes = await sb.from('teachers').select('*').eq('tenant_id', tenantId).order('full_name', {
+      ascending: true
+    });
+    const teachers = (tRes.data || []).filter(t => t.status !== 'left').map(t => Object.assign({}, t, {
+      salary: t.monthly_salary != null ? t.monthly_salary : t.salary
+    }));
+    try {
+      const rr = await sb.from('staff_rules').select('late_after').eq('tenant_id', tenantId).maybeSingle();
+      if (rr.data && rr.data.late_after) LATE_AFTER = String(rr.data.late_after).slice(0, 5);
+    } catch (e) {}
+    const {
+      data: checkins
+    } = await sb.from('teacher_checkins').select('id, teacher_id, checked_in_at, checked_out_at, method').eq('tenant_id', tenantId).gte('checked_in_at', today + 'T00:00:00').order('checked_in_at', {
+      ascending: false
+    });
+    const {
+      data: rollCalls
+    } = await sb.from('student_roll_call').select('id, teacher_id, stream, status').eq('tenant_id', tenantId).eq('roll_date', today);
+    const {
+      data: syllabus
+    } = await sb.from('syllabus_coverage').select('id, teacher_id, stream, subject, topic, planned_week, completed_week, status').eq('tenant_id', tenantId);
+    const {
+      data: pastDeductions
+    } = await sb.from('payroll_deductions').select('teacher_id, reference_id').eq('tenant_id', tenantId).eq('reason', 'syllabus_incomplete');
+    const sevenDaysAgo = new Date(Date.now() - 7 * 86400000).toISOString();
+    const {
+      data: healthRecs
+    } = await sb.from('student_health_records').select('id, recorded_by_teacher_id, recorded_at, follow_up_needed, resolved_at').eq('tenant_id', tenantId).gte('recorded_at', sevenDaysAgo);
+    return {
+      teachers: teachers,
+      loadError: tRes.error ? tRes.error.message || 'Could not load teachers' : '',
+      checkins: checkins || [],
+      rollCalls: rollCalls || [],
+      healthRecs: healthRecs || [],
+      syllabus: syllabus || [],
+      pastSyllabusDeductions: pastDeductions || []
+    };
+  }
+
+  // This app has no real term-calendar/current-week clock anywhere yet, so
+  // "overdue" can't be computed against a true today's-date-to-week mapping
+  // without risking a false positive that wrongly flags someone. Instead
+  // this uses each teacher's OWN pace as the yardstick: a topic planned for
+  // week N is flagged once that same teacher has already completed a topic
+  // 2+ weeks ahead of it — i.e. they've clearly moved on without covering
+  // it, by their own demonstrated progress, not a guessed calendar date.
+  function findOverdueSyllabus(syllabusRows, pastDeductions) {
+    const byTeacher = {};
+    (syllabusRows || []).forEach(r => {
+      (byTeacher[r.teacher_id] = byTeacher[r.teacher_id] || []).push(r);
+    });
+    const deductedRefs = new Set((pastDeductions || []).map(d => String(d.reference_id)));
+    const out = [];
+    Object.keys(byTeacher).forEach(teacherId => {
+      const rows = byTeacher[teacherId];
+      const furthestDone = rows.filter(r => r.status === 'done' && r.completed_week != null).reduce((mx, r) => Math.max(mx, r.completed_week), 0);
+      if (!furthestDone) return;
+      rows.forEach(r => {
+        if (r.status === 'done') return;
+        if (r.planned_week == null) return;
+        if (furthestDone - r.planned_week >= 2 && !deductedRefs.has(String(r.id))) {
+          out.push({
+            teacherId: Number(teacherId),
+            topic: r
+          });
+        }
+      });
+    });
+    return out;
+  }
+
+  // ─── Nia Predictive Intelligence Card ─────────────────────────────
+  // Appears at the top of the staff panel, powered by Nia's memory.
+  // Shows today's pattern-based intelligence: who's likely to be absent,
+  // which classes are at attendance risk, what Nia observed this week.
+  function NiaPredictiveCard({
+    tenantId,
+    enriched,
+    stats
+  }) {
+    const [patterns, setPatterns] = useState(null);
+    const [insight, setInsight] = useState(null);
+    useEffect(() => {
+      if (!window.NIA_MEMORY) return;
+      try {
+        const p = window.NIA_MEMORY.getPatterns(tenantId);
+        setPatterns(p);
+        const i = window.NIA_MEMORY.getInsight(tenantId, 'staff absence pattern');
+        setInsight(i);
+      } catch (_) {/* silent */}
+    }, [tenantId, enriched.length]);
+
+    // Risk-flag absent teachers based on memory patterns
+    const absentTeachers = enriched.filter(t => t.status === 'absent');
+    const memoryInsights = patterns && patterns.insights ? patterns.insights.slice(0, 2) : [];
+    const hasMemory = patterns && (patterns.observations || 0) >= 3;
+    return /*#__PURE__*/React.createElement("div", {
+      style: {
+        background: 'linear-gradient(135deg, rgba(0,252,143,0.05) 0%, rgba(14,22,52,0.95) 100%)',
+        border: '1px solid rgba(0,252,143,0.18)',
+        borderRadius: 14,
+        padding: 22,
+        marginBottom: 24,
+        position: 'relative',
+        overflow: 'hidden'
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        position: 'absolute',
+        top: -20,
+        right: -20,
+        width: 120,
+        height: 120,
+        borderRadius: '50%',
+        background: 'rgba(0,252,143,0.07)',
+        filter: 'blur(30px)',
+        pointerEvents: 'none'
+      }
+    }), /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 12,
+        marginBottom: 16
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        width: 38,
+        height: 38,
+        borderRadius: 10,
+        background: 'rgba(0,252,143,0.15)',
+        color: T.green,
+        display: 'grid',
+        placeItems: 'center',
+        fontFamily: T.serif,
+        fontSize: 20,
+        fontWeight: 700,
+        border: '1px solid rgba(0,252,143,0.3)',
+        boxShadow: '0 0 16px rgba(0,252,143,0.15)'
+      }
+    }, "N"), /*#__PURE__*/React.createElement("div", {
+      style: {
+        flex: 1
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 9.5,
+        fontFamily: T.mono,
+        letterSpacing: 1.5,
+        color: T.green,
+        fontWeight: 700
+      }
+    }, "NIA \xB7 ", hasMemory ? 'PATTERN INTELLIGENCE' : 'MONITORING MODE'), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 15,
+        fontWeight: 600,
+        color: T.ink,
+        marginTop: 2
+      }
+    }, stats.absent === 0 ? 'Full house — all staff accounted for' : stats.absent + ' teacher' + (stats.absent === 1 ? '' : 's') + ' not yet checked in')), hasMemory && /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 9.5,
+        fontFamily: T.mono,
+        letterSpacing: 1,
+        color: T.green,
+        background: 'rgba(0,252,143,0.1)',
+        border: '1px solid rgba(0,252,143,0.2)',
+        padding: '4px 10px',
+        borderRadius: 999
+      }
+    }, "\u25C6 MEMORY ACTIVE")), /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 8
+      }
+    }, absentTeachers.slice(0, 3).map(t => /*#__PURE__*/React.createElement("div", {
+      key: t.id,
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 12,
+        padding: '10px 14px',
+        background: 'rgba(255,180,0,0.07)',
+        border: '1px solid rgba(255,180,0,0.18)',
+        borderRadius: 10
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        width: 28,
+        height: 28,
+        borderRadius: 8,
+        background: T.gold,
+        color: T.bg,
+        display: 'grid',
+        placeItems: 'center',
+        fontSize: 13,
+        fontWeight: 700,
+        flexShrink: 0
+      }
+    }, "\u25E6"), /*#__PURE__*/React.createElement("div", {
+      style: {
+        flex: 1
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 13,
+        fontWeight: 600,
+        color: T.ink
+      }
+    }, t.full_name, " \u2014 not checked in"), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 11.5,
+        color: T.ink3,
+        marginTop: 2
+      }
+    }, t.streamsRolled.length === 0 ? 'No roll call taken yet today.' : t.streamsRolled.join(', ') + ' roll call done.')))), memoryInsights.map((ins, i) => /*#__PURE__*/React.createElement("div", {
+      key: i,
+      style: {
+        display: 'flex',
+        alignItems: 'flex-start',
+        gap: 12,
+        padding: '10px 14px',
+        background: 'rgba(59,130,246,0.07)',
+        border: '1px solid rgba(59,130,246,0.15)',
+        borderRadius: 10
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        width: 28,
+        height: 28,
+        borderRadius: 8,
+        background: T.blue,
+        color: T.bg,
+        display: 'grid',
+        placeItems: 'center',
+        fontSize: 11,
+        fontWeight: 700,
+        flexShrink: 0
+      }
+    }, "\u25C6"), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 10,
+        fontFamily: T.mono,
+        letterSpacing: 1,
+        color: T.blue,
+        marginBottom: 3
+      }
+    }, "NIA PATTERN"), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 12.5,
+        color: T.ink2,
+        lineHeight: 1.5
+      }
+    }, ins)))), absentTeachers.length === 0 && memoryInsights.length === 0 && /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 12,
+        padding: '10px 14px',
+        background: 'rgba(0,252,143,0.06)',
+        border: '1px solid rgba(0,252,143,0.14)',
+        borderRadius: 10
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        color: T.green,
+        fontSize: 18
+      }
+    }, "\u2713"), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 12.5,
+        color: T.ink3,
+        lineHeight: 1.5
+      }
+    }, hasMemory ? 'All clear. No unusual patterns today based on ' + patterns.observations + ' past observations.' : 'Nia is watching. Patterns build after a few days of check-in data.'))));
+  }
+  function StaffStatusPill({
+    status
+  }) {
+    const styles = {
+      in: {
+        bg: 'rgba(0,252,143,0.14)',
+        fg: T.green,
+        dot: T.green,
+        label: 'ON CAMPUS'
+      },
+      out: {
+        bg: 'rgba(255,180,0,0.14)',
+        fg: T.gold,
+        dot: T.gold,
+        label: 'LEFT FOR THE DAY'
+      },
+      absent: {
+        bg: 'rgba(255,255,255,0.06)',
+        fg: T.ink3,
+        dot: T.ink3,
+        label: 'NOT CHECKED IN'
+      }
+    }[status];
+    return /*#__PURE__*/React.createElement("span", {
+      style: {
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 6,
+        background: styles.bg,
+        color: styles.fg,
+        padding: '4px 10px',
+        borderRadius: 999,
+        fontSize: 10.5,
+        fontFamily: T.mono,
+        fontWeight: 700,
+        letterSpacing: 0.6
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        width: 7,
+        height: 7,
+        borderRadius: 999,
+        background: styles.dot,
+        boxShadow: status === 'in' ? '0 0 8px ' + T.green : 'none'
+      }
+    }), styles.label);
+  }
+
+  // ─── Syllabus delay audit ──────────────────────────────────────────
+  // Surfaces topics a teacher has fallen behind on (see findOverdueSyllabus)
+  // so the head can review and, if they agree, apply the same 2,000 UGX
+  // payroll_deductions penalty used for late check-ins — deliberately a
+  // one-click human decision, not a silent auto-deduction, since there's
+  // no reliable term-week clock to safely automate this against.
+  function SyllabusAuditCard({
+    overdue,
+    teachersById,
+    tenantId,
+    onApplied
+  }) {
+    const [busyId, setBusyId] = useState(null);
+    if (!overdue || overdue.length === 0) return null;
+    const apply = async item => {
+      const sb = window.NextSession?.sb;
+      if (!sb) return;
+      setBusyId(item.topic.id);
+      const month = new Date();
+      month.setDate(1);
+      const {
+        error
+      } = await sb.from('payroll_deductions').insert({
+        tenant_id: tenantId,
+        teacher_id: item.teacherId,
+        month: month.toISOString().slice(0, 10),
+        amount: 2000,
+        reason: 'syllabus_incomplete',
+        reference_id: String(item.topic.id),
+        notes: `"${item.topic.topic}" (planned week ${item.topic.planned_week}) still not covered — applied by head teacher.`
+      });
+      setBusyId(null);
+      if (error) {
+        window.peakToast && window.peakToast('Could not apply deduction: ' + error.message, 'error');
+        return;
+      }
+      window.peakToast && window.peakToast('Deduction applied.', 'success');
+      if (onApplied) onApplied();
+    };
+    return /*#__PURE__*/React.createElement("div", {
+      style: {
+        background: 'rgba(255,180,0,0.06)',
+        border: '1px solid rgba(255,180,0,0.25)',
+        borderRadius: 14,
+        padding: 20,
+        marginBottom: 24
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 13,
+        fontWeight: 700,
+        color: T.gold,
+        marginBottom: 4
+      }
+    }, "\u26A0 Syllabus falling behind"), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 11.5,
+        color: T.ink3,
+        marginBottom: 14
+      }
+    }, "These teachers have topics they've clearly moved past without marking complete. Review before applying \u2014 this deducts real pay."), /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 8
+      }
+    }, overdue.map((item, i) => {
+      const t = teachersById[item.teacherId];
+      return /*#__PURE__*/React.createElement("div", {
+        key: i,
+        style: {
+          display: 'flex',
+          alignItems: 'center',
+          gap: 12,
+          padding: '10px 12px',
+          background: T.surface2,
+          borderRadius: 9
+        }
+      }, /*#__PURE__*/React.createElement("div", {
+        style: {
+          flex: 1,
+          minWidth: 0
+        }
+      }, /*#__PURE__*/React.createElement("div", {
+        style: {
+          fontSize: 13,
+          fontWeight: 600,
+          color: T.ink
+        }
+      }, t && t.full_name || 'Teacher #' + item.teacherId), /*#__PURE__*/React.createElement("div", {
+        style: {
+          fontSize: 11.5,
+          color: T.ink3,
+          marginTop: 2
+        }
+      }, item.topic.stream, " \xB7 ", item.topic.subject, " \u2014 \"", item.topic.topic, "\" (planned week ", item.topic.planned_week, ")")), /*#__PURE__*/React.createElement("button", {
+        onClick: () => apply(item),
+        disabled: busyId === item.topic.id,
+        style: {
+          background: 'rgba(255,71,87,0.12)',
+          color: T.red,
+          border: '1px solid rgba(255,71,87,0.3)',
+          padding: '7px 12px',
+          borderRadius: 8,
+          fontSize: 11.5,
+          fontWeight: 700,
+          fontFamily: T.font,
+          cursor: busyId === item.topic.id ? 'wait' : 'pointer',
+          whiteSpace: 'nowrap'
+        }
+      }, busyId === item.topic.id ? 'Applying…' : 'Apply UGX 2,000 deduction'));
+    })));
+  }
+  function HeadStaffPanel({
+    onNav
+  }) {
+    const profile = window.PEAK_ROLE ? window.PEAK_ROLE.getProfile() : {
+      tenantId: 'peak-primary'
+    };
+    const [data, setData] = useState({
+      loading: true
+    });
+    const refresh = useCallback(async () => {
+      setData(d => ({
+        ...d,
+        loading: true
+      }));
+      const r = await loadStaffData(profile.tenantId);
+      setData(Object.assign({}, r, {
+        loading: false
+      }));
+    }, [profile.tenantId]);
+    useEffect(() => {
+      refresh();
+      const id = setInterval(refresh, 30000); // fallback poll every 30s
+      return () => clearInterval(id);
+    }, [refresh]);
+
+    // ── Real-time WebSocket push: instant update when any teacher takes roll call or checks in ──
+    useEffect(() => {
+      const sb = window.NextSession?.sb;
+      if (!sb) return;
+      const tenantId = profile.tenantId || 'kabs-lily-junior-school-and-kindercare-centre';
+
+      // Unique per mount — a fixed channel name crashes the render if two
+      // mounts overlap (Supabase throws adding .on() to an already-
+      // subscribed channel of the same topic name).
+      const channel = sb.channel('head-staff-rt-' + tenantId + '-' + Math.random().toString(36).slice(2))
+      // Student roll call saved → refresh attendance live
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'student_roll_call',
+        filter: `tenant_id=eq.${tenantId}`
+      }, () => {
+        refresh();
+      })
+      // Teacher check-in / check-out → refresh staff status live
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'teacher_checkins',
+        filter: `tenant_id=eq.${tenantId}`
+      }, () => {
+        refresh();
+      })
+      // Teacher notes on students → refresh health watch
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'student_notes',
+        filter: `tenant_id=eq.${tenantId}`
+      }, () => {
+        refresh();
+      }).subscribe();
+      return () => {
+        try {
+          sb.removeChannel(channel);
+        } catch (_) {}
+      };
+    }, [profile.tenantId]);
+    const enriched = useMemo(() => {
+      if (!data.teachers) return [];
+      const checkinsByTeacher = {};
+      (data.checkins || []).forEach(c => {
+        // Keep the most recent per teacher (already ordered desc)
+        if (!checkinsByTeacher[c.teacher_id]) checkinsByTeacher[c.teacher_id] = c;
+      });
+      const rollByTeacher = {};
+      (data.rollCalls || []).forEach(r => {
+        if (!rollByTeacher[r.teacher_id]) rollByTeacher[r.teacher_id] = new Set();
+        rollByTeacher[r.teacher_id].add(r.stream);
+      });
+      const healthByTeacher = {};
+      (data.healthRecs || []).forEach(h => {
+        if (!h.recorded_by_teacher_id) return;
+        healthByTeacher[h.recorded_by_teacher_id] = (healthByTeacher[h.recorded_by_teacher_id] || 0) + 1;
+      });
+      return data.teachers.map(t => {
+        const c = checkinsByTeacher[t.id];
+        const status = !c ? 'absent' : c.checked_out_at ? 'out' : 'in';
+        return {
+          ...t,
+          status,
+          checkin: c,
+          streamsRolled: rollByTeacher[t.id] ? Array.from(rollByTeacher[t.id]) : [],
+          healthCount: healthByTeacher[t.id] || 0
+        };
+      });
+    }, [data]);
+    const stats = useMemo(() => {
+      const total = enriched.length;
+      const inNow = enriched.filter(e => e.status === 'in').length;
+      const left = enriched.filter(e => e.status === 'out').length;
+      const absent = enriched.filter(e => e.status === 'absent').length;
+      return {
+        total,
+        inNow,
+        left,
+        absent
+      };
+    }, [enriched]);
+    const overdueSyllabus = useMemo(() => findOverdueSyllabus(data.syllabus, data.pastSyllabusDeductions), [data.syllabus, data.pastSyllabusDeductions]);
+    const teachersById = useMemo(() => {
+      const m = {};
+      (data.teachers || []).forEach(t => {
+        m[t.id] = t;
+      });
+      return m;
+    }, [data.teachers]);
+    const SchoolBadgeStrip = window.SchoolBadgeStrip;
+    return /*#__PURE__*/React.createElement("div", {
+      style: {
+        minHeight: '100vh',
+        background: T.bg,
+        color: T.ink,
+        fontFamily: T.font,
+        padding: '32px 36px 60px'
+      }
+    }, SchoolBadgeStrip && /*#__PURE__*/React.createElement(SchoolBadgeStrip, {
+      pageName: "STAFF & CAMPUS"
+    }), /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginBottom: 24,
+        gap: 12,
+        flexWrap: 'wrap'
+      }
+    }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 10.5,
+        fontFamily: T.mono,
+        letterSpacing: 1.5,
+        color: T.ink3
+      }
+    }, "STAFF TODAY \xB7 ", new Date().toLocaleDateString([], {
+      weekday: 'long',
+      month: 'short',
+      day: 'numeric'
+    })), /*#__PURE__*/React.createElement("h1", {
+      style: {
+        fontSize: 32,
+        fontWeight: 400,
+        margin: '6px 0 0',
+        fontFamily: T.serif,
+        letterSpacing: '-0.01em'
+      }
+    }, "Who's on campus right now")), /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        gap: 10
+      }
+    }, /*#__PURE__*/React.createElement("button", {
+      onClick: () => window.open(window.peakSchoolLink ? window.peakSchoolLink('join-staff') : '/prototypes/schools/peak-primary/staff-hr-form.html', '_blank'),
+      style: {
+        background: 'rgba(59,130,246,0.12)',
+        color: T.blue,
+        border: '1px solid rgba(59,130,246,0.3)',
+        padding: '8px 16px',
+        borderRadius: 8,
+        fontSize: 12,
+        cursor: 'pointer',
+        fontFamily: T.font,
+        fontWeight: 600
+      }
+    }, "Share Staff HR Form \uD83D\uDD17"), /*#__PURE__*/React.createElement("button", {
+      onClick: refresh,
+      disabled: data.loading,
+      style: {
+        background: 'transparent',
+        color: T.ink2,
+        border: '1px solid ' + T.borderStr,
+        padding: '8px 16px',
+        borderRadius: 8,
+        fontSize: 12,
+        cursor: data.loading ? 'wait' : 'pointer',
+        fontFamily: T.font
+      }
+    }, data.loading ? 'Refreshing…' : '↻ Refresh'))), /*#__PURE__*/React.createElement(NiaPredictiveCard, {
+      tenantId: profile.tenantId,
+      enriched: enriched,
+      stats: stats
+    }), /*#__PURE__*/React.createElement(SyllabusAuditCard, {
+      overdue: overdueSyllabus,
+      teachersById: teachersById,
+      tenantId: profile.tenantId,
+      onApplied: refresh
+    }), /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
+        gap: 14,
+        marginBottom: 24
+      }
+    }, [{
+      label: 'TOTAL TEACHERS',
+      value: stats.total,
+      color: T.ink
+    }, {
+      label: 'ON CAMPUS NOW',
+      value: stats.inNow,
+      color: T.green,
+      glow: true
+    }, {
+      label: 'LEFT FOR DAY',
+      value: stats.left,
+      color: T.gold
+    }, {
+      label: 'NOT CHECKED IN',
+      value: stats.absent,
+      color: T.red
+    }].map((s, i) => /*#__PURE__*/React.createElement("div", {
+      key: i,
+      style: {
+        background: T.surface,
+        border: '1px solid ' + T.border,
+        borderRadius: 12,
+        padding: 18,
+        position: 'relative'
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 10,
+        fontFamily: T.mono,
+        letterSpacing: 1.5,
+        color: T.ink3,
+        marginBottom: 6
+      }
+    }, s.label), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: 34,
+        fontWeight: 700,
+        color: s.color,
+        fontFamily: T.serif,
+        textShadow: s.glow ? '0 0 24px rgba(0,252,143,0.4)' : 'none'
+      }
+    }, s.value)))), /*#__PURE__*/React.createElement("div", {
+      style: {
+        background: T.surface,
+        border: '1px solid ' + T.border,
+        borderRadius: 14,
+        overflow: 'hidden'
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        padding: '14px 22px',
+        borderBottom: '1px solid ' + T.border,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 10,
+        fontSize: 11,
+        fontFamily: T.mono,
+        color: T.ink3,
+        letterSpacing: 1.2
+      }
+    }, "STAFF DIRECTORY \xB7 ", enriched.length, " TEACHER", enriched.length === 1 ? '' : 'S', /*#__PURE__*/React.createElement("span", {
+      style: {
+        marginLeft: 'auto',
+        fontSize: 10,
+        color: T.ink4,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 6
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        width: 6,
+        height: 6,
+        borderRadius: 999,
+        background: T.green,
+        animation: 'pulse 2s infinite'
+      }
+    }), "LIVE \xB7 UPDATES EVERY 30s")), data.loading && enriched.length === 0 ? /*#__PURE__*/React.createElement("div", {
+      style: {
+        padding: 48,
+        textAlign: 'center',
+        color: T.ink3,
+        fontFamily: T.mono,
+        fontSize: 11
+      }
+    }, "LOADING STAFF\u2026") : enriched.length === 0 ? /*#__PURE__*/React.createElement("div", {
+      style: {
+        padding: 48,
+        textAlign: 'center',
+        color: T.ink4,
+        fontStyle: 'italic'
+      }
+    }, data.loadError ? 'Could not load teachers: ' + data.loadError : 'No teachers yet. Add them in Teachers, or give them a login in Staff & Audit.') : enriched.map(t => /*#__PURE__*/React.createElement("div", {
+      key: t.id,
+      style: {
+        padding: '16px 22px',
+        borderBottom: '1px solid ' + T.border,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 16,
+        flexWrap: 'wrap',
+        background: t.status === 'in' ? 'rgba(0,252,143,0.025)' : 'transparent'
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        width: 42,
+        height: 42,
+        borderRadius: 999,
+        background: t.status === 'in' ? T.green : t.status === 'out' ? T.gold : T.surface3,
+        color: t.status === 'in' || t.status === 'out' ? T.bg : T.ink3,
+        display: 'grid',
+        placeItems: 'center',
+        fontSize: 13,
+        fontWeight: 700,
+        flexShrink: 0,
+        boxShadow: t.status === 'in' ? '0 0 16px rgba(0,252,143,0.4)' : 'none'
+      }
+    }, t.full_name.split(' ').map(n => n[0]).join('').slice(0, 2)), /*#__PURE__*/React.createElement("div", {
+      style: {
+        flex: 1,
+        minWidth: 220
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 10,
+        marginBottom: 4
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 15,
+        fontWeight: 600,
+        color: T.ink
+      }
+    }, t.full_name), t.salary && /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 11,
+        fontWeight: 700,
+        padding: '2px 8px',
+        borderRadius: 999,
+        backgroundColor: 'rgba(0,252,143,0.12)',
+        color: T.green,
+        border: '1px solid rgba(0,252,143,0.25)',
+        fontFamily: T.mono
+      }
+    }, "UGX ", Number(t.salary).toLocaleString(), "/mo"), t.classAssigned && /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: 11,
+        fontWeight: 600,
+        padding: '2px 8px',
+        borderRadius: 999,
+        backgroundColor: 'rgba(59,130,246,0.12)',
+        color: T.blue,
+        fontFamily: T.mono
+      }
+    }, t.classAssigned)), /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: 10,
+        fontSize: 11,
+        color: T.ink3,
+        fontFamily: T.mono,
+        flexWrap: 'wrap'
+      }
+    }, /*#__PURE__*/React.createElement(StaffStatusPill, {
+      status: t.status
+    }), t.phone && t.phone !== '—' && /*#__PURE__*/React.createElement("span", {
+      style: {
+        color: T.gold
+      }
+    }, "\uD83D\uDCDE ", t.phone), t.subjects && t.subjects.length > 0 && /*#__PURE__*/React.createElement("span", {
+      style: {
+        letterSpacing: 0.4
+      }
+    }, t.subjects.join(' · ')))), /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: 'flex',
+        gap: 18,
+        fontSize: 11,
+        color: T.ink3,
+        fontFamily: T.mono
+      }
+    }, t.checkin && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+      style: {
+        color: T.ink4,
+        fontSize: 9.5,
+        letterSpacing: 0.8
+      }
+    }, "CHECK IN"), /*#__PURE__*/React.createElement("div", {
+      style: {
+        color: t.status === 'in' ? T.green : T.ink2,
+        fontWeight: 700,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 6
+      }
+    }, fmtTime(t.checkin.checked_in_at), isLateCheckin(t.checkin.checked_in_at) && /*#__PURE__*/React.createElement("span", {
+      title: "After the 07:15 cutoff \u2014 UGX 2,000 late penalty applied",
+      style: {
+        fontSize: 9.5,
+        fontWeight: 700,
+        padding: '1px 6px',
+        borderRadius: 999,
+        backgroundColor: 'rgba(255,180,0,0.15)',
+        color: T.gold,
+        border: '1px solid rgba(255,180,0,0.3)'
+      }
+    }, "LATE"))), t.checkin && t.checkin.checked_out_at && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+      style: {
+        color: T.ink4,
+        fontSize: 9.5,
+        letterSpacing: 0.8
+      }
+    }, "CHECK OUT"), /*#__PURE__*/React.createElement("div", {
+      style: {
+        color: T.gold,
+        fontWeight: 700
+      }
+    }, fmtTime(t.checkin.checked_out_at))), t.checkin && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+      style: {
+        color: T.ink4,
+        fontSize: 9.5,
+        letterSpacing: 0.8
+      }
+    }, t.status === 'in' ? 'SO FAR' : 'TIME'), /*#__PURE__*/React.createElement("div", {
+      style: {
+        color: T.ink2,
+        fontWeight: 700
+      }
+    }, fmtDuration(t.checkin.checked_in_at, t.checkin.checked_out_at) || '—')), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+      style: {
+        color: T.ink4,
+        fontSize: 9.5,
+        letterSpacing: 0.8
+      }
+    }, "ROLL CALLS"), /*#__PURE__*/React.createElement("div", {
+      style: {
+        color: t.streamsRolled.length > 0 ? T.green : T.ink3,
+        fontWeight: 700
+      }
+    }, t.streamsRolled.length > 0 ? t.streamsRolled.join(', ') : '—')), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+      style: {
+        color: T.ink4,
+        fontSize: 9.5,
+        letterSpacing: 0.8
+      }
+    }, "HEALTH (7d)"), /*#__PURE__*/React.createElement("div", {
+      style: {
+        color: t.healthCount > 0 ? T.blue : T.ink3,
+        fontWeight: 700
+      }
+    }, t.healthCount > 0 ? t.healthCount + ' notes' : '—')))))), /*#__PURE__*/React.createElement("style", null, `
+          @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+          }
+        `));
+  }
+  window.HeadStaffPanel = HeadStaffPanel;
+})();

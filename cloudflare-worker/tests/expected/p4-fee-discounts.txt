@@ -1,2 +1,0 @@
-pupil 1 (750k fees, 375k bursary, 100k paid): balance=275000 charged=375000 paid=100000
-pupil 2 (paid in full, payment stored negative): balance=0 charged=520000 paid=520000

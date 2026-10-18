@@ -30,7 +30,9 @@ window.PEAK_STAFF = (function () {
     const [status, setStatus] = useState({});  // lower(name) -> status string
     const [loading, setLoading] = useState(true);
 
-    const loadTeachers = useCallback(() => fetch(WK + '/teachers?tenant=' + encodeURIComponent(tenant())).then(r => r.json()).then(d => setTeachers((d && d.teachers) || [])).catch(() => {}), []);
+    const [loadErr, setLoadErr] = useState('');
+    // Former staff (login switched off) stay in the records but leave the roster.
+    const loadTeachers = useCallback(() => fetch(WK + '/teachers?tenant=' + encodeURIComponent(tenant())).then(r => r.json()).then(d => { setLoadErr((d && d.error) || ''); setTeachers(((d && d.teachers) || []).filter(t => t.status !== 'left')); }).catch(e => setLoadErr('Could not reach the server to load staff. Check the connection and refresh.')), []);
     const loadGroups = useCallback(() => osGet('staff_group').then(rs => setGroups(rs.map(x => Object.assign({ _id: x.id }, x.payload)))), []);
     const loadMeta = useCallback(() => osGet('staff_meta').then(rs => { const m = {}; rs.forEach(x => { const p = x.payload || {}; if (p.email) m[p.email.toLowerCase()] = { _id: x.id, classes: p.classes || [] }; }); setMeta(m); }), []);
     const loadTasks = useCallback(() => osGet('staff_task').then(rs => setTasks(rs.map(x => Object.assign({ _id: x.id }, x.payload)).sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || ''))))), []);
@@ -52,6 +54,7 @@ window.PEAK_STAFF = (function () {
           {tabBtn('groups', 'Groups (' + groups.length + ')')}
           {tabBtn('tasks', 'Tasks (' + tasks.length + ')')}
         </div>
+        {loadErr && <div style={{ background: T.surface, border: '1px solid ' + T.redInk, color: T.redInk, borderRadius: 10, padding: '10px 14px', marginBottom: 14, fontSize: 13 }}>{loadErr}</div>}
         {loading ? <div style={{ color: T.ink3 }}>Loading staff…</div> : (
           <div>
             {tab === 'roster' && <Roster teachers={teachers} meta={meta} tasks={tasks} pay={pay} status={status} reload={() => { loadTeachers(); loadMeta(); loadPay(); loadStatus(); }} />}
@@ -93,7 +96,7 @@ window.PEAK_STAFF = (function () {
     return (
       <div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-          <div style={{ fontSize: 12.5, color: T.ink3 }}>{teachers.length} on staff · {teachers.filter(t => t.user_id).length} with a login</div>
+          <div style={{ fontSize: 12.5, color: T.ink3 }}>{teachers.length} on staff · {teachers.filter(t => (t.has_login != null ? t.has_login : t.user_id)).length} with a login</div>
           <div style={{ display: 'flex', gap: 8 }}>
             <button onClick={() => setImporting(true)} style={btnG}>Import CSV</button>
             <button onClick={() => setAdding(true)} style={btnP}>+ Add {vocab().staff.toLowerCase()}</button>
@@ -111,7 +114,7 @@ window.PEAK_STAFF = (function () {
                     <td style={{ padding: '10px', color: T.ink2 }}>{(t.subjects || []).join(', ') || '—'}</td>
                     <td style={{ padding: '10px', color: T.ink2 }}>{(m.classes || []).join(', ') || '—'}</td>
                     <td style={{ padding: '10px' }}>
-                      {t.user_id ? <span style={{ color: T.good, fontSize: 12 }}>● active</span> : <span style={{ color: T.ink3, fontSize: 12 }}>not set</span>}
+                      {(t.has_login != null ? t.has_login : t.user_id) ? <span style={{ color: T.good, fontSize: 12 }}>● active</span> : <span style={{ color: T.ink3, fontSize: 12 }}>no login</span>}
                       {t.email ? <button onClick={() => remind(t)} title="Push a reminder to their phone" style={{ marginLeft: 8, background: 'transparent', border: '1px solid ' + T.border, color: T.ink2, borderRadius: 6, padding: '3px 8px', fontSize: 10.5, cursor: 'pointer' }}>🔔 Remind</button> : null}
                       {t.email ? <button onClick={() => resetLogin(t)} style={{ marginLeft: 6, background: 'transparent', border: '1px solid ' + T.border, color: T.ink3, borderRadius: 6, padding: '3px 8px', fontSize: 10.5, cursor: 'pointer' }}>Reset login</button> : null}
                       <button onClick={() => setProfile(t)} style={{ marginLeft: 6, background: 'transparent', border: '1px solid ' + T.border, color: T.ink2, borderRadius: 6, padding: '3px 8px', fontSize: 10.5, cursor: 'pointer' }}>Profile →</button>

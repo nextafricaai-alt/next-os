@@ -2723,13 +2723,16 @@ async function handleStaffStatus(tenant, env, cors) {
   if (!tenant) return J({ error: 'tenant required' }, 400);
   if (!env.SUPABASE_URL || !env.SUPABASE_KEY) return J({ error: 'Supabase not configured.' }, 500);
   try {
-    const teachers = await sbFetch(env, '/teachers?tenant_id=eq.' + encodeURIComponent(tenant) + '&select=id,full_name,subjects,status&order=full_name.asc&limit=300');
+    const teachers = await sbFetch(env, '/teachers?tenant_id=eq.' + encodeURIComponent(tenant) + '&select=*&order=full_name.asc&limit=300');
+    // Late cut-off from the school's check-in rules (D3), not a fixed 07:30.
+    let lateAfter = '07:15';
+    try { const r = await sbFetch(env, '/staff_rules?tenant_id=eq.' + encodeURIComponent(tenant) + '&select=late_after&limit=1'); if (r && r[0] && r[0].late_after) lateAfter = String(r[0].late_after).slice(0, 5); } catch (e) {}
     const today = new Date(Date.now() + 3 * 3600000).toISOString().slice(0, 10); // EAT day
     const checkins = await sbFetch(env, '/teacher_checkins?tenant_id=eq.' + encodeURIComponent(tenant) + '&checked_in_at=gte.' + today + 'T00:00:00&select=teacher_id,checked_in_at,checked_out_at&order=checked_in_at.desc&limit=800');
     const latest = {}; (checkins || []).forEach(c => { if (!latest[c.teacher_id]) latest[c.teacher_id] = c; });
     const staff = (teachers || []).map(t => {
       const c = latest[t.id]; let status = 'absent — not checked in today';
-      if (c) { const eat = new Date(new Date(c.checked_in_at).getTime() + 3 * 3600000); const hm = eat.toISOString().slice(11, 16); status = (hm > '07:30') ? ('LATE — in at ' + hm) : ('on time — in at ' + hm); if (c.checked_out_at) status += ' (checked out)'; }
+      if (c) { const eat = new Date(new Date(c.checked_in_at).getTime() + 3 * 3600000); const hm = eat.toISOString().slice(11, 16); status = (hm > lateAfter) ? ('LATE — in at ' + hm) : ('on time — in at ' + hm); if (c.checked_out_at) status += ' (checked out)'; }
       return { name: t.full_name, subjects: t.subjects, status };
     });
     return J({ tenant, today, staff });
@@ -3248,8 +3251,30 @@ async function handleTeachersList(tenant, env, cors) {
   const J = (oo, st) => new Response(JSON.stringify(oo), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
   if (!tenant) return J({ error: 'tenant required' }, 400);
   if (!env.SUPABASE_URL || !env.SUPABASE_KEY) return J({ error: 'Supabase not configured.' }, 500);
-  try { const rows = await sbFetch(env, '/teachers?tenant_id=eq.' + encodeURIComponent(tenant) + '&select=id,full_name,email,subjects,phone,status,user_id&order=full_name.asc&limit=500'); return J({ tenant, teachers: rows || [] }); }
-  catch (e) { return J({ error: String((e && e.message) || e), tenant }, 200); }
+  try {
+    // select=* so a missing optional column (status, phone, subjects…) can't
+    // make the whole list come back empty.
+    const rows = (await sbFetch(env, '/teachers?tenant_id=eq.' + encodeURIComponent(tenant) + '&select=*&order=full_name.asc&limit=500')) || [];
+    // Teachers who have a login but no teachers row still belong on the list.
+    let users = [];
+    try { users = (await sbFetch(env, '/users?tenant_id=eq.' + encodeURIComponent(tenant) + '&select=*&limit=1000')) || []; } catch (e) {}
+    const byUser = {}, byEmail = {};
+    users.forEach(u => { byUser[u.id] = u; if (u.email) byEmail[String(u.email).toLowerCase()] = u; });
+    const seen = new Set();
+    const out = rows.map(t => {
+      const u = (t.user_id && byUser[t.user_id]) || (t.email && byEmail[String(t.email).toLowerCase()]) || null;
+      if (u) seen.add(u.id);
+      return { id: t.id, full_name: t.full_name || (u && u.full_name) || t.email || 'Teacher', email: t.email || (u && u.email) || null,
+               subjects: t.subjects || [], phone: t.phone || (u && u.phone) || null,
+               status: (u && u.active === false) ? 'left' : (t.status || 'active'), user_id: t.user_id || (u && u.id) || null, has_login: !!(u && u.auth_id) };
+    });
+    users.filter(u => String(u.role || '').toLowerCase() === 'teacher' && !seen.has(u.id) && u.active !== false).forEach(u => {
+      out.push({ id: null, full_name: u.full_name || u.email, email: u.email, subjects: [], phone: u.phone || null, status: 'active', user_id: u.id, has_login: !!u.auth_id, no_record: true });
+    });
+    out.sort((a, b) => String(a.full_name).localeCompare(String(b.full_name)));
+    return J({ tenant, teachers: out });
+  }
+  catch (e) { return J({ error: 'Could not load teachers: ' + String((e && e.message) || e), tenant, teachers: [] }, 200); }
 }
 
 // Verify the caller is a head/admin of this tenant (Authorization: Bearer <supabase access token>).

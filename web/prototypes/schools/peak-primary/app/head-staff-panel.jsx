@@ -53,12 +53,15 @@
     const m = mins % 60;
     return h > 0 ? `${h}h ${m}m` : `${m}m`;
   };
-  // Matches the 07:15 cutoff in teacher-view.jsx's applyLateCheckInPenalty —
-  // any check-in after this triggers the standing 2,000 UGX payroll deduction.
+  // Late = after the school's own cut-off in Kampala time (Staff & Audit →
+  // Check-in rules), the same rule the database uses for the penalty (D3).
+  let LATE_AFTER = '07:15';
   const isLateCheckin = (iso) => {
     if (!iso) return false;
-    const dt = new Date(iso);
-    return dt.getHours() > 7 || (dt.getHours() === 7 && dt.getMinutes() > 15);
+    try {
+      const hm = new Date(iso).toLocaleTimeString('en-GB', { timeZone: 'Africa/Kampala', hour: '2-digit', minute: '2-digit', hour12: false });
+      return hm > LATE_AFTER;
+    } catch (e) { return false; }
   };
 
   // Audit C7: this used to hold Kabs Lily teachers' real names, phone numbers and
@@ -79,11 +82,15 @@
       };
     }
 
-    const { data: teachers } = await sb
+    // select('*'): a column this school's table lacks (monthly_salary, status…)
+    // used to make the whole staff list come back empty.
+    const tRes = await sb
       .from('teachers')
-      .select('id, full_name, email, subjects, status, salary:monthly_salary, phone')
+      .select('*')
       .eq('tenant_id', tenantId)
       .order('full_name', { ascending: true });
+    const teachers = (tRes.data || []).filter(t => t.status !== 'left').map(t => Object.assign({}, t, { salary: t.monthly_salary != null ? t.monthly_salary : t.salary }));
+    try { const rr = await sb.from('staff_rules').select('late_after').eq('tenant_id', tenantId).maybeSingle(); if (rr.data && rr.data.late_after) LATE_AFTER = String(rr.data.late_after).slice(0, 5); } catch (e) {}
 
     const { data: checkins } = await sb
       .from('teacher_checkins')
@@ -117,7 +124,8 @@
       .gte('recorded_at', sevenDaysAgo);
 
     return {
-      teachers: (teachers && teachers.length > 0) ? teachers : KABS_STAFF_ROSTER,
+      teachers: teachers,
+      loadError: tRes.error ? (tRes.error.message || 'Could not load teachers') : '',
       checkins: checkins || [],
       rollCalls: rollCalls || [],
       healthRecs: healthRecs || [],
@@ -575,7 +583,7 @@
             </div>
           ) : enriched.length === 0 ? (
             <div style={{ padding: 48, textAlign: 'center', color: T.ink4, fontStyle: 'italic' }}>
-              No teachers found for your tenant.
+              {data.loadError ? ('Could not load teachers: ' + data.loadError) : 'No teachers yet. Add them in Teachers, or give them a login in Staff & Audit.'}
             </div>
           ) : enriched.map(t => (
             <div key={t.id} style={{
