@@ -484,7 +484,7 @@ export default {
     if (url.pathname === '/students/photo-upload')  return handleStudentPhotoUpload(request, env, cors);
     if (url.pathname === '/transport/set-stop')      return handleTransportSetStop(request, env, cors);
     if (url.pathname === '/fees/checkout')      return handleFeesCheckout(request, env, cors);
-    if (url.pathname === '/fees/verify')        return (async()=>{ const J=(o,st)=>new Response(JSON.stringify(o),{status:st||200,headers:{...cors,'Content-Type':'application/json'}}); return J(await feePayFulfil(env, url.searchParams.get('tx') || url.searchParams.get('transaction_id') || '')); })();
+    if (url.pathname === '/fees/verify')        return handleFeesVerify(request, url, env, cors);
     if (url.pathname === '/billing/checkout')   return handleBillingCheckout(request, env, cors);
     if (url.pathname === '/billing/webhook')    return handleBillingWebhook(request, env, cors);
     if (url.pathname === '/billing/verify')     return handleBillingVerify(url.searchParams.get('tx') || url.searchParams.get('transaction_id') || '', url.searchParams.get('tenant') || '', env, cors);
@@ -2266,13 +2266,13 @@ async function feePayFulfil(env, txId) {
   if (!(amount > 0)) return { ok: false, why: 'no amount' };
   const T = encodeURIComponent(tenant);
   const already = async () => {
-    try { const ex = await sbFetch(env, '/receipts?tenant_id=eq.' + T + '&reference=eq.' + encodeURIComponent(tx_ref) + '&select=id,receipt_no,balance_after&limit=1'); if (ex && ex[0]) return { ok: true, already: true, tenant, receipt_no: ex[0].receipt_no, balance_after: ex[0].balance_after }; } catch (e) {}
+    try { const ex = await sbFetch(env, '/receipts?tenant_id=eq.' + T + '&reference=eq.' + encodeURIComponent(tx_ref) + '&select=id,receipt_no,balance_after,amount,student_name&limit=1'); if (ex && ex[0]) return { ok: true, already: true, tenant, tx_ref, amount: Number(ex[0].amount) || amount, student_name: ex[0].student_name || '', receipt_no: ex[0].receipt_no, balance_after: ex[0].balance_after }; } catch (e) {}
     return null;
   };
   const done = await already(); if (done) return done;
   const lockKey = 'feepay:' + tx_ref;
   if (env.BRIEFS_KV) {
-    try { if (await env.BRIEFS_KV.get(lockKey)) { await new Promise(r => setTimeout(r, 1500)); return (await already()) || { ok: true, processing: true, tenant }; } await env.BRIEFS_KV.put(lockKey, String(Date.now()), { expirationTtl: 900 }); } catch (e) {}
+    try { if (await env.BRIEFS_KV.get(lockKey)) { await new Promise(r => setTimeout(r, 1500)); return (await already()) || { ok: true, processing: true, tenant, tx_ref, amount }; } await env.BRIEFS_KV.put(lockKey, String(Date.now()), { expirationTtl: 900 }); } catch (e) {}
   }
   // Student (must belong to this school) + tenant meta
   let sname = '', guardian = '', gphone = '';
@@ -2286,7 +2286,7 @@ async function feePayFulfil(env, txId) {
   try {
     receiptNo = prefix + '-' + new Date().getFullYear() + '-' + String((await sbCount(env, '/receipts?tenant_id=eq.' + T + '&select=id')) + 1).padStart(5, '0');
     const r = await fetch(env.SUPABASE_URL + '/rest/v1/receipts', { method: 'POST', headers: sbHeaders(env, 'return=representation'), body: JSON.stringify({ tenant_id: tenant, receipt_no: receiptNo, student_id: Number(studentId), student_name: sname || null, guardian_name: guardian || null, guardian_phone: (gphone || '').replace(/[^0-9]/g, '') || null, amount: amount, currency: currency, kind: 'fees', method: 'online', reference: tx_ref, balance_after: null, term: null, issued_by: 'Parent portal' }) });
-    if (r.status === 409) return (await already()) || { ok: true, already: true, tenant };
+    if (r.status === 409) return (await already()) || { ok: true, already: true, tenant, tx_ref, amount };
     if (!r.ok) throw new Error('receipt ' + r.status + ' ' + (await r.text()).slice(0, 160));
     const rows = await r.json(); receiptId = rows && rows[0] && rows[0].id;
   } catch (e) {
@@ -2308,7 +2308,25 @@ async function feePayFulfil(env, txId) {
   // 4) mark pending record paid + notify the school
   try { const pr = await sbFetch(env, '/os_records?tenant=eq.' + T + "&kind=eq.fee_payment&select=id,payload&order=created_at.desc&limit=50"); const hit = (pr || []).find(x => x.payload && x.payload.tx_ref === tx_ref); if (hit) await fetch(env.SUPABASE_URL + '/rest/v1/os_records?id=eq.' + hit.id, { method: 'PATCH', headers: sbHeaders(env, 'return=minimal'), body: JSON.stringify({ payload: Object.assign({}, hit.payload, { status: 'paid', paidAt: new Date().toISOString(), receipt_no: receiptNo, balance_after: balAfter }) }) }); } catch (e) {}
   try { await deliverPush(env, tenant, [], 'head', { title: 'Fees paid online', body: (sname || 'A learner') + ' — ' + currency + ' ' + amount.toLocaleString() + (balAfter != null ? (' · balance now ' + currency + ' ' + Number(balAfter).toLocaleString()) : '') + '.', url: '/', tag: 'feepay-' + tx_ref }); } catch (e) {}
-  return { ok: true, tenant, studentId, amount, receipt_no: receiptNo, balance_after: balAfter, student_name: sname };
+  return { ok: true, tenant, tx_ref, studentId, amount, receipt_no: receiptNo, balance_after: balAfter, student_name: sname };
+}
+
+// Parent's return from Flutterwave (pay.html?done=1&status=…&tx_ref=…&transaction_id=…).
+// Recording the payment is safe for anyone to trigger (it is re-verified with
+// Flutterwave and recorded once), but the receipt, amount and balance are only
+// shown to whoever also holds the payment's own tx_ref — the one Flutterwave
+// hands back to the paying parent. Transaction ids alone are guessable.
+async function handleFeesVerify(request, url, env, cors) {
+  const J = (o, st) => new Response(JSON.stringify(o), { status: st || 200, headers: { ...cors, 'Content-Type': 'application/json' } });
+  const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
+  if (await kvBump(env, 'fver:' + ip, 900) > 40) return J({ ok: false, why: 'Too many checks. Try again in 15 minutes.' }, 429);
+  const tx = url.searchParams.get('tx') || url.searchParams.get('transaction_id') || '';
+  const ref = String(url.searchParams.get('tx_ref') || '');
+  const res = await feePayFulfil(env, tx);
+  if (!res || !res.ok) return J({ ok: false });
+  if (!ref || ref !== res.tx_ref) return J({ ok: true, confirmed: true });
+  const first = String(res.student_name || '').trim().split(/\s+/)[0] || '';
+  return J({ ok: true, confirmed: true, amount: res.amount || null, receipt_no: res.receipt_no || null, balance_after: res.balance_after != null ? res.balance_after : null, student_name: first, processing: !!res.processing });
 }
 
 async function handleBillingWebhook(request, env, cors) {

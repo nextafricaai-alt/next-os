@@ -227,6 +227,7 @@ const PD_Fees = (function () {
                       <div style={{ fontSize: 11.5, color: T.ink3 }}>{s.stream || '—'}{s.guardian ? (' · ' + s.guardian) : ''}{feeForStream(s.stream) > 0 ? (' · class fee ' + fmt(feeForStream(s.stream))) : ''}</div>
                     </div>
                     <div style={{ fontSize: 14, fontWeight: 700, color: T.redInk, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>{fmt(s.balance)}</div>
+                    {window.PD_FeeStatement && <button onClick={() => window.PD_FeeStatement.open(s)} style={{ border: '1px solid ' + T.borderStr, background: 'transparent', color: T.ink2, padding: '7px 12px', borderRadius: 8, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap' }}>Statement</button>}
                     <button onClick={() => remind(s)} style={{ border: '1px solid ' + T.borderStr, background: 'transparent', color: T.ink2, padding: '7px 12px', borderRadius: 8, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap' }}>Remind</button>
                     <button onClick={() => recordPay(s)} style={{ border: 'none', background: T.red, color: '#fff', padding: '7px 12px', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>Record</button>
                   </div>

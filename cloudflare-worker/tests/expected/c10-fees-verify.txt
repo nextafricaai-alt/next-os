@@ -1,0 +1,5 @@
+stranger, tx id only                        {"ok":true,"confirmed":true}
+  payments recorded                         1
+stranger, wrong tx_ref                      {"ok":true,"confirmed":true}
+paying parent, own tx_ref                   {"ok":true,"confirmed":true,"amount":200000,"receipt_no":"KA-2026-00001","balance_after":300000,"student_name":"Kato","processing":false}
+  payments recorded (still once)            1

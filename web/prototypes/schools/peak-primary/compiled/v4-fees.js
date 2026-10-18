@@ -710,7 +710,19 @@ const PD_Fees = function () {
         fontVariantNumeric: 'tabular-nums',
         whiteSpace: 'nowrap'
       }
-    }, fmt(s.balance)), /*#__PURE__*/React.createElement("button", {
+    }, fmt(s.balance)), window.PD_FeeStatement && /*#__PURE__*/React.createElement("button", {
+      onClick: () => window.PD_FeeStatement.open(s),
+      style: {
+        border: '1px solid ' + T.borderStr,
+        background: 'transparent',
+        color: T.ink2,
+        padding: '7px 12px',
+        borderRadius: 8,
+        fontSize: 12,
+        cursor: 'pointer',
+        whiteSpace: 'nowrap'
+      }
+    }, "Statement"), /*#__PURE__*/React.createElement("button", {
       onClick: () => remind(s),
       style: {
         border: '1px solid ' + T.borderStr,

@@ -722,6 +722,7 @@
     { k: 'events', label: 'Events',        glyph: '◷' },
     { k: 'comm',  label: 'Communications', glyph: '◊' },
     { k: 'setup', label: 'School Setup',   glyph: '⚙' },
+    { k: 'controls', label: 'Rules & Audit', glyph: '⌕' },
     { k: 'rep',   label: 'Reports',        glyph: '⊜' },
     { k: 'marking', label: 'AI Marking',   glyph: '✓' },
     { k: 'exam',  label: 'Exams & Reports', glyph: '⊑' },
@@ -742,6 +743,7 @@
     trans: "Transport - buses, routes, drivers and live status; notify parents of ETAs.",
     learn: "Learning - lesson coverage, syllabus progress and academic resources.",
     rep: "Reports - compiled summaries you can export and share with the board.",
+    controls: "Rules & audit - who changed fees, marks and attendance and when, plus the staff check-in rules (late cut-off, penalty, school gate).",
   };
 
   function AccountPanel() {
@@ -1510,6 +1512,7 @@
     else if (route === 'finance') Screen = (window.PEAK_FINANCE ? <PEAK_FINANCE.Finance /> : <GenericModuleScreen routeKey={route} onNav={navigate} />);
     else if (route === 'campus') Screen = (window.PEAK_CAMPUS ? <PEAK_CAMPUS.SmartCampus /> : <GenericModuleScreen routeKey={route} onNav={navigate} />);
     else if (route === 'boarding') Screen = (typeof window.HeadBoardingPanel === 'function' ? React.createElement(window.HeadBoardingPanel, { onNav: navigate }) : <GenericModuleScreen routeKey={route} onNav={navigate} />);
+    else if (route === 'controls') Screen = (window.PD_HeadControls ? <PD_HeadControls.Controls /> : <GenericModuleScreen routeKey={route} onNav={navigate} />);
     else if (route === 'setup')   Screen = (window.PEAK_SETUP ? <PEAK_SETUP.Setup /> : <GenericModuleScreen routeKey={route} onNav={navigate} />);
     else if (route === 'staff') Screen = (typeof window.HeadStaffPanel === 'function' ? React.createElement(window.HeadStaffPanel, { onNav: navigate }) : <GenericModuleScreen routeKey={route} onNav={navigate} />);
     else if (route === 'timetable') Screen = (typeof window.HeadTimetablePanel === 'function' ? React.createElement(window.HeadTimetablePanel, { onNav: navigate }) : (window.PEAK_TIMETABLE ? <PEAK_TIMETABLE.Timetable onNav={navigate} /> : <GenericModuleScreen routeKey={route} onNav={navigate} />));

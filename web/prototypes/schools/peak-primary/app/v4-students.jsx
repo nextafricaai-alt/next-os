@@ -140,34 +140,40 @@ const PD_Students = (function () {
             </div>
           </div>
 
-          {/* attendance mini */}
+          {/* attendance — real roll-call figure only (audit D1: the old strip was invented) */}
           <div>
-            <div style={{ fontSize: 10.5, color: T.ink3, fontFamily: T.mono, letterSpacing: '0.05em', fontWeight: 600, marginBottom: 8 }}>ATTENDANCE · LAST 4 WEEKS</div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(20, 1fr)', gap: 2 }}>
-              {[...Array(20)].map((_, i) => {
-                const present = (s.id + i) % 7 !== 0 && (s.id + i * 3) % 11 !== 0;
-                return <div key={i} style={{ height: 22, borderRadius: 2, background: present ? T.good : i % 2 === 0 ? T.red : T.warn, opacity: present ? 0.85 : 0.65 }} />;
-              })}
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: T.ink3, fontFamily: T.mono, marginTop: 6 }}>
-              <span>4 wk ago</span>
-              <span>This week</span>
-            </div>
+            <div style={{ fontSize: 10.5, color: T.ink3, fontFamily: T.mono, letterSpacing: '0.05em', fontWeight: 600, marginBottom: 8 }}>ATTENDANCE</div>
+            {s.attendanceWk != null ? (
+              <div style={{ background: T.surface2, borderRadius: 10, padding: 14 }}>
+                <div style={{ fontSize: 22, fontWeight: 700, color: s.attendanceWk >= 85 ? T.good : s.attendanceWk >= 70 ? T.warn : T.red, fontVariantNumeric: 'tabular-nums' }}>{s.attendanceWk}%</div>
+                <div style={{ height: 6, background: T.bg, borderRadius: 999, marginTop: 10, overflow: 'hidden' }}>
+                  <div style={{ height: '100%', width: Math.max(0, Math.min(100, s.attendanceWk)) + '%', background: s.attendanceWk >= 85 ? T.good : s.attendanceWk >= 70 ? T.warn : T.red, borderRadius: 999 }} />
+                </div>
+                <div style={{ fontSize: 11, color: T.ink3, fontFamily: T.mono, marginTop: 6 }}>present or late, from roll call</div>
+              </div>
+            ) : (
+              <div style={{ fontSize: 12.5, color: T.ink3 }}>No roll call recorded for this period yet.</div>
+            )}
           </div>
 
-          {/* fees */}
+          {/* fees — from the fees ledger */}
           <div>
-            <div style={{ fontSize: 10.5, color: T.ink3, fontFamily: T.mono, letterSpacing: '0.05em', fontWeight: 600, marginBottom: 8 }}>TERM 2 FEES</div>
+            <div style={{ fontSize: 10.5, color: T.ink3, fontFamily: T.mono, letterSpacing: '0.05em', fontWeight: 600, marginBottom: 8 }}>FEES</div>
             <div style={{ background: T.surface2, borderRadius: 10, padding: 14 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                <span style={{ fontSize: 22, fontWeight: 700, color: s.balance > 0 ? T.warn : T.good, fontVariantNumeric: 'tabular-nums' }}>
-                  {s.balance > 0 ? ('UGX ' + Number(s.balance).toLocaleString()) : 'Cleared'}
+                <span style={{ fontSize: 22, fontWeight: 700, color: s.fees === 'none' ? T.ink3 : s.balance > 0 ? T.warn : T.good, fontVariantNumeric: 'tabular-nums' }}>
+                  {s.fees === 'none' ? 'No fees yet' : s.balance > 0 ? ('UGX ' + Number(s.balance).toLocaleString()) : 'Cleared'}
                 </span>
-                <span style={{ fontSize: 11, color: T.ink3, fontFamily: T.mono }}>{s.balance > 0 ? 'outstanding' : 'no balance'}</span>
+                <span style={{ fontSize: 11, color: T.ink3, fontFamily: T.mono }}>{s.fees === 'none' ? 'not billed' : s.balance > 0 ? 'outstanding' : 'no balance'}</span>
               </div>
-              <div style={{ height: 6, background: T.bg, borderRadius: 999, marginTop: 10, overflow: 'hidden' }}>
-                <div style={{ height: '100%', width: s.balance > 0 ? '55%' : '100%', background: s.balance > 0 ? T.warn : T.good, borderRadius: 999 }} />
-              </div>
+              {Number(s.termFee) > 0 && (() => { const pct = Math.max(0, Math.min(100, Math.round(100 * (Number(s.paidAmount) || 0) / Number(s.termFee)))); return (
+                <div>
+                  <div style={{ height: 6, background: T.bg, borderRadius: 999, marginTop: 10, overflow: 'hidden' }}>
+                    <div style={{ height: '100%', width: pct + '%', background: s.balance > 0 ? T.warn : T.good, borderRadius: 999 }} />
+                  </div>
+                  <div style={{ fontSize: 11, color: T.ink3, fontFamily: T.mono, marginTop: 6 }}>{pct}% of UGX {Number(s.termFee).toLocaleString()} paid</div>
+                </div>); })()}
+              {window.PD_FeeStatement && s.id && <button onClick={() => window.PD_FeeStatement.open(s)} style={{ marginTop: 10, border: '1px solid ' + T.borderStr, background: 'transparent', color: T.ink2, padding: '6px 12px', borderRadius: 8, fontSize: 12, cursor: 'pointer' }}>Fee statement</button>}
             </div>
           </div>
 

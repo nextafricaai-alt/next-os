@@ -418,12 +418,21 @@ const PD_Profile = (function () {
                 <div style={{ fontSize: 12.5, color: T.ink3, lineHeight: 1.55 }}>No exam results recorded for {stuName.split(' ')[0]} yet. Marks and trends appear here once you record an exam in the Reports screen.</div>
               </Card>
               {/* Fees — real balance */}
-              <Card eyebrow="FEES · THIS TERM" title={stuBalance > 0 ? ('UGX ' + stuBalance.toLocaleString() + ' due') : 'Cleared'} pad={18}>
-                <div style={{ height: 8, borderRadius: 999, background: T.surface2, overflow: 'hidden', marginBottom: 8 }}>
-                  <div style={{ height: '100%', width: stuBalance > 0 ? '55%' : '100%', background: stuBalance > 0 ? T.red : T.good, borderRadius: 999 }} />
-                </div>
-                <div style={{ fontSize: 12, color: T.ink3, lineHeight: 1.5 }}>{stuBalance > 0 ? 'Outstanding balance for this term. Record a payment in Fees to update and issue a receipt.' : 'No outstanding balance this term.'}</div>
-              </Card>
+              {(() => {
+                // Real figures only (audit D1): share paid = paid ÷ charged from the fees ledger.
+                const charged = Number(stu.termFee) || 0, paid = Number(stu.paidAmount) || 0;
+                const pct = charged > 0 ? Math.max(0, Math.min(100, Math.round(100 * paid / charged))) : null;
+                const none = stu.fees === 'none';
+                return (
+                  <Card eyebrow="FEES" title={none ? 'No fees yet' : stuBalance > 0 ? ('UGX ' + stuBalance.toLocaleString() + ' due') : 'Cleared'} pad={18}>
+                    {pct != null && <div style={{ height: 8, borderRadius: 999, background: T.surface2, overflow: 'hidden', marginBottom: 8 }}>
+                      <div style={{ height: '100%', width: pct + '%', background: stuBalance > 0 ? T.red : T.good, borderRadius: 999 }} />
+                    </div>}
+                    <div style={{ fontSize: 12, color: T.ink3, lineHeight: 1.5 }}>{none ? 'Nothing billed to this pupil yet. Bill the term in Fees → Terms & billing.' : (pct != null ? (pct + '% of UGX ' + charged.toLocaleString() + ' paid. ') : '') + (stuBalance > 0 ? 'Record a payment in Fees to update it and issue a receipt.' : '')}</div>
+                    {window.PD_FeeStatement && stu.id && <button onClick={() => window.PD_FeeStatement.open(stu)} style={{ marginTop: 10, border: '1px solid ' + T.borderStr, background: 'transparent', color: T.ink2, padding: '7px 12px', borderRadius: 8, fontSize: 12, cursor: 'pointer' }}>Fee statement</button>}
+                  </Card>
+                );
+              })()}
             </div>
 
             {/* Guardian communication — real guardian, honest history */}
