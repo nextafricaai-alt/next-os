@@ -18,6 +18,7 @@
 
     return {
       subscribe(fn) { listeners.add(fn); return () => listeners.delete(fn); },
+      notify() { notify(); },
       // mutations
       addStudent(s) {
         const id = s.id != null ? s.id : 'new-' + Date.now();
@@ -181,6 +182,8 @@
                     attendanceWk: s.attendance_wk != null ? s.attendance_wk : null,
                     lastSeen: '—',
                     photoUrl: s.photo_url || null,
+                    notes: s.notes || '',
+                    status: s.status || 'active',
                     flag: null
                   };
                 });
@@ -244,6 +247,8 @@
                   attendanceWk: pct,
                   lastSeen: '—',
                   photoUrl: s.photo_url || null,
+                  notes: s.notes || '',
+                  status: s.status || 'active',
                   flag: (pct != null && pct < 70) || realBalance > 0 ? 'risk' : null
                 };
               });

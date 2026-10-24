@@ -72,11 +72,11 @@ const PD_Students = (function () {
         borderLeft: selected ? '3px solid ' + T.red : '3px solid transparent',
       }}>
         <input type="checkbox" defaultChecked={selected} style={{ accentColor: T.red, width: 14, height: 14 }} onClick={e => e.stopPropagation()} />
-        <div style={{
+        {window.PD_StudentEdit ? <window.PD_StudentEdit.Avatar stu={s} size={32} /> : <div style={{
           width: 32, height: 32, borderRadius: 999,
           background: 'oklch(0.62 0.07 ' + (40 + (s.id * 21) % 320) + ')',
           color: '#fff', display: 'grid', placeItems: 'center', fontSize: 11, fontWeight: 700,
-        }}>{s.name.split(' ').map(p => p[0]).slice(0, 2).join('')}</div>
+        }}>{s.name.split(' ').map(p => p[0]).slice(0, 2).join('')}</div>}
         <div>
           <div style={{ fontSize: 13.5, color: T.ink, fontWeight: 600 }}>{s.name}{s.flag === 'top' ? <span style={{ marginLeft: 8, fontSize: 10, color: T.gold, fontFamily: T.mono }}>★ TOP</span> : ''}{s.flag === 'risk' ? <span style={{ marginLeft: 8, fontSize: 10, color: T.redInk, fontFamily: T.mono }}>● RISK</span> : ''}</div>
           <div style={{ fontSize: 11, color: T.ink3 }}>{s.guardian}</div>
@@ -106,16 +106,17 @@ const PD_Students = (function () {
         display: 'flex', flexDirection: 'column', minHeight: 0,
       }}>
         <div style={{ padding: '20px 22px', borderBottom: '1px solid ' + T.border, display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{
+          {window.PD_StudentEdit ? <window.PD_StudentEdit.Avatar stu={s} size={44} /> : <div style={{
             width: 44, height: 44, borderRadius: 999,
             background: 'oklch(0.62 0.07 ' + (40 + (s.id * 21) % 320) + ')',
             color: '#fff', display: 'grid', placeItems: 'center', fontSize: 14, fontWeight: 700,
-          }}>{s.name.split(' ').map(p => p[0]).slice(0, 2).join('')}</div>
+          }}>{s.name.split(' ').map(p => p[0]).slice(0, 2).join('')}</div>}
           <div style={{ flex: 1, lineHeight: 1.15, minWidth: 0 }}>
             <div style={{ fontSize: 15, fontWeight: 600 }}>{s.name}</div>
             <div style={{ fontSize: 11, color: T.ink3, fontFamily: T.mono }}>{s.stream} · {s.id < 10 ? 'PK-00' + s.id : 'PK-0' + s.id}</div>
           </div>
-          <button onClick={onClose} style={{ width: 30, height: 30, borderRadius: 8, border: 'none', background: T.surface2, color: T.ink, fontSize: 14, cursor: 'pointer' }}>✕</button>
+          {window.PD_StudentEdit && <window.PD_StudentEdit.Button key={s.id} stu={s} />}
+          <button onClick={onClose} aria-label="Close" style={{ width: 30, height: 30, borderRadius: 8, border: 'none', background: T.surface2, color: T.ink, fontSize: 14, cursor: 'pointer' }}>✕</button>
         </div>
 
         <div style={{ padding: '18px 22px', flex: 1, overflow: 'auto', display: 'flex', flexDirection: 'column', gap: 18 }}>
@@ -132,11 +133,19 @@ const PD_Students = (function () {
             <div style={{ fontSize: 10.5, color: T.ink3, fontFamily: T.mono, letterSpacing: '0.05em', fontWeight: 600, marginBottom: 8 }}>GUARDIAN</div>
             <div style={{ background: T.surface2, borderRadius: 10, padding: 14 }}>
               <div style={{ fontSize: 13.5, color: T.ink, fontWeight: 600 }}>{s.guardian}</div>
-              <div style={{ fontSize: 11.5, color: T.ink3, fontFamily: T.mono, marginTop: 2 }}>+256 70 234 1{(s.id * 17) % 1000}</div>
-              <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-                <button onClick={() => window.peakWhatsApp(s.guardianPhone || ('0702341' + ((s.id * 17) % 1000)), 'Hello ' + (s.guardian || '') + ', a message from ' + window.peakSchoolName() + ' regarding ' + s.name + '.')} style={{ flex: 1, padding: '7px 10px', background: 'transparent', border: '1px solid ' + T.borderStr, color: T.ink, borderRadius: 7, fontSize: 11.5, cursor: 'pointer' }}>WhatsApp</button>
-                <button onClick={() => window.peakCall(s.guardianPhone || ('+256702341' + ((s.id * 17) % 1000)))} style={{ flex: 1, padding: '7px 10px', background: 'transparent', border: '1px solid ' + T.borderStr, color: T.ink, borderRadius: 7, fontSize: 11.5, cursor: 'pointer' }}>Call</button>
-              </div>
+              <div style={{ fontSize: 11.5, color: s.guardianPhone ? T.ink3 : T.warn, fontFamily: T.mono, marginTop: 2 }}>{s.guardianPhone || 'No phone saved — tap Edit to add one'}</div>
+              {s.guardianPhone ? <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+                <button onClick={() => window.peakWhatsApp(s.guardianPhone, 'Hello ' + (s.guardian || '') + ', a message from ' + window.peakSchoolName() + ' regarding ' + s.name + '.')} style={{ flex: 1, padding: '7px 10px', background: 'transparent', border: '1px solid ' + T.borderStr, color: T.ink, borderRadius: 7, fontSize: 11.5, cursor: 'pointer' }}>WhatsApp</button>
+                <button onClick={() => window.peakCall(s.guardianPhone)} style={{ flex: 1, padding: '7px 10px', background: 'transparent', border: '1px solid ' + T.borderStr, color: T.ink, borderRadius: 7, fontSize: 11.5, cursor: 'pointer' }}>Call</button>
+              </div> : null}
+            </div>
+          </div>
+
+          {/* notes written by the school */}
+          <div>
+            <div style={{ fontSize: 10.5, color: T.ink3, fontFamily: T.mono, letterSpacing: '0.05em', fontWeight: 600, marginBottom: 8 }}>NOTES</div>
+            <div style={{ background: T.surface2, borderRadius: 10, padding: 14, fontSize: 12.5, color: s.notes ? T.ink2 : T.ink3, lineHeight: 1.55, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>
+              {s.notes || 'No notes yet. Tap Edit to add allergies, who picks them up, sponsor…'}
             </div>
           </div>
 
@@ -414,4 +423,4 @@ const PD_Students = (function () {
 
 window.PD_Students = PD_Students;
 
-  
+  

@@ -1601,7 +1601,7 @@ async function handleStudentsList(tenant, env, cors) {
   if (!tenant) return J({ error: 'tenant required' }, 400);
   if (!env.SUPABASE_URL || !env.SUPABASE_KEY) return J({ error: 'Supabase not configured on the worker.' }, 500);
   try {
-    const rows = await sbFetch(env, '/students?tenant_id=eq.' + encodeURIComponent(tenant) + '&select=id,name,stream,guardian_name,guardian_phone,status,enrolled_at,photo_url&order=name.asc&limit=3000');
+    const rows = await sbFetch(env, '/students?tenant_id=eq.' + encodeURIComponent(tenant) + '&select=*&order=name.asc&limit=3000');
     return J({ tenant, count: (rows || []).length, students: rows || [] });
   } catch (e) { return J({ error: String((e && e.message) || e), tenant }, 200); }
 }
@@ -2197,7 +2197,7 @@ async function handleStudentPhotoUpload(request, env, cors) {
     // the image genuinely made it into Storage.
     const photoUrl = env.SUPABASE_URL + '/storage/v1/object/public/' + STUDENT_PHOTO_BUCKET + '/' + path;
     try {
-      await sbWrite(env, '/students?id=eq.' + encodeURIComponent(studentId), { photo_url: photoUrl }, 'PATCH', 'return=minimal');
+      await sbWrite(env, '/students?id=eq.' + encodeURIComponent(studentId) + '&tenant_id=eq.' + encodeURIComponent(tenant), { photo_url: photoUrl }, 'PATCH', 'return=minimal');
       return J({ ok: true, photoUrl });
     } catch (dbErr) {
       return J({ ok: true, photoUrl, warning: 'Photo uploaded, but saving it to the student record failed: ' + String((dbErr && dbErr.message) || dbErr) });

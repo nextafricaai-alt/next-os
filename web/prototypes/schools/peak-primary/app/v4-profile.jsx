@@ -328,6 +328,7 @@ const PD_Profile = (function () {
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginBottom: 6 }}>
                   <div style={{ fontSize: 30, fontWeight: 700, color: T.ink, letterSpacing: '-0.025em' }}>{stuName}</div>
                   {isRisk ? <Pill tone="bad">● AT-RISK</Pill> : isTop ? <Pill tone="good">● TOP</Pill> : null}
+                  {window.PD_StudentEdit && <window.PD_StudentEdit.Button stu={stu} label="Edit pupil" onSaved={() => { setPhotoUrlOverride(stu.photoUrl || null); _forceP(); }} />}
                   {stuStream ? <Pill tone="brand">{stuStream}</Pill> : null}
                 </div>
                 <div style={{ display: 'flex', gap: 18, fontSize: 12.5, color: T.ink3, fontFamily: T.mono, flexWrap: 'wrap' }}>
@@ -433,6 +434,13 @@ const PD_Profile = (function () {
                   </Card>
                 );
               })()}
+            </div>
+
+            {/* Notes written by the school (Edit pupil → Notes) */}
+            <div style={{ marginBottom: 16 }}>
+              <Card eyebrow="NOTES" title={stu.notes ? 'From the school' : 'No notes yet'} pad={18}>
+                <div style={{ fontSize: 12.5, color: stu.notes ? T.ink2 : T.ink3, lineHeight: 1.6, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{stu.notes || 'Use “Edit pupil” to add allergies, who picks them up, sponsor or anything staff should know.'}</div>
+              </Card>
             </div>
 
             {/* Guardian communication — real guardian, honest history */}
