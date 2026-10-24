@@ -1,4 +1,4 @@
-// NEXT OS service worker — installability, Web Push, and (Phase 2) offline.  [v6]
+// NEXT OS service worker — installability, Web Push, and (Phase 2) offline.  [v7]
 //
 // Caching rules — school DATA is never cached here:
 //  • Pages (navigations): network first. Only when the network fails or
@@ -59,7 +59,7 @@ function networkFirstPage(req) {
       clearTimeout(timer);
       caches.open(PAGES).then(function (c) { return c.match(req); }).then(function (hit) {
         if (done) return; done = true;
-        resolve(hit || new Response('<!doctype html><meta name="viewport" content="width=device-width"><body style="font-family:sans-serif;background:#0a0a12;color:#ddd;display:flex;align-items:center;justify-content:center;height:100vh;text-align:center"><div><h2>You are offline</h2><p>Open this page once while online and it will work offline next time.</p></div>', { status: 503, headers: { 'Content-Type': 'text/html' } }));
+        resolve(hit || new Response('<!doctype html><meta name="viewport" content="width=device-width"><body style="font-family:sans-serif;background:#0a0a12;color:#ddd;display:flex;align-items:center;justify-content:center;height:100vh;text-align:center"><div><h2>Can\'t reach NEXT OS</h2><p>No internet, or the school system is updating. This page retries by itself.</p><button onclick="location.reload()" style="margin-top:14px;padding:10px 20px;border:0;border-radius:9px;background:#e23a52;color:#fff;font-size:15px;font-weight:700">Try again</button></div><script>addEventListener(\'online\',function(){location.reload()});setTimeout(function(){location.reload()},15000)</script>', { status: 503, headers: { 'Content-Type': 'text/html' } }));
       });
     });
   });
