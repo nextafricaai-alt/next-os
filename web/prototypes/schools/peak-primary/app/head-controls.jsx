@@ -366,7 +366,7 @@ const PD_HeadControls = (function () {
     );
   }
 
-  return { Controls, StaffRules, AuditTrail, StaffAccounts };
+  return { Controls, StaffRules, AuditTrail, StaffAccounts, SecretCard };
 })();
 
 window.PD_HeadControls = PD_HeadControls;

@@ -2,6 +2,8 @@ import { AUTH_CTX, R_STAFF, authGate, callerTenant, isOperator, lookupCaller } f
 import { handleParentChildren, handleParentOtpSend, handleParentOtpVerify, kvBump, parentOwnsStudent, readParentToken } from './src/parent-auth.mjs';
 import { deliverPush, deliverPushByStudent, handleParentNotify, handlePushDebug, handlePushNotify, handlePushSubscribe, handlePushTest } from './src/push.mjs';
 import { sbCount, sbFetch, sbHeaders, sbWrite } from './src/supabase.mjs';
+import { useSupabaseEnv } from './src/sb-key.mjs';
+import { handleNiaDismiss, handleNiaFindings, handleNiaFix, niaRunAll } from './src/nia.mjs';
 import { staffAccounts, staffCreate, staffResetPassword, staffSetActive, staffSetRole } from './src/accounts.mjs';
 import { enc, handleTransportLive, handleTransportMark, handleTransportMarkArrived, handleTransportPing, handleTransportSetStop, handleTransportSettingsSave, handleTransportStudentRemove, handleTransportStudentSave, handleTransportTripEnd, handleTransportTripStart, handleTransportTrips, handleTransportVanDelete, handleTransportVanSave } from './src/transport.mjs';
 /**
@@ -179,9 +181,11 @@ function openAIResponseToAnthropic(data) {
 export default {
   // Cron handler — runs on schedule defined in sentinel-wrangler.toml.
   async scheduled(event, env, ctx) {
+    useSupabaseEnv(env);
     ctx.waitUntil(scheduledHandler(event, env, ctx));
   },
   async fetch(request, env) {
+    useSupabaseEnv(env);
     const origin = request.headers.get('Origin') || 'null';
     const cors = corsHeaders(origin);
     const url = new URL(request.url);
@@ -334,6 +338,9 @@ export default {
     if (url.pathname === '/staff/reset-password') return staffResetPassword(request, env, cors);
     if (url.pathname === '/staff/set-active')     return staffSetActive(request, env, cors);
     if (url.pathname === '/staff/set-role')       return staffSetRole(request, env, cors);
+    if (url.pathname === '/nia/findings')         return handleNiaFindings(request, env, cors);
+    if (url.pathname === '/nia/fix')              return handleNiaFix(request, env, cors);
+    if (url.pathname === '/nia/dismiss')          return handleNiaDismiss(request, env, cors);
     if (url.pathname === '/provision-teacher') {
       return handleProvisionTeacher(request, env, cors);
     }
@@ -1264,7 +1271,7 @@ export const scheduledHandler = async (event, env, ctx) => {
   }
   if (cron === '*/15 5-12 * * 1-5') { await runAttendanceWatch(env); await runLessonReminders(env); return; } // legacy trigger fallback
   // System health heartbeat (every 30 min, 24/7)
-  if (cron === '*/30 * * * *') { await runHealthHeartbeat(env); return; }
+  if (cron === '*/30 * * * *') { await runHealthHeartbeat(env); try { await niaRunAll(env); } catch (e) { console.warn('[nia]', e && e.message); } return; }
   let kind = 'pulse';
   if (cron === '30 3 * * *') {
     kind = 'morning';

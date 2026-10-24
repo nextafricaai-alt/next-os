@@ -67,6 +67,10 @@ const AUTH_RULES = {
   '/staff/reset-password': { roles: R_HEAD, tenant: 'required' },
   '/staff/set-active':     { roles: R_HEAD, tenant: 'required' },
   '/staff/set-role':       { roles: R_HEAD, tenant: 'required' },
+  // Nia Health — head/admin only; every fix needs their tap
+  '/nia/findings':         { roles: R_HEAD, tenant: 'required' },
+  '/nia/fix':              { roles: R_HEAD, tenant: 'required' },
+  '/nia/dismiss':          { roles: R_HEAD, tenant: 'required' },
   // writes
   '/os-data/save':       { roles: R_ANY,     tenant: 'required', dflt: 'next' },
   '/os-data/delete':     { roles: R_ANY,     tenant: 'auth' },

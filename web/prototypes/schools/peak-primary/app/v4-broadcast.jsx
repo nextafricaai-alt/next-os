@@ -246,6 +246,9 @@ const PD_Broadcast = (function () {
     const streams = Array.from(new Set(studs.map(s => s.stream).filter(Boolean))).sort();
 
     const [view, setView] = useState('broadcast');
+    const NIA = window.PD_Nia;
+    const niaCount = NIA ? NIA.useOpenCount() : null;
+    const showNia = !!(NIA && NIA.canSee());
     const [logs, setLogs] = useState([]);
     const [loadingLogs, setLoadingLogs] = useState(false);
     
@@ -366,15 +369,17 @@ const PD_Broadcast = (function () {
       <div style={{ width: embed ? '100%' : 1200, height: embed ? '100%' : 900, display: 'flex', flexDirection: 'column', background: T.bg, color: T.ink, fontFamily: T.font, fontSize: 13, overflow: 'auto' }}>
         <header style={{ padding: '22px 28px 16px', borderBottom: '1px solid ' + T.border }}>
           <div style={{ fontSize: 11, color: T.ink3, fontFamily: T.mono, letterSpacing: '0.08em', fontWeight: 600, marginBottom: 8 }}>COMMUNICATIONS</div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px 20px', flexWrap: 'wrap' }}>
             <button onClick={() => setView('broadcast')} style={{ background: 'transparent', border: 'none', padding: 0, fontSize: 24, fontWeight: 700, letterSpacing: '-0.02em', cursor: 'pointer', color: view === 'broadcast' ? T.ink : T.ink3 }}>Message guardians</button>
             <button onClick={() => setView('suggestions')} style={{ background: 'transparent', border: 'none', padding: 0, fontSize: 24, fontWeight: 700, letterSpacing: '-0.02em', cursor: 'pointer', color: view === 'suggestions' ? T.ink : T.ink3 }}>Suggestion Box & Logs</button>
+            {showNia && <button onClick={() => setView('nia')} style={{ background: 'transparent', border: 'none', padding: 0, fontSize: 24, fontWeight: 700, letterSpacing: '-0.02em', cursor: 'pointer', color: view === 'nia' ? T.ink : T.ink3, display: 'inline-flex', alignItems: 'center', gap: 8 }}>Nia alerts{niaCount ? <span style={{ fontSize: 12, fontWeight: 800, background: T.red, color: '#fff', borderRadius: 999, padding: '2px 8px', lineHeight: 1.4 }}>{niaCount}</span> : null}</button>}
           </div>
           {view === 'broadcast' && <div style={{ fontSize: 13, color: T.ink3, marginTop: 4, maxWidth: 640 }}>Pick who to reach, write the message once, and send each guardian a personalised WhatsApp. Numbers come straight from your real student roster.</div>}
           {view === 'suggestions' && <div style={{ fontSize: 13, color: T.ink3, marginTop: 4, maxWidth: 640 }}>Daily logs and suggestions submitted by teachers from their dashboard.</div>}
+          {view === 'nia' && <div style={{ fontSize: 13, color: T.ink3, marginTop: 4, maxWidth: 640 }}>Problems Nia found in pupils, fees, logins and roll call. Nia only proposes fixes — nothing changes until you approve.</div>}
         </header>
 
-        {view === 'broadcast' ? (
+        {view === 'nia' && NIA ? <NIA.Alerts onNav={onNav} /> : view === 'broadcast' ? (
           <>
             {window.RegistrationApprovalCard && <div style={{ paddingTop: 20 }}><window.RegistrationApprovalCard /></div>}
 
@@ -513,4 +518,4 @@ const PD_Broadcast = (function () {
 
 window.PD_Broadcast = PD_Broadcast;
 
-  
+  

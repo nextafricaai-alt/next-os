@@ -45,7 +45,7 @@ async function sbFetchOne(env, path) {
       'Accept':        'application/json',
     },
   });
-  if (!res.ok) throw new Error('Supabase ' + path + ' → ' + res.status);
+  if (!res.ok) { let t = ''; try { t = (await res.text()).slice(0, 160); } catch (e) {} throw new Error('Supabase ' + path + ' → ' + res.status + (t ? ' ' + t : '')); }
   return res.json();
 }
 

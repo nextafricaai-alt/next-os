@@ -198,7 +198,9 @@
           var WK = 'https://nextos-sentinel.nextafricaai.workers.dev';
           var fetchWithTimeout = function(url, ms) {
             var ctrl = new AbortController();
-            var timer = setTimeout(function() { ctrl.abort(); }, ms || 2000);
+            // Was 2 s: the Worker takes ~1.5–2 s from Kampala, so fees and teachers
+            // were silently dropped and pupils showed "No fees yet". 20 s is safe.
+            var timer = setTimeout(function() { ctrl.abort(); }, ms || 20000);
             return fetch(url, { signal: ctrl.signal })
               .then(function(r) { clearTimeout(timer); return r.ok ? r.json() : null; })
               .catch(function() { clearTimeout(timer); return null; });
@@ -1751,4 +1753,4 @@
   if (window.NextSession && window.NextSession.ready) window.NextSession.ready.then(mountApp);
 })();
 
-  
+  

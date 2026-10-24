@@ -1,0 +1,2 @@
+new sb_secret_ key                          {"teachers":1,"error":null,"url_ok":true,"apikey":"sb_secret_abc","bearer":null}
+legacy key pasted with spaces + url "/"     {"teachers":1,"error":null,"url_ok":true,"apikey":"eyJabc","bearer":"Bearer eyJabc"}

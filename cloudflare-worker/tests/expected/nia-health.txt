@@ -1,0 +1,19 @@
+no sign-in                              Sign in again.
+teacher                                 Only the head teacher or an admin can see and approve Nia alerts.
+head: run                               true found=10
+  open alerts                           class_spelling:P3 class_spelling:P4 dup_pupil:1-2 never_signed_in:u11 no_parent_phone:all no_term_fees:9 overpaid:all similar_pupil:3-4 teacher_no_login:t2 teacher_no_record:u12
+  titles                                1 pupil has no fees for Term 3 2026 | 1 pupil has no parent phone | 1 pupil has paid more than charged | ASIIMWE BRENDA is entered twice | Class "Primary Four" is written 2 ways | Class "Primary Three" is written 2 ways | Jane T has never signed in | Paul O cannot sign in — no login yet | Sam K has a login but is missing from the teacher list | Same pupil? AIZUKA TREVOR / Ajuka Trevor
+teacher tries to fix                    Only the head teacher or an admin can see and approve Nia alerts.
+head approves merge                     {"ok":true,"message":"Merged Asimwe Brenda into ASIIMWE BRENDA."}
+  db calls                              merge 1<-2
+head approves it again                  This alert is already fixed.
+head dismisses Kato pair?               3-4
+head dismisses Aizuka? no: approve      {"ok":true,"message":"Merged Ajuka Trevor into AIZUKA TREVOR."}
+rename classes                          {"ok":true,"message":"Nothing left to rename — already tidy."}
+add teacher record                      {"ok":true,"message":"Sam K now appears in Teachers, the timetable and payroll."}
+reset_password via Nia                  Nia can’t fix this one directly — use the button to open the right screen.
+dismiss overpaid                        {"ok":true}
+re-check                                true found=3 resolved=2
+  still open                            never_signed_in:u11 no_term_fees:9 teacher_no_login:t2
+  overpaid stays dismissed              dismissed
+  pupils left                           1 Primary Four, 3 Primary Three, 5 Primary Three, 6 Primary One
