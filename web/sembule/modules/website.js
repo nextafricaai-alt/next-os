@@ -1,4 +1,4 @@
-import { WEBSITE_DEFAULTS, WEBSITE_URL } from '../website-content.js';
+import { WEBSITE_DEFAULTS, WEBSITE_URL, IMAGE_SLOTS, IMAGE_BUCKET, ensureImages } from '../website-content.js';
 import { CONFIG } from '../config.js';
 import { renderWebsitePreview } from '../website-renderer.js';
 import { escapeHTML, withTimeout } from '../utils.js';
@@ -53,6 +53,76 @@ function itemGroup(title, description, prefix, items, fields, open = false) {
   }).join('');
   return `<section class="website-fields-group"><div class="website-fields-heading"><h3>${e(title)}</h3><p>${e(description)}</p></div><div class="website-items">${cards}</div></section>`;
 }
+
+const MAX_IMAGE_BYTES = 200 * 1024;
+const MAX_IMAGE_EDGE = 1800;
+function imageSrc(page, index) {
+  const current = content.images?.[page]?.[index]?.url;
+  if (current) return current;
+  const original = IMAGE_SLOTS[page][index].original;
+  return /^https?:/i.test(original) ? original : new URL(original, WEBSITE_URL).href;
+}
+function imageGroup(page) {
+  const slots = IMAGE_SLOTS[page];
+  if (!slots) return '';
+  const cards = slots.map((slot, index) => {
+    const base = `images.${page}.${index}`;
+    const replaced = Boolean(content.images?.[page]?.[index]?.url);
+    return `<div class="website-image-card" data-image-card="${page}.${index}">
+      <div class="website-image-thumb"><img src="${e(imageSrc(page, index))}" alt="" loading="lazy" decoding="async">${replaced ? '<span class="website-image-badge">Replaced</span>' : ''}</div>
+      <div class="website-image-body">
+        <strong>${e(slot.label)}</strong>
+        <div class="website-image-actions">
+          <button type="button" class="button secondary" data-upload-image="${page}.${index}">Upload new photo</button>
+          <button type="button" class="button secondary" data-restore-image="${page}.${index}" ${replaced ? '' : 'disabled'}>Use original</button>
+          <input type="file" accept="image/jpeg,image/png,image/webp" hidden data-image-file="${page}.${index}">
+        </div>
+        <p class="website-image-status" data-image-status="${page}.${index}" aria-live="polite"></p>
+        <label class="website-field"><span>Photo description (for accessibility and search)</span><input data-path="${e(base)}.alt" value="${e(content.images?.[page]?.[index]?.alt || '')}" maxlength="180" placeholder="Describe what the photo shows"></label>
+        <label class="website-field"><span>Or paste a link to an image</span><input data-path="${e(base)}.url" value="${e(content.images?.[page]?.[index]?.url || '')}" maxlength="500" placeholder="https://…"></label>
+      </div>
+    </div>`;
+  }).join('');
+  return `<section class="website-fields-group"><div class="website-fields-heading"><h3>Photos</h3><p>Upload a new photo for any slot. Photos are resized automatically and only go public when you publish. “Use original” puts the website’s own photo back.</p></div><div class="website-images">${cards}</div></section>`;
+}
+async function toWebP(file) {
+  if (!/^image\/(jpeg|png|webp)$/.test(file.type)) throw new Error('Choose a JPG, PNG or WebP photo.');
+  if (file.size > 25 * 1024 * 1024) throw new Error('That photo is larger than 25 MB. Choose a smaller one.');
+  const bitmap = await createImageBitmap(file);
+  let scale = Math.min(1, MAX_IMAGE_EDGE / Math.max(bitmap.width, bitmap.height));
+  for (let attempt = 0; attempt < 10; attempt++) {
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+    canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+    canvas.getContext('2d').drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    for (const quality of [0.86, 0.78, 0.7, 0.62, 0.54]) {
+      const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/webp', quality));
+      if (blob && blob.type === 'image/webp' && blob.size <= MAX_IMAGE_BYTES) { bitmap.close?.(); return blob; }
+    }
+    scale *= 0.85;
+  }
+  bitmap.close?.();
+  throw new Error('This photo could not be compressed under 200 KB. Try a smaller or simpler image.');
+}
+async function uploadImage(client, page, index, file) {
+  const blob = await toWebP(file);
+  const path = `${page}/slot-${index + 1}-${Date.now()}.webp`;
+  const { error } = await withTimeout(client.storage.from(IMAGE_BUCKET).upload(path, blob, { contentType: 'image/webp', cacheControl: '31536000', upsert: false }), 60000);
+  if (error) throw new Error(error.message);
+  return { url: client.storage.from(IMAGE_BUCKET).getPublicUrl(path).data.publicUrl, kb: Math.round(blob.size / 1024) };
+}
+function refreshImageCard(page, index) {
+  const card = hostNode?.querySelector(`[data-image-card="${page}.${index}"]`);
+  if (!card) return;
+  const replaced = Boolean(content.images?.[page]?.[index]?.url);
+  card.querySelector('.website-image-thumb img').src = imageSrc(page, index);
+  card.querySelector('.website-image-badge')?.remove();
+  if (replaced) card.querySelector('.website-image-thumb').insertAdjacentHTML('beforeend', '<span class="website-image-badge">Replaced</span>');
+  card.querySelector('[data-restore-image]').disabled = !replaced;
+  card.querySelectorAll('button').forEach(item => { if (!item.hasAttribute('data-restore-image')) item.disabled = false; });
+  const urlInput = card.querySelector('input[data-path$=".url"]');
+  if (urlInput) urlInput.value = content.images[page][index].url;
+}
 function seoFields(page) {
   return fieldGroup('Search preview', 'Control the browser title and search description for this page.', [
     field(`seo.${page}.title`, 'Page title'),
@@ -91,6 +161,7 @@ function editorSections() {
         field('home.callToAction.heading', 'Final headline', true),
         field('home.callToAction.summary', 'Final supporting copy', true)
       ])
+      + imageGroup('home')
       + seoFields('home');
   }
   if (activePage === 'services') {
@@ -108,6 +179,7 @@ function editorSections() {
       field('portfolio.permissionsNote', 'Portfolio note', true)
     ])
       + itemGroup('Selected projects', 'Edit the four project titles and captions on the portfolio page.', 'portfolio.projects', content.portfolio.projects, [['title', 'Project title'], ['category', 'Service labels'], ['link', 'Project link']])
+      + imageGroup('portfolio')
       + seoFields('portfolio');
   }
   if (activePage === 'about') {
@@ -121,6 +193,7 @@ function editorSections() {
         field('about.coverageHeading', 'Coverage headline', true),
         field('about.coverage', 'Coverage copy', true)
       ])
+      + imageGroup('about')
       + seoFields('about');
   }
   return fieldGroup('Contact page introduction', 'The heading and supporting text shown above the enquiry details.', [
@@ -245,6 +318,11 @@ function validateContent() {
   for (const project of content.portfolio.projects || []) {
     if (project.link && !/^https:\/\//i.test(project.link)) throw new Error('Portfolio links must start with https://.');
   }
+  for (const list of Object.values(content.images || {})) {
+    for (const image of list) {
+      if (image.url && !/^https:\/\//i.test(image.url)) throw new Error('Photo links must start with https://.');
+    }
+  }
   for (const [name, url] of Object.entries(content.brand.socials || {})) {
     if (url && !/^https:\/\//i.test(url)) throw new Error(name + ' links must start with https://.');
   }
@@ -270,15 +348,15 @@ async function loadWebsite(client) {
     .eq('id', 'main').maybeSingle());
   if (error) throw new Error(error.message);
   if (!data) {
-    content = clone(WEBSITE_DEFAULTS);
+    content = ensureImages(clone(WEBSITE_DEFAULTS));
     savedContent = null;
     publishedContent = null;
     publishedAt = null;
     savedAt = null;
     return;
   }
-  content = clone(data.draft_content || WEBSITE_DEFAULTS);
-  savedContent = clone(data.draft_content || WEBSITE_DEFAULTS);
+  content = ensureImages(clone(data.draft_content || WEBSITE_DEFAULTS));
+  savedContent = clone(content);
   publishedContent = data.published_content ? clone(data.published_content) : null;
   publishedAt = data.published_at || null;
   savedAt = data.updated_at || null;
@@ -342,12 +420,47 @@ export async function mountWebsite(context) {
     if (previewMode === 'draft') queueDraftPreview();
     saveState();
   });
+  host.addEventListener('change', async event => {
+    const input = event.target.closest('[data-image-file]');
+    if (!input || !input.files?.length) return;
+    const [page, indexText] = input.dataset.imageFile.split('.');
+    const index = Number(indexText);
+    const file = input.files[0];
+    input.value = '';
+    const status = host.querySelector(`[data-image-status="${page}.${index}"]`);
+    const buttons = host.querySelectorAll(`[data-image-card="${page}.${index}"] button`);
+    buttons.forEach(item => { item.disabled = true; });
+    if (status) { status.className = 'website-image-status'; status.textContent = 'Resizing and uploading…'; }
+    try {
+      const result = await uploadImage(client, page, index, file);
+      writePath(content, `images.${page}.${index}.url`, result.url);
+      refreshImageCard(page, index);
+      const done = host.querySelector(`[data-image-status="${page}.${index}"]`);
+      if (done) { done.className = 'website-image-status is-ok'; done.textContent = `Uploaded (${result.kb} KB). Save draft, then Publish when ready.`; }
+      saveState();
+    } catch (error) {
+      buttons.forEach(item => { item.disabled = false; });
+      if (status) { status.className = 'website-image-status is-error'; status.textContent = error.message; }
+    }
+  });
   host.addEventListener('click', async event => {
     const button = event.target.closest('button');
     if (!button) return;
     if (button.dataset.page && button.dataset.page !== activePage) {
       activePage = button.dataset.page;
       setFields();
+      saveState();
+      return;
+    }
+    if (button.dataset.uploadImage) {
+      host.querySelector(`[data-image-file="${button.dataset.uploadImage}"]`)?.click();
+      return;
+    }
+    if (button.dataset.restoreImage) {
+      const [page, index] = button.dataset.restoreImage.split('.');
+      writePath(content, `images.${page}.${index}.url`, '');
+      refreshImageCard(page, Number(index));
+      if (previewMode === 'draft') queueDraftPreview();
       saveState();
       return;
     }

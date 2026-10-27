@@ -86,6 +86,58 @@
       .find(node => node.textContent.trim().startsWith('©'));
     setText(copyright, '© ' + new Date().getFullYear() + ' ' + brand.name + '. All rights reserved. ' + brand.location);
   }
+  function updateImages(content) {
+    const list = content.images?.[PAGE];
+    if (!Array.isArray(list)) return;
+    // Same order the editor uses: photos inside <main>, skipping the client-logo band and decorative copies.
+    const photos = [...main.querySelectorAll('img')].filter(img => !img.closest('[data-partner-band]') && img.getAttribute('alt'));
+    list.forEach((entry, index) => {
+      const img = photos[index];
+      const src = safeHref(entry?.url);
+      if (!img || !src) return;
+      const alt = String(entry.alt || '').trim();
+      const apply = () => {
+        if (img.getAttribute('srcset')) img.removeAttribute('srcset');
+        if (img.getAttribute('sizes')) img.removeAttribute('sizes');
+        if (img.getAttribute('src') !== src) img.setAttribute('src', src);
+        if (alt && img.alt !== alt) img.alt = alt;
+      };
+      apply();
+      // The page's own script may set bundled photos a moment later; keep the published photo in place.
+      new MutationObserver(apply).observe(img, { attributes: true, attributeFilter: ['src', 'srcset'] });
+    });
+  }
+  // The homepage hero is a rotating carousel whose own script rewrites the headline text on every slide change.
+  // The editor's eyebrow/headline/summary belong to the FIRST slide: they show whenever that slide is on screen.
+  const heroEdits = new WeakMap();
+  function updateHeroCarousel(hero, heroTitle) {
+    const root = heroTitle.closest('[data-hero-carousel]') || main;
+    const first = root.querySelector('[data-hero-slide]');
+    const norm = (v) => String(v || '').replace(/\s+/g, ' ').trim();
+    const clean = (v) => (typeof v === 'string' && v.trim() ? v.trim() : '');
+    [
+      [root.querySelector('[data-hero-eyebrow]'), 'storyEyebrow', clean(hero.eyebrow)],
+      [heroTitle, 'storyTitle', clean(hero.headline)],
+      [root.querySelector('[data-hero-description]'), 'storyDescription', clean(hero.summary)]
+    ].forEach(([el, key, value]) => {
+      if (!el || !value) return;
+      let state = heroEdits.get(el);
+      if (!state) {
+        // The carousel keeps its own copy of slide 1's text, so remember what it will write back.
+        state = { original: norm(first ? first.dataset[key] : ''), value: '' };
+        heroEdits.set(el, state);
+        new MutationObserver(() => {
+          const text = norm(el.textContent);
+          if (state.value && text !== norm(state.value) && text === state.original) el.textContent = state.value;
+        }).observe(el, { childList: true, characterData: true, subtree: true });
+      }
+      state.value = value;
+      if (norm(el.textContent) === state.original || norm(el.textContent) === norm(value) || !el.dataset.sembuleHeroTouched) {
+        el.textContent = value;
+      }
+      el.dataset.sembuleHeroTouched = '1';
+    });
+  }
   function updateWebsite(content) {
     if (!content || !main) return;
     const seo = content.seo?.[PAGE];
@@ -103,9 +155,13 @@
     if (PAGE === 'home') {
       const hero = content.home?.hero || {};
       const heroTitle = main.querySelector('h1');
-      setText(scopeFor(heroTitle)?.querySelector('.eyebrow'), hero.eyebrow);
-      setText(heroTitle, hero.headline);
-      setText(descriptionFor(heroTitle), hero.summary);
+      if (heroTitle && heroTitle.hasAttribute('data-hero-title')) {
+        updateHeroCarousel(hero, heroTitle);
+      } else {
+        setText(scopeFor(heroTitle)?.querySelector('.eyebrow'), hero.eyebrow);
+        setText(heroTitle, hero.headline);
+        setText(descriptionFor(heroTitle), hero.summary);
+      }
       const servicesTitle = main.querySelector('#services-title');
       setText(servicesTitle, content.home?.services?.heading);
       setText(descriptionFor(servicesTitle), content.home?.services?.intro);
@@ -154,6 +210,7 @@
         .find(node => node.nodeType === Node.TEXT_NODE && node.textContent.trim());
       if (locationCopy && content.brand?.location) locationCopy.textContent = '\n' + content.brand.location;
     }
+    updateImages(content);
     updateFooter(content.brand);
   }
 

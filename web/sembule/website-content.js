@@ -121,3 +121,113 @@ export const WEBSITE_DEFAULTS = {
 export function copyWebsiteDefaults() {
   return JSON.parse(JSON.stringify(WEBSITE_DEFAULTS));
 }
+
+// Photos that can be replaced from the editor. `original` is what the public page ships with;
+// the editor stores only a replacement address (url) and optional description (alt) per slot.
+// Order matters: slots follow the order of the photos in each page's <main>, client logos excluded.
+export const IMAGE_BUCKET = 'sembule-website';
+export const IMAGE_SLOTS = {
+  "home": [
+    {
+      "label": "Hero slide 1 · Livestream",
+      "original": "./assets/brand/camera-viewfinder.jpg"
+    },
+    {
+      "label": "Hero slide 2 · Weddings",
+      "original": "https://i0.wp.com/sembulemedia.com/wp-content/uploads/2022/04/msg680180638-10205.jpg?resize=580%2C435&ssl=1"
+    },
+    {
+      "label": "Hero slide 3 · Documentaries",
+      "original": "https://i0.wp.com/sembulemedia.com/wp-content/uploads/2022/04/msg680180638-10213-Copy.jpg?resize=580%2C435&ssl=1"
+    },
+    {
+      "label": "Hero slide 4 · Live stage",
+      "original": "./assets/brand/hero-live-stage.jpg"
+    },
+    {
+      "label": "Hero slide 5 · LED screen",
+      "original": "./assets/brand/hero-led-screen.jpg"
+    },
+    {
+      "label": "Hero slide 6 · Video poster",
+      "original": "https://i0.wp.com/sembulemedia.com/wp-content/uploads/2022/04/DSC_6029-2-scaled.jpg?fit=1200%2C800&ssl=1"
+    },
+    {
+      "label": "Work carousel 1",
+      "original": "https://i0.wp.com/sembulemedia.com/wp-content/uploads/2022/04/DSC_6011-2-scaled.jpg?fit=900%2C1125&ssl=1"
+    },
+    {
+      "label": "Work carousel 2",
+      "original": "https://i0.wp.com/sembulemedia.com/wp-content/uploads/2022/04/DSC_6013-2-scaled.jpg?fit=900%2C1125&ssl=1"
+    },
+    {
+      "label": "Work carousel 3",
+      "original": "https://i0.wp.com/sembulemedia.com/wp-content/uploads/2022/04/DSC_6019-2-scaled.jpg?fit=900%2C1125&ssl=1"
+    },
+    {
+      "label": "Work carousel 4",
+      "original": "https://i0.wp.com/sembulemedia.com/wp-content/uploads/2022/04/DSC_6029-2-scaled.jpg?fit=900%2C1125&ssl=1"
+    },
+    {
+      "label": "Work carousel 5",
+      "original": "https://i0.wp.com/sembulemedia.com/wp-content/uploads/2022/04/DSC_6041-2-scaled.jpg?fit=900%2C1125&ssl=1"
+    },
+    {
+      "label": "Work carousel 6",
+      "original": "https://i0.wp.com/sembulemedia.com/wp-content/uploads/2022/04/DSC_6043-2-scaled.jpg?fit=900%2C1125&ssl=1"
+    },
+    {
+      "label": "Work carousel 7",
+      "original": "https://i0.wp.com/sembulemedia.com/wp-content/uploads/2022/04/DSC_6046-2-scaled.jpg?fit=900%2C1125&ssl=1"
+    },
+    {
+      "label": "Work carousel 8",
+      "original": "https://i0.wp.com/sembulemedia.com/wp-content/uploads/2022/04/DSC_6050-2-scaled.jpg?fit=900%2C1125&ssl=1"
+    },
+    {
+      "label": "Work carousel 9",
+      "original": "https://i0.wp.com/sembulemedia.com/wp-content/uploads/2022/04/msg680180638-10205.jpg?fit=900%2C1125&ssl=1"
+    },
+    {
+      "label": "Work carousel 10",
+      "original": "https://i0.wp.com/sembulemedia.com/wp-content/uploads/2022/04/msg680180638-10213-Copy.jpg?fit=900%2C1125&ssl=1"
+    },
+    {
+      "label": "About preview photo",
+      "original": "https://i0.wp.com/sembulemedia.com/wp-content/uploads/2022/04/DSC_6029-2-scaled.jpg?fit=1400%2C875&ssl=1"
+    }
+  ],
+  "portfolio": [
+    {
+      "label": "Project 1 · Live event production",
+      "original": "https://i0.wp.com/sembulemedia.com/wp-content/uploads/2022/04/DSC_6029-2-scaled.jpg?fit=1000%2C900&ssl=1"
+    },
+    {
+      "label": "Project 2 · Celebrations",
+      "original": "https://i0.wp.com/sembulemedia.com/wp-content/uploads/2022/04/msg680180638-10205.jpg?resize=1000%2C1100&ssl=1"
+    },
+    {
+      "label": "Project 3 · Stories from the field",
+      "original": "https://i0.wp.com/sembulemedia.com/wp-content/uploads/2022/04/msg680180638-10213-Copy.jpg?resize=1000%2C900&ssl=1"
+    },
+    {
+      "label": "Project 4 · Livestream sample",
+      "original": "https://i0.wp.com/sembulemedia.com/wp-content/uploads/2022/04/DSC_6029-2-scaled.jpg?fit=1000%2C900&ssl=1"
+    }
+  ],
+  "about": [
+    {
+      "label": "Our story photo",
+      "original": "https://i0.wp.com/sembulemedia.com/wp-content/uploads/2022/04/DSC_6029-2-scaled.jpg?fit=1100%2C1200&ssl=1"
+    }
+  ]
+};
+
+export function ensureImages(content) {
+  content.images = content.images || {};
+  for (const [page, slots] of Object.entries(IMAGE_SLOTS)) {
+    const list = Array.isArray(content.images[page]) ? content.images[page] : [];
+    content.images[page] = slots.map((_, index) => ({ url: String(list[index]?.url || ''), alt: String(list[index]?.alt || '') }));
+  }
+  return content;
+}
