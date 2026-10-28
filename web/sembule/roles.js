@@ -18,6 +18,7 @@ export const ROUTES = Object.freeze([
   { id: 'invoices', label: 'Invoices & receipts', group: 'Money', icon: 'wallet', money: true, note: 'Bill the client, record every payment, print the receipt.' },
   { id: 'expenses', label: 'Expenses', group: 'Money', icon: 'receipt', money: true, note: 'Every cost, linked to its project, so profit is real.' },
   { id: 'teampay', label: 'Pay the team', group: 'Money', icon: 'users', money: true, note: 'Everyone owed for their work, in one list.' },
+  { id: 'buckets', label: 'Buckets', group: 'Money', icon: 'wallet', money: true, owner: true, note: 'Tithe first, then every shilling of profit gets a job.' },
   { id: 'hire', label: 'Equipment hire', group: 'Money', icon: 'wallet', money: true, note: 'Equipment hire terms and refundable deposits.' },
   { id: 'reports', label: 'Reports', group: 'Money', icon: 'grid', money: true, note: 'Money in, what sells, and who still owes.' },
   { id: 'reminders', label: 'Tasks', group: 'Follow up', icon: 'clock', note: 'Who to nudge today, one tap on WhatsApp.' },

@@ -23,6 +23,7 @@ import { mountSettings } from './modules/settings.js';
 import { mountReports } from './modules/reports.js';
 import { mountWebsite } from './modules/website.js';
 import { mountTeamPay } from './modules/teampay.js';
+import { mountBuckets } from './modules/buckets.js';
 import { mountReminders } from './modules/reminders.js';
 import { mountHire } from './modules/hire.js';
 import { mountFeedback } from './modules/feedback.js';
@@ -59,7 +60,7 @@ async function render(message = '') {
   if (!route) { identity = null; render('Your workspace access could not be verified.'); return; }
   if (requested !== route.id) { history.replaceState(null, '', '#dashboard'); notify('That area is not available for this account.'); }
   rememberRoute(route.id);
-  const moduleMount = { leads: mountLeads, clients: mountClients, holds: mountHolds, quotes: mountQuotes, invoices: mountInvoices, expenses: mountExpenses, jobs: mountJobs, crew: mountCrew, calendar: mountCalendar, equipment: mountEquipment, delivery: mountDelivery, dashboard: mountDashboard, settings: mountSettings, reports: mountReports, website: mountWebsite, reminders: mountReminders, hire: mountHire, feedback: mountFeedback, teampay: mountTeamPay }[route.id];
+  const moduleMount = { leads: mountLeads, clients: mountClients, holds: mountHolds, quotes: mountQuotes, invoices: mountInvoices, expenses: mountExpenses, jobs: mountJobs, crew: mountCrew, calendar: mountCalendar, equipment: mountEquipment, delivery: mountDelivery, dashboard: mountDashboard, settings: mountSettings, reports: mountReports, website: mountWebsite, reminders: mountReminders, hire: mountHire, feedback: mountFeedback, teampay: mountTeamPay, buckets: mountBuckets }[route.id];
   const content = route.id === 'dashboard' && identity.preview ? dashboardView(identity) : moduleMount ? '<div class="module-loading">Loading…</div>' : placeholderView(route);
   root.innerHTML = shellView(identity, route, content);
   document.title = `${route.label} | ${CONFIG.name}`;
