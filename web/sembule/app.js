@@ -24,6 +24,7 @@ import { mountReports } from './modules/reports.js';
 import { mountWebsite } from './modules/website.js';
 import { mountTeamPay } from './modules/teampay.js';
 import { mountBuckets } from './modules/buckets.js';
+import { initBell } from './modules/bell.js';
 import { mountReminders } from './modules/reminders.js';
 import { mountHire } from './modules/hire.js';
 import { mountFeedback } from './modules/feedback.js';
@@ -70,6 +71,7 @@ async function render(message = '') {
     if (!db) { db = await getClient(); loadCompany(db); }
     if (ticket !== revision) return;
     const host = document.getElementById('route-content');
+    initBell(db);
     await moduleMount({ client: db, identity, host, notify });
   } else if (moduleMount && identity.preview && route.id !== 'dashboard') {
     document.getElementById('route-content').innerHTML = '<div class="error-panel"><strong>Live records are unavailable in preview.</strong><p>Sign in to work with enquiries, clients and date holds.</p></div>';

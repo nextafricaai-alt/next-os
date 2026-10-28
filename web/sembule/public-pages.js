@@ -38,9 +38,9 @@ function quotePage(d) {
   root.innerHTML = `${head(d.company, 'QUOTATION')}<div class="pp-card">
     <p class="pp-eyebrow">${e(d.reference)} · ${e(d.client)}</p><h1>Your quotation</h1>
     <p class="pp-sub">Issued ${date(d.issued_on)}${d.valid_until ? ' · valid until ' + date(d.valid_until) : ''}${d.status === 'accepted' ? ' · accepted' : ''}</p>
-    <table class="pp-table"><thead><tr><th>Item</th><th class="r">Qty × days</th><th class="r">Amount</th></tr></thead><tbody>${d.lines.map(l => `<tr><td>${e(l.description)}</td><td class="r">${Number(l.quantity)} × ${Number(l.days)}</td><td class="r">${money(l.line_total, cur)}</td></tr>`).join('')}<tr class="t"><td colspan="2">Total</td><td class="r">${money(total, cur)}</td></tr></tbody></table>
+    <table class="pp-table"><thead><tr><th>Item</th><th class="r">Qty × days</th><th class="r">Amount</th></tr></thead><tbody>${d.lines.map(l => `<tr><td>${e(l.description)}${l.details ? `<small class="pp-details">${e(l.details)}</small>` : ''}</td><td class="r">${Number(l.quantity)} × ${Number(l.days)}</td><td class="r">${money(l.line_total, cur)}</td></tr>`).join('')}<tr class="t"><td colspan="2">Total</td><td class="r">${money(total, cur)}</td></tr></tbody></table>
     ${d.inclusions ? `<h2>Included</h2><p>${e(d.inclusions).replace(/\n/g, '<br>')}</p>` : ''}${d.exclusions ? `<h2>Not included</h2><p>${e(d.exclusions).replace(/\n/g, '<br>')}</p>` : ''}
-    <a class="pp-btn" href="https://wa.me/${String(d.company?.phone || '').replace(/\D/g, '')}?text=${encodeURIComponent('Hello, I would like to accept quotation ' + d.reference)}">Accept this quote on WhatsApp</a>
+    <div id="accept"><p class="pp-note">Loading…</p></div>
     <button class="pp-btn ghost" onclick="window.print()">Save / print this page</button>
   </div>${foot(d.company)}`;
 }
@@ -66,6 +66,23 @@ function crewPage(d, client) {
   }));
 }
 
+// Accept a quote online: the client types their name, Tony gets a notification and books it.
+async function acceptBox(d, client) {
+  const box = document.getElementById('accept'); if (!box) return;
+  const wa = `https://wa.me/${String(d.company?.phone || '').replace(/\D/g, '').replace(/^0/, '256')}?text=${encodeURIComponent('Hello, I have a question about quotation ' + d.reference)}`;
+  const done = (name, at) => { box.innerHTML = `<p class="pp-note">Accepted by <b>${e(name || d.client)}</b>${at ? ' on ' + date(at) : ''}. Thank you. We will confirm your booking and send your invoice.</p><a class="pp-btn ghost" href="${wa}">Message us on WhatsApp</a>`; };
+  if (d.status === 'accepted') return done(null, null);
+  const { data: st } = await client.rpc('quote_accept', { p_token: token, p_name: null });
+  if (st?.accepted_at) return done(st.name, st.accepted_at);
+  box.innerHTML = `<h2>Ready to book?</h2><form id="acc" style="display:flex;flex-direction:column;gap:10px"><label style="display:flex;flex-direction:column;gap:6px">Your full name<input name="name" required minlength="2" maxlength="120" style="padding:11px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.15);background:rgba(0,0,0,.25);color:inherit;font:inherit"></label><button class="pp-btn" type="submit">Accept this quotation</button></form><a class="pp-btn ghost" href="${wa}">Ask a question on WhatsApp</a>`;
+  box.querySelector('#acc').addEventListener('submit', async ev => {
+    ev.preventDefault(); const b = ev.target.querySelector('button'); b.disabled = true; b.textContent = 'Sending…';
+    const { data: r, error } = await client.rpc('quote_accept', { p_token: token, p_name: ev.target.name.value.trim() });
+    if (error || !r?.ok) { b.disabled = false; b.textContent = 'Accept this quotation'; alert('Could not send. Please try again or message us on WhatsApp.'); return; }
+    done(r.name, r.accepted_at);
+  });
+}
+
 (async () => {
   if (!/^[0-9a-f-]{36}$/i.test(token)) return invalid('Please use the link we sent you.');
   try {
@@ -77,7 +94,7 @@ function crewPage(d, client) {
     } else {
       const { data, error } = await client.rpc('client_portal', { p_token: token });
       if (error || !data) return invalid('This document is not available or the link has changed. Please contact us.');
-      data.kind === 'quote' ? quotePage(data) : invoicePage(data);
+      if (data.kind === 'quote') { quotePage(data); acceptBox(data, client); } else invoicePage(data);
     }
   } catch { invalid('We could not load this page. Please check your connection and try again.'); }
 })();

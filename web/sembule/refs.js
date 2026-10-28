@@ -139,4 +139,4 @@ export const kampalaInput = iso => iso ? new Date(new Date(iso).getTime() + 3 * 
 export const fromKampala = v => v ? new Date(v + ':00+03:00').toISOString() : null;
 
 // Private page links for clients (portal.html) and crew (call.html). Built from where the app is hosted.
-export function shareLink(kind, token) { return new URL(`./${kind === 'call' ? 'call' : kind === 'brief' ? 'brief' : 'portal'}.html?t=${token}`, location.href).href; }
+export function shareLink(kind, token) { return new URL(`./${kind === 'call' ? 'call' : kind === 'brief' ? 'brief' : kind === 'client' ? 'client' : 'portal'}.html?t=${token}`, location.href).href; }
