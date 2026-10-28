@@ -30,8 +30,8 @@ export async function mountSettings(context) {
       <p class="muted small-note">What each role sees: <b>Owner</b> everything, including prices and settings. <b>Director</b> money and operations, no settings. <b>Production lead</b> jobs, crew, equipment and delivery, never money.<br>To add or remove a person, ask NEXT support. Access is changed on the server so nobody can give themselves more rights from the app.</p></section>`;
     const form = host.querySelector('[data-company]');
     form.addEventListener('submit', async ev => {
-      ev.preventDefault(); setBusy(form, true);
-      const f = Object.fromEntries(new FormData(form));
+      ev.preventDefault();
+      const f = Object.fromEntries(new FormData(form)); setBusy(form, true);
       for (const k of Object.keys(f)) f[k] = String(f[k]).trim() || null;
       try {
         const { error: err } = await withTimeout(client.from('settings').upsert({ id: true, ...f, updated_at: new Date().toISOString() }, { onConflict: 'id' }));
