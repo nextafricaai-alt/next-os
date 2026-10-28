@@ -75,8 +75,19 @@ async function render(message = '') {
     document.getElementById('route-content').innerHTML = '<div class="error-panel"><strong>Live records are unavailable in preview.</strong><p>Sign in to work with enquiries, clients and date holds.</p></div>';
   }
 }
+// When someone is already signed in, re-check quietly in the background. Never wipe the page:
+// switching to WhatsApp and back used to reload the screen and lose everything typed (and break saves in progress).
+async function recheckQuietly() {
+  if (!auth || signingIn || !identity || identity.preview) return;
+  try {
+    const result = await auth.identity();
+    if (!result) { identity = null; render('Please sign in again.'); return; }
+    if (result.id !== identity.id || result.role !== identity.role) { identity = result; render(); }
+  } catch { /* offline or slow: keep working, nothing is lost */ }
+}
 async function verifyAccess() {
   if (!auth || signingIn || identity?.preview) return;
+  if (identity) return recheckQuietly();
   const ticket = ++revision;
   identity = null;
   root.innerHTML = '<div class="loading-state" role="status">Checking your workspace access…</div>';
@@ -153,6 +164,7 @@ async function setupAuth() {
   db = await getClient(); auth = createAuth(db);
   auth.onChange(event => {
     if (event === 'SIGNED_OUT') { ++revision; identity = null; render(); }
+    else if (event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') return;
     else if (!signingIn) verifyAccess();
   });
 }
