@@ -22,6 +22,8 @@ function rows(ctx) {
   const j = ctx.job, c = ctx.clients.find(x => x.id === j.client_id) || {}, L = ctx.links || { quotes: [], invoices: [] };
   const first = (c.name || '').split(' ')[0];
   const out = [];
+  out.push({ group: 'Client', title: '⭐ Client page (everything in one link)', note: `Brief, quote, booking terms, invoice and receipts, files and review.${j.terms_signed_at ? ` Terms signed by ${j.terms_signed_name} on ${readable(j.terms_signed_at)}.` : ' Terms not signed yet.'}${j.hub_opened_at ? ` Last opened ${readable(j.hub_opened_at)}.` : ' Not opened yet.'}`, url: j.hub_token ? shareLink('client', j.hub_token) : null, phone: c.phone,
+    msg: u => `Hello ${first}, thank you for choosing ${CONFIG.name} for ${j.title}. Everything for your event is on this one page: your brief, quotation, booking terms, payments and receipts. Please keep this link: ${u}` });
   out.push({ group: 'Client', title: 'Client brief', note: j.brief_status === 'submitted' ? `Filled in${j.brief_updated_at ? ' on ' + readable(j.brief_updated_at) : ''}. They can still update it.` : 'The client tells us the day, the venue, their songs and what they need.', url: j.brief_token ? shareLink('brief', j.brief_token) : null, phone: c.phone,
     msg: u => `Hello ${first}, thank you for booking ${CONFIG.name} for ${j.title}. Please fill in this short brief so we prepare exactly what you need, including your songs: ${u}` });
   L.quotes.forEach(q => out.push({ group: 'Client', title: `Quotation ${q.reference}`, note: `Status: ${q.status}. The client can read it and accept it online.`, url: q.portal_token ? shareLink('portal', q.portal_token) : null, phone: c.phone,
@@ -31,6 +33,12 @@ function rows(ctx) {
   ctx.crewRows.forEach(r => { const p = ctx.crew.find(x => x.id === r.crew_id) || {};
     out.push({ group: 'Team', title: `${p.name || 'Crew'} · ${r.role}`, note: r.availability === 'confirmed' ? 'Confirmed.' : r.availability === 'declined' ? 'Declined.' : 'Waiting for them to confirm.', url: r.share_token ? shareLink('call', r.share_token) : null, phone: p.phone,
       msg: u => `Hello ${p.name || ''}, your call details for ${j.title} are here. Please open and tap Yes to confirm: ${u}` }); });
+  out.push({ group: 'Anyone', title: 'Packages page (clients pick and book)', note: 'Every package with what it includes. Prices show once you press Confirm price in Quotes. Requests land in Pipeline.', url: new URL('./packages.html', location.href).href, phone: '',
+    msg: u => `Hello, here are our packages at ${CONFIG.name}. Tap what your event needs and send your request; we reply with a full quotation: ${u}` });
+  out.push({ group: 'Anyone', title: 'Photo and video onboarding', note: 'Packages page showing only photo and video.', url: new URL('./packages.html?g=photo', location.href).href, phone: '',
+    msg: u => `Hello, thank you for considering ${CONFIG.name} for your photos and video. Choose what you need here and we will send your quotation: ${u}` });
+  out.push({ group: 'Anyone', title: 'Link in bio (Instagram, TikTok, WhatsApp status)', note: 'One link to packages, booking, WhatsApp and the website.', url: new URL('./links.html', location.href).href, phone: '',
+    msg: u => `Book Sembule Media for your next event: ${u}` });
   out.push({ group: 'Anyone', title: 'Enquiry form (new clients)', note: 'One link for everyone. Put it on Instagram, WhatsApp status and the website. Answers land in Pipeline.', url: new URL('./enquiry.html', location.href).href, phone: '',
     msg: u => `Hello, thank you for contacting ${CONFIG.name}. Please tell us about your event here and we will come back to you with a quotation: ${u}` });
   return out;
