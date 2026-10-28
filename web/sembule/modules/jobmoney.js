@@ -3,6 +3,8 @@ import { saveRow, deleteRow } from '../data.js';
 import { withTimeout } from '../utils.js';
 import { e, field, selectField } from './records.js';
 import { openInvoice } from './invoices.js';
+import { loadBuckets, loadDistributions, splitProfit, ICON } from './bucketsplit.js';
+import { askForm } from '../refs.js';
 import { money, num, txt, today, readable, insertWithRef } from '../refs.js';
 
 const METHOD = [['mtn_momo', 'MTN MoMo'], ['airtel_money', 'Airtel Money'], ['bank', 'Bank'], ['cash', 'Cash']];
@@ -13,7 +15,8 @@ export async function loadMoney(client, jobId) {
   const [invoices, bals, expenses] = await Promise.all([q(client, 'invoices', 'job_id', jobId, 'issued_on'), q(client, 'invoice_balances', 'job_id', jobId), q(client, 'expenses', 'job_id', jobId, 'incurred_on')]);
   let payments = [];
   if (invoices.length) { const { data, error } = await withTimeout(client.from('payments').select('*').in('invoice_id', invoices.map(i => i.id)).order('paid_at', { ascending: false })); if (error) throw new Error(error.message); payments = data || []; }
-  return { invoices, bals, expenses, payments };
+  const [bk, dists] = await Promise.all([loadBuckets(client), loadDistributions(client, jobId)]);
+  return { invoices, bals, expenses, payments, buckets: bk.buckets, bucketsReady: bk.ready, dists };
 }
 
 export function moneyTab(ctx) {
@@ -59,7 +62,28 @@ export function moneyTab(ctx) {
     ${loss ? `<p class="alert red"><b>This project has cost ${money(-profit)} more than it brings in.</b>Check the invoice and the costs above.</p>` : ''}
     <div class="table-wrap flat"><table class="data-table"><tbody><tr><td>Invoiced</td><td class="num">${money(invoiced)}</td></tr><tr><td>Team pay</td><td class="num">− ${money(crewCost)}</td></tr><tr><td>Other costs</td><td class="num">− ${money(otherCost)}</td></tr></tbody><tfoot><tr><td><strong>Net profit</strong></td><td class="num"><strong>${money(profit)}</strong></td></tr></tfoot></table></div>
     <p class="muted small-note">Cash actually in hand so far: ${money(received - cost)} (received minus costs). Only the owner sees this section.</p>`) : `<section class="panel money-sec"><div class="money-body"><p class="muted">🔒 Net profit is private to the owner.</p></div></section>`;
-  return `<div class="money-tab">${s1}${s2}${s3}</div>`;
+  const s4 = owner ? shareSection(ctx, profit, due) : '';
+  return `<div class="money-tab">${s1}${s2}${s3}${s4}</div>`;
+}
+
+// Step 4: share the profit. Tithe 10% of net profit first, then the buckets. Owner only.
+function shareSection(ctx, profit, due) {
+  const m = ctx.money, j = ctx.job;
+  const teamOwed = ctx.pay.some(p => Number(p.paid_amount) + 0.5 < Number(p.agreed_amount));
+  const blockers = [];
+  if (!m.bucketsReady) blockers.push('The buckets are being set up. Ask Hudson to finish the setup.');
+  if (j.stage !== 'Delivered and paid') blockers.push('Mark the job "Delivered and paid" in Overview.');
+  if (due > 0.5) blockers.push(`The client still owes ${money(due)}.`);
+  if (teamOwed) blockers.push('Someone on the team is not fully paid yet.');
+  if (profit <= 0) blockers.push('There is no profit to share on this job.');
+  const rows = splitProfit(profit, m.buckets), done = k => m.dists.find(d => d.bucket === k);
+  const allDone = rows.length && rows.every(r => done(r.key) || r.amount <= 0);
+  const body = `${blockers.length ? `<div class="alert amber"><b>Not ready to share yet</b>${blockers.map(b => e(b)).join('<br>')}</div>` : allDone ? '<p class="alert plain"><b>Done</b>Every shilling of this profit has a home.</p>' : '<p class="muted small-note">The job is closed. Send each amount, then tap Mark transferred.</p>'}
+    <div class="table-wrap flat"><table class="data-table"><thead><tr><th>Where it goes</th><th class="num">Share</th><th class="num">Amount</th><th></th></tr></thead><tbody>
+    ${rows.map(r => { const d = done(r.key); return `<tr data-bk="${e(r.key)}"><td><strong>${ICON[r.key] || '•'} ${e(r.label)}</strong>${r.key === 'tithe' ? '<small>10% of net profit, given first</small>' : ''}</td><td class="num">${Number(r.pct)}%${r.key === 'tithe' ? '' : ' of the rest'}</td><td class="num"><strong>${money(d ? d.amount : r.amount)}</strong></td>
+      <td class="row-actions">${d ? `<em class="status">✓ ${readable(d.transferred_at)}${d.reference ? ' · ' + e(d.reference) : ''}</em>` : blockers.length || r.amount <= 0 ? '' : '<button type="button" class="button primary small" data-bkdone>Mark transferred</button>'}</td></tr>`; }).join('')}
+    </tbody></table></div><p class="muted small-note">Bucket balances and spending are on the Buckets page.</p>`;
+  return `<section class="panel money-sec"><div class="panel-heading"><div><p class="eyebrow">STEP 4</p><h2>🪣 Share the profit</h2><small class="muted">Tithe first, then every shilling gets a job</small></div></div><div class="money-body">${body}</div></section>`;
 }
 
 export function bindMoney(ctx, host, client, notify, run) {
@@ -83,6 +107,14 @@ export function bindMoney(ctx, host, client, notify, run) {
     openInvoice(inv.id); location.hash = '#invoices';
   }, 'Draft invoice created. Add the items, then issue it.'));
   host.querySelectorAll('[data-openinv]').forEach(a => a.addEventListener('click', ev => { ev.preventDefault(); openInvoice(a.dataset.openinv); location.hash = '#invoices'; }));
+  host.querySelectorAll('[data-bk] [data-bkdone]').forEach(b => b.addEventListener('click', async () => {
+    const key = b.closest('[data-bk]').dataset.bk;
+    const row = splitProfit(ctx.money ? (() => { const inv = ctx.money.invoices.filter(i => i.status !== 'void' && i.currency === 'UGX').reduce((s, i) => s + Number((ctx.money.bals.find(x => x.invoice_id === i.id) || {}).invoice_total || 0), 0); const cost = ctx.pay.filter(p => p.currency === 'UGX').reduce((s, p) => s + Number(p.agreed_amount || 0), 0) + ctx.money.expenses.filter(x => x.currency === 'UGX').reduce((s, x) => s + Number(x.amount || 0), 0); return inv - cost; })() : 0, ctx.money.buckets).find(r => r.key === key);
+    if (!row) return;
+    const a = await askForm({ title: `${row.label}: ${money(row.amount)}`, intro: 'Confirm you have moved this money to where it belongs.', submit: 'Mark transferred', fields: [{ name: 'ref', label: 'Reference (MoMo ID, bank, account name)', value: '' }] });
+    if (!a) return;
+    run(() => saveRow(client, 'distributions', { job_id: j.id, bucket: key, amount: row.amount, reference: txt(a.ref) }), `${row.label} marked as transferred.`);
+  }));
   const ef = host.querySelector('#exp-form');
   ef?.addEventListener('submit', ev => { ev.preventDefault(); const fd = new FormData(ef); const amount = num(fd.get('amount')) || 0; if (amount <= 0) { notify('Enter the amount.'); return; }
     run(() => saveRow(client, 'expenses', { job_id: j.id, category: fd.get('category'), description: String(fd.get('description')).trim(), supplier: txt(fd.get('supplier')), amount, currency: 'UGX', incurred_on: fd.get('incurred_on') }), 'Cost added.'); });
