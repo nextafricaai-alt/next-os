@@ -1,5 +1,5 @@
 // Shared money helpers: numbering, formatting, finance settings, printable documents.
-import { withTimeout } from './utils.js';
+import { withTimeout, friendly } from './utils.js';
 import { CONFIG } from './config.js';
 import { escapeHTML as e } from './utils.js';
 
@@ -24,7 +24,7 @@ export const readable = d => d ? new Intl.DateTimeFormat('en-GB', { dateStyle: '
 export async function nextRefs(client, table, column, prefix) {
   const year = new Date().getFullYear();
   const { data, error } = await withTimeout(client.from(table).select(column).like(column, `${prefix}-${year}-%`));
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(friendly(error.message));
   const max = (data || []).reduce((m, r) => Math.max(m, Number(String(r[column]).split('-')[2]) || 0), 0);
   return n => `${prefix}-${year}-${String(max + 1 + n).padStart(3, '0')}`;
 }
@@ -33,7 +33,7 @@ export async function insertWithRef(client, table, column, prefix, values) {
   for (let i = 0; i < 5; i++) {
     const { data, error } = await withTimeout(client.from(table).insert({ ...values, [column]: ref(i) }).select().single());
     if (!error) return data;
-    if (!/duplicate|unique/i.test(error.message) || i === 4) throw new Error(error.message);
+    if (!/duplicate|unique/i.test(error.message) || i === 4) throw new Error(friendly(error.message));
   }
 }
 export async function financeSettings(client) {

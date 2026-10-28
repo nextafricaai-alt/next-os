@@ -288,3 +288,8 @@ dialog,.ask-card{border-radius:28px}
 .quick-actions .qa:first-child{background:linear-gradient(135deg,#BF9000,#e3b52a);color:#111;border-color:transparent}
 .quick-actions .qa:hover{border-color:var(--gold)}.dash-h{margin:22px 0 10px}
 .button.small{padding:6px 14px;font-size:12px}
+
+/* v1.6 client links */
+.link-group{margin:16px 0}.link-group h3{font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--gold);margin:0 0 8px}
+.link-row{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;padding:12px 14px;border:1px solid var(--line);border-radius:12px;margin-bottom:8px;background:rgba(255,255,255,.02)}
+.link-row strong{display:block}.link-row small{display:block;opacity:.7;margin-top:2px}.link-row .row-actions{display:flex;gap:8px;align-items:center}

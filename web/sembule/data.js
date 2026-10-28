@@ -1,8 +1,8 @@
-import { withTimeout } from './utils.js';
+import { withTimeout, friendly } from './utils.js';
 
 function fail(error, fallback) {
   if (!error) return;
-  throw new Error(error.message || fallback);
+  throw new Error(friendly(error.message || fallback));
 }
 
 export async function listRows(client, table, order = 'created_at', ascending = false) {

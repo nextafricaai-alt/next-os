@@ -5,7 +5,9 @@ export function getClient() {
   if (!clientPromise) clientPromise = import('https://esm.sh/@supabase/supabase-js@2.57.4').then(({ createClient }) =>
     createClient(CONFIG.supabaseUrl, CONFIG.publishableKey, {
       auth: { storage: window.sessionStorage, storageKey: 'sembule-session', persistSession: true,
-        autoRefreshToken: true, detectSessionInUrl: false },
+        autoRefreshToken: true, detectSessionInUrl: false,
+        // No cross-tab lock: the default lock can freeze every request after the phone sleeps, so saves hang.
+        lock: async (_name, _timeout, fn) => await fn() },
       global: { fetch: (url, options = {}) => fetch(url, { ...options, cache: 'no-store',
         signal: options.signal || AbortSignal.timeout(15000) }) }
     })
