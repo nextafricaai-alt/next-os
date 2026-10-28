@@ -49,9 +49,9 @@ function listView(ctx) {
    <section class="record-editor">${selected === 'new' ? newJob(ctx) : ctx.job ? detail(ctx) : '<div class="select-prompt"><h2>No Job Selected</h2><p>Select a job from the list, or book a new one.</p></div>'}</section></div>`;
 }
 function newJob(ctx) {
-  const clientOpts = [['', 'Choose a client']].concat(ctx.clients.map(c => [c.id, c.organisation ? `${c.name} (${c.organisation})` : c.name]));
+  const clientOpts = [['__new', '+ New client (type their details below)'], ['', '…or choose a saved client']].concat(ctx.clients.map(c => [c.id, c.organisation ? `${c.name} (${c.organisation})` : c.name]));
   return `<form id="newjob-form" class="record-form"><div class="form-title span-2"><div><p class="eyebrow">NEW JOB</p><h2>Book a Job</h2></div></div>
-   ${selectField('client_id', 'Client', '', clientOpts)}${field('title', 'Project title', '', { required: true })}
+   ${selectField('client_id', 'Client', '__new', clientOpts)}<div class="span-2 new-client" data-newclient style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px">${field('nc_name', 'Client name', '', { required: true })}${field('nc_phone', 'Phone / WhatsApp', '', { type: 'tel' })}${field('nc_org', 'Organisation (optional)', '')}</div>${field('title', 'Project title', '', { required: true })}
    ${field('venue', 'Venue', '')}${servicePicker([])}
    ${field('starts_at', 'Starts', '', { type: 'datetime-local', required: true })}${field('ends_at', 'Ends', '', { type: 'datetime-local', required: true })}
    <div class="form-actions span-2"><button class="button primary" type="submit">Book job</button><button class="button secondary" type="button" data-cancel>Cancel</button></div></form>`;
@@ -173,14 +173,19 @@ function bind(context) {
   host.querySelectorAll('[data-jtab]').forEach(b => b.addEventListener('click', () => { tab = b.dataset.jtab; draw(context); }));
 
   const nf = host.querySelector('#newjob-form');
+  const ncBox = nf?.querySelector('[data-newclient]'), ncSel = nf?.querySelector('[name=client_id]');
+  const ncToggle = () => { const on = ncSel.value === '__new'; ncBox.style.display = on ? 'grid' : 'none'; ncBox.querySelector('[name=nc_name]').required = on; };
+  if (ncBox && ncSel) { ncSel.addEventListener('change', ncToggle); ncToggle(); }
   nf?.addEventListener('submit', ev => { ev.preventDefault(); const fd = new FormData(nf);
-    if (!fd.get('client_id')) { notify('Choose a client.'); return; }
+    const isNew = fd.get('client_id') === '__new';
+    if (!isNew && !fd.get('client_id')) { notify('Choose a saved client, or pick "+ New client".'); return; }
+    if (isNew && !txt(fd.get('nc_name'))) { notify('Type the new client\'s name.'); return; }
     const svc = readServices(nf); if (!svc.length) { notify('Tick at least one kind of project.'); return; }
     if (!fd.get('starts_at')) { notify('Choose when the job starts.'); return; }
     if (!fd.get('ends_at') || fd.get('ends_at') <= fd.get('starts_at')) { notify('The end time must be after the start time.'); return; }
     const sb = nf.querySelector('[type=submit]'); if (sb?.disabled) return; if (sb) { sb.disabled = true; sb.textContent = 'Booking…'; }
     setTimeout(() => { if (sb?.isConnected) { sb.disabled = false; sb.textContent = 'Book job'; } }, 20000);
-    run(async () => { const j = await insertWithRef(client, 'jobs', 'reference', 'SM', { client_id: fd.get('client_id'), title: fd.get('title').trim(), service_type: serviceType(svc), services: svc, venue: txt(fd.get('venue')), starts_at: fromLocal(fd.get('starts_at')), ends_at: fromLocal(fd.get('ends_at')), stage: 'Quoted' }); selected = j.id; tab = 'brief'; }, 'Project created. Send the client brief when you are ready.'); });
+    run(async () => { let cid = fd.get('client_id'); if (isNew) { const nc = await saveRow(client, 'clients', { name: txt(fd.get('nc_name')), phone: txt(fd.get('nc_phone')), organisation: txt(fd.get('nc_org')) }, null); cid = nc.id; } const j = await insertWithRef(client, 'jobs', 'reference', 'SM', { client_id: cid, title: fd.get('title').trim(), service_type: serviceType(svc), services: svc, venue: txt(fd.get('venue')), starts_at: fromLocal(fd.get('starts_at')), ends_at: fromLocal(fd.get('ends_at')), stage: 'Quoted' }); selected = j.id; tab = 'brief'; }, 'Project created. Send the client brief when you are ready.'); });
 
   nf?.querySelector('[name=starts_at]')?.addEventListener('change', ev => { const end = nf.querySelector('[name=ends_at]'); const v = ev.target.value; if (v && (!end.value || end.value <= v)) end.value = localDT(new Date(new Date(fromLocal(v)).getTime() + 6 * 3600e3).toISOString()); });
   const job = ctx.job; if (!job) return;
