@@ -12,7 +12,9 @@ const GROUPS = [
   ['screens', 'Screens', c => c === 'tv_display' || c.startsWith('led_screen') || c.startsWith('screen')],
   ['extras', 'Extras', () => true]
 ];
-const groupOf = code => GROUPS.find(g => g[2](code))[0];
+const CAT_GROUP = { livestream: 'livestream', screens: 'screens', sound: 'sound', weddings: 'photo', photo_video: 'photo', production: 'photo', extras: 'extras' };
+let CATS = {};
+const groupOf = code => CAT_GROUP[CATS[code]] || GROUPS.find(g => g[2](code))[0];
 const SERVICE_FOR = { livestream: 'livestream', sound: 'sound_pa', photo: 'photography', screens: 'tv_65', extras: 'other' };
 const only = new URLSearchParams(location.search).get('g');
 const picked = new Set();
@@ -78,6 +80,6 @@ async function submit(ev) {
     client = await getClient();
     const { data: d, error } = await client.rpc('packages_page');
     if (error || !d) throw new Error();
-    data = d; render();
+    data = d; CATS = Object.fromEntries((d.services || []).map(s => [s.code, s.category])); render();
   } catch { root.innerHTML = '<div class="pp-card"><h1>Packages are not available right now</h1><p>Please message us on WhatsApp or try again shortly.</p></div>'; }
 })();

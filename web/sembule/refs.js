@@ -4,11 +4,11 @@ import { CONFIG } from './config.js';
 import { escapeHTML as e } from './utils.js';
 
 // Company details printed on documents. Starts from config, replaced by the Settings row once loaded.
-export const COMPANY = { legalName: CONFIG.legalName, phone: CONFIG.phone, website: CONFIG.website, email: '', address: '', tin: '', registration_no: '' };
+export const COMPANY = { legalName: CONFIG.legalName, phone: CONFIG.phone, website: CONFIG.website, email: '', address: 'Plot 4416 Buwule Road, Bunamwaya · P.O. Box 2477 Kampala', tin: '1046100228', registration_no: '' };
 export async function loadCompany(client) {
   try {
     const { data } = await withTimeout(client.from('settings').select('*').maybeSingle());
-    if (data) Object.assign(COMPANY, { legalName: data.company_name || COMPANY.legalName, phone: data.phone || COMPANY.phone, website: data.website || COMPANY.website, email: data.email || '', address: data.address || '', tin: data.tin || '', registration_no: data.registration_no || '' });
+    if (data) Object.assign(COMPANY, { legalName: data.company_name || COMPANY.legalName, phone: data.phone || COMPANY.phone, website: data.website || COMPANY.website, email: data.email || '', address: data.address || COMPANY.address, tin: data.tin || COMPANY.tin, registration_no: data.registration_no || '' });
   } catch { /* keep config defaults */ }
   return COMPANY;
 }
