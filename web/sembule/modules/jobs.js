@@ -8,6 +8,7 @@ import { e, value, dateValue, empty, field, selectField, textArea, setBusy } fro
 import { gearTab, bindGear, specTab, bindSpec } from './jobsound.js';
 import { servicePicker, readServices, serviceType, briefTab, bindBrief } from './jobbrief.js';
 import { loadMoney, moneyTab, bindMoney } from './jobmoney.js';
+import { createPriceInvoice, recordPayment } from './jobbilling.js';
 import { loadLinks, linksTab, bindLinks } from './joblinks.js';
 import { money, num, txt, readable, insertWithRef, whatsappTo, askForm , shareLink } from '../refs.js';
 
@@ -53,6 +54,7 @@ function newJob(ctx) {
   return `<form id="newjob-form" class="record-form"><div class="form-title span-2"><div><p class="eyebrow">NEW JOB</p><h2>Book a Job</h2></div></div>
    ${selectField('client_id', 'Client', '__new', clientOpts)}<div class="span-2 new-client" data-newclient style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px">${field('nc_name', 'Client name', '', { required: true })}${field('nc_phone', 'Phone / WhatsApp', '', { type: 'tel' })}${field('nc_org', 'Organisation (optional)', '')}</div>${field('title', 'Project title', '', { required: true })}
    ${field('venue', 'Venue', '')}${servicePicker([])}
+   ${canViewMoney(ctx.identity.role) ? `${field('price', 'Agreed price (UGX, optional)', '', { type: 'number', extra: 'min="1" step="1"' })}${field('deposit', 'Deposit already received (UGX, optional)', '', { type: 'number', extra: 'min="1" step="1"' })}${selectField('dep_method', 'Deposit paid by', 'mtn_momo', [['mtn_momo', 'MTN MoMo'], ['airtel_money', 'Airtel Money'], ['bank', 'Bank'], ['cash', 'Cash']])}` : ''}
    ${field('starts_at', 'Starts', '', { type: 'datetime-local', required: true })}${field('ends_at', 'Ends', '', { type: 'datetime-local', required: true })}
    <div class="form-actions span-2"><button class="button primary" type="submit">Book job</button><button class="button secondary" type="button" data-cancel>Cancel</button></div></form>`;
 }
@@ -150,7 +152,7 @@ async function draw(context) {
       const m = canViewMoney(identity.role);
       const [crewRows, checks, changes, revisions, pay, charges, all] = await Promise.all([rows(client, 'job_crew', job.id), rows(client, 'job_checklists', job.id), rows(client, 'job_changes', job.id, 'occurred_at'), rows(client, 'job_revisions', job.id, 'round_number'), m ? rows(client, 'crew_pay', job.id) : [], m ? rows(client, 'job_charges', job.id) : [], listRows(client, 'job_crew', 'starts_at', true)]);
       const [gAll, gItems, gKits, gKitItems, gOut] = await Promise.all([listRows(client, 'job_equipment', 'starts_at', true), listRows(client, 'equipment', 'name', true), listRows(client, 'kits', 'name', true), listRows(client, 'kit_items', 'kit_id', true), listRows(client, 'checkouts', 'checked_out_at', false)]);
-      const money_ = m && tab === 'money' ? await loadMoney(client, job.id) : null;
+      const money_ = m && tab === 'money' ? await loadMoney(client, job.id, job) : null;
       const links_ = tab === 'links' ? { ...(await loadLinks(client, job, m)), money: m } : null;
       extra = { links: links_, money: money_, crewRows, checks, changes, revisions, pay, charges, allCrewRows: all, gear: { all: gAll, items: gItems, kits: gKits, kitItems: gKitItems, out: gOut } };
     }
@@ -185,7 +187,7 @@ function bind(context) {
     if (!fd.get('ends_at') || fd.get('ends_at') <= fd.get('starts_at')) { notify('The end time must be after the start time.'); return; }
     const sb = nf.querySelector('[type=submit]'); if (sb?.disabled) return; if (sb) { sb.disabled = true; sb.textContent = 'Booking…'; }
     setTimeout(() => { if (sb?.isConnected) { sb.disabled = false; sb.textContent = 'Book job'; } }, 20000);
-    run(async () => { let cid = fd.get('client_id'); if (isNew) { const nc = await saveRow(client, 'clients', { name: txt(fd.get('nc_name')), phone: txt(fd.get('nc_phone')), organisation: txt(fd.get('nc_org')) }, null); cid = nc.id; } const j = await insertWithRef(client, 'jobs', 'reference', 'SM', { client_id: cid, title: fd.get('title').trim(), service_type: serviceType(svc), services: svc, venue: txt(fd.get('venue')), starts_at: fromLocal(fd.get('starts_at')), ends_at: fromLocal(fd.get('ends_at')), stage: 'Quoted' }); selected = j.id; tab = 'brief'; }, 'Project created. Send the client brief when you are ready.'); });
+    run(async () => { let cid = fd.get('client_id'); if (isNew) { const nc = await saveRow(client, 'clients', { name: txt(fd.get('nc_name')), phone: txt(fd.get('nc_phone')), organisation: txt(fd.get('nc_org')) }, null); cid = nc.id; } const j = await insertWithRef(client, 'jobs', 'reference', 'SM', { client_id: cid, title: fd.get('title').trim(), service_type: serviceType(svc), services: svc, venue: txt(fd.get('venue')), starts_at: fromLocal(fd.get('starts_at')), ends_at: fromLocal(fd.get('ends_at')), stage: 'Quoted' }); selected = j.id; tab = 'brief'; const price = num(fd.get('price')), dep = num(fd.get('deposit')); if (price && price > 0) { const inv = await createPriceInvoice(client, j, price, j.title); tab = 'money'; if (dep && dep > 0) await recordPayment(client, j, inv, Math.min(dep, price), fd.get('dep_method') || 'cash', null, 'Deposit recorded at booking'); } }, 'Project booked. The price and any deposit are on the Money tab.'); });
 
   nf?.querySelector('[name=starts_at]')?.addEventListener('change', ev => { const end = nf.querySelector('[name=ends_at]'); const v = ev.target.value; if (v && (!end.value || end.value <= v)) end.value = localDT(new Date(new Date(fromLocal(v)).getTime() + 6 * 3600e3).toISOString()); });
   const job = ctx.job; if (!job) return;

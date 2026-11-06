@@ -4,6 +4,7 @@ import { withTimeout } from '../utils.js';
 import { ROLES } from '../roles.js';
 import { e, field, setBusy } from './records.js';
 import { loadCompany } from '../refs.js';
+import { billsSettings, bindBillsSettings } from './bills.js';
 
 const SUGGESTED_TERMS = `1. Booking. Your date is reserved once we receive the booking payment shown on your invoice (40% of the total). Until then the date stays open to other clients.
 2. Payments. The second payment (40%) is due before the event and the final 20% on completion, as shown on your invoice. Equipment and crew are released only once the event-day payments are complete.
@@ -20,6 +21,7 @@ export async function mountSettings(context) {
   try {
     const [{ data: s, error }, profiles, roles] = await Promise.all([withTimeout(client.from('settings').select('*').maybeSingle()), listRows(client, 'profiles', 'display_name', true), listRows(client, 'user_roles', 'created_at', true)]);
     if (error) throw new Error(error.message);
+    let allBills = null; try { allBills = await listRows(client, 'recurring_bills', 'due_day', true); } catch { allBills = null; }
     const row = s || {};
     const team = roles.map(r => ({ ...r, p: profiles.find(p => p.id === r.user_id) || {} }));
     host.innerHTML = `<section class="panel"><div class="panel-heading"><h2>Company details</h2><span class="subtle-label">These print on every quote, invoice and receipt</span></div>
@@ -38,6 +40,7 @@ export async function mountSettings(context) {
       <form class="form-grid" data-terms><label class="span-2">Terms the client agrees to<textarea name="booking_terms" rows="14" placeholder="Leave empty to hide the terms step from clients.">${e(row.booking_terms || '')}</textarea></label>
        <p class="muted small-note span-2">Anything in [square brackets] must be filled in before you can save. Changing the terms later does not change what earlier clients signed; their copy is kept on the project.</p>
        <div class="form-actions span-2"><button class="button primary" type="submit">Save booking terms</button>${row.booking_terms ? '' : '<button class="button secondary" type="button" data-suggest>Start from suggested terms</button>'}</div></form></section>
+     ${billsSettings(allBills)}
      <section class="panel"><div class="panel-heading"><h2>Team and access</h2><span class="subtle-label">${team.filter(t => t.active).length} active</span></div>
       ${team.length ? `<div class="table-wrap flat"><table class="data-table"><thead><tr><th>Name</th><th>Phone</th><th>Role</th><th>Status</th></tr></thead><tbody>${team.map(t => `<tr><td><strong>${e(t.p.display_name || 'No profile name')}</strong></td><td>${e(t.p.phone || '-')}</td><td>${e(ROLES[t.role] || t.role)}</td><td><em class="${t.active ? 'status' : 'overdue'}">${t.active ? 'Active' : 'Switched off'}</em></td></tr>`).join('')}</tbody></table></div>` : '<p class="muted small-note calm">No team members found.</p>'}
       <p class="muted small-note">What each role sees: <b>Owner</b> everything, including prices and settings. <b>Director</b> money and operations, no settings. <b>Production lead</b> jobs, crew, equipment and delivery, never money.<br>To add or remove a person, ask NEXT support. Access is changed on the server so nobody can give themselves more rights from the app.</p></section>`;
@@ -53,6 +56,7 @@ export async function mountSettings(context) {
         notify('Company details saved. New documents will use them.');
       } catch (err) { notify(err.message); } finally { setBusy(form, false); }
     });
+    bindBillsSettings(host, client, allBills || [], notify, () => mountSettings(context));
     const tf = host.querySelector('[data-terms]');
     tf.querySelector('[data-suggest]')?.addEventListener('click', () => { tf.booking_terms.value = SUGGESTED_TERMS; tf.booking_terms.focus(); });
     tf.addEventListener('submit', async ev => {

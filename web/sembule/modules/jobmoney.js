@@ -3,6 +3,7 @@ import { saveRow, deleteRow } from '../data.js';
 import { withTimeout } from '../utils.js';
 import { e, field, selectField } from './records.js';
 import { openInvoice } from './invoices.js';
+import { billingBlock, bindBilling, loadBilling } from './jobbilling.js';
 import { loadBuckets, loadDistributions, splitProfit, ICON } from './bucketsplit.js';
 import { askForm } from '../refs.js';
 import { money, num, txt, today, readable, insertWithRef } from '../refs.js';
@@ -11,12 +12,13 @@ const METHOD = [['mtn_momo', 'MTN MoMo'], ['airtel_money', 'Airtel Money'], ['ba
 const METHOD_LABEL = Object.fromEntries(METHOD);
 const q = async (client, table, col, val, order) => { let r = client.from(table).select('*').eq(col, val); if (order) r = r.order(order); const { data, error } = await withTimeout(r); if (error) throw new Error(error.message); return data || []; };
 
-export async function loadMoney(client, jobId) {
+export async function loadMoney(client, jobId, job) {
   const [invoices, bals, expenses] = await Promise.all([q(client, 'invoices', 'job_id', jobId, 'issued_on'), q(client, 'invoice_balances', 'job_id', jobId), q(client, 'expenses', 'job_id', jobId, 'incurred_on')]);
   let payments = [];
   if (invoices.length) { const { data, error } = await withTimeout(client.from('payments').select('*').in('invoice_id', invoices.map(i => i.id)).order('paid_at', { ascending: false })); if (error) throw new Error(error.message); payments = data || []; }
   const [bk, dists] = await Promise.all([loadBuckets(client), loadDistributions(client, jobId)]);
-  return { invoices, bals, expenses, payments, buckets: bk.buckets, bucketsReady: bk.ready, dists };
+  const billing = job ? await loadBilling(client, job) : { lines: [], quotes: [] };
+  return { billing, invoices, bals, expenses, payments, buckets: bk.buckets, bucketsReady: bk.ready, dists };
 }
 
 export function moneyTab(ctx) {
@@ -38,9 +40,8 @@ export function moneyTab(ctx) {
   const s1 = sec(1, '📥', 'Money in', 'Every shilling that has come in for this project',
    `<div class="money-big"><div><small>RECEIVED</small><strong>${money(received)}</strong><span>of ${money(invoiced)} invoiced</span></div><div class="r"><small>STILL DUE FROM CLIENT</small><strong class="${due > 0 ? 'warn' : 'good'}">${money(due)}</strong></div></div>
     <div class="rbar"><i style="width:${pct}%"></i></div><p class="muted small-note">${pct}% collected</p>
-    ${live.length ? `<div class="table-wrap flat"><table class="data-table"><thead><tr><th>Invoice</th><th>Status</th><th class="num">Paid</th><th class="num">Total</th></tr></thead><tbody>${live.map(i => `<tr><td><a href="#invoices" data-openinv="${i.id}">${e(i.reference)}</a></td><td>${e(i.status)}</td><td class="num">${money(Number(bal(i.id).received || 0) + Number(bal(i.id).wht_withheld || 0))}</td><td class="num">${money(bal(i.id).invoice_total)}</td></tr>`).join('')}</tbody></table></div>`
-      : `<p class="muted small-note">No invoice yet. If this job came from a quote, accept the quote and the invoice is made for you. Otherwise make one here.</p><div><button type="button" class="button primary" data-newinv>+ Create invoice</button></div>`}
-    ${payable.length ? `<form id="pay-form" class="record-form line-form"><div class="form-title span-2"><p class="eyebrow">RECORD A PAYMENT RECEIVED</p></div>
+    ${billingBlock(ctx)}
+    ${payable.length ? `<form id="pay-form" class="record-form line-form"><div class="form-title span-2"><p class="eyebrow">RECORD A DEPOSIT OR PAYMENT RECEIVED</p></div>
       ${payable.length > 1 ? selectField('invoice_id', 'Invoice', payable[0].id, payable.map(i => [i.id, `${i.reference} · due ${money(bal(i.id).balance_due)}`])) : `<input type="hidden" name="invoice_id" value="${payable[0].id}">`}
       ${field('amount', 'Amount received (UGX)', '', { type: 'number', required: true, extra: 'min="0" step="1"' })}${selectField('method', 'How was it paid?', 'mtn_momo', METHOD)}
       ${field('paid_on', 'Date received', today(), { type: 'date', required: true })}${field('transaction_reference', 'Transaction reference or note', '')}
@@ -87,6 +88,7 @@ function shareSection(ctx, profit, due) {
 }
 
 export function bindMoney(ctx, host, client, notify, run) {
+  bindBilling(ctx, host, client, notify, run);
   const j = ctx.job; if (!j || !ctx.money) return;
   const pf = host.querySelector('#pay-form');
   pf?.addEventListener('submit', ev => { ev.preventDefault(); const fd = new FormData(pf);

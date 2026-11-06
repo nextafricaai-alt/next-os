@@ -1,20 +1,21 @@
 // Invoices & payments: 40/40/20 schedule, WHT, receipts, reminders.
 // Owner and director only (route + RLS). Payments are never deleted, only voided by the owner.
 import { listRows, saveRow, deleteRow } from '../data.js';
+import { pickerHTML, bindPicker } from './servicepicker.js';
 import { withTimeout } from '../utils.js';
 import { CONFIG } from '../config.js';
 import { e, value, dateValue, empty, field, selectField, textArea, setBusy } from './records.js';
-import { money, num, txt, today, readable, insertWithRef, financeSettings, payDetails, whatsappTo, printDocument, askForm , shareLink } from '../refs.js';
+import { money, num, txt, today, readable, insertWithRef, financeSettings, payDetails, whatsappTo, printDocument, askForm , shareLink, COMPANY } from '../refs.js';
 
 const STATUS = [['draft','Draft'],['issued','Issued'],['void','Void']];
 const METHODS = [['mtn_momo','MTN Mobile Money'],['airtel_money','Airtel Money'],['bank','Bank transfer'],['cash','Cash']];
 let selected = null, filter = 'open';
 
 async function load(client) {
-  const [invoices, clients, jobs, fs] = await Promise.all([listRows(client, 'invoices'), listRows(client, 'clients', 'name', true), listRows(client, 'jobs'), financeSettings(client)]);
+  const [invoices, clients, jobs, fs, services] = await Promise.all([listRows(client, 'invoices'), listRows(client, 'clients', 'name', true), listRows(client, 'jobs'), financeSettings(client), listRows(client, 'services', 'name', true).catch(() => [])]);
   const { data: balances, error } = await withTimeout(client.from('invoice_balances').select('*'));
   if (error) throw new Error(error.message);
-  return { invoices, clients, jobs, fs, balances: balances || [] };
+  return { invoices, clients, jobs, fs, services, balances: balances || [] };
 }
 async function detail(client, id) {
   const [{ data: lines, error: a }, { data: payments, error: b }] = await Promise.all([
@@ -77,7 +78,7 @@ function editor(ctx) {
 
   <section class="quote-lines"><div class="section-heading"><h2>What is being billed</h2></div>
    ${lines.length ? `<div class="table-wrap"><table class="data-table"><thead><tr><th>Item</th><th>Qty</th><th>Unit price</th><th>Total</th><th></th></tr></thead><tbody>${lines.map(l => `<tr data-line="${l.id}"><td>${e(l.description)}</td><td>${Number(l.quantity)}</td><td>${money(l.unit_price, cur)}</td><td class="num">${money(l.line_total, cur)}</td><td class="row-actions">${inv.status === 'draft' && !l.job_charge_id ? '<button type="button" class="text-button danger-text" data-del-line>Remove</button>' : ''}</td></tr>`).join('')}</tbody></table></div>` : empty('No items on this invoice.')}
-   ${inv.status === 'draft' ? `<form id="line-form" class="record-form line-form"><div class="form-title span-2"><p class="eyebrow">ADD AN ITEM</p></div>${field('description', 'Description', '', { required: true })}${field('quantity', 'Quantity', 1, { type: 'number', extra: 'min="0.001" step="any"' })}${field('unit_price', 'Unit price', '', { type: 'number', required: true, extra: 'min="0" step="any"' })}<div class="form-actions span-2"><button class="button primary" type="submit">Add item</button></div></form>` : '<p class="muted small-note">Issued invoices are locked. Extra work goes on the project as a change and is billed from there.</p>'}
+   ${inv.status === 'draft' ? `<form id="line-form" class="record-form line-form"><div class="form-title span-2"><p class="eyebrow">ADD AN ITEM</p></div>${ctx.services?.length ? pickerHTML(ctx.services, 'svc') : ''}${field('description', 'Description', '', { required: true })}${field('quantity', 'Quantity', 1, { type: 'number', extra: 'min="0.001" step="any"' })}${field('unit_price', 'Unit price', '', { type: 'number', required: true, extra: 'min="0" step="any"' })}<div class="form-actions span-2"><button class="button primary" type="submit">Add item</button></div></form>` : '<p class="muted small-note">Issued invoices are locked. Extra work goes on the project as a change and is billed from there.</p>'}
   </section>
 
 `;
@@ -95,14 +96,56 @@ function printInvoice(ctx) {
    <div class="grid"><div class="box"><h3>PAYMENT SCHEDULE</h3>${sched.map(([k, l, a, d]) => `<p>${l} (${Number(inv[k + '_percent'])}%)<br><strong>${money(a, cur)}</strong>${d ? ` by ${readable(d)}` : ''}</p>`).join('')}</div>
    <div class="box gold"><h3>HOW TO PAY</h3>${payDetails(ctx.fs)}<p>Please quote <strong>${e(inv.reference)}</strong> as your payment reference.</p></div></div>` });
 }
+function amountInWords(n) {
+  n = Math.round(Number(n) || 0);
+  const ones = ['', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen'];
+  const tens = ['', '', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety'];
+  const under1000 = x => { const h = Math.floor(x / 100), r = x % 100; const t = r < 20 ? ones.at(r) : `${tens.at(Math.floor(r / 10))}${r % 10 ? '-' + ones.at(r % 10) : ''}`; return [h ? `${ones.at(h)} hundred` : '', t].filter(Boolean).join(h && r ? ' and ' : ''); };
+  if (n === 0) return 'zero';
+  const parts = [[1e9, 'billion'], [1e6, 'million'], [1e3, 'thousand'], [1, '']].map(([v, w]) => { const k = Math.floor(n / v) % 1000; return k ? `${under1000(k)}${w ? ' ' + w : ''}` : ''; }).filter(Boolean);
+  const w = parts.join(', ');
+  return w.charAt(0).toUpperCase() + w.slice(1);
+}
+// Round rubber-stamp seal in Sembule green and gold, slightly tilted like a real stamp.
+function premiumStamp(line1, line2, date, ref) {
+  const g = '#04592A', gold = '#BF9000';
+  return `<svg width="190" height="190" viewBox="0 0 200 200" style="transform:rotate(-12deg);opacity:.95" xmlns="http://www.w3.org/2000/svg" aria-label="${e(line1 + ' ' + line2)}">
+    <defs><path id="st-top" d="M 30 100 A 70 70 0 0 1 170 100"/><path id="st-bot" d="M 36 100 A 64 64 0 0 0 164 100"/>
+      <filter id="st-ink"><feTurbulence type="fractalNoise" baseFrequency="2.2" numOctaves="1" result="n"/><feColorMatrix in="n" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -0.55 1.15" result="m"/><feComposite in="SourceGraphic" in2="m" operator="in"/></filter></defs>
+    <g filter="url(#st-ink)">
+      <circle cx="100" cy="100" r="94" fill="none" stroke="${g}" stroke-width="4"/>
+      <circle cx="100" cy="100" r="86" fill="none" stroke="${g}" stroke-width="1.2"/>
+      <circle cx="100" cy="100" r="56" fill="none" stroke="${gold}" stroke-width="1.4"/>
+      <text font-family="Axiforma,Arial,sans-serif" font-size="12.5" font-weight="700" letter-spacing="3.2" fill="${g}"><textPath href="#st-top" startOffset="50%" text-anchor="middle">SEMBULE MEDIA LTD</textPath></text>
+      <text font-family="Axiforma,Arial,sans-serif" font-size="9" font-weight="700" letter-spacing="3" fill="${g}" dominant-baseline="hanging"><textPath href="#st-bot" startOffset="50%" text-anchor="middle">KAMPALA · UGANDA</textPath></text>
+      <text x="22" y="104" font-size="11" fill="${gold}" text-anchor="middle">★</text><text x="178" y="104" font-size="11" fill="${gold}" text-anchor="middle">★</text>
+      <rect x="18" y="${line2 ? 82 : 88}" width="164" height="${line2 ? 38 : 26}" rx="3" fill="#fff" stroke="${g}" stroke-width="2.2"/>
+      <text x="100" y="${line2 ? 99 : 106}" font-family="Axiforma,Arial,sans-serif" font-size="${line2 ? 15 : 16}" font-weight="800" letter-spacing="2.4" fill="${g}" text-anchor="middle">${e(line1)}</text>
+      ${line2 ? `<text x="100" y="115" font-family="Axiforma,Arial,sans-serif" font-size="11" font-weight="700" letter-spacing="4.5" fill="${gold}" text-anchor="middle">${e(line2)}</text>` : ''}
+      <text x="100" y="${line2 ? 66 : 74}" font-family="Axiforma,Arial,sans-serif" font-size="8.5" font-weight="600" letter-spacing="1.4" fill="${g}" text-anchor="middle">${e(String(date).toUpperCase())}</text>
+      <text x="100" y="${line2 ? 140 : 130}" font-family="Axiforma,Arial,sans-serif" font-size="8.5" font-weight="600" letter-spacing="1.4" fill="${g}" text-anchor="middle">${e(ref)}</text>
+    </g></svg>`;
+}
 function printReceipt(ctx, p) {
   const { inv } = ctx, cur = inv.currency, c = ctx.clients.find(x => x.id === inv.client_id) || {}, b = bal(ctx, inv.id);
-  printDocument({ title: p.receipt_number, heading: 'RECEIPT', reference: p.receipt_number, partyLabel: 'RECEIVED FROM', metaLines: [`Paid ${readable(p.paid_at)}`, `For invoice ${e(inv.reference)}`], party: c, notify: ctx.notify, body: `
-   <table><thead><tr><th>DETAIL</th><th class="num">AMOUNT</th></tr></thead><tbody>
-   <tr><td>Payment received<small>${e(METHODS.find(m => m[0] === p.method)?.[1] || p.method)}${p.transaction_reference ? ` · Ref ${e(p.transaction_reference)}` : ''}</small></td><td class="num">${money(p.amount, cur)}</td></tr>
-   ${Number(p.wht_withheld) ? `<tr><td>Withholding tax deducted by client${p.wht_certificate_number ? `<small>Certificate ${e(p.wht_certificate_number)}</small>` : ''}</td><td class="num">${money(p.wht_withheld, cur)}</td></tr>` : ''}</tbody></table>
-   <div class="totals"><table><tr><td>Total credited</td><td class="num">${money(Number(p.amount) + Number(p.wht_withheld), cur)}</td></tr><tr class="grand"><td>BALANCE REMAINING</td><td class="num">${money(b.balance_due, cur)}</td></tr></table></div>
-   <div class="stamp">PAYMENT RECEIVED</div>` });
+  const job = ctx.jobs.find(j => j.id === inv.job_id) || {};
+  const method = METHODS.find(m => m[0] === p.method)?.[1] || p.method;
+  const upTo = (ctx.payments || []).filter(x => !x.voided_at && new Date(x.paid_at) <= new Date(p.paid_at)).reduce((s, x) => s + Number(x.amount) + Number(x.wht_withheld || 0), 0);
+  const total = Number(b.invoice_total || 0), left = Math.max(0, total - upTo), credited = Number(p.amount) + Number(p.wht_withheld || 0);
+  const when = job.starts_at ? new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Africa/Kampala' }).format(new Date(job.starts_at)) : '';
+  printDocument({ title: p.receipt_number, heading: 'RECEIPT', reference: p.receipt_number, partyLabel: 'RECEIVED FROM', metaLines: [`Date ${readable(p.paid_at)}`, `Invoice ${e(inv.reference)}`], party: c, notify: ctx.notify, body: `
+   <div class="box" style="margin-bottom:18px"><h3>FOR</h3><p><strong>${e(job.title || 'Services')}</strong>${job.reference ? ` · ${e(job.reference)}` : ''}${when ? `<br>${e(when)}` : ''}${job.venue ? ` · ${e(job.venue)}` : ''}</p></div>
+   <table><thead><tr><th>PAYMENT</th><th>METHOD</th><th class="num">AMOUNT</th></tr></thead><tbody>
+   <tr><td>Payment received with thanks</td><td>${e(method)}${p.transaction_reference ? `<small>Ref ${e(p.transaction_reference)}</small>` : ''}</td><td class="num">${money(p.amount, cur)}</td></tr>
+   ${Number(p.wht_withheld) ? `<tr><td>Withholding tax deducted by client</td><td>${p.wht_certificate_number ? `Certificate ${e(p.wht_certificate_number)}` : 'Certificate to follow'}</td><td class="num">${money(p.wht_withheld, cur)}</td></tr>` : ''}</tbody></table>
+   <p style="font-size:11px;margin:14px 0 0;color:#333"><strong style="color:#04592A">Amount in words:</strong> ${e(amountInWords(credited))} ${cur === 'UGX' ? 'Uganda shillings' : 'US dollars'} only.</p>
+   <div class="totals"><table>
+     <tr><td>Invoice total</td><td class="num">${money(total, cur)}</td></tr>
+     <tr><td>Paid to date (including this receipt)</td><td class="num">${money(upTo, cur)}</td></tr>
+     <tr class="grand"><td>${left <= 0.5 ? 'FULLY PAID' : 'BALANCE REMAINING'}</td><td class="num">${money(left, cur)}</td></tr></table></div>
+   <div class="grid"><div class="box gold"><h3>RECEIVED BY</h3><p>Name: ______________________________</p><p style="margin-top:14px">Signature: __________________________</p></div>
+    <div class="box"><h3>THANK YOU</h3><p>Thank you for choosing Sembule Media. Please keep this receipt for your records. Questions about this payment: ${e(COMPANY.phone)}.</p></div></div>
+   <div style="display:flex;justify-content:flex-end;margin-top:-6px">${premiumStamp(left <= 0.5 ? 'PAID IN FULL' : 'PAYMENT', left <= 0.5 ? '' : 'RECEIVED', readable(p.paid_at), p.receipt_number)}</div>` });
 }
 
 async function draw(context) {
@@ -140,6 +183,7 @@ function bind(context) {
     whatsappTo(c.phone, `Hello ${c.name || ''}, a gentle reminder from ${CONFIG.name}: the ${n.label.toLowerCase()} of ${money(n.amount, inv.currency)} on invoice ${inv.reference}${n.due ? ` is due ${readable(n.due)}` : ' is now due'}. Please use ${inv.reference} as the payment reference. Thank you.`); });
 
   const lf = host.querySelector('#line-form');
+  if (lf) bindPicker(lf, ctx.services || [], sv => { lf.description.value = sv ? sv.name : ''; if (sv?.starting_price_ugx) lf.unit_price.value = Number(sv.starting_price_ugx); (lf.unit_price || lf.description).focus(); });
   lf?.addEventListener('submit', ev => { ev.preventDefault(); const fd = new FormData(lf);
     run(() => saveRow(client, 'invoice_lines', { invoice_id: inv.id, job_id: inv.job_id, description: fd.get('description').trim(), quantity: num(fd.get('quantity')) || 1, unit_price: num(fd.get('unit_price')) }, null), 'Item added.'); });
   host.querySelectorAll('[data-line] [data-del-line]').forEach(b => b.addEventListener('click', () => { if (confirm('Remove this item?')) run(() => deleteRow(client, 'invoice_lines', b.closest('[data-line]').dataset.line), 'Item removed.'); }));

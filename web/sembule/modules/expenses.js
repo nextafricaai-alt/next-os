@@ -2,8 +2,9 @@
 import { listRows, saveRow, deleteRow } from '../data.js';
 import { e, value, dateValue, empty, field, selectField, textArea, setBusy } from './records.js';
 import { money, num, txt, today, readable } from '../refs.js';
+import { loadBills, billsPanel, bindBillsPanel } from './bills.js';
 
-const CATEGORIES = [['crew','Outside freelancers (not on a project Team tab)'],['equipment_hire','Equipment hire'],['transport','Transport and fuel'],['generator','Generator and power'],['internet','Internet and data'],['meals','Meals and refreshments'],['accommodation','Accommodation'],['repairs','Repairs and maintenance'],['consumables','Consumables (cards, batteries, tape)'],['other','Other']];
+const CATEGORIES = [['rent','Rent'],['utilities','Power and water'],['salaries','Staff salaries'],['subscriptions','Subscriptions and software'],['crew','Outside freelancers (not on a project Team tab)'],['equipment_hire','Equipment hire'],['transport','Transport and fuel'],['generator','Generator and power'],['internet','Internet and data'],['meals','Meals and refreshments'],['accommodation','Accommodation'],['repairs','Repairs and maintenance'],['consumables','Consumables (cards, batteries, tape)'],['other','Other']];
 let selected = null, month = today().slice(0, 7);
 
 function editor(x, ctx) {
@@ -19,17 +20,17 @@ async function draw(context) {
   const { client, host } = context;
   host.innerHTML = '<div class="module-loading">Loading expenses…</div>';
   try {
-    const [rows, jobs] = await Promise.all([listRows(client, 'expenses', 'incurred_on', false), listRows(client, 'jobs')]);
+    const [rows, jobs, bills] = await Promise.all([listRows(client, 'expenses', 'incurred_on', false), listRows(client, 'jobs'), loadBills(client)]);
     const ctx = { ...context, rows, jobs }; context.ctx = ctx;
     const inMonth = rows.filter(r => String(r.incurred_on).startsWith(month));
     const total = inMonth.filter(r => r.currency === 'UGX').reduce((s, r) => s + Number(r.amount), 0);
     const byCat = CATEGORIES.map(([k, l]) => [l, inMonth.filter(r => r.category === k && r.currency === 'UGX').reduce((s, r) => s + Number(r.amount), 0)]).filter(x => x[1] > 0).sort((a, b) => b[1] - a[1]);
     const cur = rows.find(r => r.id === selected);
     const jobName = id => jobs.find(j => j.id === id)?.reference || 'Overhead';
-    host.innerHTML = `<div class="module-toolbar"><div><strong>${money(total)} spent</strong><span>${byCat.slice(0, 3).map(([l, v]) => `${e(l)}: ${money(v)}`).join(' · ') || 'Nothing recorded this month'}</span></div><div><input type="month" class="mini wide" data-month value="${value(month)}"><button class="button primary" data-new>New expense</button></div></div>
+    host.innerHTML = `${billsPanel(bills)}<div class="module-toolbar"><div><strong>${money(total)} spent</strong><span>${byCat.slice(0, 3).map(([l, v]) => `${e(l)}: ${money(v)}`).join(' · ') || 'Nothing recorded this month'}</span></div><div><input type="month" class="mini wide" data-month value="${value(month)}"><button class="button primary" data-new>New expense</button></div></div>
      <div class="records-layout"><section class="record-list">${inMonth.length ? inMonth.map(r => `<button class="record-card${r.id === selected ? ' active' : ''}" data-row="${r.id}"><span><strong>${e(r.description)}</strong><small>${readable(r.incurred_on)} · ${e(jobName(r.job_id))} · ${e(CATEGORIES.find(c => c[0] === r.category)?.[1] || r.category)}</small></span><span><em class="status">${money(r.amount, r.currency)}</em></span></button>`).join('') : empty('No expenses for this month.')}</section>
      <section class="record-editor">${selected === 'new' ? editor(null, ctx) : cur ? editor(cur, ctx) : '<div class="select-prompt"><h2>Record every cost</h2><p>Link costs to a project so Tony can see the real profit on each production.</p></div>'}</section></div>`;
-    bind(context);
+    bind(context); if (bills) bindBillsPanel(host, client, bills, context.notify, () => draw(context));
   } catch (err) { context.ctx = null; host.innerHTML = `<div class="error-panel"><strong>Expenses could not be loaded.</strong><p>${e(err.message)}</p><button class="button secondary" data-retry>Try again</button></div>`; bind(context); }
 }
 function bind(context) {

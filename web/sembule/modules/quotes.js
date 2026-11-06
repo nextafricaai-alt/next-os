@@ -1,6 +1,7 @@
 // Quotes: price list, quote builder, quote settings, branded print view.
 // Money module: the Quotes route is visible to owner and director only (roles.js),
 // and the database enforces the same rule (RLS + guard_quote_line trigger).
+import { pickerHTML, bindPicker, SERVICE_CATEGORIES } from './servicepicker.js';
 import { inferServices } from './jobbrief.js';
 import { listRows, saveRow, deleteRow } from '../data.js';
 import { withTimeout } from '../utils.js';
@@ -25,7 +26,7 @@ async function acceptAndBook(client, q, ctx) {
   const date = pick.start, days = Math.round((new Date(pick.end) - new Date(pick.start)) / 864e5) + 1;
   const starts = new Date(`${date}T08:00:00+03:00`), ends = new Date(`${addDays(date, days - 1)}T18:00:00+03:00`);
   const first = ctx.lines[0];
-  const job = await insertWithRef(client, 'jobs', 'reference', 'SM', { client_id: q.client_id, lead_id: q.lead_id, title: `${c.organisation || c.name || 'Client'} · ${first.description}`, service_type: first.description, services: inferServices(ctx.lines.map(l => l.description).join(' ')), stage: 'Quoted', starts_at: starts.toISOString(), ends_at: ends.toISOString(), venue: lead?.venue || null, audience_size: lead?.audience_size ?? null, operational_brief: lead?.operational_brief || null });
+  const job = q.job_id ? { id: q.job_id } : await insertWithRef(client, 'jobs', 'reference', 'SM', { client_id: q.client_id, lead_id: q.lead_id, title: `${c.organisation || c.name || 'Client'} · ${first.description}`, service_type: first.description, services: inferServices(ctx.lines.map(l => l.description).join(' ')), stage: 'Quoted', starts_at: starts.toISOString(), ends_at: ends.toISOString(), venue: lead?.venue || null, audience_size: lead?.audience_size ?? null, operational_brief: lead?.operational_brief || null });
   await saveRow(client, 'quotes', { status: 'accepted', job_id: job.id }, q.id);
   const pre = addDays(date, -7) > today() ? addDays(date, -7) : today();
   const inv = await insertWithRef(client, 'invoices', 'reference', 'SMI', { job_id: job.id, client_id: q.client_id, quote_id: q.id, currency: q.currency, usd_to_ugx: q.usd_to_ugx, fx_as_of: q.fx_as_of, status: 'draft', booking_percent: q.booking_percent, preproduction_percent: q.preproduction_percent, completion_percent: q.completion_percent, booking_due_on: today(), preproduction_due_on: pre, completion_due_on: addDays(addDays(date, days - 1), 14) });
@@ -107,10 +108,10 @@ function linesPanel(q, ctx) {
      <div class="schedule">${[['booking_percent','To book'],['preproduction_percent','Before production'],['completion_percent','On completion']].map(([k, l]) => `<div><small>${l} (${Number(q[k])}%)</small><strong>${money(total * pct(k), q.currency)}</strong></div>`).join('')}</div>`
      : empty('No items yet. Add the first service below.')}
    <form id="line-form" class="record-form line-form"><div class="form-title span-2"><p class="eyebrow">ADD AN ITEM</p></div>
-     ${selectField('service', 'Service', '', [['', 'Choose a service']].concat(svcOpts))}${field('description', 'Description (optional)', '', {})}
+     ${pickerHTML(ctx.services)}${field('description', 'Item name on the quote', '', {})}
      ${field('quantity', 'Quantity', 1, { type: 'number', extra: 'min="0.001" step="any"' })}${field('days', 'Days', 1, { type: 'number', extra: 'min="0.5" step="any"' })}
      ${field('crew_count', 'Crew', '', { type: 'number', extra: 'min="0" step="1"' })}${field('location', 'Location', '', {})}
-     ${field('equipment_description', 'Equipment notes', '', {})}${owner ? field('price', 'Price per unit (custom or cost-plus lines, or a negotiated price)', '', { type: 'number', extra: 'min="0" step="any"' }) : ''}
+     ${field('equipment_description', 'What is included (shown to the client under the item)', '', {})}${owner ? field('price', 'Price per unit (custom or cost-plus lines, or a negotiated price)', '', { type: 'number', extra: 'min="0" step="any"' }) : ''}
      ${owner ? field('override_reason', 'Reason if you change a price', '', {}) : ''}
      <div class="form-actions span-2"><button class="button primary" type="submit">Add item</button></div></form>
    ${!owner ? '<p class="muted small-note">Only the owner can change prices. Ask Tony to approve a negotiated price.</p>' : ''}</section>`;
@@ -125,17 +126,18 @@ function quotesView(ctx) {
 }
 function pricesView(ctx) {
   const owner = ctx.identity.role === 'owner';
-  const rows = ctx.services;
+  const order = k => { const i = SERVICE_CATEGORIES.findIndex(c => c[0] === (k || 'extras')); return i < 0 ? 99 : i; };
+  const rows = [...ctx.services].sort((a, b) => order(a.category) - order(b.category) || (a.sort ?? 999) - (b.sort ?? 999) || a.name.localeCompare(b.name));
   const pending = rows.filter(s => s.price_status === 'suggested').length;
   return `<div class="module-toolbar"><div><strong>Price list</strong><span>${pending} suggested price${pending === 1 ? '' : 's'} still to confirm</span></div></div>
    <div class="table-wrap"><table class="data-table price-table"><thead><tr><th>Service</th><th>Unit</th><th>Price (UGX) / markup</th><th>What it covers</th><th>Status</th>${owner ? '<th></th>' : ''}</tr></thead><tbody>
-   ${rows.map(s => `<tr data-service="${s.id}"><td><strong>${e(s.name)}</strong>${s.active ? '' : '<small>Hidden from quotes</small>'}</td><td>${e(s.unit)}</td>
+   ${rows.map((s, i) => `${i === 0 || (rows[i - 1].category || 'extras') !== (s.category || 'extras') ? `<tr class="price-cat"><td colspan="${owner ? 6 : 5}">${e((SERVICE_CATEGORIES.find(c => c[0] === (s.category || 'extras')) || [0, 'Extras'])[1])}</td></tr>` : ''}<tr data-service="${s.id}"><td>${owner ? `<input class="mini wide" data-f="name" value="${value(s.name)}"><select class="mini-select" data-f="category">${SERVICE_CATEGORIES.map(([k, l]) => `<option value="${k}"${(s.category || 'extras') === k ? ' selected' : ''}>${e(l)}</option>`).join('')}</select>` : `<strong>${e(s.name)}</strong>`}${s.active ? '' : '<small>Hidden from quotes</small>'}</td><td>${e(s.unit)}</td>
      <td>${owner ? (s.pricing_method === 'fixed' ? `<input class="mini wide" data-f="starting_price_ugx" type="number" min="0" value="${value(s.starting_price_ugx)}">` : `<input class="mini" data-f="suggested_markup_percent" type="number" min="0" max="100" value="${value(s.suggested_markup_percent)}">%`) : (s.pricing_method === 'fixed' ? money(s.starting_price_ugx) : `cost + ${s.suggested_markup_percent}%`)}</td>
      <td>${owner ? `<textarea class="mini-area" data-f="scope_notes" rows="3">${value(s.scope_notes)}</textarea>` : `<small>${e(s.scope_notes)}</small>`}</td>
      <td>${s.price_status === 'suggested' ? '<em class="overdue">Suggested</em>' : '<em class="status">Confirmed</em>'}</td>
      ${owner ? `<td class="row-actions"><button class="text-button" data-save-service>Save</button>${s.price_status === 'suggested' ? '<button class="text-button" data-confirm-service>Confirm price</button>' : ''}<button class="text-button" data-toggle-service>${s.active ? 'Hide' : 'Show'}</button></td>` : ''}</tr>`).join('')}
    </tbody></table></div>
-   ${owner ? `<form id="service-form" class="record-form"><div class="form-title span-2"><p class="eyebrow">ADD A SERVICE</p></div>${field('name', 'Service name', '', { required: true })}${field('unit', 'Charged per (day, event, episode…)', 'day', { required: true })}${field('starting_price_ugx', 'Price (UGX)', '', { type: 'number', required: true, extra: 'min="0"' })}${field('price_basis', 'How this price was set', 'Set by owner', {})}${textArea('scope_notes', 'What it covers', '')}<div class="form-actions span-2"><button class="button primary" type="submit">Add service</button></div></form>` : '<p class="muted small-note">Only the owner can change the price list.</p>'}`;
+   ${owner ? `<form id="service-form" class="record-form"><div class="form-title span-2"><p class="eyebrow">ADD A SERVICE</p></div>${field('name', 'Service name', '', { required: true })}${selectField('category', 'Group', 'livestream', SERVICE_CATEGORIES)}${field('unit', 'Charged per (day, event, episode…)', 'day', { required: true })}${field('starting_price_ugx', 'Price (UGX)', '', { type: 'number', required: true, extra: 'min="0"' })}${field('price_basis', 'How this price was set', 'Set by owner', {})}${textArea('scope_notes', 'What it covers', '')}<div class="form-actions span-2"><button class="button primary" type="submit">Add service</button></div></form>` : '<p class="muted small-note">Only the owner can change the price list.</p>'}`;
 }
 function settingsView(ctx) {
   const fs = ctx.fs;
@@ -241,10 +243,17 @@ function bind(context) {
   });
 
   const lf = host.querySelector('#line-form');
+  if (lf) bindPicker(lf, ctx.services, s => {
+    lf.description.value = s ? s.name : '';
+    if (lf.equipment_description) lf.equipment_description.value = s ? (s.scope_notes || '') : '';
+    if (lf.price) { lf.price.value = ''; lf.price.placeholder = s && s.pricing_method === 'fixed' ? `${Number(s.starting_price_ugx).toLocaleString('en-GB')} (leave empty to keep)` : s ? 'Supplier cost per unit' : 'Price per unit'; }
+    (s ? lf.quantity : lf.description).focus();
+  });
   lf?.addEventListener('submit', ev => {
     ev.preventDefault(); const fd = new FormData(lf); const svcId = fd.get('service');
-    if (!svcId) { notify('Choose a service.'); return; }
-    const svc = ctx.services.find(s => s.id === svcId);
+    if (!svcId) { notify('Tap a package, or press + Item not in the list.'); return; }
+    const svc = svcId === '__custom' ? null : ctx.services.find(s => s.id === svcId);
+    if (!svc && ctx.identity.role !== 'owner') { notify('Only the owner can add an item that is not in the price list.'); return; }
     const price = num(fd.get('price'));
     const line = { quote_id: q.id, position: ctx.lines.reduce((m, l) => Math.max(m, l.position), 0) + 1, service_id: svc ? svc.id : null, description: txt(fd.get('description')) || svc?.name || 'Custom item', unit: svc?.unit || 'item', quantity: num(fd.get('quantity')) || 1, days: num(fd.get('days')) || 1, crew_count: num(fd.get('crew_count')), location: txt(fd.get('location')), equipment_description: txt(fd.get('equipment_description')), catalogue_unit_price: 0 };
     if (!svc || svc.pricing_method === 'cost_plus') {
@@ -276,12 +285,12 @@ function bind(context) {
 
   host.querySelectorAll('[data-service]').forEach(row => {
     const s = ctx.services.find(x => x.id === row.dataset.service); const get = f => row.querySelector(`[data-f="${f}"]`);
-    row.querySelector('[data-save-service]')?.addEventListener('click', () => { const v = { scope_notes: get('scope_notes').value.trim() || s.scope_notes, updated_at: new Date().toISOString() }; if (get('starting_price_ugx')) v.starting_price_ugx = num(get('starting_price_ugx').value); if (get('suggested_markup_percent')) v.suggested_markup_percent = num(get('suggested_markup_percent').value); run(() => saveRow(client, 'services', v, s.id), 'Price list updated.'); });
+    row.querySelector('[data-save-service]')?.addEventListener('click', () => { const v = { scope_notes: get('scope_notes').value.trim() || s.scope_notes, updated_at: new Date().toISOString() }; if (get('name') && get('name').value.trim()) v.name = get('name').value.trim(); if (get('category')) v.category = get('category').value; if (get('starting_price_ugx')) v.starting_price_ugx = num(get('starting_price_ugx').value); if (get('suggested_markup_percent')) v.suggested_markup_percent = num(get('suggested_markup_percent').value); run(() => saveRow(client, 'services', v, s.id), 'Price list updated.'); });
     row.querySelector('[data-confirm-service]')?.addEventListener('click', () => run(() => saveRow(client, 'services', { price_status: 'owner_confirmed', updated_at: new Date().toISOString() }, s.id), `${s.name} price confirmed.`));
     row.querySelector('[data-toggle-service]')?.addEventListener('click', () => run(() => saveRow(client, 'services', { active: !s.active }, s.id), s.active ? 'Hidden from new quotes.' : 'Shown in quotes again.'));
   });
   const sf = host.querySelector('#service-form');
-  sf?.addEventListener('submit', ev => { ev.preventDefault(); const fd = new FormData(sf); const name = fd.get('name').trim(); const code = name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '') + '_' + Date.now().toString(36).slice(-4); run(() => saveRow(client, 'services', { code, name, unit: fd.get('unit').trim(), pricing_method: 'fixed', starting_price_ugx: num(fd.get('starting_price_ugx')), price_status: 'owner_confirmed', scope_notes: txt(fd.get('scope_notes')) || name, price_basis: txt(fd.get('price_basis')) || 'Set by owner' }, null), 'Service added.'); });
+  sf?.addEventListener('submit', ev => { ev.preventDefault(); const fd = new FormData(sf); const name = fd.get('name').trim(); const code = name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '') + '_' + Date.now().toString(36).slice(-4); run(() => saveRow(client, 'services', { code, name, unit: fd.get('unit').trim(), pricing_method: 'fixed', starting_price_ugx: num(fd.get('starting_price_ugx')), price_status: 'owner_confirmed', scope_notes: txt(fd.get('scope_notes')) || name, price_basis: txt(fd.get('price_basis')) || 'Set by owner', category: fd.get('category') || 'extras' }, null), 'Service added.'); });
 
   const ff = host.querySelector('#fs-form');
   ff?.addEventListener('submit', ev => {
@@ -290,4 +299,6 @@ function bind(context) {
     run(async () => { const { error } = await withTimeout(client.from('finance_settings').upsert(v, { onConflict: 'id' })); if (error) throw new Error(error.message); }, 'Quote settings saved.');
   });
 }
-export async function mountQuotes(context) { selected = null; tab = 'quotes'; await draw(context); }
+let pendingQuote = null;
+export function openQuote(id) { pendingQuote = id; }
+export async function mountQuotes(context) { selected = pendingQuote || null; pendingQuote = null; tab = 'quotes'; await draw(context); }

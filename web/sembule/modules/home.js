@@ -6,6 +6,7 @@ import { e } from './records.js';
 import { money, readable } from '../refs.js';
 import { openJob } from './jobs.js';
 import { openInvoice } from './invoices.js';
+import { loadBills, billState, billLine } from './bills.js';
 
 const DAY = 864e5;
 async function view(client, name) { const { data, error } = await withTimeout(client.from(name).select('*')); if (error) throw new Error(error.message); return data || []; }
@@ -18,6 +19,7 @@ export async function mountDashboard(context) {
     const owner = identity.role === 'owner';
     const [leads, jobs, checkouts, equipment, invoices, balances, profit, payments, expenses, crewPay] = await Promise.all([listRows(client, 'leads'), listRows(client, 'jobs', 'starts_at', true), listRows(client, 'checkouts', 'due_back_at', true), listRows(client, 'equipment', 'name', true),
       m ? listRows(client, 'invoices') : [], m ? view(client, 'invoice_balances') : [], m ? view(client, 'job_profit') : [], m ? listRows(client, 'payments', 'paid_at', false) : [], m ? listRows(client, 'expenses', 'incurred_on', false) : [], m ? listRows(client, 'crew_pay', 'id', true) : []]);
+    const bills = m ? (await loadBills(client)) || [] : [];
     const now = Date.now();
     const openLead = l => !['booked', 'lost', 'unavailable'].includes(l.status);
     const followUps = leads.filter(l => openLead(l) && (l.next_action_at ? new Date(l.next_action_at) < now : l.status === 'new' && now - new Date(l.created_at) > DAY));
@@ -46,6 +48,7 @@ export async function mountDashboard(context) {
       ...overduePay.map(({ i, n }) => `<button class="alert red" data-inv="${i.id}"><b>Payment overdue</b>${e(i.reference)} · ${money(n.amount, i.currency)} since ${readable(n.due)}</button>`),
       ...overdueGear.map(c => `<a class="alert amber" href="#equipment"><b>Gear not returned</b>${e(equipment.find(x => x.id === c.equipment_id)?.name || 'Item')} with ${e(c.custodian_name)}</a>`),
       ...followUps.slice(0, 5).map(l => `<a class="alert amber" href="#leads"><b>Follow up</b>${e(l.contact_name)} · ${e(l.service_requested || '')}</a>`),
+      ...bills.filter(b => ['overdue', 'soon'].includes(billState(b))).map(b => `<a class="alert ${billState(b) === 'overdue' ? 'red' : 'amber'}" href="#expenses"><b>Bill ${billState(b) === 'overdue' ? 'overdue' : 'due soon'}</b>${e(b.name)} · ${money(b.amount)} · ${billLine(b)}</a>`),
       ...attention.slice(0, 3).map(i => `<a class="alert amber" href="#equipment"><b>Equipment needs attention</b>${e(i.name)} · ${e(i.condition)}</a>`)
     ];
     const action = (label, href, ic, attr = '') => `<a class="qa" href="${href}" ${attr}><span>${ic}</span>${label}</a>`;
